@@ -141,6 +141,64 @@ auto zip_error_text(int error_number) -> std::string {
     return "unknown zip error";
 }
 
+auto split_plain_text_paragraphs(std::string_view text) -> std::vector<std::string> {
+    std::vector<std::string> paragraphs;
+    std::size_t begin = 0U;
+    while (begin <= text.size()) {
+        const auto line_end = text.find('\n', begin);
+        const auto end = line_end == std::string_view::npos ? text.size() : line_end;
+
+        std::string paragraph_text(text.substr(begin, end - begin));
+        if (!paragraph_text.empty() && paragraph_text.back() == '\r') {
+            paragraph_text.pop_back();
+        }
+        paragraphs.push_back(std::move(paragraph_text));
+
+        if (line_end == std::string_view::npos) {
+            break;
+        }
+
+        begin = end + 1U;
+    }
+
+    if (paragraphs.empty()) {
+        paragraphs.emplace_back();
+    }
+
+    if (!text.empty() && (text.ends_with('\n') || text.ends_with('\r'))) {
+        while (paragraphs.size() > 1U && paragraphs.back().empty()) {
+            paragraphs.pop_back();
+        }
+    }
+
+    return paragraphs;
+}
+
+auto append_plain_text_paragraph(pugi::xml_node parent, std::string_view text) -> bool {
+    auto paragraph = featherdoc::detail::append_paragraph_node(parent);
+    if (paragraph == pugi::xml_node{}) {
+        return false;
+    }
+
+    if (text.empty()) {
+        return true;
+    }
+
+    auto run = paragraph.append_child("w:r");
+    if (run == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto text_node = run.append_child("w:t");
+    if (text_node == pugi::xml_node{}) {
+        return false;
+    }
+
+    const std::string paragraph_text(text);
+    featherdoc::detail::update_xml_space_attribute(text_node, paragraph_text.c_str());
+    return text_node.text().set(paragraph_text.c_str());
+}
+
 auto initialize_xml_document(pugi::xml_document &xml_document, std::string_view xml_text)
     -> bool {
     xml_document.reset();
@@ -2141,6 +2199,39 @@ Paragraph &Document::section_related_part_paragraphs(
     return this->detached_paragraph;
 }
 
+Document::xml_part_state *Document::section_related_part_state(
+    std::size_t section_index, featherdoc::section_reference_kind reference_kind,
+    std::vector<std::unique_ptr<xml_part_state>> &parts, const char *reference_name) {
+    const auto section_properties = this->section_properties(section_index);
+    if (section_properties == pugi::xml_node{}) {
+        return nullptr;
+    }
+
+    const auto xml_reference_type = featherdoc::to_xml_reference_type(reference_kind);
+    for (auto reference = section_properties.child(reference_name);
+         reference != pugi::xml_node{};
+         reference = reference.next_sibling(reference_name)) {
+        if (std::string_view{reference.attribute("w:type").value()} != xml_reference_type) {
+            continue;
+        }
+
+        const auto relationship_id = std::string_view{reference.attribute("r:id").value()};
+        if (relationship_id.empty()) {
+            return nullptr;
+        }
+
+        for (auto &part : parts) {
+            if (part->relationship_id == relationship_id) {
+                return part.get();
+            }
+        }
+
+        return nullptr;
+    }
+
+    return nullptr;
+}
+
 Paragraph &Document::section_header_paragraphs(
     std::size_t section_index, featherdoc::section_reference_kind reference_kind) {
     return this->section_related_part_paragraphs(
@@ -3187,6 +3278,90 @@ bool Document::copy_section_footer_references(std::size_t source_section_index,
                                               std::size_t target_section_index) {
     return this->copy_section_related_part_references(
         source_section_index, target_section_index, "w:footerReference");
+}
+
+bool Document::replace_section_header_text(
+    std::size_t section_index, std::string_view replacement_text,
+    featherdoc::section_reference_kind reference_kind) {
+    this->ensure_section_header_paragraphs(section_index, reference_kind);
+
+    auto *part = this->section_related_part_state(section_index, reference_kind,
+                                                  this->header_parts,
+                                                  "w:headerReference");
+    if (part == nullptr) {
+        if (!this->last_error_info) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "failed to resolve the requested section header part",
+                           std::string{document_xml_entry});
+        }
+        return false;
+    }
+
+    auto root = part->xml.child("w:hdr");
+    if (root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::related_part_parse_failed,
+                       "header part does not contain the expected w:hdr root",
+                       part->entry_name);
+        return false;
+    }
+
+    root.remove_children();
+    for (const auto &paragraph_text : split_plain_text_paragraphs(replacement_text)) {
+        if (!append_plain_text_paragraph(root, paragraph_text)) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to rebuild the requested section header paragraphs",
+                           part->entry_name);
+            return false;
+        }
+    }
+
+    part->paragraph.set_parent(root);
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::replace_section_footer_text(
+    std::size_t section_index, std::string_view replacement_text,
+    featherdoc::section_reference_kind reference_kind) {
+    this->ensure_section_footer_paragraphs(section_index, reference_kind);
+
+    auto *part = this->section_related_part_state(section_index, reference_kind,
+                                                  this->footer_parts,
+                                                  "w:footerReference");
+    if (part == nullptr) {
+        if (!this->last_error_info) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "failed to resolve the requested section footer part",
+                           std::string{document_xml_entry});
+        }
+        return false;
+    }
+
+    auto root = part->xml.child("w:ftr");
+    if (root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::related_part_parse_failed,
+                       "footer part does not contain the expected w:ftr root",
+                       part->entry_name);
+        return false;
+    }
+
+    root.remove_children();
+    for (const auto &paragraph_text : split_plain_text_paragraphs(replacement_text)) {
+        if (!append_plain_text_paragraph(root, paragraph_text)) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to rebuild the requested section footer paragraphs",
+                           part->entry_name);
+            return false;
+        }
+    }
+
+    part->paragraph.set_parent(root);
+    this->last_error_info.clear();
+    return true;
 }
 
 Paragraph &Document::ensure_header_paragraphs() {

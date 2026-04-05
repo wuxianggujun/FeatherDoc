@@ -185,6 +185,9 @@ class Document {
         std::size_t section_index, featherdoc::section_reference_kind reference_kind,
         std::vector<std::unique_ptr<xml_part_state>> &parts, const char *reference_name,
         const char *part_root_name);
+    [[nodiscard]] xml_part_state *section_related_part_state(
+        std::size_t section_index, featherdoc::section_reference_kind reference_kind,
+        std::vector<std::unique_ptr<xml_part_state>> &parts, const char *reference_name);
     Paragraph &ensure_section_related_part_paragraphs(
         std::size_t section_index, featherdoc::section_reference_kind reference_kind,
         std::vector<std::unique_ptr<xml_part_state>> &parts, const char *part_root_name,
@@ -293,6 +296,14 @@ class Document {
                                                       std::size_t target_section_index);
     [[nodiscard]] bool copy_section_footer_references(std::size_t source_section_index,
                                                       std::size_t target_section_index);
+    [[nodiscard]] bool replace_section_header_text(
+        std::size_t section_index, std::string_view replacement_text,
+        featherdoc::section_reference_kind reference_kind =
+            featherdoc::section_reference_kind::default_reference);
+    [[nodiscard]] bool replace_section_footer_text(
+        std::size_t section_index, std::string_view replacement_text,
+        featherdoc::section_reference_kind reference_kind =
+            featherdoc::section_reference_kind::default_reference);
     Paragraph &ensure_header_paragraphs();
     Paragraph &ensure_footer_paragraphs();
     [[nodiscard]] std::size_t replace_bookmark_text(const std::string &bookmark_name,

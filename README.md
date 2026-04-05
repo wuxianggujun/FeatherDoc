@@ -44,12 +44,20 @@ featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx
 featherdoc_cli copy-section-layout input.docx 0 2 --output copied.docx
 featherdoc_cli move-section input.docx 2 0 --output reordered.docx
 featherdoc_cli remove-section input.docx 3 --output trimmed.docx
+featherdoc_cli show-section-header input.docx 1 --kind even
+featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx
+featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt
 ```
 
 `inspect-sections` prints the current section count together with per-section
 header/footer attachment flags for `default`, `first`, and `even` references.
 The mutating commands save in place by default; pass `--output <path>` to write
 to a separate `.docx`.
+
+`show-section-header` / `show-section-footer` print the referenced paragraphs
+one line per paragraph. `set-section-header` / `set-section-footer` rewrite the
+target part as plain paragraphs from `--text` or `--text-file`, and create the
+requested section reference automatically when it does not exist yet.
 
 ## Install
 
@@ -295,6 +303,18 @@ references are removed automatically.
 ```cpp
 doc.copy_section_header_references(0, 1);
 doc.copy_section_footer_references(0, 1);
+```
+
+Use `replace_section_header_text(section_index, replacement, kind)` and
+`replace_section_footer_text(section_index, replacement, kind)` when you want
+to rewrite a section-specific header/footer as plain paragraph text in one step.
+The replacement text is split on newlines, and the requested reference is
+created automatically when it is missing.
+
+```cpp
+doc.replace_section_header_text(0, "Title line\nSubtitle line");
+doc.replace_section_footer_text(
+    0, "First page footer", featherdoc::section_reference_kind::first_page);
 ```
 
 Use `append_section(inherit_header_footer)` to append a new final section at the

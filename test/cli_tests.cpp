@@ -83,6 +83,18 @@ auto read_text_file(const fs::path &path) -> std::string {
                        std::istreambuf_iterator<char>());
 }
 
+auto collect_part_lines(featherdoc::Paragraph paragraph) -> std::vector<std::string> {
+    std::vector<std::string> lines;
+    for (; paragraph.has_next(); paragraph.next()) {
+        std::string text;
+        for (auto run = paragraph.runs(); run.has_next(); run.next()) {
+            text += run.get_text();
+        }
+        lines.push_back(std::move(text));
+    }
+    return lines;
+}
+
 auto collect_non_empty_document_text(featherdoc::Document &document) -> std::string {
     std::ostringstream stream;
     for (auto paragraph = document.paragraphs(); paragraph.has_next(); paragraph.next()) {
@@ -288,4 +300,74 @@ TEST_CASE("cli section commands modify layout end to end") {
     remove_if_exists(moved);
     remove_if_exists(removed);
     remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli can show and replace section header footer text") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_section_text_source.docx";
+    const fs::path header_output = working_directory / "cli_section_header.txt";
+    const fs::path text_source = working_directory / "cli_section_text_input.txt";
+    const fs::path header_updated = working_directory / "cli_section_header_updated.docx";
+    const fs::path shown_even_header = working_directory / "cli_section_even_header.txt";
+    const fs::path footer_updated = working_directory / "cli_section_footer_updated.docx";
+    const fs::path shown_footer = working_directory / "cli_section_footer.txt";
+
+    remove_if_exists(source);
+    remove_if_exists(header_output);
+    remove_if_exists(text_source);
+    remove_if_exists(header_updated);
+    remove_if_exists(shown_even_header);
+    remove_if_exists(footer_updated);
+    remove_if_exists(shown_footer);
+
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"show-section-header", source.string(), "1"}, header_output), 0);
+    CHECK_EQ(read_text_file(header_output), std::string("section 1 header\n"));
+
+    {
+        std::ofstream stream(text_source);
+        REQUIRE(stream.good());
+        stream << "alpha\nbeta\n";
+    }
+
+    CHECK_EQ(run_cli({"set-section-header", source.string(), "2", "--kind", "even",
+                      "--text-file", text_source.string(), "--output",
+                      header_updated.string()}),
+             0);
+    CHECK_EQ(run_cli({"show-section-header", header_updated.string(), "2", "--kind",
+                      "even"},
+                     shown_even_header),
+             0);
+    CHECK_EQ(read_text_file(shown_even_header), std::string("alpha\nbeta\n"));
+
+    featherdoc::Document header_doc(header_updated);
+    REQUIRE_FALSE(header_doc.open());
+    CHECK_EQ(collect_part_lines(header_doc.section_header_paragraphs(
+                 2, featherdoc::section_reference_kind::even_page)),
+             std::vector<std::string>({"alpha", "beta"}));
+
+    CHECK_EQ(run_cli({"set-section-footer", header_updated.string(), "0", "--text",
+                      "front footer", "--output", footer_updated.string()}),
+             0);
+    CHECK_EQ(run_cli({"show-section-footer", footer_updated.string(), "0"},
+                     shown_footer),
+             0);
+    CHECK_EQ(read_text_file(shown_footer), std::string("front footer\n"));
+
+    featherdoc::Document footer_doc(footer_updated);
+    REQUIRE_FALSE(footer_doc.open());
+    CHECK_EQ(collect_part_lines(footer_doc.section_footer_paragraphs(0)),
+             std::vector<std::string>({"front footer"}));
+    CHECK_EQ(collect_part_lines(footer_doc.section_header_paragraphs(
+                 2, featherdoc::section_reference_kind::even_page)),
+             std::vector<std::string>({"alpha", "beta"}));
+
+    remove_if_exists(source);
+    remove_if_exists(header_output);
+    remove_if_exists(text_source);
+    remove_if_exists(header_updated);
+    remove_if_exists(shown_even_header);
+    remove_if_exists(footer_updated);
+    remove_if_exists(shown_footer);
 }

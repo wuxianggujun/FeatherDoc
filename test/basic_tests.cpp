@@ -1324,6 +1324,60 @@ TEST_CASE("ensure section header and footer paragraphs create references for a s
     fs::remove(target);
 }
 
+TEST_CASE("replace section header and footer text rewrites parts cleanly") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "replace_section_header_footer_text.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK(doc.replace_section_header_text(0, "old header\nold second line"));
+    CHECK(doc.replace_section_header_text(0, "new header"));
+    CHECK(doc.replace_section_header_text(
+        0, "even header", featherdoc::section_reference_kind::even_page));
+    CHECK(doc.replace_section_footer_text(
+        0, " first footer ", featherdoc::section_reference_kind::first_page));
+    CHECK_FALSE(doc.save());
+
+    auto collect_section_part_lines =
+        [](featherdoc::Paragraph paragraph) -> std::vector<std::string> {
+        std::vector<std::string> lines;
+        for (; paragraph.has_next(); paragraph.next()) {
+            std::string text;
+            for (auto run = paragraph.runs(); run.has_next(); run.next()) {
+                text += run.get_text();
+            }
+            lines.push_back(std::move(text));
+        }
+        return lines;
+    };
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(reopened.section_count(), 1);
+    CHECK_EQ(reopened.header_count(), 2);
+    CHECK_EQ(reopened.footer_count(), 1);
+    CHECK_EQ(collect_section_part_lines(reopened.section_header_paragraphs(0)),
+             std::vector<std::string>{"new header"});
+    CHECK_EQ(collect_section_part_lines(reopened.section_header_paragraphs(
+                 0, featherdoc::section_reference_kind::even_page)),
+             std::vector<std::string>{"even header"});
+    CHECK_EQ(collect_section_part_lines(reopened.section_footer_paragraphs(
+                 0, featherdoc::section_reference_kind::first_page)),
+             std::vector<std::string>{" first footer "});
+
+    const auto saved_settings_xml = read_test_docx_entry(target, "word/settings.xml");
+    CHECK_NE(saved_settings_xml.find("w:evenAndOddHeaders"), std::string::npos);
+
+    featherdoc::Document invalid(target);
+    CHECK_FALSE(invalid.replace_section_header_text(0, "missing"));
+    CHECK_EQ(invalid.last_error().code, featherdoc::document_errc::document_not_open);
+
+    fs::remove(target);
+}
+
 TEST_CASE("ensure section header and footer paragraphs create references per section") {
     namespace fs = std::filesystem;
 

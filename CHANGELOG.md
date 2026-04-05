@@ -44,6 +44,12 @@ performance.
 - `featherdoc_cli` with `inspect-sections`, `insert-section`, `remove-section`,
   `move-section`, and `copy-section-layout` commands for minimal section layout
   inspection and editing from the command line.
+- `replace_section_header_text()` / `replace_section_footer_text()` for
+  rewriting one section-specific header/footer part as plain paragraphs,
+  creating the requested reference when needed.
+- `featherdoc_cli` `show-section-header`, `show-section-footer`,
+  `set-section-header`, and `set-section-footer` commands for section-level
+  text inspection and replacement.
 - Automatic `w:titlePg` / `w:evenAndOddHeaders` enablement plus
   `word/settings.xml` read/write support when first-page or even-page
   header/footer references are created.
