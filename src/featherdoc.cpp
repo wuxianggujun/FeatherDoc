@@ -537,8 +537,11 @@ std::error_code featherdoc::Document::open() {
     zip_entry_close(zip);
     zip_close(zip);
 
-    const auto parse_result =
-        this->document.load_buffer_inplace_own(buf, bufsize);
+    // Keep zip-owned buffers on the zip side to avoid allocator/ABI mismatches
+    // when FeatherDoc is consumed through shared-library boundaries.
+    const auto parse_result = this->document.load_buffer(buf, bufsize);
+    std::free(buf);
+    buf = nullptr;
 
     this->flag_is_open = static_cast<bool>(parse_result);
     if (!this->flag_is_open) {

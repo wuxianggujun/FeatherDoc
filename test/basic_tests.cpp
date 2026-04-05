@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <system_error>
+#include <unordered_set>
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -41,6 +42,44 @@ constexpr auto test_content_types_xml =
             ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
 </Types>
 )";
+
+std::unordered_set<void *> tracked_pugi_allocations;
+bool saw_unexpected_pugi_deallocation = false;
+
+auto tracked_pugi_allocate(std::size_t size) -> void * {
+    void *ptr = std::malloc(size);
+    if (ptr != nullptr) {
+        tracked_pugi_allocations.insert(ptr);
+    }
+    return ptr;
+}
+
+auto tracked_pugi_deallocate(void *ptr) -> void {
+    if (ptr == nullptr) {
+        return;
+    }
+
+    if (tracked_pugi_allocations.erase(ptr) == 0U) {
+        saw_unexpected_pugi_deallocation = true;
+    }
+
+    std::free(ptr);
+}
+
+struct pugi_memory_management_guard final {
+    pugi::allocation_function allocation{};
+    pugi::deallocation_function deallocation{};
+
+    pugi_memory_management_guard()
+        : allocation(pugi::get_memory_allocation_function()),
+          deallocation(pugi::get_memory_deallocation_function()) {}
+
+    ~pugi_memory_management_guard() {
+        pugi::set_memory_management_functions(this->allocation, this->deallocation);
+        tracked_pugi_allocations.clear();
+        saw_unexpected_pugi_deallocation = false;
+    }
+};
 
 auto collect_document_text(featherdoc::Document &doc) -> std::string {
     std::ostringstream stream;
@@ -162,6 +201,40 @@ TEST_CASE("open reports explicit errors for empty path and invalid archive") {
     CHECK_FALSE(invalid_doc.is_open());
 
     fs::remove(invalid_path);
+}
+
+TEST_CASE("open keeps zip buffers out of pugixml-owned deallocation paths") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "allocator_boundary_regression.docx";
+    fs::remove(target);
+
+    write_test_docx(
+        target,
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>allocator safety</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)");
+
+    pugi_memory_management_guard guard;
+    tracked_pugi_allocations.clear();
+    saw_unexpected_pugi_deallocation = false;
+    pugi::set_memory_management_functions(tracked_pugi_allocate, tracked_pugi_deallocate);
+
+    {
+        featherdoc::Document doc(target);
+        CHECK_FALSE(doc.open());
+        CHECK(doc.is_open());
+        CHECK_EQ(collect_document_text(doc), "allocator safety\n");
+    }
+
+    CHECK_FALSE(saw_unexpected_pugi_deallocation);
+    CHECK(tracked_pugi_allocations.empty());
+
+    fs::remove(target);
 }
 
 TEST_CASE("open reports a missing document XML entry for non-docx zip archives") {
