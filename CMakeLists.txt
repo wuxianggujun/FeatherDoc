@@ -26,6 +26,7 @@ set(HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc_iterator.hpp"
 )
 set(SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/constants.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/featherdoc.cpp"
 )
 
@@ -48,6 +49,19 @@ set(THIRD_PARTY_SRC
 add_library(FeatherDoc ${SOURCES} ${THIRD_PARTY_SRC})
 add_library(FeatherDoc::FeatherDoc ALIAS FeatherDoc)
 
+function(featherdoc_copy_runtime_dlls target_name)
+    if(WIN32 AND BUILD_SHARED_LIBS)
+        add_custom_command(
+            TARGET ${target_name}
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:${target_name}>
+                $<TARGET_FILE_DIR:${target_name}>
+            COMMAND_EXPAND_LISTS
+        )
+    endif()
+endfunction()
+
 target_compile_features(FeatherDoc PUBLIC cxx_std_20)
 set_target_properties(FeatherDoc PROPERTIES
     CXX_EXTENSIONS NO
@@ -56,6 +70,10 @@ set_target_properties(FeatherDoc PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
 )
+
+if(WIN32)
+    set_target_properties(FeatherDoc PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 
 target_include_directories(FeatherDoc
     PUBLIC
@@ -81,9 +99,11 @@ endif()
 if(BUILD_SAMPLES)
     add_executable(featherdoc_sample1 samples/sample1.cpp)
     target_link_libraries(featherdoc_sample1 PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample1)
 
     add_executable(featherdoc_sample2 samples/sample2.cpp)
     target_link_libraries(featherdoc_sample2 PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample2)
 
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/my_test.docx
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

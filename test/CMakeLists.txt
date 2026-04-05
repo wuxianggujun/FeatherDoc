@@ -7,6 +7,7 @@ target_link_libraries(
     unit_tests
     PRIVATE FeatherDoc::FeatherDoc
 )
+featherdoc_copy_runtime_dlls(unit_tests)
 
 add_test(
     NAME
@@ -24,6 +25,7 @@ target_link_libraries(
     iterator_tests
     PRIVATE FeatherDoc::FeatherDoc
 )
+featherdoc_copy_runtime_dlls(iterator_tests)
 
 add_test(
     NAME
