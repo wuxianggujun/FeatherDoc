@@ -27,11 +27,33 @@ performance.
 - Formatting flags now use `enum class`.
 - Installed package metadata now includes legal and project-facing repository
   files under `share/FeatherDoc`.
+- README and Sphinx docs now document the current unsupported feature surface
+  more explicitly, including encrypted `.docx`, header/footer APIs, equations,
+  table creation, and bookmark-targeted replacement.
+
+### Fixed
+
+- `open()` now preserves a single custom `std::error_category` instance across
+  Windows shared-library boundaries, so `document_errc` compares correctly in
+  MSVC DLL builds.
+- Windows shared builds now export/link correctly and copy runtime DLLs next to
+  tests and samples, allowing MSVC `ctest` runs to execute without missing-DLL
+  failures.
+- `open()` now supports reading `.docx` files while Microsoft Word keeps the
+  source file open on Windows.
+- Paragraph and run traversal now stay on matching WordprocessingML siblings
+  instead of drifting into unrelated nodes.
+- Appending a paragraph to `w:body` now inserts it before `w:sectPr`, which
+  avoids invalid document ordering and fixes `insert_paragraph_after()` save
+  regressions.
+- `open()` now reports password-protected or encrypted `.docx` files through an
+  explicit FeatherDoc error code instead of a generic XML read failure.
 
 ### Performance
 
-- `open()` now parses `word/document.xml` in-place through `pugixml` buffer
-  ownership transfer.
+- `open()` now keeps ZIP-owned XML buffers on the FeatherDoc side before
+  parsing, which avoids cross-library allocator mismatches in shared-library
+  builds.
 - `save()` / `save_as()` now stream `document.xml` and copy ZIP entries
   chunk-by-chunk instead of materializing whole archive entries in memory.
 

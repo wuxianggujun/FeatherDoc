@@ -228,8 +228,8 @@ cloc 代码量统计
 5. 当前版本已经用 MSVC 工具链完成配置、构建与测试验证。
 6. vendored 依赖已更新到 ``pugixml 1.15``、``kuba--/zip 0.3.8``、
    ``doctest 2.5.1``。
-7. ``Document::open()`` 已改为让 ``pugixml`` 直接接管解压后的 XML 缓冲区，
-   避免一次额外拷贝。
+7. ``Document::open()`` 现在会先在 FeatherDoc 侧持有解压后的 XML 缓冲区，
+   再交给 ``pugixml`` 解析，避免 Windows shared-library 场景下的分配器边界问题。
 8. ``Document::save()`` 已改为流式写入 ``document.xml``，并对原归档中的
    其他 entry 做分块复制，不再把每个 entry 整块读入堆内存后再写回。
 9. ``Document::open()`` / ``save()`` 已进一步升级为返回
@@ -243,7 +243,12 @@ cloc 代码量统计
 12. 已新增 ``create_empty()``，支持不依赖现成模板文档、直接从零创建
     最小合法 ``.docx`` 包并保存。
 13. 对外文档与许可口径已统一为“fork 新增部分采用非商用源码可见条款，
-    上游 DuckX 继承部分保留 MIT 原文说明”，避免继续误称为纯 MIT 开源项目。
+     上游 DuckX 继承部分保留 MIT 原文说明”，避免继续误称为纯 MIT 开源项目。
+14. 已修复 Windows shared build 下自定义 ``std::error_code`` 类别实例不一致、
+    sample / test 缺失运行时 DLL、以及 Word 独占源文件时无法打开等问题。
+15. 已补齐多组回归测试，覆盖绝对路径、非 docx ZIP、表格文本遍历、
+    ``xml:space`` 保留、``insert_paragraph_after()`` 保存回归、
+    共享库分配器边界问题、加密 ``.docx`` 显式报错等场景。
 
 
 结论
