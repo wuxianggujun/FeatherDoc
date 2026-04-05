@@ -164,6 +164,38 @@ TEST_CASE("open reports explicit errors for empty path and invalid archive") {
     fs::remove(invalid_path);
 }
 
+TEST_CASE("open reports a missing document XML entry for non-docx zip archives") {
+    namespace fs = std::filesystem;
+
+    const fs::path archive_path = fs::current_path() / "not_a_word_document.docx";
+    fs::remove(archive_path);
+
+    int zip_error = 0;
+    zip_t *zip = zip_openwitherror(archive_path.string().c_str(),
+                                   ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                   &zip_error);
+    REQUIRE(zip != nullptr);
+
+    constexpr auto placeholder_entry = "payload.txt";
+    constexpr auto placeholder_text = "plain zip content";
+    REQUIRE_EQ(zip_entry_open(zip, placeholder_entry), 0);
+    REQUIRE_GE(zip_entry_write(zip, placeholder_text,
+                               std::strlen(placeholder_text)),
+               0);
+    REQUIRE_EQ(zip_entry_close(zip), 0);
+    zip_close(zip);
+
+    featherdoc::Document doc(archive_path);
+    CHECK_EQ(doc.open(), featherdoc::document_errc::document_xml_open_failed);
+    CHECK_EQ(doc.last_error().code,
+             featherdoc::document_errc::document_xml_open_failed);
+    CHECK_EQ(doc.last_error().entry_name, "word/document.xml");
+    CHECK_FALSE(doc.last_error().detail.empty());
+    CHECK_FALSE(doc.is_open());
+
+    fs::remove(archive_path);
+}
+
 TEST_CASE("open exposes malformed XML context") {
     namespace fs = std::filesystem;
 
