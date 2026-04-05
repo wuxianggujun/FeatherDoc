@@ -176,6 +176,21 @@ Current Limitations
   new tables programmatically yet.
 - Bookmark-targeted batch replacement is not exposed as a dedicated API yet.
 
+Source Layout
+-------------
+The core implementation is now split into smaller source files instead of
+staying in one large translation unit:
+
+- ``src/document.cpp``: ``Document`` open/save flow, ZIP archive handling, and diagnostics
+- ``src/paragraph.cpp``: paragraph traversal, run creation, and paragraph insertion
+- ``src/run.cpp``: run traversal and text read/write behavior
+- ``src/table.cpp``: table, row, and cell traversal helpers
+- ``src/xml_helpers.cpp`` / ``src/xml_helpers.hpp``: shared internal XML helper utilities
+- ``src/constants.cpp``: exported constants and error-category plumbing
+
+This keeps archive I/O, XML navigation, and public API behavior easier to
+extend independently.
+
 Bundled Dependencies
 --------------------
 - ``pugixml`` ``1.15``

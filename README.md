@@ -188,6 +188,21 @@ if (const auto error = doc.save()) {
   new tables programmatically yet.
 - Bookmark-targeted batch replacement is not exposed as a dedicated API yet.
 
+## Source Layout
+
+The core implementation is now split into focused translation units instead of
+living in a single large `.cpp` file:
+
+- `src/document.cpp`: `Document` open/save flow, archive handling, and error reporting
+- `src/paragraph.cpp`: paragraph traversal, run creation, and paragraph insertion
+- `src/run.cpp`: run traversal and text read/write behavior
+- `src/table.cpp`: table, row, and cell traversal helpers
+- `src/xml_helpers.cpp` / `src/xml_helpers.hpp`: internal XML helper utilities shared by the modules
+- `src/constants.cpp`: exported constants and error-category plumbing
+
+This layout keeps archive I/O, XML navigation, and public API objects easier to
+reason about and extend independently.
+
 ## Bundled Dependencies
 
 - `pugixml` `1.15`
