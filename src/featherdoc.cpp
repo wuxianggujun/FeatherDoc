@@ -49,6 +49,33 @@ constexpr auto minimal_docx_entries = std::array{
     packaged_entry{relationships_xml_entry, relationships_xml},
 };
 
+auto should_preserve_xml_space(const char *text) -> bool {
+    if (text == nullptr || *text == '\0') {
+        return false;
+    }
+
+    const auto text_length = std::strlen(text);
+    return std::isspace(static_cast<unsigned char>(text[0])) != 0 ||
+           std::isspace(static_cast<unsigned char>(text[text_length - 1])) != 0;
+}
+
+auto update_xml_space_attribute(pugi::xml_node text_node, const char *text) -> void {
+    if (text_node == pugi::xml_node{}) {
+        return;
+    }
+
+    if (should_preserve_xml_space(text)) {
+        auto xml_space = text_node.attribute("xml:space");
+        if (xml_space == pugi::xml_attribute{}) {
+            xml_space = text_node.append_attribute("xml:space");
+        }
+        xml_space.set_value("preserve");
+        return;
+    }
+
+    text_node.remove_attribute("xml:space");
+}
+
 [[nodiscard]] auto is_space(char ch) -> bool {
     return std::isspace(static_cast<unsigned char>(ch)) != 0;
 }
@@ -143,11 +170,21 @@ std::string featherdoc::Run::get_text() const {
 }
 
 bool featherdoc::Run::set_text(const std::string &text) const {
-    return this->current.child("w:t").text().set(text.c_str());
+    return this->set_text(text.c_str());
 }
 
 bool featherdoc::Run::set_text(const char *text) const {
-    return this->current.child("w:t").text().set(text);
+    if (text == nullptr) {
+        return false;
+    }
+
+    auto text_node = this->current.child("w:t");
+    if (text_node == pugi::xml_node{}) {
+        return false;
+    }
+
+    update_xml_space_attribute(text_node, text);
+    return text_node.text().set(text);
 }
 
 featherdoc::Run &featherdoc::Run::next() {
@@ -285,6 +322,10 @@ featherdoc::Run featherdoc::Paragraph::add_run(const std::string &text,
 
 featherdoc::Run featherdoc::Paragraph::add_run(const char *text,
                                                featherdoc::formatting_flag f) {
+    if (this->current == pugi::xml_node{} && this->parent != pugi::xml_node{}) {
+        this->current = this->parent.append_child("w:p");
+    }
+
     pugi::xml_node new_run = this->current.append_child("w:r");
     pugi::xml_node meta = new_run.append_child("w:rPr");
 
@@ -322,9 +363,7 @@ featherdoc::Run featherdoc::Paragraph::add_run(const char *text,
             .set_value("true");
 
     pugi::xml_node new_run_text = new_run.append_child("w:t");
-    if (*text != '\0' && (is_space(text[0]) || is_space(text[std::strlen(text) - 1]))) {
-        new_run_text.append_attribute("xml:space").set_value("preserve");
-    }
+    update_xml_space_attribute(new_run_text, text);
     new_run_text.text().set(text);
 
     return Run(this->current, new_run);
@@ -333,8 +372,12 @@ featherdoc::Run featherdoc::Paragraph::add_run(const char *text,
 featherdoc::Paragraph
 featherdoc::Paragraph::insert_paragraph_after(const std::string &text,
                                               featherdoc::formatting_flag f) {
-    pugi::xml_node new_para =
-        this->parent.insert_child_after("w:p", this->current);
+    pugi::xml_node new_para;
+    if (this->current == pugi::xml_node{}) {
+        new_para = this->parent.append_child("w:p");
+    } else {
+        new_para = this->parent.insert_child_after("w:p", this->current);
+    }
 
     Paragraph paragraph(this->parent, new_para);
     paragraph.add_run(text, f);

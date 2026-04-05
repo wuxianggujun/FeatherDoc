@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -8,6 +10,28 @@
 #include <featherdoc.hpp>
 
 namespace {
+constexpr auto test_document_xml_entry = "word/document.xml";
+constexpr auto test_relationships_xml_entry = "_rels/.rels";
+constexpr auto test_content_types_xml_entry = "[Content_Types].xml";
+constexpr auto test_relationships_xml =
+    R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+constexpr auto test_content_types_xml =
+    R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+)";
+
 auto collect_document_text(featherdoc::Document &doc) -> std::string {
     std::ostringstream stream;
     for (featherdoc::Paragraph paragraph = doc.paragraphs(); paragraph.has_next();
@@ -18,6 +42,62 @@ auto collect_document_text(featherdoc::Document &doc) -> std::string {
         stream << '\n';
     }
     return stream.str();
+}
+
+auto write_test_docx(const std::filesystem::path &path, const std::string &document_xml)
+    -> void {
+    int zip_error = 0;
+    zip_t *zip = zip_openwitherror(path.string().c_str(),
+                                   ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                   &zip_error);
+    REQUIRE(zip != nullptr);
+
+    REQUIRE_EQ(zip_entry_open(zip, test_content_types_xml_entry), 0);
+    REQUIRE_GE(zip_entry_write(zip, test_content_types_xml,
+                               std::strlen(test_content_types_xml)),
+               0);
+    REQUIRE_EQ(zip_entry_close(zip), 0);
+
+    REQUIRE_EQ(zip_entry_open(zip, test_relationships_xml_entry), 0);
+    REQUIRE_GE(zip_entry_write(zip, test_relationships_xml,
+                               std::strlen(test_relationships_xml)),
+               0);
+    REQUIRE_EQ(zip_entry_close(zip), 0);
+
+    REQUIRE_EQ(zip_entry_open(zip, test_document_xml_entry), 0);
+    REQUIRE_GE(zip_entry_write(zip, document_xml.data(), document_xml.size()), 0);
+    REQUIRE_EQ(zip_entry_close(zip), 0);
+
+    zip_close(zip);
+}
+
+auto read_test_docx_entry(const std::filesystem::path &path, const char *entry_name)
+    -> std::string {
+    int zip_error = 0;
+    zip_t *zip = zip_openwitherror(path.string().c_str(),
+                                   ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
+                                   &zip_error);
+    CHECK(zip != nullptr);
+    if (zip == nullptr) {
+        return {};
+    }
+    CHECK_EQ(zip_entry_open(zip, entry_name), 0);
+
+    void *buffer = nullptr;
+    size_t buffer_size = 0;
+    CHECK_GE(zip_entry_read(zip, &buffer, &buffer_size), 0);
+    if (buffer == nullptr) {
+        zip_entry_close(zip);
+        zip_close(zip);
+        return {};
+    }
+
+    std::string content(static_cast<const char *>(buffer), buffer_size);
+    std::free(buffer);
+
+    CHECK_EQ(zip_entry_close(zip), 0);
+    zip_close(zip);
+    return content;
 }
 } // namespace
 
@@ -222,4 +302,94 @@ TEST_CASE("save_as rejects an empty output path") {
     CHECK_EQ(doc.save_as({}), featherdoc::document_errc::empty_path);
     CHECK_EQ(doc.last_error().code, featherdoc::document_errc::empty_path);
     CHECK_FALSE(doc.last_error().detail.empty());
+}
+
+TEST_CASE("set_text preserves xml:space when leading or trailing spaces exist") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "preserve_spaces.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+    doc.paragraphs().add_run("marker");
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto paragraph = reopened.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.runs();
+    REQUIRE(run.has_next());
+    CHECK(run.set_text("  padded text  "));
+    CHECK_FALSE(reopened.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto text_node =
+        xml_document.child("w:document").child("w:body").child("w:p").child("w:r").child("w:t");
+    REQUIRE(text_node != pugi::xml_node{});
+    CHECK_EQ(std::string{text_node.attribute("xml:space").value()}, "preserve");
+    CHECK_EQ(std::string{text_node.text().get()}, "  padded text  ");
+
+    CHECK(run.set_text("plain text"));
+    CHECK_FALSE(reopened.save());
+
+    const auto plain_xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document plain_xml_document;
+    REQUIRE(plain_xml_document.load_string(plain_xml_text.c_str()));
+
+    const auto plain_text_node = plain_xml_document.child("w:document")
+                                     .child("w:body")
+                                     .child("w:p")
+                                     .child("w:r")
+                                     .child("w:t");
+    REQUIRE(plain_text_node != pugi::xml_node{});
+    CHECK_FALSE(plain_text_node.attribute("xml:space"));
+    CHECK_EQ(std::string{plain_text_node.text().get()}, "plain text");
+
+    fs::remove(target);
+}
+
+TEST_CASE("add_run creates a top-level paragraph when the document body has none") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_only_body.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tr>
+        <w:tc>
+          <w:p>
+            <w:r><w:t>cell text</w:t></w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto paragraph = doc.paragraphs();
+    CHECK_FALSE(paragraph.has_next());
+    auto run = paragraph.add_run("appended after table");
+    CHECK(run.has_next());
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "appended after table\n");
+
+    fs::remove(target);
 }
