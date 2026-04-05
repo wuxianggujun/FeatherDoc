@@ -1,10 +1,7 @@
 #include "featherdoc.hpp"
 
 #include <array>
-#include <cctype>
-#include <cstring>
 #include <cstdlib>
-#include <filesystem>
 #include <string_view>
 #include <utility>
 
@@ -49,64 +46,6 @@ constexpr auto minimal_docx_entries = std::array{
     packaged_entry{relationships_xml_entry, relationships_xml},
 };
 
-auto should_preserve_xml_space(const char *text) -> bool {
-    if (text == nullptr || *text == '\0') {
-        return false;
-    }
-
-    const auto text_length = std::strlen(text);
-    return std::isspace(static_cast<unsigned char>(text[0])) != 0 ||
-           std::isspace(static_cast<unsigned char>(text[text_length - 1])) != 0;
-}
-
-auto update_xml_space_attribute(pugi::xml_node text_node, const char *text) -> void {
-    if (text_node == pugi::xml_node{}) {
-        return;
-    }
-
-    if (should_preserve_xml_space(text)) {
-        auto xml_space = text_node.attribute("xml:space");
-        if (xml_space == pugi::xml_attribute{}) {
-            xml_space = text_node.append_attribute("xml:space");
-        }
-        xml_space.set_value("preserve");
-        return;
-    }
-
-    text_node.remove_attribute("xml:space");
-}
-
-[[nodiscard]] auto is_space(char ch) -> bool {
-    return std::isspace(static_cast<unsigned char>(ch)) != 0;
-}
-
-[[nodiscard]] auto next_named_sibling(pugi::xml_node node, std::string_view node_name)
-    -> pugi::xml_node {
-    for (auto sibling = node.next_sibling(); sibling != pugi::xml_node{};
-         sibling = sibling.next_sibling()) {
-        if (std::string_view{sibling.name()} == node_name) {
-            return sibling;
-        }
-    }
-
-    return {};
-}
-
-[[nodiscard]] auto append_paragraph_node(pugi::xml_node parent) -> pugi::xml_node {
-    if (parent == pugi::xml_node{}) {
-        return {};
-    }
-
-    if (std::string_view{parent.name()} == "w:body") {
-        if (const auto section_properties = parent.child("w:sectPr");
-            section_properties != pugi::xml_node{}) {
-            return parent.insert_child_before("w:p", section_properties);
-        }
-    }
-
-    return parent.append_child("w:p");
-}
-
 struct xml_zip_writer final : pugi::xml_writer {
     zip_t *archive{nullptr};
     bool failed{false};
@@ -132,11 +71,7 @@ struct zip_entry_copy_context {
 auto copy_zip_entry_chunk(void *arg, unsigned long long /*offset*/, const void *data,
                           size_t size) -> size_t {
     auto *context = static_cast<zip_entry_copy_context *>(arg);
-    if (context == nullptr || context->failed) {
-        return 0;
-    }
-
-    if (size == 0) {
+    if (context == nullptr || context->failed || size == 0) {
         return 0;
     }
 
@@ -178,245 +113,14 @@ auto set_last_error(featherdoc::document_error_info &error_info,
 }
 } // namespace
 
-featherdoc::Run::Run() {}
+namespace featherdoc {
 
-featherdoc::Run::Run(pugi::xml_node parent, pugi::xml_node current) {
-    this->set_parent(parent);
-    this->set_current(current);
-}
+Document::Document() = default;
 
-void featherdoc::Run::set_parent(pugi::xml_node node) {
-    this->parent = node;
-    this->current = this->parent.child("w:r");
-}
-
-void featherdoc::Run::set_current(pugi::xml_node node) { this->current = node; }
-
-std::string featherdoc::Run::get_text() const {
-    return this->current.child("w:t").text().get();
-}
-
-bool featherdoc::Run::set_text(const std::string &text) const {
-    return this->set_text(text.c_str());
-}
-
-bool featherdoc::Run::set_text(const char *text) const {
-    if (text == nullptr) {
-        return false;
-    }
-
-    auto text_node = this->current.child("w:t");
-    if (text_node == pugi::xml_node{}) {
-        return false;
-    }
-
-    update_xml_space_attribute(text_node, text);
-    return text_node.text().set(text);
-}
-
-featherdoc::Run &featherdoc::Run::next() {
-    this->current = next_named_sibling(this->current, "w:r");
-    return *this;
-}
-
-bool featherdoc::Run::has_next() const { return this->current != pugi::xml_node{}; }
-
-// Table cells
-featherdoc::TableCell::TableCell() {}
-
-featherdoc::TableCell::TableCell(pugi::xml_node parent, pugi::xml_node current) {
-    this->set_parent(parent);
-    this->set_current(current);
-}
-
-void featherdoc::TableCell::set_parent(pugi::xml_node node) {
-    this->parent = node;
-    this->current = this->parent.child("w:tc");
-
-    this->paragraph.set_parent(this->current);
-}
-
-void featherdoc::TableCell::set_current(pugi::xml_node node) {
-    this->current = node;
-}
-
-bool featherdoc::TableCell::has_next() const { return this->current != pugi::xml_node{}; }
-
-featherdoc::TableCell &featherdoc::TableCell::next() {
-    this->current = next_named_sibling(this->current, "w:tc");
-    return *this;
-}
-
-featherdoc::Paragraph &featherdoc::TableCell::paragraphs() {
-    this->paragraph.set_parent(this->current);
-    return this->paragraph;
-}
-
-// Table rows
-featherdoc::TableRow::TableRow() {}
-
-featherdoc::TableRow::TableRow(pugi::xml_node parent, pugi::xml_node current) {
-    this->set_parent(parent);
-    this->set_current(current);
-}
-
-void featherdoc::TableRow::set_parent(pugi::xml_node node) {
-    this->parent = node;
-    this->current = this->parent.child("w:tr");
-
-    this->cell.set_parent(this->current);
-}
-
-void featherdoc::TableRow::set_current(pugi::xml_node node) { this->current = node; }
-
-featherdoc::TableRow &featherdoc::TableRow::next() {
-    this->current = next_named_sibling(this->current, "w:tr");
-    return *this;
-}
-
-featherdoc::TableCell &featherdoc::TableRow::cells() {
-    this->cell.set_parent(this->current);
-    return this->cell;
-}
-
-bool featherdoc::TableRow::has_next() const { return this->current != pugi::xml_node{}; }
-
-// Tables
-featherdoc::Table::Table() {}
-
-featherdoc::Table::Table(pugi::xml_node parent, pugi::xml_node current) {
-    this->set_parent(parent);
-    this->set_current(current);
-}
-
-void featherdoc::Table::set_parent(pugi::xml_node node) {
-    this->parent = node;
-    this->current = this->parent.child("w:tbl");
-
-    this->row.set_parent(this->current);
-}
-
-bool featherdoc::Table::has_next() const { return this->current != pugi::xml_node{}; }
-
-featherdoc::Table &featherdoc::Table::next() {
-    this->current = next_named_sibling(this->current, "w:tbl");
-    this->row.set_parent(this->current);
-    return *this;
-}
-
-void featherdoc::Table::set_current(pugi::xml_node node) { this->current = node; }
-
-featherdoc::TableRow &featherdoc::Table::rows() {
-    this->row.set_parent(this->current);
-    return this->row;
-}
-
-featherdoc::Paragraph::Paragraph() {}
-
-featherdoc::Paragraph::Paragraph(pugi::xml_node parent, pugi::xml_node current) {
-    this->set_parent(parent);
-    this->set_current(current);
-}
-
-void featherdoc::Paragraph::set_parent(pugi::xml_node node) {
-    this->parent = node;
-    this->current = this->parent.child("w:p");
-
-    this->run.set_parent(this->current);
-}
-
-void featherdoc::Paragraph::set_current(pugi::xml_node node) {
-    this->current = node;
-}
-
-featherdoc::Paragraph &featherdoc::Paragraph::next() {
-    this->current = next_named_sibling(this->current, "w:p");
-    this->run.set_parent(this->current);
-    return *this;
-}
-
-bool featherdoc::Paragraph::has_next() const { return this->current != pugi::xml_node{}; }
-
-featherdoc::Run &featherdoc::Paragraph::runs() {
-    this->run.set_parent(this->current);
-    return this->run;
-}
-
-featherdoc::Run featherdoc::Paragraph::add_run(const std::string &text,
-                                               featherdoc::formatting_flag f) {
-    return this->add_run(text.c_str(), f);
-}
-
-featherdoc::Run featherdoc::Paragraph::add_run(const char *text,
-                                               featherdoc::formatting_flag f) {
-    if (this->current == pugi::xml_node{} && this->parent != pugi::xml_node{}) {
-        this->current = append_paragraph_node(this->parent);
-    }
-
-    pugi::xml_node new_run = this->current.append_child("w:r");
-    pugi::xml_node meta = new_run.append_child("w:rPr");
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::bold))
-        meta.append_child("w:b");
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::italic))
-        meta.append_child("w:i");
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::underline))
-        meta.append_child("w:u").append_attribute("w:val").set_value("single");
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::strikethrough))
-        meta.append_child("w:strike")
-            .append_attribute("w:val")
-            .set_value("true");
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::superscript))
-        meta.append_child("w:vertAlign")
-            .append_attribute("w:val")
-            .set_value("superscript");
-    else if (featherdoc::has_flag(f, featherdoc::formatting_flag::subscript))
-        meta.append_child("w:vertAlign")
-            .append_attribute("w:val")
-            .set_value("subscript");
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::smallcaps))
-        meta.append_child("w:smallCaps")
-            .append_attribute("w:val")
-            .set_value("true");
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::shadow))
-        meta.append_child("w:shadow")
-            .append_attribute("w:val")
-            .set_value("true");
-
-    pugi::xml_node new_run_text = new_run.append_child("w:t");
-    update_xml_space_attribute(new_run_text, text);
-    new_run_text.text().set(text);
-
-    return Run(this->current, new_run);
-}
-
-featherdoc::Paragraph
-featherdoc::Paragraph::insert_paragraph_after(const std::string &text,
-                                              featherdoc::formatting_flag f) {
-    pugi::xml_node new_para;
-    if (this->current == pugi::xml_node{}) {
-        new_para = append_paragraph_node(this->parent);
-    } else {
-        new_para = this->parent.insert_child_after("w:p", this->current);
-    }
-
-    Paragraph paragraph(this->parent, new_para);
-    paragraph.add_run(text, f);
-    return paragraph;
-}
-
-featherdoc::Document::Document() = default;
-
-featherdoc::Document::Document(std::filesystem::path file_path)
+Document::Document(std::filesystem::path file_path)
     : document_path(std::move(file_path)) {}
 
-std::error_code featherdoc::Document::create_empty() {
+std::error_code Document::create_empty() {
     this->flag_is_open = false;
     this->has_source_archive = false;
     this->document.reset();
@@ -440,7 +144,7 @@ std::error_code featherdoc::Document::create_empty() {
     return {};
 }
 
-void featherdoc::Document::set_path(std::filesystem::path file_path) {
+void Document::set_path(std::filesystem::path file_path) {
     this->document_path = std::move(file_path);
     this->flag_is_open = false;
     this->has_source_archive = false;
@@ -448,11 +152,9 @@ void featherdoc::Document::set_path(std::filesystem::path file_path) {
     this->last_error_info.clear();
 }
 
-const std::filesystem::path &featherdoc::Document::path() const {
-    return this->document_path;
-}
+const std::filesystem::path &Document::path() const { return this->document_path; }
 
-std::error_code featherdoc::Document::open() {
+std::error_code Document::open() {
     this->flag_is_open = false;
     this->has_source_archive = false;
     this->document.reset();
@@ -506,8 +208,7 @@ std::error_code featherdoc::Document::open() {
     int zip_error = 0;
 
     zip_t *zip = zip_openwitherror(archive_path.c_str(),
-                                   ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
-                                   &zip_error);
+                                   ZIP_DEFAULT_COMPRESSION_LEVEL, 'r', &zip_error);
 
     if (!zip) {
         return set_last_error(this->last_error_info,
@@ -577,12 +278,9 @@ std::error_code featherdoc::Document::open() {
     return {};
 }
 
-std::error_code featherdoc::Document::save() const {
-    return this->save_as(this->document_path);
-}
+std::error_code Document::save() const { return this->save_as(this->document_path); }
 
-std::error_code featherdoc::Document::save_as(
-    std::filesystem::path target_path) const {
+std::error_code Document::save_as(std::filesystem::path target_path) const {
     this->last_error_info.clear();
 
     if (target_path.empty()) {
@@ -674,7 +372,8 @@ std::error_code featherdoc::Document::save_as(
                 break;
             }
 
-            if (zip_entry_write(new_zip, entry_content.data(), entry_content.size()) < 0 ||
+            if (zip_entry_write(new_zip, entry_content.data(), entry_content.size()) <
+                    0 ||
                 zip_entry_close(new_zip) != 0) {
                 record_first_document_error(
                     document_errc::output_entry_write_failed,
@@ -830,21 +529,20 @@ std::error_code featherdoc::Document::save_as(
     return {};
 }
 
-bool featherdoc::Document::is_open() const {
-    return this->flag_is_open;
-}
+bool Document::is_open() const { return this->flag_is_open; }
 
-const featherdoc::document_error_info &
-featherdoc::Document::last_error() const noexcept {
+const document_error_info &Document::last_error() const noexcept {
     return this->last_error_info;
 }
 
-featherdoc::Paragraph &featherdoc::Document::paragraphs() {
+Paragraph &Document::paragraphs() {
     this->paragraph.set_parent(document.child("w:document").child("w:body"));
     return this->paragraph;
 }
 
-featherdoc::Table &featherdoc::Document::tables() {
+Table &Document::tables() {
     this->table.set_parent(document.child("w:document").child("w:body"));
     return this->table;
 }
+
+} // namespace featherdoc
