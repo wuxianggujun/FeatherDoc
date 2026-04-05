@@ -1997,6 +1997,23 @@ int zip_entry_isdir(struct zip_t *zip) {
   return ISSLASH(zip->entry.name[entrylen - 1]);
 }
 
+int zip_entry_isencrypted(struct zip_t *zip) {
+  mz_zip_archive_file_stat stats;
+  if (!zip) {
+    return ZIP_ENOINIT;
+  }
+
+  if (zip->entry.index < (ssize_t)0) {
+    return ZIP_EINVIDX;
+  }
+
+  if (!mz_zip_reader_file_stat(&(zip->archive), (mz_uint)zip->entry.index, &stats)) {
+    return ZIP_ENOENT;
+  }
+
+  return stats.m_is_encrypted ? 1 : 0;
+}
+
 unsigned long long zip_entry_size(struct zip_t *zip) {
   return zip_entry_uncomp_size(zip);
 }

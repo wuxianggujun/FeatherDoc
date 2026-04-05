@@ -237,6 +237,55 @@ TEST_CASE("open keeps zip buffers out of pugixml-owned deallocation paths") {
     fs::remove(target);
 }
 
+TEST_CASE("open reports encrypted docx files as unsupported") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "encrypted.docx";
+    fs::remove(target);
+
+    zip_t *zip = zip_open_with_password(target.string().c_str(),
+                                        ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                        "secret");
+    REQUIRE(zip != nullptr);
+
+    REQUIRE_EQ(zip_entry_open(zip, test_content_types_xml_entry), 0);
+    REQUIRE_GE(zip_entry_write(zip, test_content_types_xml,
+                               std::strlen(test_content_types_xml)),
+               0);
+    REQUIRE_EQ(zip_entry_close(zip), 0);
+
+    REQUIRE_EQ(zip_entry_open(zip, test_relationships_xml_entry), 0);
+    REQUIRE_GE(zip_entry_write(zip, test_relationships_xml,
+                               std::strlen(test_relationships_xml)),
+               0);
+    REQUIRE_EQ(zip_entry_close(zip), 0);
+
+    constexpr auto encrypted_document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>secret</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    REQUIRE_EQ(zip_entry_open(zip, test_document_xml_entry), 0);
+    REQUIRE_GE(zip_entry_write(zip, encrypted_document_xml,
+                               std::strlen(encrypted_document_xml)),
+               0);
+    REQUIRE_EQ(zip_entry_close(zip), 0);
+    zip_close(zip);
+
+    featherdoc::Document doc(target);
+    CHECK_EQ(doc.open(), featherdoc::document_errc::encrypted_document_unsupported);
+    CHECK_EQ(doc.last_error().code,
+             featherdoc::document_errc::encrypted_document_unsupported);
+    CHECK_EQ(doc.last_error().entry_name, test_document_xml_entry);
+    CHECK(doc.last_error().detail.find("encrypted") != std::string::npos);
+    CHECK_FALSE(doc.is_open());
+
+    fs::remove(target);
+}
+
 TEST_CASE("open reports a missing document XML entry for non-docx zip archives") {
     namespace fs = std::filesystem;
 

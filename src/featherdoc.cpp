@@ -524,9 +524,25 @@ std::error_code featherdoc::Document::open() {
                               std::string{document_xml_entry});
     }
 
-    if (zip_entry_read(zip, &buf, &bufsize) < 0) {
+    if (zip_entry_isencrypted(zip) > 0) {
         zip_entry_close(zip);
         zip_close(zip);
+        return set_last_error(
+            this->last_error_info, document_errc::encrypted_document_unsupported,
+            "password-protected or encrypted .docx files are not supported",
+            std::string{document_xml_entry});
+    }
+
+    const auto read_result = zip_entry_read(zip, &buf, &bufsize);
+    if (read_result < 0) {
+        zip_entry_close(zip);
+        zip_close(zip);
+        if (read_result == ZIP_EPASSWD) {
+            return set_last_error(
+                this->last_error_info, document_errc::encrypted_document_unsupported,
+                "password-protected or encrypted .docx files are not supported",
+                std::string{document_xml_entry});
+        }
         return set_last_error(this->last_error_info,
                               document_errc::document_xml_read_failed,
                               "failed to read XML entry from archive '" +

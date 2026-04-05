@@ -55,6 +55,7 @@ enum class document_errc {
     archive_open_failed,
     document_xml_open_failed,
     document_xml_read_failed,
+    encrypted_document_unsupported,
     document_xml_parse_failed,
     output_archive_open_failed,
     output_document_xml_open_failed,

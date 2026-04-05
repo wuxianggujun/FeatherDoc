@@ -19,6 +19,8 @@ std::string document_error_category::message(int condition) const {
         return "failed to open word/document.xml";
     case document_errc::document_xml_read_failed:
         return "failed to read word/document.xml";
+    case document_errc::encrypted_document_unsupported:
+        return "password-protected or encrypted .docx files are not supported";
     case document_errc::document_xml_parse_failed:
         return "failed to parse word/document.xml";
     case document_errc::output_archive_open_failed:
