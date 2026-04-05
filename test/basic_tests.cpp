@@ -463,3 +463,104 @@ TEST_CASE("add_run creates a top-level paragraph when the document body has none
 
     fs::remove(target);
 }
+
+TEST_CASE("paragraph iteration skips non-paragraph siblings and appends before sectPr") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "paragraph_iteration_regression.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>first</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc>
+          <w:p><w:r><w:t>table cell</w:t></w:r></w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p><w:r><w:t>second</w:t></w:r></w:p>
+    <w:sectPr/>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    std::size_t paragraph_count = 0;
+    for (auto paragraph = doc.paragraphs(); paragraph.has_next(); paragraph.next()) {
+        ++paragraph_count;
+    }
+    CHECK_EQ(paragraph_count, 2);
+
+    auto paragraph = doc.paragraphs();
+    while (paragraph.has_next()) {
+        paragraph.next();
+    }
+    paragraph.insert_paragraph_after("third");
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    std::ostringstream child_order;
+    const auto body = xml_document.child("w:document").child("w:body");
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        child_order << child.name() << '\n';
+    }
+    CHECK_EQ(child_order.str(), "w:p\nw:tbl\nw:p\nw:p\nw:sectPr\n");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "first\nsecond\nthird\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("run iteration skips non-run siblings inside a paragraph") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "run_iteration_regression.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t>alpha</w:t></w:r>
+      <w:bookmarkStart w:id="0" w:name="bookmark"/>
+      <w:r><w:t>beta</w:t></w:r>
+      <w:proofErr w:type="spellStart"/>
+      <w:r><w:t>gamma</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    std::size_t run_count = 0;
+    std::ostringstream text;
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    for (auto run = paragraph.runs(); run.has_next(); run.next()) {
+        ++run_count;
+        text << run.get_text();
+    }
+
+    CHECK_EQ(run_count, 3);
+    CHECK_EQ(text.str(), "alphabetagamma");
+
+    fs::remove(target);
+}

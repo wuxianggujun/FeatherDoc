@@ -80,6 +80,33 @@ auto update_xml_space_attribute(pugi::xml_node text_node, const char *text) -> v
     return std::isspace(static_cast<unsigned char>(ch)) != 0;
 }
 
+[[nodiscard]] auto next_named_sibling(pugi::xml_node node, std::string_view node_name)
+    -> pugi::xml_node {
+    for (auto sibling = node.next_sibling(); sibling != pugi::xml_node{};
+         sibling = sibling.next_sibling()) {
+        if (std::string_view{sibling.name()} == node_name) {
+            return sibling;
+        }
+    }
+
+    return {};
+}
+
+[[nodiscard]] auto append_paragraph_node(pugi::xml_node parent) -> pugi::xml_node {
+    if (parent == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (std::string_view{parent.name()} == "w:body") {
+        if (const auto section_properties = parent.child("w:sectPr");
+            section_properties != pugi::xml_node{}) {
+            return parent.insert_child_before("w:p", section_properties);
+        }
+    }
+
+    return parent.append_child("w:p");
+}
+
 struct xml_zip_writer final : pugi::xml_writer {
     zip_t *archive{nullptr};
     bool failed{false};
@@ -188,7 +215,7 @@ bool featherdoc::Run::set_text(const char *text) const {
 }
 
 featherdoc::Run &featherdoc::Run::next() {
-    this->current = this->current.next_sibling();
+    this->current = next_named_sibling(this->current, "w:r");
     return *this;
 }
 
@@ -216,7 +243,7 @@ void featherdoc::TableCell::set_current(pugi::xml_node node) {
 bool featherdoc::TableCell::has_next() const { return this->current != pugi::xml_node{}; }
 
 featherdoc::TableCell &featherdoc::TableCell::next() {
-    this->current = this->current.next_sibling();
+    this->current = next_named_sibling(this->current, "w:tc");
     return *this;
 }
 
@@ -243,7 +270,7 @@ void featherdoc::TableRow::set_parent(pugi::xml_node node) {
 void featherdoc::TableRow::set_current(pugi::xml_node node) { this->current = node; }
 
 featherdoc::TableRow &featherdoc::TableRow::next() {
-    this->current = this->current.next_sibling();
+    this->current = next_named_sibling(this->current, "w:tr");
     return *this;
 }
 
@@ -272,7 +299,7 @@ void featherdoc::Table::set_parent(pugi::xml_node node) {
 bool featherdoc::Table::has_next() const { return this->current != pugi::xml_node{}; }
 
 featherdoc::Table &featherdoc::Table::next() {
-    this->current = this->current.next_sibling();
+    this->current = next_named_sibling(this->current, "w:tbl");
     this->row.set_parent(this->current);
     return *this;
 }
@@ -303,7 +330,7 @@ void featherdoc::Paragraph::set_current(pugi::xml_node node) {
 }
 
 featherdoc::Paragraph &featherdoc::Paragraph::next() {
-    this->current = this->current.next_sibling();
+    this->current = next_named_sibling(this->current, "w:p");
     this->run.set_parent(this->current);
     return *this;
 }
@@ -323,7 +350,7 @@ featherdoc::Run featherdoc::Paragraph::add_run(const std::string &text,
 featherdoc::Run featherdoc::Paragraph::add_run(const char *text,
                                                featherdoc::formatting_flag f) {
     if (this->current == pugi::xml_node{} && this->parent != pugi::xml_node{}) {
-        this->current = this->parent.append_child("w:p");
+        this->current = append_paragraph_node(this->parent);
     }
 
     pugi::xml_node new_run = this->current.append_child("w:r");
@@ -374,7 +401,7 @@ featherdoc::Paragraph::insert_paragraph_after(const std::string &text,
                                               featherdoc::formatting_flag f) {
     pugi::xml_node new_para;
     if (this->current == pugi::xml_node{}) {
-        new_para = this->parent.append_child("w:p");
+        new_para = append_paragraph_node(this->parent);
     } else {
         new_para = this->parent.insert_child_after("w:p", this->current);
     }
