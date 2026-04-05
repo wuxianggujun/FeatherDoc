@@ -152,6 +152,60 @@ named bookmark range and returns the number of bookmark ranges replaced.
         return 1;
     }
 
+``header_count()``, ``footer_count()``, ``header_paragraphs(index)``, and
+``footer_paragraphs(index)`` expose paragraph-level access to existing
+header/footer parts.
+
+.. code-block:: cpp
+
+    for (std::size_t i = 0; i < doc.header_count(); ++i) {
+        for (auto paragraph = doc.header_paragraphs(i); paragraph.has_next();
+             paragraph.next()) {
+            for (auto run = paragraph.runs(); run.has_next(); run.next()) {
+                std::cout << run.get_text() << std::endl;
+            }
+        }
+    }
+
+``ensure_header_paragraphs()`` and ``ensure_footer_paragraphs()`` create and
+attach a default header/footer to the body-level section properties when the
+document does not already have one.
+
+.. code-block:: cpp
+
+    auto header = doc.ensure_header_paragraphs();
+    header.add_run("Generated header");
+
+    auto footer = doc.ensure_footer_paragraphs();
+    footer.add_run("Page 1");
+
+``section_count()``, ``section_header_paragraphs(section_index, kind)``, and
+``section_footer_paragraphs(section_index, kind)`` resolve the existing
+header/footer reference attached to a specific section.
+
+.. code-block:: cpp
+
+    for (std::size_t i = 0; i < doc.section_count(); ++i) {
+        auto header = doc.section_header_paragraphs(i);
+        if (header.has_next()) {
+            std::cout << header.runs().get_text() << std::endl;
+        }
+    }
+
+``ensure_section_header_paragraphs(section_index, kind)`` and
+``ensure_section_footer_paragraphs(section_index, kind)`` create and attach a
+missing header/footer reference for the requested section before editing it.
+
+.. code-block:: cpp
+
+    auto even_header = doc.ensure_section_header_paragraphs(
+        1, featherdoc::section_reference_kind::even_page);
+    even_header.add_run("Even page header");
+
+    auto first_footer = doc.ensure_section_footer_paragraphs(
+        1, featherdoc::section_reference_kind::first_page);
+    first_footer.add_run("First page footer");
+
 ``create_empty()`` initializes a new in-memory document so callers can produce
 fresh ``.docx`` files without opening an existing template archive first.
 
@@ -179,8 +233,10 @@ entries instead of buffering whole archive entries in memory first.
 Current Limitations
 -------------------
 - Password-protected or encrypted ``.docx`` files are not supported yet.
-- The current public API reads body paragraphs, runs, and tables, but does not
-  expose dedicated header/footer editing APIs.
+- Section-specific header/footer references can now be created through
+  ``ensure_section_header_paragraphs()`` / ``ensure_section_footer_paragraphs()``,
+  but there is still no high-level API for rebinding or reusing existing
+  header/footer parts across multiple sections.
 - Word equations (``OMML``) are not surfaced through a typed equation API.
 - Existing tables can be traversed, but there is no high-level API for creating
   new tables programmatically yet.

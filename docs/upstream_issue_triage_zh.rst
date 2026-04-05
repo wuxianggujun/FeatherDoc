@@ -56,6 +56,21 @@
     可以按书签名重写 ``bookmarkStart`` 和 ``bookmarkEnd`` 之间的正文内容。
     当前实现优先覆盖正文书签替换这个高频模板场景。
 
+``#86 Working with headers and footes``
+    FeatherDoc 现在已经补上了页眉 / 页脚的最小可用编辑链路：
+    ``header_count()`` / ``footer_count()`` 用来枚举 part 数量，
+    ``header_paragraphs(index)`` / ``footer_paragraphs(index)`` 用来读取和编辑
+    现有 part 里的段落内容，并随 ``save()`` 写回归档；
+    ``ensure_header_paragraphs()`` / ``ensure_footer_paragraphs()`` 则可以为
+    body 级 ``sectPr`` 创建并挂接默认页眉 / 页脚 part。
+    此外，``section_count()``、``section_header_paragraphs()`` 和
+    ``section_footer_paragraphs()`` 已经可以按 section 解析现有引用关系；
+    ``ensure_section_header_paragraphs()`` /
+    ``ensure_section_footer_paragraphs()`` 也已经可以为指定 section 补出
+    ``default`` / ``first`` / ``even`` 引用并创建对应 part。
+    这还不是完整的 section-aware 重绑定 API，但已经覆盖了“编辑已有页眉 / 页脚”、
+    “从空模板补出默认页眉 / 页脚”和“按 section 创建或访问引用”的核心场景。
+
 
 当前仍未解决或仍属能力缺口
 --------------------------
@@ -71,9 +86,6 @@
 ``#85 Read equations from docx``
     当前仍没有把 Word 公式（OMML）封装成专门的读取接口。
 
-``#86 Working with headers and footes``
-    当前仍没有公开的页眉 / 页脚编辑 API。
-
 
 对 FeatherDoc 的实际意义
 ------------------------
@@ -88,7 +100,7 @@
 
 剩下的主要不是“明显 bug”，而是更偏功能扩展的能力缺口：
 
-- 页眉 / 页脚 API
+- 多 section 的页眉 / 页脚重绑定、复用与引用管理
 - 表格创建 API
 - 公式读取 API
 - 加密 ``.docx`` 支持
@@ -99,7 +111,7 @@
 
 如果下一阶段要继续推进，建议按下面顺序考虑：
 
-1. 先评估页眉 / 页脚 API，因为这决定很多正式文档场景是否可落地。
+1. 先评估页眉 / 页脚创建与引用管理，因为这决定很多正式文档模板场景是否可落地。
 2. 表格创建可以放在其后，因为它属于高频能力，但实现边界更宽。
 3. 公式读取建议放在页眉 / 页脚和表格创建之后，再决定是否做 typed API。
 4. 加密 ``.docx`` 支持建议单独立项，它不只是 API 设计问题，还牵涉加密容器和

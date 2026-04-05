@@ -11,9 +11,12 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <system_error>
+#include <vector>
 
 #include <constants.hpp>
 #include <featherdoc_iterator.hpp>
@@ -160,13 +163,47 @@ struct document_error_info {
 // and stores paragraphs
 class Document {
   private:
+    struct xml_part_state {
+        std::string relationship_id;
+        std::string entry_name;
+        pugi::xml_document xml;
+        Paragraph paragraph;
+    };
+
+    [[nodiscard]] std::error_code ensure_content_types_loaded();
+    [[nodiscard]] pugi::xml_node section_properties(std::size_t section_index) const;
+    [[nodiscard]] pugi::xml_node ensure_section_properties(std::size_t section_index);
+    Paragraph &related_part_paragraphs_by_relationship_id(
+        std::string_view relationship_id, std::vector<std::unique_ptr<xml_part_state>> &parts,
+        const char *part_root_name);
+    Paragraph &section_related_part_paragraphs(
+        std::size_t section_index, featherdoc::section_reference_kind reference_kind,
+        std::vector<std::unique_ptr<xml_part_state>> &parts, const char *reference_name,
+        const char *part_root_name);
+    Paragraph &ensure_section_related_part_paragraphs(
+        std::size_t section_index, featherdoc::section_reference_kind reference_kind,
+        std::vector<std::unique_ptr<xml_part_state>> &parts, const char *part_root_name,
+        const char *reference_name, const char *relationship_type, const char *content_type);
+    Paragraph &ensure_related_part_paragraphs(
+        std::vector<std::unique_ptr<xml_part_state>> &parts, const char *part_root_name,
+        const char *reference_name, const char *relationship_type, const char *content_type);
+
     friend class IteratorHelper;
     std::filesystem::path document_path;
     Paragraph paragraph;
+    Paragraph detached_paragraph;
     Table table;
     pugi::xml_document document;
+    pugi::xml_document document_relationships;
+    pugi::xml_document content_types;
+    std::vector<std::unique_ptr<xml_part_state>> header_parts;
+    std::vector<std::unique_ptr<xml_part_state>> footer_parts;
     bool flag_is_open{false};
     bool has_source_archive{false};
+    bool has_document_relationships_part{false};
+    bool document_relationships_dirty{false};
+    bool content_types_loaded{false};
+    bool content_types_dirty{false};
     mutable document_error_info last_error_info;
 
   public:
@@ -180,6 +217,29 @@ class Document {
     [[nodiscard]] std::error_code save_as(std::filesystem::path) const;
     [[nodiscard]] bool is_open() const;
     [[nodiscard]] const document_error_info &last_error() const noexcept;
+    [[nodiscard]] std::size_t section_count() const noexcept;
+    [[nodiscard]] std::size_t header_count() const noexcept;
+    [[nodiscard]] std::size_t footer_count() const noexcept;
+    Paragraph &header_paragraphs(std::size_t index = 0U);
+    Paragraph &footer_paragraphs(std::size_t index = 0U);
+    Paragraph &section_header_paragraphs(
+        std::size_t section_index,
+        featherdoc::section_reference_kind reference_kind =
+            featherdoc::section_reference_kind::default_reference);
+    Paragraph &section_footer_paragraphs(
+        std::size_t section_index,
+        featherdoc::section_reference_kind reference_kind =
+            featherdoc::section_reference_kind::default_reference);
+    Paragraph &ensure_section_header_paragraphs(
+        std::size_t section_index,
+        featherdoc::section_reference_kind reference_kind =
+            featherdoc::section_reference_kind::default_reference);
+    Paragraph &ensure_section_footer_paragraphs(
+        std::size_t section_index,
+        featherdoc::section_reference_kind reference_kind =
+            featherdoc::section_reference_kind::default_reference);
+    Paragraph &ensure_header_paragraphs();
+    Paragraph &ensure_footer_paragraphs();
     [[nodiscard]] std::size_t replace_bookmark_text(const std::string &bookmark_name,
                                                     const std::string &replacement);
     [[nodiscard]] std::size_t replace_bookmark_text(const char *bookmark_name,

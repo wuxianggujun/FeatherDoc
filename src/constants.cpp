@@ -15,6 +15,16 @@ std::string document_error_category::message(int condition) const {
         return "document is not open";
     case document_errc::archive_open_failed:
         return "failed to open document archive";
+    case document_errc::relationships_xml_read_failed:
+        return "failed to read word/_rels/document.xml.rels";
+    case document_errc::relationships_xml_parse_failed:
+        return "failed to parse word/_rels/document.xml.rels";
+    case document_errc::related_part_open_failed:
+        return "failed to open related document part";
+    case document_errc::related_part_read_failed:
+        return "failed to read related document part";
+    case document_errc::related_part_parse_failed:
+        return "failed to parse related document part";
     case document_errc::document_xml_open_failed:
         return "failed to open word/document.xml";
     case document_errc::document_xml_read_failed:
@@ -23,6 +33,10 @@ std::string document_error_category::message(int condition) const {
         return "password-protected or encrypted .docx files are not supported";
     case document_errc::document_xml_parse_failed:
         return "failed to parse word/document.xml";
+    case document_errc::content_types_xml_read_failed:
+        return "failed to read [Content_Types].xml";
+    case document_errc::content_types_xml_parse_failed:
+        return "failed to parse [Content_Types].xml";
     case document_errc::output_archive_open_failed:
         return "failed to create output archive";
     case document_errc::output_document_xml_open_failed:

@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <system_error>
 
 namespace featherdoc {
@@ -48,15 +49,42 @@ constexpr auto operator|=(formatting_flag &lhs, formatting_flag rhs) noexcept
     return to_underlying(value & flag) != 0U;
 }
 
+enum class section_reference_kind : std::uint8_t {
+    default_reference = 0U,
+    first_page,
+    even_page,
+};
+
+[[nodiscard]] constexpr auto to_xml_reference_type(
+    section_reference_kind kind) noexcept -> std::string_view {
+    switch (kind) {
+    case section_reference_kind::default_reference:
+        return "default";
+    case section_reference_kind::first_page:
+        return "first";
+    case section_reference_kind::even_page:
+        return "even";
+    }
+
+    return "default";
+}
+
 enum class document_errc {
     success = 0,
     empty_path,
     document_not_open,
     archive_open_failed,
+    relationships_xml_read_failed,
+    relationships_xml_parse_failed,
+    related_part_open_failed,
+    related_part_read_failed,
+    related_part_parse_failed,
     document_xml_open_failed,
     document_xml_read_failed,
     encrypted_document_unsupported,
     document_xml_parse_failed,
+    content_types_xml_read_failed,
+    content_types_xml_parse_failed,
     output_archive_open_failed,
     output_document_xml_open_failed,
     output_document_xml_write_failed,

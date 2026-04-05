@@ -163,6 +163,60 @@ if (doc.replace_bookmark_text("customer_name", "FeatherDoc User") == 0) {
 }
 ```
 
+Use `header_count()`, `footer_count()`, `header_paragraphs(index)`, and
+`footer_paragraphs(index)` when you need to read or edit paragraphs stored in
+existing header/footer parts.
+
+```cpp
+for (std::size_t i = 0; i < doc.header_count(); ++i) {
+    for (auto paragraph = doc.header_paragraphs(i); paragraph.has_next();
+         paragraph.next()) {
+        for (auto run = paragraph.runs(); run.has_next(); run.next()) {
+            std::cout << run.get_text() << '\n';
+        }
+    }
+}
+```
+
+Use `ensure_header_paragraphs()` and `ensure_footer_paragraphs()` when you need
+to create and attach a default header/footer to the document's body-level
+section properties before editing it.
+
+```cpp
+auto header = doc.ensure_header_paragraphs();
+header.add_run("Generated header");
+
+auto footer = doc.ensure_footer_paragraphs();
+footer.add_run("Page 1");
+```
+
+Use `section_count()`, `section_header_paragraphs(section_index, kind)`, and
+`section_footer_paragraphs(section_index, kind)` when you need to resolve the
+existing header/footer reference attached to a specific section.
+
+```cpp
+for (std::size_t i = 0; i < doc.section_count(); ++i) {
+    auto header = doc.section_header_paragraphs(i);
+    if (header.has_next()) {
+        std::cout << header.runs().get_text() << '\n';
+    }
+}
+```
+
+Use `ensure_section_header_paragraphs(section_index, kind)` and
+`ensure_section_footer_paragraphs(section_index, kind)` when you need to create
+and attach a missing section-specific header/footer reference before editing it.
+
+```cpp
+auto even_header = doc.ensure_section_header_paragraphs(
+    1, featherdoc::section_reference_kind::even_page);
+even_header.add_run("Even page header");
+
+auto first_footer = doc.ensure_section_footer_paragraphs(
+    1, featherdoc::section_reference_kind::first_page);
+first_footer.add_run("First page footer");
+```
+
 Use `create_empty()` when you want to build a new `.docx` document from scratch
 without relying on an existing template archive.
 
@@ -192,8 +246,10 @@ if (const auto error = doc.save()) {
 ## Current Limitations
 
 - Password-protected or encrypted `.docx` files are not supported yet.
-- The current public API reads body paragraphs, runs, and tables, but does not
-  expose dedicated header/footer editing APIs.
+- Section-specific header/footer references can now be created through
+  `ensure_section_header_paragraphs()` / `ensure_section_footer_paragraphs()`,
+  but there is still no high-level API for rebinding or reusing existing
+  header/footer parts across multiple sections.
 - Word equations (`OMML`) are not surfaced through a typed equation API.
 - Existing tables can be traversed, but there is no high-level API for creating
   new tables programmatically yet.

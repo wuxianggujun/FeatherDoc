@@ -13,6 +13,16 @@ performance.
 - `create_empty()` for creating a new in-memory `.docx` document without an
   existing template archive.
 - `save_as(path)` semantics that keep `Document::path()` unchanged.
+- `header_count()` / `footer_count()` and indexed `header_paragraphs()` /
+  `footer_paragraphs()` accessors for editing existing header/footer parts.
+- `ensure_header_paragraphs()` / `ensure_footer_paragraphs()` for creating and
+  attaching default header/footer parts to the body-level section properties.
+- `section_count()` and section-aware `section_header_paragraphs()` /
+  `section_footer_paragraphs()` accessors for resolving existing
+  header/footer references per section.
+- `ensure_section_header_paragraphs()` / `ensure_section_footer_paragraphs()`
+  for creating missing default/first/even header/footer references on a
+  specific section.
 - `replace_bookmark_text(name, replacement)` for rewriting text enclosed by a
   named bookmark range.
 - Structured error reporting through `last_error()` with `detail`,
@@ -30,8 +40,9 @@ performance.
 - Installed package metadata now includes legal and project-facing repository
   files under `share/FeatherDoc`.
 - README and Sphinx docs now document the current unsupported feature surface
-  more explicitly, including encrypted `.docx`, header/footer APIs, equations,
-  and table creation.
+  more explicitly, including encrypted `.docx`, section header/footer
+  rebinding limits,
+  equations, and table creation.
 
 ### Fixed
 
