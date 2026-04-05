@@ -1,21 +1,60 @@
-MIT License
+FeatherDoc Non-Commercial Source-Available License
+Version 1.0
 
-Copyright (c) 2019 AMIR
+Copyright (c) 2026 wuxianggujun
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This repository contains material from multiple copyright holders:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Upstream DuckX-derived portions. Those portions keep the original MIT
+   license text preserved in `LICENSE.upstream-mit`.
+2. FeatherDoc fork-specific modifications and additions. Those modifications
+   and additions are licensed under the terms below.
+3. Bundled third-party dependencies. Those components keep their own original
+   licenses.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+Grant of rights for fork-specific modifications and additions
+
+Subject to the conditions below, permission is granted to use, copy, study,
+modify, and redistribute the fork-specific FeatherDoc modifications and
+additions for personal, educational, research, evaluation, and other
+non-commercial purposes.
+
+Restrictions
+
+You may not, without prior written permission from the copyright holder:
+
+1. Use this repository, or the fork-specific FeatherDoc modifications and
+   additions, for any commercial purpose.
+2. Sell this repository, sell copies of its source code, or sell modified
+   versions of its source code.
+3. Include this repository, or the fork-specific FeatherDoc modifications and
+   additions, in a paid product, paid service, SaaS offering, consulting
+   delivery, commercial SDK, OEM bundle, or other revenue-generating offering.
+4. Redistribute this repository or modified versions of it for monetary
+   compensation.
+5. Remove, alter, or hide copyright, attribution, or license notices.
+
+For the avoidance of doubt, "commercial purpose" includes use intended for
+commercial advantage, monetary compensation, internal business deployment,
+customer delivery, or paid support and integration.
+
+Conditions
+
+1. You must preserve this license text, `LICENSE.upstream-mit`, and any other
+   required notices when redistributing source code.
+2. You must clearly mark your own modifications when redistributing altered
+   source code.
+3. You are responsible for complying with the original terms of upstream and
+   bundled third-party components.
+
+No trademark rights are granted by this license.
+
+Warranty disclaimer
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.

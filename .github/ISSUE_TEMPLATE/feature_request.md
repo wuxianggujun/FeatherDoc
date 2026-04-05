@@ -1,20 +1,33 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
-title: ''
-labels: ''
+about: Propose a new API, behavior change, or modernization direction
+title: '[Feature] '
+labels: enhancement
 assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+**Problem**
+What limitation or pain point are you trying to solve?
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+**Proposed change**
+Describe the API, behavior, or project change you want.
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+**Why this fits FeatherDoc**
+Explain why the request matches the current FeatherDoc direction rather than a
+legacy design assumption.
+
+**Alternatives considered**
+List other approaches you considered.
+
+**Compatibility impact**
+Does this affect:
+
+- public API
+- save/open semantics
+- bundled dependencies
+- MSVC support
+- licensing or attribution text
 
 **Additional context**
-Add any other context or screenshots about the feature request here.
+Add examples, prior art, sample code, or screenshots if helpful.

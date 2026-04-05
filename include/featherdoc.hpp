@@ -1,24 +1,26 @@
 /*
- * Under MIT license
- * Author: Amir Mohamadi (@amiremohamadi)
- * DuckX is a free library to work with docx files.
+ * FeatherDoc
+ * Original upstream author: Amir Mohamadi (@amiremohamadi)
+ * Current fork branding, licensing, and maintenance notes: see README,
+ * LICENSE, and LICENSE.upstream-mit.
+ * Licensing: see LICENSE and LICENSE.upstream-mit.
  */
 
-#ifndef DUCKX_H
-#define DUCKX_H
+#ifndef FEATHERDOC_HPP
+#define FEATHERDOC_HPP
 
-#include <cstdio>
-#include <stdlib.h>
+#include <cstddef>
+#include <filesystem>
+#include <optional>
 #include <string>
+#include <system_error>
 
 #include <constants.hpp>
-#include <duckxiterator.hpp>
+#include <featherdoc_iterator.hpp>
 #include <pugixml.hpp>
 #include <zip.h>
 
-// TODO: Use container-iterator design pattern!
-
-namespace duckx {
+namespace featherdoc {
 // Run contains runs in a paragraph
 class Run {
   private:
@@ -34,12 +36,12 @@ class Run {
     void set_parent(pugi::xml_node);
     void set_current(pugi::xml_node);
 
-    std::string get_text() const;
-    bool set_text(const std::string &) const;
-    bool set_text(const char *) const;
+    [[nodiscard]] std::string get_text() const;
+    [[nodiscard]] bool set_text(const std::string &) const;
+    [[nodiscard]] bool set_text(const char *) const;
 
     Run &next();
-    bool has_next() const;
+    [[nodiscard]] bool has_next() const;
 };
 
 // Paragraph contains a paragraph
@@ -61,13 +63,16 @@ class Paragraph {
     void set_current(pugi::xml_node);
 
     Paragraph &next();
-    bool has_next() const;
+    [[nodiscard]] bool has_next() const;
 
     Run &runs();
-    Run &add_run(const std::string &, duckx::formatting_flag = duckx::none);
-    Run &add_run(const char *, duckx::formatting_flag = duckx::none);
-    Paragraph &insert_paragraph_after(const std::string &,
-                                      duckx::formatting_flag = duckx::none);
+    Run add_run(const std::string &,
+                featherdoc::formatting_flag = featherdoc::formatting_flag::none);
+    Run add_run(const char *,
+                featherdoc::formatting_flag = featherdoc::formatting_flag::none);
+    Paragraph insert_paragraph_after(const std::string &,
+                                     featherdoc::formatting_flag =
+                                         featherdoc::formatting_flag::none);
 };
 
 // TableCell contains one or more paragraphs
@@ -89,7 +94,7 @@ class TableCell {
     Paragraph &paragraphs();
 
     TableCell &next();
-    bool has_next() const;
+    [[nodiscard]] bool has_next() const;
 };
 
 // TableRow consists of one or more TableCells
@@ -108,7 +113,7 @@ class TableRow {
 
     TableCell &cells();
 
-    bool has_next() const;
+    [[nodiscard]] bool has_next() const;
     TableRow &next();
 };
 
@@ -128,9 +133,27 @@ class Table {
     void set_current(pugi::xml_node);
 
     Table &next();
-    bool has_next() const;
+    [[nodiscard]] bool has_next() const;
 
     TableRow &rows();
+};
+
+struct document_error_info {
+    std::error_code code{};
+    std::string detail;
+    std::string entry_name;
+    std::optional<std::ptrdiff_t> xml_offset;
+
+    explicit operator bool() const noexcept {
+        return static_cast<bool>(this->code);
+    }
+
+    void clear() {
+        this->code.clear();
+        this->detail.clear();
+        this->entry_name.clear();
+        this->xml_offset.reset();
+    }
 };
 
 // Document contains whole the docx file
@@ -138,23 +161,29 @@ class Table {
 class Document {
   private:
     friend class IteratorHelper;
-    std::string directory;
+    std::filesystem::path document_path;
     Paragraph paragraph;
     Table table;
     pugi::xml_document document;
-    bool flag_is_open;
+    bool flag_is_open{false};
+    bool has_source_archive{false};
+    mutable document_error_info last_error_info;
 
   public:
     Document();
-    Document(std::string);
-    void file(std::string);
-    void open();
-    void save() const;
-    bool is_open() const;
+    explicit Document(std::filesystem::path);
+    [[nodiscard]] std::error_code create_empty();
+    void set_path(std::filesystem::path);
+    [[nodiscard]] const std::filesystem::path &path() const;
+    [[nodiscard]] std::error_code open();
+    [[nodiscard]] std::error_code save() const;
+    [[nodiscard]] std::error_code save_as(std::filesystem::path) const;
+    [[nodiscard]] bool is_open() const;
+    [[nodiscard]] const document_error_info &last_error() const noexcept;
 
     Paragraph &paragraphs();
     Table &tables();
 };
-} // namespace duckx
+} // namespace featherdoc
 
 #endif

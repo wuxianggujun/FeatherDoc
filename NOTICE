@@ -1,0 +1,26 @@
+FeatherDoc Notice
+=================
+
+This repository contains material from multiple licensing sources.
+
+1. Fork-specific FeatherDoc modifications and additions
+   These parts are distributed under the non-commercial source-available terms
+   described in the repository root LICENSE file.
+
+2. Upstream DuckX-derived portions
+   These parts retain the upstream MIT license text preserved in
+   LICENSE.upstream-mit.
+
+3. Bundled third-party dependencies
+   These components continue to use their own original licenses.
+
+This repository should be described as source-available rather than pure open
+source for its fork-specific modifications.
+
+For practical guidance, see:
+- LEGAL.md
+- docs/licensing_zh.rst
+
+The definitive license terms remain:
+- LICENSE
+- LICENSE.upstream-mit

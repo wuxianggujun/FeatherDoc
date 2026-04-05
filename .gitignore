@@ -33,6 +33,8 @@
 *.user
 .DS_Store
 build/*
+build-*/
+.idea/
 
 # vim swap files
 **/*.swp

@@ -1,88 +1,99 @@
 # Contributing
 
-When contributing to this repository, please first discuss the change you wish to make via issue,
-email, or any other method with the owners of this repository before making a change. 
+FeatherDoc follows its own current roadmap. Contributions should fit the
+project direction: modern C++, clear API behavior, MSVC-friendly builds, and
+explicit licensing boundaries.
 
-## Pull Request
+## Before Opening a Pull Request
 
-1. Ensure any install or build dependencies are removed before the end of the layer when doing a 
-   build.
-2. Try to make simple PRs that handle one specific topic. 
-Just like for reporting issues, it's better to open 3 different PRs that each address a different issue 
-than one big PR with three commits
-3. Follow the "Coding Style"
+Please open or reference an issue first when your change does any of the
+following:
 
-## Code of Conduct
+1. Changes the public API.
+2. Changes document save/open behavior.
+3. Updates bundled third-party dependencies.
+4. Changes build requirements or supported toolchains.
+5. Introduces a new file format assumption or compatibility policy.
 
-### Our Pledge
+Small fixes, typo corrections, and test-only improvements can usually be sent
+directly as a focused pull request.
 
-In the interest of fostering an open and welcoming environment, we as
-contributors and maintainers pledge to making participation in our project and
-our community a harassment-free experience for everyone, regardless of age, body
-size, disability, ethnicity, gender identity and expression, level of experience,
-nationality, personal appearance, race, religion, or sexual identity and
-orientation.
+## Pull Request Guidelines
 
-### Standards
+1. Keep each pull request focused on one topic.
+2. Prefer modern C++ style over compatibility layers for obsolete patterns.
+3. Add or update tests when behavior changes.
+4. Keep MSVC buildability intact. The current baseline validation flow is:
 
-Examples of behavior that contributes to creating a positive environment
-include:
+```bat
+cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON
+cmake --build build-msvc-nmake
+ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
+```
 
-* Using welcoming and inclusive language
-* Being respectful of differing viewpoints and experiences
-* Gracefully accepting constructive criticism
-* Focusing on what is best for the community
-* Showing empathy towards other community members
+5. Do not silently change licensing, attribution, or bundled dependency notices.
+6. Do not mix unrelated refactors, formatting sweeps, and behavior changes in
+   one pull request.
 
-Examples of unacceptable behavior by participants include:
+## Versioning And Release Expectations
 
-* The use of sexualized language or imagery and unwelcome sexual attention or
-advances
-* Trolling, insulting/derogatory comments, and personal or political attacks
-* Public or private harassment
-* Publishing others' private information, such as a physical or electronic
-  address, without explicit permission
-* Other conduct which could reasonably be considered inappropriate in a
-  professional setting
+FeatherDoc uses a pragmatic `MAJOR.MINOR.PATCH` release model.
 
-### Responsibilities
+1. Use `MAJOR` for breaking public API or packaging changes.
+2. Use `MINOR` for new features, performance work, diagnostics improvements, and
+   compatible API expansion.
+3. Use `PATCH` for bug fixes, build fixes, test fixes, and documentation fixes.
 
-Project maintainers are responsible for clarifying the standards of acceptable
-behavior and are expected to take appropriate and fair corrective action in
-response to any instances of unacceptable behavior.
+If your change affects public API, save/open semantics, install layout, package
+variables, or release-facing metadata, mention that explicitly in the pull
+request description.
 
-Project maintainers have the right and responsibility to remove, edit, or
-reject comments, commits, code, wiki edits, issues, and other contributions
-that are not aligned to this Code of Conduct, or to ban temporarily or
-permanently any contributor for other behaviors that they deem inappropriate,
-threatening, offensive, or harmful.
+For the current repository-side release rules, see:
 
-### Scope
+- `docs/release_policy_zh.rst`
 
-This Code of Conduct applies both within project spaces and in public spaces
-when an individual is representing the project or its community. Examples of
-representing a project or community include using an official project e-mail
-address, posting via an official social media account, or acting as an appointed
-representative at an online or offline event. Representation of a project may be
-further defined and clarified by project maintainers.
+## Coding Expectations
 
-### Enforcement
+1. Prefer readable, explicit code over clever shortcuts.
+2. Use `std::filesystem`, `std::error_code`, strong enums, and other modern
+   standard library facilities where appropriate.
+3. Avoid reviving removed legacy compatibility APIs unless there is a clear
+   migration reason.
+4. Keep diagnostics actionable. Failures should point to a path, archive entry,
+   or other concrete context whenever possible.
+5. When performance-sensitive paths are touched, avoid unnecessary copies and
+   large transient allocations.
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by contacting the project team at [INSERT EMAIL ADDRESS]. All
-complaints will be reviewed and investigated and will result in a response that
-is deemed necessary and appropriate to the circumstances. The project team is
-obligated to maintain confidentiality with regard to the reporter of an incident.
-Further details of specific enforcement policies may be posted separately.
+## Reporting Bugs
 
-Project maintainers who do not follow or enforce the Code of Conduct in good
-faith may face temporary or permanent repercussions as determined by other
-members of the project's leadership.
+Use GitHub issues and include:
 
-### Attribution
+1. Compiler and version.
+2. CMake generator.
+3. Operating system.
+4. Minimal reproduction code.
+5. Whether the issue reproduces on MSVC.
+6. A sanitized sample `.docx` if the issue depends on document contents.
 
-This Code of Conduct is adapted from the [Contributor Covenant][homepage], version 1.4,
-available at [http://contributor-covenant.org/version/1/4][version]
+## Licensing Note For Contributions
 
-[homepage]: http://contributor-covenant.org
-[version]: http://contributor-covenant.org/version/1/4/
+By submitting code, documentation, or other repository content, you agree that
+your contribution may be distributed under the repository's current licensing
+structure:
+
+1. Fork-specific FeatherDoc modifications are governed by `LICENSE`.
+2. Preserved upstream-derived portions remain documented by `LICENSE.upstream-mit`.
+3. Bundled third-party components keep their own original licenses.
+
+If you are not comfortable contributing under that structure, do not submit the
+change.
+
+## Conduct
+
+Be direct, technical, and respectful.
+
+1. Critique code and decisions, not people.
+2. Keep discussions evidence-based.
+3. Do not post private information, abuse, or harassment.
+4. Maintainers may close or reject discussions that are off-topic, hostile, or
+   clearly incompatible with the project direction.

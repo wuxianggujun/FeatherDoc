@@ -17,10 +17,10 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'DuckX'
-copyright = '2020, Amir Mohamadi'
-author = 'Amir Mohamadi'
-version = '1.2.2'
+project = 'FeatherDoc'
+copyright = '2026, wuxianggujun and upstream contributors'
+author = 'wuxianggujun and upstream contributors'
+version = '1.0.0'
 
 # -- General configuration ---------------------------------------------------
 

@@ -1,38 +1,41 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
+about: Report a defect in FeatherDoc behavior, build, or documentation
+title: '[Bug] '
+labels: bug
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**Summary**
+Describe the bug clearly and briefly.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Environment**
+- OS:
+- Compiler and version:
+- CMake version:
+- Generator:
+- Build type:
+- Does it reproduce on MSVC:
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Reproduction**
+Provide the smallest reproduction you can:
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+1. Input `.docx` or setup:
+2. Minimal code snippet:
+3. Exact command(s):
+4. Observed result:
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+**Expected result**
+Describe what you expected instead.
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Diagnostics**
+Paste relevant logs, stack traces, `last_error()` details, or archive entry
+names here.
+
+**Sample files**
+If the bug depends on a specific document, attach a sanitized sample `.docx`
+when possible.
 
 **Additional context**
-Add any other context about the problem here.
+Add any other details that help isolate the issue.

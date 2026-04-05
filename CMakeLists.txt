@@ -1,77 +1,152 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.20)
 
-project(duckx VERSION 0.2)
+project(
+    FeatherDoc
+    VERSION 1.0.0
+    DESCRIPTION "Modern C++ .docx library focused on explicit diagnostics, MSVC support, and clean API behavior"
+    LANGUAGES C CXX
+)
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-	include(CTest)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+set(FEATHERDOC_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/FeatherDoc")
+set(FEATHERDOC_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/FeatherDoc")
+
+if(PROJECT_IS_TOP_LEVEL)
+    include(CTest)
 endif()
 
 option(BUILD_SHARED_LIBS "Build shared instead of static library" OFF)
 option(BUILD_SAMPLES "Build provided samples" OFF)
 
-# Fix issues when building with clang 12, next version of clang
-# else we might encounter errors making the library 
-# not being able to be compiled
-
-set(CMAKE_CXX_STANDARD 11)
-
-set(HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/duckx.hpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/include/constants.hpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/include/duckxiterator.hpp")
-set(SOURCES src/duckx.cpp)
-
-set(THIRD_PARTY_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pugixml/pugixml.hpp"
-                        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pugixml/pugiconfig.hpp"
-                        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip/zip.h")
-set(THIRD_PARTY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip/zip.c")
-
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include"
-                    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pugixml"
-                    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip")
-
-if(BUILD_SHARED_LIBS)
-    add_library(duckx SHARED ${SOURCES} ${THIRD_PARTY_SRC})
-else()
-    add_library(duckx STATIC ${SOURCES} ${THIRD_PARTY_SRC})
-endif()
-
-add_library(duckx::duckx ALIAS duckx)
-
-target_include_directories(duckx PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<INSTALL_INTERFACE:include>
+set(HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/constants.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc_iterator.hpp"
+)
+set(SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/featherdoc.cpp"
 )
 
-mark_as_advanced(CLEAR CMAKE_INSTALL_LIBDIR CMAKE_INSTALL_INCLUDEDIR)
+set(PUGIXML_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pugixml/pugixml.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pugixml/pugiconfig.hpp"
+)
+set(PUGIXML_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pugixml/pugixml.cpp"
+)
+set(ZIP_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip/miniz.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip/zip.h"
+)
+set(THIRD_PARTY_SRC
+    ${PUGIXML_SOURCES}
+    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip/zip.c"
+)
 
-if (BUILD_SAMPLES)
-	# Sample executable
-	set(SAMPLE1_SOURCES samples/sample1.cpp)
-	add_executable(duckx_sample1 ${SAMPLE1_SOURCES})
-	target_link_libraries(duckx_sample1 duckx)
+add_library(FeatherDoc ${SOURCES} ${THIRD_PARTY_SRC})
+add_library(FeatherDoc::FeatherDoc ALIAS FeatherDoc)
 
-	set(SAMPLE2_SOURCES samples/sample2.cpp)
-	add_executable(duckx_sample2 ${SAMPLE2_SOURCES})
-	target_link_libraries(duckx_sample2 duckx)
-        
-        file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/my_test.docx
-            DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_features(FeatherDoc PUBLIC cxx_std_20)
+set_target_properties(FeatherDoc PROPERTIES
+    CXX_EXTENSIONS NO
+    CXX_STANDARD_REQUIRED YES
+    EXPORT_NAME FeatherDoc
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+)
+
+target_include_directories(FeatherDoc
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pugixml>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zip>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/thirdparty/pugixml>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/thirdparty/zip>
+)
+
+if(MSVC)
+    target_compile_options(FeatherDoc PRIVATE /W4 /permissive-)
+    target_compile_definitions(FeatherDoc PRIVATE _CRT_SECURE_NO_WARNINGS)
+else()
+    target_compile_options(FeatherDoc PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-include(GNUInstallDirs)
+if(BUILD_SAMPLES)
+    add_executable(featherdoc_sample1 samples/sample1.cpp)
+    target_link_libraries(featherdoc_sample1 PRIVATE FeatherDoc::FeatherDoc)
+
+    add_executable(featherdoc_sample2 samples/sample2.cpp)
+    target_link_libraries(featherdoc_sample2 PRIVATE FeatherDoc::FeatherDoc)
+
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/my_test.docx
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+endif()
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/FeatherDocConfig.cmake"
+    INSTALL_DESTINATION "${FEATHERDOC_INSTALL_CMAKEDIR}"
+    PATH_VARS FEATHERDOC_INSTALL_DATADIR
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/FeatherDocConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
 install(
-    TARGETS duckx
-    EXPORT duckxConfig
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}${INSTALL_SUFFIX}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}${INSTALL_SUFFIX}
+    TARGETS FeatherDoc
+    EXPORT FeatherDocTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
-install(EXPORT duckxConfig NAMESPACE duckx:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/duckx)
-install(FILES ${HEADERS} ${THIRD_PARTY_HEADERS} DESTINATION include/duckx)
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
 
+install(
+    EXPORT FeatherDocTargets
+    NAMESPACE FeatherDoc::
+    DESTINATION "${FEATHERDOC_INSTALL_CMAKEDIR}"
+)
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
-	enable_testing()
-	add_subdirectory(test)
+install(
+    FILES ${HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(
+    FILES ${PUGIXML_HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/thirdparty/pugixml
+)
+
+install(
+    FILES ${ZIP_HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/thirdparty/zip
+)
+
+install(
+    FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/FeatherDocConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/FeatherDocConfigVersion.cmake"
+    DESTINATION "${FEATHERDOC_INSTALL_CMAKEDIR}"
+)
+
+install(
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+        "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.upstream-mit"
+        "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
+        "${CMAKE_CURRENT_SOURCE_DIR}/LEGAL.md"
+    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}"
+)
+
+if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
+    add_subdirectory(test)
 endif()
 

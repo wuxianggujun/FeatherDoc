@@ -1,26 +1,37 @@
 /*
- * Under MIT license
- * Author: Cihan SARI (@CihanSari)
- * DuckX is a free library to work wirh docx files.
+ * FeatherDoc
+ * Original upstream author: Cihan SARI (@CihanSari)
+ * Current fork branding, licensing, and maintenance notes: see README,
+ * LICENSE, and LICENSE.upstream-mit.
+ * Licensing: see LICENSE and LICENSE.upstream-mit.
  */
 
-#ifndef DUCKXITERATOR_H
-#define DUCKXITERATOR_H
+#ifndef FEATHERDOC_ITERATOR_HPP
+#define FEATHERDOC_ITERATOR_HPP
+
+#include <cstddef>
+#include <iterator>
 
 namespace pugi {
 class xml_node;
 }
 
-namespace duckx {
+namespace featherdoc {
 template <class T, class P, class C = P> class Iterator {
   private:
     using ParentType = P;
     using CurrentType = C;
-    ParentType parent{0};
-    CurrentType current{0};
+    ParentType parent{};
+    CurrentType current{};
     mutable T buffer{};
 
   public:
+    using difference_type = std::ptrdiff_t;
+    using value_type = T;
+    using pointer = const T *;
+    using reference = const T &;
+    using iterator_category = std::forward_iterator_tag;
+
     Iterator() = default;
 
     Iterator(ParentType parent, CurrentType current)
@@ -39,8 +50,14 @@ template <class T, class P, class C = P> class Iterator {
         return *this;
     }
 
+    Iterator operator++(int) {
+        auto copy = *this;
+        ++(*this);
+        return copy;
+    }
+
     auto operator*() const -> T const & {
-        // Only update the buffer when the user wants to accces to the data
+        // Update the lightweight buffer only when the iterator is dereferenced.
         buffer.set_parent(parent);
         buffer.set_current(current);
         return buffer;
@@ -57,8 +74,7 @@ class IteratorHelper {
     }
 
     template <class T> static auto make_end(T const &obj) -> Iterator<T, P> {
-        return Iterator<T, P>(obj.parent,
-                              static_cast<decltype(obj.current)>(0));
+        return Iterator<T, P>(obj.parent, decltype(obj.current){});
     }
 
     template <class T> friend auto begin(T const &) -> Iterator<T, P>;
@@ -73,6 +89,6 @@ template <class T> auto begin(T const &obj) -> Iterator<T, pugi::xml_node> {
 template <class T> auto end(T const &obj) -> Iterator<T, pugi::xml_node> {
     return IteratorHelper::make_end(obj);
 }
-} // namespace duckx
+} // namespace featherdoc
 
 #endif

@@ -1,5 +1,3 @@
-set (CMAKE_CXX_STANDARD 11)
-
 add_executable(
     unit_tests
     basic_tests.cpp
@@ -7,7 +5,7 @@ add_executable(
 
 target_link_libraries(
     unit_tests
-    duckx
+    PRIVATE FeatherDoc::FeatherDoc
 )
 
 add_test(
@@ -24,7 +22,7 @@ add_executable(
 
 target_link_libraries(
     iterator_tests
-    duckx
+    PRIVATE FeatherDoc::FeatherDoc
 )
 
 add_test(
@@ -32,13 +30,6 @@ add_test(
     iterator
     COMMAND
     iterator_tests
-)
-
-# Need C++11 for iterator tests
-set_target_properties(iterator_tests PROPERTIES
-    CXX_STANDARD 11
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
 )
 
 configure_file(my_test.docx ${CMAKE_CURRENT_BINARY_DIR}/my_test.docx COPYONLY)
