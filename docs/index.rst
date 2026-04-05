@@ -161,10 +161,20 @@ fresh ``.docx`` files without opening an existing template archive first.
 
 Performance Notes
 -----------------
-``open()`` now lets ``pugixml`` take ownership of the extracted XML buffer,
-which removes one extra copy during parse. ``save()`` now streams both the
-updated ``document.xml`` and the unchanged ZIP entries instead of buffering
-whole archive entries in memory first.
+``open()`` now keeps XML buffer ownership on the FeatherDoc side before parsing,
+which avoids cross-library allocator mismatches in shared-library builds.
+``save()`` now streams both the updated ``document.xml`` and the unchanged ZIP
+entries instead of buffering whole archive entries in memory first.
+
+Current Limitations
+-------------------
+- Password-protected or encrypted ``.docx`` files are not supported yet.
+- The current public API reads body paragraphs, runs, and tables, but does not
+  expose dedicated header/footer editing APIs.
+- Word equations (``OMML``) are not surfaced through a typed equation API.
+- Existing tables can be traversed, but there is no high-level API for creating
+  new tables programmatically yet.
+- Bookmark-targeted batch replacement is not exposed as a dedicated API yet.
 
 Bundled Dependencies
 --------------------

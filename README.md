@@ -9,7 +9,7 @@ FeatherDoc is a modernized C++ library for reading and writing Microsoft Word
 - C++20
 - MSVC-friendly build setup
 - Lightweight paragraph/run/table traversal API
-- In-place XML parsing on `open()`
+- MSVC-safe XML parsing on `open()`
 - Streamed ZIP rewrite path on `save()`
 
 ## Build
@@ -171,12 +171,22 @@ if (const auto error = doc.save()) {
 
 ## Performance Notes
 
-- `open()` now parses `word/document.xml` in-place via `pugixml` ownership
-  transfer, removing one extra XML buffer copy.
+- `open()` now keeps XML buffer ownership on the FeatherDoc side before parsing,
+  which avoids cross-library allocator mismatches in shared-library builds.
 - `save()` now streams `document.xml` directly into the output archive instead
   of materializing one large intermediate string.
 - `save()` also copies non-XML ZIP entries chunk-by-chunk, which avoids loading
   each entry into heap memory before writing it back.
+
+## Current Limitations
+
+- Password-protected or encrypted `.docx` files are not supported yet.
+- The current public API reads body paragraphs, runs, and tables, but does not
+  expose dedicated header/footer editing APIs.
+- Word equations (`OMML`) are not surfaced through a typed equation API.
+- Existing tables can be traversed, but there is no high-level API for creating
+  new tables programmatically yet.
+- Bookmark-targeted batch replacement is not exposed as a dedicated API yet.
 
 ## Bundled Dependencies
 
