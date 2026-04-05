@@ -37,6 +37,10 @@ std::string document_error_category::message(int condition) const {
         return "failed to read [Content_Types].xml";
     case document_errc::content_types_xml_parse_failed:
         return "failed to parse [Content_Types].xml";
+    case document_errc::settings_xml_read_failed:
+        return "failed to read word/settings.xml";
+    case document_errc::settings_xml_parse_failed:
+        return "failed to parse word/settings.xml";
     case document_errc::output_archive_open_failed:
         return "failed to create output archive";
     case document_errc::output_document_xml_open_failed:

@@ -23,6 +23,32 @@ performance.
 - `ensure_section_header_paragraphs()` / `ensure_section_footer_paragraphs()`
   for creating missing default/first/even header/footer references on a
   specific section.
+- `assign_section_header_paragraphs()` / `assign_section_footer_paragraphs()`
+  for rebinding a section to an already loaded header/footer part.
+- `remove_section_header_reference()` / `remove_section_footer_reference()`
+  for detaching one section-specific header/footer reference kind.
+- `remove_header_part()` / `remove_footer_part()` for dropping one loaded
+  header/footer part and detaching every section reference that points to it.
+- `copy_section_header_references()` / `copy_section_footer_references()` for
+  making one section reuse another section's current header/footer reference
+  layout in bulk.
+- `append_section(inherit_header_footer)` for appending a new final section and
+  optionally inheriting the previous section's header/footer reference layout.
+- `insert_section(section_index, inherit_header_footer)` for inserting a new
+  section after an existing section while optionally inheriting that section's
+  header/footer reference layout.
+- `remove_section(section_index)` for collapsing one section boundary while
+  preserving the surrounding document content.
+- `move_section(source_section_index, target_section_index)` for reordering
+  whole sections while keeping their header/footer reference layouts attached.
+- Automatic `w:titlePg` / `w:evenAndOddHeaders` enablement plus
+  `word/settings.xml` read/write support when first-page or even-page
+  header/footer references are created.
+- Automatic pruning of unreferenced header/footer parts, corresponding
+  `document.xml.rels` relationships, and `[Content_Types].xml` overrides
+  during `save()` / `save_as()` output.
+- Removing the last first-page or even-page section reference now also clears
+  stale `w:titlePg` / `w:evenAndOddHeaders` markers.
 - `replace_bookmark_text(name, replacement)` for rewriting text enclosed by a
   named bookmark range.
 - Structured error reporting through `last_error()` with `detail`,
@@ -41,7 +67,7 @@ performance.
   files under `share/FeatherDoc`.
 - README and Sphinx docs now document the current unsupported feature surface
   more explicitly, including encrypted `.docx`, section header/footer
-  rebinding limits,
+  part-reordering limits,
   equations, and table creation.
 
 ### Fixed

@@ -67,9 +67,37 @@
     ``section_footer_paragraphs()`` 已经可以按 section 解析现有引用关系；
     ``ensure_section_header_paragraphs()`` /
     ``ensure_section_footer_paragraphs()`` 也已经可以为指定 section 补出
-    ``default`` / ``first`` / ``even`` 引用并创建对应 part。
-    这还不是完整的 section-aware 重绑定 API，但已经覆盖了“编辑已有页眉 / 页脚”、
-    “从空模板补出默认页眉 / 页脚”和“按 section 创建或访问引用”的核心场景。
+    ``default`` / ``first`` / ``even`` 引用并创建对应 part，
+    同时会在需要时自动补上 ``w:titlePg`` 和
+    ``word/settings.xml`` 里的 ``w:evenAndOddHeaders`` 开关。
+    此外，``assign_section_header_paragraphs()`` /
+    ``assign_section_footer_paragraphs()`` 也已经可以把指定 section
+    重新绑定到已存在的页眉 / 页脚 part。
+    ``remove_section_header_reference()`` /
+    ``remove_section_footer_reference()`` 也已经可以显式移除指定 section 的
+    ``default`` / ``first`` / ``even`` 引用。
+    ``remove_header_part()`` / ``remove_footer_part()`` 也已经可以直接删除
+    一个已加载的页眉 / 页脚 part，并同步解除所有指向它的 section 引用。
+    ``copy_section_header_references()`` /
+    ``copy_section_footer_references()`` 也已经可以把某个 section 当前的
+    引用布局整体复制到另一个 section，并自动清掉目标侧多余的 ``first`` /
+    ``even`` 引用。
+    ``append_section()`` 现在已经可以直接在文末追加一个新的 section，
+    ``insert_section()`` 也可以在任意已有 section 之后插入一个新的 section，
+    并可选择是否继承来源 section 的页眉 / 页脚引用布局。
+    ``remove_section()`` 也已经可以删除某个 section 边界而不删除正文内容：
+    删除中间 section 时会把内容并入后一个 section，删除最后一个 section
+    时会让前一个 section 成为新的 final section。
+    ``move_section()`` 现在也已经可以重排整个 section，正文内容和对应的
+    页眉 / 页脚引用布局会一起移动。
+    如果删掉的是最后一个 ``first`` / ``even`` 引用，还会顺手回收不再需要的
+    ``w:titlePg`` 和 ``w:evenAndOddHeaders`` 标记。
+    当某个页眉 / 页脚 part 不再被 ``document.xml`` 引用时，
+    ``save()`` / ``save_as()`` 现在也会自动裁剪对应的 part、
+    ``document.xml.rels`` 关系和 ``[Content_Types].xml`` 条目。
+    这还不是完整的 section 管理 API，但已经覆盖了“编辑已有页眉 / 页脚”、
+    “从空模板补出默认页眉 / 页脚”、“按 section 创建 / 插入 / 删除 / 重排 /
+    访问引用”和“跨 section 复用已有 part”的核心场景。
 
 
 当前仍未解决或仍属能力缺口
@@ -100,7 +128,7 @@
 
 剩下的主要不是“明显 bug”，而是更偏功能扩展的能力缺口：
 
-- 多 section 的页眉 / 页脚重绑定、复用与引用管理
+- 按 part 索引重排页眉、页脚的 API
 - 表格创建 API
 - 公式读取 API
 - 加密 ``.docx`` 支持

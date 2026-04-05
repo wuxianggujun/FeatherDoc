@@ -85,6 +85,8 @@ enum class document_errc {
     document_xml_parse_failed,
     content_types_xml_read_failed,
     content_types_xml_parse_failed,
+    settings_xml_read_failed,
+    settings_xml_parse_failed,
     output_archive_open_failed,
     output_document_xml_open_failed,
     output_document_xml_write_failed,

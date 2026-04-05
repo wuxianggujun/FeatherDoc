@@ -206,6 +206,9 @@ for (std::size_t i = 0; i < doc.section_count(); ++i) {
 Use `ensure_section_header_paragraphs(section_index, kind)` and
 `ensure_section_footer_paragraphs(section_index, kind)` when you need to create
 and attach a missing section-specific header/footer reference before editing it.
+When `kind` is `first_page` or `even_page`, FeatherDoc also enables the
+required WordprocessingML switches (`w:titlePg` or
+`word/settings.xml` -> `w:evenAndOddHeaders`) automatically.
 
 ```cpp
 auto even_header = doc.ensure_section_header_paragraphs(
@@ -215,6 +218,100 @@ even_header.add_run("Even page header");
 auto first_footer = doc.ensure_section_footer_paragraphs(
     1, featherdoc::section_reference_kind::first_page);
 first_footer.add_run("First page footer");
+```
+
+Use `assign_section_header_paragraphs(section_index, header_index, kind)` and
+`assign_section_footer_paragraphs(section_index, footer_index, kind)` when you
+need multiple sections to reuse an existing header/footer part instead of
+creating a new one. Each call only rebinds the requested `kind`, so reuse
+across multiple kinds on the same section needs one call per kind.
+
+```cpp
+auto shared_header = doc.assign_section_header_paragraphs(1, 0);
+shared_header.runs().set_text("Shared header");
+
+auto shared_footer = doc.assign_section_footer_paragraphs(1, 0);
+shared_footer.runs().set_text("Shared footer");
+
+auto shared_first_footer = doc.assign_section_footer_paragraphs(
+    1, 0, featherdoc::section_reference_kind::first_page);
+shared_first_footer.runs().set_text("Shared footer");
+```
+
+Use `remove_section_header_reference(section_index, kind)` and
+`remove_section_footer_reference(section_index, kind)` to detach a specific
+section-level reference without touching other kinds already attached to the
+same section.
+
+```cpp
+doc.remove_section_header_reference(1);
+doc.remove_section_footer_reference(
+    1, featherdoc::section_reference_kind::first_page);
+```
+
+When a header/footer part is no longer referenced from `document.xml`,
+`save()` / `save_as()` automatically omit the orphaned part together with the
+matching `document.xml.rels` relationship and `[Content_Types].xml` override.
+Removing the last first-page or even-page reference also drops `w:titlePg` or
+`w:evenAndOddHeaders` when that flag is no longer needed.
+
+Use `remove_header_part(index)` and `remove_footer_part(index)` when you want to
+drop one loaded header/footer part entirely. The matching section references are
+detached in memory, `header_count()` / `footer_count()` shrink immediately, and
+the orphaned ZIP entries are omitted on the next save.
+
+```cpp
+doc.remove_header_part(1);
+doc.remove_footer_part(1);
+```
+
+Use `copy_section_header_references(source_section, target_section)` and
+`copy_section_footer_references(source_section, target_section)` when one
+section should adopt another section's current header/footer reference layout.
+The target side is replaced for that reference family, so stale `first` / `even`
+references are removed automatically.
+
+```cpp
+doc.copy_section_header_references(0, 1);
+doc.copy_section_footer_references(0, 1);
+```
+
+Use `append_section(inherit_header_footer)` to append a new final section at the
+end of the document. By default it inherits the previous final section's
+header/footer reference layout; passing `false` appends the new section without
+copying those references.
+
+```cpp
+doc.append_section();
+doc.append_section(false);
+```
+
+Use `insert_section(section_index, inherit_header_footer)` to insert a new
+section after an existing section. By default the inserted section inherits the
+referenced section's current header/footer reference layout; passing `false`
+creates the new section break without copying those references.
+
+```cpp
+doc.insert_section(0);
+doc.insert_section(1, false);
+```
+
+Use `remove_section(section_index)` to remove one section while preserving the
+document content around it. Removing a non-final section collapses its break so
+that content flows into the following section; removing the final section makes
+the previous section become the new final section.
+
+```cpp
+doc.remove_section(1);
+```
+
+Use `move_section(source_section_index, target_section_index)` to reorder whole
+sections. The section content and its header/footer reference layout move
+together, and `target_section_index` is the final index of the moved section
+after reordering.
+
+```cpp
+doc.move_section(2, 0);
 ```
 
 Use `create_empty()` when you want to build a new `.docx` document from scratch
@@ -246,10 +343,18 @@ if (const auto error = doc.save()) {
 ## Current Limitations
 
 - Password-protected or encrypted `.docx` files are not supported yet.
-- Section-specific header/footer references can now be created through
-  `ensure_section_header_paragraphs()` / `ensure_section_footer_paragraphs()`,
-  but there is still no high-level API for rebinding or reusing existing
-  header/footer parts across multiple sections.
+- Section-specific header/footer references can now be created and rebound
+  through `ensure_section_header_paragraphs()` /
+  `ensure_section_footer_paragraphs()` and
+  `assign_section_header_paragraphs()` / `assign_section_footer_paragraphs()`,
+  and removed through `remove_section_header_reference()` /
+  `remove_section_footer_reference()`. Whole parts can also be dropped through
+  `remove_header_part()` / `remove_footer_part()`, and section reference
+  layouts can be copied through `copy_section_header_references()` /
+  `copy_section_footer_references()`. New sections can now be appended or
+  inserted after an existing section through `append_section()` /
+  `insert_section()`, removed through `remove_section()`, and reordered through
+  `move_section()`, but there is still no high-level API for part reordering.
 - Word equations (`OMML`) are not surfaced through a typed equation API.
 - Existing tables can be traversed, but there is no high-level API for creating
   new tables programmatically yet.
