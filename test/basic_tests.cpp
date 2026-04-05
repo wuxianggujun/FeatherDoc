@@ -304,6 +304,35 @@ TEST_CASE("save_as rejects an empty output path") {
     CHECK_FALSE(doc.last_error().detail.empty());
 }
 
+TEST_CASE("open and save work with an absolute path outside the build directory") {
+    namespace fs = std::filesystem;
+
+    const fs::path temp_root =
+        fs::temp_directory_path() / "FeatherDoc absolute path regression";
+    const fs::path nested_dir = temp_root / "nested docs";
+    const fs::path target = nested_dir / "absolute-open-test.docx";
+
+    fs::create_directories(nested_dir);
+    fs::copy_file("my_test.docx", target, fs::copy_options::overwrite_existing);
+
+    featherdoc::Document doc(fs::absolute(target));
+    CHECK_FALSE(doc.open());
+    CHECK(doc.is_open());
+
+    auto paragraph = doc.paragraphs();
+    CHECK(paragraph.has_next());
+    paragraph.add_run(" [absolute path edit]");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(fs::absolute(target));
+    CHECK_FALSE(reopened.open());
+    CHECK_NE(collect_document_text(reopened).find("[absolute path edit]"),
+             std::string::npos);
+
+    fs::remove_all(temp_root);
+}
+
 TEST_CASE("set_text preserves xml:space when leading or trailing spaces exist") {
     namespace fs = std::filesystem;
 
