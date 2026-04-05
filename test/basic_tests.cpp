@@ -556,6 +556,31 @@ TEST_CASE("paragraph iteration skips non-paragraph siblings and appends before s
     fs::remove(target);
 }
 
+TEST_CASE("insert_paragraph_after saves cleanly from the document paragraph cursor") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "insert_paragraph_after_regression.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto &paragraphs = doc.paragraphs();
+    CHECK(paragraphs.has_next());
+
+    const auto inserted =
+        paragraphs.insert_paragraph_after("inserted after initial paragraph");
+    CHECK(inserted.has_next());
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened),
+             "\ninserted after initial paragraph\n");
+
+    fs::remove(target);
+}
+
 TEST_CASE("run iteration skips non-run siblings inside a paragraph") {
     namespace fs = std::filesystem;
 
