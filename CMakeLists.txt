@@ -67,6 +67,10 @@ target_include_directories(FeatherDoc
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/thirdparty/zip>
 )
 
+if(WIN32)
+    target_compile_definitions(FeatherDoc PRIVATE ZIP_ENABLE_SHARABLE_FILE_OPEN)
+endif()
+
 if(MSVC)
     target_compile_options(FeatherDoc PRIVATE /W4 /permissive-)
     target_compile_definitions(FeatherDoc PRIVATE _CRT_SECURE_NO_WARNINGS)

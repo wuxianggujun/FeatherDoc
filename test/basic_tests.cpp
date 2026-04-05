@@ -5,6 +5,16 @@
 #include <sstream>
 #include <system_error>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include <featherdoc.hpp>
@@ -332,6 +342,37 @@ TEST_CASE("open and save work with an absolute path outside the build directory"
 
     fs::remove_all(temp_root);
 }
+
+#if defined(_WIN32)
+TEST_CASE("open succeeds while another process keeps the docx writable but shareable") {
+    namespace fs = std::filesystem;
+
+    const fs::path temp_root =
+        fs::temp_directory_path() / "FeatherDoc share mode regression";
+    const fs::path target = temp_root / "opened-by-word.docx";
+
+    std::error_code filesystem_error;
+    fs::remove_all(temp_root, filesystem_error);
+    filesystem_error.clear();
+    fs::create_directories(temp_root, filesystem_error);
+    REQUIRE_FALSE(filesystem_error);
+    fs::copy_file("my_test.docx", target, fs::copy_options::overwrite_existing,
+                  filesystem_error);
+    REQUIRE_FALSE(filesystem_error);
+
+    const HANDLE writer_handle =
+        CreateFileW(target.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr,
+                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    REQUIRE(writer_handle != INVALID_HANDLE_VALUE);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+    CHECK(doc.is_open());
+
+    CHECK(CloseHandle(writer_handle) != 0);
+    fs::remove_all(temp_root, filesystem_error);
+}
+#endif
 
 TEST_CASE("set_text preserves xml:space when leading or trailing spaces exist") {
     namespace fs = std::filesystem;
