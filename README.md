@@ -215,6 +215,7 @@ reason about and extend independently.
 - Sphinx docs entry: `docs/index.rst`
 - Project identity guide: `docs/project_identity_zh.rst`
 - Initial audit notes: `docs/project_audit_zh.rst`
+- Upstream issue triage: `docs/upstream_issue_triage_zh.rst`
 - Release policy guide: `docs/release_policy_zh.rst`
 - Chinese license guide: `docs/licensing_zh.rst`
 - Repository legal notes: `LEGAL.md`

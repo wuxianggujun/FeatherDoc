@@ -227,6 +227,12 @@ Chinese audit and modernization notes for the current fork:
 
 :doc:`project_audit_zh`
 
+Upstream Issue Triage
+---------------------
+Chinese notes mapping relevant DuckX issues onto the current FeatherDoc status:
+
+:doc:`upstream_issue_triage_zh`
+
 License Guide
 -------------
 Chinese-readable guidance for the current split licensing model:
