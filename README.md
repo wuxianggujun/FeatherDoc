@@ -81,14 +81,35 @@ int main() {
     }
 
     for (auto paragraph : doc.paragraphs()) {
+        std::string text;
         for (auto run : paragraph.runs()) {
-            std::cout << run.get_text() << '\n';
+            text += run.get_text();
+        }
+        std::cout << text << '\n';
+    }
+
+    for (auto table : doc.tables()) {
+        for (auto row : table.rows()) {
+            for (auto cell : row.cells()) {
+                for (auto paragraph : cell.paragraphs()) {
+                    std::string text;
+                    for (auto run : paragraph.runs()) {
+                        text += run.get_text();
+                    }
+                    std::cout << text << '\n';
+                }
+            }
         }
     }
 
     return 0;
 }
 ```
+
+`Run` represents WordprocessingML text runs, not whole lines. If one logical line
+is split into multiple runs, concatenate `run.get_text()` values inside a
+paragraph before printing. Text inside tables is traversed through
+`doc.tables() -> rows() -> cells() -> paragraphs()`.
 
 ## Formatting Flags
 

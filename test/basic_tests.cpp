@@ -564,3 +564,53 @@ TEST_CASE("run iteration skips non-run siblings inside a paragraph") {
 
     fs::remove(target);
 }
+
+TEST_CASE("table traversal exposes text stored inside table cells") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_text_access.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>outside</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc>
+          <w:p><w:r><w:t>cell one</w:t></w:r></w:p>
+          <w:p><w:r><w:t>cell two</w:t></w:r></w:p>
+        </w:tc>
+        <w:tc>
+          <w:p><w:r><w:t>cell three</w:t></w:r></w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    std::ostringstream text;
+    for (auto table = doc.tables(); table.has_next(); table.next()) {
+        for (auto row = table.rows(); row.has_next(); row.next()) {
+            for (auto cell = row.cells(); cell.has_next(); cell.next()) {
+                for (auto paragraph = cell.paragraphs(); paragraph.has_next();
+                     paragraph.next()) {
+                    for (auto run = paragraph.runs(); run.has_next(); run.next()) {
+                        text << run.get_text();
+                    }
+                    text << '\n';
+                }
+            }
+        }
+    }
+
+    CHECK_EQ(text.str(), "cell one\ncell two\ncell three\n");
+
+    fs::remove(target);
+}

@@ -61,11 +61,31 @@ How to start with FeatherDoc quickly
         }
 
         for (auto p : doc.paragraphs())
+        {
+            std::string text;
             for (auto r : p.runs())
-                std::cout << r.get_text() << std::endl;
+                text += r.get_text();
+            std::cout << text << std::endl;
+        }
+
+        for (auto table : doc.tables())
+            for (auto row : table.rows())
+                for (auto cell : row.cells())
+                    for (auto paragraph : cell.paragraphs())
+                    {
+                        std::string text;
+                        for (auto run : paragraph.runs())
+                            text += run.get_text();
+                        std::cout << text << std::endl;
+                    }
 
         return 0;
     }
+
+``Run`` represents WordprocessingML runs, not whole lines. If one visible line
+is split into multiple runs, concatenate the run texts inside a paragraph before
+printing. Text stored inside tables is accessed through
+``doc.tables() -> rows() -> cells() -> paragraphs()``.
 
 Formatting
 ----------

@@ -1,5 +1,16 @@
 #include <featherdoc.hpp>
 #include <iostream>
+#include <string>
+
+namespace {
+void print_paragraph_text(featherdoc::Paragraph paragraph) {
+    std::string text;
+    for (auto run = paragraph.runs(); run.has_next(); run.next()) {
+        text += run.get_text();
+    }
+    std::cout << text << '\n';
+}
+} // namespace
 
 int main() {
     featherdoc::Document doc("my_test.docx");
@@ -20,8 +31,17 @@ int main() {
     }
 
     for (auto p = doc.paragraphs(); p.has_next(); p.next()) {
-        for (auto r = p.runs(); r.has_next(); r.next()) {
-            std::cout << r.get_text() << std::endl;
+        print_paragraph_text(p);
+    }
+
+    for (auto table = doc.tables(); table.has_next(); table.next()) {
+        for (auto row = table.rows(); row.has_next(); row.next()) {
+            for (auto cell = row.cells(); cell.has_next(); cell.next()) {
+                for (auto paragraph = cell.paragraphs(); paragraph.has_next();
+                     paragraph.next()) {
+                    print_paragraph_text(paragraph);
+                }
+            }
         }
     }
 
