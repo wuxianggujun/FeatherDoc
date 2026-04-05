@@ -13,6 +13,8 @@ performance.
 - `create_empty()` for creating a new in-memory `.docx` document without an
   existing template archive.
 - `save_as(path)` semantics that keep `Document::path()` unchanged.
+- `replace_bookmark_text(name, replacement)` for rewriting text enclosed by a
+  named bookmark range.
 - Structured error reporting through `last_error()` with `detail`,
   `entry_name`, and `xml_offset`.
 - `NOTICE`, `LEGAL.md`, Chinese licensing guidance, project identity notes, and
@@ -29,7 +31,7 @@ performance.
   files under `share/FeatherDoc`.
 - README and Sphinx docs now document the current unsupported feature surface
   more explicitly, including encrypted `.docx`, header/footer APIs, equations,
-  table creation, and bookmark-targeted replacement.
+  and table creation.
 
 ### Fixed
 

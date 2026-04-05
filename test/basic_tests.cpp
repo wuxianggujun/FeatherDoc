@@ -744,6 +744,53 @@ TEST_CASE("run iteration skips non-run siblings inside a paragraph") {
     fs::remove(target);
 }
 
+TEST_CASE("replace_bookmark_text rewrites bookmarked content and preserves markers") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_replace.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t>prefix</w:t></w:r>
+      <w:bookmarkStart w:id="0" w:name="bookmark"/>
+      <w:r><w:t>old</w:t></w:r>
+      <w:proofErr w:type="spellStart"/>
+      <w:r><w:t>content</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+      <w:r><w:t>suffix</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_EQ(doc.replace_bookmark_text("bookmark", " updated value "), 1);
+    CHECK_EQ(collect_document_text(doc), "prefix updated value suffix\n");
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(xml_text.find("w:bookmarkStart"), std::string::npos);
+    CHECK_NE(xml_text.find("w:bookmarkEnd"), std::string::npos);
+    CHECK_NE(xml_text.find("updated value"), std::string::npos);
+    CHECK_NE(xml_text.find("xml:space=\"preserve\""), std::string::npos);
+    CHECK_EQ(xml_text.find("old"), std::string::npos);
+    CHECK_EQ(xml_text.find("content"), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "prefix updated value suffix\n");
+
+    fs::remove(target);
+}
+
 TEST_CASE("table traversal exposes text stored inside table cells") {
     namespace fs = std::filesystem;
 

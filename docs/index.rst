@@ -142,6 +142,16 @@ changing ``Document::path()``.
         return 1;
     }
 
+``replace_bookmark_text(name, replacement)`` rewrites the content enclosed by a
+named bookmark range and returns the number of bookmark ranges replaced.
+
+.. code-block:: cpp
+
+    if (doc.replace_bookmark_text("customer_name", "FeatherDoc User") == 0) {
+        std::cerr << "bookmark not found" << std::endl;
+        return 1;
+    }
+
 ``create_empty()`` initializes a new in-memory document so callers can produce
 fresh ``.docx`` files without opening an existing template archive first.
 
@@ -174,7 +184,6 @@ Current Limitations
 - Word equations (``OMML``) are not surfaced through a typed equation API.
 - Existing tables can be traversed, but there is no high-level API for creating
   new tables programmatically yet.
-- Bookmark-targeted batch replacement is not exposed as a dedicated API yet.
 
 Source Layout
 -------------

@@ -180,6 +180,10 @@ class Document {
     [[nodiscard]] std::error_code save_as(std::filesystem::path) const;
     [[nodiscard]] bool is_open() const;
     [[nodiscard]] const document_error_info &last_error() const noexcept;
+    [[nodiscard]] std::size_t replace_bookmark_text(const std::string &bookmark_name,
+                                                    const std::string &replacement);
+    [[nodiscard]] std::size_t replace_bookmark_text(const char *bookmark_name,
+                                                    const char *replacement);
 
     Paragraph &paragraphs();
     Table &tables();

@@ -51,6 +51,11 @@
     ``insert_paragraph_after`` 保存回归测试。基于当前源码和测试，可以**推断**
     这个崩溃路径已经被修复。
 
+``#90 Use Bookmark API replace text in BookmarkStart node and BookmarkEnd node``
+    FeatherDoc 现在提供了 ``replace_bookmark_text(name, replacement)``，
+    可以按书签名重写 ``bookmarkStart`` 和 ``bookmarkEnd`` 之间的正文内容。
+    当前实现优先覆盖正文书签替换这个高频模板场景。
+
 
 当前仍未解决或仍属能力缺口
 --------------------------
@@ -69,9 +74,6 @@
 ``#86 Working with headers and footes``
     当前仍没有公开的页眉 / 页脚编辑 API。
 
-``#90 Use Bookmark API replace text in BookmarkStart node and BookmarkEnd node``
-    当前仍没有面向书签范围的批量替换 API。
-
 
 对 FeatherDoc 的实际意义
 ------------------------
@@ -86,7 +88,6 @@
 
 剩下的主要不是“明显 bug”，而是更偏功能扩展的能力缺口：
 
-- 书签定向替换
 - 页眉 / 页脚 API
 - 表格创建 API
 - 公式读取 API
@@ -98,8 +99,8 @@
 
 如果下一阶段要继续推进，建议按下面顺序考虑：
 
-1. 先做书签范围替换 API，因为它最接近模板替换和批量生成文档的实际需求。
-2. 再评估页眉 / 页脚 API，因为这决定很多正式文档场景是否可落地。
-3. 表格创建可以放在其后，因为它属于高频能力，但实现边界比书签替换更宽。
+1. 先评估页眉 / 页脚 API，因为这决定很多正式文档场景是否可落地。
+2. 表格创建可以放在其后，因为它属于高频能力，但实现边界更宽。
+3. 公式读取建议放在页眉 / 页脚和表格创建之后，再决定是否做 typed API。
 4. 加密 ``.docx`` 支持建议单独立项，它不只是 API 设计问题，还牵涉加密容器和
    解密流程能力。

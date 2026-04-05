@@ -1,9 +1,11 @@
 #include "featherdoc.hpp"
+#include "xml_helpers.hpp"
 
 #include <array>
 #include <cstdlib>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace {
 constexpr auto document_xml_entry = std::string_view{"word/document.xml"};
@@ -110,6 +112,67 @@ auto set_last_error(featherdoc::document_error_info &error_info,
     -> std::error_code {
     return set_last_error(error_info, featherdoc::make_error_code(code),
                           std::move(detail), std::move(entry_name), xml_offset);
+}
+
+auto collect_named_bookmark_starts(pugi::xml_node node, std::string_view bookmark_name,
+                                   std::vector<pugi::xml_node> &bookmark_starts)
+    -> void {
+    for (auto child = node.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::string_view{child.name()} == "w:bookmarkStart" &&
+            std::string_view{child.attribute("w:name").value()} == bookmark_name) {
+            bookmark_starts.push_back(child);
+        }
+
+        collect_named_bookmark_starts(child, bookmark_name, bookmark_starts);
+    }
+}
+
+auto find_matching_bookmark_end(pugi::xml_node bookmark_start) -> pugi::xml_node {
+    const auto bookmark_id = std::string_view{bookmark_start.attribute("w:id").value()};
+    if (bookmark_id.empty()) {
+        return {};
+    }
+
+    for (auto node = bookmark_start.next_sibling(); node != pugi::xml_node{};
+         node = node.next_sibling()) {
+        if (std::string_view{node.name()} == "w:bookmarkEnd" &&
+            std::string_view{node.attribute("w:id").value()} == bookmark_id) {
+            return node;
+        }
+    }
+
+    return {};
+}
+
+auto replace_bookmark_range(pugi::xml_node bookmark_start, const std::string &replacement)
+    -> bool {
+    auto parent = bookmark_start.parent();
+    if (bookmark_start == pugi::xml_node{} || parent == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto bookmark_end = find_matching_bookmark_end(bookmark_start);
+    if (bookmark_end == pugi::xml_node{}) {
+        return false;
+    }
+
+    for (auto node = bookmark_start.next_sibling();
+         node != pugi::xml_node{} && node != bookmark_end;) {
+        const auto next = node.next_sibling();
+        parent.remove_child(node);
+        node = next;
+    }
+
+    if (!replacement.empty()) {
+        auto replacement_run = parent.insert_child_before("w:r", bookmark_end);
+        auto replacement_text = replacement_run.append_child("w:t");
+        featherdoc::detail::update_xml_space_attribute(replacement_text,
+                                                       replacement.c_str());
+        replacement_text.text().set(replacement.c_str());
+    }
+
+    return true;
 }
 } // namespace
 
@@ -533,6 +596,35 @@ bool Document::is_open() const { return this->flag_is_open; }
 
 const document_error_info &Document::last_error() const noexcept {
     return this->last_error_info;
+}
+
+std::size_t Document::replace_bookmark_text(const std::string &bookmark_name,
+                                            const std::string &replacement) {
+    if (!this->is_open() || bookmark_name.empty()) {
+        return 0;
+    }
+
+    std::vector<pugi::xml_node> bookmark_starts;
+    collect_named_bookmark_starts(this->document, bookmark_name, bookmark_starts);
+
+    std::size_t replaced = 0;
+    for (const auto bookmark_start : bookmark_starts) {
+        if (replace_bookmark_range(bookmark_start, replacement)) {
+            ++replaced;
+        }
+    }
+
+    return replaced;
+}
+
+std::size_t Document::replace_bookmark_text(const char *bookmark_name,
+                                            const char *replacement) {
+    if (bookmark_name == nullptr || replacement == nullptr) {
+        return 0;
+    }
+
+    return this->replace_bookmark_text(std::string{bookmark_name},
+                                       std::string{replacement});
 }
 
 Paragraph &Document::paragraphs() {

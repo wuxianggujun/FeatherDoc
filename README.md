@@ -152,6 +152,17 @@ if (const auto error = doc.save_as("copy.docx")) {
 }
 ```
 
+Use `replace_bookmark_text(name, replacement)` when you want to rewrite the
+content enclosed by a named bookmark range. The method returns the number of
+bookmark ranges replaced.
+
+```cpp
+if (doc.replace_bookmark_text("customer_name", "FeatherDoc User") == 0) {
+    std::cerr << "bookmark not found\n";
+    return 1;
+}
+```
+
 Use `create_empty()` when you want to build a new `.docx` document from scratch
 without relying on an existing template archive.
 
@@ -186,7 +197,6 @@ if (const auto error = doc.save()) {
 - Word equations (`OMML`) are not surfaced through a typed equation API.
 - Existing tables can be traversed, but there is no high-level API for creating
   new tables programmatically yet.
-- Bookmark-targeted batch replacement is not exposed as a dedicated API yet.
 
 ## Source Layout
 
