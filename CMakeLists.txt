@@ -19,6 +19,7 @@ endif()
 
 option(BUILD_SHARED_LIBS "Build shared instead of static library" OFF)
 option(BUILD_SAMPLES "Build provided samples" OFF)
+option(BUILD_CLI "Build featherdoc_cli command line utility" ${PROJECT_IS_TOP_LEVEL})
 
 set(HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc.hpp"
@@ -111,6 +112,17 @@ if(BUILD_SAMPLES)
 
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/my_test.docx
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+endif()
+
+if(BUILD_CLI)
+    add_executable(featherdoc_cli cli/featherdoc_cli.cpp)
+    target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_cli)
+
+    install(
+        TARGETS featherdoc_cli
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
 endif()
 
 configure_package_config_file(

@@ -19,16 +19,37 @@ cmake -S . -B build
 cmake --build build
 ```
 
+Top-level builds enable `BUILD_CLI` by default, so the `featherdoc_cli`
+utility is built alongside the library unless you pass `-DBUILD_CLI=OFF`.
+
 ## Build With MSVC
 
 Open an `x64` Visual Studio Developer Command Prompt first, or initialize the
 environment with `VsDevCmd.bat -arch=x64 -host_arch=x64`, then run:
 
 ```bat
-cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON
+cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON -DBUILD_CLI=ON
 cmake --build build-msvc-nmake
 ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
 ```
+
+## CLI
+
+`featherdoc_cli` is a small command-line wrapper around the current
+section-aware header/footer APIs.
+
+```bash
+featherdoc_cli inspect-sections input.docx
+featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx
+featherdoc_cli copy-section-layout input.docx 0 2 --output copied.docx
+featherdoc_cli move-section input.docx 2 0 --output reordered.docx
+featherdoc_cli remove-section input.docx 3 --output trimmed.docx
+```
+
+`inspect-sections` prints the current section count together with per-section
+header/footer attachment flags for `default`, `first`, and `even` references.
+The mutating commands save in place by default; pass `--output <path>` to write
+to a separate `.docx`.
 
 ## Install
 
@@ -370,6 +391,7 @@ living in a single large `.cpp` file:
 - `src/table.cpp`: table, row, and cell traversal helpers
 - `src/xml_helpers.cpp` / `src/xml_helpers.hpp`: internal XML helper utilities shared by the modules
 - `src/constants.cpp`: exported constants and error-category plumbing
+- `cli/featherdoc_cli.cpp`: minimal section-layout inspection and editing utility
 
 This layout keeps archive I/O, XML navigation, and public API objects easier to
 reason about and extend independently.

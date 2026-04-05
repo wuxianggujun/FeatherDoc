@@ -20,6 +20,8 @@ The instructions to build and install FeatherDoc
 
 The installed package also carries project-facing metadata and legal files
 under ``share/FeatherDoc``.
+Top-level builds enable ``BUILD_CLI`` by default, so ``featherdoc_cli`` is
+built unless ``-DBUILD_CLI=OFF`` is passed explicitly.
 
 MSVC Build
 ----------
@@ -29,9 +31,27 @@ Command Prompt. Use an ``x64`` prompt, or initialize the environment with
 
 .. code-block:: bat
 
-    cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON
+    cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON -DBUILD_CLI=ON
     cmake --build build-msvc-nmake
     ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
+
+CLI
+---
+``featherdoc_cli`` exposes a minimal command-line layer for the current
+section-aware header/footer operations.
+
+.. code-block:: sh
+
+    featherdoc_cli inspect-sections input.docx
+    featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx
+    featherdoc_cli copy-section-layout input.docx 0 2 --output copied.docx
+    featherdoc_cli move-section input.docx 2 0 --output reordered.docx
+    featherdoc_cli remove-section input.docx 3 --output trimmed.docx
+
+``inspect-sections`` reports section counts together with per-section
+``default`` / ``first`` / ``even`` header and footer attachment flags. The
+mutating commands overwrite the input file unless ``--output <path>`` is
+provided.
 
 Package Metadata
 ----------------
@@ -360,6 +380,7 @@ staying in one large translation unit:
 - ``src/table.cpp``: table, row, and cell traversal helpers
 - ``src/xml_helpers.cpp`` / ``src/xml_helpers.hpp``: shared internal XML helper utilities
 - ``src/constants.cpp``: exported constants and error-category plumbing
+- ``cli/featherdoc_cli.cpp``: minimal section-layout inspection and editing utility
 
 This keeps archive I/O, XML navigation, and public API behavior easier to
 extend independently.

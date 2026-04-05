@@ -41,6 +41,9 @@ performance.
   preserving the surrounding document content.
 - `move_section(source_section_index, target_section_index)` for reordering
   whole sections while keeping their header/footer reference layouts attached.
+- `featherdoc_cli` with `inspect-sections`, `insert-section`, `remove-section`,
+  `move-section`, and `copy-section-layout` commands for minimal section layout
+  inspection and editing from the command line.
 - Automatic `w:titlePg` / `w:evenAndOddHeaders` enablement plus
   `word/settings.xml` read/write support when first-page or even-page
   header/footer references are created.
@@ -106,3 +109,5 @@ performance.
 
 - MSVC configuration, build, and test flow is documented and currently used as
   the main verification baseline.
+- Added end-to-end CLI coverage for section inspection plus insert/copy/move/
+  remove workflows.
