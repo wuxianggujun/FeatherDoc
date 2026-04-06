@@ -23,6 +23,12 @@ performance.
   `clear_paragraph_style(paragraph)` plus `set_run_style(run, style_id)` /
   `clear_run_style(run)` for attaching and removing paragraph/run style
   references.
+- `fill_bookmarks(...)` plus `bookmark_text_binding` /
+  `bookmark_fill_result` for batch bookmark text filling as a first high-level
+  template API.
+- `replace_bookmark_with_table(...)` and `replace_bookmark_with_image(...)`
+  for replacing standalone bookmark paragraphs with generated table/image
+  blocks.
 
 ### Changed
 
@@ -37,6 +43,8 @@ performance.
 - Saving now emits managed `word/styles.xml` content together with matching
   `document.xml.rels` and `[Content_Types].xml` updates when paragraph/run
   style references are used.
+- Bookmark replacement logic is now split out of `document.cpp` into a
+  dedicated template-focused translation unit.
 
 ## [1.1.0] - 2026-04-06
 

@@ -32,6 +32,7 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_image.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_numbering.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_styles.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_template.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/image_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/paragraph.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/run.cpp"

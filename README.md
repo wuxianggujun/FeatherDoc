@@ -283,6 +283,46 @@ if (doc.replace_bookmark_text("customer_name", "FeatherDoc User") == 0) {
 }
 ```
 
+Use `fill_bookmarks(...)` when you want a first high-level template API for
+batch text filling. It accepts bookmark bindings, rewrites every matching
+bookmark range, and reports which requested fields were missing.
+
+```cpp
+const auto result = doc.fill_bookmarks({
+    {"customer_name", "FeatherDoc User"},
+    {"invoice_no", "INV-2026-0001"},
+    {"due_date", "2026-04-30"},
+});
+
+if (!result) {
+    for (const auto& missing : result.missing_bookmarks) {
+        std::cerr << "missing bookmark: " << missing << '\n';
+    }
+}
+```
+
+Use `replace_bookmark_with_table(...)` when a bookmark occupies its own
+paragraph and should be replaced by a generated table block.
+
+```cpp
+doc.replace_bookmark_with_table(
+    "line_items",
+    {
+        {"Name", "Qty"},
+        {"Apple", "2"},
+        {"Pear", "5"},
+    });
+```
+
+Use `replace_bookmark_with_image(...)` when a bookmark occupies its own
+paragraph and should become an inline image paragraph. The overload without
+dimensions uses the source image size; the second overload lets you scale it.
+
+```cpp
+doc.replace_bookmark_with_image("company_logo", "logo.png");
+doc.replace_bookmark_with_image("stamp", "stamp.png", 96, 48);
+```
+
 Use `header_count()`, `footer_count()`, `header_paragraphs(index)`, and
 `footer_paragraphs(index)` when you need to read or edit paragraphs stored in
 existing header/footer parts.
@@ -497,6 +537,13 @@ if (const auto error = doc.save()) {
   minimal `word/styles.xml` is created automatically when needed, but there is
   still no high-level API for custom style definition editing, style catalog
   inspection, or inheritance-aware style management.
+- A first bookmark-based batch template API now exists through
+  `fill_bookmarks(...)`, and standalone bookmark paragraphs can now be replaced
+  by generated tables or inline images through
+  `replace_bookmark_with_table(...)` and `replace_bookmark_with_image(...)`,
+  but there is still no high-level API for repeated block expansion,
+  conditional sections, header/footer template filling, or structured template
+  schema validation.
 - Images can now be appended as inline body drawings, but there is still no
   high-level API for reading existing images, floating/anchored placement,
   wrapping, cropping, or header/footer image insertion.
@@ -510,6 +557,7 @@ living in a single large `.cpp` file:
 - `src/document_image.cpp`: inline body image insertion, media part allocation, and drawing relationship updates
 - `src/document_numbering.cpp`: managed paragraph list numbering, numbering part attachment, and numbering definition generation
 - `src/document_styles.cpp`: paragraph/run style references and `word/styles.xml` attachment/persistence
+- `src/document_template.cpp`: bookmark-based template filling and batch replacement APIs
 - `src/paragraph.cpp`: paragraph traversal, run creation, and paragraph insertion
 - `src/image_helpers.cpp` / `src/image_helpers.hpp`: image binary loading plus file format and size detection helpers
 - `src/run.cpp`: run traversal and text read/write behavior

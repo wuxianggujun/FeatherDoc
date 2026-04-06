@@ -106,6 +106,29 @@ void ensure_attribute_value(pugi::xml_node node, const char *name, std::string_v
     attribute.set_value(std::string{value}.c_str());
 }
 
+auto insert_paragraph_node(pugi::xml_node parent, pugi::xml_node insert_before)
+    -> pugi::xml_node {
+    if (parent == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (insert_before != pugi::xml_node{}) {
+        if (insert_before.parent() != parent) {
+            return {};
+        }
+        return parent.insert_child_before("w:p", insert_before);
+    }
+
+    if (std::string_view{parent.name()} == "w:body") {
+        if (const auto section_properties = parent.child("w:sectPr");
+            section_properties != pugi::xml_node{}) {
+            return parent.insert_child_before("w:p", section_properties);
+        }
+    }
+
+    return parent.append_child("w:p");
+}
+
 auto parse_u32_attribute_value(const char *text) -> std::optional<std::uint32_t> {
     if (text == nullptr || *text == '\0') {
         return std::nullopt;
@@ -143,6 +166,19 @@ bool Document::append_inline_image_part(std::string image_data, std::string exte
                                         std::string display_name,
                                         std::uint32_t width_px,
                                         std::uint32_t height_px) {
+    auto document_root = this->document.child("w:document");
+    auto body = document_root.child("w:body");
+    return this->append_inline_image_part(body, {}, std::move(image_data),
+                                          std::move(extension), std::move(content_type),
+                                          std::move(display_name), width_px, height_px);
+}
+
+bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node insert_before,
+                                        std::string image_data, std::string extension,
+                                        std::string content_type,
+                                        std::string display_name,
+                                        std::uint32_t width_px,
+                                        std::uint32_t height_px) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before appending an image");
@@ -161,11 +197,10 @@ bool Document::append_inline_image_part(std::string image_data, std::string exte
     }
 
     auto document_root = this->document.child("w:document");
-    auto body = document_root.child("w:body");
-    if (document_root == pugi::xml_node{} || body == pugi::xml_node{}) {
+    if (document_root == pugi::xml_node{} || parent == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
-                       "document.xml does not contain the expected w:document/w:body structure",
+                       "document.xml does not contain a valid image insertion parent",
                        std::string{document_xml_entry});
         return false;
     }
@@ -292,7 +327,7 @@ bool Document::append_inline_image_part(std::string image_data, std::string exte
         display_name = "image-" + drawing_id_text + "." + extension;
     }
 
-    auto image_paragraph = featherdoc::detail::append_paragraph_node(body);
+    auto image_paragraph = insert_paragraph_node(parent, insert_before);
     if (image_paragraph == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),

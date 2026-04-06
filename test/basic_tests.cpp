@@ -2939,6 +2939,274 @@ TEST_CASE("table traversal exposes text stored inside table cells") {
     fs::remove(target);
 }
 
+TEST_CASE("fill_bookmarks replaces multiple bookmark bindings and reports misses") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_fill_batch.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t>Customer: </w:t></w:r>
+      <w:bookmarkStart w:id="0" w:name="customer"/>
+      <w:r><w:t>old customer</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Invoice: </w:t></w:r>
+      <w:bookmarkStart w:id="1" w:name="invoice"/>
+      <w:r><w:t>old invoice</w:t></w:r>
+      <w:bookmarkEnd w:id="1"/>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto result = doc.fill_bookmarks(
+        {
+            {"customer", "Acme Corp"},
+            {"invoice", "INV-2026-0001"},
+            {"missing", "ignored"},
+        });
+
+    CHECK_FALSE(doc.last_error());
+    CHECK_EQ(result.requested, 3);
+    CHECK_EQ(result.matched, 2);
+    CHECK_EQ(result.replaced, 2);
+    REQUIRE(result.missing_bookmarks.size() == 1);
+    CHECK_EQ(result.missing_bookmarks.front(), "missing");
+    CHECK_FALSE(static_cast<bool>(result));
+    CHECK_EQ(collect_document_text(doc), "Customer: Acme Corp\nInvoice: INV-2026-0001\n");
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(xml_text.find("Acme Corp"), std::string::npos);
+    CHECK_NE(xml_text.find("INV-2026-0001"), std::string::npos);
+    CHECK_EQ(xml_text.find("old customer"), std::string::npos);
+    CHECK_EQ(xml_text.find("old invoice"), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened),
+             "Customer: Acme Corp\nInvoice: INV-2026-0001\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("fill_bookmarks rejects duplicate or empty binding names") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_fill_validation.docx";
+    fs::remove(target);
+
+    featherdoc::Document unopened(target);
+    const auto unopened_result = unopened.fill_bookmarks({{"customer", "Acme Corp"}});
+    CHECK_EQ(unopened_result.requested, 1);
+    CHECK_EQ(unopened.last_error().code, featherdoc::document_errc::document_not_open);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    const auto duplicate_result = doc.fill_bookmarks(
+        {
+            {"customer", "Acme Corp"},
+            {"customer", "Other"},
+        });
+    CHECK_EQ(duplicate_result.requested, 2);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_NE(doc.last_error().detail.find("duplicate"), std::string::npos);
+
+    const auto empty_result = doc.fill_bookmarks({{"", "blank"}});
+    CHECK_EQ(empty_result.requested, 1);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_NE(doc.last_error().detail.find("must not be empty"), std::string::npos);
+
+    fs::remove(target);
+}
+
+TEST_CASE("replace_bookmark_with_table swaps a standalone bookmark paragraph for a table") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_replace_table.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>before</w:t></w:r></w:p>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="items"/>
+      <w:r><w:t>placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p><w:r><w:t>after</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const std::vector<std::vector<std::string>> rows{
+        {"Name", "Qty"},
+        {"Apple", "2"},
+        {"Pear", "5"},
+    };
+    CHECK_EQ(doc.replace_bookmark_with_table("items", rows), 1);
+    CHECK_FALSE(doc.last_error());
+    CHECK_EQ(collect_document_text(doc), "before\nafter\n");
+    CHECK_EQ(collect_table_text(doc), "Name\nQty\nApple\n2\nPear\n5\n");
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("<w:tbl>"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("w:name=\"items\""), std::string::npos);
+
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(saved_document_xml.c_str()));
+    std::ostringstream child_order;
+    const auto body = xml_document.child("w:document").child("w:body");
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        child_order << child.name() << '\n';
+    }
+    CHECK_EQ(child_order.str(), "w:p\nw:tbl\nw:p\n");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "before\nafter\n");
+    CHECK_EQ(collect_table_text(reopened), "Name\nQty\nApple\n2\nPear\n5\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("replace_bookmark_with_image swaps a standalone bookmark paragraph for an inline image") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+
+    const fs::path target = fs::current_path() / "bookmark_replace_image.docx";
+    const fs::path image_path = fs::current_path() / "bookmark_replace_image.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>before</w:t></w:r></w:p>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="logo"/>
+      <w:r><w:t>placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p><w:r><w:t>after</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    const std::string image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                 sizeof(tiny_png_bytes));
+    write_binary_file(image_path, image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+    CHECK_EQ(doc.replace_bookmark_with_image("logo", image_path, 20U, 10U), 1);
+    CHECK_FALSE(doc.last_error());
+
+    CHECK_FALSE(doc.save());
+
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK_EQ(read_test_docx_entry(target, "word/media/image1.png"), image_data);
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("<w:drawing"), std::string::npos);
+    CHECK_NE(saved_document_xml.find("cx=\"190500\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("cy=\"95250\""), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("w:name=\"logo\""), std::string::npos);
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(saved_relationships.find("Target=\"media/image1.png\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "before\n\nafter\n");
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
+TEST_CASE("block bookmark replacements reject bookmarks that do not occupy their own paragraph") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+
+    const fs::path target = fs::current_path() / "bookmark_replace_block_validation.docx";
+    const fs::path image_path = fs::current_path() / "bookmark_replace_block_validation.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t>prefix </w:t></w:r>
+      <w:bookmarkStart w:id="0" w:name="block"/>
+      <w:r><w:t>placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+      <w:r><w:t> suffix</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    const std::string image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                 sizeof(tiny_png_bytes));
+    write_binary_file(image_path, image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+    CHECK_EQ(doc.replace_bookmark_with_table("block", {{"A"}}), 0);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK_EQ(doc.replace_bookmark_with_image("block", image_path), 0);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
 TEST_CASE("append_table creates a new editable table in an empty document") {
     namespace fs = std::filesystem;
 

@@ -11,8 +11,10 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <initializer_list>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -164,6 +166,22 @@ struct document_error_info {
     }
 };
 
+struct bookmark_text_binding {
+    std::string bookmark_name;
+    std::string text;
+};
+
+struct bookmark_fill_result {
+    std::size_t requested{};
+    std::size_t matched{};
+    std::size_t replaced{};
+    std::vector<std::string> missing_bookmarks;
+
+    explicit operator bool() const noexcept {
+        return this->missing_bookmarks.empty();
+    }
+};
+
 // Document contains whole the docx file
 // and stores paragraphs
 class Document {
@@ -230,6 +248,10 @@ class Document {
     [[nodiscard]] bool append_inline_image_part(
         std::string image_data, std::string extension, std::string content_type,
         std::string display_name, std::uint32_t width_px, std::uint32_t height_px);
+    [[nodiscard]] bool append_inline_image_part(
+        pugi::xml_node parent, pugi::xml_node insert_before, std::string image_data,
+        std::string extension, std::string content_type, std::string display_name,
+        std::uint32_t width_px, std::uint32_t height_px);
 
     friend class IteratorHelper;
     std::filesystem::path document_path;
@@ -337,6 +359,17 @@ class Document {
                                                     const std::string &replacement);
     [[nodiscard]] std::size_t replace_bookmark_text(const char *bookmark_name,
                                                     const char *replacement);
+    [[nodiscard]] bookmark_fill_result fill_bookmarks(
+        std::span<const bookmark_text_binding> bindings);
+    [[nodiscard]] bookmark_fill_result fill_bookmarks(
+        std::initializer_list<bookmark_text_binding> bindings);
+    [[nodiscard]] std::size_t replace_bookmark_with_table(
+        std::string_view bookmark_name, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_bookmark_with_image(
+        std::string_view bookmark_name, const std::filesystem::path &image_path);
+    [[nodiscard]] std::size_t replace_bookmark_with_image(
+        std::string_view bookmark_name, const std::filesystem::path &image_path,
+        std::uint32_t width_px, std::uint32_t height_px);
     [[nodiscard]] bool set_paragraph_list(
         Paragraph paragraph, featherdoc::list_kind kind, std::uint32_t level = 0U);
     [[nodiscard]] bool clear_paragraph_list(Paragraph paragraph);
