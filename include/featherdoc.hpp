@@ -116,6 +116,7 @@ class TableRow {
     void set_current(pugi::xml_node);
 
     TableCell &cells();
+    TableCell append_cell();
 
     [[nodiscard]] bool has_next() const;
     TableRow &next();
@@ -140,6 +141,7 @@ class Table {
     [[nodiscard]] bool has_next() const;
 
     TableRow &rows();
+    TableRow append_row(std::size_t cell_count = 1U);
 };
 
 struct document_error_info {
@@ -169,6 +171,13 @@ class Document {
         std::string entry_name;
         pugi::xml_document xml;
         Paragraph paragraph;
+    };
+
+    struct image_part_state {
+        std::string relationship_id;
+        std::string entry_name;
+        std::string content_type;
+        std::string data;
     };
 
     [[nodiscard]] std::error_code ensure_content_types_loaded();
@@ -212,6 +221,9 @@ class Document {
     Paragraph &ensure_related_part_paragraphs(
         std::vector<std::unique_ptr<xml_part_state>> &parts, const char *part_root_name,
         const char *reference_name, const char *relationship_type, const char *content_type);
+    [[nodiscard]] bool append_inline_image_part(
+        std::string image_data, std::string extension, std::string content_type,
+        std::string display_name, std::uint32_t width_px, std::uint32_t height_px);
 
     friend class IteratorHelper;
     std::filesystem::path document_path;
@@ -224,6 +236,7 @@ class Document {
     pugi::xml_document settings;
     std::vector<std::unique_ptr<xml_part_state>> header_parts;
     std::vector<std::unique_ptr<xml_part_state>> footer_parts;
+    std::vector<image_part_state> image_parts;
     bool flag_is_open{false};
     bool has_source_archive{false};
     bool has_document_relationships_part{false};
@@ -313,6 +326,11 @@ class Document {
 
     Paragraph &paragraphs();
     Table &tables();
+    Table append_table(std::size_t row_count = 1U, std::size_t column_count = 1U);
+    [[nodiscard]] bool append_image(const std::filesystem::path &image_path);
+    [[nodiscard]] bool append_image(const std::filesystem::path &image_path,
+                                    std::uint32_t width_px,
+                                    std::uint32_t height_px);
 };
 } // namespace featherdoc
 

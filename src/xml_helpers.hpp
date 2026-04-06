@@ -13,6 +13,7 @@ void update_xml_space_attribute(pugi::xml_node text_node, const char *text);
                                                 std::string_view node_name);
 
 [[nodiscard]] pugi::xml_node append_paragraph_node(pugi::xml_node parent);
+[[nodiscard]] pugi::xml_node append_table_node(pugi::xml_node parent);
 
 } // namespace featherdoc::detail
 

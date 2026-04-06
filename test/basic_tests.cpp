@@ -94,6 +94,55 @@ auto collect_document_text(featherdoc::Document &doc) -> std::string {
     return stream.str();
 }
 
+auto collect_table_text(featherdoc::Document &doc) -> std::string {
+    std::ostringstream stream;
+    for (featherdoc::Table table = doc.tables(); table.has_next(); table.next()) {
+        for (featherdoc::TableRow row = table.rows(); row.has_next(); row.next()) {
+            for (featherdoc::TableCell cell = row.cells(); cell.has_next(); cell.next()) {
+                for (featherdoc::Paragraph paragraph = cell.paragraphs();
+                     paragraph.has_next(); paragraph.next()) {
+                    for (featherdoc::Run run = paragraph.runs(); run.has_next(); run.next()) {
+                        stream << run.get_text();
+                    }
+                    stream << '\n';
+                }
+            }
+        }
+    }
+    return stream.str();
+}
+
+auto count_named_children(pugi::xml_node parent, const char *child_name) -> std::size_t {
+    std::size_t count = 0;
+    for (auto child = parent.child(child_name); child != pugi::xml_node{};
+         child = child.next_sibling(child_name)) {
+        ++count;
+    }
+    return count;
+}
+
+auto count_substring_occurrences(std::string_view text, std::string_view needle)
+    -> std::size_t {
+    if (needle.empty()) {
+        return 0U;
+    }
+
+    std::size_t count = 0U;
+    std::size_t position = 0U;
+    while ((position = text.find(needle, position)) != std::string_view::npos) {
+        ++count;
+        position += needle.size();
+    }
+    return count;
+}
+
+auto write_binary_file(const std::filesystem::path &path, const std::string &data) -> void {
+    std::ofstream stream(path, std::ios::binary);
+    REQUIRE(stream.good());
+    stream.write(data.data(), static_cast<std::streamsize>(data.size()));
+    REQUIRE(stream.good());
+}
+
 auto write_test_docx(const std::filesystem::path &path, const std::string &document_xml)
     -> void {
     struct archive_entry {
@@ -2888,4 +2937,220 @@ TEST_CASE("table traversal exposes text stored inside table cells") {
     CHECK_EQ(text.str(), "cell one\ncell two\ncell three\n");
 
     fs::remove(target);
+}
+
+TEST_CASE("append_table creates a new editable table in an empty document") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "append_table_create_empty.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(2, 2);
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.paragraphs().add_run("r0c0").has_next());
+
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.paragraphs().add_run("r0c1").has_next());
+
+    row.next();
+    REQUIRE(row.has_next());
+
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.paragraphs().add_run("r1c0").has_next());
+
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.paragraphs().add_run("r1c1").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    std::ostringstream child_order;
+    const auto body = xml_document.child("w:document").child("w:body");
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        child_order << child.name() << '\n';
+    }
+    CHECK_EQ(child_order.str(), "w:p\nw:tbl\n");
+
+    const auto table_node = body.child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    CHECK(table_node.child("w:tblPr") != pugi::xml_node{});
+    const auto table_grid = table_node.child("w:tblGrid");
+    REQUIRE(table_grid != pugi::xml_node{});
+    CHECK_EQ(count_named_children(table_grid, "w:gridCol"), 2);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "r0c0\nr0c1\nr1c0\nr1c1\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("table append_row and append_cell extend existing tables before sectPr") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "append_table_row_and_cell.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>outside</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc>
+          <w:p><w:r><w:t>seed</w:t></w:r></w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:sectPr/>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto table = doc.tables();
+    REQUIRE(table.has_next());
+
+    auto appended_row = table.append_row();
+    REQUIRE(appended_row.has_next());
+
+    auto first_cell = appended_row.cells();
+    REQUIRE(first_cell.has_next());
+    CHECK(first_cell.paragraphs().add_run("appended one").has_next());
+
+    auto second_cell = appended_row.append_cell();
+    REQUIRE(second_cell.has_next());
+    CHECK(second_cell.paragraphs().add_run("appended two").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    std::ostringstream child_order;
+    const auto body = xml_document.child("w:document").child("w:body");
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        child_order << child.name() << '\n';
+    }
+    CHECK_EQ(child_order.str(), "w:p\nw:tbl\nw:sectPr\n");
+
+    const auto table_node = body.child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    CHECK(table_node.child("w:tblPr") != pugi::xml_node{});
+    const auto table_grid = table_node.child("w:tblGrid");
+    REQUIRE(table_grid != pugi::xml_node{});
+    CHECK_EQ(count_named_children(table_grid, "w:gridCol"), 2);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "seed\nappended one\nappended two\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("append_image writes inline media parts and preserves them across reopen save") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+
+    const fs::path target = fs::current_path() / "append_image_roundtrip.docx";
+    const fs::path image_path = fs::current_path() / "tiny_image.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const std::string image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                 sizeof(tiny_png_bytes));
+    write_binary_file(image_path, image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+    CHECK(doc.append_image(image_path));
+    CHECK(doc.append_image(image_path, 20U, 10U));
+    CHECK_FALSE(doc.save());
+
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK(test_docx_entry_exists(target, "word/media/image2.png"));
+    CHECK_EQ(read_test_docx_entry(target, "word/media/image1.png"), image_data);
+    CHECK_EQ(read_test_docx_entry(target, "word/media/image2.png"), image_data);
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_EQ(count_substring_occurrences(
+                 saved_relationships,
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\""),
+             2);
+    CHECK_NE(saved_relationships.find("Target=\"media/image1.png\""), std::string::npos);
+    CHECK_NE(saved_relationships.find("Target=\"media/image2.png\""), std::string::npos);
+
+    const auto saved_content_types = read_test_docx_entry(target, test_content_types_xml_entry);
+    CHECK_NE(saved_content_types.find("Extension=\"png\""), std::string::npos);
+    CHECK_NE(saved_content_types.find("ContentType=\"image/png\""), std::string::npos);
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:inline"), 2);
+    CHECK_NE(saved_document_xml.find("cx=\"9525\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("cy=\"9525\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("cx=\"190500\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("cy=\"95250\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK(reopened.paragraphs().add_run("reopened edit").has_next());
+    CHECK_FALSE(reopened.save());
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK(test_docx_entry_exists(target, "word/media/image2.png"));
+
+    const auto relationships_after_resave =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(relationships_after_resave.find("Target=\"media/image1.png\""),
+             std::string::npos);
+    CHECK_NE(relationships_after_resave.find("Target=\"media/image2.png\""),
+             std::string::npos);
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
+TEST_CASE("append_image reports unsupported image extensions explicitly") {
+    namespace fs = std::filesystem;
+
+    const fs::path image_path = fs::current_path() / "unsupported_image.txt";
+    fs::remove(image_path);
+    write_binary_file(image_path, "not an image");
+
+    featherdoc::Document doc;
+    CHECK_FALSE(doc.create_empty());
+    CHECK_FALSE(doc.append_image(image_path));
+    CHECK_EQ(doc.last_error().code, featherdoc::document_errc::image_format_unsupported);
+    CHECK_FALSE(doc.last_error().detail.empty());
+
+    fs::remove(image_path);
 }

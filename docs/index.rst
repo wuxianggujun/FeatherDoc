@@ -142,6 +142,36 @@ is split into multiple runs, concatenate the run texts inside a paragraph before
 printing. Text stored inside tables is accessed through
 ``doc.tables() -> rows() -> cells() -> paragraphs()``.
 
+``append_table(row_count, column_count)`` creates a new body table
+programmatically. The returned ``Table`` can then grow through
+``append_row()``, and each ``TableRow`` can be widened through
+``append_cell()``.
+
+.. code-block:: cpp
+
+    auto table = doc.append_table(2, 2);
+
+    auto first_row = table.rows();
+    auto first_cell = first_row.cells();
+    first_cell.paragraphs().add_run("r0c0");
+    first_cell.next();
+    first_cell.paragraphs().add_run("r0c1");
+
+    auto extra_row = table.append_row();
+    auto extra_cell = extra_row.cells();
+    extra_cell.paragraphs().add_run("tail");
+    extra_row.append_cell().paragraphs().add_run("tail-2");
+
+``append_image(path)`` appends an inline body image at the source image's
+intrinsic pixel size. Use ``append_image(path, width_px, height_px)`` when you
+want explicit scaling. The current image support is limited to ``.png``,
+``.jpg``, ``.jpeg``, ``.gif``, and ``.bmp``.
+
+.. code-block:: cpp
+
+    doc.append_image("logo.png");
+    doc.append_image("badge.png", 96, 48);
+
 Formatting
 ----------
 Use the scoped formatting flags when creating new runs.
@@ -414,8 +444,11 @@ Current Limitations
   through ``move_section()``, but there is still no high-level API for part
   reordering.
 - Word equations (``OMML``) are not surfaced through a typed equation API.
-- Existing tables can be traversed, but there is no high-level API for creating
-  new tables programmatically yet.
+- Tables can now be appended and extended structurally, but there is still no
+  high-level API for cell merges, widths, borders, or table styling.
+- Images can now be appended as inline body drawings, but there is still no
+  high-level API for reading existing images, floating placement, wrapping,
+  cropping, or header/footer image insertion.
 
 Source Layout
 -------------
@@ -423,9 +456,11 @@ The core implementation is now split into smaller source files instead of
 staying in one large translation unit:
 
 - ``src/document.cpp``: ``Document`` open/save flow, ZIP archive handling, and diagnostics
+- ``src/document_image.cpp``: inline body image insertion, media part allocation, and drawing relationship updates
 - ``src/paragraph.cpp``: paragraph traversal, run creation, and paragraph insertion
+- ``src/image_helpers.cpp`` / ``src/image_helpers.hpp``: image binary loading plus file format and size detection helpers
 - ``src/run.cpp``: run traversal and text read/write behavior
-- ``src/table.cpp``: table, row, and cell traversal helpers
+- ``src/table.cpp``: table creation plus row/cell traversal and editing helpers
 - ``src/xml_helpers.cpp`` / ``src/xml_helpers.hpp``: shared internal XML helper utilities
 - ``src/constants.cpp``: exported constants and error-category plumbing
 - ``cli/featherdoc_cli.cpp``: minimal section-layout inspection and editing utility

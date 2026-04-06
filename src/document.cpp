@@ -911,6 +911,7 @@ std::error_code Document::create_empty() {
     this->settings.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
+    this->image_parts.clear();
     this->detached_paragraph.set_parent({});
     this->last_error_info.clear();
 
@@ -1351,6 +1352,7 @@ void Document::set_path(std::filesystem::path file_path) {
     this->settings.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
+    this->image_parts.clear();
     this->detached_paragraph.set_parent({});
     this->last_error_info.clear();
 }
@@ -1374,6 +1376,7 @@ std::error_code Document::open() {
     this->settings.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
+    this->image_parts.clear();
     this->detached_paragraph.set_parent({});
     this->last_error_info.clear();
 
@@ -1528,6 +1531,7 @@ std::error_code Document::open() {
             this->settings.reset();
             this->header_parts.clear();
             this->footer_parts.clear();
+            this->image_parts.clear();
             this->flag_is_open = false;
             return error;
         }
@@ -1763,11 +1767,14 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     for (const auto &part : this->footer_parts) {
         rewritten_entries.insert(part->entry_name);
     }
+    for (const auto &part : this->image_parts) {
+        rewritten_entries.insert(part.entry_name);
+    }
     for (const auto &entry_name : this->removed_related_part_entries) {
         rewritten_entries.insert(entry_name);
     }
 
-    auto write_text_entry = [&](std::string_view entry_name, std::string_view entry_content) {
+    auto write_buffer_entry = [&](std::string_view entry_name, std::string_view entry_content) {
         if (zip_entry_open(new_zip, entry_name.data()) != 0) {
             record_first_document_error(document_errc::output_entry_open_failed,
                                         "failed to create output entry '" +
@@ -1781,8 +1788,12 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
             record_first_document_error(document_errc::output_entry_write_failed,
                                         "failed to write output entry '" +
                                             std::string{entry_name} + "'",
-                                        std::string{entry_name});
+                                            std::string{entry_name});
         }
+    };
+
+    auto write_text_entry = [&](std::string_view entry_name, std::string_view entry_content) {
+        write_buffer_entry(entry_name, entry_content);
     };
 
     auto write_xml_entry = [&](std::string_view entry_name,
@@ -1857,6 +1868,15 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     if (!result) {
         for (const auto *part : active_footer_parts) {
             write_related_xml_part(*part);
+            if (result) {
+                break;
+            }
+        }
+    }
+
+    if (!result) {
+        for (const auto &part : this->image_parts) {
+            write_buffer_entry(part.entry_name, part.data);
             if (result) {
                 break;
             }
@@ -3413,6 +3433,18 @@ Paragraph &Document::paragraphs() {
 Table &Document::tables() {
     this->table.set_parent(document.child("w:document").child("w:body"));
     return this->table;
+}
+
+Table Document::append_table(std::size_t row_count, std::size_t column_count) {
+    const auto body = document.child("w:document").child("w:body");
+    const auto table_node = detail::append_table_node(body);
+    auto created_table = Table(body, table_node);
+
+    for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
+        created_table.append_row(column_count);
+    }
+
+    return created_table;
 }
 
 } // namespace featherdoc

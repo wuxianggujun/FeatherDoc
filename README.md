@@ -8,7 +8,7 @@ FeatherDoc is a modernized C++ library for reading and writing Microsoft Word
 - CMake 3.20+
 - C++20
 - MSVC-friendly build setup
-- Lightweight paragraph/run/table traversal API
+- Lightweight paragraph/run editing plus table/image creation APIs
 - MSVC-safe XML parsing on `open()`
 - Streamed ZIP rewrite path on `save()`
 
@@ -169,6 +169,35 @@ int main() {
 is split into multiple runs, concatenate `run.get_text()` values inside a
 paragraph before printing. Text inside tables is traversed through
 `doc.tables() -> rows() -> cells() -> paragraphs()`.
+
+Use `append_table(row_count, column_count)` when you need to create a new body
+table programmatically. The returned `Table` can be extended with
+`append_row()`, and each `TableRow` can be widened with `append_cell()`.
+
+```cpp
+auto table = doc.append_table(2, 2);
+
+auto first_row = table.rows();
+auto first_cell = first_row.cells();
+first_cell.paragraphs().add_run("r0c0");
+first_cell.next();
+first_cell.paragraphs().add_run("r0c1");
+
+auto extra_row = table.append_row();
+auto extra_cell = extra_row.cells();
+extra_cell.paragraphs().add_run("tail");
+extra_row.append_cell().paragraphs().add_run("tail-2");
+```
+
+Use `append_image(path)` to append an inline body image at its intrinsic pixel
+size, or `append_image(path, width_px, height_px)` when you want explicit
+scaling. The first image API only supports `.png`, `.jpg`, `.jpeg`, `.gif`,
+and `.bmp` for now.
+
+```cpp
+doc.append_image("logo.png");
+doc.append_image("badge.png", 96, 48);
+```
 
 ## Formatting Flags
 
@@ -427,8 +456,11 @@ if (const auto error = doc.save()) {
   `insert_section()`, removed through `remove_section()`, and reordered through
   `move_section()`, but there is still no high-level API for part reordering.
 - Word equations (`OMML`) are not surfaced through a typed equation API.
-- Existing tables can be traversed, but there is no high-level API for creating
-  new tables programmatically yet.
+- Tables can now be appended and extended structurally, but there is still no
+  high-level API for cell merges, widths, borders, or table styling.
+- Images can now be appended as inline body drawings, but there is still no
+  high-level API for reading existing images, floating/anchored placement,
+  wrapping, cropping, or header/footer image insertion.
 
 ## Source Layout
 
@@ -436,9 +468,11 @@ The core implementation is now split into focused translation units instead of
 living in a single large `.cpp` file:
 
 - `src/document.cpp`: `Document` open/save flow, archive handling, and error reporting
+- `src/document_image.cpp`: inline body image insertion, media part allocation, and drawing relationship updates
 - `src/paragraph.cpp`: paragraph traversal, run creation, and paragraph insertion
+- `src/image_helpers.cpp` / `src/image_helpers.hpp`: image binary loading plus file format and size detection helpers
 - `src/run.cpp`: run traversal and text read/write behavior
-- `src/table.cpp`: table, row, and cell traversal helpers
+- `src/table.cpp`: table creation plus row/cell traversal and editing helpers
 - `src/xml_helpers.cpp` / `src/xml_helpers.hpp`: internal XML helper utilities shared by the modules
 - `src/constants.cpp`: exported constants and error-category plumbing
 - `cli/featherdoc_cli.cpp`: minimal section-layout inspection and editing utility

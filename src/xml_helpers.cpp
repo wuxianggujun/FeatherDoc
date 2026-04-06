@@ -61,4 +61,19 @@ pugi::xml_node append_paragraph_node(pugi::xml_node parent) {
     return parent.append_child("w:p");
 }
 
+pugi::xml_node append_table_node(pugi::xml_node parent) {
+    if (parent == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (std::string_view{parent.name()} == "w:body") {
+        if (const auto section_properties = parent.child("w:sectPr");
+            section_properties != pugi::xml_node{}) {
+            return parent.insert_child_before("w:tbl", section_properties);
+        }
+    }
+
+    return parent.append_child("w:tbl");
+}
+
 } // namespace featherdoc::detail

@@ -8,6 +8,23 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- `append_table(row_count, column_count)` for creating new body tables on
+  editable documents created from either `open()` or `create_empty()`.
+- `Table::append_row()` and `TableRow::append_cell()` for growing existing or
+  newly created tables without dropping down to manual XML editing.
+- `append_image(path)` and `append_image(path, width_px, height_px)` for
+  appending inline body images backed by managed `word/media/*` parts.
+
+### Changed
+
+- Newly created or structurally extended tables now gain minimal `w:tblPr`,
+  `w:tblGrid`, and `w:tcPr` scaffolding automatically so saved `.docx` output
+  remains valid when appending rows or cells.
+- Saving now emits newly appended image media parts together with matching
+  `document.xml.rels` and `[Content_Types].xml` updates.
+
 ## [1.1.0] - 2026-04-06
 
 ### Added

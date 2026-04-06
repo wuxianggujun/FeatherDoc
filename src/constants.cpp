@@ -37,6 +37,12 @@ std::string document_error_category::message(int condition) const {
         return "failed to read [Content_Types].xml";
     case document_errc::content_types_xml_parse_failed:
         return "failed to parse [Content_Types].xml";
+    case document_errc::image_file_read_failed:
+        return "failed to read image file";
+    case document_errc::image_format_unsupported:
+        return "image format is not supported";
+    case document_errc::image_size_read_failed:
+        return "failed to determine image dimensions";
     case document_errc::settings_xml_read_failed:
         return "failed to read word/settings.xml";
     case document_errc::settings_xml_parse_failed:

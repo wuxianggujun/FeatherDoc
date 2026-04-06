@@ -29,6 +29,8 @@ set(HEADERS
 set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/constants.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_image.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/image_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/paragraph.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/run.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table.cpp"
