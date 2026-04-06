@@ -420,3 +420,88 @@ TEST_CASE("cli inspect and show commands support json output") {
     remove_if_exists(shown_header);
     remove_if_exists(shown_missing_footer);
 }
+
+TEST_CASE("cli mutating commands support json output") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_mutation_json_source.docx";
+    const fs::path inserted = working_directory / "cli_mutation_json_inserted.docx";
+    const fs::path moved = working_directory / "cli_mutation_json_moved.docx";
+    const fs::path header_updated =
+        working_directory / "cli_mutation_json_header.docx";
+    const fs::path insert_output = working_directory / "cli_mutation_insert.json";
+    const fs::path move_output = working_directory / "cli_mutation_move.json";
+    const fs::path set_header_output =
+        working_directory / "cli_mutation_set_header.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_mutation_parse_error.json";
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(moved);
+    remove_if_exists(header_updated);
+    remove_if_exists(insert_output);
+    remove_if_exists(move_output);
+    remove_if_exists(set_header_output);
+    remove_if_exists(parse_error_output);
+
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"insert-section", source.string(), "1", "--no-inherit", "--output",
+                      inserted.string(), "--json"},
+                     insert_output),
+             0);
+    CHECK_EQ(
+        read_text_file(insert_output),
+        std::string{
+            "{\"command\":\"insert-section\",\"ok\":true,\"in_place\":false,"
+            "\"sections\":4,\"headers\":2,\"footers\":1,\"section\":2,"
+            "\"inherit_header_footer\":false}\n"});
+
+    CHECK_EQ(run_cli({"move-section", inserted.string(), "3", "0", "--output",
+                      moved.string(), "--json"},
+                     move_output),
+             0);
+    CHECK_EQ(
+        read_text_file(move_output),
+        std::string{
+            "{\"command\":\"move-section\",\"ok\":true,\"in_place\":false,"
+            "\"sections\":4,\"headers\":2,\"footers\":1,\"source\":3,"
+            "\"target\":0}\n"});
+
+    CHECK_EQ(run_cli({"set-section-header", moved.string(), "2", "--kind", "even",
+                      "--text", "json header", "--output",
+                      header_updated.string(), "--json"},
+                     set_header_output),
+             0);
+    CHECK_EQ(
+        read_text_file(set_header_output),
+        std::string{
+            "{\"command\":\"set-section-header\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":4,\"headers\":3,\"footers\":1,"
+            "\"part\":\"header\",\"section\":2,\"kind\":\"even\"}\n"});
+
+    featherdoc::Document header_doc(header_updated);
+    REQUIRE_FALSE(header_doc.open());
+    CHECK_EQ(collect_part_lines(header_doc.section_header_paragraphs(
+                 2, featherdoc::section_reference_kind::even_page)),
+             std::vector<std::string>({"json header"}));
+
+    CHECK_EQ(run_cli({"set-section-footer", source.string(), "0", "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"set-section-footer\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"expected --text <text> or "
+            "--text-file <path>\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(moved);
+    remove_if_exists(header_updated);
+    remove_if_exists(insert_output);
+    remove_if_exists(move_output);
+    remove_if_exists(set_header_output);
+    remove_if_exists(parse_error_output);
+}

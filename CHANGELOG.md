@@ -52,6 +52,9 @@ performance.
   text inspection and replacement.
 - `featherdoc_cli inspect-sections --json` and `show-section-header/footer
   --json` output for machine-readable section layout and paragraph inspection.
+- `--json` output for mutating `featherdoc_cli` section commands, including
+  `insert-section`, `remove-section`, `move-section`,
+  `copy-section-layout`, `set-section-header`, and `set-section-footer`.
 - Automatic `w:titlePg` / `w:evenAndOddHeaders` enablement plus
   `word/settings.xml` read/write support when first-page or even-page
   header/footer references are created.
@@ -80,6 +83,7 @@ performance.
   more explicitly, including encrypted `.docx`, section header/footer
   part-reordering limits,
   equations, and table creation.
+- Removed the leftover upstream DuckX image asset directory from the repository.
 
 ### Fixed
 

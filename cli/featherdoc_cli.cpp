@@ -16,6 +16,7 @@ using path_type = std::filesystem::path;
 struct command_options {
     bool inherit_header_footer = true;
     std::optional<path_type> output_path;
+    bool json_output = false;
 };
 
 struct inspect_options {
@@ -42,23 +43,23 @@ void print_usage(std::ostream &stream) {
         << "  featherdoc_cli inspect-sections <input.docx>\n"
         << "    [--json]\n"
         << "  featherdoc_cli insert-section <input.docx> <section-index>"
-           " [--no-inherit] [--output <path>]\n"
+           " [--no-inherit] [--output <path>] [--json]\n"
         << "  featherdoc_cli remove-section <input.docx> <section-index>"
-           " [--output <path>]\n"
+           " [--output <path>] [--json]\n"
         << "  featherdoc_cli move-section <input.docx> <source-index>"
-           " <target-index> [--output <path>]\n"
+           " <target-index> [--output <path>] [--json]\n"
         << "  featherdoc_cli copy-section-layout <input.docx> <source-index>"
-           " <target-index> [--output <path>]\n"
+           " <target-index> [--output <path>] [--json]\n"
         << "  featherdoc_cli show-section-header <input.docx> <section-index>"
            " [--kind default|first|even] [--json]\n"
         << "  featherdoc_cli show-section-footer <input.docx> <section-index>"
            " [--kind default|first|even] [--json]\n"
         << "  featherdoc_cli set-section-header <input.docx> <section-index>"
            " (--text <text> | --text-file <path>)"
-           " [--kind default|first|even] [--output <path>]\n"
+           " [--kind default|first|even] [--output <path>] [--json]\n"
         << "  featherdoc_cli set-section-footer <input.docx> <section-index>"
            " (--text <text> | --text-file <path>)"
-           " [--kind default|first|even] [--output <path>]\n";
+           " [--kind default|first|even] [--output <path>] [--json]\n";
 }
 
 void print_error_info(const featherdoc::document_error_info &error_info) {
@@ -79,6 +80,16 @@ void print_error_info(const featherdoc::document_error_info &error_info) {
 void print_parse_error(const std::string &message) {
     std::cerr << message << '\n';
     print_usage(std::cerr);
+}
+
+auto has_json_flag(const std::vector<std::string_view> &arguments) -> bool {
+    for (const auto argument : arguments) {
+        if (argument == "--json") {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 auto parse_index(std::string_view text, std::size_t &value) -> bool {
@@ -129,6 +140,11 @@ auto parse_options(const std::vector<std::string_view> &arguments,
 
             options.output_path = path_type(std::string(arguments[index + 1]));
             ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
             continue;
         }
 
@@ -271,6 +287,10 @@ auto yes_no(bool value) -> const char * {
     return value ? "yes" : "no";
 }
 
+auto json_bool(bool value) -> const char * {
+    return value ? "true" : "false";
+}
+
 auto section_part_name(section_part_family family) -> const char * {
     return family == section_part_family::header ? "header" : "footer";
 }
@@ -377,6 +397,78 @@ void write_json_section_flags(std::ostream &stream, featherdoc::Document &doc,
            << ",\"even\":" << (has_even ? "true" : "false") << '}';
 }
 
+void write_json_command_error(std::ostream &stream, std::string_view command,
+                              std::string_view stage, std::string_view message,
+                              const featherdoc::document_error_info *error_info = nullptr) {
+    stream << "{\"command\":";
+    write_json_string(stream, command);
+    stream << ",\"ok\":false,\"stage\":";
+    write_json_string(stream, stage);
+    stream << ",\"message\":";
+    write_json_string(stream, message);
+
+    if (error_info != nullptr) {
+        if (!error_info->detail.empty()) {
+            stream << ",\"detail\":";
+            write_json_string(stream, error_info->detail);
+        }
+        if (!error_info->entry_name.empty()) {
+            stream << ",\"entry\":";
+            write_json_string(stream, error_info->entry_name);
+        }
+        if (error_info->xml_offset.has_value()) {
+            stream << ",\"xml_offset\":" << *error_info->xml_offset;
+        }
+    }
+
+    stream << "}\n";
+}
+
+void print_parse_error(std::string_view command, const std::string &message,
+                       bool json_output) {
+    if (json_output) {
+        write_json_command_error(std::cerr, command, "parse", message);
+        return;
+    }
+
+    print_parse_error(message);
+}
+
+auto report_document_error(std::string_view command, std::string_view stage,
+                           const featherdoc::document_error_info &error_info,
+                           bool json_output) -> bool {
+    if (json_output) {
+        const auto message =
+            error_info.code ? error_info.code.message() : std::string{"operation failed"};
+        write_json_command_error(std::cerr, command, stage, message, &error_info);
+        return false;
+    }
+
+    print_error_info(error_info);
+    return false;
+}
+
+template <typename ExtraWriter>
+void write_json_mutation_result(std::string_view command, featherdoc::Document &doc,
+                                const std::optional<path_type> &output_path,
+                                ExtraWriter &&write_extra) {
+    std::cout << "{\"command\":";
+    write_json_string(std::cout, command);
+    std::cout << ",\"ok\":true"
+              << ",\"in_place\":" << json_bool(!output_path.has_value())
+              << ",\"sections\":" << doc.section_count()
+              << ",\"headers\":" << doc.header_count()
+              << ",\"footers\":" << doc.footer_count();
+    write_extra(std::cout);
+    std::cout << "}\n";
+}
+
+void write_json_mutation_result(std::string_view command, featherdoc::Document &doc,
+                                const std::optional<path_type> &output_path) {
+    write_json_mutation_result(command, doc, output_path,
+                               [](std::ostream &) {});
+}
+
 void inspect_sections(featherdoc::Document &doc, bool json_output) {
     if (json_output) {
         std::cout << "{\"sections\":" << doc.section_count()
@@ -461,23 +553,23 @@ auto read_text_source(const section_text_options &options, std::string &text,
 }
 
 auto save_document(featherdoc::Document &doc,
-                   const std::optional<path_type> &output_path) -> bool {
+                   const std::optional<path_type> &output_path,
+                   std::string_view command = {}, bool json_output = false) -> bool {
     const auto error =
         output_path.has_value() ? doc.save_as(*output_path) : doc.save();
     if (error) {
-        print_error_info(doc.last_error());
-        return false;
+        return report_document_error(command, "save", doc.last_error(), json_output);
     }
 
     return true;
 }
 
-auto open_document(const path_type &input_path, featherdoc::Document &doc) -> bool {
+auto open_document(const path_type &input_path, featherdoc::Document &doc,
+                   std::string_view command = {}, bool json_output = false) -> bool {
     doc.set_path(input_path);
     const auto error = doc.open();
     if (error) {
-        print_error_info(doc.last_error());
-        return false;
+        return report_document_error(command, "open", doc.last_error(), json_output);
     }
 
     return true;
@@ -518,7 +610,9 @@ auto show_section_text(featherdoc::Document &doc, section_part_family family,
 
 auto replace_section_text(featherdoc::Document &doc, section_part_family family,
                           std::size_t section_index, std::string_view replacement_text,
-                          featherdoc::section_reference_kind reference_kind) -> bool {
+                          featherdoc::section_reference_kind reference_kind,
+                          std::string_view command = {}, bool json_output = false)
+    -> bool {
     const auto success =
         family == section_part_family::header
             ? doc.replace_section_header_text(section_index, replacement_text,
@@ -527,7 +621,7 @@ auto replace_section_text(featherdoc::Document &doc, section_part_family family,
                                               reference_kind);
 
     if (!success) {
-        print_error_info(doc.last_error());
+        return report_document_error(command, "mutate", doc.last_error(), json_output);
     }
 
     return success;
@@ -545,19 +639,22 @@ int main(int argc, char **argv) {
     featherdoc::Document doc;
 
     if (command == "inspect-sections") {
+        const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 2U) {
-            print_parse_error("inspect-sections expects an input path");
+            print_parse_error(command, "inspect-sections expects an input path",
+                              json_output);
             return 2;
         }
 
         inspect_options options;
         std::string error_message;
         if (!parse_inspect_options(arguments, 2U, options, error_message)) {
-            print_parse_error(error_message);
+            print_parse_error(command, error_message, json_output);
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc)) {
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
             return 1;
         }
 
@@ -566,157 +663,244 @@ int main(int argc, char **argv) {
     }
 
     if (command == "insert-section") {
+        const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 3U) {
-            print_parse_error(
-                "insert-section expects an input path and a section index");
+            print_parse_error(command,
+                              "insert-section expects an input path and a section index",
+                              json_output);
             return 2;
         }
 
         std::size_t section_index = 0;
         if (!parse_index(arguments[2], section_index)) {
-            print_parse_error("invalid section index: " + std::string(arguments[2]));
+            print_parse_error(command,
+                              "invalid section index: " + std::string(arguments[2]),
+                              json_output);
             return 2;
         }
 
         command_options options;
         std::string error_message;
         if (!parse_options(arguments, 3U, true, options, error_message)) {
-            print_parse_error(error_message);
+            print_parse_error(command, error_message, json_output);
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc)) {
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
             return 1;
         }
 
         if (!doc.insert_section(section_index, options.inherit_header_footer)) {
-            print_error_info(doc.last_error());
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
             return 1;
         }
 
-        return save_document(doc, options.output_path) ? 0 : 1;
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            const auto inserted_section = section_index + 1U;
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [inserted_section, &options](std::ostream &stream) {
+                    stream << ",\"section\":" << inserted_section
+                           << ",\"inherit_header_footer\":"
+                           << json_bool(options.inherit_header_footer);
+                });
+        }
+
+        return 0;
     }
 
     if (command == "remove-section") {
+        const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 3U) {
-            print_parse_error(
-                "remove-section expects an input path and a section index");
+            print_parse_error(command,
+                              "remove-section expects an input path and a section index",
+                              json_output);
             return 2;
         }
 
         std::size_t section_index = 0;
         if (!parse_index(arguments[2], section_index)) {
-            print_parse_error("invalid section index: " + std::string(arguments[2]));
+            print_parse_error(command,
+                              "invalid section index: " + std::string(arguments[2]),
+                              json_output);
             return 2;
         }
 
         command_options options;
         std::string error_message;
         if (!parse_options(arguments, 3U, false, options, error_message)) {
-            print_parse_error(error_message);
+            print_parse_error(command, error_message, json_output);
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc)) {
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
             return 1;
         }
 
         if (!doc.remove_section(section_index)) {
-            print_error_info(doc.last_error());
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
             return 1;
         }
 
-        return save_document(doc, options.output_path) ? 0 : 1;
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(command, doc, options.output_path,
+                                       [section_index](std::ostream &stream) {
+                                           stream << ",\"section\":" << section_index;
+                                       });
+        }
+
+        return 0;
     }
 
     if (command == "move-section") {
+        const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 4U) {
             print_parse_error(
+                command,
                 "move-section expects an input path, a source index, and a "
-                "target index");
+                "target index",
+                json_output);
             return 2;
         }
 
         std::size_t source_index = 0;
         std::size_t target_index = 0;
         if (!parse_index(arguments[2], source_index)) {
-            print_parse_error("invalid source index: " + std::string(arguments[2]));
+            print_parse_error(command,
+                              "invalid source index: " + std::string(arguments[2]),
+                              json_output);
             return 2;
         }
         if (!parse_index(arguments[3], target_index)) {
-            print_parse_error("invalid target index: " + std::string(arguments[3]));
+            print_parse_error(command,
+                              "invalid target index: " + std::string(arguments[3]),
+                              json_output);
             return 2;
         }
 
         command_options options;
         std::string error_message;
         if (!parse_options(arguments, 4U, false, options, error_message)) {
-            print_parse_error(error_message);
+            print_parse_error(command, error_message, json_output);
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc)) {
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
             return 1;
         }
 
         if (!doc.move_section(source_index, target_index)) {
-            print_error_info(doc.last_error());
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
             return 1;
         }
 
-        return save_document(doc, options.output_path) ? 0 : 1;
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [source_index, target_index](std::ostream &stream) {
+                    stream << ",\"source\":" << source_index
+                           << ",\"target\":" << target_index;
+                });
+        }
+
+        return 0;
     }
 
     if (command == "copy-section-layout") {
+        const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 4U) {
             print_parse_error(
+                command,
                 "copy-section-layout expects an input path, a source index, "
-                "and a target index");
+                "and a target index",
+                json_output);
             return 2;
         }
 
         std::size_t source_index = 0;
         std::size_t target_index = 0;
         if (!parse_index(arguments[2], source_index)) {
-            print_parse_error("invalid source index: " + std::string(arguments[2]));
+            print_parse_error(command,
+                              "invalid source index: " + std::string(arguments[2]),
+                              json_output);
             return 2;
         }
         if (!parse_index(arguments[3], target_index)) {
-            print_parse_error("invalid target index: " + std::string(arguments[3]));
+            print_parse_error(command,
+                              "invalid target index: " + std::string(arguments[3]),
+                              json_output);
             return 2;
         }
 
         command_options options;
         std::string error_message;
         if (!parse_options(arguments, 4U, false, options, error_message)) {
-            print_parse_error(error_message);
+            print_parse_error(command, error_message, json_output);
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc)) {
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
             return 1;
         }
 
         if (!doc.copy_section_header_references(source_index, target_index) ||
             !doc.copy_section_footer_references(source_index, target_index)) {
-            print_error_info(doc.last_error());
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
             return 1;
         }
 
-        return save_document(doc, options.output_path) ? 0 : 1;
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [source_index, target_index](std::ostream &stream) {
+                    stream << ",\"source\":" << source_index
+                           << ",\"target\":" << target_index;
+                });
+        }
+
+        return 0;
     }
 
     if (command == "show-section-header" || command == "show-section-footer") {
+        const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 3U) {
             print_parse_error(
+                command,
                 "show-section-header/footer expects an input path and a "
-                "section index");
+                "section index",
+                json_output);
             return 2;
         }
 
         std::size_t section_index = 0;
         if (!parse_index(arguments[2], section_index)) {
-            print_parse_error("invalid section index: " + std::string(arguments[2]));
+            print_parse_error(command,
+                              "invalid section index: " + std::string(arguments[2]),
+                              json_output);
             return 2;
         }
 
@@ -724,11 +908,12 @@ int main(int argc, char **argv) {
         std::string error_message;
         if (!parse_section_text_options(arguments, 3U, false, false, true, options,
                                         error_message)) {
-            print_parse_error(error_message);
+            print_parse_error(command, error_message, json_output);
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc)) {
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
             return 1;
         }
 
@@ -743,34 +928,45 @@ int main(int argc, char **argv) {
     }
 
     if (command == "set-section-header" || command == "set-section-footer") {
+        const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 3U) {
             print_parse_error(
+                command,
                 "set-section-header/footer expects an input path and a "
-                "section index");
+                "section index",
+                json_output);
             return 2;
         }
 
         std::size_t section_index = 0;
         if (!parse_index(arguments[2], section_index)) {
-            print_parse_error("invalid section index: " + std::string(arguments[2]));
+            print_parse_error(command,
+                              "invalid section index: " + std::string(arguments[2]),
+                              json_output);
             return 2;
         }
 
         section_text_options options;
         std::string error_message;
-        if (!parse_section_text_options(arguments, 3U, true, true, false, options,
+        if (!parse_section_text_options(arguments, 3U, true, true, true, options,
                                         error_message)) {
-            print_parse_error(error_message);
+            print_parse_error(command, error_message, json_output);
             return 2;
         }
 
         std::string replacement_text;
         if (!read_text_source(options, replacement_text, error_message)) {
-            std::cerr << error_message << '\n';
+            if (options.json_output) {
+                write_json_command_error(std::cerr, command, "input",
+                                         error_message);
+            } else {
+                std::cerr << error_message << '\n';
+            }
             return 1;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc)) {
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
             return 1;
         }
 
@@ -778,11 +974,30 @@ int main(int argc, char **argv) {
                 doc,
                 command == "set-section-header" ? section_part_family::header
                                                 : section_part_family::footer,
-                section_index, replacement_text, options.reference_kind)) {
+                section_index, replacement_text, options.reference_kind, command,
+                options.json_output)) {
             return 1;
         }
 
-        return save_document(doc, options.output_path) ? 0 : 1;
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [command, section_index, &options](std::ostream &stream) {
+                    stream << ",\"part\":";
+                    write_json_string(
+                        stream, command == "set-section-header" ? "header" : "footer");
+                    stream << ",\"section\":" << section_index << ",\"kind\":";
+                    write_json_string(
+                        stream,
+                        featherdoc::to_xml_reference_type(options.reference_kind));
+                });
+        }
+
+        return 0;
     }
 
     print_parse_error("unknown command: " + std::string(command));

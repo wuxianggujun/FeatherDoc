@@ -44,20 +44,23 @@ section-aware header/footer operations.
 
     featherdoc_cli inspect-sections input.docx
     featherdoc_cli inspect-sections input.docx --json
-    featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx
+    featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
     featherdoc_cli copy-section-layout input.docx 0 2 --output copied.docx
     featherdoc_cli move-section input.docx 2 0 --output reordered.docx
     featherdoc_cli remove-section input.docx 3 --output trimmed.docx
     featherdoc_cli show-section-header input.docx 1 --kind even
     featherdoc_cli show-section-footer input.docx 2 --json
-    featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx
-    featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt
+    featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
+    featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
 
 ``inspect-sections`` reports section counts together with per-section
 ``default`` / ``first`` / ``even`` header and footer attachment flags. The
 mutating commands overwrite the input file unless ``--output <path>`` is
 provided. Pass ``--json`` to ``inspect-sections`` when you need the same layout
-data in a machine-readable object.
+data in a machine-readable object. The mutating commands also accept
+``--json`` and emit ``command``, ``ok``, ``in_place``, ``sections``,
+``headers``, and ``footers`` together with command-specific fields such as
+``section``, ``source``, ``target``, ``part``, and ``kind``.
 ``show-section-header`` / ``show-section-footer`` print the referenced
 paragraphs one line per paragraph. ``set-section-header`` /
 ``set-section-footer`` rewrite the target part as plain paragraphs from
