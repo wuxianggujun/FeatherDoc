@@ -34,6 +34,10 @@ performance.
 - `replace_bookmark_with_table(...)` and `replace_bookmark_with_image(...)`
   for replacing standalone bookmark paragraphs with generated table/image
   blocks.
+- `TemplatePart` plus `body_template()`, `header_template()`,
+  `footer_template()`, `section_header_template()`, and
+  `section_footer_template()` for reusing bookmark template APIs across
+  existing body, header, and footer parts.
 
 ### Changed
 
@@ -50,6 +54,9 @@ performance.
   style references are used.
 - Bookmark replacement logic is now split out of `document.cpp` into a
   dedicated template-focused translation unit.
+- Bookmark template operations now target any loaded XML content part, which
+  lets existing header/footer parts reuse the same text, paragraph, table-row,
+  and table bookmark replacement pipeline as `document.xml`.
 
 ## [1.1.0] - 2026-04-06
 

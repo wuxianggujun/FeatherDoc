@@ -14,6 +14,8 @@
 
 namespace {
 constexpr auto document_xml_entry = std::string_view{"word/document.xml"};
+constexpr auto unavailable_template_part_detail =
+    std::string_view{"template part is not available"};
 
 struct block_bookmark_placeholder final {
     pugi::xml_node paragraph;
@@ -160,6 +162,7 @@ auto paragraph_is_block_placeholder(pugi::xml_node paragraph, pugi::xml_node boo
 
 auto collect_block_bookmark_placeholders(featherdoc::document_error_info &last_error_info,
                                          pugi::xml_document &document,
+                                         std::string_view entry_name,
                                          std::string_view bookmark_name,
                                          std::vector<block_bookmark_placeholder> &placeholders)
     -> bool {
@@ -172,7 +175,7 @@ auto collect_block_bookmark_placeholders(featherdoc::document_error_info &last_e
             set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                            "block bookmark replacement requires the bookmark to live directly "
                            "inside a paragraph",
-                           std::string{document_xml_entry});
+                           std::string{entry_name});
             return false;
         }
 
@@ -181,7 +184,7 @@ auto collect_block_bookmark_placeholders(featherdoc::document_error_info &last_e
             set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                            "block bookmark replacement requires matching bookmark markers "
                            "inside the same paragraph",
-                           std::string{document_xml_entry});
+                           std::string{entry_name});
             return false;
         }
 
@@ -189,7 +192,7 @@ auto collect_block_bookmark_placeholders(featherdoc::document_error_info &last_e
             set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                            "block bookmark replacement requires the target bookmark to occupy "
                            "its own paragraph",
-                           std::string{document_xml_entry});
+                           std::string{entry_name});
             return false;
         }
 
@@ -296,10 +299,12 @@ auto rewrite_table_cell_plain_text(pugi::xml_node cell, std::string_view text) -
 
 auto collect_table_row_bookmark_placeholders(
     featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
+    std::string_view entry_name,
     std::string_view bookmark_name, std::vector<table_row_bookmark_placeholder> &placeholders)
     -> bool {
     std::vector<block_bookmark_placeholder> block_placeholders;
-    if (!collect_block_bookmark_placeholders(last_error_info, document, bookmark_name,
+    if (!collect_block_bookmark_placeholders(last_error_info, document, entry_name,
+                                             bookmark_name,
                                              block_placeholders)) {
         return false;
     }
@@ -310,7 +315,7 @@ auto collect_table_row_bookmark_placeholders(
             set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                            "table row replacement requires the bookmark paragraph to live "
                            "inside a table cell",
-                           std::string{document_xml_entry});
+                           std::string{entry_name});
             return false;
         }
 
@@ -319,7 +324,7 @@ auto collect_table_row_bookmark_placeholders(
             set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                            "table row replacement requires the bookmark paragraph to live "
                            "inside a table row",
-                           std::string{document_xml_entry});
+                           std::string{entry_name});
             return false;
         }
 
@@ -328,7 +333,7 @@ auto collect_table_row_bookmark_placeholders(
             set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                            "table row replacement requires the bookmark row to belong to a "
                            "table",
-                           std::string{document_xml_entry});
+                           std::string{entry_name});
             return false;
         }
 
@@ -338,7 +343,7 @@ auto collect_table_row_bookmark_placeholders(
                                std::make_error_code(std::errc::invalid_argument),
                                "table row replacement requires each template row to contain "
                                "the target bookmark at most once",
-                               std::string{document_xml_entry});
+                               std::string{entry_name});
                 return false;
             }
         }
@@ -348,7 +353,7 @@ auto collect_table_row_bookmark_placeholders(
             set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                            "table row replacement requires the template row to contain at "
                            "least one cell",
-                           std::string{document_xml_entry});
+                           std::string{entry_name});
             return false;
         }
 
@@ -360,19 +365,19 @@ auto collect_table_row_bookmark_placeholders(
 
 auto replace_placeholder_with_table_rows(
     featherdoc::document_error_info &last_error_info,
-    table_row_bookmark_placeholder placeholder,
+    std::string_view entry_name, table_row_bookmark_placeholder placeholder,
     const std::vector<std::vector<std::string>> &rows) -> bool {
     if (placeholder.table == pugi::xml_node{} || placeholder.row == pugi::xml_node{}) {
         set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                        "failed to resolve the placeholder row for table row replacement",
-                       std::string{document_xml_entry});
+                       std::string{entry_name});
         return false;
     }
 
     if (placeholder.row.parent() != placeholder.table) {
         set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                        "failed to resolve the placeholder row parent table",
-                       std::string{document_xml_entry});
+                       std::string{entry_name});
         return false;
     }
 
@@ -382,7 +387,7 @@ auto replace_placeholder_with_table_rows(
                 last_error_info, std::make_error_code(std::errc::invalid_argument),
                 "replacement table row cell count must exactly match the template row cell "
                 "count",
-                std::string{document_xml_entry});
+                std::string{entry_name});
             return false;
         }
     }
@@ -393,7 +398,7 @@ auto replace_placeholder_with_table_rows(
             set_last_error(last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
                            "failed to clone the template row before the bookmark row",
-                           std::string{document_xml_entry});
+                           std::string{entry_name});
             return false;
         }
 
@@ -404,7 +409,7 @@ auto replace_placeholder_with_table_rows(
                 set_last_error(last_error_info,
                                std::make_error_code(std::errc::not_enough_memory),
                                "failed to rewrite a cloned template row cell",
-                               std::string{document_xml_entry});
+                               std::string{entry_name});
                 return false;
             }
         }
@@ -414,7 +419,7 @@ auto replace_placeholder_with_table_rows(
         set_last_error(last_error_info, std::make_error_code(std::errc::not_enough_memory),
                        "failed to remove the bookmark placeholder row after table row "
                        "replacement",
-                       std::string{document_xml_entry});
+                       std::string{entry_name});
         return false;
     }
 
@@ -422,13 +427,14 @@ auto replace_placeholder_with_table_rows(
 }
 
 auto insert_table_before_placeholder(
-    featherdoc::document_error_info &last_error_info, pugi::xml_node placeholder_paragraph,
+    featherdoc::document_error_info &last_error_info, std::string_view entry_name,
+    pugi::xml_node placeholder_paragraph,
     const std::vector<std::vector<std::string>> &rows) -> bool {
     auto parent = placeholder_paragraph.parent();
     if (placeholder_paragraph == pugi::xml_node{} || parent == pugi::xml_node{}) {
         set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                        "failed to resolve the placeholder paragraph for table replacement",
-                       std::string{document_xml_entry});
+                       std::string{entry_name});
         return false;
     }
 
@@ -436,7 +442,7 @@ auto insert_table_before_placeholder(
     if (table_node == pugi::xml_node{}) {
         set_last_error(last_error_info, std::make_error_code(std::errc::not_enough_memory),
                        "failed to insert the replacement table before the bookmark paragraph",
-                       std::string{document_xml_entry});
+                       std::string{entry_name});
         return false;
     }
 
@@ -446,7 +452,7 @@ auto insert_table_before_placeholder(
         if (!row.has_next()) {
             set_last_error(last_error_info, std::make_error_code(std::errc::not_enough_memory),
                            "failed to append a replacement table row",
-                           std::string{document_xml_entry});
+                           std::string{entry_name});
             return false;
         }
 
@@ -456,7 +462,7 @@ auto insert_table_before_placeholder(
                 set_last_error(last_error_info,
                                std::make_error_code(std::errc::not_enough_memory),
                                "failed to resolve a replacement table cell",
-                               std::string{document_xml_entry});
+                               std::string{entry_name});
                 return false;
             }
 
@@ -464,7 +470,7 @@ auto insert_table_before_placeholder(
                 set_last_error(last_error_info,
                                std::make_error_code(std::errc::not_enough_memory),
                                "failed to append replacement table text",
-                               std::string{document_xml_entry});
+                               std::string{entry_name});
                 return false;
             }
 
@@ -476,7 +482,7 @@ auto insert_table_before_placeholder(
         set_last_error(last_error_info, std::make_error_code(std::errc::not_enough_memory),
                        "failed to remove the bookmark placeholder paragraph after table "
                        "replacement",
-                       std::string{document_xml_entry});
+                       std::string{entry_name});
         return false;
     }
 
@@ -484,14 +490,15 @@ auto insert_table_before_placeholder(
 }
 
 auto replace_placeholder_with_plain_text_paragraphs(
-    featherdoc::document_error_info &last_error_info, pugi::xml_node placeholder_paragraph,
+    featherdoc::document_error_info &last_error_info, std::string_view entry_name,
+    pugi::xml_node placeholder_paragraph,
     const std::vector<std::string> &paragraphs) -> bool {
     auto parent = placeholder_paragraph.parent();
     if (placeholder_paragraph == pugi::xml_node{} || parent == pugi::xml_node{}) {
         set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                        "failed to resolve the placeholder paragraph for paragraph "
                        "replacement",
-                       std::string{document_xml_entry});
+                       std::string{entry_name});
         return false;
     }
 
@@ -502,7 +509,7 @@ auto replace_placeholder_with_plain_text_paragraphs(
                            std::make_error_code(std::errc::not_enough_memory),
                            "failed to insert a replacement paragraph before the bookmark "
                            "placeholder",
-                           std::string{document_xml_entry});
+                           std::string{entry_name});
             return false;
         }
     }
@@ -511,15 +518,409 @@ auto replace_placeholder_with_plain_text_paragraphs(
         set_last_error(last_error_info, std::make_error_code(std::errc::not_enough_memory),
                        "failed to remove the bookmark placeholder paragraph after paragraph "
                        "replacement",
-                       std::string{document_xml_entry});
+                       std::string{entry_name});
         return false;
     }
 
     return true;
 }
+
+auto replace_bookmark_text_in_part(featherdoc::document_error_info &last_error_info,
+                                   pugi::xml_document &document, std::string_view entry_name,
+                                   std::string_view bookmark_name,
+                                   std::string_view replacement) -> std::size_t {
+    if (bookmark_name.empty()) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "bookmark name must not be empty", std::string{entry_name});
+        return 0U;
+    }
+
+    std::vector<pugi::xml_node> bookmark_starts;
+    collect_named_bookmark_starts(document, bookmark_name, bookmark_starts);
+
+    std::size_t replaced = 0U;
+    for (const auto bookmark_start : bookmark_starts) {
+        if (replace_bookmark_range(bookmark_start, replacement)) {
+            ++replaced;
+        }
+    }
+
+    last_error_info.clear();
+    return replaced;
+}
+
+auto fill_bookmarks_in_part(featherdoc::document_error_info &last_error_info,
+                            pugi::xml_document &document, std::string_view entry_name,
+                            std::span<const featherdoc::bookmark_text_binding> bindings)
+    -> featherdoc::bookmark_fill_result {
+    featherdoc::bookmark_fill_result result;
+    result.requested = bindings.size();
+
+    std::unordered_set<std::string> seen_bookmarks;
+    for (const auto &binding : bindings) {
+        if (binding.bookmark_name.empty()) {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "bookmark binding name must not be empty",
+                           std::string{entry_name});
+            return result;
+        }
+
+        const auto [_, inserted] = seen_bookmarks.emplace(binding.bookmark_name);
+        if (!inserted) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "duplicate bookmark binding name: " + binding.bookmark_name,
+                           std::string{entry_name});
+            return result;
+        }
+    }
+
+    for (const auto &binding : bindings) {
+        const auto replaced = replace_bookmark_text_in_part(
+            last_error_info, document, entry_name, binding.bookmark_name, binding.text);
+        if (replaced == 0U) {
+            result.missing_bookmarks.push_back(binding.bookmark_name);
+            continue;
+        }
+
+        ++result.matched;
+        result.replaced += replaced;
+    }
+
+    last_error_info.clear();
+    return result;
+}
+
+auto replace_bookmark_with_paragraphs_in_part(
+    featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
+    std::string_view entry_name, std::string_view bookmark_name,
+    const std::vector<std::string> &paragraphs) -> std::size_t {
+    if (bookmark_name.empty()) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "bookmark name must not be empty", std::string{entry_name});
+        return 0U;
+    }
+
+    std::vector<block_bookmark_placeholder> placeholders;
+    if (!collect_block_bookmark_placeholders(last_error_info, document, entry_name,
+                                             bookmark_name, placeholders)) {
+        return 0U;
+    }
+
+    if (placeholders.empty()) {
+        last_error_info.clear();
+        return 0U;
+    }
+
+    std::size_t replaced = 0U;
+    for (const auto &placeholder : placeholders) {
+        if (!replace_placeholder_with_plain_text_paragraphs(
+                last_error_info, entry_name, placeholder.paragraph, paragraphs)) {
+            return 0U;
+        }
+        ++replaced;
+    }
+
+    last_error_info.clear();
+    return replaced;
+}
+
+auto replace_bookmark_with_table_rows_in_part(
+    featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
+    std::string_view entry_name, std::string_view bookmark_name,
+    const std::vector<std::vector<std::string>> &rows) -> std::size_t {
+    if (bookmark_name.empty()) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "bookmark name must not be empty", std::string{entry_name});
+        return 0U;
+    }
+
+    std::vector<table_row_bookmark_placeholder> placeholders;
+    if (!collect_table_row_bookmark_placeholders(last_error_info, document, entry_name,
+                                                 bookmark_name, placeholders)) {
+        return 0U;
+    }
+
+    if (placeholders.empty()) {
+        last_error_info.clear();
+        return 0U;
+    }
+
+    std::size_t replaced = 0U;
+    for (const auto &placeholder : placeholders) {
+        if (!replace_placeholder_with_table_rows(last_error_info, entry_name, placeholder,
+                                                 rows)) {
+            return 0U;
+        }
+        ++replaced;
+    }
+
+    last_error_info.clear();
+    return replaced;
+}
+
+auto replace_bookmark_with_table_in_part(
+    featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
+    std::string_view entry_name, std::string_view bookmark_name,
+    const std::vector<std::vector<std::string>> &rows) -> std::size_t {
+    if (bookmark_name.empty()) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "bookmark name must not be empty", std::string{entry_name});
+        return 0U;
+    }
+
+    if (rows.empty()) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "replacement table must contain at least one row",
+                       std::string{entry_name});
+        return 0U;
+    }
+
+    for (const auto &row : rows) {
+        if (row.empty()) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "replacement table rows must contain at least one cell",
+                           std::string{entry_name});
+            return 0U;
+        }
+    }
+
+    std::vector<block_bookmark_placeholder> placeholders;
+    if (!collect_block_bookmark_placeholders(last_error_info, document, entry_name,
+                                             bookmark_name, placeholders)) {
+        return 0U;
+    }
+
+    if (placeholders.empty()) {
+        last_error_info.clear();
+        return 0U;
+    }
+
+    std::size_t replaced = 0U;
+    for (const auto &placeholder : placeholders) {
+        if (!insert_table_before_placeholder(last_error_info, entry_name,
+                                             placeholder.paragraph, rows)) {
+            return 0U;
+        }
+        ++replaced;
+    }
+
+    last_error_info.clear();
+    return replaced;
+}
 } // namespace
 
 namespace featherdoc {
+
+TemplatePart::TemplatePart() = default;
+
+TemplatePart::TemplatePart(pugi::xml_document *xml_document,
+                           document_error_info *last_error_info, std::string entry_name)
+    : xml_document(xml_document), last_error_info(last_error_info),
+      entry_name_storage(std::move(entry_name)) {}
+
+TemplatePart::operator bool() const noexcept { return this->xml_document != nullptr; }
+
+std::string_view TemplatePart::entry_name() const noexcept {
+    return this->entry_name_storage;
+}
+
+std::size_t TemplatePart::replace_bookmark_text(const std::string &bookmark_name,
+                                                const std::string &replacement) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return 0U;
+    }
+
+    return replace_bookmark_text_in_part(*this->last_error_info, *this->xml_document,
+                                         this->entry_name_storage, bookmark_name,
+                                         replacement);
+}
+
+std::size_t TemplatePart::replace_bookmark_text(const char *bookmark_name,
+                                                const char *replacement) {
+    if (bookmark_name == nullptr || replacement == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "bookmark name and replacement text must not be null",
+                           this->entry_name_storage);
+        }
+        return 0U;
+    }
+
+    return this->replace_bookmark_text(std::string{bookmark_name},
+                                       std::string{replacement});
+}
+
+bookmark_fill_result TemplatePart::fill_bookmarks(
+    std::span<const bookmark_text_binding> bindings) {
+    bookmark_fill_result result;
+    result.requested = bindings.size();
+
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return result;
+    }
+
+    return fill_bookmarks_in_part(*this->last_error_info, *this->xml_document,
+                                  this->entry_name_storage, bindings);
+}
+
+bookmark_fill_result TemplatePart::fill_bookmarks(
+    std::initializer_list<bookmark_text_binding> bindings) {
+    return this->fill_bookmarks(
+        std::span<const bookmark_text_binding>{bindings.begin(), bindings.size()});
+}
+
+std::size_t TemplatePart::replace_bookmark_with_paragraphs(
+    std::string_view bookmark_name, const std::vector<std::string> &paragraphs) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return 0U;
+    }
+
+    return replace_bookmark_with_paragraphs_in_part(
+        *this->last_error_info, *this->xml_document, this->entry_name_storage,
+        bookmark_name, paragraphs);
+}
+
+std::size_t TemplatePart::replace_bookmark_with_table_rows(
+    std::string_view bookmark_name, const std::vector<std::vector<std::string>> &rows) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return 0U;
+    }
+
+    return replace_bookmark_with_table_rows_in_part(
+        *this->last_error_info, *this->xml_document, this->entry_name_storage,
+        bookmark_name, rows);
+}
+
+std::size_t TemplatePart::replace_bookmark_with_table(
+    std::string_view bookmark_name, const std::vector<std::vector<std::string>> &rows) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return 0U;
+    }
+
+    return replace_bookmark_with_table_in_part(*this->last_error_info, *this->xml_document,
+                                               this->entry_name_storage, bookmark_name,
+                                               rows);
+}
+
+TemplatePart Document::body_template() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before accessing the body template");
+        return {nullptr, &this->last_error_info, {}};
+    }
+
+    this->last_error_info.clear();
+    return {&this->document, &this->last_error_info, std::string{document_xml_entry}};
+}
+
+TemplatePart Document::header_template(std::size_t index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before accessing a header template");
+        return {nullptr, &this->last_error_info, {}};
+    }
+
+    if (index >= this->header_parts.size()) {
+        this->last_error_info.clear();
+        return {nullptr, &this->last_error_info, {}};
+    }
+
+    this->last_error_info.clear();
+    return {&this->header_parts[index]->xml, &this->last_error_info,
+            this->header_parts[index]->entry_name};
+}
+
+TemplatePart Document::footer_template(std::size_t index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before accessing a footer template");
+        return {nullptr, &this->last_error_info, {}};
+    }
+
+    if (index >= this->footer_parts.size()) {
+        this->last_error_info.clear();
+        return {nullptr, &this->last_error_info, {}};
+    }
+
+    this->last_error_info.clear();
+    return {&this->footer_parts[index]->xml, &this->last_error_info,
+            this->footer_parts[index]->entry_name};
+}
+
+TemplatePart Document::section_header_template(
+    std::size_t section_index, featherdoc::section_reference_kind reference_kind) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before accessing a section header "
+                       "template");
+        return {nullptr, &this->last_error_info, {}};
+    }
+
+    auto *part = this->section_related_part_state(section_index, reference_kind,
+                                                  this->header_parts,
+                                                  "w:headerReference");
+    if (part == nullptr) {
+        this->last_error_info.clear();
+        return {nullptr, &this->last_error_info, {}};
+    }
+
+    this->last_error_info.clear();
+    return {&part->xml, &this->last_error_info, part->entry_name};
+}
+
+TemplatePart Document::section_footer_template(
+    std::size_t section_index, featherdoc::section_reference_kind reference_kind) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before accessing a section footer "
+                       "template");
+        return {nullptr, &this->last_error_info, {}};
+    }
+
+    auto *part = this->section_related_part_state(section_index, reference_kind,
+                                                  this->footer_parts,
+                                                  "w:footerReference");
+    if (part == nullptr) {
+        this->last_error_info.clear();
+        return {nullptr, &this->last_error_info, {}};
+    }
+
+    this->last_error_info.clear();
+    return {&part->xml, &this->last_error_info, part->entry_name};
+}
 
 std::size_t Document::replace_bookmark_text(const std::string &bookmark_name,
                                             const std::string &replacement) {
@@ -529,26 +930,9 @@ std::size_t Document::replace_bookmark_text(const std::string &bookmark_name,
         return 0U;
     }
 
-    if (bookmark_name.empty()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "bookmark name must not be empty",
-                       std::string{document_xml_entry});
-        return 0U;
-    }
-
-    std::vector<pugi::xml_node> bookmark_starts;
-    collect_named_bookmark_starts(this->document, bookmark_name, bookmark_starts);
-
-    std::size_t replaced = 0U;
-    for (const auto bookmark_start : bookmark_starts) {
-        if (replace_bookmark_range(bookmark_start, replacement)) {
-            ++replaced;
-        }
-    }
-
-    this->last_error_info.clear();
-    return replaced;
+    return replace_bookmark_text_in_part(this->last_error_info, this->document,
+                                         document_xml_entry, bookmark_name,
+                                         replacement);
 }
 
 std::size_t Document::replace_bookmark_text(const char *bookmark_name,
@@ -576,39 +960,8 @@ bookmark_fill_result Document::fill_bookmarks(
         return result;
     }
 
-    std::unordered_set<std::string> seen_bookmarks;
-    for (const auto &binding : bindings) {
-        if (binding.bookmark_name.empty()) {
-            set_last_error(this->last_error_info,
-                           std::make_error_code(std::errc::invalid_argument),
-                           "bookmark binding name must not be empty",
-                           std::string{document_xml_entry});
-            return result;
-        }
-
-        const auto [_, inserted] = seen_bookmarks.emplace(binding.bookmark_name);
-        if (!inserted) {
-            set_last_error(this->last_error_info,
-                           std::make_error_code(std::errc::invalid_argument),
-                           "duplicate bookmark binding name: " + binding.bookmark_name,
-                           std::string{document_xml_entry});
-            return result;
-        }
-    }
-
-    for (const auto &binding : bindings) {
-        const auto replaced = this->replace_bookmark_text(binding.bookmark_name, binding.text);
-        if (replaced == 0U) {
-            result.missing_bookmarks.push_back(binding.bookmark_name);
-            continue;
-        }
-
-        ++result.matched;
-        result.replaced += replaced;
-    }
-
-    this->last_error_info.clear();
-    return result;
+    return fill_bookmarks_in_part(this->last_error_info, this->document,
+                                  document_xml_entry, bindings);
 }
 
 bookmark_fill_result Document::fill_bookmarks(
@@ -626,36 +979,9 @@ std::size_t Document::replace_bookmark_with_paragraphs(
         return 0U;
     }
 
-    if (bookmark_name.empty()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "bookmark name must not be empty",
-                       std::string{document_xml_entry});
-        return 0U;
-    }
-
-    std::vector<block_bookmark_placeholder> placeholders;
-    if (!collect_block_bookmark_placeholders(this->last_error_info, this->document,
-                                             bookmark_name, placeholders)) {
-        return 0U;
-    }
-
-    if (placeholders.empty()) {
-        this->last_error_info.clear();
-        return 0U;
-    }
-
-    std::size_t replaced = 0U;
-    for (const auto &placeholder : placeholders) {
-        if (!replace_placeholder_with_plain_text_paragraphs(
-                this->last_error_info, placeholder.paragraph, paragraphs)) {
-            return 0U;
-        }
-        ++replaced;
-    }
-
-    this->last_error_info.clear();
-    return replaced;
+    return replace_bookmark_with_paragraphs_in_part(
+        this->last_error_info, this->document, document_xml_entry, bookmark_name,
+        paragraphs);
 }
 
 std::size_t Document::replace_bookmark_with_table_rows(
@@ -667,35 +993,8 @@ std::size_t Document::replace_bookmark_with_table_rows(
         return 0U;
     }
 
-    if (bookmark_name.empty()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "bookmark name must not be empty",
-                       std::string{document_xml_entry});
-        return 0U;
-    }
-
-    std::vector<table_row_bookmark_placeholder> placeholders;
-    if (!collect_table_row_bookmark_placeholders(this->last_error_info, this->document,
-                                                 bookmark_name, placeholders)) {
-        return 0U;
-    }
-
-    if (placeholders.empty()) {
-        this->last_error_info.clear();
-        return 0U;
-    }
-
-    std::size_t replaced = 0U;
-    for (const auto &placeholder : placeholders) {
-        if (!replace_placeholder_with_table_rows(this->last_error_info, placeholder, rows)) {
-            return 0U;
-        }
-        ++replaced;
-    }
-
-    this->last_error_info.clear();
-    return replaced;
+    return replace_bookmark_with_table_rows_in_part(
+        this->last_error_info, this->document, document_xml_entry, bookmark_name, rows);
 }
 
 std::size_t Document::replace_bookmark_with_table(
@@ -706,54 +1005,8 @@ std::size_t Document::replace_bookmark_with_table(
         return 0U;
     }
 
-    if (bookmark_name.empty()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "bookmark name must not be empty",
-                       std::string{document_xml_entry});
-        return 0U;
-    }
-
-    if (rows.empty()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "replacement table must contain at least one row",
-                       std::string{document_xml_entry});
-        return 0U;
-    }
-
-    for (const auto &row : rows) {
-        if (row.empty()) {
-            set_last_error(this->last_error_info,
-                           std::make_error_code(std::errc::invalid_argument),
-                           "replacement table rows must contain at least one cell",
-                           std::string{document_xml_entry});
-            return 0U;
-        }
-    }
-
-    std::vector<block_bookmark_placeholder> placeholders;
-    if (!collect_block_bookmark_placeholders(this->last_error_info, this->document,
-                                             bookmark_name, placeholders)) {
-        return 0U;
-    }
-
-    if (placeholders.empty()) {
-        this->last_error_info.clear();
-        return 0U;
-    }
-
-    std::size_t replaced = 0U;
-    for (const auto &placeholder : placeholders) {
-        if (!insert_table_before_placeholder(this->last_error_info, placeholder.paragraph,
-                                             rows)) {
-            return 0U;
-        }
-        ++replaced;
-    }
-
-    this->last_error_info.clear();
-    return replaced;
+    return replace_bookmark_with_table_in_part(this->last_error_info, this->document,
+                                               document_xml_entry, bookmark_name, rows);
 }
 
 std::size_t Document::replace_bookmark_with_image(
@@ -778,7 +1031,8 @@ std::size_t Document::replace_bookmark_with_image(
 
     std::vector<block_bookmark_placeholder> placeholders;
     if (!collect_block_bookmark_placeholders(this->last_error_info, this->document,
-                                             bookmark_name, placeholders)) {
+                                             document_xml_entry, bookmark_name,
+                                             placeholders)) {
         return 0U;
     }
 
@@ -851,7 +1105,8 @@ std::size_t Document::replace_bookmark_with_image(
 
     std::vector<block_bookmark_placeholder> placeholders;
     if (!collect_block_bookmark_placeholders(this->last_error_info, this->document,
-                                             bookmark_name, placeholders)) {
+                                             document_xml_entry, bookmark_name,
+                                             placeholders)) {
         return 0U;
     }
 

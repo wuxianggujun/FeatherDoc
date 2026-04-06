@@ -339,6 +339,42 @@ the source image size; the second overload applies explicit scaling.
     doc.replace_bookmark_with_image("company_logo", "logo.png");
     doc.replace_bookmark_with_image("stamp", "stamp.png", 96, 48);
 
+``body_template()``, ``header_template(index)``, ``footer_template(index)``,
+``section_header_template(section_index, kind)``, and
+``section_footer_template(section_index, kind)`` return a lightweight
+``TemplatePart`` handle for running the same bookmark-based template APIs on
+an already loaded body/header/footer part. A valid handle exposes
+``entry_name()``, ``replace_bookmark_text(...)``, ``fill_bookmarks(...)``,
+``replace_bookmark_with_paragraphs(...)``,
+``replace_bookmark_with_table_rows(...)``, and
+``replace_bookmark_with_table(...)``. Missing section-specific references
+return an empty handle instead of creating a new part implicitly.
+
+.. code-block:: cpp
+
+    auto header_template = doc.section_header_template(0);
+    if (header_template) {
+        header_template.replace_bookmark_with_table_rows(
+            "line_item_row",
+            {
+                {"Apple", "2"},
+                {"Pear", "5"},
+            });
+    }
+
+    auto footer_template = doc.section_footer_template(0);
+    if (footer_template) {
+        footer_template.fill_bookmarks({
+            {"company_name", "Acme Corp"},
+        });
+        footer_template.replace_bookmark_with_paragraphs(
+            "footer_lines",
+            {
+                "First line",
+                "Second line",
+            });
+    }
+
 ``header_count()``, ``footer_count()``, ``header_paragraphs(index)``, and
 ``footer_paragraphs(index)`` expose paragraph-level access to existing
 header/footer parts.
@@ -555,16 +591,13 @@ Current Limitations
   minimal ``word/styles.xml`` is created automatically when needed, but there
   is still no high-level API for custom style definition editing, style
   catalog inspection, or inheritance-aware style management.
-- A first bookmark-based batch template API now exists through
-  ``fill_bookmarks(...)``, and standalone bookmark paragraphs can now be
-  replaced by generated paragraphs, cloned table rows, tables, or inline
-  images through
-  ``replace_bookmark_with_paragraphs(...)``,
-  ``replace_bookmark_with_table_rows(...)``,
-  ``replace_bookmark_with_table(...)``, and
-  ``replace_bookmark_with_image(...)``, but there is still no high-level API
-  for conditional sections, header/footer template filling, or structured
-  template schema validation.
+- Bookmark-based template filling now works across body, header, and footer
+  parts through ``fill_bookmarks(...)``, the standalone replacement helpers,
+  and ``TemplatePart`` handles returned by ``body_template()``,
+  ``header_template()``, ``footer_template()``,
+  ``section_header_template()``, and ``section_footer_template()``, but there
+  is still no high-level API for conditional sections or structured template
+  schema validation.
 - Images can now be appended as inline body drawings, but there is still no
   high-level API for reading existing images, floating placement, wrapping,
   cropping, or header/footer image insertion.

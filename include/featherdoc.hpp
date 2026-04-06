@@ -182,6 +182,39 @@ struct bookmark_fill_result {
     }
 };
 
+class TemplatePart {
+  private:
+    friend class Document;
+
+    pugi::xml_document *xml_document{nullptr};
+    document_error_info *last_error_info{nullptr};
+    std::string entry_name_storage;
+
+    TemplatePart(pugi::xml_document *xml_document, document_error_info *last_error_info,
+                 std::string entry_name);
+
+  public:
+    TemplatePart();
+
+    explicit operator bool() const noexcept;
+    [[nodiscard]] std::string_view entry_name() const noexcept;
+
+    [[nodiscard]] std::size_t replace_bookmark_text(const std::string &bookmark_name,
+                                                    const std::string &replacement);
+    [[nodiscard]] std::size_t replace_bookmark_text(const char *bookmark_name,
+                                                    const char *replacement);
+    [[nodiscard]] bookmark_fill_result fill_bookmarks(
+        std::span<const bookmark_text_binding> bindings);
+    [[nodiscard]] bookmark_fill_result fill_bookmarks(
+        std::initializer_list<bookmark_text_binding> bindings);
+    [[nodiscard]] std::size_t replace_bookmark_with_paragraphs(
+        std::string_view bookmark_name, const std::vector<std::string> &paragraphs);
+    [[nodiscard]] std::size_t replace_bookmark_with_table_rows(
+        std::string_view bookmark_name, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_bookmark_with_table(
+        std::string_view bookmark_name, const std::vector<std::vector<std::string>> &rows);
+};
+
 // Document contains whole the docx file
 // and stores paragraphs
 class Document {
@@ -305,6 +338,17 @@ class Document {
     [[nodiscard]] std::size_t section_count() const noexcept;
     [[nodiscard]] std::size_t header_count() const noexcept;
     [[nodiscard]] std::size_t footer_count() const noexcept;
+    [[nodiscard]] TemplatePart body_template();
+    [[nodiscard]] TemplatePart header_template(std::size_t index = 0U);
+    [[nodiscard]] TemplatePart footer_template(std::size_t index = 0U);
+    [[nodiscard]] TemplatePart section_header_template(
+        std::size_t section_index,
+        featherdoc::section_reference_kind reference_kind =
+            featherdoc::section_reference_kind::default_reference);
+    [[nodiscard]] TemplatePart section_footer_template(
+        std::size_t section_index,
+        featherdoc::section_reference_kind reference_kind =
+            featherdoc::section_reference_kind::default_reference);
     Paragraph &header_paragraphs(std::size_t index = 0U);
     Paragraph &footer_paragraphs(std::size_t index = 0U);
     Paragraph &section_header_paragraphs(
