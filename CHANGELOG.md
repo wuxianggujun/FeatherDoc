@@ -55,6 +55,11 @@ performance.
 - `--json` output for mutating `featherdoc_cli` section commands, including
   `insert-section`, `remove-section`, `move-section`,
   `copy-section-layout`, `set-section-header`, and `set-section-footer`.
+- `featherdoc_cli` commands for rebinding and removing section header/footer
+  references plus deleting loaded header/footer parts:
+  `assign-section-header`, `assign-section-footer`,
+  `remove-section-header`, `remove-section-footer`,
+  `remove-header-part`, and `remove-footer-part`.
 - Automatic `w:titlePg` / `w:evenAndOddHeaders` enablement plus
   `word/settings.xml` read/write support when first-page or even-page
   header/footer references are created.

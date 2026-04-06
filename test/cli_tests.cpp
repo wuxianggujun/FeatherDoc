@@ -111,6 +111,32 @@ auto collect_non_empty_document_text(featherdoc::Document &document) -> std::str
     return stream.str();
 }
 
+auto find_header_index_by_text(featherdoc::Document &document, std::string_view text)
+    -> std::size_t {
+    for (std::size_t index = 0; index < document.header_count(); ++index) {
+        const auto lines = collect_part_lines(document.header_paragraphs(index));
+        if (!lines.empty() && lines.front() == text) {
+            return index;
+        }
+    }
+
+    REQUIRE(false);
+    return 0;
+}
+
+auto find_footer_index_by_text(featherdoc::Document &document, std::string_view text)
+    -> std::size_t {
+    for (std::size_t index = 0; index < document.footer_count(); ++index) {
+        const auto lines = collect_part_lines(document.footer_paragraphs(index));
+        if (!lines.empty() && lines.front() == text) {
+            return index;
+        }
+    }
+
+    REQUIRE(false);
+    return 0;
+}
+
 void append_body_paragraph(featherdoc::Document &document, const char *text) {
     auto paragraph = document.paragraphs();
     while (paragraph.has_next()) {
@@ -149,6 +175,19 @@ void create_cli_fixture(const fs::path &path) {
     append_body_paragraph(document, "section 2 body");
 
     CHECK_EQ(document.section_count(), 3);
+    REQUIRE_FALSE(document.save());
+}
+
+void create_cli_reference_fixture(const fs::path &path) {
+    create_cli_fixture(path);
+
+    featherdoc::Document document(path);
+    REQUIRE_FALSE(document.open());
+
+    auto section0_footer = document.ensure_section_footer_paragraphs(0);
+    REQUIRE(section0_footer.has_next());
+    CHECK(section0_footer.add_run("section 0 footer").has_next());
+
     REQUIRE_FALSE(document.save());
 }
 
@@ -504,4 +543,188 @@ TEST_CASE("cli mutating commands support json output") {
     remove_if_exists(move_output);
     remove_if_exists(set_header_output);
     remove_if_exists(parse_error_output);
+}
+
+TEST_CASE("cli can assign and remove section header footer references and parts") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_section_refs_source.docx";
+    const fs::path header_assigned =
+        working_directory / "cli_section_refs_header_assigned.docx";
+    const fs::path footer_assigned =
+        working_directory / "cli_section_refs_footer_assigned.docx";
+    const fs::path header_detached =
+        working_directory / "cli_section_refs_header_detached.docx";
+    const fs::path footer_detached =
+        working_directory / "cli_section_refs_footer_detached.docx";
+    const fs::path header_pruned =
+        working_directory / "cli_section_refs_header_pruned.docx";
+    const fs::path footer_pruned =
+        working_directory / "cli_section_refs_footer_pruned.docx";
+    const fs::path assign_header_output =
+        working_directory / "cli_section_refs_assign_header.json";
+    const fs::path assign_footer_output =
+        working_directory / "cli_section_refs_assign_footer.json";
+    const fs::path remove_header_output =
+        working_directory / "cli_section_refs_remove_header.json";
+    const fs::path remove_footer_output =
+        working_directory / "cli_section_refs_remove_footer.json";
+    const fs::path remove_header_part_output =
+        working_directory / "cli_section_refs_remove_header_part.json";
+    const fs::path remove_footer_part_output =
+        working_directory / "cli_section_refs_remove_footer_part.json";
+
+    remove_if_exists(source);
+    remove_if_exists(header_assigned);
+    remove_if_exists(footer_assigned);
+    remove_if_exists(header_detached);
+    remove_if_exists(footer_detached);
+    remove_if_exists(header_pruned);
+    remove_if_exists(footer_pruned);
+    remove_if_exists(assign_header_output);
+    remove_if_exists(assign_footer_output);
+    remove_if_exists(remove_header_output);
+    remove_if_exists(remove_footer_output);
+    remove_if_exists(remove_header_part_output);
+    remove_if_exists(remove_footer_part_output);
+
+    create_cli_reference_fixture(source);
+
+    featherdoc::Document fixture_doc(source);
+    REQUIRE_FALSE(fixture_doc.open());
+    const auto shared_header_index =
+        find_header_index_by_text(fixture_doc, "section 0 header");
+    const auto removable_header_index =
+        find_header_index_by_text(fixture_doc, "section 1 header");
+    const auto shared_footer_index =
+        find_footer_index_by_text(fixture_doc, "section 0 footer");
+    const auto removable_footer_index =
+        find_footer_index_by_text(fixture_doc, "section 1 first footer");
+
+    CHECK_EQ(run_cli({"assign-section-header", source.string(), "2",
+                      std::to_string(shared_header_index), "--kind", "even",
+                      "--output", header_assigned.string(), "--json"},
+                     assign_header_output),
+             0);
+    CHECK_EQ(
+        read_text_file(assign_header_output),
+        std::string{"{\"command\":\"assign-section-header\",\"ok\":true,"
+                    "\"in_place\":false,\"sections\":3,\"headers\":2,"
+                    "\"footers\":2,\"part\":\"header\",\"section\":2,"
+                    "\"kind\":\"even\",\"part_index\":"} +
+            std::to_string(shared_header_index) + "}\n");
+
+    featherdoc::Document assigned_header_doc(header_assigned);
+    REQUIRE_FALSE(assigned_header_doc.open());
+    CHECK_EQ(assigned_header_doc.header_count(), 2);
+    CHECK_EQ(collect_part_lines(assigned_header_doc.section_header_paragraphs(
+                 2, featherdoc::section_reference_kind::even_page)),
+             std::vector<std::string>({"section 0 header"}));
+
+    CHECK_EQ(run_cli({"assign-section-footer", header_assigned.string(), "2",
+                      std::to_string(shared_footer_index), "--output",
+                      footer_assigned.string(), "--json"},
+                     assign_footer_output),
+             0);
+    CHECK_EQ(
+        read_text_file(assign_footer_output),
+        std::string{"{\"command\":\"assign-section-footer\",\"ok\":true,"
+                    "\"in_place\":false,\"sections\":3,\"headers\":2,"
+                    "\"footers\":2,\"part\":\"footer\",\"section\":2,"
+                    "\"kind\":\"default\",\"part_index\":"} +
+            std::to_string(shared_footer_index) + "}\n");
+
+    featherdoc::Document assigned_footer_doc(footer_assigned);
+    REQUIRE_FALSE(assigned_footer_doc.open());
+    CHECK_EQ(assigned_footer_doc.footer_count(), 2);
+    CHECK_EQ(collect_part_lines(assigned_footer_doc.section_footer_paragraphs(2)),
+             std::vector<std::string>({"section 0 footer"}));
+
+    CHECK_EQ(run_cli({"remove-section-header", footer_assigned.string(), "2",
+                      "--kind", "even", "--output", header_detached.string(),
+                      "--json"},
+                     remove_header_output),
+             0);
+    CHECK_EQ(
+        read_text_file(remove_header_output),
+        std::string{
+            "{\"command\":\"remove-section-header\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":3,\"headers\":2,"
+            "\"footers\":2,\"part\":\"header\",\"section\":2,"
+            "\"kind\":\"even\"}\n"});
+
+    featherdoc::Document detached_header_doc(header_detached);
+    REQUIRE_FALSE(detached_header_doc.open());
+    CHECK_FALSE(detached_header_doc.section_header_paragraphs(
+        2, featherdoc::section_reference_kind::even_page)
+                    .has_next());
+
+    CHECK_EQ(run_cli({"remove-section-footer", header_detached.string(), "2",
+                      "--output", footer_detached.string(), "--json"},
+                     remove_footer_output),
+             0);
+    CHECK_EQ(
+        read_text_file(remove_footer_output),
+        std::string{
+            "{\"command\":\"remove-section-footer\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":3,\"headers\":2,"
+            "\"footers\":2,\"part\":\"footer\",\"section\":2,"
+            "\"kind\":\"default\"}\n"});
+
+    featherdoc::Document detached_footer_doc(footer_detached);
+    REQUIRE_FALSE(detached_footer_doc.open());
+    CHECK_FALSE(detached_footer_doc.section_footer_paragraphs(2).has_next());
+
+    CHECK_EQ(run_cli({"remove-header-part", footer_detached.string(),
+                      std::to_string(removable_header_index), "--output",
+                      header_pruned.string(), "--json"},
+                     remove_header_part_output),
+             0);
+    CHECK_EQ(
+        read_text_file(remove_header_part_output),
+        std::string{"{\"command\":\"remove-header-part\",\"ok\":true,"
+                    "\"in_place\":false,\"sections\":3,\"headers\":1,"
+                    "\"footers\":2,\"part\":\"header\",\"part_index\":"} +
+            std::to_string(removable_header_index) + "}\n");
+
+    featherdoc::Document pruned_header_doc(header_pruned);
+    REQUIRE_FALSE(pruned_header_doc.open());
+    CHECK_EQ(pruned_header_doc.header_count(), 1);
+    CHECK_EQ(collect_part_lines(pruned_header_doc.section_header_paragraphs(0)),
+             std::vector<std::string>({"section 0 header"}));
+    CHECK_FALSE(pruned_header_doc.section_header_paragraphs(1).has_next());
+
+    CHECK_EQ(run_cli({"remove-footer-part", header_pruned.string(),
+                      std::to_string(removable_footer_index), "--output",
+                      footer_pruned.string(), "--json"},
+                     remove_footer_part_output),
+             0);
+    CHECK_EQ(
+        read_text_file(remove_footer_part_output),
+        std::string{"{\"command\":\"remove-footer-part\",\"ok\":true,"
+                    "\"in_place\":false,\"sections\":3,\"headers\":1,"
+                    "\"footers\":1,\"part\":\"footer\",\"part_index\":"} +
+            std::to_string(removable_footer_index) + "}\n");
+
+    featherdoc::Document pruned_footer_doc(footer_pruned);
+    REQUIRE_FALSE(pruned_footer_doc.open());
+    CHECK_EQ(pruned_footer_doc.footer_count(), 1);
+    CHECK_EQ(collect_part_lines(pruned_footer_doc.section_footer_paragraphs(0)),
+             std::vector<std::string>({"section 0 footer"}));
+    CHECK_FALSE(pruned_footer_doc.section_footer_paragraphs(
+        1, featherdoc::section_reference_kind::first_page)
+                    .has_next());
+
+    remove_if_exists(source);
+    remove_if_exists(header_assigned);
+    remove_if_exists(footer_assigned);
+    remove_if_exists(header_detached);
+    remove_if_exists(footer_detached);
+    remove_if_exists(header_pruned);
+    remove_if_exists(footer_pruned);
+    remove_if_exists(assign_header_output);
+    remove_if_exists(assign_footer_output);
+    remove_if_exists(remove_header_output);
+    remove_if_exists(remove_footer_output);
+    remove_if_exists(remove_header_part_output);
+    remove_if_exists(remove_footer_part_output);
 }

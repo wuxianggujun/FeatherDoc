@@ -48,6 +48,12 @@ section-aware header/footer operations.
     featherdoc_cli copy-section-layout input.docx 0 2 --output copied.docx
     featherdoc_cli move-section input.docx 2 0 --output reordered.docx
     featherdoc_cli remove-section input.docx 3 --output trimmed.docx
+    featherdoc_cli assign-section-header input.docx 2 0 --kind even --output shared-header.docx --json
+    featherdoc_cli assign-section-footer input.docx 2 1 --output shared-footer.docx --json
+    featherdoc_cli remove-section-header input.docx 2 --kind even --output detached-header.docx
+    featherdoc_cli remove-section-footer input.docx 1 --kind first --output detached-footer.docx
+    featherdoc_cli remove-header-part input.docx 1 --output headers-pruned.docx
+    featherdoc_cli remove-footer-part input.docx 0 --output footers-pruned.docx --json
     featherdoc_cli show-section-header input.docx 1 --kind even
     featherdoc_cli show-section-footer input.docx 2 --json
     featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
@@ -61,6 +67,12 @@ data in a machine-readable object. The mutating commands also accept
 ``--json`` and emit ``command``, ``ok``, ``in_place``, ``sections``,
 ``headers``, and ``footers`` together with command-specific fields such as
 ``section``, ``source``, ``target``, ``part``, and ``kind``.
+``assign-section-header`` / ``assign-section-footer`` make a section reuse an
+already loaded header/footer part by index. ``remove-section-header`` /
+``remove-section-footer`` detach one section-level reference kind without
+removing the underlying part when it is still referenced elsewhere.
+``remove-header-part`` / ``remove-footer-part`` drop one loaded part entirely
+and detach every section reference that points at it.
 ``show-section-header`` / ``show-section-footer`` print the referenced
 paragraphs one line per paragraph. ``set-section-header`` /
 ``set-section-footer`` rewrite the target part as plain paragraphs from
