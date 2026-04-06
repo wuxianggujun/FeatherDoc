@@ -3091,6 +3091,101 @@ TEST_CASE("replace_bookmark_with_table swaps a standalone bookmark paragraph for
     fs::remove(target);
 }
 
+TEST_CASE("replace_bookmark_with_paragraphs expands a standalone bookmark paragraph") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_replace_paragraphs.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>before</w:t></w:r></w:p>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="items"/>
+      <w:r><w:t>placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p><w:r><w:t>after</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_EQ(doc.replace_bookmark_with_paragraphs("items", {"Apple", "Pear"}), 1);
+    CHECK_FALSE(doc.last_error());
+    CHECK_EQ(collect_document_text(doc), "before\nApple\nPear\nafter\n");
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("<w:t>Apple</w:t>"), std::string::npos);
+    CHECK_NE(saved_document_xml.find("<w:t>Pear</w:t>"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("w:name=\"items\""), std::string::npos);
+
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(saved_document_xml.c_str()));
+    std::ostringstream child_order;
+    const auto body = xml_document.child("w:document").child("w:body");
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        child_order << child.name() << '\n';
+    }
+    CHECK_EQ(child_order.str(), "w:p\nw:p\nw:p\nw:p\n");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "before\nApple\nPear\nafter\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("replace_bookmark_with_paragraphs accepts an empty replacement list") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_replace_paragraphs_empty.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>before</w:t></w:r></w:p>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="items"/>
+      <w:r><w:t>placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p><w:r><w:t>after</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_EQ(doc.replace_bookmark_with_paragraphs("items", std::vector<std::string>{}), 1);
+    CHECK_FALSE(doc.last_error());
+    CHECK_EQ(collect_document_text(doc), "before\nafter\n");
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(saved_document_xml.find("placeholder"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("w:name=\"items\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "before\nafter\n");
+
+    fs::remove(target);
+}
+
 TEST_CASE("replace_bookmark_with_image swaps a standalone bookmark paragraph for an inline image") {
     namespace fs = std::filesystem;
 
@@ -3197,6 +3292,9 @@ TEST_CASE("block bookmark replacements reject bookmarks that do not occupy their
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.open());
+    CHECK_EQ(doc.replace_bookmark_with_paragraphs("block", {"A", "B"}), 0);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
     CHECK_EQ(doc.replace_bookmark_with_table("block", {{"A"}}), 0);
     CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
 

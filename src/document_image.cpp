@@ -106,29 +106,6 @@ void ensure_attribute_value(pugi::xml_node node, const char *name, std::string_v
     attribute.set_value(std::string{value}.c_str());
 }
 
-auto insert_paragraph_node(pugi::xml_node parent, pugi::xml_node insert_before)
-    -> pugi::xml_node {
-    if (parent == pugi::xml_node{}) {
-        return {};
-    }
-
-    if (insert_before != pugi::xml_node{}) {
-        if (insert_before.parent() != parent) {
-            return {};
-        }
-        return parent.insert_child_before("w:p", insert_before);
-    }
-
-    if (std::string_view{parent.name()} == "w:body") {
-        if (const auto section_properties = parent.child("w:sectPr");
-            section_properties != pugi::xml_node{}) {
-            return parent.insert_child_before("w:p", section_properties);
-        }
-    }
-
-    return parent.append_child("w:p");
-}
-
 auto parse_u32_attribute_value(const char *text) -> std::optional<std::uint32_t> {
     if (text == nullptr || *text == '\0') {
         return std::nullopt;
@@ -327,7 +304,7 @@ bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node in
         display_name = "image-" + drawing_id_text + "." + extension;
     }
 
-    auto image_paragraph = insert_paragraph_node(parent, insert_before);
+    auto image_paragraph = featherdoc::detail::insert_paragraph_node(parent, insert_before);
     if (image_paragraph == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),

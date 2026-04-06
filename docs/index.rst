@@ -287,6 +287,20 @@ matching bookmark range, and reports which requested fields were missing.
         }
     }
 
+``replace_bookmark_with_paragraphs(...)`` replaces a bookmark that occupies
+its own paragraph with zero or more plain-text paragraphs. Passing an empty
+list removes the placeholder paragraph.
+
+.. code-block:: cpp
+
+    doc.replace_bookmark_with_paragraphs(
+        "line_items",
+        {
+            "Apple",
+            "Pear",
+            "Orange",
+        });
+
 ``replace_bookmark_with_table(...)`` replaces a bookmark that occupies its own
 paragraph with a generated table block.
 
@@ -527,11 +541,12 @@ Current Limitations
   catalog inspection, or inheritance-aware style management.
 - A first bookmark-based batch template API now exists through
   ``fill_bookmarks(...)``, and standalone bookmark paragraphs can now be
-  replaced by generated tables or inline images through
-  ``replace_bookmark_with_table(...)`` and
+  replaced by generated paragraphs, tables, or inline images through
+  ``replace_bookmark_with_paragraphs(...)``,
+  ``replace_bookmark_with_table(...)``, and
   ``replace_bookmark_with_image(...)``, but there is still no high-level API
-  for repeated block expansion, conditional sections, header/footer template
-  filling, or structured template schema validation.
+  for repeated table row expansion, conditional sections, header/footer
+  template filling, or structured template schema validation.
 - Images can now be appended as inline body drawings, but there is still no
   high-level API for reading existing images, floating placement, wrapping,
   cropping, or header/footer image insertion.

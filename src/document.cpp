@@ -176,31 +176,6 @@ auto split_plain_text_paragraphs(std::string_view text) -> std::vector<std::stri
     return paragraphs;
 }
 
-auto append_plain_text_paragraph(pugi::xml_node parent, std::string_view text) -> bool {
-    auto paragraph = featherdoc::detail::append_paragraph_node(parent);
-    if (paragraph == pugi::xml_node{}) {
-        return false;
-    }
-
-    if (text.empty()) {
-        return true;
-    }
-
-    auto run = paragraph.append_child("w:r");
-    if (run == pugi::xml_node{}) {
-        return false;
-    }
-
-    auto text_node = run.append_child("w:t");
-    if (text_node == pugi::xml_node{}) {
-        return false;
-    }
-
-    const std::string paragraph_text(text);
-    featherdoc::detail::update_xml_space_attribute(text_node, paragraph_text.c_str());
-    return text_node.text().set(paragraph_text.c_str());
-}
-
 auto initialize_xml_document(pugi::xml_document &xml_document, std::string_view xml_text)
     -> bool {
     xml_document.reset();
@@ -3312,7 +3287,7 @@ bool Document::replace_section_header_text(
 
     root.remove_children();
     for (const auto &paragraph_text : split_plain_text_paragraphs(replacement_text)) {
-        if (!append_plain_text_paragraph(root, paragraph_text)) {
+        if (!featherdoc::detail::append_plain_text_paragraph(root, paragraph_text)) {
             set_last_error(this->last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
                            "failed to rebuild the requested section header paragraphs",
@@ -3354,7 +3329,7 @@ bool Document::replace_section_footer_text(
 
     root.remove_children();
     for (const auto &paragraph_text : split_plain_text_paragraphs(replacement_text)) {
-        if (!append_plain_text_paragraph(root, paragraph_text)) {
+        if (!featherdoc::detail::append_plain_text_paragraph(root, paragraph_text)) {
             set_last_error(this->last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
                            "failed to rebuild the requested section footer paragraphs",

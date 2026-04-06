@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <cstring>
+#include <string>
 
 namespace featherdoc::detail {
 namespace {
@@ -46,9 +47,16 @@ pugi::xml_node next_named_sibling(pugi::xml_node node, std::string_view node_nam
     return {};
 }
 
-pugi::xml_node append_paragraph_node(pugi::xml_node parent) {
+pugi::xml_node insert_paragraph_node(pugi::xml_node parent, pugi::xml_node insert_before) {
     if (parent == pugi::xml_node{}) {
         return {};
+    }
+
+    if (insert_before != pugi::xml_node{}) {
+        if (insert_before.parent() != parent) {
+            return {};
+        }
+        return parent.insert_child_before("w:p", insert_before);
     }
 
     if (std::string_view{parent.name()} == "w:body") {
@@ -59,6 +67,40 @@ pugi::xml_node append_paragraph_node(pugi::xml_node parent) {
     }
 
     return parent.append_child("w:p");
+}
+
+pugi::xml_node append_paragraph_node(pugi::xml_node parent) {
+    return insert_paragraph_node(parent, {});
+}
+
+bool insert_plain_text_paragraph(pugi::xml_node parent, pugi::xml_node insert_before,
+                                 std::string_view text) {
+    auto paragraph = insert_paragraph_node(parent, insert_before);
+    if (paragraph == pugi::xml_node{}) {
+        return false;
+    }
+
+    if (text.empty()) {
+        return true;
+    }
+
+    auto run = paragraph.append_child("w:r");
+    if (run == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto text_node = run.append_child("w:t");
+    if (text_node == pugi::xml_node{}) {
+        return false;
+    }
+
+    const std::string paragraph_text{text};
+    update_xml_space_attribute(text_node, paragraph_text.c_str());
+    return text_node.text().set(paragraph_text.c_str());
+}
+
+bool append_plain_text_paragraph(pugi::xml_node parent, std::string_view text) {
+    return insert_plain_text_paragraph(parent, {}, text);
 }
 
 pugi::xml_node append_table_node(pugi::xml_node parent) {

@@ -26,6 +26,8 @@ performance.
 - `fill_bookmarks(...)` plus `bookmark_text_binding` /
   `bookmark_fill_result` for batch bookmark text filling as a first high-level
   template API.
+- `replace_bookmark_with_paragraphs(...)` for replacing standalone bookmark
+  paragraphs with zero or more generated plain-text paragraphs.
 - `replace_bookmark_with_table(...)` and `replace_bookmark_with_image(...)`
   for replacing standalone bookmark paragraphs with generated table/image
   blocks.
