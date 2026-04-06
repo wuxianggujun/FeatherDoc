@@ -361,7 +361,9 @@ Each method returns a lightweight `TemplatePart` handle. A valid handle
 supports `entry_name()`, `replace_bookmark_text(...)`, `fill_bookmarks(...)`,
 `replace_bookmark_with_paragraphs(...)`,
 `replace_bookmark_with_table_rows(...)`, and
-`replace_bookmark_with_table(...)`, and `replace_bookmark_with_image(...)`.
+`replace_bookmark_with_table(...)`, `replace_bookmark_with_image(...)`,
+`set_bookmark_block_visibility(...)`, and
+`apply_bookmark_block_visibility(...)`.
 Missing section-specific references return an empty handle instead of creating
  a new part implicitly.
 
@@ -388,6 +390,28 @@ if (footer_template) {
             "First line",
             "Second line",
         });
+}
+```
+
+Use `set_bookmark_block_visibility(name, visible)` or
+`apply_bookmark_block_visibility(...)` when a bookmark pair should guard an
+optional block of sibling content such as paragraphs or tables. The template
+must place `w:bookmarkStart` in its own paragraph, `w:bookmarkEnd` in a later
+paragraph, and both marker paragraphs must share the same parent container.
+When `visible` is `true`, FeatherDoc keeps the content between them and removes
+only the marker paragraphs. When `visible` is `false`, FeatherDoc removes the
+whole block including both marker paragraphs.
+
+```cpp
+const auto visibility = doc.apply_bookmark_block_visibility({
+    {"promo_block", false},
+    {"legal_block", true},
+});
+
+if (!visibility) {
+    for (const auto& missing : visibility.missing_bookmarks) {
+        std::cerr << "missing block bookmark: " << missing << '\n';
+    }
 }
 ```
 
@@ -609,8 +633,10 @@ if (const auto error = doc.save()) {
   parts through `fill_bookmarks(...)`, the standalone replacement helpers, and
   `TemplatePart` handles returned by `body_template()`, `header_template()`,
   `footer_template()`, `section_header_template()`, and
-  `section_footer_template()`, but there is still no high-level API for
-  conditional sections or structured template schema validation.
+  `section_footer_template()`. Conditional block visibility is now supported
+  through `set_bookmark_block_visibility(...)` and
+  `apply_bookmark_block_visibility(...)`, but there is still no high-level API
+  for structured template schema validation.
 - Images can now be appended as inline body drawings, and bookmark-based image
   replacement now also works across body, header, and footer template parts,
   but there is still no high-level API for reading existing images,
@@ -671,15 +697,15 @@ passive mirror of the historical upstream project.
 ## Sponsor
 
 If this project helps your work, you can support ongoing maintenance via the
-following payment QR codes.
+following support QR codes.
 
 ### Alipay
 
 ![Alipay QR Code](sponsor/zhifubao.jpg)
 
-### WeChat Pay
+### WeChat Appreciation
 
-![WeChat Pay QR Code](sponsor/weixin.jpg)
+![WeChat Appreciation QR Code](sponsor/weixin.png)
 
 ## License
 

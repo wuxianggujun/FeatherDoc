@@ -185,6 +185,23 @@ struct bookmark_fill_result {
     }
 };
 
+struct bookmark_block_visibility_binding {
+    std::string bookmark_name;
+    bool visible{true};
+};
+
+struct bookmark_block_visibility_result {
+    std::size_t requested{};
+    std::size_t matched{};
+    std::size_t kept{};
+    std::size_t removed{};
+    std::vector<std::string> missing_bookmarks;
+
+    explicit operator bool() const noexcept {
+        return this->missing_bookmarks.empty();
+    }
+};
+
 class TemplatePart {
   private:
     friend class Document;
@@ -222,6 +239,12 @@ class TemplatePart {
     [[nodiscard]] std::size_t replace_bookmark_with_image(
         std::string_view bookmark_name, const std::filesystem::path &image_path,
         std::uint32_t width_px, std::uint32_t height_px);
+    [[nodiscard]] std::size_t set_bookmark_block_visibility(
+        std::string_view bookmark_name, bool visible);
+    [[nodiscard]] bookmark_block_visibility_result apply_bookmark_block_visibility(
+        std::span<const bookmark_block_visibility_binding> bindings);
+    [[nodiscard]] bookmark_block_visibility_result apply_bookmark_block_visibility(
+        std::initializer_list<bookmark_block_visibility_binding> bindings);
 };
 
 // Document contains whole the docx file
@@ -445,6 +468,12 @@ class Document {
     [[nodiscard]] std::size_t replace_bookmark_with_image(
         std::string_view bookmark_name, const std::filesystem::path &image_path,
         std::uint32_t width_px, std::uint32_t height_px);
+    [[nodiscard]] std::size_t set_bookmark_block_visibility(
+        std::string_view bookmark_name, bool visible);
+    [[nodiscard]] bookmark_block_visibility_result apply_bookmark_block_visibility(
+        std::span<const bookmark_block_visibility_binding> bindings);
+    [[nodiscard]] bookmark_block_visibility_result apply_bookmark_block_visibility(
+        std::initializer_list<bookmark_block_visibility_binding> bindings);
     [[nodiscard]] bool set_paragraph_list(
         Paragraph paragraph, featherdoc::list_kind kind, std::uint32_t level = 0U);
     [[nodiscard]] bool clear_paragraph_list(Paragraph paragraph);

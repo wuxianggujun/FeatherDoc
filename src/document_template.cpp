@@ -31,6 +31,12 @@ struct table_row_bookmark_placeholder final {
     std::size_t cell_count;
 };
 
+struct bookmark_block_placeholder final {
+    pugi::xml_node container;
+    pugi::xml_node start_paragraph;
+    pugi::xml_node end_paragraph;
+};
+
 auto set_last_error(featherdoc::document_error_info &error_info,
                     std::error_code code, std::string detail = {},
                     std::string entry_name = {},
@@ -73,6 +79,42 @@ auto find_matching_bookmark_end(pugi::xml_node bookmark_start) -> pugi::xml_node
 
     for (auto node = bookmark_start.next_sibling(); node != pugi::xml_node{};
          node = node.next_sibling()) {
+        if (std::string_view{node.name()} == "w:bookmarkEnd" &&
+            std::string_view{node.attribute("w:id").value()} == bookmark_id) {
+            return node;
+        }
+    }
+
+    return {};
+}
+
+auto next_node_in_document_order(pugi::xml_node node) -> pugi::xml_node {
+    if (node == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (auto child = node.first_child(); child != pugi::xml_node{}) {
+        return child;
+    }
+
+    for (auto current = node; current != pugi::xml_node{}; current = current.parent()) {
+        if (auto sibling = current.next_sibling(); sibling != pugi::xml_node{}) {
+            return sibling;
+        }
+    }
+
+    return {};
+}
+
+auto find_matching_bookmark_end_in_document_order(pugi::xml_node bookmark_start)
+    -> pugi::xml_node {
+    const auto bookmark_id = std::string_view{bookmark_start.attribute("w:id").value()};
+    if (bookmark_id.empty()) {
+        return {};
+    }
+
+    for (auto node = next_node_in_document_order(bookmark_start); node != pugi::xml_node{};
+         node = next_node_in_document_order(node)) {
         if (std::string_view{node.name()} == "w:bookmarkEnd" &&
             std::string_view{node.attribute("w:id").value()} == bookmark_id) {
             return node;
@@ -162,6 +204,25 @@ auto paragraph_is_block_placeholder(pugi::xml_node paragraph, pugi::xml_node boo
     return !inside_placeholder;
 }
 
+auto paragraph_is_bookmark_marker(pugi::xml_node paragraph, pugi::xml_node marker) -> bool {
+    if (paragraph == pugi::xml_node{} || marker == pugi::xml_node{} || marker.parent() != paragraph) {
+        return false;
+    }
+
+    for (auto child = paragraph.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (child == marker) {
+            continue;
+        }
+
+        if (!is_ignorable_block_placeholder_node(child)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 auto collect_block_bookmark_placeholders(featherdoc::document_error_info &last_error_info,
                                          pugi::xml_document &document,
                                          std::string_view entry_name,
@@ -199,6 +260,74 @@ auto collect_block_bookmark_placeholders(featherdoc::document_error_info &last_e
         }
 
         placeholders.push_back({paragraph, bookmark_start, bookmark_end});
+    }
+
+    return true;
+}
+
+auto collect_bookmark_block_placeholders(
+    featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
+    std::string_view entry_name, std::string_view bookmark_name,
+    std::vector<bookmark_block_placeholder> &placeholders) -> bool {
+    std::vector<pugi::xml_node> bookmark_starts;
+    collect_named_bookmark_starts(document, bookmark_name, bookmark_starts);
+
+    for (const auto bookmark_start : bookmark_starts) {
+        const auto start_paragraph = bookmark_start.parent();
+        if (start_paragraph == pugi::xml_node{} ||
+            std::string_view{start_paragraph.name()} != "w:p") {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "bookmark block visibility requires the start marker to live "
+                           "directly inside a paragraph",
+                           std::string{entry_name});
+            return false;
+        }
+
+        const auto bookmark_end = find_matching_bookmark_end_in_document_order(bookmark_start);
+        if (bookmark_end == pugi::xml_node{}) {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "bookmark block visibility requires a matching bookmark end marker",
+                           std::string{entry_name});
+            return false;
+        }
+
+        const auto end_paragraph = bookmark_end.parent();
+        if (end_paragraph == pugi::xml_node{} ||
+            std::string_view{end_paragraph.name()} != "w:p") {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "bookmark block visibility requires the end marker to live "
+                           "directly inside a paragraph",
+                           std::string{entry_name});
+            return false;
+        }
+
+        if (start_paragraph == end_paragraph) {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "bookmark block visibility requires start and end markers to live "
+                           "in separate paragraphs",
+                           std::string{entry_name});
+            return false;
+        }
+
+        const auto container = start_paragraph.parent();
+        if (container == pugi::xml_node{} || end_paragraph.parent() != container) {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "bookmark block visibility requires both marker paragraphs to "
+                           "share the same parent container",
+                           std::string{entry_name});
+            return false;
+        }
+
+        if (!paragraph_is_bookmark_marker(start_paragraph, bookmark_start) ||
+            !paragraph_is_bookmark_marker(end_paragraph, bookmark_end)) {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "bookmark block visibility requires both markers to occupy "
+                           "their own paragraphs",
+                           std::string{entry_name});
+            return false;
+        }
+
+        placeholders.push_back({container, start_paragraph, end_paragraph});
     }
 
     return true;
@@ -593,6 +722,134 @@ auto fill_bookmarks_in_part(featherdoc::document_error_info &last_error_info,
     return result;
 }
 
+auto set_bookmark_block_visibility_in_part(
+    featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
+    std::string_view entry_name, std::string_view bookmark_name, bool visible)
+    -> std::size_t {
+    if (bookmark_name.empty()) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "bookmark name must not be empty", std::string{entry_name});
+        return 0U;
+    }
+
+    std::vector<bookmark_block_placeholder> placeholders;
+    if (!collect_bookmark_block_placeholders(last_error_info, document, entry_name,
+                                             bookmark_name, placeholders)) {
+        return 0U;
+    }
+
+    if (placeholders.empty()) {
+        last_error_info.clear();
+        return 0U;
+    }
+
+    std::size_t replaced = 0U;
+    for (auto it = placeholders.rbegin(); it != placeholders.rend(); ++it) {
+        auto placeholder = *it;
+        if (placeholder.container == pugi::xml_node{} ||
+            placeholder.start_paragraph.parent() != placeholder.container ||
+            placeholder.end_paragraph.parent() != placeholder.container) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "failed to resolve the bookmark block marker paragraphs",
+                           std::string{entry_name});
+            return 0U;
+        }
+
+        if (visible) {
+            if (!placeholder.container.remove_child(placeholder.end_paragraph) ||
+                !placeholder.container.remove_child(placeholder.start_paragraph)) {
+                set_last_error(last_error_info,
+                               std::make_error_code(std::errc::not_enough_memory),
+                               "failed to remove bookmark block marker paragraphs",
+                               std::string{entry_name});
+                return 0U;
+            }
+        } else {
+            auto node = placeholder.start_paragraph;
+            bool removed_end = false;
+            while (node != pugi::xml_node{}) {
+                const auto next = node.next_sibling();
+                const bool is_end = node == placeholder.end_paragraph;
+                if (!placeholder.container.remove_child(node)) {
+                    set_last_error(last_error_info,
+                                   std::make_error_code(std::errc::not_enough_memory),
+                                   "failed to remove nodes inside the bookmark block range",
+                                   std::string{entry_name});
+                    return 0U;
+                }
+                if (is_end) {
+                    removed_end = true;
+                    break;
+                }
+                node = next;
+            }
+
+            if (!removed_end) {
+                set_last_error(last_error_info,
+                               std::make_error_code(std::errc::invalid_argument),
+                               "failed to locate the bookmark block end marker while "
+                               "removing the block",
+                               std::string{entry_name});
+                return 0U;
+            }
+        }
+
+        ++replaced;
+    }
+
+    last_error_info.clear();
+    return replaced;
+}
+
+auto apply_bookmark_block_visibility_in_part(
+    featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
+    std::string_view entry_name,
+    std::span<const featherdoc::bookmark_block_visibility_binding> bindings)
+    -> featherdoc::bookmark_block_visibility_result {
+    featherdoc::bookmark_block_visibility_result result;
+    result.requested = bindings.size();
+
+    std::unordered_set<std::string> seen_bookmarks;
+    for (const auto &binding : bindings) {
+        if (binding.bookmark_name.empty()) {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "bookmark block visibility binding name must not be empty",
+                           std::string{entry_name});
+            return result;
+        }
+
+        const auto [_, inserted] = seen_bookmarks.emplace(binding.bookmark_name);
+        if (!inserted) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "duplicate bookmark block visibility binding name: " +
+                               binding.bookmark_name,
+                           std::string{entry_name});
+            return result;
+        }
+    }
+
+    for (const auto &binding : bindings) {
+        const auto replaced = set_bookmark_block_visibility_in_part(
+            last_error_info, document, entry_name, binding.bookmark_name, binding.visible);
+        if (replaced == 0U) {
+            result.missing_bookmarks.push_back(binding.bookmark_name);
+            continue;
+        }
+
+        ++result.matched;
+        if (binding.visible) {
+            result.kept += replaced;
+        } else {
+            result.removed += replaced;
+        }
+    }
+
+    last_error_info.clear();
+    return result;
+}
+
 auto replace_bookmark_with_paragraphs_in_part(
     featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
     std::string_view entry_name, std::string_view bookmark_name,
@@ -872,6 +1129,50 @@ std::size_t TemplatePart::replace_bookmark_with_image(
     return this->owner->replace_bookmark_with_image_in_part(
         *this->xml_document, this->entry_name_storage, bookmark_name, image_path,
         std::pair<std::uint32_t, std::uint32_t>{width_px, height_px});
+}
+
+std::size_t TemplatePart::set_bookmark_block_visibility(
+    std::string_view bookmark_name, bool visible) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return 0U;
+    }
+
+    return set_bookmark_block_visibility_in_part(*this->last_error_info, *this->xml_document,
+                                                 this->entry_name_storage, bookmark_name,
+                                                 visible);
+}
+
+bookmark_block_visibility_result TemplatePart::apply_bookmark_block_visibility(
+    std::span<const bookmark_block_visibility_binding> bindings) {
+    bookmark_block_visibility_result result;
+    result.requested = bindings.size();
+
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return result;
+    }
+
+    return apply_bookmark_block_visibility_in_part(*this->last_error_info,
+                                                   *this->xml_document,
+                                                   this->entry_name_storage, bindings);
+}
+
+bookmark_block_visibility_result TemplatePart::apply_bookmark_block_visibility(
+    std::initializer_list<bookmark_block_visibility_binding> bindings) {
+    return this->apply_bookmark_block_visibility(
+        std::span<const bookmark_block_visibility_binding>{bindings.begin(),
+                                                           bindings.size()});
 }
 
 TemplatePart Document::body_template() {
@@ -1165,6 +1466,40 @@ std::size_t Document::replace_bookmark_with_image(
     return this->replace_bookmark_with_image_in_part(
         this->document, document_xml_entry, bookmark_name, image_path,
         std::pair<std::uint32_t, std::uint32_t>{width_px, height_px});
+}
+
+std::size_t Document::set_bookmark_block_visibility(std::string_view bookmark_name,
+                                                    bool visible) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before changing bookmark block visibility");
+        return 0U;
+    }
+
+    return set_bookmark_block_visibility_in_part(this->last_error_info, this->document,
+                                                 document_xml_entry, bookmark_name, visible);
+}
+
+bookmark_block_visibility_result Document::apply_bookmark_block_visibility(
+    std::span<const bookmark_block_visibility_binding> bindings) {
+    bookmark_block_visibility_result result;
+    result.requested = bindings.size();
+
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before applying bookmark block visibility");
+        return result;
+    }
+
+    return apply_bookmark_block_visibility_in_part(this->last_error_info, this->document,
+                                                   document_xml_entry, bindings);
+}
+
+bookmark_block_visibility_result Document::apply_bookmark_block_visibility(
+    std::initializer_list<bookmark_block_visibility_binding> bindings) {
+    return this->apply_bookmark_block_visibility(
+        std::span<const bookmark_block_visibility_binding>{bindings.begin(),
+                                                           bindings.size()});
 }
 
 } // namespace featherdoc

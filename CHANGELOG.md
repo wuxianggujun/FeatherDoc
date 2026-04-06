@@ -39,6 +39,12 @@ performance.
   `section_footer_template()` for reusing bookmark template APIs across
   existing body, header, and footer parts, including bookmark-based image
   replacement.
+- `set_bookmark_block_visibility(...)` and
+  `apply_bookmark_block_visibility(...)` plus
+  `bookmark_block_visibility_binding` /
+  `bookmark_block_visibility_result` for high-level conditional block handling
+  backed by bookmark marker paragraphs across body, header, and footer
+  template parts.
 
 ### Changed
 

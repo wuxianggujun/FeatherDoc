@@ -347,8 +347,9 @@ an already loaded body/header/footer part. A valid handle exposes
 ``entry_name()``, ``replace_bookmark_text(...)``, ``fill_bookmarks(...)``,
 ``replace_bookmark_with_paragraphs(...)``,
 ``replace_bookmark_with_table_rows(...)``, and
-``replace_bookmark_with_table(...)``, and
-``replace_bookmark_with_image(...)``. Missing section-specific references
+``replace_bookmark_with_table(...)``, ``replace_bookmark_with_image(...)``,
+``set_bookmark_block_visibility(...)``, and
+``apply_bookmark_block_visibility(...)``. Missing section-specific references
 return an empty handle instead of creating a new part implicitly.
 
 .. code-block:: cpp
@@ -375,6 +376,28 @@ return an empty handle instead of creating a new part implicitly.
                 "First line",
                 "Second line",
             });
+    }
+
+``set_bookmark_block_visibility(name, visible)`` and
+``apply_bookmark_block_visibility(...)`` control optional template blocks backed
+by a bookmark pair. The template must place ``w:bookmarkStart`` in its own
+paragraph, ``w:bookmarkEnd`` in a later paragraph, and both marker paragraphs
+must live under the same parent container. The sibling nodes between those
+marker paragraphs may include multiple paragraphs or tables. Passing
+``visible = true`` keeps the inner content and removes only the marker
+paragraphs; passing ``false`` removes the whole block including the markers.
+
+.. code-block:: cpp
+
+    const auto visibility = doc.apply_bookmark_block_visibility({
+        {"promo_block", false},
+        {"legal_block", true},
+    });
+
+    if (!visibility) {
+        for (const auto& missing : visibility.missing_bookmarks) {
+            std::cerr << "missing block bookmark: " << missing << std::endl;
+        }
     }
 
 ``header_count()``, ``footer_count()``, ``header_paragraphs(index)``, and
@@ -597,9 +620,11 @@ Current Limitations
   parts through ``fill_bookmarks(...)``, the standalone replacement helpers,
   and ``TemplatePart`` handles returned by ``body_template()``,
   ``header_template()``, ``footer_template()``,
-  ``section_header_template()``, and ``section_footer_template()``, but there
-  is still no high-level API for conditional sections or structured template
-  schema validation.
+  ``section_header_template()``, and ``section_footer_template()``.
+  Conditional block visibility is now supported through
+  ``set_bookmark_block_visibility(...)`` and
+  ``apply_bookmark_block_visibility(...)``, but there is still no high-level
+  API for structured template schema validation.
 - Images can now be appended as inline body drawings, and bookmark-based image
   replacement now also works across body, header, and footer template parts,
   but there is still no high-level API for reading existing images, floating

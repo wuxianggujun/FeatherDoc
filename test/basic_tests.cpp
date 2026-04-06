@@ -1380,6 +1380,186 @@ TEST_CASE("header and footer template parts can replace bookmark placeholders wi
     fs::remove(image_path);
 }
 
+TEST_CASE("apply_bookmark_block_visibility keeps and removes body template blocks") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_block_visibility.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>before</w:t></w:r></w:p>
+    <w:p><w:bookmarkStart w:id="0" w:name="keep_block"/></w:p>
+    <w:p><w:r><w:t>Keep me</w:t></w:r></w:p>
+    <w:p><w:bookmarkEnd w:id="0"/></w:p>
+    <w:p><w:r><w:t>middle</w:t></w:r></w:p>
+    <w:p><w:bookmarkStart w:id="1" w:name="hide_block"/></w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Secret Cell</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p><w:r><w:t>Hide me</w:t></w:r></w:p>
+    <w:p><w:bookmarkEnd w:id="1"/></w:p>
+    <w:p><w:r><w:t>after</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto result = doc.apply_bookmark_block_visibility({
+        {"keep_block", true},
+        {"hide_block", false},
+    });
+    CHECK_EQ(result.requested, 2);
+    CHECK_EQ(result.matched, 2);
+    CHECK_EQ(result.kept, 1);
+    CHECK_EQ(result.removed, 1);
+    CHECK(result);
+    CHECK_FALSE(doc.last_error());
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(saved_document_xml.find("keep_block"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("hide_block"), std::string::npos);
+    CHECK_NE(saved_document_xml.find("Keep me"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("Hide me"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("Secret Cell"), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "before\nKeep me\nmiddle\nafter\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("header template parts can change bookmark block visibility") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "header_template_block_visibility.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>body</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+</Relationships>
+)";
+
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:bookmarkStart w:id="0" w:name="offer_block"/></w:p>
+  <w:p><w:r><w:t>Offer line 1</w:t></w:r></w:p>
+  <w:p><w:r><w:t>Offer line 2</w:t></w:r></w:p>
+  <w:p><w:bookmarkEnd w:id="0"/></w:p>
+  <w:p><w:r><w:t>Always here</w:t></w:r></w:p>
+</w:hdr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(header_template.set_bookmark_block_visibility("offer_block", false), 1);
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_header = read_test_docx_entry(target, "word/header1.xml");
+    CHECK_EQ(saved_header.find("offer_block"), std::string::npos);
+    CHECK_EQ(saved_header.find("Offer line 1"), std::string::npos);
+    CHECK_EQ(saved_header.find("Offer line 2"), std::string::npos);
+    CHECK_NE(saved_header.find("Always here"), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(reopened.header_paragraphs().runs().get_text(), "Always here");
+
+    fs::remove(target);
+}
+
+TEST_CASE("apply_bookmark_block_visibility rejects duplicate or empty binding names") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_block_visibility_validation.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>body</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document unopened(target);
+    const auto unopened_result =
+        unopened.apply_bookmark_block_visibility({{"promo_block", true}});
+    CHECK_EQ(unopened_result.requested, 1);
+    CHECK_EQ(unopened.last_error().code, featherdoc::document_errc::document_not_open);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto duplicate_result = doc.apply_bookmark_block_visibility(
+        {{"promo_block", true}, {"promo_block", false}});
+    CHECK_EQ(duplicate_result.requested, 2);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    const auto empty_result = doc.apply_bookmark_block_visibility({{"", true}});
+    CHECK_EQ(empty_result.requested, 1);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+}
+
 TEST_CASE("ensure_header_paragraphs and ensure_footer_paragraphs work for create_empty") {
     namespace fs = std::filesystem;
 
