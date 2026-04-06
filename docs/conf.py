@@ -20,7 +20,8 @@
 project = 'FeatherDoc'
 copyright = '2026, wuxianggujun and upstream contributors'
 author = 'wuxianggujun and upstream contributors'
-version = '1.0.0'
+version = '1.1.0'
+release = '1.1.0'
 
 # -- General configuration ---------------------------------------------------
 

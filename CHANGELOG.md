@@ -8,6 +8,8 @@ performance.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-06
+
 ### Added
 
 - `create_empty()` for creating a new in-memory `.docx` document without an
