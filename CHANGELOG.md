@@ -60,6 +60,9 @@ performance.
   `assign-section-header`, `assign-section-footer`,
   `remove-section-header`, `remove-section-footer`,
   `remove-header-part`, and `remove-footer-part`.
+- `inspect-header-parts` / `inspect-footer-parts` commands for listing loaded
+  header/footer part indexes, their relationship ids, referenced sections, and
+  paragraph text in either plain text or JSON.
 - Automatic `w:titlePg` / `w:evenAndOddHeaders` enablement plus
   `word/settings.xml` read/write support when first-page or even-page
   header/footer references are created.

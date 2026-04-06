@@ -191,6 +191,24 @@ void create_cli_reference_fixture(const fs::path &path) {
     REQUIRE_FALSE(document.save());
 }
 
+void create_cli_part_inspect_fixture(const fs::path &path) {
+    create_cli_reference_fixture(path);
+
+    featherdoc::Document document(path);
+    REQUIRE_FALSE(document.open());
+
+    const auto header_index = find_header_index_by_text(document, "section 0 header");
+    const auto footer_index = find_footer_index_by_text(document, "section 0 footer");
+
+    auto even_header = document.assign_section_header_paragraphs(
+        2, header_index, featherdoc::section_reference_kind::even_page);
+    REQUIRE(even_header.has_next());
+    auto default_footer = document.assign_section_footer_paragraphs(2, footer_index);
+    REQUIRE(default_footer.has_next());
+
+    REQUIRE_FALSE(document.save());
+}
+
 auto run_cli(const std::vector<std::string> &arguments,
              const std::optional<fs::path> &captured_output = std::nullopt) -> int {
     const fs::path executable_path = cli_binary_path();
@@ -727,4 +745,55 @@ TEST_CASE("cli can assign and remove section header footer references and parts"
     remove_if_exists(remove_footer_output);
     remove_if_exists(remove_header_part_output);
     remove_if_exists(remove_footer_part_output);
+}
+
+TEST_CASE("cli can inspect header and footer parts") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_inspect_parts_source.docx";
+    const fs::path shown_headers = working_directory / "cli_inspect_headers.json";
+    const fs::path shown_footers = working_directory / "cli_inspect_footers.txt";
+
+    remove_if_exists(source);
+    remove_if_exists(shown_headers);
+    remove_if_exists(shown_footers);
+
+    create_cli_part_inspect_fixture(source);
+
+    featherdoc::Document fixture_doc(source);
+    REQUIRE_FALSE(fixture_doc.open());
+    const auto shared_header_index =
+        find_header_index_by_text(fixture_doc, "section 0 header");
+    const auto shared_footer_index =
+        find_footer_index_by_text(fixture_doc, "section 0 footer");
+
+    CHECK_EQ(run_cli({"inspect-header-parts", source.string(), "--json"},
+                     shown_headers),
+             0);
+    const auto header_json = read_text_file(shown_headers);
+    CHECK_NE(header_json.find("{\"part\":\"header\",\"count\":2,\"parts\":"),
+             std::string::npos);
+    CHECK_NE(header_json.find("\"index\":" + std::to_string(shared_header_index)),
+             std::string::npos);
+    CHECK_NE(header_json.find("\"entry\":\"word/header"), std::string::npos);
+    CHECK_NE(header_json.find(
+                 "\"references\":[{\"section\":0,\"kind\":\"default\"},"
+                 "{\"section\":2,\"kind\":\"even\"}]"),
+             std::string::npos);
+    CHECK_NE(header_json.find("\"paragraphs\":[\"section 0 header\"]"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-footer-parts", source.string()}, shown_footers), 0);
+    const auto footer_text = read_text_file(shown_footers);
+    CHECK_NE(footer_text.find("footer parts: 2"), std::string::npos);
+    CHECK_NE(footer_text.find("part[" + std::to_string(shared_footer_index) +
+                              "]: entry=word/footer"),
+             std::string::npos);
+    CHECK_NE(footer_text.find("references=section[0]:default, section[2]:default"),
+             std::string::npos);
+    CHECK_NE(footer_text.find("paragraph[0]: section 0 footer"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(shown_headers);
+    remove_if_exists(shown_footers);
 }

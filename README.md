@@ -41,6 +41,8 @@ section-aware header/footer APIs.
 ```bash
 featherdoc_cli inspect-sections input.docx
 featherdoc_cli inspect-sections input.docx --json
+featherdoc_cli inspect-header-parts input.docx --json
+featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
 featherdoc_cli copy-section-layout input.docx 0 2 --output copied.docx
 featherdoc_cli move-section input.docx 2 0 --output reordered.docx
@@ -65,6 +67,12 @@ same section layout information in a machine-readable object. The mutating
 commands also accept `--json` and emit `command`, `ok`, `in_place`, `sections`,
 `headers`, and `footers`, plus command-specific fields such as `section`,
 `source`, `target`, `part`, and `kind`.
+
+`inspect-header-parts` / `inspect-footer-parts` list loaded part indexes in the
+same order consumed by `assign-section-*` and `remove-*-part`. Their output
+includes each part's relationship id, package entry path, section references,
+and paragraph text. Pass `--json` when you need the same information as a
+machine-readable object.
 
 `assign-section-header` / `assign-section-footer` make a section reuse an
 already loaded header/footer part by index. `remove-section-header` /
