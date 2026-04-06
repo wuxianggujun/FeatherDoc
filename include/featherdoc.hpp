@@ -103,6 +103,11 @@ class TableCell {
     void set_current(pugi::xml_node);
 
     Paragraph &paragraphs();
+    [[nodiscard]] std::optional<std::uint32_t> width_twips() const;
+    [[nodiscard]] bool set_width_twips(std::uint32_t width_twips);
+    [[nodiscard]] bool clear_width();
+    [[nodiscard]] std::size_t column_span() const;
+    [[nodiscard]] bool merge_right(std::size_t additional_cells = 1U);
 
     TableCell &next();
     [[nodiscard]] bool has_next() const;

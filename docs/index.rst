@@ -162,6 +162,23 @@ programmatically. The returned ``Table`` can then grow through
     extra_cell.paragraphs().add_run("tail");
     extra_row.append_cell().paragraphs().add_run("tail-2");
 
+``TableCell::set_width_twips(...)``, ``clear_width()``, and ``merge_right(...)``
+cover the first higher-level table layout edits without dropping down to raw
+XML. ``width_twips()`` reports an explicit ``dxa`` cell width when present, and
+``column_span()`` reports the current horizontal span.
+
+.. code-block:: cpp
+
+    auto table = doc.append_table(1, 3);
+    auto row = table.rows();
+    auto cell = row.cells();
+
+    cell.set_width_twips(2400);
+    cell.paragraphs().add_run("Merged title");
+    cell.merge_right(1);
+
+    std::cout << cell.column_span() << std::endl; // 2
+
 ``append_image(path)`` appends an inline body image at the source image's
 intrinsic pixel size. Use ``append_image(path, width_px, height_px)`` when you
 want explicit scaling. The current image support is limited to ``.png``,
@@ -607,8 +624,9 @@ Current Limitations
   through ``move_section()``, but there is still no high-level API for part
   reordering.
 - Word equations (``OMML``) are not surfaced through a typed equation API.
-- Tables can now be appended and extended structurally, but there is still no
-  high-level API for cell merges, widths, borders, or table styling.
+- Tables can now be appended, extended structurally, given explicit cell
+  widths, and merged horizontally, but there is still no high-level API for
+  vertical merges, borders, widths at the table level, or table styling.
 - Paragraphs can now be attached to managed bullet and decimal lists, but
   there is still no high-level API for custom numbering definitions, list
   restarts, or paragraph style-based numbering.

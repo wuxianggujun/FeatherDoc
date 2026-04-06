@@ -190,6 +190,23 @@ extra_cell.paragraphs().add_run("tail");
 extra_row.append_cell().paragraphs().add_run("tail-2");
 ```
 
+Use `TableCell::set_width_twips(...)`, `clear_width()`, and `merge_right(...)`
+when you need lightweight table layout editing without dropping down to raw
+WordprocessingML. `width_twips()` reports an explicit `dxa` width when present,
+and `column_span()` reports the current horizontal span.
+
+```cpp
+auto table = doc.append_table(1, 3);
+auto row = table.rows();
+auto cell = row.cells();
+
+cell.set_width_twips(2400);
+cell.paragraphs().add_run("Merged title");
+cell.merge_right(1);
+
+std::cout << cell.column_span() << '\n'; // 2
+```
+
 Use `append_image(path)` to append an inline body image at its intrinsic pixel
 size, or `append_image(path, width_px, height_px)` when you want explicit
 scaling. The first image API only supports `.png`, `.jpg`, `.jpeg`, `.gif`,
@@ -620,8 +637,9 @@ if (const auto error = doc.save()) {
   `insert_section()`, removed through `remove_section()`, and reordered through
   `move_section()`, but there is still no high-level API for part reordering.
 - Word equations (`OMML`) are not surfaced through a typed equation API.
-- Tables can now be appended and extended structurally, but there is still no
-  high-level API for cell merges, widths, borders, or table styling.
+- Tables can now be appended, extended structurally, given explicit cell
+  widths, and merged horizontally, but there is still no high-level API for
+  vertical merges, borders, widths at the table level, or table styling.
 - Paragraphs can now be attached to managed bullet and decimal lists, but there
   is still no high-level API for custom numbering definitions, list restarts,
   or paragraph style-based numbering.

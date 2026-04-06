@@ -14,6 +14,10 @@ performance.
   editable documents created from either `open()` or `create_empty()`.
 - `Table::append_row()` and `TableRow::append_cell()` for growing existing or
   newly created tables without dropping down to manual XML editing.
+- `TableCell::set_width_twips()`, `width_twips()`, and `clear_width()` for
+  explicit cell width editing.
+- `TableCell::merge_right()` and `column_span()` for lightweight horizontal
+  cell merging and span inspection.
 - `append_image(path)` and `append_image(path, width_px, height_px)` for
   appending inline body images backed by managed `word/media/*` parts.
 - `set_paragraph_list(paragraph, kind, level)` and
@@ -51,6 +55,8 @@ performance.
 - Newly created or structurally extended tables now gain minimal `w:tblPr`,
   `w:tblGrid`, and `w:tcPr` scaffolding automatically so saved `.docx` output
   remains valid when appending rows or cells.
+- Table column counting now honors existing `w:gridSpan` values, which keeps
+  later structural edits aligned after horizontal cell merges.
 - Saving now emits newly appended image media parts together with matching
   `document.xml.rels` and `[Content_Types].xml` updates.
 - Saving now emits managed `word/numbering.xml` content together with matching

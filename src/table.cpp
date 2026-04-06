@@ -2,6 +2,7 @@
 #include "xml_helpers.hpp"
 
 #include <algorithm>
+#include <charconv>
 
 namespace featherdoc {
 namespace {
@@ -100,10 +101,36 @@ auto current_table_column_count(pugi::xml_node table) -> std::size_t {
         return 0U;
     }
 
+    const auto effective_cell_column_span = [](pugi::xml_node cell) -> std::size_t {
+        if (cell == pugi::xml_node{}) {
+            return 0U;
+        }
+
+        const auto span_node = cell.child("w:tcPr").child("w:gridSpan");
+        const auto span_text = std::string_view{span_node.attribute("w:val").value()};
+        if (span_text.empty()) {
+            return 1U;
+        }
+
+        std::size_t span = 0U;
+        const auto [end, error] =
+            std::from_chars(span_text.data(), span_text.data() + span_text.size(), span);
+        if (error != std::errc{} || end != span_text.data() + span_text.size() || span == 0U) {
+            return 1U;
+        }
+
+        return span;
+    };
+
     std::size_t column_count = count_named_children(table.child("w:tblGrid"), "w:gridCol");
     for (auto row = table.child("w:tr"); row != pugi::xml_node{};
          row = detail::next_named_sibling(row, "w:tr")) {
-        column_count = std::max(column_count, count_named_children(row, "w:tc"));
+        std::size_t row_column_count = 0U;
+        for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
+             cell = detail::next_named_sibling(cell, "w:tc")) {
+            row_column_count += effective_cell_column_span(cell);
+        }
+        column_count = std::max(column_count, row_column_count);
     }
 
     return column_count;
@@ -163,6 +190,80 @@ void ensure_default_cell_properties(pugi::xml_node cell) {
     ensure_attribute_value(cell_width, "w:type", "auto");
 }
 
+auto ensure_cell_width_node(pugi::xml_node cell) -> pugi::xml_node {
+    auto cell_properties = ensure_cell_properties_node(cell);
+    if (cell_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto cell_width = cell_properties.child("w:tcW");
+    if (cell_width != pugi::xml_node{}) {
+        return cell_width;
+    }
+
+    if (const auto first_child = cell_properties.first_child(); first_child != pugi::xml_node{}) {
+        return cell_properties.insert_child_before("w:tcW", first_child);
+    }
+
+    return cell_properties.append_child("w:tcW");
+}
+
+auto ensure_cell_grid_span_node(pugi::xml_node cell) -> pugi::xml_node {
+    auto cell_properties = ensure_cell_properties_node(cell);
+    if (cell_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto grid_span = cell_properties.child("w:gridSpan");
+    if (grid_span != pugi::xml_node{}) {
+        return grid_span;
+    }
+
+    if (const auto cell_width = cell_properties.child("w:tcW"); cell_width != pugi::xml_node{}) {
+        return cell_properties.insert_child_after("w:gridSpan", cell_width);
+    }
+
+    if (const auto first_child = cell_properties.first_child(); first_child != pugi::xml_node{}) {
+        return cell_properties.insert_child_before("w:gridSpan", first_child);
+    }
+
+    return cell_properties.append_child("w:gridSpan");
+}
+
+auto parse_unsigned_attribute(pugi::xml_node node, const char *attribute_name)
+    -> std::optional<std::uint32_t> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto value_text = std::string_view{node.attribute(attribute_name).value()};
+    if (value_text.empty()) {
+        return std::nullopt;
+    }
+
+    std::uint32_t value = 0U;
+    const auto [end, error] =
+        std::from_chars(value_text.data(), value_text.data() + value_text.size(), value);
+    if (error != std::errc{} || end != value_text.data() + value_text.size()) {
+        return std::nullopt;
+    }
+
+    return value;
+}
+
+auto cell_column_span(pugi::xml_node cell) -> std::size_t {
+    if (cell == pugi::xml_node{}) {
+        return 0U;
+    }
+
+    const auto span = parse_unsigned_attribute(cell.child("w:tcPr").child("w:gridSpan"), "w:val");
+    if (!span.has_value() || *span == 0U) {
+        return 1U;
+    }
+
+    return *span;
+}
+
 auto append_cell_node(pugi::xml_node row) -> pugi::xml_node {
     if (row == pugi::xml_node{}) {
         return {};
@@ -212,6 +313,93 @@ void TableCell::set_current(pugi::xml_node node) {
 Paragraph &TableCell::paragraphs() {
     this->paragraph.set_parent(this->current);
     return this->paragraph;
+}
+
+std::optional<std::uint32_t> TableCell::width_twips() const {
+    if (this->current == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto width_node = this->current.child("w:tcPr").child("w:tcW");
+    if (width_node == pugi::xml_node{} ||
+        std::string_view{width_node.attribute("w:type").value()} != "dxa") {
+        return std::nullopt;
+    }
+
+    return parse_unsigned_attribute(width_node, "w:w");
+}
+
+bool TableCell::set_width_twips(std::uint32_t width_twips) {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto width_node = ensure_cell_width_node(this->current);
+    if (width_node == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto width_text = std::to_string(width_twips);
+    ensure_attribute_value(width_node, "w:w", width_text.c_str());
+    ensure_attribute_value(width_node, "w:type", "dxa");
+    return true;
+}
+
+bool TableCell::clear_width() {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto cell_properties = this->current.child("w:tcPr");
+    if (cell_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    const auto width_node = cell_properties.child("w:tcW");
+    return width_node == pugi::xml_node{} || cell_properties.remove_child(width_node);
+}
+
+std::size_t TableCell::column_span() const { return cell_column_span(this->current); }
+
+bool TableCell::merge_right(std::size_t additional_cells) {
+    if (this->current == pugi::xml_node{} || this->parent == pugi::xml_node{}) {
+        return false;
+    }
+
+    if (additional_cells == 0U) {
+        return true;
+    }
+
+    std::vector<pugi::xml_node> cells_to_remove;
+    cells_to_remove.reserve(additional_cells);
+
+    std::size_t added_span = 0U;
+    auto next_cell = detail::next_named_sibling(this->current, "w:tc");
+    for (std::size_t i = 0; i < additional_cells; ++i) {
+        if (next_cell == pugi::xml_node{}) {
+            return false;
+        }
+
+        added_span += cell_column_span(next_cell);
+        cells_to_remove.push_back(next_cell);
+        next_cell = detail::next_named_sibling(next_cell, "w:tc");
+    }
+
+    const auto grid_span_node = ensure_cell_grid_span_node(this->current);
+    if (grid_span_node == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto merged_span = std::to_string(this->column_span() + added_span);
+    ensure_attribute_value(grid_span_node, "w:val", merged_span.c_str());
+
+    for (const auto cell : cells_to_remove) {
+        if (!this->parent.remove_child(cell)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 TableCell &TableCell::next() {

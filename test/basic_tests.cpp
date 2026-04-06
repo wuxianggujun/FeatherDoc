@@ -4137,6 +4137,154 @@ TEST_CASE("table append_row and append_cell extend existing tables before sectPr
     fs::remove(target);
 }
 
+TEST_CASE("table cells can set and clear explicit widths") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_cell_widths.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(1, 2);
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK_FALSE(cell.width_twips().has_value());
+    CHECK(cell.set_width_twips(2400U));
+    REQUIRE(cell.width_twips().has_value());
+    CHECK_EQ(*cell.width_twips(), 2400U);
+    CHECK(cell.paragraphs().add_run("left").has_next());
+
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK_FALSE(cell.width_twips().has_value());
+    CHECK(cell.set_width_twips(1800U));
+    REQUIRE(cell.width_twips().has_value());
+    CHECK_EQ(*cell.width_twips(), 1800U);
+    CHECK(cell.clear_width());
+    CHECK_FALSE(cell.width_twips().has_value());
+    CHECK(cell.paragraphs().add_run("right").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+
+    const auto row_node = table_node.child("w:tr");
+    REQUIRE(row_node != pugi::xml_node{});
+
+    const auto first_cell = row_node.child("w:tc");
+    REQUIRE(first_cell != pugi::xml_node{});
+    const auto first_width = first_cell.child("w:tcPr").child("w:tcW");
+    REQUIRE(first_width != pugi::xml_node{});
+    CHECK_EQ(std::string_view{first_width.attribute("w:type").value()}, "dxa");
+    CHECK_EQ(std::string_view{first_width.attribute("w:w").value()}, "2400");
+
+    const auto second_cell = first_cell.next_sibling("w:tc");
+    REQUIRE(second_cell != pugi::xml_node{});
+    CHECK_EQ(second_cell.child("w:tcPr").child("w:tcW"), pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    auto reopened_row = reopened_table.rows();
+    REQUIRE(reopened_row.has_next());
+    auto reopened_cell = reopened_row.cells();
+    REQUIRE(reopened_cell.has_next());
+    REQUIRE(reopened_cell.width_twips().has_value());
+    CHECK_EQ(*reopened_cell.width_twips(), 2400U);
+
+    reopened_cell.next();
+    REQUIRE(reopened_cell.has_next());
+    CHECK_FALSE(reopened_cell.width_twips().has_value());
+
+    fs::remove(target);
+}
+
+TEST_CASE("table cells can merge right across following cells") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_cell_merge_right.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(1, 3);
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.paragraphs().add_run("A").has_next());
+
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.paragraphs().add_run("B").has_next());
+
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.paragraphs().add_run("C").has_next());
+
+    auto merged = row.cells();
+    REQUIRE(merged.has_next());
+    CHECK_EQ(merged.column_span(), 1U);
+    CHECK(merged.merge_right(1U));
+    CHECK_EQ(merged.column_span(), 2U);
+    CHECK_FALSE(merged.merge_right(5U));
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    const auto table_grid = table_node.child("w:tblGrid");
+    REQUIRE(table_grid != pugi::xml_node{});
+    CHECK_EQ(count_named_children(table_grid, "w:gridCol"), 3);
+
+    const auto row_node = table_node.child("w:tr");
+    REQUIRE(row_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(row_node, "w:tc"), 2);
+
+    const auto first_cell = row_node.child("w:tc");
+    REQUIRE(first_cell != pugi::xml_node{});
+    const auto grid_span = first_cell.child("w:tcPr").child("w:gridSpan");
+    REQUIRE(grid_span != pugi::xml_node{});
+    CHECK_EQ(std::string_view{grid_span.attribute("w:val").value()}, "2");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "A\nC\n");
+
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    auto reopened_row = reopened_table.rows();
+    REQUIRE(reopened_row.has_next());
+    auto reopened_cell = reopened_row.cells();
+    REQUIRE(reopened_cell.has_next());
+    CHECK_EQ(reopened_cell.column_span(), 2U);
+
+    reopened_cell.next();
+    REQUIRE(reopened_cell.has_next());
+    CHECK_EQ(reopened_cell.column_span(), 1U);
+    reopened_cell.next();
+    CHECK_FALSE(reopened_cell.has_next());
+
+    fs::remove(target);
+}
+
 TEST_CASE("append_image writes inline media parts and preserves them across reopen save") {
     namespace fs = std::filesystem;
 
