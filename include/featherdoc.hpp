@@ -18,6 +18,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <unordered_set>
 #include <vector>
 
@@ -27,6 +28,8 @@
 #include <zip.h>
 
 namespace featherdoc {
+class Document;
+
 // Run contains runs in a paragraph
 class Run {
   private:
@@ -186,12 +189,13 @@ class TemplatePart {
   private:
     friend class Document;
 
+    Document *owner{nullptr};
     pugi::xml_document *xml_document{nullptr};
     document_error_info *last_error_info{nullptr};
     std::string entry_name_storage;
 
-    TemplatePart(pugi::xml_document *xml_document, document_error_info *last_error_info,
-                 std::string entry_name);
+    TemplatePart(Document *owner, pugi::xml_document *xml_document,
+                 document_error_info *last_error_info, std::string entry_name);
 
   public:
     TemplatePart();
@@ -213,6 +217,11 @@ class TemplatePart {
         std::string_view bookmark_name, const std::vector<std::vector<std::string>> &rows);
     [[nodiscard]] std::size_t replace_bookmark_with_table(
         std::string_view bookmark_name, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_bookmark_with_image(
+        std::string_view bookmark_name, const std::filesystem::path &image_path);
+    [[nodiscard]] std::size_t replace_bookmark_with_image(
+        std::string_view bookmark_name, const std::filesystem::path &image_path,
+        std::uint32_t width_px, std::uint32_t height_px);
 };
 
 // Document contains whole the docx file
@@ -222,12 +231,16 @@ class Document {
     struct xml_part_state {
         std::string relationship_id;
         std::string entry_name;
+        std::string relationships_entry_name;
         pugi::xml_document xml;
+        pugi::xml_document relationships;
         Paragraph paragraph;
+        bool has_relationships_part{false};
+        bool relationships_dirty{false};
     };
 
     struct image_part_state {
-        std::string relationship_id;
+        std::string owner_entry_name;
         std::string entry_name;
         std::string content_type;
         std::string data;
@@ -278,6 +291,8 @@ class Document {
     Paragraph &ensure_related_part_paragraphs(
         std::vector<std::unique_ptr<xml_part_state>> &parts, const char *part_root_name,
         const char *reference_name, const char *relationship_type, const char *content_type);
+    [[nodiscard]] xml_part_state *find_related_part_state(std::string_view entry_name);
+    [[nodiscard]] std::uint32_t next_drawing_object_id() const;
     [[nodiscard]] bool append_inline_image_part(
         std::string image_data, std::string extension, std::string content_type,
         std::string display_name, std::uint32_t width_px, std::uint32_t height_px);
@@ -285,8 +300,20 @@ class Document {
         pugi::xml_node parent, pugi::xml_node insert_before, std::string image_data,
         std::string extension, std::string content_type, std::string display_name,
         std::uint32_t width_px, std::uint32_t height_px);
+    [[nodiscard]] bool append_inline_image_part(
+        pugi::xml_document &xml_document, std::string_view xml_entry_name,
+        pugi::xml_document &relationships_document, std::string_view relationships_entry_name,
+        bool &has_relationships_part, bool &relationships_dirty, pugi::xml_node parent,
+        pugi::xml_node insert_before, std::string image_data, std::string extension,
+        std::string content_type, std::string display_name, std::uint32_t width_px,
+        std::uint32_t height_px);
+    [[nodiscard]] std::size_t replace_bookmark_with_image_in_part(
+        pugi::xml_document &xml_document, std::string_view entry_name,
+        std::string_view bookmark_name, const std::filesystem::path &image_path,
+        std::optional<std::pair<std::uint32_t, std::uint32_t>> dimensions);
 
     friend class IteratorHelper;
+    friend class TemplatePart;
     std::filesystem::path document_path;
     Paragraph paragraph;
     Paragraph detached_paragraph;

@@ -82,16 +82,19 @@ auto normalize_word_part_entry(std::string_view target) -> std::string {
         .generic_string();
 }
 
-auto make_document_relationship_target(std::string_view entry_name) -> std::string {
-    const auto normalized_entry = std::filesystem::path{std::string{entry_name}}
-                                      .lexically_normal();
+auto make_part_relationship_target(std::string_view source_entry_name,
+                                   std::string_view target_entry_name) -> std::string {
+    const auto normalized_source =
+        std::filesystem::path{std::string{source_entry_name}}.lexically_normal();
+    const auto normalized_target =
+        std::filesystem::path{std::string{target_entry_name}}.lexically_normal();
     const auto relative_target =
-        normalized_entry.lexically_relative(std::filesystem::path{"word"});
+        normalized_target.lexically_relative(normalized_source.parent_path());
     if (!relative_target.empty()) {
         return relative_target.generic_string();
     }
 
-    return normalized_entry.filename().generic_string();
+    return normalized_target.filename().generic_string();
 }
 
 void ensure_attribute_value(pugi::xml_node node, const char *name, std::string_view value) {
@@ -138,6 +141,29 @@ void collect_max_drawing_object_id(pugi::xml_node node, std::uint32_t &max_id) {
 
 namespace featherdoc {
 
+std::uint32_t Document::next_drawing_object_id() const {
+    std::uint32_t max_drawing_id = 0U;
+
+    if (const auto document_root = this->document.document_element();
+        document_root != pugi::xml_node{}) {
+        collect_max_drawing_object_id(document_root, max_drawing_id);
+    }
+
+    for (const auto &part : this->header_parts) {
+        if (const auto root = part->xml.document_element(); root != pugi::xml_node{}) {
+            collect_max_drawing_object_id(root, max_drawing_id);
+        }
+    }
+
+    for (const auto &part : this->footer_parts) {
+        if (const auto root = part->xml.document_element(); root != pugi::xml_node{}) {
+            collect_max_drawing_object_id(root, max_drawing_id);
+        }
+    }
+
+    return max_drawing_id + 1U;
+}
+
 bool Document::append_inline_image_part(std::string image_data, std::string extension,
                                         std::string content_type,
                                         std::string display_name,
@@ -145,9 +171,12 @@ bool Document::append_inline_image_part(std::string image_data, std::string exte
                                         std::uint32_t height_px) {
     auto document_root = this->document.child("w:document");
     auto body = document_root.child("w:body");
-    return this->append_inline_image_part(body, {}, std::move(image_data),
-                                          std::move(extension), std::move(content_type),
-                                          std::move(display_name), width_px, height_px);
+    return this->append_inline_image_part(
+        this->document, document_xml_entry, this->document_relationships,
+        document_relationships_xml_entry, this->has_document_relationships_part,
+        this->document_relationships_dirty, body, {}, std::move(image_data),
+        std::move(extension), std::move(content_type), std::move(display_name), width_px,
+        height_px);
 }
 
 bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node insert_before,
@@ -156,6 +185,21 @@ bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node in
                                         std::string display_name,
                                         std::uint32_t width_px,
                                         std::uint32_t height_px) {
+    return this->append_inline_image_part(
+        this->document, document_xml_entry, this->document_relationships,
+        document_relationships_xml_entry, this->has_document_relationships_part,
+        this->document_relationships_dirty, parent, insert_before, std::move(image_data),
+        std::move(extension), std::move(content_type), std::move(display_name), width_px,
+        height_px);
+}
+
+bool Document::append_inline_image_part(
+    pugi::xml_document &xml_document, std::string_view xml_entry_name,
+    pugi::xml_document &relationships_document, std::string_view relationships_entry_name,
+    bool &has_relationships_part, bool &relationships_dirty, pugi::xml_node parent,
+    pugi::xml_node insert_before, std::string image_data, std::string extension,
+    std::string content_type, std::string display_name, std::uint32_t width_px,
+    std::uint32_t height_px) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before appending an image");
@@ -173,30 +217,32 @@ bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node in
         return false;
     }
 
-    auto document_root = this->document.child("w:document");
-    if (document_root == pugi::xml_node{} || parent == pugi::xml_node{}) {
+    auto part_root = xml_document.document_element();
+    if (part_root == pugi::xml_node{} || parent == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
-                       "document.xml does not contain a valid image insertion parent",
-                       std::string{document_xml_entry});
+                       std::string{xml_entry_name} +
+                           " does not contain a valid image insertion parent",
+                       std::string{xml_entry_name});
         return false;
     }
 
-    if (this->document_relationships.child("Relationships") == pugi::xml_node{} &&
-        !initialize_empty_relationships_document(this->document_relationships)) {
+    if (relationships_document.child("Relationships") == pugi::xml_node{} &&
+        !initialize_empty_relationships_document(relationships_document)) {
         set_last_error(this->last_error_info,
                        document_errc::relationships_xml_parse_failed,
                        "failed to initialize default relationships XML",
-                       std::string{document_relationships_xml_entry});
+                       std::string{relationships_entry_name});
         return false;
     }
 
-    auto relationships = this->document_relationships.child("Relationships");
+    auto relationships = relationships_document.child("Relationships");
     if (relationships == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::relationships_xml_parse_failed,
-                       "word/_rels/document.xml.rels does not contain a Relationships root",
-                       std::string{document_relationships_xml_entry});
+                       std::string{relationships_entry_name} +
+                           " does not contain a Relationships root",
+                       std::string{relationships_entry_name});
         return false;
     }
 
@@ -209,15 +255,34 @@ bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node in
         return false;
     }
 
-    auto relationships_namespace = document_root.attribute("xmlns:r");
+    auto relationships_namespace = part_root.attribute("xmlns:r");
     if (relationships_namespace == pugi::xml_attribute{}) {
-        relationships_namespace = document_root.append_attribute("xmlns:r");
+        relationships_namespace = part_root.append_attribute("xmlns:r");
     }
     relationships_namespace.set_value(
         office_document_relationships_namespace_uri.data());
 
     std::unordered_set<std::string> used_relationship_ids;
     std::unordered_set<std::string> used_part_entries;
+    const auto collect_relationship_image_targets =
+        [&](const pugi::xml_document &source_relationships) {
+            auto source_root = source_relationships.child("Relationships");
+            for (auto relationship = source_root.child("Relationship");
+                 relationship != pugi::xml_node{};
+                 relationship = relationship.next_sibling("Relationship")) {
+                if (std::string_view{relationship.attribute("Type").value()} !=
+                    image_relationship_type) {
+                    continue;
+                }
+
+                const auto target =
+                    std::string_view{relationship.attribute("Target").value()};
+                if (!target.empty()) {
+                    used_part_entries.insert(normalize_word_part_entry(target));
+                }
+            }
+        };
+
     for (auto relationship = relationships.child("Relationship");
          relationship != pugi::xml_node{};
          relationship = relationship.next_sibling("Relationship")) {
@@ -225,14 +290,14 @@ bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node in
         if (*id != '\0') {
             used_relationship_ids.emplace(id);
         }
+    }
 
-        if (std::string_view{relationship.attribute("Type").value()} ==
-            image_relationship_type) {
-            const auto target = std::string_view{relationship.attribute("Target").value()};
-            if (!target.empty()) {
-                used_part_entries.insert(normalize_word_part_entry(target));
-            }
-        }
+    collect_relationship_image_targets(this->document_relationships);
+    for (const auto &part : this->header_parts) {
+        collect_relationship_image_targets(part->relationships);
+    }
+    for (const auto &part : this->footer_parts) {
+        collect_relationship_image_targets(part->relationships);
     }
 
     for (const auto &part : this->image_parts) {
@@ -284,17 +349,15 @@ bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node in
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to append an image relationship",
-                       std::string{document_relationships_xml_entry});
+                       std::string{relationships_entry_name});
         return false;
     }
     ensure_attribute_value(relationship, "Id", relationship_id);
     ensure_attribute_value(relationship, "Type", image_relationship_type);
     ensure_attribute_value(relationship, "Target",
-                           make_document_relationship_target(entry_name));
+                           make_part_relationship_target(xml_entry_name, entry_name));
 
-    std::uint32_t max_drawing_id = 0U;
-    collect_max_drawing_object_id(document_root, max_drawing_id);
-    const auto drawing_id = max_drawing_id + 1U;
+    const auto drawing_id = this->next_drawing_object_id();
     const auto drawing_id_text = std::to_string(drawing_id);
     const auto width_emu_text =
         std::to_string(featherdoc::detail::pixels_to_emu(width_px));
@@ -309,7 +372,7 @@ bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node in
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to append an image paragraph",
-                       std::string{document_xml_entry});
+                       std::string{xml_entry_name});
         return false;
     }
 
@@ -321,7 +384,7 @@ bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node in
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to build inline image XML",
-                       std::string{document_xml_entry});
+                       std::string{xml_entry_name});
         return false;
     }
 
@@ -381,10 +444,10 @@ bool Document::append_inline_image_part(pugi::xml_node parent, pugi::xml_node in
     ensure_attribute_value(geometry, "prst", "rect");
     geometry.append_child("a:avLst");
 
-    this->image_parts.push_back({std::move(relationship_id), std::move(entry_name),
+    this->image_parts.push_back({std::string{xml_entry_name}, std::move(entry_name),
                                  std::move(content_type), std::move(image_data)});
-    this->has_document_relationships_part = true;
-    this->document_relationships_dirty = true;
+    has_relationships_part = true;
+    relationships_dirty = true;
     this->content_types_dirty = true;
     this->last_error_info.clear();
     return true;

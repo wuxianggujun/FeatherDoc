@@ -276,6 +276,24 @@ auto make_document_relationship_target(std::string_view entry_name) -> std::stri
     return normalized_entry.filename().generic_string();
 }
 
+auto make_part_relationships_entry(std::string_view entry_name) -> std::string {
+    if (entry_name.empty()) {
+        return {};
+    }
+
+    const auto normalized_entry =
+        std::filesystem::path{std::string{entry_name}}.lexically_normal();
+    const auto filename = normalized_entry.filename().generic_string();
+    if (filename.empty()) {
+        return {};
+    }
+
+    return (normalized_entry.parent_path() / "_rels" /
+            std::filesystem::path{filename + ".rels"})
+        .lexically_normal()
+        .generic_string();
+}
+
 auto find_section_reference(pugi::xml_node section_properties, const char *reference_name,
                             std::string_view xml_reference_type) -> pugi::xml_node {
     for (auto reference = section_properties.child(reference_name);
@@ -799,6 +817,44 @@ auto load_related_xml_part(zip_t *archive, std::string_view entry_name,
                                      : std::nullopt);
     }
 
+    return {};
+}
+
+auto load_optional_relationships_part(
+    zip_t *archive, std::string_view entry_name, pugi::xml_document &xml_document,
+    bool &has_relationships_part,
+    featherdoc::document_error_info &last_error_info) -> std::error_code {
+    has_relationships_part = false;
+    xml_document.reset();
+
+    if (entry_name.empty()) {
+        return {};
+    }
+
+    std::string xml_text;
+    const auto read_status = read_zip_entry_text(archive, entry_name, xml_text);
+    if (read_status == zip_entry_read_status::missing) {
+        return {};
+    }
+
+    if (read_status == zip_entry_read_status::read_failed) {
+        return set_last_error(last_error_info,
+                              featherdoc::document_errc::relationships_xml_read_failed,
+                              "failed to read relationships entry '" +
+                                  std::string{entry_name} + "'",
+                              std::string{entry_name});
+    }
+
+    const auto parse_result = xml_document.load_buffer(xml_text.data(), xml_text.size());
+    if (!parse_result) {
+        return set_last_error(
+            last_error_info, featherdoc::document_errc::relationships_xml_parse_failed,
+            parse_result.description(), std::string{entry_name},
+            parse_result.offset >= 0 ? std::optional<std::ptrdiff_t>{parse_result.offset}
+                                     : std::nullopt);
+    }
+
+    has_relationships_part = true;
     return {};
 }
 
@@ -1462,9 +1518,27 @@ std::error_code Document::open() {
         auto part = std::make_unique<xml_part_state>();
         part->relationship_id = related_part.relationship_id;
         part->entry_name = related_part.entry_name;
+        part->relationships_entry_name = make_part_relationships_entry(part->entry_name);
 
         if (const auto error =
                 load_related_xml_part(zip, part->entry_name, part->xml, this->last_error_info)) {
+            zip_close(zip);
+            this->document.reset();
+            this->document_relationships.reset();
+            this->content_types.reset();
+            this->settings.reset();
+            this->numbering.reset();
+            this->styles.reset();
+            this->header_parts.clear();
+            this->footer_parts.clear();
+            this->image_parts.clear();
+            this->flag_is_open = false;
+            return error;
+        }
+
+        if (const auto error = load_optional_relationships_part(
+                zip, part->relationships_entry_name, part->relationships,
+                part->has_relationships_part, this->last_error_info)) {
             zip_close(zip);
             this->document.reset();
             this->document_relationships.reset();
@@ -1712,9 +1786,15 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     }
     for (const auto &part : this->header_parts) {
         rewritten_entries.insert(part->entry_name);
+        if (!part->relationships_entry_name.empty()) {
+            rewritten_entries.insert(part->relationships_entry_name);
+        }
     }
     for (const auto &part : this->footer_parts) {
         rewritten_entries.insert(part->entry_name);
+        if (!part->relationships_entry_name.empty()) {
+            rewritten_entries.insert(part->relationships_entry_name);
+        }
     }
     for (const auto &part : this->image_parts) {
         rewritten_entries.insert(part.entry_name);
@@ -1769,6 +1849,14 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
         write_xml_entry(part.entry_name, part.xml);
     };
 
+    auto write_related_part_relationships = [&](const xml_part_state &part) {
+        if (!part.has_relationships_part || part.relationships_entry_name.empty()) {
+            return;
+        }
+
+        write_xml_entry(part.relationships_entry_name, part.relationships);
+    };
+
     if (zip_entry_open(new_zip, document_xml_entry.data()) != 0) {
         record_first_document_error(
             document_errc::output_document_xml_open_failed,
@@ -1821,12 +1909,20 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
             if (result) {
                 break;
             }
+            write_related_part_relationships(*part);
+            if (result) {
+                break;
+            }
         }
     }
 
     if (!result) {
         for (const auto *part : active_footer_parts) {
             write_related_xml_part(*part);
+            if (result) {
+                break;
+            }
+            write_related_part_relationships(*part);
             if (result) {
                 break;
             }
@@ -2206,6 +2302,22 @@ Document::xml_part_state *Document::section_related_part_state(
         }
 
         return nullptr;
+    }
+
+    return nullptr;
+}
+
+Document::xml_part_state *Document::find_related_part_state(std::string_view entry_name) {
+    for (auto &part : this->header_parts) {
+        if (part->entry_name == entry_name) {
+            return part.get();
+        }
+    }
+
+    for (auto &part : this->footer_parts) {
+        if (part->entry_name == entry_name) {
+            return part.get();
+        }
     }
 
     return nullptr;
@@ -2673,6 +2785,7 @@ Paragraph &Document::ensure_section_related_part_paragraphs(
     auto part = std::make_unique<xml_part_state>();
     part->relationship_id = relationship_id;
     part->entry_name = entry_name;
+    part->relationships_entry_name = make_part_relationships_entry(entry_name);
     const auto empty_part_xml =
         std::string_view{part_root_name} == "w:hdr" ? empty_header_xml : empty_footer_xml;
     const auto parse_result =
@@ -3014,6 +3127,7 @@ bool Document::remove_related_part(
 
     const auto relationship_id = parts[part_index]->relationship_id;
     const auto entry_name = parts[part_index]->entry_name;
+    const auto relationships_entry_name = parts[part_index]->relationships_entry_name;
     bool removed_first_reference = false;
     bool removed_even_reference = false;
 
@@ -3073,6 +3187,9 @@ bool Document::remove_related_part(
     }
 
     this->removed_related_part_entries.insert(entry_name);
+    if (!relationships_entry_name.empty()) {
+        this->removed_related_part_entries.insert(relationships_entry_name);
+    }
     parts.erase(parts.begin() + static_cast<std::ptrdiff_t>(part_index));
 
     this->last_error_info.clear();

@@ -361,12 +361,14 @@ Each method returns a lightweight `TemplatePart` handle. A valid handle
 supports `entry_name()`, `replace_bookmark_text(...)`, `fill_bookmarks(...)`,
 `replace_bookmark_with_paragraphs(...)`,
 `replace_bookmark_with_table_rows(...)`, and
-`replace_bookmark_with_table(...)`. Missing section-specific references return
-an empty handle instead of creating a new part implicitly.
+`replace_bookmark_with_table(...)`, and `replace_bookmark_with_image(...)`.
+Missing section-specific references return an empty handle instead of creating
+ a new part implicitly.
 
 ```cpp
 auto header_template = doc.section_header_template(0);
 if (header_template) {
+    header_template.replace_bookmark_with_image("header_logo", "logo.png");
     header_template.replace_bookmark_with_table_rows(
         "line_item_row",
         {
@@ -609,9 +611,10 @@ if (const auto error = doc.save()) {
   `footer_template()`, `section_header_template()`, and
   `section_footer_template()`, but there is still no high-level API for
   conditional sections or structured template schema validation.
-- Images can now be appended as inline body drawings, but there is still no
-  high-level API for reading existing images, floating/anchored placement,
-  wrapping, cropping, or header/footer image insertion.
+- Images can now be appended as inline body drawings, and bookmark-based image
+  replacement now also works across body, header, and footer template parts,
+  but there is still no high-level API for reading existing images,
+  floating/anchored placement, wrapping, or cropping.
 
 ## Source Layout
 

@@ -1229,6 +1229,157 @@ TEST_CASE("header and footer template parts reuse bookmark template APIs") {
     fs::remove(target);
 }
 
+TEST_CASE("header and footer template parts can replace bookmark placeholders with images") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+
+    const fs::path target = fs::current_path() / "header_footer_template_images.docx";
+    const fs::path image_path = fs::current_path() / "header_footer_template_images.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>body</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+      <w:footerReference w:type="default" r:id="rId3"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:bookmarkStart w:id="0" w:name="header_logo"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="0"/>
+  </w:p>
+</w:hdr>
+)";
+
+    const std::string footer_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:bookmarkStart w:id="1" w:name="footer_logo"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="1"/>
+  </w:p>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header_xml},
+            {"word/footer1.xml", footer_xml},
+        });
+
+    const std::string image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                 sizeof(tiny_png_bytes));
+    write_binary_file(image_path, image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo", image_path, 20U, 10U),
+             1);
+
+    auto footer_template = doc.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    CHECK_EQ(footer_template.replace_bookmark_with_image("footer_logo", image_path, 30U, 15U),
+             1);
+
+    CHECK_FALSE(doc.save());
+
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK(test_docx_entry_exists(target, "word/media/image2.png"));
+    CHECK_EQ(read_test_docx_entry(target, "word/media/image1.png"), image_data);
+    CHECK_EQ(read_test_docx_entry(target, "word/media/image2.png"), image_data);
+
+    const auto saved_header = read_test_docx_entry(target, "word/header1.xml");
+    CHECK_NE(saved_header.find("<w:drawing"), std::string::npos);
+    CHECK_NE(saved_header.find("cx=\"190500\""), std::string::npos);
+    CHECK_NE(saved_header.find("cy=\"95250\""), std::string::npos);
+    CHECK_EQ(saved_header.find("w:name=\"header_logo\""), std::string::npos);
+
+    const auto saved_footer = read_test_docx_entry(target, "word/footer1.xml");
+    CHECK_NE(saved_footer.find("<w:drawing"), std::string::npos);
+    CHECK_NE(saved_footer.find("cx=\"285750\""), std::string::npos);
+    CHECK_NE(saved_footer.find("cy=\"142875\""), std::string::npos);
+    CHECK_EQ(saved_footer.find("w:name=\"footer_logo\""), std::string::npos);
+
+    const auto saved_header_relationships =
+        read_test_docx_entry(target, "word/_rels/header1.xml.rels");
+    CHECK_NE(saved_header_relationships.find("Target=\"media/image1.png\""),
+             std::string::npos);
+
+    const auto saved_footer_relationships =
+        read_test_docx_entry(target, "word/_rels/footer1.xml.rels");
+    CHECK_NE(saved_footer_relationships.find("Target=\"media/image2.png\""),
+             std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_FALSE(reopened.save());
+
+    CHECK(test_docx_entry_exists(target, "word/_rels/header1.xml.rels"));
+    CHECK(test_docx_entry_exists(target, "word/_rels/footer1.xml.rels"));
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK(test_docx_entry_exists(target, "word/media/image2.png"));
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
 TEST_CASE("ensure_header_paragraphs and ensure_footer_paragraphs work for create_empty") {
     namespace fs = std::filesystem;
 
