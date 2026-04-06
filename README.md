@@ -8,7 +8,8 @@ FeatherDoc is a modernized C++ library for reading and writing Microsoft Word
 - CMake 3.20+
 - C++20
 - MSVC-friendly build setup
-- Lightweight paragraph/run editing plus table/image creation APIs
+- Lightweight document editing APIs for paragraphs, runs, tables, images,
+  lists, and style references
 - MSVC-safe XML parsing on `open()`
 - Streamed ZIP rewrite path on `save()`
 
@@ -211,6 +212,23 @@ item.add_run("first item");
 auto nested = item.insert_paragraph_after("");
 doc.set_paragraph_list(nested, featherdoc::list_kind::decimal, 1);
 nested.add_run("nested item");
+```
+
+Use `set_paragraph_style(paragraph, style_id)` and `set_run_style(run,
+style_id)` to attach paragraph/run style references. When the source document
+does not already contain `word/styles.xml`, FeatherDoc creates a minimal styles
+part automatically. The generated catalog currently includes `Normal`,
+`Heading1`, `Heading2`, `Quote`, `Emphasis`, and `Strong`.
+
+```cpp
+auto paragraph = doc.paragraphs();
+doc.set_paragraph_style(paragraph, "Heading1");
+
+auto styled_run = paragraph.add_run("Styled heading");
+doc.set_run_style(styled_run, "Strong");
+
+doc.clear_run_style(styled_run);
+doc.clear_paragraph_style(paragraph);
 ```
 
 ## Formatting Flags
@@ -475,6 +493,10 @@ if (const auto error = doc.save()) {
 - Paragraphs can now be attached to managed bullet and decimal lists, but there
   is still no high-level API for custom numbering definitions, list restarts,
   or paragraph style-based numbering.
+- Paragraph and run style references can now be attached and cleared, and a
+  minimal `word/styles.xml` is created automatically when needed, but there is
+  still no high-level API for custom style definition editing, style catalog
+  inspection, or inheritance-aware style management.
 - Images can now be appended as inline body drawings, but there is still no
   high-level API for reading existing images, floating/anchored placement,
   wrapping, cropping, or header/footer image insertion.
@@ -487,6 +509,7 @@ living in a single large `.cpp` file:
 - `src/document.cpp`: `Document` open/save flow, archive handling, and error reporting
 - `src/document_image.cpp`: inline body image insertion, media part allocation, and drawing relationship updates
 - `src/document_numbering.cpp`: managed paragraph list numbering, numbering part attachment, and numbering definition generation
+- `src/document_styles.cpp`: paragraph/run style references and `word/styles.xml` attachment/persistence
 - `src/paragraph.cpp`: paragraph traversal, run creation, and paragraph insertion
 - `src/image_helpers.cpp` / `src/image_helpers.hpp`: image binary loading plus file format and size detection helpers
 - `src/run.cpp`: run traversal and text read/write behavior

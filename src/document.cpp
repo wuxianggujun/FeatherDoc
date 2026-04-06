@@ -19,6 +19,7 @@ constexpr auto relationships_xml_entry = std::string_view{"_rels/.rels"};
 constexpr auto content_types_xml_entry = std::string_view{"[Content_Types].xml"};
 constexpr auto settings_xml_entry = std::string_view{"word/settings.xml"};
 constexpr auto numbering_xml_entry = std::string_view{"word/numbering.xml"};
+constexpr auto styles_xml_entry = std::string_view{"word/styles.xml"};
 constexpr auto office_document_relationships_namespace_uri = std::string_view{
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships"};
 constexpr auto header_relationship_type = std::string_view{
@@ -901,6 +902,7 @@ std::error_code Document::create_empty() {
     this->has_document_relationships_part = false;
     this->has_settings_part = false;
     this->has_numbering_part = false;
+    this->has_styles_part = false;
     this->document_relationships_dirty = false;
     this->content_types_loaded = false;
     this->content_types_dirty = false;
@@ -908,12 +910,15 @@ std::error_code Document::create_empty() {
     this->settings_dirty = false;
     this->numbering_loaded = false;
     this->numbering_dirty = false;
+    this->styles_loaded = false;
+    this->styles_dirty = false;
     this->removed_related_part_entries.clear();
     this->document.reset();
     this->document_relationships.reset();
     this->content_types.reset();
     this->settings.reset();
     this->numbering.reset();
+    this->styles.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
@@ -1346,6 +1351,7 @@ void Document::set_path(std::filesystem::path file_path) {
     this->has_document_relationships_part = false;
     this->has_settings_part = false;
     this->has_numbering_part = false;
+    this->has_styles_part = false;
     this->document_relationships_dirty = false;
     this->content_types_loaded = false;
     this->content_types_dirty = false;
@@ -1353,12 +1359,15 @@ void Document::set_path(std::filesystem::path file_path) {
     this->settings_dirty = false;
     this->numbering_loaded = false;
     this->numbering_dirty = false;
+    this->styles_loaded = false;
+    this->styles_dirty = false;
     this->removed_related_part_entries.clear();
     this->document.reset();
     this->document_relationships.reset();
     this->content_types.reset();
     this->settings.reset();
     this->numbering.reset();
+    this->styles.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
@@ -1374,6 +1383,7 @@ std::error_code Document::open() {
     this->has_document_relationships_part = false;
     this->has_settings_part = false;
     this->has_numbering_part = false;
+    this->has_styles_part = false;
     this->document_relationships_dirty = false;
     this->content_types_loaded = false;
     this->content_types_dirty = false;
@@ -1381,12 +1391,15 @@ std::error_code Document::open() {
     this->settings_dirty = false;
     this->numbering_loaded = false;
     this->numbering_dirty = false;
+    this->styles_loaded = false;
+    this->styles_dirty = false;
     this->removed_related_part_entries.clear();
     this->document.reset();
     this->document_relationships.reset();
     this->content_types.reset();
     this->settings.reset();
     this->numbering.reset();
+    this->styles.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
@@ -1543,6 +1556,7 @@ std::error_code Document::open() {
             this->content_types.reset();
             this->settings.reset();
             this->numbering.reset();
+            this->styles.reset();
             this->header_parts.clear();
             this->footer_parts.clear();
             this->image_parts.clear();
@@ -1778,6 +1792,9 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     if (this->has_numbering_part && (this->numbering_dirty || !this->has_source_archive)) {
         rewritten_entries.insert(std::string{numbering_xml_entry});
     }
+    if (this->has_styles_part && (this->styles_dirty || !this->has_source_archive)) {
+        rewritten_entries.insert(std::string{styles_xml_entry});
+    }
     for (const auto &part : this->header_parts) {
         rewritten_entries.insert(part->entry_name);
     }
@@ -1876,6 +1893,11 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     if (!result && this->has_numbering_part &&
         (this->numbering_dirty || !this->has_source_archive)) {
         write_xml_entry(numbering_xml_entry, this->numbering);
+    }
+
+    if (!result && this->has_styles_part &&
+        (this->styles_dirty || !this->has_source_archive)) {
+        write_xml_entry(styles_xml_entry, this->styles);
     }
 
     if (!result) {

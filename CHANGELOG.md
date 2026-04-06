@@ -19,6 +19,10 @@ performance.
 - `set_paragraph_list(paragraph, kind, level)` and
   `clear_paragraph_list(paragraph)` for attaching and removing managed bullet
   and decimal list numbering on paragraphs.
+- `set_paragraph_style(paragraph, style_id)` /
+  `clear_paragraph_style(paragraph)` plus `set_run_style(run, style_id)` /
+  `clear_run_style(run)` for attaching and removing paragraph/run style
+  references.
 
 ### Changed
 
@@ -30,6 +34,9 @@ performance.
 - Saving now emits managed `word/numbering.xml` content together with matching
   `document.xml.rels` and `[Content_Types].xml` updates when paragraph lists
   are used.
+- Saving now emits managed `word/styles.xml` content together with matching
+  `document.xml.rels` and `[Content_Types].xml` updates when paragraph/run
+  style references are used.
 
 ## [1.1.0] - 2026-04-06
 

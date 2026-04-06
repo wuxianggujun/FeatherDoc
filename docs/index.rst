@@ -186,6 +186,24 @@ you want to remove the list marker again.
     doc.set_paragraph_list(nested, featherdoc::list_kind::decimal, 1);
     nested.add_run("nested item");
 
+``set_paragraph_style(paragraph, style_id)`` and ``set_run_style(run,
+style_id)`` attach paragraph/run style references. When the source document
+does not already contain ``word/styles.xml``, FeatherDoc creates a minimal
+styles part automatically. The generated catalog currently includes
+``Normal``, ``Heading1``, ``Heading2``, ``Quote``, ``Emphasis``, and
+``Strong``.
+
+.. code-block:: cpp
+
+    auto paragraph = doc.paragraphs();
+    doc.set_paragraph_style(paragraph, "Heading1");
+
+    auto styled_run = paragraph.add_run("Styled heading");
+    doc.set_run_style(styled_run, "Strong");
+
+    doc.clear_run_style(styled_run);
+    doc.clear_paragraph_style(paragraph);
+
 Formatting
 ----------
 Use the scoped formatting flags when creating new runs.
@@ -463,6 +481,10 @@ Current Limitations
 - Paragraphs can now be attached to managed bullet and decimal lists, but
   there is still no high-level API for custom numbering definitions, list
   restarts, or paragraph style-based numbering.
+- Paragraph and run style references can now be attached and cleared, and a
+  minimal ``word/styles.xml`` is created automatically when needed, but there
+  is still no high-level API for custom style definition editing, style
+  catalog inspection, or inheritance-aware style management.
 - Images can now be appended as inline body drawings, but there is still no
   high-level API for reading existing images, floating placement, wrapping,
   cropping, or header/footer image insertion.
@@ -475,6 +497,7 @@ staying in one large translation unit:
 - ``src/document.cpp``: ``Document`` open/save flow, ZIP archive handling, and diagnostics
 - ``src/document_image.cpp``: inline body image insertion, media part allocation, and drawing relationship updates
 - ``src/document_numbering.cpp``: managed paragraph list numbering, numbering part attachment, and numbering definition generation
+- ``src/document_styles.cpp``: paragraph/run style references and ``word/styles.xml`` attachment/persistence
 - ``src/paragraph.cpp``: paragraph traversal, run creation, and paragraph insertion
 - ``src/image_helpers.cpp`` / ``src/image_helpers.hpp``: image binary loading plus file format and size detection helpers
 - ``src/run.cpp``: run traversal and text read/write behavior

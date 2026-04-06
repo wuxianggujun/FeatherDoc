@@ -41,6 +41,10 @@ std::string document_error_category::message(int condition) const {
         return "failed to read word/numbering.xml";
     case document_errc::numbering_xml_parse_failed:
         return "failed to parse word/numbering.xml";
+    case document_errc::styles_xml_read_failed:
+        return "failed to read word/styles.xml";
+    case document_errc::styles_xml_parse_failed:
+        return "failed to parse word/styles.xml";
     case document_errc::image_file_read_failed:
         return "failed to read image file";
     case document_errc::image_format_unsupported:

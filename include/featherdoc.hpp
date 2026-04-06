@@ -29,6 +29,7 @@ namespace featherdoc {
 class Run {
   private:
     friend class IteratorHelper;
+    friend class Document;
     // Store the parent node (a paragraph)
     pugi::xml_node parent;
     // And store current node also
@@ -186,6 +187,8 @@ class Document {
     [[nodiscard]] std::error_code ensure_settings_part_attached();
     [[nodiscard]] std::error_code ensure_numbering_loaded();
     [[nodiscard]] std::error_code ensure_numbering_part_attached();
+    [[nodiscard]] std::error_code ensure_styles_loaded();
+    [[nodiscard]] std::error_code ensure_styles_part_attached();
     [[nodiscard]] std::error_code ensure_even_and_odd_headers_enabled();
     [[nodiscard]] pugi::xml_node section_properties(std::size_t section_index) const;
     [[nodiscard]] pugi::xml_node ensure_section_properties(std::size_t section_index);
@@ -238,6 +241,7 @@ class Document {
     pugi::xml_document content_types;
     pugi::xml_document settings;
     pugi::xml_document numbering;
+    pugi::xml_document styles;
     std::vector<std::unique_ptr<xml_part_state>> header_parts;
     std::vector<std::unique_ptr<xml_part_state>> footer_parts;
     std::vector<image_part_state> image_parts;
@@ -246,6 +250,7 @@ class Document {
     bool has_document_relationships_part{false};
     bool has_settings_part{false};
     bool has_numbering_part{false};
+    bool has_styles_part{false};
     bool document_relationships_dirty{false};
     bool content_types_loaded{false};
     bool content_types_dirty{false};
@@ -253,6 +258,8 @@ class Document {
     bool settings_dirty{false};
     bool numbering_loaded{false};
     bool numbering_dirty{false};
+    bool styles_loaded{false};
+    bool styles_dirty{false};
     mutable std::unordered_set<std::string> removed_related_part_entries;
     mutable document_error_info last_error_info;
 
@@ -333,6 +340,10 @@ class Document {
     [[nodiscard]] bool set_paragraph_list(
         Paragraph paragraph, featherdoc::list_kind kind, std::uint32_t level = 0U);
     [[nodiscard]] bool clear_paragraph_list(Paragraph paragraph);
+    [[nodiscard]] bool set_paragraph_style(Paragraph paragraph, std::string_view style_id);
+    [[nodiscard]] bool clear_paragraph_style(Paragraph paragraph);
+    [[nodiscard]] bool set_run_style(Run run, std::string_view style_id);
+    [[nodiscard]] bool clear_run_style(Run run);
 
     Paragraph &paragraphs();
     Table &tables();

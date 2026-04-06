@@ -3267,3 +3267,155 @@ TEST_CASE("clear_paragraph_list removes numbering markup and invalid level is re
 
     fs::remove(target);
 }
+
+TEST_CASE("set_paragraph_style and set_run_style create styles parts and round-trip") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "paragraph_run_style_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(doc.set_paragraph_style(paragraph, "Heading1"));
+
+    auto run = paragraph.add_run("Styled text");
+    REQUIRE(run.has_next());
+    CHECK(doc.set_run_style(run, "Strong"));
+
+    CHECK_FALSE(doc.save());
+    CHECK(test_docx_entry_exists(target, "word/styles.xml"));
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(saved_relationships.find(
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\""),
+             std::string::npos);
+    CHECK_NE(saved_relationships.find("Target=\"styles.xml\""), std::string::npos);
+
+    const auto saved_content_types = read_test_docx_entry(target, test_content_types_xml_entry);
+    CHECK_NE(saved_content_types.find("PartName=\"/word/styles.xml\""), std::string::npos);
+    CHECK_NE(saved_content_types.find(
+                 "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"),
+             std::string::npos);
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("<w:pStyle w:val=\"Heading1\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("<w:rStyle w:val=\"Strong\""), std::string::npos);
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"Heading1\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"Strong\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK(reopened.paragraphs().add_run(" tail").has_next());
+    CHECK_FALSE(reopened.save());
+    CHECK(test_docx_entry_exists(target, "word/styles.xml"));
+
+    fs::remove(target);
+}
+
+TEST_CASE("clear_paragraph_style and clear_run_style remove markup and reject empty ids") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "paragraph_run_style_clear.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+)";
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr><w:pStyle w:val="Heading1"/></w:pPr>
+      <w:r>
+        <w:rPr><w:rStyle w:val="Strong"/></w:rPr>
+        <w:t>seed</w:t>
+      </w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+</Relationships>
+)";
+    const std::string styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="heading 1"/>
+    <w:basedOn w:val="Normal"/>
+  </w:style>
+  <w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont">
+    <w:name w:val="Default Paragraph Font"/>
+  </w:style>
+  <w:style w:type="character" w:styleId="Strong">
+    <w:name w:val="Strong"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+  </w:style>
+</w:styles>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/styles.xml", styles_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK_FALSE(doc.set_paragraph_style(paragraph, ""));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    auto run = paragraph.runs();
+    REQUIRE(run.has_next());
+    CHECK_FALSE(doc.set_run_style(run, ""));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK(doc.clear_paragraph_style(paragraph));
+    CHECK(doc.clear_run_style(run));
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:pStyle"), 0);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:rStyle"), 0);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:pPr>"), 0);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:rPr>"), 0);
+
+    CHECK(test_docx_entry_exists(target, "word/styles.xml"));
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "seed\n");
+
+    fs::remove(target);
+}

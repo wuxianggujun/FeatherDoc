@@ -92,6 +92,8 @@ enum class document_errc {
     content_types_xml_parse_failed,
     numbering_xml_read_failed,
     numbering_xml_parse_failed,
+    styles_xml_read_failed,
+    styles_xml_parse_failed,
     image_file_read_failed,
     image_format_unsupported,
     image_size_read_failed,
