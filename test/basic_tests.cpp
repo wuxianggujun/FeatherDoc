@@ -121,6 +121,22 @@ auto count_named_children(pugi::xml_node parent, const char *child_name) -> std:
     return count;
 }
 
+auto count_named_descendants(pugi::xml_node parent, const char *child_name) -> std::size_t {
+    if (parent == pugi::xml_node{}) {
+        return 0U;
+    }
+
+    std::size_t count = 0U;
+    for (auto child = parent.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::strcmp(child.name(), child_name) == 0) {
+            ++count;
+        }
+        count += count_named_descendants(child, child_name);
+    }
+    return count;
+}
+
 auto count_substring_occurrences(std::string_view text, std::string_view needle)
     -> std::size_t {
     if (needle.empty()) {
@@ -3186,6 +3202,196 @@ TEST_CASE("replace_bookmark_with_paragraphs accepts an empty replacement list") 
     fs::remove(target);
 }
 
+TEST_CASE("replace_bookmark_with_table_rows expands a template row inside an existing table") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_replace_table_rows.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tblGrid>
+        <w:gridCol w:w="2400"/>
+        <w:gridCol w:w="2400"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Name</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Qty</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr><w:cantSplit/></w:trPr>
+        <w:tc>
+          <w:tcPr><w:shd w:fill="AAAAAA"/></w:tcPr>
+          <w:p>
+            <w:pPr><w:jc w:val="center"/></w:pPr>
+            <w:bookmarkStart w:id="0" w:name="item_row"/>
+            <w:r><w:rPr><w:b/></w:rPr><w:t>template name</w:t></w:r>
+            <w:bookmarkEnd w:id="0"/>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr><w:shd w:fill="BBBBBB"/></w:tcPr>
+          <w:p>
+            <w:pPr><w:jc w:val="right"/></w:pPr>
+            <w:r><w:rPr><w:i/></w:rPr><w:t>template qty</w:t></w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Total</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>7</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_EQ(doc.replace_bookmark_with_table_rows(
+                 "item_row", {{"Apple", "2"}, {"Pear", "5"}}),
+             1);
+    CHECK_FALSE(doc.last_error());
+    CHECK_EQ(collect_table_text(doc), "Name\nQty\nApple\n2\nPear\n5\nTotal\n7\n");
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(saved_document_xml.find("template name"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("template qty"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("w:name=\"item_row\""), std::string::npos);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "w:fill=\"AAAAAA\""), 2);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "w:fill=\"BBBBBB\""), 2);
+
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(saved_document_xml.c_str()));
+    const auto table = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table != pugi::xml_node{});
+    CHECK_EQ(count_named_children(table, "w:tr"), 4);
+    CHECK_EQ(count_named_descendants(table, "w:cantSplit"), 2);
+    CHECK_EQ(count_named_descendants(table, "w:b"), 2);
+    CHECK_EQ(count_named_descendants(table, "w:i"), 2);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "Name\nQty\nApple\n2\nPear\n5\nTotal\n7\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("replace_bookmark_with_table_rows accepts an empty replacement list") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_replace_table_rows_empty.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tblGrid>
+        <w:gridCol w:w="2400"/>
+        <w:gridCol w:w="2400"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Name</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Qty</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:p>
+            <w:bookmarkStart w:id="0" w:name="item_row"/>
+            <w:r><w:t>template name</w:t></w:r>
+            <w:bookmarkEnd w:id="0"/>
+          </w:p>
+        </w:tc>
+        <w:tc><w:p><w:r><w:t>template qty</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Total</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>7</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_EQ(doc.replace_bookmark_with_table_rows("item_row", {}), 1);
+    CHECK_FALSE(doc.last_error());
+    CHECK_EQ(collect_table_text(doc), "Name\nQty\nTotal\n7\n");
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(saved_document_xml.find("template name"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("template qty"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("w:name=\"item_row\""), std::string::npos);
+
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(saved_document_xml.c_str()));
+    const auto table = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table != pugi::xml_node{});
+    CHECK_EQ(count_named_children(table, "w:tr"), 2);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "Name\nQty\nTotal\n7\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("replace_bookmark_with_table_rows rejects mismatched row widths") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_replace_table_rows_validation.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tblGrid>
+        <w:gridCol w:w="2400"/>
+        <w:gridCol w:w="2400"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:p>
+            <w:bookmarkStart w:id="0" w:name="item_row"/>
+            <w:r><w:t>template name</w:t></w:r>
+            <w:bookmarkEnd w:id="0"/>
+          </w:p>
+        </w:tc>
+        <w:tc><w:p><w:r><w:t>template qty</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_EQ(doc.replace_bookmark_with_table_rows("item_row", {{"Apple"}}), 0);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_NE(doc.last_error().detail.find("cell count"), std::string::npos);
+    CHECK_EQ(collect_table_text(doc), "template name\ntemplate qty\n");
+
+    fs::remove(target);
+}
+
 TEST_CASE("replace_bookmark_with_image swaps a standalone bookmark paragraph for an inline image") {
     namespace fs = std::filesystem;
 
@@ -3293,6 +3499,9 @@ TEST_CASE("block bookmark replacements reject bookmarks that do not occupy their
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.open());
     CHECK_EQ(doc.replace_bookmark_with_paragraphs("block", {"A", "B"}), 0);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK_EQ(doc.replace_bookmark_with_table_rows("block", {{"A"}}), 0);
     CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
 
     CHECK_EQ(doc.replace_bookmark_with_table("block", {{"A"}}), 0);

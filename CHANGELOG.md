@@ -28,6 +28,9 @@ performance.
   template API.
 - `replace_bookmark_with_paragraphs(...)` for replacing standalone bookmark
   paragraphs with zero or more generated plain-text paragraphs.
+- `replace_bookmark_with_table_rows(...)` for expanding a standalone bookmark
+  paragraph inside a template table row into zero or more cloned rows whose
+  cell bodies are rewritten from plain-text data.
 - `replace_bookmark_with_table(...)` and `replace_bookmark_with_image(...)`
   for replacing standalone bookmark paragraphs with generated table/image
   blocks.

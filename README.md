@@ -315,6 +315,22 @@ doc.replace_bookmark_with_paragraphs(
     });
 ```
 
+Use `replace_bookmark_with_table_rows(...)` when a bookmark occupies its own
+paragraph inside a template table row and that row should expand into zero or
+more cloned rows. The template row's row/cell properties are preserved, while
+each generated cell body is rewritten to a single plain-text paragraph. Passing
+an empty list removes the template row entirely.
+
+```cpp
+doc.replace_bookmark_with_table_rows(
+    "line_item_row",
+    {
+        {"Apple", "2"},
+        {"Pear", "5"},
+        {"Orange", "1"},
+    });
+```
+
 Use `replace_bookmark_with_table(...)` when a bookmark occupies its own
 paragraph and should be replaced by a generated table block.
 
@@ -553,12 +569,12 @@ if (const auto error = doc.save()) {
   inspection, or inheritance-aware style management.
 - A first bookmark-based batch template API now exists through
   `fill_bookmarks(...)`, and standalone bookmark paragraphs can now be replaced
-  by generated paragraphs, tables, or inline images through
+  by generated paragraphs, cloned table rows, tables, or inline images through
   `replace_bookmark_with_paragraphs(...)`,
+  `replace_bookmark_with_table_rows(...)`,
   `replace_bookmark_with_table(...)`, and `replace_bookmark_with_image(...)`,
-  but there is still no high-level API for repeated table row expansion,
-  conditional sections, header/footer template filling, or structured template
-  schema validation.
+  but there is still no high-level API for conditional sections, header/footer
+  template filling, or structured template schema validation.
 - Images can now be appended as inline body drawings, but there is still no
   high-level API for reading existing images, floating/anchored placement,
   wrapping, cropping, or header/footer image insertion.

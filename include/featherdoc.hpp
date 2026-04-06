@@ -365,6 +365,8 @@ class Document {
         std::initializer_list<bookmark_text_binding> bindings);
     [[nodiscard]] std::size_t replace_bookmark_with_paragraphs(
         std::string_view bookmark_name, const std::vector<std::string> &paragraphs);
+    [[nodiscard]] std::size_t replace_bookmark_with_table_rows(
+        std::string_view bookmark_name, const std::vector<std::vector<std::string>> &rows);
     [[nodiscard]] std::size_t replace_bookmark_with_table(
         std::string_view bookmark_name, const std::vector<std::vector<std::string>> &rows);
     [[nodiscard]] std::size_t replace_bookmark_with_image(

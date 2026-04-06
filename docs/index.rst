@@ -301,6 +301,22 @@ list removes the placeholder paragraph.
             "Orange",
         });
 
+``replace_bookmark_with_table_rows(...)`` replaces a bookmark that occupies
+its own paragraph inside a template table row with zero or more cloned rows.
+The template row's row/cell properties are preserved, while each generated
+cell body is rewritten to a single plain-text paragraph. Passing an empty list
+removes the template row.
+
+.. code-block:: cpp
+
+    doc.replace_bookmark_with_table_rows(
+        "line_item_row",
+        {
+            {"Apple", "2"},
+            {"Pear", "5"},
+            {"Orange", "1"},
+        });
+
 ``replace_bookmark_with_table(...)`` replaces a bookmark that occupies its own
 paragraph with a generated table block.
 
@@ -541,12 +557,14 @@ Current Limitations
   catalog inspection, or inheritance-aware style management.
 - A first bookmark-based batch template API now exists through
   ``fill_bookmarks(...)``, and standalone bookmark paragraphs can now be
-  replaced by generated paragraphs, tables, or inline images through
+  replaced by generated paragraphs, cloned table rows, tables, or inline
+  images through
   ``replace_bookmark_with_paragraphs(...)``,
+  ``replace_bookmark_with_table_rows(...)``,
   ``replace_bookmark_with_table(...)``, and
   ``replace_bookmark_with_image(...)``, but there is still no high-level API
-  for repeated table row expansion, conditional sections, header/footer
-  template filling, or structured template schema validation.
+  for conditional sections, header/footer template filling, or structured
+  template schema validation.
 - Images can now be appended as inline body drawings, but there is still no
   high-level API for reading existing images, floating placement, wrapping,
   cropping, or header/footer image insertion.

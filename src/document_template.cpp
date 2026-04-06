@@ -2,6 +2,7 @@
 #include "image_helpers.hpp"
 #include "xml_helpers.hpp"
 
+#include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <span>
@@ -18,6 +19,12 @@ struct block_bookmark_placeholder final {
     pugi::xml_node paragraph;
     pugi::xml_node bookmark_start;
     pugi::xml_node bookmark_end;
+};
+
+struct table_row_bookmark_placeholder final {
+    pugi::xml_node table;
+    pugi::xml_node row;
+    std::size_t cell_count;
 };
 
 auto set_last_error(featherdoc::document_error_info &error_info,
@@ -187,6 +194,228 @@ auto collect_block_bookmark_placeholders(featherdoc::document_error_info &last_e
         }
 
         placeholders.push_back({paragraph, bookmark_start, bookmark_end});
+    }
+
+    return true;
+}
+
+auto count_named_children(pugi::xml_node parent, std::string_view child_name)
+    -> std::size_t {
+    std::size_t count = 0U;
+    for (auto child = parent.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::string_view{child.name()} == child_name) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+auto rewrite_paragraph_plain_text(pugi::xml_node paragraph, std::string_view text) -> bool {
+    if (paragraph == pugi::xml_node{}) {
+        return false;
+    }
+
+    pugi::xml_document run_properties_storage;
+    pugi::xml_node run_properties;
+    for (auto child = paragraph.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::string_view{child.name()} == "w:r") {
+            const auto source_run_properties = child.child("w:rPr");
+            if (source_run_properties != pugi::xml_node{}) {
+                run_properties = run_properties_storage.append_copy(source_run_properties);
+                break;
+            }
+        }
+    }
+
+    for (auto child = paragraph.first_child(); child != pugi::xml_node{};) {
+        const auto next = child.next_sibling();
+        if (std::string_view{child.name()} != "w:pPr") {
+            paragraph.remove_child(child);
+        }
+        child = next;
+    }
+
+    if (text.empty()) {
+        return true;
+    }
+
+    auto run = paragraph.append_child("w:r");
+    if (run == pugi::xml_node{}) {
+        return false;
+    }
+
+    if (run_properties != pugi::xml_node{} && run.append_copy(run_properties) == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto text_node = run.append_child("w:t");
+    if (text_node == pugi::xml_node{}) {
+        return false;
+    }
+
+    const std::string text_buffer{text};
+    featherdoc::detail::update_xml_space_attribute(text_node, text_buffer.c_str());
+    return text_node.text().set(text_buffer.c_str());
+}
+
+auto rewrite_table_cell_plain_text(pugi::xml_node cell, std::string_view text) -> bool {
+    if (cell == pugi::xml_node{}) {
+        return false;
+    }
+
+    pugi::xml_node paragraph;
+    for (auto child = cell.first_child(); child != pugi::xml_node{};) {
+        const auto next = child.next_sibling();
+        const auto child_name = std::string_view{child.name()};
+        if (child_name == "w:tcPr") {
+            child = next;
+            continue;
+        }
+
+        if (child_name == "w:p" && paragraph == pugi::xml_node{}) {
+            paragraph = child;
+            child = next;
+            continue;
+        }
+
+        cell.remove_child(child);
+        child = next;
+    }
+
+    if (paragraph == pugi::xml_node{}) {
+        paragraph = featherdoc::detail::append_paragraph_node(cell);
+        if (paragraph == pugi::xml_node{}) {
+            return false;
+        }
+    }
+
+    return rewrite_paragraph_plain_text(paragraph, text);
+}
+
+auto collect_table_row_bookmark_placeholders(
+    featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
+    std::string_view bookmark_name, std::vector<table_row_bookmark_placeholder> &placeholders)
+    -> bool {
+    std::vector<block_bookmark_placeholder> block_placeholders;
+    if (!collect_block_bookmark_placeholders(last_error_info, document, bookmark_name,
+                                             block_placeholders)) {
+        return false;
+    }
+
+    for (const auto &placeholder : block_placeholders) {
+        const auto cell = placeholder.paragraph.parent();
+        if (cell == pugi::xml_node{} || std::string_view{cell.name()} != "w:tc") {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "table row replacement requires the bookmark paragraph to live "
+                           "inside a table cell",
+                           std::string{document_xml_entry});
+            return false;
+        }
+
+        const auto row = cell.parent();
+        if (row == pugi::xml_node{} || std::string_view{row.name()} != "w:tr") {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "table row replacement requires the bookmark paragraph to live "
+                           "inside a table row",
+                           std::string{document_xml_entry});
+            return false;
+        }
+
+        const auto table = row.parent();
+        if (table == pugi::xml_node{} || std::string_view{table.name()} != "w:tbl") {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "table row replacement requires the bookmark row to belong to a "
+                           "table",
+                           std::string{document_xml_entry});
+            return false;
+        }
+
+        for (const auto &existing : placeholders) {
+            if (existing.row == row) {
+                set_last_error(last_error_info,
+                               std::make_error_code(std::errc::invalid_argument),
+                               "table row replacement requires each template row to contain "
+                               "the target bookmark at most once",
+                               std::string{document_xml_entry});
+                return false;
+            }
+        }
+
+        const auto cell_count = count_named_children(row, "w:tc");
+        if (cell_count == 0U) {
+            set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                           "table row replacement requires the template row to contain at "
+                           "least one cell",
+                           std::string{document_xml_entry});
+            return false;
+        }
+
+        placeholders.push_back({table, row, cell_count});
+    }
+
+    return true;
+}
+
+auto replace_placeholder_with_table_rows(
+    featherdoc::document_error_info &last_error_info,
+    table_row_bookmark_placeholder placeholder,
+    const std::vector<std::vector<std::string>> &rows) -> bool {
+    if (placeholder.table == pugi::xml_node{} || placeholder.row == pugi::xml_node{}) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "failed to resolve the placeholder row for table row replacement",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    if (placeholder.row.parent() != placeholder.table) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "failed to resolve the placeholder row parent table",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    for (const auto &row_values : rows) {
+        if (row_values.size() != placeholder.cell_count) {
+            set_last_error(
+                last_error_info, std::make_error_code(std::errc::invalid_argument),
+                "replacement table row cell count must exactly match the template row cell "
+                "count",
+                std::string{document_xml_entry});
+            return false;
+        }
+    }
+
+    for (const auto &row_values : rows) {
+        auto row_copy = placeholder.table.insert_copy_before(placeholder.row, placeholder.row);
+        if (row_copy == pugi::xml_node{}) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to clone the template row before the bookmark row",
+                           std::string{document_xml_entry});
+            return false;
+        }
+
+        std::size_t cell_index = 0U;
+        for (auto cell = row_copy.child("w:tc"); cell != pugi::xml_node{};
+             cell = featherdoc::detail::next_named_sibling(cell, "w:tc"), ++cell_index) {
+            if (!rewrite_table_cell_plain_text(cell, row_values[cell_index])) {
+                set_last_error(last_error_info,
+                               std::make_error_code(std::errc::not_enough_memory),
+                               "failed to rewrite a cloned template row cell",
+                               std::string{document_xml_entry});
+                return false;
+            }
+        }
+    }
+
+    if (!placeholder.table.remove_child(placeholder.row)) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::not_enough_memory),
+                       "failed to remove the bookmark placeholder row after table row "
+                       "replacement",
+                       std::string{document_xml_entry});
+        return false;
     }
 
     return true;
@@ -420,6 +649,46 @@ std::size_t Document::replace_bookmark_with_paragraphs(
     for (const auto &placeholder : placeholders) {
         if (!replace_placeholder_with_plain_text_paragraphs(
                 this->last_error_info, placeholder.paragraph, paragraphs)) {
+            return 0U;
+        }
+        ++replaced;
+    }
+
+    this->last_error_info.clear();
+    return replaced;
+}
+
+std::size_t Document::replace_bookmark_with_table_rows(
+    std::string_view bookmark_name, const std::vector<std::vector<std::string>> &rows) {
+    if (!this->is_open()) {
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before replacing a bookmark with table rows");
+        return 0U;
+    }
+
+    if (bookmark_name.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "bookmark name must not be empty",
+                       std::string{document_xml_entry});
+        return 0U;
+    }
+
+    std::vector<table_row_bookmark_placeholder> placeholders;
+    if (!collect_table_row_bookmark_placeholders(this->last_error_info, this->document,
+                                                 bookmark_name, placeholders)) {
+        return 0U;
+    }
+
+    if (placeholders.empty()) {
+        this->last_error_info.clear();
+        return 0U;
+    }
+
+    std::size_t replaced = 0U;
+    for (const auto &placeholder : placeholders) {
+        if (!replace_placeholder_with_table_rows(this->last_error_info, placeholder, rows)) {
             return 0U;
         }
         ++replaced;
