@@ -371,3 +371,52 @@ TEST_CASE("cli can show and replace section header footer text") {
     remove_if_exists(footer_updated);
     remove_if_exists(shown_footer);
 }
+
+TEST_CASE("cli inspect and show commands support json output") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_sections_json_source.docx";
+    const fs::path inspect_output = working_directory / "cli_sections_json_inspect.txt";
+    const fs::path shown_header = working_directory / "cli_sections_json_header.txt";
+    const fs::path shown_missing_footer =
+        working_directory / "cli_sections_json_missing_footer.txt";
+
+    remove_if_exists(source);
+    remove_if_exists(inspect_output);
+    remove_if_exists(shown_header);
+    remove_if_exists(shown_missing_footer);
+
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"inspect-sections", source.string(), "--json"}, inspect_output), 0);
+    CHECK_EQ(
+        read_text_file(inspect_output),
+        std::string{
+            "{\"sections\":3,\"headers\":2,\"footers\":1,\"section_layouts\":["
+            "{\"index\":0,\"header\":{\"default\":true,\"first\":false,\"even\":false},"
+            "\"footer\":{\"default\":false,\"first\":false,\"even\":false}},"
+            "{\"index\":1,\"header\":{\"default\":true,\"first\":false,\"even\":false},"
+            "\"footer\":{\"default\":false,\"first\":true,\"even\":false}},"
+            "{\"index\":2,\"header\":{\"default\":false,\"first\":false,\"even\":false},"
+            "\"footer\":{\"default\":false,\"first\":false,\"even\":false}}]}\n"});
+
+    CHECK_EQ(run_cli({"show-section-header", source.string(), "1", "--json"},
+                     shown_header),
+             0);
+    CHECK_EQ(read_text_file(shown_header),
+             std::string{
+                 "{\"part\":\"header\",\"section\":1,\"kind\":\"default\","
+                 "\"present\":true,\"paragraphs\":[\"section 1 header\"]}\n"});
+
+    CHECK_EQ(run_cli({"show-section-footer", source.string(), "2", "--json"},
+                     shown_missing_footer),
+             0);
+    CHECK_EQ(read_text_file(shown_missing_footer),
+             std::string{
+                 "{\"part\":\"footer\",\"section\":2,\"kind\":\"default\","
+                 "\"present\":false,\"paragraphs\":[]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(inspect_output);
+    remove_if_exists(shown_header);
+    remove_if_exists(shown_missing_footer);
+}

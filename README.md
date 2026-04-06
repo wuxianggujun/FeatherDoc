@@ -40,11 +40,13 @@ section-aware header/footer APIs.
 
 ```bash
 featherdoc_cli inspect-sections input.docx
+featherdoc_cli inspect-sections input.docx --json
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx
 featherdoc_cli copy-section-layout input.docx 0 2 --output copied.docx
 featherdoc_cli move-section input.docx 2 0 --output reordered.docx
 featherdoc_cli remove-section input.docx 3 --output trimmed.docx
 featherdoc_cli show-section-header input.docx 1 --kind even
+featherdoc_cli show-section-footer input.docx 2 --json
 featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx
 featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt
 ```
@@ -52,12 +54,16 @@ featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.tx
 `inspect-sections` prints the current section count together with per-section
 header/footer attachment flags for `default`, `first`, and `even` references.
 The mutating commands save in place by default; pass `--output <path>` to write
-to a separate `.docx`.
+to a separate `.docx`. Pass `--json` to `inspect-sections` when you need the
+same section layout information in a machine-readable object.
 
 `show-section-header` / `show-section-footer` print the referenced paragraphs
 one line per paragraph. `set-section-header` / `set-section-footer` rewrite the
 target part as plain paragraphs from `--text` or `--text-file`, and create the
 requested section reference automatically when it does not exist yet.
+`show-section-header` / `show-section-footer` also accept `--json`, which emits
+`part`, `section`, `kind`, `present`, and `paragraphs` fields for scriptable
+inspection.
 
 ## Install
 

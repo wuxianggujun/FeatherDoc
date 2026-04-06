@@ -50,6 +50,8 @@ performance.
 - `featherdoc_cli` `show-section-header`, `show-section-footer`,
   `set-section-header`, and `set-section-footer` commands for section-level
   text inspection and replacement.
+- `featherdoc_cli inspect-sections --json` and `show-section-header/footer
+  --json` output for machine-readable section layout and paragraph inspection.
 - Automatic `w:titlePg` / `w:evenAndOddHeaders` enablement plus
   `word/settings.xml` read/write support when first-page or even-page
   header/footer references are created.

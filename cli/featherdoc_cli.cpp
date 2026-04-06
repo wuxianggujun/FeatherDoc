@@ -18,12 +18,17 @@ struct command_options {
     std::optional<path_type> output_path;
 };
 
+struct inspect_options {
+    bool json_output = false;
+};
+
 struct section_text_options {
     featherdoc::section_reference_kind reference_kind =
         featherdoc::section_reference_kind::default_reference;
     std::optional<path_type> output_path;
     std::optional<std::string> text;
     std::optional<path_type> text_file;
+    bool json_output = false;
 };
 
 enum class section_part_family {
@@ -35,6 +40,7 @@ void print_usage(std::ostream &stream) {
     stream
         << "Usage:\n"
         << "  featherdoc_cli inspect-sections <input.docx>\n"
+        << "    [--json]\n"
         << "  featherdoc_cli insert-section <input.docx> <section-index>"
            " [--no-inherit] [--output <path>]\n"
         << "  featherdoc_cli remove-section <input.docx> <section-index>"
@@ -44,9 +50,9 @@ void print_usage(std::ostream &stream) {
         << "  featherdoc_cli copy-section-layout <input.docx> <source-index>"
            " <target-index> [--output <path>]\n"
         << "  featherdoc_cli show-section-header <input.docx> <section-index>"
-           " [--kind default|first|even]\n"
+           " [--kind default|first|even] [--json]\n"
         << "  featherdoc_cli show-section-footer <input.docx> <section-index>"
-           " [--kind default|first|even]\n"
+           " [--kind default|first|even] [--json]\n"
         << "  featherdoc_cli set-section-header <input.docx> <section-index>"
            " (--text <text> | --text-file <path>)"
            " [--kind default|first|even] [--output <path>]\n"
@@ -133,9 +139,26 @@ auto parse_options(const std::vector<std::string_view> &arguments,
     return true;
 }
 
+auto parse_inspect_options(const std::vector<std::string_view> &arguments,
+                           std::size_t start_index, inspect_options &options,
+                           std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        if (arguments[index] == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(arguments[index]);
+        return false;
+    }
+
+    return true;
+}
+
 auto parse_section_text_options(const std::vector<std::string_view> &arguments,
                                 std::size_t start_index, bool require_text_source,
-                                bool allow_output, section_text_options &options,
+                                bool allow_output, bool allow_json,
+                                section_text_options &options,
                                 std::string &error_message) -> bool {
     for (std::size_t index = start_index; index < arguments.size(); ++index) {
         const auto argument = arguments[index];
@@ -167,6 +190,16 @@ auto parse_section_text_options(const std::vector<std::string_view> &arguments,
 
             options.output_path = path_type(std::string(arguments[index + 1U]));
             ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            if (!allow_json) {
+                error_message = "--json is not supported by this command";
+                return false;
+            }
+
+            options.json_output = true;
             continue;
         }
 
@@ -250,6 +283,14 @@ auto collect_paragraph_text(featherdoc::Paragraph paragraph) -> std::string {
     return text;
 }
 
+auto collect_part_lines(featherdoc::Paragraph paragraph) -> std::vector<std::string> {
+    std::vector<std::string> lines;
+    for (; paragraph.has_next(); paragraph.next()) {
+        lines.push_back(collect_paragraph_text(paragraph));
+    }
+    return lines;
+}
+
 auto section_part_paragraphs(featherdoc::Document &doc, section_part_family family,
                              std::size_t section_index,
                              featherdoc::section_reference_kind reference_kind)
@@ -261,7 +302,105 @@ auto section_part_paragraphs(featherdoc::Document &doc, section_part_family fami
     return doc.section_footer_paragraphs(section_index, reference_kind);
 }
 
-void inspect_sections(featherdoc::Document &doc) {
+auto json_escape(std::string_view text) -> std::string {
+    std::string escaped;
+    escaped.reserve(text.size());
+    for (const char ch : text) {
+        switch (ch) {
+        case '\\':
+            escaped += "\\\\";
+            break;
+        case '"':
+            escaped += "\\\"";
+            break;
+        case '\b':
+            escaped += "\\b";
+            break;
+        case '\f':
+            escaped += "\\f";
+            break;
+        case '\n':
+            escaped += "\\n";
+            break;
+        case '\r':
+            escaped += "\\r";
+            break;
+        case '\t':
+            escaped += "\\t";
+            break;
+        default:
+            escaped += ch;
+            break;
+        }
+    }
+    return escaped;
+}
+
+void write_json_string(std::ostream &stream, std::string_view text) {
+    stream << '"' << json_escape(text) << '"';
+}
+
+void write_json_lines(std::ostream &stream, const std::vector<std::string> &lines) {
+    stream << '[';
+    for (std::size_t index = 0; index < lines.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_string(stream, lines[index]);
+    }
+    stream << ']';
+}
+
+void write_json_section_flags(std::ostream &stream, featherdoc::Document &doc,
+                              std::size_t section_index, section_part_family family) {
+    const auto has_default =
+        family == section_part_family::header
+            ? has_section_header(doc, section_index,
+                                 featherdoc::section_reference_kind::default_reference)
+            : has_section_footer(doc, section_index,
+                                 featherdoc::section_reference_kind::default_reference);
+    const auto has_first =
+        family == section_part_family::header
+            ? has_section_header(doc, section_index,
+                                 featherdoc::section_reference_kind::first_page)
+            : has_section_footer(doc, section_index,
+                                 featherdoc::section_reference_kind::first_page);
+    const auto has_even =
+        family == section_part_family::header
+            ? has_section_header(doc, section_index,
+                                 featherdoc::section_reference_kind::even_page)
+            : has_section_footer(doc, section_index,
+                                 featherdoc::section_reference_kind::even_page);
+
+    stream << "{\"default\":" << (has_default ? "true" : "false")
+           << ",\"first\":" << (has_first ? "true" : "false")
+           << ",\"even\":" << (has_even ? "true" : "false") << '}';
+}
+
+void inspect_sections(featherdoc::Document &doc, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"sections\":" << doc.section_count()
+                  << ",\"headers\":" << doc.header_count()
+                  << ",\"footers\":" << doc.footer_count()
+                  << ",\"section_layouts\":[";
+        for (std::size_t section_index = 0; section_index < doc.section_count();
+             ++section_index) {
+            if (section_index != 0U) {
+                std::cout << ',';
+            }
+
+            std::cout << "{\"index\":" << section_index << ",\"header\":";
+            write_json_section_flags(std::cout, doc, section_index,
+                                     section_part_family::header);
+            std::cout << ",\"footer\":";
+            write_json_section_flags(std::cout, doc, section_index,
+                                     section_part_family::footer);
+            std::cout << '}';
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
     std::cout << "sections: " << doc.section_count() << '\n';
     std::cout << "headers: " << doc.header_count() << '\n';
     std::cout << "footers: " << doc.footer_count() << '\n';
@@ -346,16 +485,32 @@ auto open_document(const path_type &input_path, featherdoc::Document &doc) -> bo
 
 auto show_section_text(featherdoc::Document &doc, section_part_family family,
                        std::size_t section_index,
-                       featherdoc::section_reference_kind reference_kind) -> bool {
-    auto paragraph = section_part_paragraphs(doc, family, section_index, reference_kind);
-    if (!paragraph.has_next()) {
+                       featherdoc::section_reference_kind reference_kind,
+                       bool json_output) -> bool {
+    const auto lines = collect_part_lines(
+        section_part_paragraphs(doc, family, section_index, reference_kind));
+
+    if (json_output) {
+        std::cout << "{\"part\":";
+        write_json_string(std::cout, section_part_name(family));
+        std::cout << ",\"section\":" << section_index << ",\"kind\":";
+        write_json_string(std::cout,
+                          featherdoc::to_xml_reference_type(reference_kind));
+        std::cout << ",\"present\":" << (!lines.empty() ? "true" : "false")
+                  << ",\"paragraphs\":";
+        write_json_lines(std::cout, lines);
+        std::cout << "}\n";
+        return true;
+    }
+
+    if (lines.empty()) {
         std::cerr << "section " << section_part_name(family)
                   << " reference not found\n";
         return false;
     }
 
-    for (; paragraph.has_next(); paragraph.next()) {
-        std::cout << collect_paragraph_text(paragraph) << '\n';
+    for (const auto &line : lines) {
+        std::cout << line << '\n';
     }
 
     return true;
@@ -390,8 +545,15 @@ int main(int argc, char **argv) {
     featherdoc::Document doc;
 
     if (command == "inspect-sections") {
-        if (arguments.size() != 2U) {
-            print_parse_error("inspect-sections expects exactly one input path");
+        if (arguments.size() < 2U) {
+            print_parse_error("inspect-sections expects an input path");
+            return 2;
+        }
+
+        inspect_options options;
+        std::string error_message;
+        if (!parse_inspect_options(arguments, 2U, options, error_message)) {
+            print_parse_error(error_message);
             return 2;
         }
 
@@ -399,7 +561,7 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        inspect_sections(doc);
+        inspect_sections(doc, options.json_output);
         return 0;
     }
 
@@ -560,7 +722,7 @@ int main(int argc, char **argv) {
 
         section_text_options options;
         std::string error_message;
-        if (!parse_section_text_options(arguments, 3U, false, false, options,
+        if (!parse_section_text_options(arguments, 3U, false, false, true, options,
                                         error_message)) {
             print_parse_error(error_message);
             return 2;
@@ -575,7 +737,7 @@ int main(int argc, char **argv) {
                    command == "show-section-header"
                        ? section_part_family::header
                        : section_part_family::footer,
-                   section_index, options.reference_kind)
+                   section_index, options.reference_kind, options.json_output)
                    ? 0
                    : 1;
     }
@@ -596,7 +758,7 @@ int main(int argc, char **argv) {
 
         section_text_options options;
         std::string error_message;
-        if (!parse_section_text_options(arguments, 3U, true, true, options,
+        if (!parse_section_text_options(arguments, 3U, true, true, false, options,
                                         error_message)) {
             print_parse_error(error_message);
             return 2;
