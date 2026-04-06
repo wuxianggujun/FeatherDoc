@@ -172,6 +172,20 @@ want explicit scaling. The current image support is limited to ``.png``,
     doc.append_image("logo.png");
     doc.append_image("badge.png", 96, 48);
 
+``set_paragraph_list(paragraph, kind, level)`` attaches managed bullet or
+decimal numbering to a paragraph. Use ``clear_paragraph_list(paragraph)`` when
+you want to remove the list marker again.
+
+.. code-block:: cpp
+
+    auto item = doc.paragraphs();
+    doc.set_paragraph_list(item, featherdoc::list_kind::bullet);
+    item.add_run("first item");
+
+    auto nested = item.insert_paragraph_after("");
+    doc.set_paragraph_list(nested, featherdoc::list_kind::decimal, 1);
+    nested.add_run("nested item");
+
 Formatting
 ----------
 Use the scoped formatting flags when creating new runs.
@@ -446,6 +460,9 @@ Current Limitations
 - Word equations (``OMML``) are not surfaced through a typed equation API.
 - Tables can now be appended and extended structurally, but there is still no
   high-level API for cell merges, widths, borders, or table styling.
+- Paragraphs can now be attached to managed bullet and decimal lists, but
+  there is still no high-level API for custom numbering definitions, list
+  restarts, or paragraph style-based numbering.
 - Images can now be appended as inline body drawings, but there is still no
   high-level API for reading existing images, floating placement, wrapping,
   cropping, or header/footer image insertion.
@@ -457,6 +474,7 @@ staying in one large translation unit:
 
 - ``src/document.cpp``: ``Document`` open/save flow, ZIP archive handling, and diagnostics
 - ``src/document_image.cpp``: inline body image insertion, media part allocation, and drawing relationship updates
+- ``src/document_numbering.cpp``: managed paragraph list numbering, numbering part attachment, and numbering definition generation
 - ``src/paragraph.cpp``: paragraph traversal, run creation, and paragraph insertion
 - ``src/image_helpers.cpp`` / ``src/image_helpers.hpp``: image binary loading plus file format and size detection helpers
 - ``src/run.cpp``: run traversal and text read/write behavior

@@ -16,6 +16,9 @@ performance.
   newly created tables without dropping down to manual XML editing.
 - `append_image(path)` and `append_image(path, width_px, height_px)` for
   appending inline body images backed by managed `word/media/*` parts.
+- `set_paragraph_list(paragraph, kind, level)` and
+  `clear_paragraph_list(paragraph)` for attaching and removing managed bullet
+  and decimal list numbering on paragraphs.
 
 ### Changed
 
@@ -24,6 +27,9 @@ performance.
   remains valid when appending rows or cells.
 - Saving now emits newly appended image media parts together with matching
   `document.xml.rels` and `[Content_Types].xml` updates.
+- Saving now emits managed `word/numbering.xml` content together with matching
+  `document.xml.rels` and `[Content_Types].xml` updates when paragraph lists
+  are used.
 
 ## [1.1.0] - 2026-04-06
 

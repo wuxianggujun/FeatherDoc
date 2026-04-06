@@ -55,6 +55,11 @@ enum class section_reference_kind : std::uint8_t {
     even_page,
 };
 
+enum class list_kind : std::uint8_t {
+    bullet = 0U,
+    decimal,
+};
+
 [[nodiscard]] constexpr auto to_xml_reference_type(
     section_reference_kind kind) noexcept -> std::string_view {
     switch (kind) {
@@ -85,6 +90,8 @@ enum class document_errc {
     document_xml_parse_failed,
     content_types_xml_read_failed,
     content_types_xml_parse_failed,
+    numbering_xml_read_failed,
+    numbering_xml_parse_failed,
     image_file_read_failed,
     image_format_unsupported,
     image_size_read_failed,

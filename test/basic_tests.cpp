@@ -3154,3 +3154,116 @@ TEST_CASE("append_image reports unsupported image extensions explicitly") {
 
     fs::remove(image_path);
 }
+
+TEST_CASE("set_paragraph_list creates numbering parts and preserves them across reopen save") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "paragraph_list_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto first_item = doc.paragraphs();
+    CHECK(doc.set_paragraph_list(first_item, featherdoc::list_kind::bullet));
+    CHECK(first_item.add_run("bullet 0").has_next());
+
+    auto nested_item = first_item.insert_paragraph_after("");
+    CHECK(doc.set_paragraph_list(nested_item, featherdoc::list_kind::bullet, 1U));
+    CHECK(nested_item.add_run("bullet 1").has_next());
+
+    auto decimal_item = nested_item.insert_paragraph_after("");
+    CHECK(doc.set_paragraph_list(decimal_item, featherdoc::list_kind::decimal));
+    CHECK(decimal_item.add_run("decimal 0").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    CHECK(test_docx_entry_exists(target, "word/numbering.xml"));
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(saved_relationships.find(
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering\""),
+             std::string::npos);
+    CHECK_NE(saved_relationships.find("Target=\"numbering.xml\""), std::string::npos);
+
+    const auto saved_content_types = read_test_docx_entry(target, test_content_types_xml_entry);
+    CHECK_NE(saved_content_types.find("PartName=\"/word/numbering.xml\""), std::string::npos);
+    CHECK_NE(saved_content_types.find(
+                 "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"),
+             std::string::npos);
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:numPr>"), 3);
+
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(saved_document_xml.c_str()));
+    const auto body = xml_document.child("w:document").child("w:body");
+    auto first_paragraph = body.child("w:p");
+    REQUIRE(first_paragraph != pugi::xml_node{});
+    auto second_paragraph = first_paragraph.next_sibling("w:p");
+    REQUIRE(second_paragraph != pugi::xml_node{});
+    auto third_paragraph = second_paragraph.next_sibling("w:p");
+    REQUIRE(third_paragraph != pugi::xml_node{});
+
+    const auto first_num_pr = first_paragraph.child("w:pPr").child("w:numPr");
+    const auto second_num_pr = second_paragraph.child("w:pPr").child("w:numPr");
+    const auto third_num_pr = third_paragraph.child("w:pPr").child("w:numPr");
+    REQUIRE(first_num_pr != pugi::xml_node{});
+    REQUIRE(second_num_pr != pugi::xml_node{});
+    REQUIRE(third_num_pr != pugi::xml_node{});
+
+    CHECK_EQ(std::string{first_num_pr.child("w:ilvl").attribute("w:val").value()}, "0");
+    CHECK_EQ(std::string{second_num_pr.child("w:ilvl").attribute("w:val").value()}, "1");
+    CHECK_EQ(std::string{third_num_pr.child("w:ilvl").attribute("w:val").value()}, "0");
+    CHECK_EQ(std::string{first_num_pr.child("w:numId").attribute("w:val").value()},
+             std::string{second_num_pr.child("w:numId").attribute("w:val").value()});
+    CHECK_NE(std::string{first_num_pr.child("w:numId").attribute("w:val").value()},
+             std::string{third_num_pr.child("w:numId").attribute("w:val").value()});
+
+    const auto numbering_xml = read_test_docx_entry(target, "word/numbering.xml");
+    CHECK_NE(numbering_xml.find("FeatherDocBulletList"), std::string::npos);
+    CHECK_NE(numbering_xml.find("FeatherDocDecimalList"), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK(reopened.paragraphs().add_run("tail").has_next());
+    CHECK_FALSE(reopened.save());
+    CHECK(test_docx_entry_exists(target, "word/numbering.xml"));
+
+    fs::remove(target);
+}
+
+TEST_CASE("clear_paragraph_list removes numbering markup and invalid level is rejected") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "paragraph_list_clear.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>seed</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto paragraph = doc.paragraphs();
+    CHECK_FALSE(doc.set_paragraph_list(paragraph, featherdoc::list_kind::bullet, 9U));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK(doc.set_paragraph_list(paragraph, featherdoc::list_kind::bullet));
+    CHECK(doc.clear_paragraph_list(paragraph));
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:numPr>"), 0);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:pPr>"), 0);
+
+    fs::remove(target);
+}

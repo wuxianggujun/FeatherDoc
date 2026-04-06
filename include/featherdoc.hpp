@@ -53,6 +53,7 @@ class Run {
 class Paragraph {
   private:
     friend class IteratorHelper;
+    friend class Document;
     // Store parent node (usually the body node)
     pugi::xml_node parent;
     // And store current node also
@@ -183,6 +184,8 @@ class Document {
     [[nodiscard]] std::error_code ensure_content_types_loaded();
     [[nodiscard]] std::error_code ensure_settings_loaded();
     [[nodiscard]] std::error_code ensure_settings_part_attached();
+    [[nodiscard]] std::error_code ensure_numbering_loaded();
+    [[nodiscard]] std::error_code ensure_numbering_part_attached();
     [[nodiscard]] std::error_code ensure_even_and_odd_headers_enabled();
     [[nodiscard]] pugi::xml_node section_properties(std::size_t section_index) const;
     [[nodiscard]] pugi::xml_node ensure_section_properties(std::size_t section_index);
@@ -234,6 +237,7 @@ class Document {
     pugi::xml_document document_relationships;
     pugi::xml_document content_types;
     pugi::xml_document settings;
+    pugi::xml_document numbering;
     std::vector<std::unique_ptr<xml_part_state>> header_parts;
     std::vector<std::unique_ptr<xml_part_state>> footer_parts;
     std::vector<image_part_state> image_parts;
@@ -241,11 +245,14 @@ class Document {
     bool has_source_archive{false};
     bool has_document_relationships_part{false};
     bool has_settings_part{false};
+    bool has_numbering_part{false};
     bool document_relationships_dirty{false};
     bool content_types_loaded{false};
     bool content_types_dirty{false};
     bool settings_loaded{false};
     bool settings_dirty{false};
+    bool numbering_loaded{false};
+    bool numbering_dirty{false};
     mutable std::unordered_set<std::string> removed_related_part_entries;
     mutable document_error_info last_error_info;
 
@@ -323,6 +330,9 @@ class Document {
                                                     const std::string &replacement);
     [[nodiscard]] std::size_t replace_bookmark_text(const char *bookmark_name,
                                                     const char *replacement);
+    [[nodiscard]] bool set_paragraph_list(
+        Paragraph paragraph, featherdoc::list_kind kind, std::uint32_t level = 0U);
+    [[nodiscard]] bool clear_paragraph_list(Paragraph paragraph);
 
     Paragraph &paragraphs();
     Table &tables();
