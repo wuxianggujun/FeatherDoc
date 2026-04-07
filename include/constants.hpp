@@ -107,6 +107,15 @@ enum class cell_vertical_alignment : std::uint8_t {
     both,
 };
 
+enum class cell_text_direction : std::uint8_t {
+    left_to_right_top_to_bottom = 0U,
+    top_to_bottom_right_to_left,
+    bottom_to_top_left_to_right,
+    left_to_right_top_to_bottom_rotated,
+    top_to_bottom_right_to_left_rotated,
+    top_to_bottom_left_to_right_rotated,
+};
+
 enum class table_border_edge : std::uint8_t {
     top = 0U,
     left,

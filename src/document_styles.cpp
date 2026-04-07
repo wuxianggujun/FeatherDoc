@@ -275,6 +275,20 @@ auto read_language_attribute(pugi::xml_node run_language, const char *attribute_
     return std::string{attribute.value()};
 }
 
+auto read_on_off_value(pugi::xml_node node) -> std::optional<bool> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto attribute = node.attribute("w:val");
+    if (attribute == pugi::xml_attribute{} || attribute.value()[0] == '\0') {
+        return true;
+    }
+
+    const auto value = std::string_view{attribute.value()};
+    return value != "0" && value != "false" && value != "off";
+}
+
 auto read_primary_font_family(pugi::xml_node run_properties) -> std::optional<std::string> {
     const auto run_fonts = run_properties.child("w:rFonts");
     if (const auto ascii_font = read_font_family_attribute(run_fonts, "w:ascii")) {
@@ -300,6 +314,14 @@ auto read_east_asia_language(pugi::xml_node run_properties) -> std::optional<std
 
 auto read_bidi_language(pugi::xml_node run_properties) -> std::optional<std::string> {
     return read_language_attribute(run_properties.child("w:lang"), "w:bidi");
+}
+
+auto read_run_rtl(pugi::xml_node run_properties) -> std::optional<bool> {
+    return read_on_off_value(run_properties.child("w:rtl"));
+}
+
+auto read_paragraph_bidi(pugi::xml_node paragraph_properties) -> std::optional<bool> {
+    return read_on_off_value(paragraph_properties.child("w:bidi"));
 }
 
 auto ensure_paragraph_properties_node(pugi::xml_node paragraph) -> pugi::xml_node {
@@ -354,6 +376,23 @@ auto ensure_style_run_properties_node(pugi::xml_node style) -> pugi::xml_node {
     return style.append_child("w:rPr");
 }
 
+auto ensure_style_paragraph_properties_node(pugi::xml_node style) -> pugi::xml_node {
+    if (style == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto paragraph_properties = style.child("w:pPr");
+    if (paragraph_properties != pugi::xml_node{}) {
+        return paragraph_properties;
+    }
+
+    if (const auto run_properties = style.child("w:rPr"); run_properties != pugi::xml_node{}) {
+        return style.insert_child_before("w:pPr", run_properties);
+    }
+
+    return style.append_child("w:pPr");
+}
+
 auto ensure_run_fonts_node(pugi::xml_node run_properties) -> pugi::xml_node {
     if (run_properties == pugi::xml_node{}) {
         return {};
@@ -403,6 +442,51 @@ auto ensure_run_language_node(pugi::xml_node run_properties) -> pugi::xml_node {
     return run_properties.append_child("w:lang");
 }
 
+auto ensure_run_rtl_node(pugi::xml_node run_properties) -> pugi::xml_node {
+    if (run_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto rtl = run_properties.child("w:rtl");
+    if (rtl != pugi::xml_node{}) {
+        return rtl;
+    }
+
+    if (const auto run_language = run_properties.child("w:lang");
+        run_language != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:rtl", run_language);
+    }
+
+    if (const auto run_fonts = run_properties.child("w:rFonts");
+        run_fonts != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:rtl", run_fonts);
+    }
+
+    if (const auto run_style = run_properties.child("w:rStyle");
+        run_style != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:rtl", run_style);
+    }
+
+    if (const auto first_child = run_properties.first_child(); first_child != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:rtl", first_child);
+    }
+
+    return run_properties.append_child("w:rtl");
+}
+
+auto ensure_paragraph_bidi_node(pugi::xml_node paragraph_properties) -> pugi::xml_node {
+    if (paragraph_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto bidi = paragraph_properties.child("w:bidi");
+    if (bidi != pugi::xml_node{}) {
+        return bidi;
+    }
+
+    return paragraph_properties.append_child("w:bidi");
+}
+
 auto ensure_doc_defaults_node(pugi::xml_node styles_root) -> pugi::xml_node {
     if (styles_root == pugi::xml_node{}) {
         return {};
@@ -449,6 +533,44 @@ auto ensure_doc_defaults_run_properties_node(pugi::xml_node styles_root) -> pugi
     }
 
     return run_properties_default.append_child("w:rPr");
+}
+
+auto ensure_doc_defaults_paragraph_properties_node(pugi::xml_node styles_root)
+    -> pugi::xml_node {
+    auto doc_defaults = ensure_doc_defaults_node(styles_root);
+    if (doc_defaults == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto paragraph_properties_default = doc_defaults.child("w:pPrDefault");
+    if (paragraph_properties_default == pugi::xml_node{}) {
+        if (const auto run_properties_default = doc_defaults.child("w:rPrDefault");
+            run_properties_default != pugi::xml_node{}) {
+            paragraph_properties_default =
+                doc_defaults.insert_child_after("w:pPrDefault", run_properties_default);
+        } else if (const auto first_child = doc_defaults.first_child();
+                   first_child != pugi::xml_node{}) {
+            paragraph_properties_default =
+                doc_defaults.insert_child_before("w:pPrDefault", first_child);
+        } else {
+            paragraph_properties_default = doc_defaults.append_child("w:pPrDefault");
+        }
+    }
+    if (paragraph_properties_default == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto paragraph_properties = paragraph_properties_default.child("w:pPr");
+    if (paragraph_properties != pugi::xml_node{}) {
+        return paragraph_properties;
+    }
+
+    if (const auto first_child = paragraph_properties_default.first_child();
+        first_child != pugi::xml_node{}) {
+        return paragraph_properties_default.insert_child_before("w:pPr", first_child);
+    }
+
+    return paragraph_properties_default.append_child("w:pPr");
 }
 
 auto find_style_node(pugi::xml_node styles_root, std::string_view style_id) -> pugi::xml_node {
@@ -527,6 +649,27 @@ auto clear_language_attributes(pugi::xml_node run_properties) -> bool {
     removed = run_language.remove_attribute("w:bidi") || removed;
     remove_empty_run_language_node(run_properties);
     return removed;
+}
+
+void set_on_off_value(pugi::xml_node node, bool enabled) {
+    if (node == pugi::xml_node{}) {
+        return;
+    }
+
+    auto attribute = node.attribute("w:val");
+    if (attribute == pugi::xml_attribute{}) {
+        attribute = node.append_attribute("w:val");
+    }
+    attribute.set_value(enabled ? "1" : "0");
+}
+
+auto clear_on_off_child(pugi::xml_node parent, const char *child_name) -> bool {
+    if (parent == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto child = parent.child(child_name);
+    return child != pugi::xml_node{} && parent.remove_child(child);
 }
 
 void remove_empty_paragraph_properties(pugi::xml_node paragraph) {
@@ -889,6 +1032,56 @@ std::optional<std::string> Document::default_run_bidi_language() {
         styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"));
 }
 
+std::optional<bool> Document::default_run_rtl() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading default run direction",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    this->last_error_info.clear();
+    return read_run_rtl(
+        styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"));
+}
+
+std::optional<bool> Document::default_paragraph_bidi() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading default paragraph direction",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    this->last_error_info.clear();
+    return read_paragraph_bidi(
+        styles_root.child("w:docDefaults").child("w:pPrDefault").child("w:pPr"));
+}
+
 bool Document::set_default_run_font_family(std::string_view font_family) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
@@ -1149,6 +1342,94 @@ bool Document::set_default_run_bidi_language(std::string_view language) {
     return true;
 }
 
+bool Document::set_default_run_rtl(bool enabled) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_part_attached()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto run_properties = ensure_doc_defaults_run_properties_node(styles_root);
+    if (run_properties == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create docDefaults/w:rPrDefault/w:rPr",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto rtl = ensure_run_rtl_node(run_properties);
+    if (rtl == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create docDefaults default w:rtl",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    set_on_off_value(rtl, enabled);
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::set_default_paragraph_bidi(bool enabled) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default paragraph direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_part_attached()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto paragraph_properties = ensure_doc_defaults_paragraph_properties_node(styles_root);
+    if (paragraph_properties == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create docDefaults/w:pPrDefault/w:pPr",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto bidi = ensure_paragraph_bidi_node(paragraph_properties);
+    if (bidi == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create docDefaults default w:bidi",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    set_on_off_value(bidi, enabled);
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::clear_default_run_font_family() {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
@@ -1199,6 +1480,64 @@ bool Document::clear_default_run_language() {
 
     if (clear_language_attributes(
             styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"))) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_default_run_rtl() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_on_off_child(styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"),
+                           "w:rtl")) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_default_paragraph_bidi() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default paragraph direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_on_off_child(styles_root.child("w:docDefaults").child("w:pPrDefault").child("w:pPr"),
+                           "w:bidi")) {
         this->styles_dirty = true;
     }
 
@@ -1414,6 +1753,90 @@ std::optional<std::string> Document::style_run_bidi_language(std::string_view st
 
     this->last_error_info.clear();
     return read_bidi_language(style.child("w:rPr"));
+}
+
+std::optional<bool> Document::style_run_rtl(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading style run direction",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when reading style run direction",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    this->last_error_info.clear();
+    return read_run_rtl(style.child("w:rPr"));
+}
+
+std::optional<bool> Document::style_paragraph_bidi(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading style paragraph direction",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when reading style paragraph direction",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    this->last_error_info.clear();
+    return read_paragraph_bidi(style.child("w:pPr"));
 }
 
 bool Document::set_style_run_font_family(std::string_view style_id,
@@ -1811,6 +2234,146 @@ bool Document::set_style_run_bidi_language(std::string_view style_id,
     return true;
 }
 
+bool Document::set_style_run_rtl(std::string_view style_id, bool enabled) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!this->has_styles_part) {
+        if (const auto error = this->ensure_styles_part_attached()) {
+            return false;
+        }
+        styles_root = this->styles.child("w:styles");
+        style = find_style_node(styles_root, style_id);
+    }
+
+    const auto run_properties = ensure_style_run_properties_node(style);
+    if (run_properties == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:rPr for style '" + std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto rtl = ensure_run_rtl_node(run_properties);
+    if (rtl == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:rtl for style '" + std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    set_on_off_value(rtl, enabled);
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::set_style_paragraph_bidi(std::string_view style_id, bool enabled) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style paragraph direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style paragraph direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!this->has_styles_part) {
+        if (const auto error = this->ensure_styles_part_attached()) {
+            return false;
+        }
+        styles_root = this->styles.child("w:styles");
+        style = find_style_node(styles_root, style_id);
+    }
+
+    const auto paragraph_properties = ensure_style_paragraph_properties_node(style);
+    if (paragraph_properties == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:pPr for style '" + std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto bidi = ensure_paragraph_bidi_node(paragraph_properties);
+    if (bidi == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:bidi for style '" + std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    set_on_off_value(bidi, enabled);
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::clear_style_run_font_family(std::string_view style_id) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
@@ -1904,6 +2467,108 @@ bool Document::clear_style_run_language(std::string_view style_id) {
         if (run_properties.first_child() == pugi::xml_node{} &&
             !node_has_attributes(run_properties)) {
             style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_rtl(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (clear_on_off_child(run_properties, "w:rtl")) {
+        if (run_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(run_properties)) {
+            style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_paragraph_bidi(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style paragraph direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style paragraph direction",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto paragraph_properties = style.child("w:pPr");
+    if (clear_on_off_child(paragraph_properties, "w:bidi")) {
+        if (paragraph_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(paragraph_properties)) {
+            style.remove_child(paragraph_properties);
         }
         this->styles_dirty = true;
     }

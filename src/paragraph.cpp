@@ -2,6 +2,77 @@
 #include "xml_helpers.hpp"
 
 namespace featherdoc {
+namespace {
+
+auto read_on_off_value(pugi::xml_node node) -> std::optional<bool> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto attribute = node.attribute("w:val");
+    if (attribute == pugi::xml_attribute{} || attribute.value()[0] == '\0') {
+        return true;
+    }
+
+    const auto value = std::string_view{attribute.value()};
+    return value != "0" && value != "false" && value != "off";
+}
+
+auto ensure_paragraph_properties_node(pugi::xml_node paragraph) -> pugi::xml_node {
+    if (paragraph == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto paragraph_properties = paragraph.child("w:pPr");
+    if (paragraph_properties != pugi::xml_node{}) {
+        return paragraph_properties;
+    }
+
+    if (const auto first_child = paragraph.first_child(); first_child != pugi::xml_node{}) {
+        return paragraph.insert_child_before("w:pPr", first_child);
+    }
+
+    return paragraph.append_child("w:pPr");
+}
+
+auto ensure_paragraph_bidi_node(pugi::xml_node paragraph_properties) -> pugi::xml_node {
+    if (paragraph_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto bidi = paragraph_properties.child("w:bidi");
+    if (bidi != pugi::xml_node{}) {
+        return bidi;
+    }
+
+    return paragraph_properties.append_child("w:bidi");
+}
+
+void set_on_off_value(pugi::xml_node node, bool enabled) {
+    auto attribute = node.attribute("w:val");
+    if (attribute == pugi::xml_attribute{}) {
+        attribute = node.append_attribute("w:val");
+    }
+    attribute.set_value(enabled ? "1" : "0");
+}
+
+void remove_empty_paragraph_properties(pugi::xml_node paragraph) {
+    if (paragraph == pugi::xml_node{}) {
+        return;
+    }
+
+    auto paragraph_properties = paragraph.child("w:pPr");
+    if (paragraph_properties == pugi::xml_node{}) {
+        return;
+    }
+
+    if (paragraph_properties.first_child() == pugi::xml_node{} &&
+        paragraph_properties.first_attribute() == pugi::xml_attribute{}) {
+        paragraph.remove_child(paragraph_properties);
+    }
+}
+
+} // namespace
 
 Paragraph::Paragraph() = default;
 
@@ -25,6 +96,48 @@ Paragraph &Paragraph::next() {
 }
 
 bool Paragraph::has_next() const { return this->current != pugi::xml_node{}; }
+
+std::optional<bool> Paragraph::bidi() const {
+    return read_on_off_value(this->current.child("w:pPr").child("w:bidi"));
+}
+
+bool Paragraph::set_bidi(bool enabled) const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto paragraph_properties = ensure_paragraph_properties_node(this->current);
+    if (paragraph_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto bidi = ensure_paragraph_bidi_node(paragraph_properties);
+    if (bidi == pugi::xml_node{}) {
+        return false;
+    }
+
+    set_on_off_value(bidi, enabled);
+    return true;
+}
+
+bool Paragraph::clear_bidi() const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto paragraph_properties = this->current.child("w:pPr");
+    if (paragraph_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    const auto bidi = paragraph_properties.child("w:bidi");
+    if (bidi != pugi::xml_node{}) {
+        paragraph_properties.remove_child(bidi);
+    }
+
+    remove_empty_paragraph_properties(this->current);
+    return true;
+}
 
 Run &Paragraph::runs() {
     this->run.set_parent(this->current);

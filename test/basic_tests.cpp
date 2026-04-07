@@ -5316,6 +5316,66 @@ TEST_CASE("table cells can set and clear vertical alignment") {
     fs::remove(target);
 }
 
+TEST_CASE("table cells can set and clear text direction") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_cell_text_direction.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(1, 1);
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+
+    CHECK_FALSE(cell.text_direction().has_value());
+    CHECK(cell.set_text_direction(
+        featherdoc::cell_text_direction::top_to_bottom_right_to_left));
+    REQUIRE(cell.text_direction().has_value());
+    CHECK_EQ(*cell.text_direction(),
+             featherdoc::cell_text_direction::top_to_bottom_right_to_left);
+    CHECK_FALSE(doc.save());
+
+    auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    auto cell_node =
+        xml_document.child("w:document").child("w:body").child("w:tbl").child("w:tr").child("w:tc");
+    REQUIRE(cell_node != pugi::xml_node{});
+    auto text_direction = cell_node.child("w:tcPr").child("w:textDirection");
+    REQUIRE(text_direction != pugi::xml_node{});
+    CHECK_EQ(std::string_view{text_direction.attribute("w:val").value()}, "tbRl");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    auto reopened_row = reopened_table.rows();
+    REQUIRE(reopened_row.has_next());
+    auto reopened_cell = reopened_row.cells();
+    REQUIRE(reopened_cell.has_next());
+    REQUIRE(reopened_cell.text_direction().has_value());
+    CHECK_EQ(*reopened_cell.text_direction(),
+             featherdoc::cell_text_direction::top_to_bottom_right_to_left);
+    CHECK(reopened_cell.clear_text_direction());
+    CHECK_FALSE(reopened_cell.text_direction().has_value());
+    CHECK_FALSE(reopened.save());
+
+    xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    xml_document.reset();
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    cell_node =
+        xml_document.child("w:document").child("w:body").child("w:tbl").child("w:tr").child("w:tc");
+    REQUIRE(cell_node != pugi::xml_node{});
+    CHECK_EQ(cell_node.child("w:tcPr").child("w:textDirection"), pugi::xml_node{});
+
+    fs::remove(target);
+}
+
 TEST_CASE("table cells can set fill colors and margins") {
     namespace fs = std::filesystem;
 
@@ -6279,6 +6339,312 @@ TEST_CASE("style run language APIs edit styles.xml and preserve unrelated style 
     CHECK_FALSE(cleared.style_run_language("Strong").has_value());
     CHECK_FALSE(cleared.style_run_east_asia_language("Strong").has_value());
     CHECK_FALSE(cleared.style_run_bidi_language("Strong").has_value());
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("run rtl APIs write w:rtl and clear removes empty run properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "run_rtl_roundtrip.docx";
+    const auto run_text = utf8_from_u8(u8"مرحبا RTL 123");
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+
+    auto run = paragraph.add_run(run_text);
+    REQUIRE(run.has_next());
+
+    CHECK_FALSE(run.rtl().has_value());
+    CHECK(run.set_rtl());
+
+    const auto rtl = run.rtl();
+    REQUIRE(rtl.has_value());
+    CHECK(*rtl);
+
+    CHECK_FALSE(doc.save());
+
+    auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("<w:rtl"), std::string::npos);
+    CHECK_NE(saved_document_xml.find("<w:rtl w:val=\"1\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_run = reopened.paragraphs().runs();
+    REQUIRE(reopened_run.has_next());
+    CHECK_EQ(reopened_run.get_text(), run_text);
+
+    const auto reopened_rtl = reopened_run.rtl();
+    REQUIRE(reopened_rtl.has_value());
+    CHECK(*reopened_rtl);
+
+    CHECK(reopened_run.clear_rtl());
+    CHECK_FALSE(reopened.save());
+
+    saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:rtl"), 0);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:rPr>"), 0);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    auto cleared_run = cleared.paragraphs().runs();
+    REQUIRE(cleared_run.has_next());
+    CHECK_FALSE(cleared_run.rtl().has_value());
+
+    fs::remove(target);
+}
+
+TEST_CASE("paragraph bidi APIs write w:bidi and clear removes empty paragraph properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "paragraph_bidi_roundtrip.docx";
+    const auto paragraph_text = utf8_from_u8(u8"فقرة عربية مع 123");
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.add_run(paragraph_text).has_next());
+
+    CHECK_FALSE(paragraph.bidi().has_value());
+    CHECK(paragraph.set_bidi());
+
+    auto bidi = paragraph.bidi();
+    REQUIRE(bidi.has_value());
+    CHECK(*bidi);
+
+    CHECK_FALSE(doc.save());
+
+    auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("<w:bidi"), std::string::npos);
+    CHECK_NE(saved_document_xml.find("<w:bidi w:val=\"1\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_paragraph = reopened.paragraphs();
+    REQUIRE(reopened_paragraph.has_next());
+    CHECK_EQ(collect_document_text(reopened), paragraph_text + "\n");
+
+    bidi = reopened_paragraph.bidi();
+    REQUIRE(bidi.has_value());
+    CHECK(*bidi);
+
+    CHECK(reopened_paragraph.set_bidi(false));
+    CHECK_FALSE(reopened.save());
+
+    saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("<w:bidi w:val=\"0\""), std::string::npos);
+
+    featherdoc::Document reopened_false(target);
+    CHECK_FALSE(reopened_false.open());
+    auto false_paragraph = reopened_false.paragraphs();
+    REQUIRE(false_paragraph.has_next());
+    bidi = false_paragraph.bidi();
+    REQUIRE(bidi.has_value());
+    CHECK_FALSE(*bidi);
+
+    CHECK(false_paragraph.clear_bidi());
+    CHECK_FALSE(reopened_false.save());
+
+    saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:bidi"), 0);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:pPr>"), 0);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_EQ(collect_document_text(cleared), paragraph_text + "\n");
+    CHECK_FALSE(cleared.paragraphs().bidi().has_value());
+
+    fs::remove(target);
+}
+
+TEST_CASE("default direction APIs edit docDefaults and round-trip through styles.xml") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "default_direction_roundtrip.docx";
+    const auto run_text = utf8_from_u8(u8"默认方向写入");
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK_FALSE(doc.default_run_rtl().has_value());
+    CHECK_FALSE(doc.default_paragraph_bidi().has_value());
+    CHECK(doc.set_default_run_rtl());
+    CHECK(doc.set_default_paragraph_bidi());
+
+    auto default_run_rtl = doc.default_run_rtl();
+    REQUIRE(default_run_rtl.has_value());
+    CHECK(*default_run_rtl);
+
+    auto default_paragraph_bidi = doc.default_paragraph_bidi();
+    REQUIRE(default_paragraph_bidi.has_value());
+    CHECK(*default_paragraph_bidi);
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.add_run(run_text).has_next());
+
+    CHECK_FALSE(doc.save());
+
+    auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("<w:rtl w:val=\"1\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:bidi w:val=\"1\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    default_run_rtl = reopened.default_run_rtl();
+    REQUIRE(default_run_rtl.has_value());
+    CHECK(*default_run_rtl);
+
+    default_paragraph_bidi = reopened.default_paragraph_bidi();
+    REQUIRE(default_paragraph_bidi.has_value());
+    CHECK(*default_paragraph_bidi);
+
+    CHECK_EQ(collect_document_text(reopened), run_text + "\n");
+    CHECK(reopened.set_default_run_rtl(false));
+    CHECK(reopened.set_default_paragraph_bidi(false));
+    CHECK_FALSE(reopened.save());
+
+    saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("<w:rtl w:val=\"0\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:bidi w:val=\"0\""), std::string::npos);
+
+    featherdoc::Document reopened_false(target);
+    CHECK_FALSE(reopened_false.open());
+    default_run_rtl = reopened_false.default_run_rtl();
+    REQUIRE(default_run_rtl.has_value());
+    CHECK_FALSE(*default_run_rtl);
+    default_paragraph_bidi = reopened_false.default_paragraph_bidi();
+    REQUIRE(default_paragraph_bidi.has_value());
+    CHECK_FALSE(*default_paragraph_bidi);
+
+    CHECK(reopened_false.clear_default_run_rtl());
+    CHECK(reopened_false.clear_default_paragraph_bidi());
+    CHECK_FALSE(reopened_false.save());
+
+    saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "<w:rtl"), 0);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "<w:bidi"), 0);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_FALSE(cleared.default_run_rtl().has_value());
+    CHECK_FALSE(cleared.default_paragraph_bidi().has_value());
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("style direction APIs edit styles.xml and preserve unrelated style markup") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "style_direction_roundtrip.docx";
+    const auto run_text = utf8_from_u8(u8"样式方向写入");
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK_FALSE(doc.set_style_run_rtl(""));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.set_style_run_rtl("MissingStyle"));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.style_run_rtl("MissingStyle").has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK_FALSE(doc.set_style_paragraph_bidi(""));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.set_style_paragraph_bidi("MissingStyle"));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.style_paragraph_bidi("MissingStyle").has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK(doc.set_style_run_rtl("Emphasis"));
+    CHECK(doc.set_style_paragraph_bidi("Heading1"));
+
+    auto style_run_rtl = doc.style_run_rtl("Emphasis");
+    REQUIRE(style_run_rtl.has_value());
+    CHECK(*style_run_rtl);
+
+    auto style_paragraph_bidi = doc.style_paragraph_bidi("Heading1");
+    REQUIRE(style_paragraph_bidi.has_value());
+    CHECK(*style_paragraph_bidi);
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run(run_text);
+    REQUIRE(run.has_next());
+    CHECK(doc.set_paragraph_style(paragraph, "Heading1"));
+    CHECK(doc.set_run_style(run, "Emphasis"));
+
+    CHECK_FALSE(doc.save());
+
+    auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"Emphasis\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"Heading1\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:rtl w:val=\"1\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:bidi w:val=\"1\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:i"), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:outlineLvl"), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), run_text + "\n");
+
+    style_run_rtl = reopened.style_run_rtl("Emphasis");
+    REQUIRE(style_run_rtl.has_value());
+    CHECK(*style_run_rtl);
+
+    style_paragraph_bidi = reopened.style_paragraph_bidi("Heading1");
+    REQUIRE(style_paragraph_bidi.has_value());
+    CHECK(*style_paragraph_bidi);
+
+    CHECK(reopened.set_style_run_rtl("Emphasis", false));
+    CHECK(reopened.set_style_paragraph_bidi("Heading1", false));
+    CHECK_FALSE(reopened.save());
+
+    saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("<w:rtl w:val=\"0\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:bidi w:val=\"0\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:i"), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:outlineLvl"), std::string::npos);
+
+    featherdoc::Document reopened_false(target);
+    CHECK_FALSE(reopened_false.open());
+    style_run_rtl = reopened_false.style_run_rtl("Emphasis");
+    REQUIRE(style_run_rtl.has_value());
+    CHECK_FALSE(*style_run_rtl);
+    style_paragraph_bidi = reopened_false.style_paragraph_bidi("Heading1");
+    REQUIRE(style_paragraph_bidi.has_value());
+    CHECK_FALSE(*style_paragraph_bidi);
+
+    CHECK(reopened_false.clear_style_run_rtl("Emphasis"));
+    CHECK(reopened_false.clear_style_paragraph_bidi("Heading1"));
+    CHECK_FALSE(reopened_false.save());
+
+    saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "<w:rtl"), 0);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "<w:bidi w:val=\"0\""), 0);
+    CHECK_NE(saved_styles_xml.find("<w:i"), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:outlineLvl"), std::string::npos);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_FALSE(cleared.style_run_rtl("Emphasis").has_value());
+    CHECK_FALSE(cleared.style_paragraph_bidi("Heading1").has_value());
     CHECK_EQ(collect_document_text(cleared), run_text + "\n");
 
     fs::remove(target);

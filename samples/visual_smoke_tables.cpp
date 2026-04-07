@@ -61,6 +61,10 @@ auto configure_cjk_language_defaults(featherdoc::Document &doc) -> bool {
            doc.set_style_run_bidi_language("Strong", "ar-SA");
 }
 
+auto configure_direction_styles(featherdoc::Document &doc) -> bool {
+    return doc.set_style_run_rtl("Emphasis") && doc.set_style_paragraph_bidi("Quote");
+}
+
 auto add_cell_text(featherdoc::TableCell cell, std::string_view text,
                    featherdoc::formatting_flag formatting = featherdoc::formatting_flag::none)
     -> bool {
@@ -456,7 +460,11 @@ auto create_merge_table(featherdoc::Document &doc) -> bool {
 
     cell.next();
     if (!cell.has_next() ||
-        !add_cell_lines(cell, {"Baseline cell", "Used to compare row spacing"})) {
+        !cell.set_fill_color("E4DFEC") ||
+        !cell.set_vertical_alignment(featherdoc::cell_vertical_alignment::center) ||
+        !cell.set_text_direction(
+            featherdoc::cell_text_direction::top_to_bottom_right_to_left) ||
+        !add_cell_text(cell, utf8_from_u8(u8"\u7EB5\u6392\u68C0\u67E5"))) {
         return false;
     }
 
@@ -478,8 +486,19 @@ auto create_merge_table(featherdoc::Document &doc) -> bool {
     }
 
     cell.next();
-    if (!cell.has_next() || !add_cell_text(cell, "Stable")) {
+    if (!cell.has_next()) {
         return false;
+    }
+    {
+        auto mixed_paragraph = cell.paragraphs();
+        auto mixed_run = mixed_paragraph.add_run(
+            utf8_from_u8(
+                u8"\u7A84\u683C mixed RTL/LTR: ABC 12 "
+                u8"\u0645\u0631\u062D\u0628\u0627 "
+                u8"\u4E2D\u6587"));
+        if (!mixed_run.has_next() || !mixed_paragraph.set_bidi() || !mixed_run.set_rtl()) {
+            return false;
+        }
     }
 
     row = table.append_row(4);
@@ -529,8 +548,9 @@ int main(int argc, char **argv) {
         return static_cast<int>(error.value() == 0 ? 1 : error.value());
     }
 
-    if (!configure_cjk_font_defaults(doc) || !configure_cjk_language_defaults(doc)) {
-        print_document_error(doc, "configure CJK defaults");
+    if (!configure_cjk_font_defaults(doc) || !configure_cjk_language_defaults(doc) ||
+        !configure_direction_styles(doc)) {
+        print_document_error(doc, "configure CJK/direction defaults");
         return 1;
     }
 
@@ -604,6 +624,39 @@ int main(int argc, char **argv) {
             u8"\u0627\u0644\u0639\u0631\u0628\u064A\u0629 \u0645\u0639 Strong style"));
     if (!paragraph.has_next() || !doc.set_run_style(paragraph.runs(), "Strong")) {
         print_document_error(doc, "append style-based bidi review paragraph");
+        return 1;
+    }
+
+    paragraph = paragraph.insert_paragraph_after(
+        utf8_from_u8(
+            u8"RTL \u76F4\u63A5\u5C5E\u6027\u68C0\u67E5\uFF1A"
+            u8"\u8FD9\u884C\u901A\u8FC7 Paragraph::set_bidi(true) \u4E0E "
+            u8"Run::set_rtl(true) "
+            u8"\u5F3A\u5236\u53F3\u5411\u6392\u7248\uFF0C"
+            u8"\u0645\u0631\u062D\u0628\u0627 123 ABC"));
+    if (!paragraph.has_next()) {
+        std::cerr << "failed to append direct RTL review paragraph\n";
+        return 1;
+    }
+    {
+        auto rtl_run = paragraph.runs();
+        if (!rtl_run.has_next() || !paragraph.set_bidi() || !rtl_run.set_rtl()) {
+            print_document_error(doc, "apply direct RTL review properties");
+            return 1;
+        }
+    }
+
+    paragraph = paragraph.insert_paragraph_after(
+        utf8_from_u8(
+            u8"RTL \u6837\u5F0F\u7EE7\u627F\u68C0\u67E5\uFF1A"
+            u8"\u8FD9\u884C\u4F7F\u7528 Quote \u6BB5\u843D\u6837\u5F0F\u4E0E "
+            u8"Emphasis \u5B57\u7B26\u6837\u5F0F\uFF0C"
+            u8"\u5E94\u4FDD\u6301\u963F\u62C9\u4F2F\u8BED\u4ECE\u53F3\u5411\u5DE6\u663E\u793A\uFF0C"
+            u8"\u0627\u0644\u0639\u0631\u0628\u064A\u0629 "
+            u8"\u0645\u0639 Quote/Emphasis"));
+    if (!paragraph.has_next() || !doc.set_paragraph_style(paragraph, "Quote") ||
+        !doc.set_run_style(paragraph.runs(), "Emphasis")) {
+        print_document_error(doc, "append style-based RTL review paragraph");
         return 1;
     }
 

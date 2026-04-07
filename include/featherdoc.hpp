@@ -54,13 +54,16 @@ class Run {
     [[nodiscard]] std::optional<std::string> language() const;
     [[nodiscard]] std::optional<std::string> east_asia_language() const;
     [[nodiscard]] std::optional<std::string> bidi_language() const;
+    [[nodiscard]] std::optional<bool> rtl() const;
     [[nodiscard]] bool set_font_family(std::string_view font_family) const;
     [[nodiscard]] bool set_east_asia_font_family(std::string_view font_family) const;
     [[nodiscard]] bool set_language(std::string_view language) const;
     [[nodiscard]] bool set_east_asia_language(std::string_view language) const;
     [[nodiscard]] bool set_bidi_language(std::string_view language) const;
+    [[nodiscard]] bool set_rtl(bool enabled = true) const;
     [[nodiscard]] bool clear_font_family() const;
     [[nodiscard]] bool clear_language() const;
+    [[nodiscard]] bool clear_rtl() const;
 
     Run &next();
     [[nodiscard]] bool has_next() const;
@@ -87,6 +90,9 @@ class Paragraph {
 
     Paragraph &next();
     [[nodiscard]] bool has_next() const;
+    [[nodiscard]] std::optional<bool> bidi() const;
+    [[nodiscard]] bool set_bidi(bool enabled = true) const;
+    [[nodiscard]] bool clear_bidi() const;
 
     Run &runs();
     Run add_run(const std::string &,
@@ -126,6 +132,11 @@ class TableCell {
     [[nodiscard]] bool set_vertical_alignment(
         featherdoc::cell_vertical_alignment alignment);
     [[nodiscard]] bool clear_vertical_alignment();
+    [[nodiscard]] std::optional<featherdoc::cell_text_direction>
+    text_direction() const;
+    [[nodiscard]] bool set_text_direction(
+        featherdoc::cell_text_direction direction);
+    [[nodiscard]] bool clear_text_direction();
     [[nodiscard]] std::optional<std::string> fill_color() const;
     [[nodiscard]] bool set_fill_color(std::string_view fill_color);
     [[nodiscard]] bool clear_fill_color();
@@ -553,13 +564,19 @@ class Document {
     [[nodiscard]] std::optional<std::string> default_run_language();
     [[nodiscard]] std::optional<std::string> default_run_east_asia_language();
     [[nodiscard]] std::optional<std::string> default_run_bidi_language();
+    [[nodiscard]] std::optional<bool> default_run_rtl();
+    [[nodiscard]] std::optional<bool> default_paragraph_bidi();
     [[nodiscard]] bool set_default_run_font_family(std::string_view font_family);
     [[nodiscard]] bool set_default_run_east_asia_font_family(std::string_view font_family);
     [[nodiscard]] bool set_default_run_language(std::string_view language);
     [[nodiscard]] bool set_default_run_east_asia_language(std::string_view language);
     [[nodiscard]] bool set_default_run_bidi_language(std::string_view language);
+    [[nodiscard]] bool set_default_run_rtl(bool enabled = true);
+    [[nodiscard]] bool set_default_paragraph_bidi(bool enabled = true);
     [[nodiscard]] bool clear_default_run_font_family();
     [[nodiscard]] bool clear_default_run_language();
+    [[nodiscard]] bool clear_default_run_rtl();
+    [[nodiscard]] bool clear_default_paragraph_bidi();
     [[nodiscard]] std::optional<std::string> style_run_font_family(std::string_view style_id);
     [[nodiscard]] std::optional<std::string> style_run_east_asia_font_family(
         std::string_view style_id);
@@ -568,6 +585,8 @@ class Document {
         std::string_view style_id);
     [[nodiscard]] std::optional<std::string> style_run_bidi_language(
         std::string_view style_id);
+    [[nodiscard]] std::optional<bool> style_run_rtl(std::string_view style_id);
+    [[nodiscard]] std::optional<bool> style_paragraph_bidi(std::string_view style_id);
     [[nodiscard]] bool set_style_run_font_family(std::string_view style_id,
                                                  std::string_view font_family);
     [[nodiscard]] bool set_style_run_east_asia_font_family(std::string_view style_id,
@@ -578,8 +597,14 @@ class Document {
                                                         std::string_view language);
     [[nodiscard]] bool set_style_run_bidi_language(std::string_view style_id,
                                                    std::string_view language);
+    [[nodiscard]] bool set_style_run_rtl(std::string_view style_id,
+                                         bool enabled = true);
+    [[nodiscard]] bool set_style_paragraph_bidi(std::string_view style_id,
+                                                bool enabled = true);
     [[nodiscard]] bool clear_style_run_font_family(std::string_view style_id);
     [[nodiscard]] bool clear_style_run_language(std::string_view style_id);
+    [[nodiscard]] bool clear_style_run_rtl(std::string_view style_id);
+    [[nodiscard]] bool clear_style_paragraph_bidi(std::string_view style_id);
     [[nodiscard]] bool set_paragraph_style(Paragraph paragraph, std::string_view style_id);
     [[nodiscard]] bool clear_paragraph_style(Paragraph paragraph);
     [[nodiscard]] bool set_run_style(Run run, std::string_view style_id);

@@ -32,6 +32,20 @@ auto read_language_attribute(pugi::xml_node run_language, const char *attribute_
     return std::string{attribute.value()};
 }
 
+auto read_on_off_value(pugi::xml_node node) -> std::optional<bool> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto attribute = node.attribute("w:val");
+    if (attribute == pugi::xml_attribute{} || attribute.value()[0] == '\0') {
+        return true;
+    }
+
+    const auto value = std::string_view{attribute.value()};
+    return value != "0" && value != "false" && value != "off";
+}
+
 void set_xml_attribute(pugi::xml_node node, const char *attribute_name,
                        std::string_view value) {
     auto attribute = node.attribute(attribute_name);
@@ -90,6 +104,46 @@ auto ensure_run_language_node(pugi::xml_node run_properties) -> pugi::xml_node {
     }
 
     return run_properties.append_child("w:lang");
+}
+
+auto ensure_run_rtl_node(pugi::xml_node run_properties) -> pugi::xml_node {
+    if (run_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto rtl = run_properties.child("w:rtl");
+    if (rtl != pugi::xml_node{}) {
+        return rtl;
+    }
+
+    if (const auto run_language = run_properties.child("w:lang");
+        run_language != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:rtl", run_language);
+    }
+
+    if (const auto run_fonts = run_properties.child("w:rFonts");
+        run_fonts != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:rtl", run_fonts);
+    }
+
+    if (const auto run_style = run_properties.child("w:rStyle");
+        run_style != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:rtl", run_style);
+    }
+
+    if (const auto first_child = run_properties.first_child(); first_child != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:rtl", first_child);
+    }
+
+    return run_properties.append_child("w:rtl");
+}
+
+void set_on_off_value(pugi::xml_node node, bool enabled) {
+    auto attribute = node.attribute("w:val");
+    if (attribute == pugi::xml_attribute{}) {
+        attribute = node.append_attribute("w:val");
+    }
+    attribute.set_value(enabled ? "1" : "0");
 }
 
 void remove_empty_run_fonts_node(pugi::xml_node run_properties) {
@@ -185,6 +239,10 @@ std::optional<std::string> Run::east_asia_language() const {
 
 std::optional<std::string> Run::bidi_language() const {
     return read_language_attribute(this->current.child("w:rPr").child("w:lang"), "w:bidi");
+}
+
+std::optional<bool> Run::rtl() const {
+    return read_on_off_value(this->current.child("w:rPr").child("w:rtl"));
 }
 
 bool Run::set_font_family(std::string_view font_family) const {
@@ -284,6 +342,25 @@ bool Run::set_bidi_language(std::string_view language) const {
     return true;
 }
 
+bool Run::set_rtl(bool enabled) const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto run_properties = detail::ensure_run_properties_node(this->current);
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto rtl = ensure_run_rtl_node(run_properties);
+    if (rtl == pugi::xml_node{}) {
+        return false;
+    }
+
+    set_on_off_value(rtl, enabled);
+    return true;
+}
+
 bool Run::clear_font_family() const {
     if (this->current == pugi::xml_node{}) {
         return false;
@@ -323,6 +400,25 @@ bool Run::clear_language() const {
         run_language.remove_attribute("w:eastAsia");
         run_language.remove_attribute("w:bidi");
         remove_empty_run_language_node(run_properties);
+    }
+
+    detail::remove_empty_run_properties(this->current);
+    return true;
+}
+
+bool Run::clear_rtl() const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto run_properties = this->current.child("w:rPr");
+    if (run_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    const auto rtl = run_properties.child("w:rtl");
+    if (rtl != pugi::xml_node{}) {
+        run_properties.remove_child(rtl);
     }
 
     detail::remove_empty_run_properties(this->current);
