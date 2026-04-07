@@ -96,11 +96,12 @@ The screenshots below come from actual Word-rendered output saved in the
 repository so README readers can see the current layout quality directly.
 
 <p align="center">
-  <img src="docs/assets/readme/sample-chinese-page-01.png" alt="Rendered Chinese/CJK sample page" width="320" />
-  <img src="docs/assets/readme/visual-smoke-page-04.png" alt="Rendered mixed-direction smoke page" width="320" />
+  <img src="docs/assets/readme/sample-chinese-page-01.png" alt="Rendered Chinese/CJK sample page" width="210" />
+  <img src="docs/assets/readme/sample-chinese-template-page-01.png" alt="Rendered Chinese template workflow page" width="210" />
+  <img src="docs/assets/readme/visual-smoke-page-04.png" alt="Rendered mixed-direction smoke page" width="210" />
 </p>
 <p align="center">
-  <sub>Left: <code>featherdoc_sample_chinese</code> output rendered through Word. Right: the table/text-direction visual smoke sample exported through Word.</sub>
+  <sub>Left: <code>featherdoc_sample_chinese</code>. Center: <code>featherdoc_sample_chinese_template</code>. Right: the table/text-direction visual smoke sample. All three are actual Word-rendered outputs saved in the repository.</sub>
 </p>
 
 ## CLI
