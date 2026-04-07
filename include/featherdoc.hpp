@@ -49,6 +49,11 @@ class Run {
     [[nodiscard]] std::string get_text() const;
     [[nodiscard]] bool set_text(const std::string &) const;
     [[nodiscard]] bool set_text(const char *) const;
+    [[nodiscard]] std::optional<std::string> font_family() const;
+    [[nodiscard]] std::optional<std::string> east_asia_font_family() const;
+    [[nodiscard]] bool set_font_family(std::string_view font_family) const;
+    [[nodiscard]] bool set_east_asia_font_family(std::string_view font_family) const;
+    [[nodiscard]] bool clear_font_family() const;
 
     Run &next();
     [[nodiscard]] bool has_next() const;

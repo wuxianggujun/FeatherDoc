@@ -17,6 +17,10 @@ auto should_preserve_xml_space(const char *text) -> bool {
            std::isspace(static_cast<unsigned char>(text[text_length - 1])) != 0;
 }
 
+auto node_has_attributes(pugi::xml_node node) -> bool {
+    return node.first_attribute() != pugi::xml_attribute{};
+}
+
 } // namespace
 
 void update_xml_space_attribute(pugi::xml_node text_node, const char *text) {
@@ -45,6 +49,39 @@ pugi::xml_node next_named_sibling(pugi::xml_node node, std::string_view node_nam
     }
 
     return {};
+}
+
+pugi::xml_node ensure_run_properties_node(pugi::xml_node run) {
+    if (run == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto run_properties = run.child("w:rPr");
+    if (run_properties != pugi::xml_node{}) {
+        return run_properties;
+    }
+
+    if (const auto first_child = run.first_child(); first_child != pugi::xml_node{}) {
+        return run.insert_child_before("w:rPr", first_child);
+    }
+
+    return run.append_child("w:rPr");
+}
+
+void remove_empty_run_properties(pugi::xml_node run) {
+    if (run == pugi::xml_node{}) {
+        return;
+    }
+
+    auto run_properties = run.child("w:rPr");
+    if (run_properties == pugi::xml_node{}) {
+        return;
+    }
+
+    if (run_properties.first_child() == pugi::xml_node{} &&
+        !node_has_attributes(run_properties)) {
+        run.remove_child(run_properties);
+    }
 }
 
 pugi::xml_node insert_paragraph_node(pugi::xml_node parent, pugi::xml_node insert_before) {

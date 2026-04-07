@@ -10,6 +10,21 @@ performance.
 
 ### Added
 
+- `Run::font_family()`, `east_asia_font_family()`, `set_font_family()`,
+   `set_east_asia_font_family()`, and `clear_font_family()` for explicit
+   `w:rFonts` editing with `eastAsia` coverage for Chinese/CJK text.
+
+### Validation
+
+- Extended `samples/visual_smoke_tables.cpp` with explicit Chinese/CJK review
+  text rendered via `w:rFonts` (`Microsoft YaHei` for `eastAsia`) so the
+  Word-to-PDF-to-PNG smoke flow checks mixed-script layout as well as borders
+  and table geometry.
+
+## [1.2.0] - 2026-04-07
+
+### Added
+
 - `append_table(row_count, column_count)` for creating new body tables on
   editable documents created from either `open()` or `create_empty()`.
 - `Table::append_row()` and `TableRow::append_cell()` for growing existing or

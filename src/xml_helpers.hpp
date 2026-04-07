@@ -11,6 +11,8 @@ void update_xml_space_attribute(pugi::xml_node text_node, const char *text);
 
 [[nodiscard]] pugi::xml_node next_named_sibling(pugi::xml_node node,
                                                 std::string_view node_name);
+[[nodiscard]] pugi::xml_node ensure_run_properties_node(pugi::xml_node run);
+void remove_empty_run_properties(pugi::xml_node run);
 
 [[nodiscard]] pugi::xml_node insert_paragraph_node(pugi::xml_node parent,
                                                    pugi::xml_node insert_before);

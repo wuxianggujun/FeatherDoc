@@ -241,7 +241,8 @@ $reviewResult = [ordered]@{
     findings = @()
     notes = @(
         "Fill findings after the visual Word review is complete.",
-        "Keep verdict as pass/fail/undetermined according to screenshot evidence."
+        "Keep verdict as pass/fail/undetermined according to screenshot evidence.",
+        "Confirm the explicit Chinese/CJK sample text renders without tofu, fallback drift, or unstable line wrapping."
     )
 }
 ($reviewResult | ConvertTo-Json -Depth 6) | Set-Content -Path $reviewResultPath -Encoding UTF8
@@ -289,6 +290,7 @@ $checklist = @"
 - Verify the multi-page audit table repeats its header row on every later page.
 - Verify the highlighted cantSplit row (`R16`) stays entirely on one page.
 - Verify fills, margins, and centered cells still look intentional after Word export.
+- Verify the explicit Chinese/CJK samples render readable glyphs with stable line breaks and no obvious fallback-font drift.
 - Verify the final merge matrix has no clipped text, border gaps, or missing shading.
 
 Artifacts:

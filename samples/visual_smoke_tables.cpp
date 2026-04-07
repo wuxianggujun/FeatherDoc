@@ -10,6 +10,10 @@
 namespace fs = std::filesystem;
 
 namespace {
+auto utf8_from_u8(std::u8string_view text) -> std::string {
+    return {reinterpret_cast<const char *>(text.data()), text.size()};
+}
+
 auto require_step(bool ok, std::string_view step) -> bool {
     if (!ok) {
         std::cerr << "step failed: " << step << '\n';
@@ -39,6 +43,11 @@ auto add_text(featherdoc::Paragraph paragraph, std::string_view text,
               featherdoc::formatting_flag formatting = featherdoc::formatting_flag::none)
     -> bool {
     return paragraph.add_run(std::string{text}, formatting).has_next();
+}
+
+auto set_mixed_cjk_run_fonts(featherdoc::Run run) -> bool {
+    return run.has_next() && run.set_font_family("Segoe UI") &&
+           run.set_east_asia_font_family("Microsoft YaHei");
 }
 
 auto add_cell_text(featherdoc::TableCell cell, std::string_view text,
@@ -186,10 +195,23 @@ auto create_overview_table(featherdoc::Document &doc) -> bool {
     if (!cell.has_next() || !cell.set_fill_color("FCE4D6") ||
         !cell.set_vertical_alignment(featherdoc::cell_vertical_alignment::center) ||
         !cell.set_margin_twips(featherdoc::cell_margin_edge::left, 180U) ||
-        !cell.set_margin_twips(featherdoc::cell_margin_edge::right, 180U) ||
-        !add_cell_lines(cell,
-                        {"Cell-level margins + vertical align",
-                         "Expected: extra inset text and centered vertical position"})) {
+        !cell.set_margin_twips(featherdoc::cell_margin_edge::right, 180U)) {
+        return false;
+    }
+
+    auto cjk_paragraph = cell.paragraphs();
+    auto cjk_run = cjk_paragraph.add_run(
+        utf8_from_u8(u8"\u4E2D\u6587/CJK \u6DF7\u6392\u68C0\u67E5"),
+        featherdoc::formatting_flag::bold);
+    if (!cjk_run.has_next() || !set_mixed_cjk_run_fonts(cjk_run)) {
+        return false;
+    }
+
+    cjk_paragraph = cjk_paragraph.insert_paragraph_after(
+        utf8_from_u8(
+            u8"\u9884\u671F\uff1A\u8868\u683C\u5BBD\u5EA6\u4E0D\u88AB\u4E2D\u6587\u6491\u7206\uFF0C"
+            u8"Invoice INV-2026-0001 \u6362\u884C\u4ECD\u7136\u7A33\u5B9A"));
+    if (!cjk_paragraph.has_next() || !set_mixed_cjk_run_fonts(cjk_paragraph.runs())) {
         return false;
     }
 
@@ -525,6 +547,16 @@ int main(int argc, char **argv) {
                                          "missing shading, or split highlighted rows.");
     if (!paragraph.has_next()) {
         std::cerr << "failed to append review target paragraph\n";
+        return 1;
+    }
+
+    paragraph = paragraph.insert_paragraph_after(
+        utf8_from_u8(
+            u8"\u4E2D\u6587/CJK \u76EE\u89C6\u68C0\u67E5\uff1A\u9A8C\u8BC1 eastAsia "
+            u8"\u5B57\u4F53\u3001\u4E2D\u82F1\u6DF7\u6392\u3001\u8868\u683C\u6362\u884C\u548C"
+            u8"\u884C\u9AD8\u662F\u5426\u7A33\u5B9A\u3002"));
+    if (!paragraph.has_next() || !set_mixed_cjk_run_fonts(paragraph.runs())) {
+        std::cerr << "failed to append CJK review paragraph\n";
         return 1;
     }
 

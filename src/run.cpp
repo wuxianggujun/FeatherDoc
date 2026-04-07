@@ -2,6 +2,72 @@
 #include "xml_helpers.hpp"
 
 namespace featherdoc {
+namespace {
+
+auto read_font_family_attribute(pugi::xml_node run_fonts, const char *attribute_name)
+    -> std::optional<std::string> {
+    if (run_fonts == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto attribute = run_fonts.attribute(attribute_name);
+    if (attribute == pugi::xml_attribute{} || attribute.value()[0] == '\0') {
+        return std::nullopt;
+    }
+
+    return std::string{attribute.value()};
+}
+
+void set_xml_attribute(pugi::xml_node node, const char *attribute_name,
+                       std::string_view value) {
+    auto attribute = node.attribute(attribute_name);
+    if (attribute == pugi::xml_attribute{}) {
+        attribute = node.append_attribute(attribute_name);
+    }
+
+    const std::string copied_value{value};
+    attribute.set_value(copied_value.c_str());
+}
+
+auto ensure_run_fonts_node(pugi::xml_node run_properties) -> pugi::xml_node {
+    if (run_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto run_fonts = run_properties.child("w:rFonts");
+    if (run_fonts != pugi::xml_node{}) {
+        return run_fonts;
+    }
+
+    if (const auto run_style = run_properties.child("w:rStyle");
+        run_style != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:rFonts", run_style);
+    }
+
+    if (const auto first_child = run_properties.first_child(); first_child != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:rFonts", first_child);
+    }
+
+    return run_properties.append_child("w:rFonts");
+}
+
+void remove_empty_run_fonts_node(pugi::xml_node run_properties) {
+    if (run_properties == pugi::xml_node{}) {
+        return;
+    }
+
+    const auto run_fonts = run_properties.child("w:rFonts");
+    if (run_fonts == pugi::xml_node{}) {
+        return;
+    }
+
+    if (run_fonts.first_child() == pugi::xml_node{} &&
+        run_fonts.first_attribute() == pugi::xml_attribute{}) {
+        run_properties.remove_child(run_fonts);
+    }
+}
+
+} // namespace
 
 Run::Run() = default;
 
@@ -33,6 +99,85 @@ bool Run::set_text(const char *text) const {
 
     detail::update_xml_space_attribute(text_node, text);
     return text_node.text().set(text);
+}
+
+std::optional<std::string> Run::font_family() const {
+    const auto run_fonts = this->current.child("w:rPr").child("w:rFonts");
+    if (const auto ascii_font = read_font_family_attribute(run_fonts, "w:ascii")) {
+        return ascii_font;
+    }
+    if (const auto hansi_font = read_font_family_attribute(run_fonts, "w:hAnsi")) {
+        return hansi_font;
+    }
+    return read_font_family_attribute(run_fonts, "w:cs");
+}
+
+std::optional<std::string> Run::east_asia_font_family() const {
+    return read_font_family_attribute(this->current.child("w:rPr").child("w:rFonts"),
+                                      "w:eastAsia");
+}
+
+bool Run::set_font_family(std::string_view font_family) const {
+    if (this->current == pugi::xml_node{} || font_family.empty()) {
+        return false;
+    }
+
+    const auto run_properties = detail::ensure_run_properties_node(this->current);
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto run_fonts = ensure_run_fonts_node(run_properties);
+    if (run_fonts == pugi::xml_node{}) {
+        return false;
+    }
+
+    set_xml_attribute(run_fonts, "w:ascii", font_family);
+    set_xml_attribute(run_fonts, "w:hAnsi", font_family);
+    set_xml_attribute(run_fonts, "w:cs", font_family);
+    return true;
+}
+
+bool Run::set_east_asia_font_family(std::string_view font_family) const {
+    if (this->current == pugi::xml_node{} || font_family.empty()) {
+        return false;
+    }
+
+    const auto run_properties = detail::ensure_run_properties_node(this->current);
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto run_fonts = ensure_run_fonts_node(run_properties);
+    if (run_fonts == pugi::xml_node{}) {
+        return false;
+    }
+
+    set_xml_attribute(run_fonts, "w:eastAsia", font_family);
+    return true;
+}
+
+bool Run::clear_font_family() const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto run_properties = this->current.child("w:rPr");
+    if (run_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    auto run_fonts = run_properties.child("w:rFonts");
+    if (run_fonts != pugi::xml_node{}) {
+        run_fonts.remove_attribute("w:ascii");
+        run_fonts.remove_attribute("w:hAnsi");
+        run_fonts.remove_attribute("w:cs");
+        run_fonts.remove_attribute("w:eastAsia");
+        remove_empty_run_fonts_node(run_properties);
+    }
+
+    detail::remove_empty_run_properties(this->current);
+    return true;
 }
 
 Run &Run::next() {
