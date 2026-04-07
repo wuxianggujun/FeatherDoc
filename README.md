@@ -52,10 +52,19 @@ Artifacts are written under `output/word-visual-smoke/`, including the source
 renders and contact sheets, a `report/` directory for the generated checklist
 and summary data, generated `review_result.json` and `final_review.md`
 skeletons, and a reserved `repair/` directory for iterative fix candidates.
+The script now also validates two things before you trust the result:
+
+- generated smoke samples must contain the expected core DOCX ZIP entries
+- exported PDF page count must match both `summary.json` and the rendered PNG count
+
 Pass `-InputDocx <path>` when you want to run the same render-and-capture flow
 against an existing document instead of the bundled smoke sample. The
 recommended review-and-repair workflow is documented in
 `docs/automation/word_visual_workflow_zh.rst`.
+
+Use `-SkipBuild` only when the executable under `-BuildDir` is known to be
+current. If the smoke sample generator is stale, rerun without `-SkipBuild` or
+rebuild that directory first.
 
 When you want to hand the task to an AI agent consistently, generate a review
 task package first:

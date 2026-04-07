@@ -22,6 +22,9 @@ performance.
   `set_east_asia_language()`, `clear_language()`, plus matching
   `default_run_*` and `style_run_*` language APIs for editing `w:lang`
   inheritance in `document.xml` and `styles.xml`.
+- `scripts/run_word_visual_smoke.ps1` now validates generated smoke DOCX
+  archives before opening them in Word and cross-checks PDF page count against
+  `summary.json` plus rendered PNG output so stale build artifacts fail fast.
 - Matching `bidi_language()` / `set_bidi_language()` plus `default_run_*` and
   `style_run_*` bidi language APIs for editing `w:lang/@w:bidi` alongside
   existing `val` and `eastAsia` language inheritance.
