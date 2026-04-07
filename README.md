@@ -90,6 +90,19 @@ or output structure. The intended handoff flow is:
 5. If the mode is `review-and-repair`, allow the agent to iterate under
    `repair/fix-XX/` and rerun the full visual review loop after each fix.
 
+## Rendered Examples
+
+The screenshots below come from actual Word-rendered output saved in the
+repository so README readers can see the current layout quality directly.
+
+<p align="center">
+  <img src="docs/assets/readme/sample-chinese-page-01.png" alt="Rendered Chinese/CJK sample page" width="320" />
+  <img src="docs/assets/readme/visual-smoke-page-04.png" alt="Rendered mixed-direction smoke page" width="320" />
+</p>
+<p align="center">
+  <sub>Left: <code>featherdoc_sample_chinese</code> output rendered through Word. Right: the table/text-direction visual smoke sample exported through Word.</sub>
+</p>
+
 ## CLI
 
 `featherdoc_cli` is a small command-line wrapper around the current
@@ -852,13 +865,13 @@ passive mirror of the historical upstream project.
 If this project helps your work, you can support ongoing maintenance via the
 following support QR codes.
 
-### Alipay
-
-![Alipay QR Code](sponsor/zhifubao.jpg)
-
-### WeChat Appreciation
-
-![WeChat Appreciation QR Code](sponsor/weixin.png)
+<p align="center">
+  <img src="sponsor/zhifubao.jpg" alt="Alipay QR Code" width="220" />
+  <img src="sponsor/weixin.png" alt="WeChat Appreciation QR Code" width="220" />
+</p>
+<p align="center">
+  <sub>Left: Alipay. Right: WeChat Appreciation.</sub>
+</p>
 
 ## License
 

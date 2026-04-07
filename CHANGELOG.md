@@ -15,6 +15,8 @@ performance.
   metadata before saving a generated `.docx`.
 - Added `samples/sample_chinese.cpp` as a runnable Chinese/CJK generation
   sample and linked it from the quickstart documentation.
+- Updated `README.md` to show actual Word-rendered output screenshots and to
+  present the Alipay/WeChat sponsor QR codes side by side at a smaller size.
 
 ## [1.3.0] - 2026-04-07
 
