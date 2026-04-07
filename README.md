@@ -454,6 +454,13 @@ doc.replace_bookmark_with_table_rows(
     });
 ```
 
+For a runnable Chinese business example, build
+`featherdoc_sample_chinese_template` from
+`samples/sample_chinese_template.cpp`. It opens
+`samples/chinese_invoice_template.docx`, fills Chinese customer fields,
+expands a bookmarked table row into a three-column quote table, and writes a
+finished output document.
+
 Use `replace_bookmark_with_table(...)` when a bookmark occupies its own
 paragraph and should be replaced by a generated table block.
 

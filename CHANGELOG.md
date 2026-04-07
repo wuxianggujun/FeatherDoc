@@ -17,6 +17,9 @@ performance.
   sample and linked it from the quickstart documentation.
 - Updated `README.md` to show actual Word-rendered output screenshots and to
   present the Alipay/WeChat sponsor QR codes side by side at a smaller size.
+- Added `samples/sample_chinese_template.cpp` plus
+  `samples/chinese_invoice_template.docx` as a runnable Chinese
+  template-filling and bookmarked table-row expansion example.
 
 ## [1.3.0] - 2026-04-07
 

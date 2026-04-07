@@ -119,11 +119,17 @@ if(BUILD_SAMPLES)
     target_link_libraries(featherdoc_sample_chinese PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_chinese)
 
+    add_executable(featherdoc_sample_chinese_template samples/sample_chinese_template.cpp)
+    target_link_libraries(featherdoc_sample_chinese_template PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_chinese_template)
+
     add_executable(featherdoc_visual_smoke_tables samples/visual_smoke_tables.cpp)
     target_link_libraries(featherdoc_visual_smoke_tables PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_visual_smoke_tables)
 
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/my_test.docx
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/chinese_invoice_template.docx
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 

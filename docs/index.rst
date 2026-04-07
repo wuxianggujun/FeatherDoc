@@ -375,6 +375,13 @@ removes the template row.
             {"Orange", "1"},
         });
 
+For a runnable Chinese business example, build
+``featherdoc_sample_chinese_template`` from
+``samples/sample_chinese_template.cpp``. It opens
+``samples/chinese_invoice_template.docx``, fills Chinese customer fields,
+expands a bookmarked table row into a three-column quote table, and writes a
+finished output document.
+
 ``replace_bookmark_with_table(...)`` replaces a bookmark that occupies its own
 paragraph with a generated table block.
 
