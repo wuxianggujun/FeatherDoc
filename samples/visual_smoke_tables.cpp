@@ -52,6 +52,13 @@ auto configure_cjk_font_defaults(featherdoc::Document &doc) -> bool {
            doc.set_style_run_east_asia_font_family("Strong", "Microsoft YaHei");
 }
 
+auto configure_cjk_language_defaults(featherdoc::Document &doc) -> bool {
+    return doc.set_default_run_language("en-US") &&
+           doc.set_default_run_east_asia_language("zh-CN") &&
+           doc.set_style_run_language("Strong", "en-US") &&
+           doc.set_style_run_east_asia_language("Strong", "zh-CN");
+}
+
 auto add_cell_text(featherdoc::TableCell cell, std::string_view text,
                    featherdoc::formatting_flag formatting = featherdoc::formatting_flag::none)
     -> bool {
@@ -520,7 +527,7 @@ int main(int argc, char **argv) {
         return static_cast<int>(error.value() == 0 ? 1 : error.value());
     }
 
-    if (!configure_cjk_font_defaults(doc)) {
+    if (!configure_cjk_font_defaults(doc) || !configure_cjk_language_defaults(doc)) {
         print_document_error(doc, "configure CJK defaults");
         return 1;
     }
@@ -561,7 +568,8 @@ int main(int argc, char **argv) {
         utf8_from_u8(
             u8"\u4E2D\u6587/CJK \u9ED8\u8BA4\u5B57\u4F53\u68C0\u67E5\uff1A"
             u8"\u8FD9\u884C\u4F9D\u8D56 docDefaults \u7EE7\u627F eastAsia "
-            u8"\u5B57\u4F53\uff0C\u9700\u8981\u89C2\u5BDF\u4E2D\u82F1\u6DF7\u6392\u662F\u5426\u7A33\u5B9A\u3002"));
+            u8"\u5B57\u4F53\u4E0E w:lang \u8BED\u8A00\u6807\u8BB0\uff0c"
+            u8"\u9700\u8981\u89C2\u5BDF\u4E2D\u82F1\u6DF7\u6392\u662F\u5426\u7A33\u5B9A\u3002"));
     if (!paragraph.has_next()) {
         std::cerr << "failed to append default CJK review paragraph\n";
         return 1;
@@ -571,7 +579,7 @@ int main(int argc, char **argv) {
         utf8_from_u8(
             u8"\u4E2D\u6587/CJK \u6837\u5F0F\u7EE7\u627F\u68C0\u67E5\uff1A"
             u8"\u8FD9\u884C\u4F7F\u7528 Strong \u6837\u5F0F\uff0C"
-            u8"\u4E0D\u76F4\u63A5\u5BF9 run \u5199\u5B57\u4F53\u3002"));
+            u8"\u4E0D\u76F4\u63A5\u5BF9 run \u5199\u5B57\u4F53\u6216\u8BED\u8A00\u6807\u8BB0\u3002"));
     if (!paragraph.has_next() || !doc.set_run_style(paragraph.runs(), "Strong")) {
         print_document_error(doc, "append style-based CJK review paragraph");
         return 1;

@@ -18,13 +18,18 @@ performance.
   `clear_default_run_font_family()`, and matching `style_run_*` APIs for
   editing `word/styles.xml` `docDefaults` plus style-level `w:rFonts`
   inheritance for Chinese/CJK text.
+- `Run::language()`, `east_asia_language()`, `set_language()`,
+  `set_east_asia_language()`, `clear_language()`, plus matching
+  `default_run_*` and `style_run_*` language APIs for editing `w:lang`
+  inheritance in `document.xml` and `styles.xml`.
 
 ### Validation
 
 - Extended `samples/visual_smoke_tables.cpp` with explicit Chinese/CJK review
   text rendered through `docDefaults` and `Strong` style inheritance
-  (`Microsoft YaHei` for `eastAsia`) so the Word-to-PDF-to-PNG smoke flow
-  checks mixed-script layout as well as borders and table geometry.
+  (`Microsoft YaHei` for `eastAsia`, `zh-CN` for `w:lang`) so the
+  Word-to-PDF-to-PNG smoke flow checks mixed-script layout as well as borders
+  and table geometry.
 
 ## [1.2.0] - 2026-04-07
 

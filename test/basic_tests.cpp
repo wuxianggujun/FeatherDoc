@@ -6034,3 +6034,214 @@ TEST_CASE("style run font APIs edit styles.xml and preserve unrelated style mark
 
     fs::remove(target);
 }
+
+TEST_CASE("run language APIs write w:lang and clear removes empty run properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "run_language_roundtrip.docx";
+    const auto run_text = utf8_from_u8(u8"中文 language smoke");
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+
+    auto run = paragraph.add_run(run_text);
+    REQUIRE(run.has_next());
+
+    CHECK_FALSE(run.set_language(""));
+    CHECK_FALSE(run.set_east_asia_language(""));
+    CHECK(run.set_language("en-US"));
+    CHECK(run.set_east_asia_language("zh-CN"));
+
+    const auto language = run.language();
+    REQUIRE(language.has_value());
+    CHECK_EQ(*language, "en-US");
+
+    const auto east_asia_language = run.east_asia_language();
+    REQUIRE(east_asia_language.has_value());
+    CHECK_EQ(*east_asia_language, "zh-CN");
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("<w:lang"), std::string::npos);
+    CHECK_NE(saved_document_xml.find("w:val=\"en-US\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("w:eastAsia=\"zh-CN\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_run = reopened.paragraphs().runs();
+    REQUIRE(reopened_run.has_next());
+    CHECK_EQ(reopened_run.get_text(), run_text);
+
+    const auto reopened_language = reopened_run.language();
+    REQUIRE(reopened_language.has_value());
+    CHECK_EQ(*reopened_language, "en-US");
+
+    const auto reopened_east_asia_language = reopened_run.east_asia_language();
+    REQUIRE(reopened_east_asia_language.has_value());
+    CHECK_EQ(*reopened_east_asia_language, "zh-CN");
+
+    CHECK(reopened_run.clear_language());
+    CHECK_FALSE(reopened.save());
+
+    const auto cleared_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(cleared_document_xml, "<w:lang"), 0);
+    CHECK_EQ(count_substring_occurrences(cleared_document_xml, "<w:rPr>"), 0);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    auto cleared_run = cleared.paragraphs().runs();
+    REQUIRE(cleared_run.has_next());
+    CHECK_FALSE(cleared_run.language().has_value());
+    CHECK_FALSE(cleared_run.east_asia_language().has_value());
+
+    fs::remove(target);
+}
+
+TEST_CASE("default run language APIs edit docDefaults and round-trip through styles.xml") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "default_run_language_roundtrip.docx";
+    const auto run_text = utf8_from_u8(u8"默认语言写入");
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK_FALSE(doc.set_default_run_language(""));
+    CHECK_FALSE(doc.set_default_run_east_asia_language(""));
+    CHECK_FALSE(doc.default_run_language().has_value());
+    CHECK_FALSE(doc.default_run_east_asia_language().has_value());
+
+    CHECK(doc.set_default_run_language("en-US"));
+    CHECK(doc.set_default_run_east_asia_language("zh-CN"));
+
+    const auto default_language = doc.default_run_language();
+    REQUIRE(default_language.has_value());
+    CHECK_EQ(*default_language, "en-US");
+
+    const auto default_east_asia_language = doc.default_run_east_asia_language();
+    REQUIRE(default_east_asia_language.has_value());
+    CHECK_EQ(*default_east_asia_language, "zh-CN");
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.add_run(run_text).has_next());
+
+    CHECK_FALSE(doc.save());
+    CHECK(test_docx_entry_exists(target, "word/styles.xml"));
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("<w:docDefaults>"), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:lang"), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:val=\"en-US\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:eastAsia=\"zh-CN\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_default_language = reopened.default_run_language();
+    REQUIRE(reopened_default_language.has_value());
+    CHECK_EQ(*reopened_default_language, "en-US");
+
+    const auto reopened_default_east_asia_language =
+        reopened.default_run_east_asia_language();
+    REQUIRE(reopened_default_east_asia_language.has_value());
+    CHECK_EQ(*reopened_default_east_asia_language, "zh-CN");
+
+    CHECK_EQ(collect_document_text(reopened), run_text + "\n");
+    CHECK(reopened.clear_default_run_language());
+    CHECK_FALSE(reopened.save());
+
+    const auto cleared_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_EQ(count_substring_occurrences(cleared_styles_xml, "w:eastAsia=\"zh-CN\""), 0);
+    CHECK_EQ(count_substring_occurrences(cleared_styles_xml, "w:val=\"en-US\""), 0);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_FALSE(cleared.default_run_language().has_value());
+    CHECK_FALSE(cleared.default_run_east_asia_language().has_value());
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("style run language APIs edit styles.xml and preserve unrelated style markup") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "style_run_language_roundtrip.docx";
+    const auto run_text = utf8_from_u8(u8"样式语言写入");
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK_FALSE(doc.set_style_run_language("", "en-US"));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.set_style_run_language("MissingStyle", "en-US"));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.style_run_language("MissingStyle").has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK(doc.set_style_run_language("Strong", "en-US"));
+    CHECK(doc.set_style_run_east_asia_language("Strong", "zh-CN"));
+
+    const auto style_language = doc.style_run_language("Strong");
+    REQUIRE(style_language.has_value());
+    CHECK_EQ(*style_language, "en-US");
+
+    const auto style_east_asia_language = doc.style_run_east_asia_language("Strong");
+    REQUIRE(style_east_asia_language.has_value());
+    CHECK_EQ(*style_east_asia_language, "zh-CN");
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run(run_text);
+    REQUIRE(run.has_next());
+    CHECK(doc.set_run_style(run, "Strong"));
+
+    CHECK_FALSE(doc.save());
+
+    auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"Strong\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("<w:lang"), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:val=\"en-US\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:eastAsia=\"zh-CN\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:b"), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), run_text + "\n");
+
+    const auto reopened_style_language = reopened.style_run_language("Strong");
+    REQUIRE(reopened_style_language.has_value());
+    CHECK_EQ(*reopened_style_language, "en-US");
+
+    const auto reopened_style_east_asia_language =
+        reopened.style_run_east_asia_language("Strong");
+    REQUIRE(reopened_style_east_asia_language.has_value());
+    CHECK_EQ(*reopened_style_east_asia_language, "zh-CN");
+
+    CHECK(reopened.clear_style_run_language("Strong"));
+    CHECK_FALSE(reopened.save());
+
+    saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:eastAsia=\"zh-CN\""), 0);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:val=\"en-US\""), 0);
+    CHECK_NE(saved_styles_xml.find("w:b"), std::string::npos);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_FALSE(cleared.style_run_language("Strong").has_value());
+    CHECK_FALSE(cleared.style_run_east_asia_language("Strong").has_value());
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
