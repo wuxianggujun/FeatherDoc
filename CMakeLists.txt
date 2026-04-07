@@ -115,6 +115,10 @@ if(BUILD_SAMPLES)
     target_link_libraries(featherdoc_sample2 PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample2)
 
+    add_executable(featherdoc_sample_chinese samples/sample_chinese.cpp)
+    target_link_libraries(featherdoc_sample_chinese PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_chinese)
+
     add_executable(featherdoc_visual_smoke_tables samples/visual_smoke_tables.cpp)
     target_link_libraries(featherdoc_visual_smoke_tables PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_visual_smoke_tables)

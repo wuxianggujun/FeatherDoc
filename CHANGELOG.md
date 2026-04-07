@@ -13,6 +13,8 @@ performance.
 - Added a minimal Chinese/CJK quickstart example to `README.md` and
   `docs/index.rst` showing how to set default East Asia font and language
   metadata before saving a generated `.docx`.
+- Added `samples/sample_chinese.cpp` as a runnable Chinese/CJK generation
+  sample and linked it from the quickstart documentation.
 
 ## [1.3.0] - 2026-04-07
 

@@ -739,6 +739,8 @@ if (const auto error = doc.save()) {
 When one paragraph needs its own override, call `run.set_font_family(...)`,
 `run.set_east_asia_font_family(...)`, `run.set_language(...)`, and
 `run.set_east_asia_language(...)` on the returned `Run`.
+For a runnable end-to-end version, build `featherdoc_sample_chinese` from
+`samples/sample_chinese.cpp` with `-DBUILD_SAMPLES=ON`.
 
 ## Performance Notes
 

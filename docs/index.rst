@@ -675,6 +675,8 @@ fallback behavior.
 Call ``run.set_font_family(...)``, ``run.set_east_asia_font_family(...)``,
 ``run.set_language(...)``, and ``run.set_east_asia_language(...)`` on the
 returned ``Run`` when one paragraph needs a per-run override.
+For a runnable end-to-end version, build ``featherdoc_sample_chinese`` from
+``samples/sample_chinese.cpp`` with ``-DBUILD_SAMPLES=ON``.
 
 Performance Notes
 -----------------
