@@ -22,14 +22,17 @@ performance.
   `set_east_asia_language()`, `clear_language()`, plus matching
   `default_run_*` and `style_run_*` language APIs for editing `w:lang`
   inheritance in `document.xml` and `styles.xml`.
+- Matching `bidi_language()` / `set_bidi_language()` plus `default_run_*` and
+  `style_run_*` bidi language APIs for editing `w:lang/@w:bidi` alongside
+  existing `val` and `eastAsia` language inheritance.
 
 ### Validation
 
 - Extended `samples/visual_smoke_tables.cpp` with explicit Chinese/CJK review
   text rendered through `docDefaults` and `Strong` style inheritance
-  (`Microsoft YaHei` for `eastAsia`, `zh-CN` for `w:lang`) so the
-  Word-to-PDF-to-PNG smoke flow checks mixed-script layout as well as borders
-  and table geometry.
+  (`Microsoft YaHei` for `eastAsia`, `zh-CN` / `ar-SA` for `w:lang`) so the
+  Word-to-PDF-to-PNG smoke flow checks mixed-script and bidi layout as well as
+  borders and table geometry.
 - `prepare_word_review_task.ps1` now seeds collision-safe task packages from
   reusable review templates and emits MCP-oriented prompts that explicitly
   require AI reviewers to write findings back into `report/`.

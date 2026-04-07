@@ -242,7 +242,7 @@ $reviewResult = [ordered]@{
     notes = @(
         "Fill findings after the visual Word review is complete.",
         "Keep verdict as pass/fail/undetermined according to screenshot evidence.",
-        "Confirm the Chinese/CJK sample text inherits readable fonts and w:lang markers from docDefaults and style-based run formatting without tofu or unstable line wrapping."
+        "Confirm the Chinese/CJK and RTL/bidi sample text inherits readable fonts plus w:lang markers from docDefaults and style-based run formatting without tofu, broken RTL order, or unstable line wrapping."
     )
 }
 ($reviewResult | ConvertTo-Json -Depth 6) | Set-Content -Path $reviewResultPath -Encoding UTF8
@@ -290,7 +290,7 @@ $checklist = @"
 - Verify the multi-page audit table repeats its header row on every later page.
 - Verify the highlighted cantSplit row (`R16`) stays entirely on one page.
 - Verify fills, margins, and centered cells still look intentional after Word export.
-- Verify the Chinese/CJK samples inherit readable glyphs plus `w:lang` language markers from docDefaults and `Strong` style formatting with stable line breaks and no obvious fallback-font drift.
+- Verify the Chinese/CJK and RTL/bidi samples inherit readable glyphs plus `w:lang` language markers from docDefaults and `Strong` style formatting with stable line breaks, sane RTL order, and no obvious fallback-font drift.
 - Verify the final merge matrix has no clipped text, border gaps, or missing shading.
 
 Artifacts:

@@ -183,6 +183,10 @@ std::optional<std::string> Run::east_asia_language() const {
                                    "w:eastAsia");
 }
 
+std::optional<std::string> Run::bidi_language() const {
+    return read_language_attribute(this->current.child("w:rPr").child("w:lang"), "w:bidi");
+}
+
 bool Run::set_font_family(std::string_view font_family) const {
     if (this->current == pugi::xml_node{} || font_family.empty()) {
         return false;
@@ -261,6 +265,25 @@ bool Run::set_east_asia_language(std::string_view language) const {
     return true;
 }
 
+bool Run::set_bidi_language(std::string_view language) const {
+    if (this->current == pugi::xml_node{} || language.empty()) {
+        return false;
+    }
+
+    const auto run_properties = detail::ensure_run_properties_node(this->current);
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto run_language = ensure_run_language_node(run_properties);
+    if (run_language == pugi::xml_node{}) {
+        return false;
+    }
+
+    set_xml_attribute(run_language, "w:bidi", language);
+    return true;
+}
+
 bool Run::clear_font_family() const {
     if (this->current == pugi::xml_node{}) {
         return false;
@@ -298,6 +321,7 @@ bool Run::clear_language() const {
     if (run_language != pugi::xml_node{}) {
         run_language.remove_attribute("w:val");
         run_language.remove_attribute("w:eastAsia");
+        run_language.remove_attribute("w:bidi");
         remove_empty_run_language_node(run_properties);
     }
 

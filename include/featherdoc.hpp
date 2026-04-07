@@ -53,10 +53,12 @@ class Run {
     [[nodiscard]] std::optional<std::string> east_asia_font_family() const;
     [[nodiscard]] std::optional<std::string> language() const;
     [[nodiscard]] std::optional<std::string> east_asia_language() const;
+    [[nodiscard]] std::optional<std::string> bidi_language() const;
     [[nodiscard]] bool set_font_family(std::string_view font_family) const;
     [[nodiscard]] bool set_east_asia_font_family(std::string_view font_family) const;
     [[nodiscard]] bool set_language(std::string_view language) const;
     [[nodiscard]] bool set_east_asia_language(std::string_view language) const;
+    [[nodiscard]] bool set_bidi_language(std::string_view language) const;
     [[nodiscard]] bool clear_font_family() const;
     [[nodiscard]] bool clear_language() const;
 
@@ -550,10 +552,12 @@ class Document {
     [[nodiscard]] std::optional<std::string> default_run_east_asia_font_family();
     [[nodiscard]] std::optional<std::string> default_run_language();
     [[nodiscard]] std::optional<std::string> default_run_east_asia_language();
+    [[nodiscard]] std::optional<std::string> default_run_bidi_language();
     [[nodiscard]] bool set_default_run_font_family(std::string_view font_family);
     [[nodiscard]] bool set_default_run_east_asia_font_family(std::string_view font_family);
     [[nodiscard]] bool set_default_run_language(std::string_view language);
     [[nodiscard]] bool set_default_run_east_asia_language(std::string_view language);
+    [[nodiscard]] bool set_default_run_bidi_language(std::string_view language);
     [[nodiscard]] bool clear_default_run_font_family();
     [[nodiscard]] bool clear_default_run_language();
     [[nodiscard]] std::optional<std::string> style_run_font_family(std::string_view style_id);
@@ -561,6 +565,8 @@ class Document {
         std::string_view style_id);
     [[nodiscard]] std::optional<std::string> style_run_language(std::string_view style_id);
     [[nodiscard]] std::optional<std::string> style_run_east_asia_language(
+        std::string_view style_id);
+    [[nodiscard]] std::optional<std::string> style_run_bidi_language(
         std::string_view style_id);
     [[nodiscard]] bool set_style_run_font_family(std::string_view style_id,
                                                  std::string_view font_family);
@@ -570,6 +576,8 @@ class Document {
                                               std::string_view language);
     [[nodiscard]] bool set_style_run_east_asia_language(std::string_view style_id,
                                                         std::string_view language);
+    [[nodiscard]] bool set_style_run_bidi_language(std::string_view style_id,
+                                                   std::string_view language);
     [[nodiscard]] bool clear_style_run_font_family(std::string_view style_id);
     [[nodiscard]] bool clear_style_run_language(std::string_view style_id);
     [[nodiscard]] bool set_paragraph_style(Paragraph paragraph, std::string_view style_id);

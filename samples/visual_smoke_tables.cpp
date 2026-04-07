@@ -55,8 +55,10 @@ auto configure_cjk_font_defaults(featherdoc::Document &doc) -> bool {
 auto configure_cjk_language_defaults(featherdoc::Document &doc) -> bool {
     return doc.set_default_run_language("en-US") &&
            doc.set_default_run_east_asia_language("zh-CN") &&
+           doc.set_default_run_bidi_language("ar-SA") &&
            doc.set_style_run_language("Strong", "en-US") &&
-           doc.set_style_run_east_asia_language("Strong", "zh-CN");
+           doc.set_style_run_east_asia_language("Strong", "zh-CN") &&
+           doc.set_style_run_bidi_language("Strong", "ar-SA");
 }
 
 auto add_cell_text(featherdoc::TableCell cell, std::string_view text,
@@ -582,6 +584,26 @@ int main(int argc, char **argv) {
             u8"\u4E0D\u76F4\u63A5\u5BF9 run \u5199\u5B57\u4F53\u6216\u8BED\u8A00\u6807\u8BB0\u3002"));
     if (!paragraph.has_next() || !doc.set_run_style(paragraph.runs(), "Strong")) {
         print_document_error(doc, "append style-based CJK review paragraph");
+        return 1;
+    }
+
+    paragraph = paragraph.insert_paragraph_after(
+        utf8_from_u8(
+            u8"RTL/bidi \u9ED8\u8BA4\u7EE7\u627F\u68C0\u67E5\uff1A"
+            u8"\u8FD9\u884C\u4F9D\u8D56 docDefaults \u7EE7\u627F bidi \u8BED\u8A00\u6807\u8BB0\uff0C "
+            u8"\u0645\u0631\u062D\u0628\u0627 \u0628\u0627\u0644\u0639\u0631\u0628\u064A\u0629 123"));
+    if (!paragraph.has_next()) {
+        std::cerr << "failed to append default bidi review paragraph\n";
+        return 1;
+    }
+
+    paragraph = paragraph.insert_paragraph_after(
+        utf8_from_u8(
+            u8"RTL/bidi \u6837\u5F0F\u7EE7\u627F\u68C0\u67E5\uff1A"
+            u8"\u8FD9\u884C\u4F7F\u7528 Strong \u6837\u5F0F\uff0C "
+            u8"\u0627\u0644\u0639\u0631\u0628\u064A\u0629 \u0645\u0639 Strong style"));
+    if (!paragraph.has_next() || !doc.set_run_style(paragraph.runs(), "Strong")) {
+        print_document_error(doc, "append style-based bidi review paragraph");
         return 1;
     }
 

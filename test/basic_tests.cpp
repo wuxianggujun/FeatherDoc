@@ -6053,8 +6053,10 @@ TEST_CASE("run language APIs write w:lang and clear removes empty run properties
 
     CHECK_FALSE(run.set_language(""));
     CHECK_FALSE(run.set_east_asia_language(""));
+    CHECK_FALSE(run.set_bidi_language(""));
     CHECK(run.set_language("en-US"));
     CHECK(run.set_east_asia_language("zh-CN"));
+    CHECK(run.set_bidi_language("ar-SA"));
 
     const auto language = run.language();
     REQUIRE(language.has_value());
@@ -6064,12 +6066,17 @@ TEST_CASE("run language APIs write w:lang and clear removes empty run properties
     REQUIRE(east_asia_language.has_value());
     CHECK_EQ(*east_asia_language, "zh-CN");
 
+    const auto bidi_language = run.bidi_language();
+    REQUIRE(bidi_language.has_value());
+    CHECK_EQ(*bidi_language, "ar-SA");
+
     CHECK_FALSE(doc.save());
 
     const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
     CHECK_NE(saved_document_xml.find("<w:lang"), std::string::npos);
     CHECK_NE(saved_document_xml.find("w:val=\"en-US\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("w:eastAsia=\"zh-CN\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("w:bidi=\"ar-SA\""), std::string::npos);
 
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
@@ -6086,6 +6093,10 @@ TEST_CASE("run language APIs write w:lang and clear removes empty run properties
     REQUIRE(reopened_east_asia_language.has_value());
     CHECK_EQ(*reopened_east_asia_language, "zh-CN");
 
+    const auto reopened_bidi_language = reopened_run.bidi_language();
+    REQUIRE(reopened_bidi_language.has_value());
+    CHECK_EQ(*reopened_bidi_language, "ar-SA");
+
     CHECK(reopened_run.clear_language());
     CHECK_FALSE(reopened.save());
 
@@ -6101,6 +6112,7 @@ TEST_CASE("run language APIs write w:lang and clear removes empty run properties
     REQUIRE(cleared_run.has_next());
     CHECK_FALSE(cleared_run.language().has_value());
     CHECK_FALSE(cleared_run.east_asia_language().has_value());
+    CHECK_FALSE(cleared_run.bidi_language().has_value());
 
     fs::remove(target);
 }
@@ -6117,11 +6129,14 @@ TEST_CASE("default run language APIs edit docDefaults and round-trip through sty
 
     CHECK_FALSE(doc.set_default_run_language(""));
     CHECK_FALSE(doc.set_default_run_east_asia_language(""));
+    CHECK_FALSE(doc.set_default_run_bidi_language(""));
     CHECK_FALSE(doc.default_run_language().has_value());
     CHECK_FALSE(doc.default_run_east_asia_language().has_value());
+    CHECK_FALSE(doc.default_run_bidi_language().has_value());
 
     CHECK(doc.set_default_run_language("en-US"));
     CHECK(doc.set_default_run_east_asia_language("zh-CN"));
+    CHECK(doc.set_default_run_bidi_language("ar-SA"));
 
     const auto default_language = doc.default_run_language();
     REQUIRE(default_language.has_value());
@@ -6130,6 +6145,10 @@ TEST_CASE("default run language APIs edit docDefaults and round-trip through sty
     const auto default_east_asia_language = doc.default_run_east_asia_language();
     REQUIRE(default_east_asia_language.has_value());
     CHECK_EQ(*default_east_asia_language, "zh-CN");
+
+    const auto default_bidi_language = doc.default_run_bidi_language();
+    REQUIRE(default_bidi_language.has_value());
+    CHECK_EQ(*default_bidi_language, "ar-SA");
 
     auto paragraph = doc.paragraphs();
     REQUIRE(paragraph.has_next());
@@ -6143,6 +6162,7 @@ TEST_CASE("default run language APIs edit docDefaults and round-trip through sty
     CHECK_NE(saved_styles_xml.find("<w:lang"), std::string::npos);
     CHECK_NE(saved_styles_xml.find("w:val=\"en-US\""), std::string::npos);
     CHECK_NE(saved_styles_xml.find("w:eastAsia=\"zh-CN\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:bidi=\"ar-SA\""), std::string::npos);
 
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
@@ -6156,6 +6176,10 @@ TEST_CASE("default run language APIs edit docDefaults and round-trip through sty
     REQUIRE(reopened_default_east_asia_language.has_value());
     CHECK_EQ(*reopened_default_east_asia_language, "zh-CN");
 
+    const auto reopened_default_bidi_language = reopened.default_run_bidi_language();
+    REQUIRE(reopened_default_bidi_language.has_value());
+    CHECK_EQ(*reopened_default_bidi_language, "ar-SA");
+
     CHECK_EQ(collect_document_text(reopened), run_text + "\n");
     CHECK(reopened.clear_default_run_language());
     CHECK_FALSE(reopened.save());
@@ -6163,11 +6187,13 @@ TEST_CASE("default run language APIs edit docDefaults and round-trip through sty
     const auto cleared_styles_xml = read_test_docx_entry(target, "word/styles.xml");
     CHECK_EQ(count_substring_occurrences(cleared_styles_xml, "w:eastAsia=\"zh-CN\""), 0);
     CHECK_EQ(count_substring_occurrences(cleared_styles_xml, "w:val=\"en-US\""), 0);
+    CHECK_EQ(count_substring_occurrences(cleared_styles_xml, "w:bidi=\"ar-SA\""), 0);
 
     featherdoc::Document cleared(target);
     CHECK_FALSE(cleared.open());
     CHECK_FALSE(cleared.default_run_language().has_value());
     CHECK_FALSE(cleared.default_run_east_asia_language().has_value());
+    CHECK_FALSE(cleared.default_run_bidi_language().has_value());
     CHECK_EQ(collect_document_text(cleared), run_text + "\n");
 
     fs::remove(target);
@@ -6192,6 +6218,7 @@ TEST_CASE("style run language APIs edit styles.xml and preserve unrelated style 
 
     CHECK(doc.set_style_run_language("Strong", "en-US"));
     CHECK(doc.set_style_run_east_asia_language("Strong", "zh-CN"));
+    CHECK(doc.set_style_run_bidi_language("Strong", "ar-SA"));
 
     const auto style_language = doc.style_run_language("Strong");
     REQUIRE(style_language.has_value());
@@ -6200,6 +6227,10 @@ TEST_CASE("style run language APIs edit styles.xml and preserve unrelated style 
     const auto style_east_asia_language = doc.style_run_east_asia_language("Strong");
     REQUIRE(style_east_asia_language.has_value());
     CHECK_EQ(*style_east_asia_language, "zh-CN");
+
+    const auto style_bidi_language = doc.style_run_bidi_language("Strong");
+    REQUIRE(style_bidi_language.has_value());
+    CHECK_EQ(*style_bidi_language, "ar-SA");
 
     auto paragraph = doc.paragraphs();
     REQUIRE(paragraph.has_next());
@@ -6214,6 +6245,7 @@ TEST_CASE("style run language APIs edit styles.xml and preserve unrelated style 
     CHECK_NE(saved_styles_xml.find("<w:lang"), std::string::npos);
     CHECK_NE(saved_styles_xml.find("w:val=\"en-US\""), std::string::npos);
     CHECK_NE(saved_styles_xml.find("w:eastAsia=\"zh-CN\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:bidi=\"ar-SA\""), std::string::npos);
     CHECK_NE(saved_styles_xml.find("w:b"), std::string::npos);
 
     featherdoc::Document reopened(target);
@@ -6229,18 +6261,24 @@ TEST_CASE("style run language APIs edit styles.xml and preserve unrelated style 
     REQUIRE(reopened_style_east_asia_language.has_value());
     CHECK_EQ(*reopened_style_east_asia_language, "zh-CN");
 
+    const auto reopened_style_bidi_language = reopened.style_run_bidi_language("Strong");
+    REQUIRE(reopened_style_bidi_language.has_value());
+    CHECK_EQ(*reopened_style_bidi_language, "ar-SA");
+
     CHECK(reopened.clear_style_run_language("Strong"));
     CHECK_FALSE(reopened.save());
 
     saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
     CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:eastAsia=\"zh-CN\""), 0);
     CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:val=\"en-US\""), 0);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:bidi=\"ar-SA\""), 0);
     CHECK_NE(saved_styles_xml.find("w:b"), std::string::npos);
 
     featherdoc::Document cleared(target);
     CHECK_FALSE(cleared.open());
     CHECK_FALSE(cleared.style_run_language("Strong").has_value());
     CHECK_FALSE(cleared.style_run_east_asia_language("Strong").has_value());
+    CHECK_FALSE(cleared.style_run_bidi_language("Strong").has_value());
     CHECK_EQ(collect_document_text(cleared), run_text + "\n");
 
     fs::remove(target);
