@@ -123,6 +123,42 @@ function Find-SampleExecutable {
     return $candidates[0].FullName
 }
 
+function Get-DocxEntryNames {
+    param([string]$DocxPath)
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($DocxPath)
+    try {
+        return @($archive.Entries | ForEach-Object { $_.FullName })
+    } finally {
+        $archive.Dispose()
+    }
+}
+
+function Assert-GeneratedSmokeDocx {
+    param([string]$DocxPath)
+
+    if (-not (Test-Path $DocxPath)) {
+        throw "Smoke sample was not created: $DocxPath"
+    }
+
+    $entries = Get-DocxEntryNames -DocxPath $DocxPath
+    $requiredEntries = @(
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "word/document.xml",
+        "word/_rels/document.xml.rels",
+        "word/styles.xml"
+    )
+
+    $missingEntries = @($requiredEntries | Where-Object { $_ -notin $entries })
+    if ($missingEntries.Count -gt 0) {
+        $entryList = ($entries | Sort-Object) -join ", "
+        $missingList = $missingEntries -join ", "
+        throw "Generated smoke DOCX is missing required entries ($missingList). Existing entries: $entryList. Rebuild featherdoc_visual_smoke_tables before trusting this output."
+    }
+}
+
 function Export-DocxToPdf {
     param(
         [string]$DocxPath,
@@ -157,6 +193,64 @@ function Export-DocxToPdf {
             }
         }
         throw
+    }
+}
+
+function Get-PdfPageCount {
+    param(
+        [string]$PythonCommand,
+        [string]$PdfPath
+    )
+
+    $pageCountOutput = & $PythonCommand -c "import fitz, sys; document = fitz.open(sys.argv[1]); print(document.page_count)" $PdfPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to inspect PDF page count for $PdfPath"
+    }
+
+    $pageCountText = ($pageCountOutput | Select-Object -Last 1).ToString().Trim()
+    $pageCount = 0
+    if (-not [int]::TryParse($pageCountText, [ref]$pageCount)) {
+        throw "Unexpected PDF page count output: $pageCountText"
+    }
+
+    return $pageCount
+}
+
+function Assert-RenderedEvidence {
+    param(
+        $Summary,
+        [string]$PagesDir,
+        [string]$ContactSheetPath,
+        [int]$PdfPageCount
+    )
+
+    if (-not (Test-Path $ContactSheetPath)) {
+        throw "Contact sheet was not created: $ContactSheetPath"
+    }
+
+    $pageImages = @($Summary.pages)
+    if ($pageImages.Count -eq 0) {
+        throw "Render step produced zero page images."
+    }
+
+    foreach ($pageImage in $pageImages) {
+        if (-not (Test-Path $pageImage)) {
+            throw "Summary references a missing page image: $pageImage"
+        }
+    }
+
+    $actualPages = @(Get-ChildItem -Path $PagesDir -Filter "page-*.png" -File | Sort-Object Name)
+    if ($actualPages.Count -ne $Summary.page_count) {
+        throw "Summary page count ($($Summary.page_count)) does not match PNG count on disk ($($actualPages.Count))."
+    }
+
+    if ($Summary.page_count -ne $PdfPageCount) {
+        throw "Rendered PNG count ($($Summary.page_count)) does not match PDF page count ($PdfPageCount)."
+    }
+
+    $lastExpectedPage = Join-Path $PagesDir ("page-{0:D2}.png" -f $Summary.page_count)
+    if (-not (Test-Path $lastExpectedPage)) {
+        throw "Expected last page PNG is missing: $lastExpectedPage"
     }
 }
 
@@ -202,6 +296,7 @@ if (-not $InputDocx) {
     if ($LASTEXITCODE -ne 0) {
         throw "Smoke sample generation failed."
     }
+    Assert-GeneratedSmokeDocx -DocxPath $docxPath
 } else {
     Write-Step "Using existing DOCX: $docxPath"
 }
@@ -222,6 +317,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $summary = Get-Content -Path $summaryPath -Raw | ConvertFrom-Json
+$pdfPageCount = Get-PdfPageCount -PythonCommand $renderPython -PdfPath $pdfPath
+Assert-RenderedEvidence -Summary $summary -PagesDir $pagesDir -ContactSheetPath $contactSheetPath -PdfPageCount $pdfPageCount
 $reviewResult = [ordered]@{
     document_path = $docxPath
     pdf_path = $pdfPath
