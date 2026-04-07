@@ -82,6 +82,7 @@ constexpr auto empty_settings_xml = std::string_view{
 <w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
 </w:settings>
 )"}; 
+constexpr int docx_output_compression_level = 0;
 
 struct packaged_entry final {
     std::string_view name;
@@ -931,6 +932,7 @@ std::error_code Document::create_empty() {
 
     auto body = this->document.child("w:document").child("w:body");
     this->paragraph.set_parent(body);
+    this->table.set_owner(this);
     this->table.set_parent(body);
     this->content_types_loaded = true;
     this->flag_is_open = true;
@@ -1294,6 +1296,7 @@ bool Document::move_section(std::size_t source_section_index,
     }
 
     this->paragraph.set_parent(body);
+    this->table.set_owner(this);
     this->table.set_parent(body);
     this->cleanup_first_page_section_markers();
 
@@ -1564,6 +1567,7 @@ std::error_code Document::open() {
 
     auto body = this->document.child("w:document").child("w:body");
     this->paragraph.set_parent(body);
+    this->table.set_owner(this);
     this->table.set_parent(body);
     this->has_source_archive = true;
     this->last_error_info.clear();
@@ -1602,7 +1606,7 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
 
     int output_zip_error = 0;
     zip_t *new_zip = zip_openwitherror(temp_file.string().c_str(),
-                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       docx_output_compression_level, 'w',
                                        &output_zip_error);
     if (!new_zip) {
         return set_last_error(this->last_error_info,
@@ -3478,6 +3482,7 @@ Paragraph &Document::paragraphs() {
 }
 
 Table &Document::tables() {
+    this->table.set_owner(this);
     this->table.set_parent(document.child("w:document").child("w:body"));
     return this->table;
 }
@@ -3486,6 +3491,7 @@ Table Document::append_table(std::size_t row_count, std::size_t column_count) {
     const auto body = document.child("w:document").child("w:body");
     const auto table_node = detail::append_table_node(body);
     auto created_table = Table(body, table_node);
+    created_table.set_owner(this);
 
     for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
         created_table.append_row(column_count);

@@ -41,6 +41,9 @@ performance.
   shading and per-edge margin editing.
 - `TableCell::vertical_alignment()`, `set_vertical_alignment()`, and
   `clear_vertical_alignment()` for cell vertical alignment editing.
+- `samples/visual_smoke_tables.cpp` plus `scripts/run_word_visual_smoke.ps1`
+  and `scripts/render_pdf_pages.py` for Word-driven visual smoke checks that
+  export generated `.docx` output to PDF and page PNGs.
 - `append_image(path)` and `append_image(path, width_px, height_px)` for
   appending inline body images backed by managed `word/media/*` parts.
 - `set_paragraph_list(paragraph, kind, level)` and

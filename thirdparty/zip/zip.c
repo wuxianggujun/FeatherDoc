@@ -365,6 +365,22 @@ static const char *zip_basename(const char *name) {
 }
 #endif /* ZIP_ENABLE_DEFLATE */
 
+static mz_bool zip_name_requires_utf8_flag(const char *name) {
+  const unsigned char *cursor = (const unsigned char *)name;
+  if (!cursor) {
+    return MZ_FALSE;
+  }
+
+  while (*cursor) {
+    if (*cursor > 0x7F) {
+      return MZ_TRUE;
+    }
+    ++cursor;
+  }
+
+  return MZ_FALSE;
+}
+
 #if ZIP_ENABLE_INFLATE
 static int zip_mkpath(char *path, size_t pos) {
   char *p;
@@ -1186,7 +1202,7 @@ struct zip_t *zip_openwitherror(const char *zipname, int level, char mode,
                                 int *errnum) {
   struct zip_t *zip = NULL;
 #if ZIP_ENABLE_DEFLATE
-  mz_uint wflags = (mode == 'w') ? MZ_ZIP_FLAG_WRITE_ZIP64 : 0;
+  mz_uint wflags = 0;
 #endif
   *errnum = 0;
 
@@ -1298,7 +1314,7 @@ struct zip_t *zip_open_with_password_and_error(const char *zipname, int level,
   *errnum = 0;
 
   if (mode == 'w') {
-    wflags = MZ_ZIP_FLAG_WRITE_ZIP64;
+    wflags = 0;
     if (has_password)
       wflags |= MZ_ZIP_FLAG_WRITE_ALLOW_READING;
   }
@@ -1557,18 +1573,22 @@ static int _zip_entry_open(struct zip_t *zip, const char *entryname,
   mz_zip_time_t_to_dos_time(zip->entry.m_time, &dos_time, &dos_date);
 #endif
 
-  // ZIP64 header with NULL sizes (sizes will be in the data descriptor, just
-  // after file data)
-  extra_size = mz_zip_writer_create_zip64_extra_data(
-      extra_data, NULL, NULL,
-      (local_dir_header_ofs >= MZ_UINT32_MAX) ? &local_dir_header_ofs : NULL);
+  // Reserve ZIP64 extra data when the local header offset itself exceeds the
+  // classic 32-bit range. For normal entries we backfill CRC and sizes into
+  // the local header during zip_entry_close() instead of emitting a trailing
+  // data descriptor, which improves compatibility with consumers such as Word.
+  if (local_dir_header_ofs >= MZ_UINT32_MAX) {
+    extra_size = mz_zip_writer_create_zip64_extra_data(extra_data, NULL, NULL,
+                                                       &local_dir_header_ofs);
+  }
 
   {
-    mz_uint16 gen_flags = MZ_ZIP_GENERAL_PURPOSE_BIT_FLAG_UTF8;
+    mz_uint16 gen_flags =
+        zip_name_requires_utf8_flag(zip->entry.name)
+            ? MZ_ZIP_GENERAL_PURPOSE_BIT_FLAG_UTF8
+            : 0;
     if (zip->password) {
       gen_flags |= MZ_ZIP_GENERAL_PURPOSE_BIT_FLAG_IS_ENCRYPTED;
-    } else {
-      gen_flags |= MZ_ZIP_LDH_BIT_FLAG_HAS_LOCATOR;
     }
 
     if (!mz_zip_writer_create_local_dir_header(
@@ -1756,8 +1776,6 @@ int zip_entry_close(struct zip_t *zip) {
   mz_uint8 *pExtra_data = NULL;
   mz_uint32 extra_size = 0;
   mz_uint8 extra_data[MZ_ZIP64_MAX_CENTRAL_EXTRA_FIELD_SIZE];
-  mz_uint8 local_dir_footer[MZ_ZIP_DATA_DESCRIPTER_SIZE64];
-  mz_uint32 local_dir_footer_size = MZ_ZIP_DATA_DESCRIPTER_SIZE64;
 #endif
 
   if (!zip) {
@@ -1896,28 +1914,32 @@ int zip_entry_close(struct zip_t *zip) {
       }
     }
   } else {
-    MZ_WRITE_LE32(local_dir_footer + 0, MZ_ZIP_DATA_DESCRIPTOR_ID);
-    MZ_WRITE_LE32(local_dir_footer + 4, zip->entry.uncomp_crc32);
-    MZ_WRITE_LE64(local_dir_footer + 8, zip->entry.comp_size);
-    MZ_WRITE_LE64(local_dir_footer + 16, zip->entry.uncomp_size);
-
-    if (pzip->m_pWrite(pzip->m_pIO_opaque, zip->entry.dir_offset,
-                       local_dir_footer,
-                       local_dir_footer_size) != local_dir_footer_size) {
+    MZ_WRITE_LE32(zip->entry.header + MZ_ZIP_LDH_CRC32_OFS,
+                  zip->entry.uncomp_crc32);
+    MZ_WRITE_LE32(zip->entry.header + MZ_ZIP_LDH_COMPRESSED_SIZE_OFS,
+                  MZ_MIN(zip->entry.comp_size, MZ_UINT32_MAX));
+    MZ_WRITE_LE32(zip->entry.header + MZ_ZIP_LDH_DECOMPRESSED_SIZE_OFS,
+                  MZ_MIN(zip->entry.uncomp_size, MZ_UINT32_MAX));
+    if (pzip->m_pWrite(pzip->m_pIO_opaque, zip->entry.header_offset,
+                       zip->entry.header, sizeof(zip->entry.header)) !=
+        sizeof(zip->entry.header)) {
       err = ZIP_EWRTHDR;
       goto cleanup;
     }
-    zip->entry.dir_offset += local_dir_footer_size;
   }
 
-  pExtra_data = extra_data;
-  extra_size = mz_zip_writer_create_zip64_extra_data(
-      extra_data,
-      (zip->entry.uncomp_size >= MZ_UINT32_MAX) ? &zip->entry.uncomp_size
-                                                : NULL,
-      (zip->entry.comp_size >= MZ_UINT32_MAX) ? &zip->entry.comp_size : NULL,
-      (zip->entry.header_offset >= MZ_UINT32_MAX) ? &zip->entry.header_offset
-                                                  : NULL);
+  if ((zip->entry.uncomp_size >= MZ_UINT32_MAX) ||
+      (zip->entry.comp_size >= MZ_UINT32_MAX) ||
+      (zip->entry.header_offset >= MZ_UINT32_MAX)) {
+    pExtra_data = extra_data;
+    extra_size = mz_zip_writer_create_zip64_extra_data(
+        extra_data,
+        (zip->entry.uncomp_size >= MZ_UINT32_MAX) ? &zip->entry.uncomp_size
+                                                  : NULL,
+        (zip->entry.comp_size >= MZ_UINT32_MAX) ? &zip->entry.comp_size : NULL,
+        (zip->entry.header_offset >= MZ_UINT32_MAX) ? &zip->entry.header_offset
+                                                    : NULL);
+  }
 
   if ((entrylen) && ISSLASH(zip->entry.name[entrylen - 1]) &&
       !zip->entry.uncomp_size) {
@@ -1926,11 +1948,12 @@ int zip_entry_close(struct zip_t *zip) {
   }
 
   {
-    mz_uint16 gen_flags = MZ_ZIP_GENERAL_PURPOSE_BIT_FLAG_UTF8;
+    mz_uint16 gen_flags =
+        zip_name_requires_utf8_flag(zip->entry.name)
+            ? MZ_ZIP_GENERAL_PURPOSE_BIT_FLAG_UTF8
+            : 0;
     if (zip->password) {
       gen_flags |= MZ_ZIP_GENERAL_PURPOSE_BIT_FLAG_IS_ENCRYPTED;
-    } else {
-      gen_flags |= MZ_ZIP_LDH_BIT_FLAG_HAS_LOCATOR;
     }
 
     if (!mz_zip_writer_add_to_central_dir(
@@ -2674,7 +2697,7 @@ struct zip_t *zip_stream_open_with_password(const char *stream, size_t size,
 struct zip_t *zip_stream_openwitherror(const char *stream, size_t size,
                                        int level, char mode, int *errnum) {
 #if ZIP_ENABLE_DEFLATE
-  mz_uint wflags = (mode == 'w') ? MZ_ZIP_FLAG_WRITE_ZIP64 : 0;
+  mz_uint wflags = 0;
 #endif
   struct zip_t *zip = (struct zip_t *)calloc((size_t)1, sizeof(struct zip_t));
 #if !ZIP_ENABLE_INFLATE && !ZIP_ENABLE_DEFLATE
@@ -2816,7 +2839,7 @@ struct zip_t *zip_cstream_open(FILE *stream, int level, char mode) {
 struct zip_t *zip_cstream_openwitherror(FILE *stream, int level, char mode,
                                         int *errnum) {
 #if ZIP_ENABLE_DEFLATE
-  mz_uint wflags = (mode == 'w') ? MZ_ZIP_FLAG_WRITE_ZIP64 : 0;
+  mz_uint wflags = 0;
 #endif
   struct zip_t *zip = NULL;
   *errnum = 0;

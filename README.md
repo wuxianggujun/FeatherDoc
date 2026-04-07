@@ -34,6 +34,44 @@ cmake --build build-msvc-nmake
 ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
 ```
 
+## Word Visual Smoke Check
+
+On Windows hosts with Microsoft Word installed you can run a visual smoke check
+that:
+
+- builds a dedicated sample document covering table layout features
+- exports the generated `.docx` through Word's rendering engine as PDF
+- renders each PDF page to PNG for manual or AI-assisted review
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1
+```
+
+Artifacts are written under `output/word-visual-smoke/`, including the source
+`.docx` and exported `.pdf`, plus an `evidence/` directory for per-page `.png`
+renders and contact sheets, a `report/` directory for the generated checklist
+and summary data, generated `review_result.json` and `final_review.md`
+skeletons, and a reserved `repair/` directory for iterative fix candidates.
+Pass `-InputDocx <path>` when you want to run the same render-and-capture flow
+against an existing document instead of the bundled smoke sample. The
+recommended review-and-repair workflow is documented in
+`docs/automation/word_visual_workflow_zh.rst`.
+
+When you want to hand the task to an AI agent consistently, generate a review
+task package first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 `
+    -DocxPath C:\path\to\target.docx `
+    -Mode review-only
+```
+
+Use `-Mode review-and-repair` when the agent is allowed to fix generation
+logic and rerun the visual review loop. The script generates a task directory
+with `task_prompt.md`, `task_manifest.json`, and dedicated `evidence/`,
+`report/`, and `repair/` directories, so the AI no longer has to guess paths
+or output structure.
+
 ## CLI
 
 `featherdoc_cli` is a small command-line wrapper around the current

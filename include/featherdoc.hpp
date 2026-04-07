@@ -166,6 +166,7 @@ class TableRow {
 class Table {
   private:
     friend class IteratorHelper;
+    Document *owner{nullptr};
     pugi::xml_node parent;
     pugi::xml_node current;
 
@@ -174,6 +175,7 @@ class Table {
   public:
     Table();
     Table(pugi::xml_node, pugi::xml_node);
+    void set_owner(Document *);
     void set_parent(pugi::xml_node);
     void set_current(pugi::xml_node);
 
@@ -261,7 +263,6 @@ struct bookmark_block_visibility_result {
 class TemplatePart {
   private:
     friend class Document;
-
     Document *owner{nullptr};
     pugi::xml_document *xml_document{nullptr};
     document_error_info *last_error_info{nullptr};
@@ -307,6 +308,8 @@ class TemplatePart {
 // and stores paragraphs
 class Document {
   private:
+    friend class Table;
+
     struct xml_part_state {
         std::string relationship_id;
         std::string entry_name;

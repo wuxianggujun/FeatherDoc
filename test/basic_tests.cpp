@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -157,6 +158,172 @@ auto write_binary_file(const std::filesystem::path &path, const std::string &dat
     REQUIRE(stream.good());
     stream.write(data.data(), static_cast<std::streamsize>(data.size()));
     REQUIRE(stream.good());
+}
+
+auto read_binary_file(const std::filesystem::path &path) -> std::vector<unsigned char> {
+    std::ifstream stream(path, std::ios::binary);
+    REQUIRE(stream.good());
+
+    return {std::istreambuf_iterator<char>{stream}, std::istreambuf_iterator<char>{}};
+}
+
+auto read_le16(const std::vector<unsigned char> &data, std::size_t offset) -> std::uint16_t {
+    REQUIRE_LE(offset + 2U, data.size());
+    return static_cast<std::uint16_t>(data[offset]) |
+           (static_cast<std::uint16_t>(data[offset + 1U]) << 8U);
+}
+
+auto read_le32(const std::vector<unsigned char> &data, std::size_t offset) -> std::uint32_t {
+    REQUIRE_LE(offset + 4U, data.size());
+    return static_cast<std::uint32_t>(data[offset]) |
+           (static_cast<std::uint32_t>(data[offset + 1U]) << 8U) |
+           (static_cast<std::uint32_t>(data[offset + 2U]) << 16U) |
+           (static_cast<std::uint32_t>(data[offset + 3U]) << 24U);
+}
+
+auto extra_contains_empty_zip64_field(const std::vector<unsigned char> &data, std::size_t offset,
+                                      std::size_t size) -> bool {
+    const std::size_t end = offset + size;
+    if (end > data.size()) {
+        return false;
+    }
+
+    std::size_t cursor = offset;
+    while (cursor + 4U <= end) {
+        const auto header_id = read_le16(data, cursor);
+        const auto field_size = read_le16(data, cursor + 2U);
+        cursor += 4U;
+
+        if (cursor + field_size > end) {
+            return false;
+        }
+
+        if (header_id == 0x0001U && field_size == 0U) {
+            return true;
+        }
+
+        cursor += field_size;
+    }
+
+    return false;
+}
+
+auto collect_empty_zip64_extra_locations(const std::filesystem::path &path)
+    -> std::vector<std::string> {
+    constexpr std::uint32_t local_file_header_signature = 0x04034B50U;
+    constexpr std::uint32_t central_directory_header_signature = 0x02014B50U;
+    constexpr std::uint32_t end_of_central_directory_signature = 0x06054B50U;
+
+    const auto data = read_binary_file(path);
+    std::vector<std::string> locations;
+
+    std::size_t offset = 0U;
+    while (offset + 4U <= data.size()) {
+        const auto signature = read_le32(data, offset);
+        if (signature != local_file_header_signature) {
+            break;
+        }
+
+        const auto compressed_size = static_cast<std::size_t>(read_le32(data, offset + 18U));
+        const auto filename_size = static_cast<std::size_t>(read_le16(data, offset + 26U));
+        const auto extra_size = static_cast<std::size_t>(read_le16(data, offset + 28U));
+        const auto header_size = 30U + filename_size + extra_size;
+        REQUIRE_LE(offset + header_size, data.size());
+
+        const std::string entry_name{
+            reinterpret_cast<const char *>(data.data() + offset + 30U), filename_size};
+        const auto extra_offset = offset + 30U + filename_size;
+        if (extra_contains_empty_zip64_field(data, extra_offset, extra_size)) {
+            locations.push_back("local:" + entry_name);
+        }
+
+        offset += header_size + compressed_size;
+    }
+
+    while (offset + 4U <= data.size()) {
+        const auto signature = read_le32(data, offset);
+        if (signature == end_of_central_directory_signature) {
+            break;
+        }
+
+        REQUIRE_EQ(signature, central_directory_header_signature);
+
+        const auto filename_size = static_cast<std::size_t>(read_le16(data, offset + 28U));
+        const auto extra_size = static_cast<std::size_t>(read_le16(data, offset + 30U));
+        const auto comment_size = static_cast<std::size_t>(read_le16(data, offset + 32U));
+        const auto header_size = 46U + filename_size + extra_size + comment_size;
+        REQUIRE_LE(offset + header_size, data.size());
+
+        const std::string entry_name{
+            reinterpret_cast<const char *>(data.data() + offset + 46U), filename_size};
+        const auto extra_offset = offset + 46U + filename_size;
+        if (extra_contains_empty_zip64_field(data, extra_offset, extra_size)) {
+            locations.push_back("central:" + entry_name);
+        }
+
+        offset += header_size;
+    }
+
+    return locations;
+}
+
+auto collect_zero_version_needed_locations(const std::filesystem::path &path)
+    -> std::vector<std::string> {
+    constexpr std::uint32_t local_file_header_signature = 0x04034B50U;
+    constexpr std::uint32_t central_directory_header_signature = 0x02014B50U;
+    constexpr std::uint32_t end_of_central_directory_signature = 0x06054B50U;
+
+    const auto data = read_binary_file(path);
+    std::vector<std::string> locations;
+
+    std::size_t offset = 0U;
+    while (offset + 4U <= data.size()) {
+        const auto signature = read_le32(data, offset);
+        if (signature != local_file_header_signature) {
+            break;
+        }
+
+        const auto version_needed = read_le16(data, offset + 4U);
+        const auto compressed_size = static_cast<std::size_t>(read_le32(data, offset + 18U));
+        const auto filename_size = static_cast<std::size_t>(read_le16(data, offset + 26U));
+        const auto extra_size = static_cast<std::size_t>(read_le16(data, offset + 28U));
+        const auto header_size = 30U + filename_size + extra_size;
+        REQUIRE_LE(offset + header_size, data.size());
+
+        const std::string entry_name{
+            reinterpret_cast<const char *>(data.data() + offset + 30U), filename_size};
+        if (version_needed == 0U) {
+            locations.push_back("local:" + entry_name);
+        }
+
+        offset += header_size + compressed_size;
+    }
+
+    while (offset + 4U <= data.size()) {
+        const auto signature = read_le32(data, offset);
+        if (signature == end_of_central_directory_signature) {
+            break;
+        }
+
+        REQUIRE_EQ(signature, central_directory_header_signature);
+
+        const auto version_needed = read_le16(data, offset + 6U);
+        const auto filename_size = static_cast<std::size_t>(read_le16(data, offset + 28U));
+        const auto extra_size = static_cast<std::size_t>(read_le16(data, offset + 30U));
+        const auto comment_size = static_cast<std::size_t>(read_le16(data, offset + 32U));
+        const auto header_size = 46U + filename_size + extra_size + comment_size;
+        REQUIRE_LE(offset + header_size, data.size());
+
+        const std::string entry_name{
+            reinterpret_cast<const char *>(data.data() + offset + 46U), filename_size};
+        if (version_needed == 0U) {
+            locations.push_back("central:" + entry_name);
+        }
+
+        offset += header_size;
+    }
+
+    return locations;
 }
 
 auto write_test_docx(const std::filesystem::path &path, const std::string &document_xml)
@@ -4414,6 +4581,9 @@ TEST_CASE("tables can set widths style ids and borders") {
     CHECK(cell.paragraphs().add_run("right").has_next());
 
     CHECK_FALSE(doc.save());
+    CHECK(test_docx_entry_exists(target, "word/styles.xml"));
+    CHECK(collect_empty_zip64_extra_locations(target).empty());
+    CHECK(collect_zero_version_needed_locations(target).empty());
 
     const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
     pugi::xml_document xml_document;
@@ -4430,6 +4600,22 @@ TEST_CASE("tables can set widths style ids and borders") {
     const auto table_style = table_node.child("w:tblPr").child("w:tblStyle");
     REQUIRE(table_style != pugi::xml_node{});
     CHECK_EQ(std::string_view{table_style.attribute("w:val").value()}, "TableGrid");
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(saved_relationships.find(
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\""),
+             std::string::npos);
+    CHECK_NE(saved_relationships.find("Target=\"styles.xml\""), std::string::npos);
+
+    const auto saved_content_types = read_test_docx_entry(target, test_content_types_xml_entry);
+    CHECK_NE(saved_content_types.find("PartName=\"/word/styles.xml\""), std::string::npos);
+    CHECK_NE(saved_content_types.find(
+                 "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"),
+             std::string::npos);
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"TableGrid\""), std::string::npos);
 
     const auto table_borders = table_node.child("w:tblPr").child("w:tblBorders");
     REQUIRE(table_borders != pugi::xml_node{});
@@ -4558,6 +4744,123 @@ TEST_CASE("table widths style ids and borders can be cleared") {
     REQUIRE(reopened_table.has_next());
     CHECK_FALSE(reopened_table.width_twips().has_value());
     CHECK_FALSE(reopened_table.style_id().has_value());
+
+    fs::remove(target);
+}
+
+TEST_CASE("table-level properties survive append_row") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_append_row_property_regression.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(1, 2);
+    CHECK(table.set_width_twips(7200U));
+    CHECK(table.set_style_id("TableGrid"));
+    CHECK(table.set_layout_mode(featherdoc::table_layout_mode::fixed));
+    CHECK(table.set_alignment(featherdoc::table_alignment::center));
+    CHECK(table.set_indent_twips(360U));
+    CHECK(table.set_cell_margin_twips(featherdoc::cell_margin_edge::top, 120U));
+    CHECK(table.set_cell_margin_twips(featherdoc::cell_margin_edge::left, 240U));
+    CHECK(table.set_cell_margin_twips(featherdoc::cell_margin_edge::bottom, 360U));
+    CHECK(table.set_cell_margin_twips(featherdoc::cell_margin_edge::right, 480U));
+
+    auto appended_row = table.append_row(2);
+    REQUIRE(appended_row.has_next());
+    auto appended_cell = appended_row.cells();
+    REQUIRE(appended_cell.has_next());
+    CHECK(appended_cell.paragraphs().add_run("left").has_next());
+    appended_cell.next();
+    REQUIRE(appended_cell.has_next());
+    CHECK(appended_cell.paragraphs().add_run("right").has_next());
+
+    REQUIRE(table.width_twips().has_value());
+    CHECK_EQ(*table.width_twips(), 7200U);
+    REQUIRE(table.style_id().has_value());
+    CHECK_EQ(*table.style_id(), "TableGrid");
+    REQUIRE(table.layout_mode().has_value());
+    CHECK_EQ(*table.layout_mode(), featherdoc::table_layout_mode::fixed);
+    REQUIRE(table.alignment().has_value());
+    CHECK_EQ(*table.alignment(), featherdoc::table_alignment::center);
+    REQUIRE(table.indent_twips().has_value());
+    CHECK_EQ(*table.indent_twips(), 360U);
+    REQUIRE(table.cell_margin_twips(featherdoc::cell_margin_edge::top).has_value());
+    CHECK_EQ(*table.cell_margin_twips(featherdoc::cell_margin_edge::top), 120U);
+    REQUIRE(table.cell_margin_twips(featherdoc::cell_margin_edge::left).has_value());
+    CHECK_EQ(*table.cell_margin_twips(featherdoc::cell_margin_edge::left), 240U);
+    REQUIRE(table.cell_margin_twips(featherdoc::cell_margin_edge::bottom).has_value());
+    CHECK_EQ(*table.cell_margin_twips(featherdoc::cell_margin_edge::bottom), 360U);
+    REQUIRE(table.cell_margin_twips(featherdoc::cell_margin_edge::right).has_value());
+    CHECK_EQ(*table.cell_margin_twips(featherdoc::cell_margin_edge::right), 480U);
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    const auto table_properties = table_node.child("w:tblPr");
+    REQUIRE(table_properties != pugi::xml_node{});
+    CHECK_EQ(std::string_view{table_properties.child("w:tblW").attribute("w:w").value()}, "7200");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblW").attribute("w:type").value()},
+             "dxa");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblStyle").attribute("w:val").value()},
+             "TableGrid");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblLayout").attribute("w:type").value()},
+             "fixed");
+    CHECK_EQ(std::string_view{table_properties.child("w:jc").attribute("w:val").value()},
+             "center");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblInd").attribute("w:w").value()},
+             "360");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblCellMar")
+                                  .child("w:top")
+                                  .attribute("w:w")
+                                  .value()},
+             "120");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblCellMar")
+                                  .child("w:left")
+                                  .attribute("w:w")
+                                  .value()},
+             "240");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblCellMar")
+                                  .child("w:bottom")
+                                  .attribute("w:w")
+                                  .value()},
+             "360");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblCellMar")
+                                  .child("w:right")
+                                  .attribute("w:w")
+                                  .value()},
+             "480");
+    CHECK_EQ(count_named_children(table_node, "w:tr"), 2U);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    REQUIRE(reopened_table.width_twips().has_value());
+    CHECK_EQ(*reopened_table.width_twips(), 7200U);
+    REQUIRE(reopened_table.style_id().has_value());
+    CHECK_EQ(*reopened_table.style_id(), "TableGrid");
+    REQUIRE(reopened_table.layout_mode().has_value());
+    CHECK_EQ(*reopened_table.layout_mode(), featherdoc::table_layout_mode::fixed);
+    REQUIRE(reopened_table.alignment().has_value());
+    CHECK_EQ(*reopened_table.alignment(), featherdoc::table_alignment::center);
+    REQUIRE(reopened_table.indent_twips().has_value());
+    CHECK_EQ(*reopened_table.indent_twips(), 360U);
+    REQUIRE(reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::top).has_value());
+    CHECK_EQ(*reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::top), 120U);
+    REQUIRE(reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::left).has_value());
+    CHECK_EQ(*reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::left), 240U);
+    REQUIRE(reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::bottom).has_value());
+    CHECK_EQ(*reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::bottom), 360U);
+    REQUIRE(reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::right).has_value());
+    CHECK_EQ(*reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::right), 480U);
 
     fs::remove(target);
 }

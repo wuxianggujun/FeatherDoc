@@ -34,7 +34,17 @@
 .DS_Store
 build/*
 build-*/
+output/
+tmp/
+.venv-word-visual-smoke/
 .idea/
+~$*.doc
+~$*.docx
+*.asd
+*.wbk
+*.tmp.doc
+*.tmp.docx
+table_visual_smoke.docx
 
 # vim swap files
 **/*.swp

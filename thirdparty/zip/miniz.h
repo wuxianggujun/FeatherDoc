@@ -8303,6 +8303,10 @@ mz_zip_writer_create_zip64_extra_data(mz_uint8 *pBuf, mz_uint64 *pUncomp_size,
   mz_uint8 *pDst = pBuf;
   mz_uint32 field_size = 0;
 
+  if (!pUncomp_size && !pComp_size && !pLocal_header_ofs) {
+    return 0;
+  }
+
   MZ_WRITE_LE16(pDst + 0, MZ_ZIP64_EXTENDED_INFORMATION_FIELD_HEADER_ID);
   MZ_WRITE_LE16(pDst + 2, 0);
   pDst += sizeof(mz_uint16) * 2;
@@ -8330,15 +8334,28 @@ mz_zip_writer_create_zip64_extra_data(mz_uint8 *pBuf, mz_uint64 *pUncomp_size,
   return (mz_uint32)(pDst - pBuf);
 }
 
+static mz_uint16 mz_zip_writer_version_needed(mz_uint64 uncomp_size,
+                                              mz_uint64 comp_size,
+                                              mz_uint64 local_header_ofs) {
+  if ((uncomp_size >= MZ_UINT32_MAX) || (comp_size >= MZ_UINT32_MAX) ||
+      (local_header_ofs >= MZ_UINT32_MAX)) {
+    return 45;
+  }
+
+  return 20;
+}
+
 static mz_bool mz_zip_writer_create_local_dir_header(
     mz_zip_archive *pZip, mz_uint8 *pDst, mz_uint16 filename_size,
     mz_uint16 extra_size, mz_uint64 uncomp_size, mz_uint64 comp_size,
     mz_uint32 uncomp_crc32, mz_uint16 method, mz_uint16 bit_flags,
     mz_uint16 dos_time, mz_uint16 dos_date) {
   (void)pZip;
+  (void)method;
   memset(pDst, 0, MZ_ZIP_LOCAL_DIR_HEADER_SIZE);
   MZ_WRITE_LE32(pDst + MZ_ZIP_LDH_SIG_OFS, MZ_ZIP_LOCAL_DIR_HEADER_SIG);
-  MZ_WRITE_LE16(pDst + MZ_ZIP_LDH_VERSION_NEEDED_OFS, method ? 20 : 0);
+  MZ_WRITE_LE16(pDst + MZ_ZIP_LDH_VERSION_NEEDED_OFS,
+                mz_zip_writer_version_needed(uncomp_size, comp_size, 0));
   MZ_WRITE_LE16(pDst + MZ_ZIP_LDH_BIT_FLAG_OFS, bit_flags);
   MZ_WRITE_LE16(pDst + MZ_ZIP_LDH_METHOD_OFS, method);
   MZ_WRITE_LE16(pDst + MZ_ZIP_LDH_FILE_TIME_OFS, dos_time);
@@ -8360,11 +8377,14 @@ static mz_bool mz_zip_writer_create_central_dir_header(
     mz_uint16 bit_flags, mz_uint16 dos_time, mz_uint16 dos_date,
     mz_uint64 local_header_ofs, mz_uint32 ext_attributes) {
   (void)pZip;
+  (void)method;
   memset(pDst, 0, MZ_ZIP_CENTRAL_DIR_HEADER_SIZE);
   MZ_WRITE_LE32(pDst + MZ_ZIP_CDH_SIG_OFS, MZ_ZIP_CENTRAL_DIR_HEADER_SIG);
   MZ_WRITE_LE16(pDst + MZ_ZIP_CDH_VERSION_MADE_BY_OFS,
                 (ext_attributes >> 16) ? 0x0314 : 0x0014);
-  MZ_WRITE_LE16(pDst + MZ_ZIP_CDH_VERSION_NEEDED_OFS, method ? 20 : 0);
+  MZ_WRITE_LE16(pDst + MZ_ZIP_CDH_VERSION_NEEDED_OFS,
+                mz_zip_writer_version_needed(uncomp_size, comp_size,
+                                             local_header_ofs));
   MZ_WRITE_LE16(pDst + MZ_ZIP_CDH_BIT_FLAG_OFS, bit_flags);
   MZ_WRITE_LE16(pDst + MZ_ZIP_CDH_METHOD_OFS, method);
   MZ_WRITE_LE16(pDst + MZ_ZIP_CDH_FILE_TIME_OFS, dos_time);

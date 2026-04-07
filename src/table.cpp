@@ -37,6 +37,23 @@ void ensure_attribute_value(pugi::xml_node node, const char *name, const char *v
     attribute.set_value(value);
 }
 
+void ensure_default_attribute_value(pugi::xml_node node, const char *name, const char *value) {
+    if (node == pugi::xml_node{}) {
+        return;
+    }
+
+    auto attribute = node.attribute(name);
+    if (attribute == pugi::xml_attribute{}) {
+        attribute = node.append_attribute(name);
+        attribute.set_value(value);
+        return;
+    }
+
+    if (std::string_view{attribute.value()}.empty()) {
+        attribute.set_value(value);
+    }
+}
+
 auto ensure_table_properties_node(pugi::xml_node table) -> pugi::xml_node {
     if (table == pugi::xml_node{}) {
         return {};
@@ -64,20 +81,20 @@ void ensure_default_table_properties(pugi::xml_node table) {
     if (table_width == pugi::xml_node{}) {
         table_width = table_properties.append_child("w:tblW");
     }
-    ensure_attribute_value(table_width, "w:w", "0");
-    ensure_attribute_value(table_width, "w:type", "auto");
+    ensure_default_attribute_value(table_width, "w:w", "0");
+    ensure_default_attribute_value(table_width, "w:type", "auto");
 
     auto table_look = table_properties.child("w:tblLook");
     if (table_look == pugi::xml_node{}) {
         table_look = table_properties.append_child("w:tblLook");
     }
-    ensure_attribute_value(table_look, "w:val", "04A0");
-    ensure_attribute_value(table_look, "w:firstRow", "1");
-    ensure_attribute_value(table_look, "w:firstColumn", "1");
-    ensure_attribute_value(table_look, "w:lastRow", "0");
-    ensure_attribute_value(table_look, "w:lastColumn", "0");
-    ensure_attribute_value(table_look, "w:noHBand", "0");
-    ensure_attribute_value(table_look, "w:noVBand", "1");
+    ensure_default_attribute_value(table_look, "w:val", "04A0");
+    ensure_default_attribute_value(table_look, "w:firstRow", "1");
+    ensure_default_attribute_value(table_look, "w:firstColumn", "1");
+    ensure_default_attribute_value(table_look, "w:lastRow", "0");
+    ensure_default_attribute_value(table_look, "w:lastColumn", "0");
+    ensure_default_attribute_value(table_look, "w:noHBand", "0");
+    ensure_default_attribute_value(table_look, "w:noVBand", "1");
 }
 
 auto ensure_table_width_node(pugi::xml_node table) -> pugi::xml_node {
@@ -1749,6 +1766,8 @@ Table::Table(pugi::xml_node parent, pugi::xml_node current) {
     this->set_current(current);
 }
 
+void Table::set_owner(Document *document_owner) { this->owner = document_owner; }
+
 void Table::set_parent(pugi::xml_node node) {
     this->parent = node;
     this->current = this->parent.child("w:tbl");
@@ -2025,6 +2044,10 @@ std::optional<std::string> Table::style_id() const {
 
 bool Table::set_style_id(std::string_view style_id) {
     if (this->current == pugi::xml_node{} || style_id.empty()) {
+        return false;
+    }
+
+    if (this->owner != nullptr && this->owner->ensure_styles_part_attached()) {
         return false;
     }
 

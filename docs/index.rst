@@ -758,6 +758,12 @@ Chinese-readable guidance for the current split licensing model:
 
 :doc:`licensing_zh`
 
+Word Visual Workflow
+--------------------
+Chinese workflow notes for Word visual review automation and repair loops:
+
+:doc:`automation/word_visual_workflow_zh`
+
 Repository-level short references are also available in the project root:
 ``LEGAL.md`` and ``NOTICE``.
 
