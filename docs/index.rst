@@ -641,6 +641,41 @@ fresh ``.docx`` files without opening an existing template archive first.
         return 1;
     }
 
+Use the default run font/language APIs when Chinese/CJK text should carry
+explicit ``w:rFonts`` and ``w:lang`` metadata instead of relying on Word
+fallback behavior.
+
+.. code-block:: cpp
+
+    featherdoc::Document doc("zh-demo.docx");
+    if (const auto error = doc.create_empty()) {
+        std::cerr << error.message() << std::endl;
+        return 1;
+    }
+
+    if (!doc.set_default_run_font_family("Segoe UI") ||
+        !doc.set_default_run_east_asia_font_family("Microsoft YaHei") ||
+        !doc.set_default_run_language("en-US") ||
+        !doc.set_default_run_east_asia_language("zh-CN")) {
+        std::cerr << "failed to configure default run fonts/languages" << std::endl;
+        return 1;
+    }
+
+    auto run = doc.paragraphs().add_run("你好，FeatherDoc。这里是一段中文/CJK 文本。");
+    if (!run.has_next()) {
+        std::cerr << "failed to append Chinese/CJK paragraph" << std::endl;
+        return 1;
+    }
+
+    if (const auto error = doc.save()) {
+        std::cerr << error.message() << std::endl;
+        return 1;
+    }
+
+Call ``run.set_font_family(...)``, ``run.set_east_asia_font_family(...)``,
+``run.set_language(...)``, and ``run.set_east_asia_language(...)`` on the
+returned ``Run`` when one paragraph needs a per-run override.
+
 Performance Notes
 -----------------
 ``open()`` now keeps XML buffer ownership on the FeatherDoc side before parsing,

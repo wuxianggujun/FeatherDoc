@@ -8,6 +8,12 @@ performance.
 
 ## [Unreleased]
 
+### Documentation
+
+- Added a minimal Chinese/CJK quickstart example to `README.md` and
+  `docs/index.rst` showing how to set default East Asia font and language
+  metadata before saving a generated `.docx`.
+
 ## [1.3.0] - 2026-04-07
 
 ### Added
