@@ -188,9 +188,9 @@ $manifest = [ordered]@{
     review_result_path = $reviewResultPath
     final_review_path = $finalReviewPath
     recommended_next_steps = @(
-        "Open task_prompt.md and send its contents to the AI agent.",
+        "Open task_prompt.md and send the full contents to the AI agent.",
         "Tell the AI to write screenshot-backed findings into the report directory.",
-        "If visual review fails and repair is allowed, iterate under the repair directory."
+        "If the mode is review-and-repair, allow iterative fixes and full regressions under the repair directory."
     )
 }
 ($manifest | ConvertTo-Json -Depth 5) | Set-Content -Path $manifestPath -Encoding UTF8

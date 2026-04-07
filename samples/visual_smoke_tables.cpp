@@ -526,6 +526,154 @@ auto create_merge_table(featherdoc::Document &doc) -> bool {
 
     return true;
 }
+
+auto create_direction_stress_table(featherdoc::Document &doc) -> bool {
+    auto table = doc.append_table(1, 4);
+    if (!require_step(configure_table(table, 7200U), "direction stress table configure")) {
+        return false;
+    }
+
+    auto row = table.rows();
+    if (!require_step(row.has_next(), "direction stress header exists") ||
+        !require_step(row.set_height_twips(480U, featherdoc::row_height_rule::exact),
+                      "direction stress header height") ||
+        !require_step(set_row_widths(row, std::array<std::uint32_t, 4>{850U, 1450U, 1750U, 3150U}),
+                      "direction stress header widths")) {
+        return false;
+    }
+
+    auto cell = row.cells();
+    if (!cell.has_next() || !cell.set_fill_color("D9EAF7") ||
+        !add_cell_text(cell, "Cell", featherdoc::formatting_flag::bold)) {
+        return false;
+    }
+
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("D9EAF7") ||
+        !add_cell_text(cell, "Mode", featherdoc::formatting_flag::bold)) {
+        return false;
+    }
+
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("D9EAF7") ||
+        !add_cell_text(cell, "Stress content", featherdoc::formatting_flag::bold)) {
+        return false;
+    }
+
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("D9EAF7") ||
+        !add_cell_text(cell, "Expected review points", featherdoc::formatting_flag::bold)) {
+        return false;
+    }
+
+    row = table.append_row(4);
+    if (!row.has_next() ||
+        !set_row_widths(row, std::array<std::uint32_t, 4>{850U, 1450U, 1750U, 3150U}) ||
+        !row.set_height_twips(2100U, featherdoc::row_height_rule::at_least)) {
+        return false;
+    }
+
+    cell = row.cells();
+    if (!cell.has_next() ||
+        !cell.set_fill_color("E4DFEC") ||
+        !cell.set_vertical_alignment(featherdoc::cell_vertical_alignment::center) ||
+        !cell.set_text_direction(
+            featherdoc::cell_text_direction::top_to_bottom_right_to_left) ||
+        !add_cell_lines(cell, {utf8_from_u8(u8"\u7EB5\u6392"), "TBRL"})) {
+        return false;
+    }
+
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("FCE4D6") ||
+        !add_cell_lines(cell, {"w:textDirection", "topToBottom-rl"})) {
+        return false;
+    }
+
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("FFF2CC") ||
+        !cell.set_margin_twips(featherdoc::cell_margin_edge::left, 54U) ||
+        !cell.set_margin_twips(featherdoc::cell_margin_edge::right, 54U)) {
+        return false;
+    }
+    {
+        auto mixed_paragraph = cell.paragraphs();
+        auto mixed_run = mixed_paragraph.add_run(
+            utf8_from_u8(u8"ABC-2026 \u0645\u0631\u062D\u0628\u0627 \u4E2D\u6587"));
+        if (!mixed_run.has_next() || !mixed_paragraph.set_bidi() || !mixed_run.set_rtl()) {
+            return false;
+        }
+
+        mixed_paragraph = mixed_paragraph.insert_paragraph_after(
+            utf8_from_u8(u8"\u7A84\u683C wrap \u987A\u5E8F\u68C0\u67E5"));
+        if (!mixed_paragraph.has_next()) {
+            return false;
+        }
+    }
+
+    cell.next();
+    if (!cell.has_next() ||
+        !add_cell_lines(cell, {"Vertical text should stay readable.",
+                               "Borders must stay continuous.",
+                               "No clipped glyphs or reversed order."})) {
+        return false;
+    }
+
+    row = table.append_row(4);
+    if (!row.has_next() ||
+        !set_row_widths(row, std::array<std::uint32_t, 4>{850U, 1450U, 1750U, 3150U}) ||
+        !row.set_height_twips(2300U, featherdoc::row_height_rule::at_least)) {
+        return false;
+    }
+
+    cell = row.cells();
+    if (!cell.has_next() ||
+        !cell.set_fill_color("DDEBF7") ||
+        !cell.set_vertical_alignment(featherdoc::cell_vertical_alignment::center) ||
+        !cell.set_text_direction(
+            featherdoc::cell_text_direction::top_to_bottom_left_to_right_rotated) ||
+        !add_cell_lines(cell, {utf8_from_u8(u8"\u65CB\u8F6C"), "TLR rot"})) {
+        return false;
+    }
+
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("E2F0D9") ||
+        !add_cell_lines(cell, {"Style inheritance", "Quote + Emphasis"})) {
+        return false;
+    }
+
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("FDF2E9") ||
+        !cell.set_margin_twips(featherdoc::cell_margin_edge::left, 54U) ||
+        !cell.set_margin_twips(featherdoc::cell_margin_edge::right, 54U)) {
+        return false;
+    }
+    {
+        auto styled_paragraph = cell.paragraphs();
+        auto styled_run = styled_paragraph.add_run(
+            utf8_from_u8(u8"Quote/Emphasis \u0627\u0644\u0639\u0631\u0628\u064A\u0629 ABC \u4E2D\u6587"));
+        if (!styled_run.has_next() || !doc.set_paragraph_style(styled_paragraph, "Quote") ||
+            !doc.set_run_style(styled_run, "Emphasis")) {
+            return false;
+        }
+
+        styled_paragraph = styled_paragraph.insert_paragraph_after(
+            utf8_from_u8(
+                u8"\u89C2\u5BDF\u65CB\u8F6C\u5217\u65C1\u8FB9\u662F\u5426\u51FA\u73B0\u9519\u4F4D"));
+        if (!styled_paragraph.has_next()) {
+            return false;
+        }
+    }
+
+    cell.next();
+    if (!cell.has_next() ||
+        !add_cell_lines(cell, {"Check wrap stability beside rotated text.",
+                               "No fallback-font drift or overlap.",
+                               "Keep borders aligned with neighboring cells."})) {
+        return false;
+    }
+
+    return true;
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -572,15 +720,17 @@ int main(int argc, char **argv) {
 
     paragraph = paragraph.insert_paragraph_after(
         "Focus points: repeated table headers, cantSplit row pagination, horizontal and "
-        "vertical merges, borders, fills, margins, alignment, and stable spacing.");
+        "vertical merges, cell text direction, borders, fills, margins, alignment, and "
+        "stable mixed-direction wrapping.");
     if (!paragraph.has_next()) {
         std::cerr << "failed to append checklist paragraph\n";
         return 1;
     }
 
     paragraph =
-        paragraph.insert_paragraph_after("Page review target: no clipped text, broken borders, "
-                                         "missing shading, or split highlighted rows.");
+        paragraph.insert_paragraph_after("Page review target: no clipped text, unreadable vertical "
+                                         "cells, broken borders, missing shading, or split "
+                                         "highlighted rows.");
     if (!paragraph.has_next()) {
         std::cerr << "failed to append review target paragraph\n";
         return 1;
@@ -684,6 +834,19 @@ int main(int argc, char **argv) {
 
     if (!create_merge_table(doc)) {
         std::cerr << "failed to build the merge smoke table\n";
+        return 1;
+    }
+
+    paragraph = append_body_paragraph(
+        doc, "Direction stress target: inspect vertical table-cell text and narrow mixed "
+             "RTL/LTR/CJK wrapping next to rotated cells.");
+    if (!paragraph.has_next()) {
+        std::cerr << "failed to append direction stress paragraph\n";
+        return 1;
+    }
+
+    if (!create_direction_stress_table(doc)) {
+        std::cerr << "failed to build the direction stress table\n";
         return 1;
     }
 

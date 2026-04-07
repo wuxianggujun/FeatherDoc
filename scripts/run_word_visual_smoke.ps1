@@ -242,7 +242,9 @@ $reviewResult = [ordered]@{
     notes = @(
         "Fill findings after the visual Word review is complete.",
         "Keep verdict as pass/fail/undetermined according to screenshot evidence.",
-        "Confirm the Chinese/CJK and RTL/bidi sample text inherits readable fonts plus w:lang markers from docDefaults and style-based run formatting without tofu, broken RTL order, or unstable line wrapping."
+        "Confirm the Chinese/CJK and RTL/bidi sample text inherits readable fonts plus w:lang markers from docDefaults and style-based run formatting without tofu, broken RTL order, or unstable line wrapping.",
+        "Confirm table-cell w:textDirection samples keep vertical or rotated text readable without clipped glyphs, border drift, or row-height collapse.",
+        "Confirm narrow table cells with mixed RTL/LTR/CJK content keep sane ordering, punctuation, line wrapping, and no overlap."
     )
 }
 ($reviewResult | ConvertTo-Json -Depth 6) | Set-Content -Path $reviewResultPath -Encoding UTF8
@@ -291,6 +293,8 @@ $checklist = @"
 - Verify the highlighted cantSplit row (`R16`) stays entirely on one page.
 - Verify fills, margins, and centered cells still look intentional after Word export.
 - Verify the Chinese/CJK and RTL/bidi samples inherit readable glyphs plus `w:lang` language markers from docDefaults and `Strong` style formatting with stable line breaks, sane RTL order, and no obvious fallback-font drift.
+- Verify the direction stress table keeps table-cell `w:textDirection` vertical/rotated text readable, with stable row heights and no clipped glyphs.
+- Verify the narrow mixed RTL/LTR/CJK cells keep sane wrap order, punctuation placement, border continuity, and no overlap beside rotated cells.
 - Verify the final merge matrix has no clipped text, border gaps, or missing shading.
 
 Artifacts:
