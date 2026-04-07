@@ -3,7 +3,9 @@
 - Task id: `{{TASK_ID}}`
 - Generated at: `{{GENERATED_AT}}`
 - Mode: `{{MODE}}`
+- Workspace: `{{WORKSPACE}}`
 - Target document: `{{DOCX_PATH}}`
+- First-pass render command: `powershell -ExecutionPolicy Bypass -File "{{WORKSPACE}}\scripts\run_word_visual_smoke.ps1" -InputDocx "{{DOCX_PATH}}" -OutputDir "{{TASK_DIR}}"`
 - Evidence directory: `{{EVIDENCE_DIR}}`
 - Report directory: `{{REPORT_DIR}}`
 - Repair directory: `{{REPAIR_DIR}}`
@@ -13,22 +15,21 @@
 强制约束：
 
 1. 一切结论必须基于 Word 中最终肉眼可见效果和截图证据。
-2. 不能默认前台窗口就是 Word，用户可能会抢焦点。
-3. 不能默认 Word 当前打开的就是目标文档；每次截图前都要重新验证活动文档身份。
-4. 优先使用 `windows-mcp` / 相关 MCP 工具完成窗口切换、焦点校验、截图与页面检查，不要只凭脚本返回值做结论。
-5. 原始文档 `{{DOCX_PATH}}` 不得覆盖。
-6. 每一轮修复都必须写到 `{{REPAIR_DIR}}` 下的新子目录，例如 `fix-01\candidate.docx`。
-7. 每修完一轮都要重新做完整视觉检查，不能只看单个问题页。
-8. 如果无法确认截图对应目标文档，就不能宣称修复成功。
+2. 只允许使用脚本产出的 PDF/PNG 证据做结论，不要再直接打开 Word 查看最终效果。
+3. 第一轮必须先执行上面的渲染命令，并确认脚本成功生成 PDF、分页 PNG、联系图和报告骨架。
+4. 原始文档 `{{DOCX_PATH}}` 不得覆盖。
+5. 每一轮修复都必须写到 `{{REPAIR_DIR}}` 下的新子目录，例如 `fix-01\candidate.docx`。
+6. 每修完一轮都要重新执行完整脚本渲染与视觉检查，不能只看单个问题页。
+7. 如果任一轮脚本执行失败、导出失败、分页 PNG 缺失，或证据不完整，就不能宣称修复成功。
+8. 最终报告必须回写到 `{{REPORT_DIR}}`。
 
 执行顺序：
 
 1. 完成一轮完整视觉检查，步骤与检查模式一致：
    - 验证文档路径；
-   - 打开 Word；
-   - 校验焦点窗口与活动文档；
-   - 调整视图；
-   - 按页截图并记录证据；
+   - 运行首轮渲染脚本；
+   - 校验 `summary.json`、联系图和分页 PNG 已生成；
+   - 按页检查截图并记录证据；
    - 输出“通过 / 不通过 / 无法判定”。
 2. 若结论为“不通过”，根据截图和问题报告判断问题更可能落在哪个代码层：
    - 段落/标题/正文问题；
@@ -38,7 +39,7 @@
    - 自动化误抓或视图问题。
 3. 修改生成逻辑或模板输入，而不是手工改 Word 成品。
 4. 将修复后的候选文档输出到 `{{REPAIR_DIR}}` 下的新轮次目录。
-5. 对候选文档重新执行完整视觉检查，并把证据写回对应轮次目录。
+5. 对候选文档执行：`powershell -ExecutionPolicy Bypass -File "{{WORKSPACE}}\scripts\run_word_visual_smoke.ps1" -InputDocx "<candidate.docx>" -OutputDir "<对应 fix-XX 目录>"`，并基于该目录下的证据重新做完整视觉检查。
 6. 必须将本轮结果同步回写到 `{{REPORT_DIR}}` 下现有报告文件：
    - `{{REPORT_DIR}}\review_result.json`
    - `{{REPORT_DIR}}\final_review.md`

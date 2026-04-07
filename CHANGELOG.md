@@ -34,7 +34,7 @@ performance.
   Word-to-PDF-to-PNG smoke flow checks mixed-script and bidi layout as well as
   borders and table geometry.
 - `prepare_word_review_task.ps1` now seeds collision-safe task packages from
-  reusable review templates and emits MCP-oriented prompts that explicitly
+  reusable review templates and emits script-oriented prompts that explicitly
   require AI reviewers to write findings back into `report/`.
 
 ## [1.2.0] - 2026-04-07

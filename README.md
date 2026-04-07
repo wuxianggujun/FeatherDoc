@@ -74,9 +74,11 @@ or output structure. The intended handoff flow is:
 
 1. Run `prepare_word_review_task.ps1`.
 2. Open the generated `task_prompt.md`.
-3. Send the full prompt to the AI agent and require it to write its conclusion
-   back into `report/review_result.json` and `report/final_review.md`.
-4. If the mode is `review-and-repair`, allow the agent to iterate under
+3. Send the full prompt to the AI agent and require it to first run
+   `scripts/run_word_visual_smoke.ps1 -InputDocx ... -OutputDir <task dir>`.
+4. Require the agent to review the generated PDF/PNG evidence and write its
+   conclusion back into `report/review_result.json` and `report/final_review.md`.
+5. If the mode is `review-and-repair`, allow the agent to iterate under
    `repair/fix-XX/` and rerun the full visual review loop after each fix.
 
 ## CLI

@@ -154,6 +154,7 @@ $templateValues = @{
     "{{DOC_NAME}}" = $documentName
     "{{TASK_ID}}" = $taskId
     "{{TASK_DIR}}" = $taskDir
+    "{{WORKSPACE}}" = $repoRoot
     "{{EVIDENCE_DIR}}" = $evidenceDir
     "{{REPORT_DIR}}" = $reportDir
     "{{REPAIR_DIR}}" = $repairDir
@@ -189,7 +190,8 @@ $manifest = [ordered]@{
     final_review_path = $finalReviewPath
     recommended_next_steps = @(
         "Open task_prompt.md and send the full contents to the AI agent.",
-        "Tell the AI to write screenshot-backed findings into the report directory.",
+        "Tell the AI to first run scripts\\run_word_visual_smoke.ps1 with -InputDocx and -OutputDir pointing at this task directory.",
+        "Tell the AI to review the generated PDF/PNG evidence and write findings into the report directory.",
         "If the mode is review-and-repair, allow iterative fixes and full regressions under the repair directory."
     )
 }
