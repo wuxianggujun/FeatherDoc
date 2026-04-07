@@ -8,6 +8,8 @@ performance.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-04-07
+
 ### Added
 
 - `Run::font_family()`, `east_asia_font_family()`, `set_font_family()`,
