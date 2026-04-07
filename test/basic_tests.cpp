@@ -5895,3 +5895,142 @@ TEST_CASE("run font family APIs write rFonts and clear removes empty run propert
 
     fs::remove(target);
 }
+
+TEST_CASE("default run font APIs edit docDefaults and round-trip through styles.xml") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "default_run_font_family_roundtrip.docx";
+    const auto run_text = utf8_from_u8(u8"\u9ED8\u8BA4\u5B57\u4F53\u5199\u5165");
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK_FALSE(doc.set_default_run_font_family(""));
+    CHECK_FALSE(doc.set_default_run_east_asia_font_family(""));
+    CHECK_FALSE(doc.default_run_font_family().has_value());
+    CHECK_FALSE(doc.default_run_east_asia_font_family().has_value());
+
+    CHECK(doc.set_default_run_font_family("Segoe UI"));
+    CHECK(doc.set_default_run_east_asia_font_family("Microsoft YaHei"));
+
+    const auto default_font_family = doc.default_run_font_family();
+    REQUIRE(default_font_family.has_value());
+    CHECK_EQ(*default_font_family, "Segoe UI");
+
+    const auto default_east_asia_font = doc.default_run_east_asia_font_family();
+    REQUIRE(default_east_asia_font.has_value());
+    CHECK_EQ(*default_east_asia_font, "Microsoft YaHei");
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.add_run(run_text).has_next());
+
+    CHECK_FALSE(doc.save());
+    CHECK(test_docx_entry_exists(target, "word/styles.xml"));
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("<w:docDefaults>"), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:ascii=\"Segoe UI\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:hAnsi=\"Segoe UI\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:cs=\"Segoe UI\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:eastAsia=\"Microsoft YaHei\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_default_font_family = reopened.default_run_font_family();
+    REQUIRE(reopened_default_font_family.has_value());
+    CHECK_EQ(*reopened_default_font_family, "Segoe UI");
+
+    const auto reopened_default_east_asia_font = reopened.default_run_east_asia_font_family();
+    REQUIRE(reopened_default_east_asia_font.has_value());
+    CHECK_EQ(*reopened_default_east_asia_font, "Microsoft YaHei");
+
+    CHECK_EQ(collect_document_text(reopened), run_text + "\n");
+    CHECK(reopened.clear_default_run_font_family());
+    CHECK_FALSE(reopened.save());
+
+    const auto cleared_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_EQ(count_substring_occurrences(cleared_styles_xml, "w:eastAsia=\"Microsoft YaHei\""), 0);
+    CHECK_EQ(count_substring_occurrences(cleared_styles_xml, "w:ascii=\"Segoe UI\""), 0);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_FALSE(cleared.default_run_font_family().has_value());
+    CHECK_FALSE(cleared.default_run_east_asia_font_family().has_value());
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("style run font APIs edit styles.xml and preserve unrelated style markup") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "style_run_font_family_roundtrip.docx";
+    const auto run_text = utf8_from_u8(u8"\u6837\u5F0F\u5B57\u4F53\u5199\u5165");
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK_FALSE(doc.set_style_run_font_family("", "Segoe UI"));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.set_style_run_font_family("MissingStyle", "Segoe UI"));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.style_run_font_family("MissingStyle").has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK(doc.set_style_run_font_family("Strong", "Segoe UI"));
+    CHECK(doc.set_style_run_east_asia_font_family("Strong", "Microsoft YaHei"));
+
+    const auto style_font_family = doc.style_run_font_family("Strong");
+    REQUIRE(style_font_family.has_value());
+    CHECK_EQ(*style_font_family, "Segoe UI");
+
+    const auto style_east_asia_font = doc.style_run_east_asia_font_family("Strong");
+    REQUIRE(style_east_asia_font.has_value());
+    CHECK_EQ(*style_east_asia_font, "Microsoft YaHei");
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run(run_text);
+    REQUIRE(run.has_next());
+    CHECK(doc.set_run_style(run, "Strong"));
+
+    CHECK_FALSE(doc.save());
+
+    auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"Strong\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:ascii=\"Segoe UI\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:eastAsia=\"Microsoft YaHei\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:b"), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), run_text + "\n");
+
+    const auto reopened_style_font_family = reopened.style_run_font_family("Strong");
+    REQUIRE(reopened_style_font_family.has_value());
+    CHECK_EQ(*reopened_style_font_family, "Segoe UI");
+
+    const auto reopened_style_east_asia_font = reopened.style_run_east_asia_font_family("Strong");
+    REQUIRE(reopened_style_east_asia_font.has_value());
+    CHECK_EQ(*reopened_style_east_asia_font, "Microsoft YaHei");
+
+    CHECK(reopened.clear_style_run_font_family("Strong"));
+    CHECK_FALSE(reopened.save());
+
+    saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:eastAsia=\"Microsoft YaHei\""), 0);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:ascii=\"Segoe UI\""), 0);
+    CHECK_NE(saved_styles_xml.find("w:b"), std::string::npos);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_FALSE(cleared.style_run_font_family("Strong").has_value());
+    CHECK_FALSE(cleared.style_run_east_asia_font_family("Strong").has_value());
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}

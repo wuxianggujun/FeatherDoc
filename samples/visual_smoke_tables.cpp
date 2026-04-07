@@ -45,9 +45,11 @@ auto add_text(featherdoc::Paragraph paragraph, std::string_view text,
     return paragraph.add_run(std::string{text}, formatting).has_next();
 }
 
-auto set_mixed_cjk_run_fonts(featherdoc::Run run) -> bool {
-    return run.has_next() && run.set_font_family("Segoe UI") &&
-           run.set_east_asia_font_family("Microsoft YaHei");
+auto configure_cjk_font_defaults(featherdoc::Document &doc) -> bool {
+    return doc.set_default_run_font_family("Segoe UI") &&
+           doc.set_default_run_east_asia_font_family("Microsoft YaHei") &&
+           doc.set_style_run_font_family("Strong", "Segoe UI") &&
+           doc.set_style_run_east_asia_font_family("Strong", "Microsoft YaHei");
 }
 
 auto add_cell_text(featherdoc::TableCell cell, std::string_view text,
@@ -203,7 +205,7 @@ auto create_overview_table(featherdoc::Document &doc) -> bool {
     auto cjk_run = cjk_paragraph.add_run(
         utf8_from_u8(u8"\u4E2D\u6587/CJK \u6DF7\u6392\u68C0\u67E5"),
         featherdoc::formatting_flag::bold);
-    if (!cjk_run.has_next() || !set_mixed_cjk_run_fonts(cjk_run)) {
+    if (!cjk_run.has_next()) {
         return false;
     }
 
@@ -211,7 +213,7 @@ auto create_overview_table(featherdoc::Document &doc) -> bool {
         utf8_from_u8(
             u8"\u9884\u671F\uff1A\u8868\u683C\u5BBD\u5EA6\u4E0D\u88AB\u4E2D\u6587\u6491\u7206\uFF0C"
             u8"Invoice INV-2026-0001 \u6362\u884C\u4ECD\u7136\u7A33\u5B9A"));
-    if (!cjk_paragraph.has_next() || !set_mixed_cjk_run_fonts(cjk_paragraph.runs())) {
+    if (!cjk_paragraph.has_next()) {
         return false;
     }
 
@@ -518,6 +520,11 @@ int main(int argc, char **argv) {
         return static_cast<int>(error.value() == 0 ? 1 : error.value());
     }
 
+    if (!configure_cjk_font_defaults(doc)) {
+        print_document_error(doc, "configure CJK defaults");
+        return 1;
+    }
+
     auto paragraph = doc.paragraphs();
     if (!paragraph.has_next() ||
         !add_text(paragraph, "FeatherDoc Word Visual Smoke Check",
@@ -552,11 +559,21 @@ int main(int argc, char **argv) {
 
     paragraph = paragraph.insert_paragraph_after(
         utf8_from_u8(
-            u8"\u4E2D\u6587/CJK \u76EE\u89C6\u68C0\u67E5\uff1A\u9A8C\u8BC1 eastAsia "
-            u8"\u5B57\u4F53\u3001\u4E2D\u82F1\u6DF7\u6392\u3001\u8868\u683C\u6362\u884C\u548C"
-            u8"\u884C\u9AD8\u662F\u5426\u7A33\u5B9A\u3002"));
-    if (!paragraph.has_next() || !set_mixed_cjk_run_fonts(paragraph.runs())) {
-        std::cerr << "failed to append CJK review paragraph\n";
+            u8"\u4E2D\u6587/CJK \u9ED8\u8BA4\u5B57\u4F53\u68C0\u67E5\uff1A"
+            u8"\u8FD9\u884C\u4F9D\u8D56 docDefaults \u7EE7\u627F eastAsia "
+            u8"\u5B57\u4F53\uff0C\u9700\u8981\u89C2\u5BDF\u4E2D\u82F1\u6DF7\u6392\u662F\u5426\u7A33\u5B9A\u3002"));
+    if (!paragraph.has_next()) {
+        std::cerr << "failed to append default CJK review paragraph\n";
+        return 1;
+    }
+
+    paragraph = paragraph.insert_paragraph_after(
+        utf8_from_u8(
+            u8"\u4E2D\u6587/CJK \u6837\u5F0F\u7EE7\u627F\u68C0\u67E5\uff1A"
+            u8"\u8FD9\u884C\u4F7F\u7528 Strong \u6837\u5F0F\uff0C"
+            u8"\u4E0D\u76F4\u63A5\u5BF9 run \u5199\u5B57\u4F53\u3002"));
+    if (!paragraph.has_next() || !doc.set_run_style(paragraph.runs(), "Strong")) {
+        print_document_error(doc, "append style-based CJK review paragraph");
         return 1;
     }
 

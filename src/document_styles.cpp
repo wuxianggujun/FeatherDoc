@@ -247,6 +247,35 @@ auto node_has_attributes(pugi::xml_node node) -> bool {
     return node.first_attribute() != pugi::xml_attribute{};
 }
 
+auto read_font_family_attribute(pugi::xml_node run_fonts, const char *attribute_name)
+    -> std::optional<std::string> {
+    if (run_fonts == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto attribute = run_fonts.attribute(attribute_name);
+    if (attribute == pugi::xml_attribute{} || attribute.value()[0] == '\0') {
+        return std::nullopt;
+    }
+
+    return std::string{attribute.value()};
+}
+
+auto read_primary_font_family(pugi::xml_node run_properties) -> std::optional<std::string> {
+    const auto run_fonts = run_properties.child("w:rFonts");
+    if (const auto ascii_font = read_font_family_attribute(run_fonts, "w:ascii")) {
+        return ascii_font;
+    }
+    if (const auto hansi_font = read_font_family_attribute(run_fonts, "w:hAnsi")) {
+        return hansi_font;
+    }
+    return read_font_family_attribute(run_fonts, "w:cs");
+}
+
+auto read_east_asia_font_family(pugi::xml_node run_properties) -> std::optional<std::string> {
+    return read_font_family_attribute(run_properties.child("w:rFonts"), "w:eastAsia");
+}
+
 auto ensure_paragraph_properties_node(pugi::xml_node paragraph) -> pugi::xml_node {
     if (paragraph == pugi::xml_node{}) {
         return {};
@@ -279,6 +308,139 @@ auto ensure_run_properties_node(pugi::xml_node run) -> pugi::xml_node {
     }
 
     return run.append_child("w:rPr");
+}
+
+auto ensure_style_run_properties_node(pugi::xml_node style) -> pugi::xml_node {
+    if (style == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (run_properties != pugi::xml_node{}) {
+        return run_properties;
+    }
+
+    if (const auto paragraph_properties = style.child("w:pPr");
+        paragraph_properties != pugi::xml_node{}) {
+        return style.insert_child_after("w:rPr", paragraph_properties);
+    }
+
+    return style.append_child("w:rPr");
+}
+
+auto ensure_run_fonts_node(pugi::xml_node run_properties) -> pugi::xml_node {
+    if (run_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto run_fonts = run_properties.child("w:rFonts");
+    if (run_fonts != pugi::xml_node{}) {
+        return run_fonts;
+    }
+
+    if (const auto run_style = run_properties.child("w:rStyle");
+        run_style != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:rFonts", run_style);
+    }
+
+    if (const auto first_child = run_properties.first_child(); first_child != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:rFonts", first_child);
+    }
+
+    return run_properties.append_child("w:rFonts");
+}
+
+auto ensure_doc_defaults_node(pugi::xml_node styles_root) -> pugi::xml_node {
+    if (styles_root == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto doc_defaults = styles_root.child("w:docDefaults");
+    if (doc_defaults != pugi::xml_node{}) {
+        return doc_defaults;
+    }
+
+    if (const auto first_child = styles_root.first_child(); first_child != pugi::xml_node{}) {
+        return styles_root.insert_child_before("w:docDefaults", first_child);
+    }
+
+    return styles_root.append_child("w:docDefaults");
+}
+
+auto ensure_doc_defaults_run_properties_node(pugi::xml_node styles_root) -> pugi::xml_node {
+    auto doc_defaults = ensure_doc_defaults_node(styles_root);
+    if (doc_defaults == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto run_properties_default = doc_defaults.child("w:rPrDefault");
+    if (run_properties_default == pugi::xml_node{}) {
+        if (const auto first_child = doc_defaults.first_child(); first_child != pugi::xml_node{}) {
+            run_properties_default = doc_defaults.insert_child_before("w:rPrDefault", first_child);
+        } else {
+            run_properties_default = doc_defaults.append_child("w:rPrDefault");
+        }
+    }
+    if (run_properties_default == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto run_properties = run_properties_default.child("w:rPr");
+    if (run_properties != pugi::xml_node{}) {
+        return run_properties;
+    }
+
+    if (const auto first_child = run_properties_default.first_child();
+        first_child != pugi::xml_node{}) {
+        return run_properties_default.insert_child_before("w:rPr", first_child);
+    }
+
+    return run_properties_default.append_child("w:rPr");
+}
+
+auto find_style_node(pugi::xml_node styles_root, std::string_view style_id) -> pugi::xml_node {
+    for (auto style = styles_root.child("w:style"); style != pugi::xml_node{};
+         style = style.next_sibling("w:style")) {
+        if (std::string_view{style.attribute("w:styleId").value()} == style_id) {
+            return style;
+        }
+    }
+
+    return {};
+}
+
+void remove_empty_run_fonts_node(pugi::xml_node run_properties) {
+    if (run_properties == pugi::xml_node{}) {
+        return;
+    }
+
+    auto run_fonts = run_properties.child("w:rFonts");
+    if (run_fonts == pugi::xml_node{}) {
+        return;
+    }
+
+    if (run_fonts.first_child() == pugi::xml_node{} && !node_has_attributes(run_fonts)) {
+        run_properties.remove_child(run_fonts);
+    }
+}
+
+auto clear_font_family_attributes(pugi::xml_node run_properties) -> bool {
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto run_fonts = run_properties.child("w:rFonts");
+    if (run_fonts == pugi::xml_node{}) {
+        return false;
+    }
+
+    bool removed = false;
+    removed = run_fonts.remove_attribute("w:ascii") || removed;
+    removed = run_fonts.remove_attribute("w:hAnsi") || removed;
+    removed = run_fonts.remove_attribute("w:cs") || removed;
+    removed = run_fonts.remove_attribute("w:eastAsia") || removed;
+    remove_empty_run_fonts_node(run_properties);
+    return removed;
 }
 
 void remove_empty_paragraph_properties(pugi::xml_node paragraph) {
@@ -516,6 +678,477 @@ std::error_code Document::ensure_styles_part_attached() {
         this->styles_dirty = true;
     }
     return {};
+}
+
+std::optional<std::string> Document::default_run_font_family() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading default run fonts");
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    this->last_error_info.clear();
+    return read_primary_font_family(
+        styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"));
+}
+
+std::optional<std::string> Document::default_run_east_asia_font_family() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading default run fonts");
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    this->last_error_info.clear();
+    return read_east_asia_font_family(
+        styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"));
+}
+
+bool Document::set_default_run_font_family(std::string_view font_family) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run fonts");
+        return false;
+    }
+
+    if (font_family.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "default run font family must not be empty",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_part_attached()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto run_properties = ensure_doc_defaults_run_properties_node(styles_root);
+    if (run_properties == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create docDefaults/w:rPrDefault/w:rPr",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto run_fonts = ensure_run_fonts_node(run_properties);
+    if (run_fonts == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create docDefaults default w:rFonts",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    ensure_attribute_value(run_fonts, "w:ascii", font_family);
+    ensure_attribute_value(run_fonts, "w:hAnsi", font_family);
+    ensure_attribute_value(run_fonts, "w:cs", font_family);
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::set_default_run_east_asia_font_family(std::string_view font_family) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run fonts");
+        return false;
+    }
+
+    if (font_family.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "default eastAsia font family must not be empty",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_part_attached()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto run_properties = ensure_doc_defaults_run_properties_node(styles_root);
+    if (run_properties == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create docDefaults/w:rPrDefault/w:rPr",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto run_fonts = ensure_run_fonts_node(run_properties);
+    if (run_fonts == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create docDefaults default w:rFonts",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    ensure_attribute_value(run_fonts, "w:eastAsia", font_family);
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_default_run_font_family() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run fonts");
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_font_family_attributes(
+            styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"))) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+std::optional<std::string> Document::style_run_font_family(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading style run fonts");
+        return std::nullopt;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when reading style run fonts",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    this->last_error_info.clear();
+    return read_primary_font_family(style.child("w:rPr"));
+}
+
+std::optional<std::string> Document::style_run_east_asia_font_family(
+    std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading style run fonts");
+        return std::nullopt;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when reading style run fonts",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    this->last_error_info.clear();
+    return read_east_asia_font_family(style.child("w:rPr"));
+}
+
+bool Document::set_style_run_font_family(std::string_view style_id,
+                                         std::string_view font_family) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run fonts");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run fonts",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (font_family.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style run font family must not be empty",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!this->has_styles_part) {
+        if (const auto error = this->ensure_styles_part_attached()) {
+            return false;
+        }
+        styles_root = this->styles.child("w:styles");
+        style = find_style_node(styles_root, style_id);
+    }
+
+    const auto run_properties = ensure_style_run_properties_node(style);
+    if (run_properties == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:rPr for style '" + std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto run_fonts = ensure_run_fonts_node(run_properties);
+    if (run_fonts == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:rFonts for style '" + std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    ensure_attribute_value(run_fonts, "w:ascii", font_family);
+    ensure_attribute_value(run_fonts, "w:hAnsi", font_family);
+    ensure_attribute_value(run_fonts, "w:cs", font_family);
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::set_style_run_east_asia_font_family(std::string_view style_id,
+                                                   std::string_view font_family) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run fonts");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run fonts",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (font_family.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style eastAsia font family must not be empty",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!this->has_styles_part) {
+        if (const auto error = this->ensure_styles_part_attached()) {
+            return false;
+        }
+        styles_root = this->styles.child("w:styles");
+        style = find_style_node(styles_root, style_id);
+    }
+
+    const auto run_properties = ensure_style_run_properties_node(style);
+    if (run_properties == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:rPr for style '" + std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto run_fonts = ensure_run_fonts_node(run_properties);
+    if (run_fonts == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:rFonts for style '" + std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    ensure_attribute_value(run_fonts, "w:eastAsia", font_family);
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_font_family(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run fonts");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run fonts",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (clear_font_family_attributes(run_properties)) {
+        if (run_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(run_properties)) {
+            style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
 }
 
 bool Document::set_paragraph_style(Paragraph paragraph_handle, std::string_view style_id) {

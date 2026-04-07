@@ -13,13 +13,18 @@ performance.
 - `Run::font_family()`, `east_asia_font_family()`, `set_font_family()`,
    `set_east_asia_font_family()`, and `clear_font_family()` for explicit
    `w:rFonts` editing with `eastAsia` coverage for Chinese/CJK text.
+- `default_run_font_family()`, `default_run_east_asia_font_family()`,
+  `set_default_run_font_family()`, `set_default_run_east_asia_font_family()`,
+  `clear_default_run_font_family()`, and matching `style_run_*` APIs for
+  editing `word/styles.xml` `docDefaults` plus style-level `w:rFonts`
+  inheritance for Chinese/CJK text.
 
 ### Validation
 
 - Extended `samples/visual_smoke_tables.cpp` with explicit Chinese/CJK review
-  text rendered via `w:rFonts` (`Microsoft YaHei` for `eastAsia`) so the
-  Word-to-PDF-to-PNG smoke flow checks mixed-script layout as well as borders
-  and table geometry.
+  text rendered through `docDefaults` and `Strong` style inheritance
+  (`Microsoft YaHei` for `eastAsia`) so the Word-to-PDF-to-PNG smoke flow
+  checks mixed-script layout as well as borders and table geometry.
 
 ## [1.2.0] - 2026-04-07
 
