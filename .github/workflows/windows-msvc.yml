@@ -1,0 +1,103 @@
+name: Windows MSVC CI
+
+on:
+  push:
+    branches:
+      - dev
+      - master
+  pull_request:
+    branches:
+      - dev
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-test-samples:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure
+        shell: pwsh
+        run: >
+          cmake -S . -B build-msvc-nmake -G "NMake Makefiles"
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_TESTING=ON
+          -DBUILD_SAMPLES=ON
+          -DBUILD_CLI=ON
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build-msvc-nmake
+
+      - name: Run tests
+        shell: pwsh
+        run: ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
+
+      - name: Run samples and validate generated DOCX files
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+          function Assert-Docx {
+              param(
+                  [Parameter(Mandatory = $true)]
+                  [string]$Path
+              )
+
+              if (-not (Test-Path -LiteralPath $Path)) {
+                  throw "Expected DOCX file was not created: $Path"
+              }
+
+              $resolvedPath = (Resolve-Path -LiteralPath $Path).Path
+              $archive = [System.IO.Compression.ZipFile]::OpenRead($resolvedPath)
+              try {
+                  $entries = @($archive.Entries | ForEach-Object { $_.FullName })
+              } finally {
+                  $archive.Dispose()
+              }
+
+              foreach ($requiredEntry in @("[Content_Types].xml", "_rels/.rels", "word/document.xml")) {
+                  if ($entries -notcontains $requiredEntry) {
+                      throw "DOCX file is missing required entry '$requiredEntry': $Path"
+                  }
+              }
+          }
+
+          Push-Location build-msvc-nmake
+          try {
+              .\featherdoc_sample1.exe
+              .\featherdoc_sample2.exe
+              Assert-Docx ".\my_test.docx"
+
+              .\featherdoc_sample_chinese.exe ".\output\sample-chinese\sample_chinese.docx"
+              Assert-Docx ".\output\sample-chinese\sample_chinese.docx"
+
+              .\featherdoc_sample_chinese_template.exe ".\output\sample-chinese-template\sample_chinese_invoice_output.docx"
+              Assert-Docx ".\output\sample-chinese-template\sample_chinese_invoice_output.docx"
+
+              .\featherdoc_visual_smoke_tables.exe ".\output\visual-smoke\table_visual_smoke.docx"
+              Assert-Docx ".\output\visual-smoke\table_visual_smoke.docx"
+          } finally {
+              Pop-Location
+          }
+
+      - name: Upload generated sample documents
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msvc-sample-docx
+          path: |
+            build-msvc-nmake/my_test.docx
+            build-msvc-nmake/output/**/*.docx
+          if-no-files-found: warn
