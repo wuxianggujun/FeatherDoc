@@ -60,6 +60,69 @@ enum class list_kind : std::uint8_t {
     decimal,
 };
 
+enum class table_layout_mode : std::uint8_t {
+    autofit = 0U,
+    fixed,
+};
+
+enum class table_alignment : std::uint8_t {
+    left = 0U,
+    center,
+    right,
+};
+
+enum class row_height_rule : std::uint8_t {
+    automatic = 0U,
+    at_least,
+    exact,
+};
+
+enum class border_style : std::uint8_t {
+    none = 0U,
+    single,
+    double_line,
+    dashed,
+    dotted,
+    thick,
+};
+
+enum class cell_border_edge : std::uint8_t {
+    top = 0U,
+    left,
+    bottom,
+    right,
+};
+
+enum class cell_margin_edge : std::uint8_t {
+    top = 0U,
+    left,
+    bottom,
+    right,
+};
+
+enum class cell_vertical_alignment : std::uint8_t {
+    top = 0U,
+    center,
+    bottom,
+    both,
+};
+
+enum class table_border_edge : std::uint8_t {
+    top = 0U,
+    left,
+    bottom,
+    right,
+    inside_horizontal,
+    inside_vertical,
+};
+
+struct border_definition {
+    featherdoc::border_style style{featherdoc::border_style::single};
+    std::uint32_t size_eighth_points{4U};
+    std::string_view color{"auto"};
+    std::uint32_t space_points{0U};
+};
+
 [[nodiscard]] constexpr auto to_xml_reference_type(
     section_reference_kind kind) noexcept -> std::string_view {
     switch (kind) {

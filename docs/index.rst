@@ -162,20 +162,56 @@ programmatically. The returned ``Table`` can then grow through
     extra_cell.paragraphs().add_run("tail");
     extra_row.append_cell().paragraphs().add_run("tail-2");
 
-``TableCell::set_width_twips(...)``, ``clear_width()``, and ``merge_right(...)``
-cover the first higher-level table layout edits without dropping down to raw
-XML. ``width_twips()`` reports an explicit ``dxa`` cell width when present, and
+``Table::set_width_twips(...)``, ``set_style_id(...)``, ``set_border(...)``,
+``set_layout_mode(...)``, ``set_alignment(...)``, and
+``set_indent_twips(...)``, and ``set_cell_margin_twips(...)`` work alongside
+``TableCell::set_width_twips(...)``, ``merge_right(...)``, ``merge_down(...)``,
+``set_vertical_alignment(...)``, ``set_border(...)``,
+``set_fill_color(...)``, and ``set_margin_twips(...)`` for higher-level table
+layout edits without dropping down to raw XML. ``width_twips()`` reports an
+explicit ``dxa`` width when present, ``style_id()`` reports the current table
+style reference, ``layout_mode()`` reports the current auto-fit mode,
+``alignment()`` / ``indent_twips()`` report table placement,
+``cell_margin_twips()`` reports per-edge default cell margins,
+``height_twips()`` / ``height_rule()`` report the current row height override,
+``cant_split()`` reports whether Word keeps the row on one page,
+``repeats_header()`` reports whether a row repeats as a table header, and
 ``column_span()`` reports the current horizontal span.
 
 .. code-block:: cpp
 
     auto table = doc.append_table(1, 3);
+    table.set_width_twips(7200);
+    table.set_style_id("TableGrid");
+    table.set_layout_mode(featherdoc::table_layout_mode::fixed);
+    table.set_alignment(featherdoc::table_alignment::center);
+    table.set_indent_twips(240);
+    table.set_cell_margin_twips(featherdoc::cell_margin_edge::left, 96);
+    table.set_cell_margin_twips(featherdoc::cell_margin_edge::right, 96);
+    table.set_border(featherdoc::table_border_edge::inside_vertical,
+                     {featherdoc::border_style::single, 8, "808080", 0});
+
     auto row = table.rows();
+    row.set_height_twips(360, featherdoc::row_height_rule::exact);
+    row.set_cant_split();
+    row.set_repeats_header();
     auto cell = row.cells();
 
     cell.set_width_twips(2400);
+    cell.set_vertical_alignment(featherdoc::cell_vertical_alignment::center);
+    cell.set_fill_color("D9EAF7");
+    cell.set_margin_twips(featherdoc::cell_margin_edge::left, 120);
+    cell.set_margin_twips(featherdoc::cell_margin_edge::right, 120);
     cell.paragraphs().add_run("Merged title");
     cell.merge_right(1);
+    cell.set_border(featherdoc::cell_border_edge::bottom,
+                    {featherdoc::border_style::thick, 12, "000000", 0});
+
+    auto next_row = table.append_row(3);
+    auto merged_column = next_row.cells();
+    merged_column.paragraphs().add_run("Below");
+    cell = row.cells();
+    cell.merge_down(1);
 
     std::cout << cell.column_span() << std::endl; // 2
 
@@ -624,9 +660,14 @@ Current Limitations
   through ``move_section()``, but there is still no high-level API for part
   reordering.
 - Word equations (``OMML``) are not surfaced through a typed equation API.
-- Tables can now be appended, extended structurally, given explicit cell
-  widths, and merged horizontally, but there is still no high-level API for
-  vertical merges, borders, widths at the table level, or table styling.
+- Tables can now be appended, extended structurally, given explicit cell and
+  table widths, merged horizontally and vertically, assigned table/cell
+  borders, switched between fixed and autofit layout, aligned/indented within
+  the page, pointed at existing table style ids, given basic table-level
+  default cell margins and cell shading/margins, assigned row heights,
+  controlled for page splitting, assigned cell vertical alignment, and marked
+  to repeat header rows, but there is still no high-level API for custom
+  table style definitions or richer table layout editing.
 - Paragraphs can now be attached to managed bullet and decimal lists, but
   there is still no high-level API for custom numbering definitions, list
   restarts, or paragraph style-based numbering.

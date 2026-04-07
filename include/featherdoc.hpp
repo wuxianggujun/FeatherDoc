@@ -108,6 +108,23 @@ class TableCell {
     [[nodiscard]] bool clear_width();
     [[nodiscard]] std::size_t column_span() const;
     [[nodiscard]] bool merge_right(std::size_t additional_cells = 1U);
+    [[nodiscard]] bool merge_down(std::size_t additional_rows = 1U);
+    [[nodiscard]] std::optional<featherdoc::cell_vertical_alignment>
+    vertical_alignment() const;
+    [[nodiscard]] bool set_vertical_alignment(
+        featherdoc::cell_vertical_alignment alignment);
+    [[nodiscard]] bool clear_vertical_alignment();
+    [[nodiscard]] std::optional<std::string> fill_color() const;
+    [[nodiscard]] bool set_fill_color(std::string_view fill_color);
+    [[nodiscard]] bool clear_fill_color();
+    [[nodiscard]] std::optional<std::uint32_t> margin_twips(
+        featherdoc::cell_margin_edge edge) const;
+    [[nodiscard]] bool set_margin_twips(featherdoc::cell_margin_edge edge,
+                                        std::uint32_t margin_twips);
+    [[nodiscard]] bool clear_margin(featherdoc::cell_margin_edge edge);
+    [[nodiscard]] bool set_border(featherdoc::cell_border_edge edge,
+                                  featherdoc::border_definition border);
+    [[nodiscard]] bool clear_border(featherdoc::cell_border_edge edge);
 
     TableCell &next();
     [[nodiscard]] bool has_next() const;
@@ -128,6 +145,17 @@ class TableRow {
     void set_current(pugi::xml_node);
 
     TableCell &cells();
+    [[nodiscard]] std::optional<std::uint32_t> height_twips() const;
+    [[nodiscard]] std::optional<featherdoc::row_height_rule> height_rule() const;
+    [[nodiscard]] bool set_height_twips(std::uint32_t height_twips,
+                                        featherdoc::row_height_rule height_rule);
+    [[nodiscard]] bool clear_height();
+    [[nodiscard]] bool cant_split() const;
+    [[nodiscard]] bool set_cant_split();
+    [[nodiscard]] bool clear_cant_split();
+    [[nodiscard]] bool repeats_header() const;
+    [[nodiscard]] bool set_repeats_header();
+    [[nodiscard]] bool clear_repeats_header();
     TableCell append_cell();
 
     [[nodiscard]] bool has_next() const;
@@ -153,6 +181,29 @@ class Table {
     [[nodiscard]] bool has_next() const;
 
     TableRow &rows();
+    [[nodiscard]] std::optional<std::uint32_t> width_twips() const;
+    [[nodiscard]] bool set_width_twips(std::uint32_t width_twips);
+    [[nodiscard]] bool clear_width();
+    [[nodiscard]] std::optional<featherdoc::table_layout_mode> layout_mode() const;
+    [[nodiscard]] bool set_layout_mode(featherdoc::table_layout_mode layout_mode);
+    [[nodiscard]] bool clear_layout_mode();
+    [[nodiscard]] std::optional<featherdoc::table_alignment> alignment() const;
+    [[nodiscard]] bool set_alignment(featherdoc::table_alignment alignment);
+    [[nodiscard]] bool clear_alignment();
+    [[nodiscard]] std::optional<std::uint32_t> indent_twips() const;
+    [[nodiscard]] bool set_indent_twips(std::uint32_t indent_twips);
+    [[nodiscard]] bool clear_indent();
+    [[nodiscard]] std::optional<std::uint32_t> cell_margin_twips(
+        featherdoc::cell_margin_edge edge) const;
+    [[nodiscard]] bool set_cell_margin_twips(featherdoc::cell_margin_edge edge,
+                                             std::uint32_t margin_twips);
+    [[nodiscard]] bool clear_cell_margin(featherdoc::cell_margin_edge edge);
+    [[nodiscard]] std::optional<std::string> style_id() const;
+    [[nodiscard]] bool set_style_id(std::string_view style_id);
+    [[nodiscard]] bool clear_style_id();
+    [[nodiscard]] bool set_border(featherdoc::table_border_edge edge,
+                                  featherdoc::border_definition border);
+    [[nodiscard]] bool clear_border(featherdoc::table_border_edge edge);
     TableRow append_row(std::size_t cell_count = 1U);
 };
 

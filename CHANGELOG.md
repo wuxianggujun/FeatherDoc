@@ -18,6 +18,29 @@ performance.
   explicit cell width editing.
 - `TableCell::merge_right()` and `column_span()` for lightweight horizontal
   cell merging and span inspection.
+- `Table::set_width_twips()`, `clear_width()`, `style_id()`,
+  `set_style_id()`, `clear_style_id()`, and `set_border()` /
+  `clear_border()` plus `TableCell::merge_down()` and
+  `TableCell::set_border()` / `clear_border()` for table-level width/style
+  references, vertical merges, and table/cell border editing.
+- `Table::layout_mode()`, `set_layout_mode()`, and `clear_layout_mode()` for
+  switching tables between `autofit` and fixed layout modes.
+- `Table::alignment()`, `set_alignment()`, `clear_alignment()`,
+  `indent_twips()`, `set_indent_twips()`, and `clear_indent()` for table
+  placement editing.
+- `Table::cell_margin_twips()`, `set_cell_margin_twips()`, and
+  `clear_cell_margin()` for table-level default cell margin editing.
+- `TableRow::height_twips()`, `height_rule()`, `set_height_twips()`, and
+  `clear_height()` for explicit row height editing.
+- `TableRow::cant_split()`, `set_cant_split()`, and `clear_cant_split()` for
+  row pagination control.
+- `TableRow::repeats_header()`, `set_repeats_header()`, and
+  `clear_repeats_header()` for repeat-header row editing.
+- `TableCell::fill_color()`, `set_fill_color()`, `clear_fill_color()`,
+  `margin_twips()`, `set_margin_twips()`, and `clear_margin()` for basic cell
+  shading and per-edge margin editing.
+- `TableCell::vertical_alignment()`, `set_vertical_alignment()`, and
+  `clear_vertical_alignment()` for cell vertical alignment editing.
 - `append_image(path)` and `append_image(path, width_px, height_px)` for
   appending inline body images backed by managed `word/media/*` parts.
 - `set_paragraph_list(paragraph, kind, level)` and
