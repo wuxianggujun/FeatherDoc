@@ -1,31 +1,16 @@
 {
-  "document_path": "<absolute-docx-path>",
-  "pdf_path": "<absolute-pdf-path>",
-  "evidence_dir": "<absolute-evidence-dir>",
-  "report_dir": "<absolute-report-dir>",
-  "repair_dir": "<absolute-repair-dir>",
-  "generated_at": "<YYYY-MM-DDTHH:MM:SS>",
+  "task_id": "{{TASK_ID}}",
+  "mode": "{{MODE}}",
+  "generated_at": "{{GENERATED_AT}}",
+  "document_path": "{{DOCX_PATH}}",
+  "evidence_dir": "{{EVIDENCE_DIR}}",
+  "report_dir": "{{REPORT_DIR}}",
+  "repair_dir": "{{REPAIR_DIR}}",
   "status": "pending_review",
   "verdict": "undecided",
-  "page_count": 0,
-  "evidence": {
-    "summary_json": "<absolute-summary-json-path>",
-    "checklist": "<absolute-review-checklist-path>",
-    "contact_sheet": "<absolute-contact-sheet-path>",
-    "page_images": []
-  },
-  "findings": [
-    {
-      "page": "",
-      "element_type": "",
-      "description": "",
-      "severity": "",
-      "screenshot_evidence": "",
-      "confidence": ""
-    }
-  ],
+  "findings": [],
   "notes": [
-    "Fill findings only after screenshot-backed visual review.",
-    "Set verdict to pass, fail, or undetermined after review."
+    "Fill findings after screenshot-backed review.",
+    "Use pass, fail, or undetermined as the final verdict."
   ]
 }

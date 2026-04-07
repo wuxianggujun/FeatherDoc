@@ -70,7 +70,14 @@ Use `-Mode review-and-repair` when the agent is allowed to fix generation
 logic and rerun the visual review loop. The script generates a task directory
 with `task_prompt.md`, `task_manifest.json`, and dedicated `evidence/`,
 `report/`, and `repair/` directories, so the AI no longer has to guess paths
-or output structure.
+or output structure. The intended handoff flow is:
+
+1. Run `prepare_word_review_task.ps1`.
+2. Open the generated `task_prompt.md`.
+3. Send the full prompt to the AI agent and require it to write its conclusion
+   back into `report/review_result.json` and `report/final_review.md`.
+4. If the mode is `review-and-repair`, allow the agent to iterate under
+   `repair/fix-XX/` and rerun the full visual review loop after each fix.
 
 ## CLI
 

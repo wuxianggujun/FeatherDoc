@@ -1,13 +1,14 @@
 # Word Visual Review
 
-- Document: <绝对路径>
-- PDF: <绝对路径>
-- Evidence directory: <绝对路径>
-- Report directory: <绝对路径>
-- Repair directory: <绝对路径>
-- Review time: <YYYY-MM-DDTHH:MM:SS>
+- Task id: `{{TASK_ID}}`
+- Mode: `{{MODE}}`
+- Document: `{{DOCX_PATH}}`
+- Evidence directory: `{{EVIDENCE_DIR}}`
+- Report directory: `{{REPORT_DIR}}`
+- Repair directory: `{{REPAIR_DIR}}`
+- Generated at: `{{GENERATED_AT}}`
 - Reviewer: <agent-or-human>
-- Verdict: 待人工确认
+- Verdict: pending_manual_review
 
 ## Summary
 

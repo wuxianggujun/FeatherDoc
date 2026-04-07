@@ -65,6 +65,15 @@ function Get-TemplatePath {
     return Join-Path $RepoRoot "docs\automation\$fileName"
 }
 
+function Get-ReportTemplatePath {
+    param(
+        [string]$RepoRoot,
+        [string]$FileName
+    )
+
+    return Join-Path $RepoRoot "docs\automation\$FileName"
+}
+
 function Expand-Template {
     param(
         [string]$TemplatePath,
@@ -79,16 +88,51 @@ function Expand-Template {
     return $content
 }
 
+function ConvertTo-JsonTemplateValues {
+    param([hashtable]$Values)
+
+    $escapedValues = @{}
+    foreach ($key in $Values.Keys) {
+        $json = ConvertTo-Json ([string]$Values[$key]) -Compress
+        $escapedValues[$key] = $json.Substring(1, $json.Length - 2)
+    }
+
+    return $escapedValues
+}
+
+function New-UniqueTaskLocation {
+    param(
+        [string]$TaskRoot,
+        [string]$SafeStem
+    )
+
+    $baseTimestamp = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+    $attempt = 0
+
+    while ($true) {
+        $suffix = if ($attempt -eq 0) { "" } else { "-{0:D2}" -f $attempt }
+        $taskId = "$SafeStem-$baseTimestamp$suffix"
+        $taskDir = Join-Path $TaskRoot $taskId
+        if (-not (Test-Path $taskDir)) {
+            return @{
+                TaskId = $taskId
+                TaskDir = $taskDir
+            }
+        }
+        $attempt += 1
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedDocxPath = Resolve-DocumentPath -RepoRoot $repoRoot -InputPath $DocxPath
 $documentName = [System.IO.Path]::GetFileName($resolvedDocxPath)
 $documentStem = [System.IO.Path]::GetFileNameWithoutExtension($resolvedDocxPath)
 $safeStem = Get-SafePathSegment -Name $documentStem
-$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$taskId = "$safeStem-$timestamp"
 
 $taskRoot = Join-Path $repoRoot $TaskOutputRoot
-$taskDir = Join-Path $taskRoot $taskId
+$taskLocation = New-UniqueTaskLocation -TaskRoot $taskRoot -SafeStem $safeStem
+$taskId = $taskLocation.TaskId
+$taskDir = $taskLocation.TaskDir
 $evidenceDir = Join-Path $taskDir "evidence"
 $reportDir = Join-Path $taskDir "report"
 $repairDir = Join-Path $taskDir "repair"
@@ -97,6 +141,8 @@ $promptPath = Join-Path $taskDir "task_prompt.md"
 $reviewResultPath = Join-Path $reportDir "review_result.json"
 $finalReviewPath = Join-Path $reportDir "final_review.md"
 $templatePath = Get-TemplatePath -RepoRoot $repoRoot -Mode $Mode
+$reviewResultTemplatePath = Get-ReportTemplatePath -RepoRoot $repoRoot -FileName "review_result_template.json"
+$finalReviewTemplatePath = Get-ReportTemplatePath -RepoRoot $repoRoot -FileName "final_review_template.md"
 
 New-Item -ItemType Directory -Path $taskDir -Force | Out-Null
 New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
@@ -118,57 +164,11 @@ $templateValues = @{
 $promptContent = Expand-Template -TemplatePath $templatePath -Values $templateValues
 $promptContent | Set-Content -Path $promptPath -Encoding UTF8
 
-$seedReviewResult = [ordered]@{
-    task_id = $taskId
-    mode = $Mode
-    generated_at = (Get-Date).ToString("s")
-    document_path = $resolvedDocxPath
-    evidence_dir = $evidenceDir
-    report_dir = $reportDir
-    repair_dir = $repairDir
-    status = "pending_review"
-    verdict = "undecided"
-    findings = @()
-    notes = @(
-        "Fill findings after screenshot-backed review.",
-        "Use pass, fail, or undetermined as the final verdict."
-    )
-}
-($seedReviewResult | ConvertTo-Json -Depth 5) | Set-Content -Path $reviewResultPath -Encoding UTF8
+$jsonTemplateValues = ConvertTo-JsonTemplateValues -Values $templateValues
+$seedReviewResult = Expand-Template -TemplatePath $reviewResultTemplatePath -Values $jsonTemplateValues
+$seedReviewResult | Set-Content -Path $reviewResultPath -Encoding UTF8
 
-$seedFinalReview = @(
-    "# Word Visual Review",
-    "",
-    "- Task id: $taskId",
-    "- Mode: $Mode",
-    "- Document: $resolvedDocxPath",
-    "- Evidence directory: $evidenceDir",
-    "- Report directory: $reportDir",
-    "- Repair directory: $repairDir",
-    "- Generated at: $(Get-Date -Format s)",
-    "- Verdict: pending_manual_review",
-    "",
-    "## Summary",
-    "",
-    "- Verdict:",
-    "- Notes:",
-    "",
-    "## Findings",
-    "",
-    "- Page:",
-    "  Element type:",
-    "  Description:",
-    "  Severity:",
-    "  Screenshot evidence:",
-    "  Confidence:",
-    "",
-    "## Repair Decision",
-    "",
-    "- Enter repair loop:",
-    "- Suggested fix:",
-    "- Current best candidate:",
-    "- Notes:"
-) -join [Environment]::NewLine
+$seedFinalReview = Expand-Template -TemplatePath $finalReviewTemplatePath -Values $templateValues
 $seedFinalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
 $manifest = [ordered]@{
