@@ -924,6 +924,35 @@ auto row_contains_vertical_merge_cells(pugi::xml_node row) -> bool {
     return false;
 }
 
+auto insert_empty_clone_row(pugi::xml_node table, pugi::xml_node source_row,
+                            pugi::xml_node merge_guard_row, bool insert_after)
+    -> pugi::xml_node {
+    if (table == pugi::xml_node{} || source_row == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (row_contains_vertical_merge_cells(source_row) ||
+        row_contains_vertical_merge_cells(merge_guard_row)) {
+        return {};
+    }
+
+    auto inserted_row = insert_after ? table.insert_copy_after(source_row, source_row)
+                                     : table.insert_copy_before(source_row, source_row);
+    if (inserted_row == pugi::xml_node{}) {
+        return {};
+    }
+
+    for (auto row_cell = inserted_row.child("w:tc"); row_cell != pugi::xml_node{};
+         row_cell = detail::next_named_sibling(row_cell, "w:tc")) {
+        if (!TableCell(inserted_row, row_cell).set_text("")) {
+            table.remove_child(inserted_row);
+            return {};
+        }
+    }
+
+    return inserted_row;
+}
+
 auto cell_column_index(pugi::xml_node cell) -> std::optional<std::size_t> {
     if (cell == pugi::xml_node{}) {
         return std::nullopt;
@@ -2023,28 +2052,30 @@ bool TableRow::remove() {
     return true;
 }
 
+TableRow TableRow::insert_row_before() {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto inserted_row = insert_empty_clone_row(this->parent, this->current, {}, false);
+    if (inserted_row == pugi::xml_node{}) {
+        return {};
+    }
+
+    this->current = inserted_row;
+    this->cell.set_parent(this->current);
+    return TableRow(this->parent, inserted_row);
+}
+
 TableRow TableRow::insert_row_after() {
     if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
         return {};
     }
 
     const auto next_row = detail::next_named_sibling(this->current, "w:tr");
-    if (row_contains_vertical_merge_cells(this->current) ||
-        row_contains_vertical_merge_cells(next_row)) {
-        return {};
-    }
-
-    auto inserted_row = this->parent.insert_copy_after(this->current, this->current);
+    auto inserted_row = insert_empty_clone_row(this->parent, this->current, next_row, true);
     if (inserted_row == pugi::xml_node{}) {
         return {};
-    }
-
-    for (auto row_cell = inserted_row.child("w:tc"); row_cell != pugi::xml_node{};
-         row_cell = detail::next_named_sibling(row_cell, "w:tc")) {
-        if (!TableCell(inserted_row, row_cell).set_text("")) {
-            this->parent.remove_child(inserted_row);
-            return {};
-        }
     }
 
     this->current = inserted_row;

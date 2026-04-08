@@ -193,8 +193,9 @@ programmatically. The returned ``Table`` can then grow through
 ``set_layout_mode(...)``, ``set_alignment(...)``, and
 ``set_indent_twips(...)``, and ``set_cell_margin_twips(...)`` work alongside
 ``TableCell::set_text(...)`` and ``get_text()``, plus ``set_width_twips(...)``,
-``Table::remove()``, ``TableRow::remove()``, ``insert_row_after()``,
-``merge_right(...)``, ``merge_down(...)``, ``set_vertical_alignment(...)``,
+``Table::remove()``, ``TableRow::remove()``, ``insert_row_before()``,
+``insert_row_after()``, ``merge_right(...)``, ``merge_down(...)``,
+``set_vertical_alignment(...)``,
 ``set_text_direction(...)``,
 ``set_border(...)``, ``set_fill_color(...)``, and ``set_margin_twips(...)``
 for higher-level table layout edits without dropping down to raw XML.
@@ -208,9 +209,10 @@ style reference, ``layout_mode()`` reports the current auto-fit mode,
 ``repeats_header()`` reports whether a row repeats as a table header,
 ``Table::remove()`` deletes one table while refusing to leave the parent
 container without the required block content, ``TableRow::remove()`` deletes one
-row while refusing to remove the last remaining row, ``insert_row_after()``
-clones the current row structure into a new empty row directly below it while
-refusing rows that participate in vertical merge chains, and
+row while refusing to remove the last remaining row, ``insert_row_before()``
+and ``insert_row_after()`` clone the current row structure into a new empty row
+directly before or after it while refusing rows that participate in vertical
+merge chains, and
 ``column_span()`` reports the current horizontal span. ``text_direction()``
 reports the current table-cell writing direction when a cell uses vertical or
 rotated text flow. ``TableCell::set_text(...)`` replaces one cell's body with
@@ -257,12 +259,18 @@ margins, borders, and explicit width.
     auto inserted_row = row.insert_row_after();
     inserted_row.cells().set_text("Inserted");
 
+    auto inserted_before = next_row.insert_row_before();
+    inserted_before.cells().set_text("Inserted above");
+
     std::cout << cell.column_span() << std::endl; // 2
 
-For a runnable insertion example, build ``featherdoc_sample_insert_table_row``
-from ``samples/sample_insert_table_row.cpp``. It creates a seed table, reopens
-the saved ``.docx``, inserts a cloned row in the middle with
-``TableRow::insert_row_after()``, and writes the updated result back out.
+For runnable insertion examples, build ``featherdoc_sample_insert_table_row``
+from ``samples/sample_insert_table_row.cpp`` for the
+``insert_row_after()`` flow, or ``featherdoc_sample_insert_table_row_before``
+from ``samples/sample_insert_table_row_before.cpp`` for the
+``insert_row_before()`` flow. Both samples create a seed table, reopen the
+saved ``.docx``, insert a cloned row in the middle, and write the updated
+result back out.
 
 ``append_image(path)`` appends an inline body image at the source image's
 intrinsic pixel size. Use ``append_image(path, width_px, height_px)`` when you

@@ -187,6 +187,7 @@ class TableRow {
     [[nodiscard]] bool set_repeats_header();
     [[nodiscard]] bool clear_repeats_header();
     [[nodiscard]] bool remove();
+    TableRow insert_row_before();
     TableRow insert_row_after();
     TableCell append_cell();
 
