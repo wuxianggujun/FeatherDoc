@@ -168,6 +168,9 @@ bookmark-backed template regions, and saving the result back to disk.
 For a focused "reopen and replace existing header/footer images" example,
 build ``featherdoc_sample_edit_existing_part_images`` from
 ``samples/sample_edit_existing_part_images.cpp``.
+For a focused "reopen and append new images to existing body/header/footer
+parts" example, build ``featherdoc_sample_edit_existing_part_append_images``
+from ``samples/sample_edit_existing_part_append_images.cpp``.
 
 ``append_table(row_count, column_count)`` creates a new body table
 programmatically. The returned ``Table`` can then grow through
@@ -279,23 +282,29 @@ For a runnable table-removal example, build
 saved ``.docx``, removes the temporary middle table, and continues editing the
 following table through the same wrapper.
 
-``append_image(path)`` appends an inline body image at the source image's
-intrinsic pixel size. Use ``append_image(path, width_px, height_px)`` when you
-want explicit scaling. The current image support is limited to ``.png``,
-``.jpg``, ``.jpeg``, ``.gif``, and ``.bmp``.
+``append_image(path)`` appends an inline image at the source image's intrinsic
+pixel size. Use ``append_image(path, width_px, height_px)`` when you want
+explicit scaling. These APIs are available on both ``Document`` and
+``TemplatePart``, so you can append images to the main body or to an existing
+body/header/footer part wrapper. The current image support is limited to
+``.png``, ``.jpg``, ``.jpeg``, ``.gif``, and ``.bmp``.
 
 .. code-block:: cpp
 
     doc.append_image("logo.png");
     doc.append_image("badge.png", 96, 48);
 
+    auto header_template = doc.section_header_template(0);
+    header_template.append_image("header-logo.png", 144, 48);
+
 ``append_floating_image(path, options)`` and
 ``append_floating_image(path, width_px, height_px, options)`` create anchored
-``wp:anchor`` body images with explicit page/margin-relative offsets.
+``wp:anchor`` images with explicit page/margin-relative offsets.
 ``floating_image_options`` currently lets you pick horizontal/vertical
 reference frames, pixel offsets, whether the image sits behind text, and
-whether overlap is allowed. The generated floating drawing currently uses
-``wrapNone``, so Word does not reflow surrounding body text for you.
+whether overlap is allowed. The same API works on ``Document`` and
+``TemplatePart``. The generated floating drawing currently uses ``wrapNone``,
+so Word does not reflow surrounding text for you.
 
 .. code-block:: cpp
 
@@ -308,6 +317,9 @@ whether overlap is allowed. The generated floating drawing currently uses
     options.vertical_offset_px = 24;
 
     doc.append_floating_image("badge.png", 144, 48, options);
+
+    auto body_template = doc.body_template();
+    body_template.append_floating_image("stamp.png", 128, 48, options);
 
 ``inline_images()`` inspects inline images that already exist in the main
 document body. Each returned ``inline_image_info`` includes the image index,
@@ -621,6 +633,12 @@ For a runnable existing-part table example, build
 adds three header tables, reopens the saved ``.docx``, removes the temporary
 middle table, and continues editing the following header table through the same
 wrapper.
+For a runnable existing-part image-append example, build
+``featherdoc_sample_edit_existing_part_append_images`` from
+``samples/sample_edit_existing_part_append_images.cpp``. It seeds
+body/header/footer content, reopens the saved ``.docx``, and appends new
+inline or floating images through ``TemplatePart`` handles before saving the
+edited result back out.
 
 ``set_bookmark_block_visibility(name, visible)`` and
 ``apply_bookmark_block_visibility(...)`` control optional template blocks backed

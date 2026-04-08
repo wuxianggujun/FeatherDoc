@@ -194,6 +194,20 @@ auto write_binary_file(const std::filesystem::path &path, const std::string &dat
     REQUIRE(stream.good());
 }
 
+auto tiny_png_data() -> std::string {
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+
+    return {reinterpret_cast<const char *>(tiny_png_bytes), sizeof(tiny_png_bytes)};
+}
+
 auto read_binary_file(const std::filesystem::path &path) -> std::vector<unsigned char> {
     std::ifstream stream(path, std::ios::binary);
     REQUIRE(stream.good());
@@ -2964,6 +2978,326 @@ TEST_CASE("template part replace_bookmark_with_floating_image writes anchored he
     fs::remove(target);
     fs::remove(image_path);
     fs::remove(extracted_path);
+}
+
+TEST_CASE("body template part can append inline images and preserve them across reopen save") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "body_template_append_image_roundtrip.docx";
+    const fs::path image_path =
+        fs::current_path() / "body_template_append_image_roundtrip.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const auto image_data = tiny_png_data();
+    write_binary_file(image_path, image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    CHECK(body_template.append_image(image_path));
+    CHECK(body_template.append_image(image_path, 20U, 10U));
+    CHECK_FALSE(doc.save());
+
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK(test_docx_entry_exists(target, "word/media/image2.png"));
+    CHECK_EQ(read_test_docx_entry(target, "word/media/image1.png"), image_data);
+    CHECK_EQ(read_test_docx_entry(target, "word/media/image2.png"), image_data);
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_EQ(count_substring_occurrences(
+                 saved_relationships,
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\""),
+             2U);
+    CHECK_NE(saved_relationships.find("Target=\"media/image1.png\""), std::string::npos);
+    CHECK_NE(saved_relationships.find("Target=\"media/image2.png\""), std::string::npos);
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:inline"), 2U);
+    CHECK_NE(saved_document_xml.find("cx=\"9525\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("cy=\"9525\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("cx=\"190500\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("cy=\"95250\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    body_template = reopened.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    const auto body_images = body_template.inline_images();
+    REQUIRE_EQ(body_images.size(), 2U);
+    CHECK_EQ(body_images[0].content_type, "image/png");
+    CHECK_EQ(body_images[0].width_px, 1U);
+    CHECK_EQ(body_images[0].height_px, 1U);
+    CHECK_EQ(body_images[1].content_type, "image/png");
+    CHECK_EQ(body_images[1].width_px, 20U);
+    CHECK_EQ(body_images[1].height_px, 10U);
+
+    auto paragraph = body_template.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.add_run("reopened edit").has_next());
+    CHECK_FALSE(reopened.save());
+
+    const auto relationships_after_resave =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(relationships_after_resave.find("Target=\"media/image1.png\""),
+             std::string::npos);
+    CHECK_NE(relationships_after_resave.find("Target=\"media/image2.png\""),
+             std::string::npos);
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
+TEST_CASE("body template part can append floating images and preserve them across reopen save") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "body_template_append_floating_image_roundtrip.docx";
+    const fs::path image_path =
+        fs::current_path() / "body_template_append_floating_image_roundtrip.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const auto image_data = tiny_png_data();
+    write_binary_file(image_path, image_data);
+
+    featherdoc::floating_image_options options;
+    options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::page;
+    options.horizontal_offset_px = 24;
+    options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::margin;
+    options.vertical_offset_px = -8;
+    options.behind_text = true;
+    options.allow_overlap = false;
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    CHECK(body_template.append_floating_image(image_path, 20U, 10U, options));
+    CHECK_FALSE(doc.save());
+
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK_EQ(read_test_docx_entry(target, "word/media/image1.png"), image_data);
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_EQ(count_substring_occurrences(
+                 saved_relationships,
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\""),
+             1U);
+    CHECK_NE(saved_relationships.find("Target=\"media/image1.png\""), std::string::npos);
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:anchor"), 1U);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:inline"), 0U);
+    CHECK_NE(saved_document_xml.find("relativeFrom=\"page\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("relativeFrom=\"margin\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("<wp:posOffset>228600</wp:posOffset>"),
+             std::string::npos);
+    CHECK_NE(saved_document_xml.find("<wp:posOffset>-76200</wp:posOffset>"),
+             std::string::npos);
+    CHECK_NE(saved_document_xml.find("behindDoc=\"1\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("allowOverlap=\"0\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    body_template = reopened.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    const auto drawing_images = body_template.drawing_images();
+    REQUIRE_EQ(drawing_images.size(), 1U);
+    CHECK_EQ(drawing_images[0].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+    CHECK_EQ(drawing_images[0].content_type, "image/png");
+    CHECK_EQ(drawing_images[0].width_px, 20U);
+    CHECK_EQ(drawing_images[0].height_px, 10U);
+    CHECK_EQ(body_template.inline_images().size(), 0U);
+
+    auto paragraph = body_template.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.add_run("reopened edit").has_next());
+    CHECK_FALSE(reopened.save());
+
+    const auto relationships_after_resave =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(relationships_after_resave.find("Target=\"media/image1.png\""),
+             std::string::npos);
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
+TEST_CASE("header template part can append inline images") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "header_template_append_images.docx";
+    const fs::path image_path =
+        fs::current_path() / "header_template_append_images.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const auto image_data = tiny_png_data();
+    write_binary_file(image_path, image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+    auto &header = doc.ensure_section_header_paragraphs(0);
+    REQUIRE(header.has_next());
+    CHECK(header.add_run("header intro").has_next());
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto header_template = reopened.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK(header_template.append_image(image_path));
+    CHECK(header_template.append_image(image_path, 30U, 15U));
+    CHECK_FALSE(reopened.save());
+
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK(test_docx_entry_exists(target, "word/media/image2.png"));
+
+    const auto saved_header_xml = read_test_docx_entry(target, "word/header1.xml");
+    CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:inline"), 2U);
+    CHECK_NE(saved_header_xml.find("cx=\"9525\""), std::string::npos);
+    CHECK_NE(saved_header_xml.find("cy=\"9525\""), std::string::npos);
+    CHECK_NE(saved_header_xml.find("cx=\"285750\""), std::string::npos);
+    CHECK_NE(saved_header_xml.find("cy=\"142875\""), std::string::npos);
+
+    const auto saved_header_relationships =
+        read_test_docx_entry(target, "word/_rels/header1.xml.rels");
+    CHECK_EQ(count_substring_occurrences(
+                 saved_header_relationships,
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\""),
+             2U);
+    CHECK_NE(saved_header_relationships.find("Target=\"media/image1.png\""),
+             std::string::npos);
+    CHECK_NE(saved_header_relationships.find("Target=\"media/image2.png\""),
+             std::string::npos);
+
+    const auto saved_content_types = read_test_docx_entry(target, test_content_types_xml_entry);
+    CHECK_NE(saved_content_types.find("Extension=\"png\""), std::string::npos);
+    CHECK_NE(saved_content_types.find("ContentType=\"image/png\""), std::string::npos);
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+
+    header_template = reopened_again.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    const auto header_images = header_template.inline_images();
+    REQUIRE_EQ(header_images.size(), 2U);
+    CHECK_EQ(header_images[0].content_type, "image/png");
+    CHECK_EQ(header_images[0].width_px, 1U);
+    CHECK_EQ(header_images[0].height_px, 1U);
+    CHECK_EQ(header_images[1].content_type, "image/png");
+    CHECK_EQ(header_images[1].width_px, 30U);
+    CHECK_EQ(header_images[1].height_px, 15U);
+
+    CHECK(reopened_again.header_paragraphs().add_run(" reopened edit").has_next());
+    CHECK_FALSE(reopened_again.save());
+
+    const auto relationships_after_resave =
+        read_test_docx_entry(target, "word/_rels/header1.xml.rels");
+    CHECK_NE(relationships_after_resave.find("Target=\"media/image1.png\""),
+             std::string::npos);
+    CHECK_NE(relationships_after_resave.find("Target=\"media/image2.png\""),
+             std::string::npos);
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
+TEST_CASE("header template part can append floating images") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "header_template_append_floating_images.docx";
+    const fs::path image_path =
+        fs::current_path() / "header_template_append_floating_images.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const auto image_data = tiny_png_data();
+    write_binary_file(image_path, image_data);
+
+    featherdoc::floating_image_options options;
+    options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::page;
+    options.horizontal_offset_px = 40;
+    options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::margin;
+    options.vertical_offset_px = 12;
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+    auto &header = doc.ensure_section_header_paragraphs(0);
+    REQUIRE(header.has_next());
+    CHECK(header.add_run("header intro").has_next());
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto header_template = reopened.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK(header_template.append_floating_image(image_path, 30U, 15U, options));
+    CHECK_FALSE(reopened.save());
+
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK_EQ(read_test_docx_entry(target, "word/media/image1.png"), image_data);
+
+    const auto saved_header_xml = read_test_docx_entry(target, "word/header1.xml");
+    CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:anchor"), 1U);
+    CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:inline"), 0U);
+    CHECK_NE(saved_header_xml.find("relativeFrom=\"page\""), std::string::npos);
+    CHECK_NE(saved_header_xml.find("relativeFrom=\"margin\""), std::string::npos);
+    CHECK_NE(saved_header_xml.find("<wp:posOffset>381000</wp:posOffset>"),
+             std::string::npos);
+    CHECK_NE(saved_header_xml.find("<wp:posOffset>114300</wp:posOffset>"),
+             std::string::npos);
+
+    const auto saved_header_relationships =
+        read_test_docx_entry(target, "word/_rels/header1.xml.rels");
+    CHECK_EQ(count_substring_occurrences(
+                 saved_header_relationships,
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\""),
+             1U);
+    CHECK_NE(saved_header_relationships.find("Target=\"media/image1.png\""),
+             std::string::npos);
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+
+    header_template = reopened_again.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    const auto drawing_images = header_template.drawing_images();
+    REQUIRE_EQ(drawing_images.size(), 1U);
+    CHECK_EQ(drawing_images[0].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+    CHECK_EQ(drawing_images[0].content_type, "image/png");
+    CHECK_EQ(drawing_images[0].width_px, 30U);
+    CHECK_EQ(drawing_images[0].height_px, 15U);
+    CHECK_EQ(header_template.inline_images().size(), 0U);
+
+    CHECK(reopened_again.header_paragraphs().add_run(" reopened edit").has_next());
+    CHECK_FALSE(reopened_again.save());
+
+    const auto relationships_after_resave =
+        read_test_docx_entry(target, "word/_rels/header1.xml.rels");
+    CHECK_NE(relationships_after_resave.find("Target=\"media/image1.png\""),
+             std::string::npos);
+
+    fs::remove(target);
+    fs::remove(image_path);
 }
 
 TEST_CASE("apply_bookmark_block_visibility keeps and removes body template blocks") {

@@ -14,6 +14,10 @@ performance.
   existing body, header, and footer parts can use direct paragraph/table
   traversal and lightweight table creation/editing without dropping back to the
   owning `Document`.
+- Added `TemplatePart::append_image(...)` and
+  `TemplatePart::append_floating_image(...)` so existing body, header, and
+  footer parts can append new inline or anchored images without dropping back
+  to the owning `Document`.
 - Added `TableRow::insert_row_before()` for cloning the current row structure
   into a new empty row directly above it, while conservatively refusing rows
   that participate in vertical merge chains.
@@ -27,6 +31,9 @@ performance.
   that creates header tables, reopens the saved `.docx`, removes a temporary
   middle header table, and continues editing the following table through the
   same wrapper.
+- Added `samples/sample_edit_existing_part_append_images.cpp` as a runnable
+  workflow that seeds body/header/footer content, reopens the saved `.docx`,
+  and appends new inline or floating images through `TemplatePart` handles.
 - Added `samples/sample_insert_table_row_before.cpp` as a runnable workflow
   that reopens a saved `.docx`, inserts a formatted row above an existing row,
   and saves the edited result back out.
@@ -53,6 +60,11 @@ performance.
   `featherdoc_sample_remove_table`,
   `featherdoc_sample_edit_existing_part_tables`, and
   `featherdoc_sample_insert_table_row_before` before the next release cut.
+- Revalidated template-part image append flows with MSVC build + `ctest` and a
+  Word visual smoke pass for
+  `featherdoc_sample_edit_existing_part_append_images`, including a final
+  manual review of the generated PDF/PNG evidence after correcting header
+  floating-image placement.
 
 ## [1.4.0] - 2026-04-08
 

@@ -364,6 +364,17 @@ class TemplatePart {
     Paragraph paragraphs();
     Table tables();
     Table append_table(std::size_t row_count = 1U, std::size_t column_count = 1U);
+    [[nodiscard]] bool append_image(const std::filesystem::path &image_path);
+    [[nodiscard]] bool append_image(const std::filesystem::path &image_path,
+                                    std::uint32_t width_px,
+                                    std::uint32_t height_px);
+    [[nodiscard]] bool append_floating_image(
+        const std::filesystem::path &image_path,
+        featherdoc::floating_image_options options = {});
+    [[nodiscard]] bool append_floating_image(
+        const std::filesystem::path &image_path, std::uint32_t width_px,
+        std::uint32_t height_px,
+        featherdoc::floating_image_options options = {});
 
     [[nodiscard]] std::size_t replace_bookmark_text(const std::string &bookmark_name,
                                                     const std::string &replacement);
