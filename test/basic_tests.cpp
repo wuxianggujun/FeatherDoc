@@ -6067,6 +6067,87 @@ TEST_CASE("table remove rejects removing the last block item in the document bod
     fs::remove(target);
 }
 
+TEST_CASE("tables can remove the only table when body paragraphs remain") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_remove_keep_body_paragraph.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("body paragraph"));
+
+    auto table = doc.append_table(1, 1);
+    REQUIRE(table.has_next());
+    CHECK(table.rows().cells().set_text("table-1"));
+
+    CHECK(table.remove());
+    CHECK_FALSE(table.has_next());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "body paragraph\n");
+    CHECK_EQ(collect_table_text(reopened), "");
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto body_node = xml_document.child("w:document").child("w:body");
+    REQUIRE(body_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(body_node, "w:tbl"), 0U);
+    CHECK_EQ(count_named_children(body_node, "w:p"), 1U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("tables can remove the last table and keep the wrapper usable") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_remove_last_table.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("body paragraph"));
+
+    auto first_table = doc.append_table(1, 1);
+    REQUIRE(first_table.has_next());
+    CHECK(first_table.rows().cells().set_text("table-1"));
+
+    auto last_table = doc.append_table(1, 1);
+    REQUIRE(last_table.has_next());
+    CHECK(last_table.rows().cells().set_text("table-2"));
+
+    CHECK(last_table.remove());
+    CHECK(last_table.has_next());
+    CHECK_EQ(last_table.rows().cells().get_text(), "table-1");
+    CHECK(last_table.rows().cells().set_text("table-1-updated"));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "body paragraph\n");
+    CHECK_EQ(collect_table_text(reopened), "table-1-updated\n");
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto body_node = xml_document.child("w:document").child("w:body");
+    REQUIRE(body_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(body_node, "w:tbl"), 1U);
+
+    fs::remove(target);
+}
+
 TEST_CASE("table row remove rejects removing the last table row") {
     featherdoc::Document doc;
     CHECK_FALSE(doc.create_empty());

@@ -208,11 +208,12 @@ style reference, ``layout_mode()`` reports the current auto-fit mode,
 ``cant_split()`` reports whether Word keeps the row on one page,
 ``repeats_header()`` reports whether a row repeats as a table header,
 ``Table::remove()`` deletes one table while refusing to leave the parent
-container without the required block content, ``TableRow::remove()`` deletes one
-row while refusing to remove the last remaining row, ``insert_row_before()``
-and ``insert_row_after()`` clone the current row structure into a new empty row
-directly before or after it while refusing rows that participate in vertical
-merge chains, and
+container without the required block content and retargets the wrapper to the
+next surviving table when possible (otherwise the previous one),
+``TableRow::remove()`` deletes one row while refusing to remove the last
+remaining row, ``insert_row_before()`` and ``insert_row_after()`` clone the
+current row structure into a new empty row directly before or after it while
+refusing rows that participate in vertical merge chains, and
 ``column_span()`` reports the current horizontal span. ``text_direction()``
 reports the current table-cell writing direction when a cell uses vertical or
 rotated text flow. ``TableCell::set_text(...)`` replaces one cell's body with
@@ -271,6 +272,12 @@ from ``samples/sample_insert_table_row_before.cpp`` for the
 ``insert_row_before()`` flow. Both samples create a seed table, reopen the
 saved ``.docx``, insert a cloned row in the middle, and write the updated
 result back out.
+
+For a runnable table-removal example, build
+``featherdoc_sample_remove_table`` from
+``samples/sample_remove_table.cpp``. It creates three body tables, reopens the
+saved ``.docx``, removes the temporary middle table, and continues editing the
+following table through the same wrapper.
 
 ``append_image(path)`` appends an inline body image at the source image's
 intrinsic pixel size. Use ``append_image(path, width_px, height_px)`` when you

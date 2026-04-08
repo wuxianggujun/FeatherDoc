@@ -16,6 +16,9 @@ performance.
 - Added `TableRow::insert_row_after()` for cloning the current row structure
   into a new empty row directly below it, while conservatively refusing rows
   that participate in vertical merge chains.
+- Added `samples/sample_remove_table.cpp` as a runnable workflow that reopens
+  a saved `.docx`, removes a temporary middle table, and continues editing the
+  following table through the same wrapper.
 - Added `samples/sample_insert_table_row_before.cpp` as a runnable workflow
   that reopens a saved `.docx`, inserts a formatted row above an existing row,
   and saves the edited result back out.
@@ -37,9 +40,10 @@ performance.
 
 ### Validation
 
-- Revalidated the row-insertion editing flow with MSVC build + `ctest` and a
-  Word visual smoke pass for `featherdoc_sample_insert_table_row_before`
-  before the next release cut.
+- Revalidated the table-removal and row-insertion editing flows with MSVC
+  build + `ctest` and Word visual smoke passes for
+  `featherdoc_sample_remove_table` and
+  `featherdoc_sample_insert_table_row_before` before the next release cut.
 
 ## [1.4.0] - 2026-04-08
 

@@ -155,6 +155,12 @@ if(BUILD_SAMPLES)
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_remove_bookmark_block)
 
+    add_executable(featherdoc_sample_remove_table
+        samples/sample_remove_table.cpp)
+    target_link_libraries(featherdoc_sample_remove_table
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_remove_table)
+
     add_executable(featherdoc_sample_insert_table_row
         samples/sample_insert_table_row.cpp)
     target_link_libraries(featherdoc_sample_insert_table_row
