@@ -469,6 +469,19 @@ list removes the placeholder paragraph.
             "Orange",
         });
 
+``remove_bookmark_block(...)`` deletes that same standalone bookmark paragraph
+directly when you do not need to build an explicit empty replacement list.
+
+.. code-block:: cpp
+
+    doc.remove_bookmark_block("optional_note");
+
+For a runnable example, build ``featherdoc_sample_remove_bookmark_block`` from
+``samples/sample_remove_bookmark_block.cpp``. It opens the Chinese invoice
+template, fills the core fields, expands the item table, removes the
+standalone ``note_lines`` bookmark block, and saves the result for visual
+review.
+
 ``replace_bookmark_with_table_rows(...)`` replaces a bookmark that occupies
 its own paragraph inside a template table row with zero or more cloned rows.
 The template row's row/cell properties are preserved, while each generated
@@ -535,7 +548,7 @@ floating placement uses the same ``floating_image_options`` struct as
 ``TemplatePart`` handle for running the same bookmark-based template APIs on
 an already loaded body/header/footer part. A valid handle exposes
 ``entry_name()``, ``replace_bookmark_text(...)``, ``fill_bookmarks(...)``,
-``replace_bookmark_with_paragraphs(...)``,
+``replace_bookmark_with_paragraphs(...)``, ``remove_bookmark_block(...)``,
 ``replace_bookmark_with_table_rows(...)``, and
 ``replace_bookmark_with_table(...)``, ``replace_bookmark_with_image(...)``,
 ``replace_bookmark_with_floating_image(...)``,
@@ -565,6 +578,7 @@ return an empty handle instead of creating a new part implicitly.
         footer_template.fill_bookmarks({
             {"company_name", "Acme Corp"},
         });
+        footer_template.remove_bookmark_block("optional_legal_notice");
         footer_template.replace_bookmark_with_paragraphs(
             "footer_lines",
             {

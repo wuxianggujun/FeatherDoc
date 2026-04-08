@@ -10,6 +10,13 @@ performance.
 
 ### Added
 
+- Added `remove_bookmark_block(...)` across `Document` and `TemplatePart` as a
+  high-level helper for deleting standalone bookmark placeholder paragraphs in
+  body, header, or footer parts without having to pass an explicit empty
+  replacement list.
+- Added `samples/sample_remove_bookmark_block.cpp` as a runnable template edit
+  flow for visually confirming that a standalone bookmark paragraph is removed
+  cleanly from the rendered output.
 - Added `remove_drawing_image(...)` and `remove_inline_image(...)` across
   `Document` and `TemplatePart` so existing inline or anchored images can be
   deleted while automatically pruning orphaned media parts on the next save.

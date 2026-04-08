@@ -884,6 +884,15 @@ auto replace_bookmark_with_paragraphs_in_part(
     return replaced;
 }
 
+auto remove_bookmark_block_in_part(featherdoc::document_error_info &last_error_info,
+                                   pugi::xml_document &document,
+                                   std::string_view entry_name,
+                                   std::string_view bookmark_name)
+    -> std::size_t {
+    return replace_bookmark_with_paragraphs_in_part(last_error_info, document, entry_name,
+                                                    bookmark_name, {});
+}
+
 auto replace_bookmark_with_table_rows_in_part(
     featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
     std::string_view entry_name, std::string_view bookmark_name,
@@ -1169,6 +1178,21 @@ std::size_t TemplatePart::replace_bookmark_with_floating_image(
         *this->xml_document, this->entry_name_storage, bookmark_name, image_path,
         std::pair<std::uint32_t, std::uint32_t>{width_px, height_px},
         std::move(options));
+}
+
+std::size_t TemplatePart::remove_bookmark_block(std::string_view bookmark_name) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return 0U;
+    }
+
+    return remove_bookmark_block_in_part(*this->last_error_info, *this->xml_document,
+                                         this->entry_name_storage, bookmark_name);
 }
 
 std::size_t TemplatePart::set_bookmark_block_visibility(
@@ -1630,6 +1654,17 @@ std::size_t Document::replace_bookmark_with_floating_image(
         this->document, document_xml_entry, bookmark_name, image_path,
         std::pair<std::uint32_t, std::uint32_t>{width_px, height_px},
         std::move(options));
+}
+
+std::size_t Document::remove_bookmark_block(std::string_view bookmark_name) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before removing a bookmark block");
+        return 0U;
+    }
+
+    return remove_bookmark_block_in_part(this->last_error_info, this->document,
+                                         document_xml_entry, bookmark_name);
 }
 
 std::size_t Document::set_bookmark_block_visibility(std::string_view bookmark_name,

@@ -386,6 +386,8 @@ class TemplatePart {
         std::string_view bookmark_name, const std::filesystem::path &image_path,
         std::uint32_t width_px, std::uint32_t height_px,
         featherdoc::floating_image_options options = {});
+    [[nodiscard]] std::size_t remove_bookmark_block(
+        std::string_view bookmark_name);
     [[nodiscard]] std::vector<drawing_image_info> drawing_images() const;
     [[nodiscard]] bool extract_drawing_image(
         std::size_t image_index, const std::filesystem::path &output_path) const;
@@ -688,6 +690,8 @@ class Document {
         std::string_view bookmark_name, const std::filesystem::path &image_path,
         std::uint32_t width_px, std::uint32_t height_px,
         featherdoc::floating_image_options options = {});
+    [[nodiscard]] std::size_t remove_bookmark_block(
+        std::string_view bookmark_name);
     [[nodiscard]] std::size_t set_bookmark_block_visibility(
         std::string_view bookmark_name, bool visible);
     [[nodiscard]] bookmark_block_visibility_result apply_bookmark_block_visibility(

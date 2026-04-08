@@ -1605,6 +1605,119 @@ TEST_CASE("header and footer template parts reuse bookmark template APIs") {
     fs::remove(target);
 }
 
+TEST_CASE("header and footer template parts can remove standalone bookmark blocks") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_remove_bookmark_block.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>body</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+      <w:footerReference w:type="default" r:id="rId3"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>Header keep</w:t></w:r></w:p>
+  <w:p>
+    <w:bookmarkStart w:id="0" w:name="header_block"/>
+    <w:r><w:t>Header delete</w:t></w:r>
+    <w:bookmarkEnd w:id="0"/>
+  </w:p>
+</w:hdr>
+)";
+
+    const std::string footer_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>Footer keep</w:t></w:r></w:p>
+  <w:p>
+    <w:bookmarkStart w:id="1" w:name="footer_block"/>
+    <w:r><w:t>Footer delete</w:t></w:r>
+    <w:bookmarkEnd w:id="1"/>
+  </w:p>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header_xml},
+            {"word/footer1.xml", footer_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(header_template.remove_bookmark_block("header_block"), 1);
+    CHECK_FALSE(doc.last_error());
+
+    auto footer_template = doc.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    CHECK_EQ(footer_template.remove_bookmark_block("footer_block"), 1);
+    CHECK_FALSE(doc.last_error());
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_header = read_test_docx_entry(target, "word/header1.xml");
+    CHECK_NE(saved_header.find("Header keep"), std::string::npos);
+    CHECK_EQ(saved_header.find("Header delete"), std::string::npos);
+    CHECK_EQ(saved_header.find("w:name=\"header_block\""), std::string::npos);
+
+    const auto saved_footer = read_test_docx_entry(target, "word/footer1.xml");
+    CHECK_NE(saved_footer.find("Footer keep"), std::string::npos);
+    CHECK_EQ(saved_footer.find("Footer delete"), std::string::npos);
+    CHECK_EQ(saved_footer.find("w:name=\"footer_block\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    fs::remove(target);
+}
+
 TEST_CASE("header and footer template parts can replace bookmark placeholders with images") {
     namespace fs = std::filesystem;
 
@@ -4983,6 +5096,51 @@ TEST_CASE("replace_bookmark_with_paragraphs accepts an empty replacement list") 
     fs::remove(target);
 }
 
+TEST_CASE("remove_bookmark_block deletes a standalone bookmark paragraph") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "bookmark_remove_block.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>before</w:t></w:r></w:p>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="items"/>
+      <w:r><w:t>placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p><w:r><w:t>after</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_EQ(doc.remove_bookmark_block("missing"), 0);
+    CHECK_FALSE(doc.last_error());
+
+    CHECK_EQ(doc.remove_bookmark_block("items"), 1);
+    CHECK_FALSE(doc.last_error());
+    CHECK_EQ(collect_document_text(doc), "before\nafter\n");
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(saved_document_xml.find("placeholder"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("w:name=\"items\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "before\nafter\n");
+
+    fs::remove(target);
+}
+
 TEST_CASE("replace_bookmark_with_table_rows expands a template row inside an existing table") {
     namespace fs = std::filesystem;
 
@@ -5365,6 +5523,11 @@ TEST_CASE("block bookmark replacements reject bookmarks that do not occupy their
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.open());
+
+    CHECK_EQ(doc.remove_bookmark_block("block"), 0);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_NE(doc.last_error().detail.find("occupy its own paragraph"), std::string::npos);
+
     CHECK_EQ(doc.replace_bookmark_with_paragraphs("block", {"A", "B"}), 0);
     CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
 
