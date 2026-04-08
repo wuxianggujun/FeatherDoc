@@ -885,6 +885,7 @@ std::error_code Document::create_empty() {
     this->styles_loaded = false;
     this->styles_dirty = false;
     this->removed_related_part_entries.clear();
+    this->removed_archive_entries.clear();
     this->document.reset();
     this->document_relationships.reset();
     this->content_types.reset();
@@ -1336,6 +1337,7 @@ void Document::set_path(std::filesystem::path file_path) {
     this->styles_loaded = false;
     this->styles_dirty = false;
     this->removed_related_part_entries.clear();
+    this->removed_archive_entries.clear();
     this->document.reset();
     this->document_relationships.reset();
     this->content_types.reset();
@@ -1368,6 +1370,7 @@ std::error_code Document::open() {
     this->styles_loaded = false;
     this->styles_dirty = false;
     this->removed_related_part_entries.clear();
+    this->removed_archive_entries.clear();
     this->document.reset();
     this->document_relationships.reset();
     this->content_types.reset();
@@ -1804,6 +1807,9 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
         rewritten_entries.insert(part.entry_name);
     }
     for (const auto &entry_name : this->removed_related_part_entries) {
+        rewritten_entries.insert(entry_name);
+    }
+    for (const auto &entry_name : this->removed_archive_entries) {
         rewritten_entries.insert(entry_name);
     }
 
@@ -2319,6 +2325,23 @@ Document::xml_part_state *Document::find_related_part_state(std::string_view ent
     }
 
     for (auto &part : this->footer_parts) {
+        if (part->entry_name == entry_name) {
+            return part.get();
+        }
+    }
+
+    return nullptr;
+}
+
+const Document::xml_part_state *Document::find_related_part_state(
+    std::string_view entry_name) const {
+    for (const auto &part : this->header_parts) {
+        if (part->entry_name == entry_name) {
+            return part.get();
+        }
+    }
+
+    for (const auto &part : this->footer_parts) {
         if (part->entry_name == entry_name) {
             return part.get();
         }

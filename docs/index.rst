@@ -142,6 +142,33 @@ is split into multiple runs, concatenate the run texts inside a paragraph before
 printing. Text stored inside tables is accessed through
 ``doc.tables() -> rows() -> cells() -> paragraphs()``.
 
+``Paragraph::set_text(...)`` replaces one paragraph's body content in place
+while preserving paragraph-level properties such as style or bidi settings.
+``Run::remove()`` drops one run from a paragraph, and ``Paragraph::remove()``
+deletes a paragraph only when doing so would not leave an invalid body,
+header, footer, or table-cell container behind. The paragraph removal helper
+also refuses to remove section-break paragraphs.
+
+.. code-block:: cpp
+
+    auto paragraph = doc.paragraphs();
+    paragraph.set_text("Replaced paragraph text");
+
+    auto removable_run = paragraph.add_run(" temporary");
+    removable_run.remove();
+
+    auto removable_paragraph = paragraph.insert_paragraph_after("Delete me");
+    removable_paragraph.remove();
+
+For a runnable "edit an existing document and save it back" example, build
+``featherdoc_sample_edit_existing`` from ``samples/sample_edit_existing.cpp``.
+FeatherDoc already supports opening an existing ``.docx``, mutating
+paragraphs, runs, table cells, inline body images, headers, footers, and
+bookmark-backed template regions, and saving the result back to disk.
+For a focused "reopen and replace existing header/footer images" example,
+build ``featherdoc_sample_edit_existing_part_images`` from
+``samples/sample_edit_existing_part_images.cpp``.
+
 ``append_table(row_count, column_count)`` creates a new body table
 programmatically. The returned ``Table`` can then grow through
 ``append_row()``, and each ``TableRow`` can be widened through
@@ -153,20 +180,22 @@ programmatically. The returned ``Table`` can then grow through
 
     auto first_row = table.rows();
     auto first_cell = first_row.cells();
-    first_cell.paragraphs().add_run("r0c0");
+    first_cell.set_text("r0c0");
     first_cell.next();
-    first_cell.paragraphs().add_run("r0c1");
+    first_cell.set_text("r0c1");
 
     auto extra_row = table.append_row();
     auto extra_cell = extra_row.cells();
-    extra_cell.paragraphs().add_run("tail");
-    extra_row.append_cell().paragraphs().add_run("tail-2");
+    extra_cell.set_text("tail");
+    extra_row.append_cell().set_text("tail-2");
 
 ``Table::set_width_twips(...)``, ``set_style_id(...)``, ``set_border(...)``,
 ``set_layout_mode(...)``, ``set_alignment(...)``, and
 ``set_indent_twips(...)``, and ``set_cell_margin_twips(...)`` work alongside
-``TableCell::set_width_twips(...)``, ``merge_right(...)``, ``merge_down(...)``,
-``set_vertical_alignment(...)``, ``set_text_direction(...)``,
+``TableCell::set_text(...)`` and ``get_text()``, plus ``set_width_twips(...)``,
+``Table::remove()``, ``TableRow::remove()``, ``merge_right(...)``,
+``merge_down(...)``, ``set_vertical_alignment(...)``,
+``set_text_direction(...)``,
 ``set_border(...)``, ``set_fill_color(...)``, and ``set_margin_twips(...)``
 for higher-level table layout edits without dropping down to raw XML.
 ``width_twips()`` reports an
@@ -176,10 +205,15 @@ style reference, ``layout_mode()`` reports the current auto-fit mode,
 ``cell_margin_twips()`` reports per-edge default cell margins,
 ``height_twips()`` / ``height_rule()`` report the current row height override,
 ``cant_split()`` reports whether Word keeps the row on one page,
-``repeats_header()`` reports whether a row repeats as a table header, and
+``repeats_header()`` reports whether a row repeats as a table header,
+``Table::remove()`` deletes one table while refusing to leave the parent
+container without the required block content, ``TableRow::remove()`` deletes one
+row while refusing to remove the last remaining row, and
 ``column_span()`` reports the current horizontal span. ``text_direction()``
 reports the current table-cell writing direction when a cell uses vertical or
-rotated text flow.
+rotated text flow. ``TableCell::set_text(...)`` replaces one cell's body with
+a single paragraph while preserving cell-level properties such as shading,
+margins, borders, and explicit width.
 
 .. code-block:: cpp
 
@@ -229,6 +263,52 @@ want explicit scaling. The current image support is limited to ``.png``,
 
     doc.append_image("logo.png");
     doc.append_image("badge.png", 96, 48);
+
+``inline_images()`` inspects inline images that already exist in the main
+document body. Each returned ``inline_image_info`` includes the image index,
+relationship id, media entry path, display name, content type, and rendered
+pixel size derived from ``wp:extent``.
+
+``drawing_images()`` returns the broader existing drawing image list for the
+current part, including both ``wp:inline`` and ``wp:anchor`` objects. Each
+``drawing_image_info`` carries the same metadata plus a
+``drawing_image_placement`` value that tells you whether the object is inline
+or anchored.
+
+``extract_drawing_image(index, path)`` copies any existing drawing-backed
+image out of the ``.docx``. ``replace_drawing_image(index, path)`` swaps one
+inline or anchored image with a new file while preserving the current rendered
+size and placement XML.
+
+.. code-block:: cpp
+
+    const auto drawings = doc.drawing_images();
+    for (const auto &image : drawings) {
+        if (image.placement ==
+            featherdoc::drawing_image_placement::anchored_object) {
+            doc.replace_drawing_image(image.index, "floating-replacement.png");
+        }
+    }
+
+``extract_inline_image(index, path)`` copies one existing inline body image out
+of the ``.docx``. ``replace_inline_image(index, path)`` swaps one body image
+with a new file while preserving the current displayed size. Replacement only
+retargets the selected relationship. If the old media part becomes
+unreferenced afterwards, FeatherDoc drops it from the next saved archive.
+
+.. code-block:: cpp
+
+    const auto images = doc.inline_images();
+    if (!images.empty()) {
+        doc.extract_inline_image(images[0].index, "first-image.bin");
+        doc.replace_inline_image(images[0].index, "replacement.png");
+    }
+
+The same ``drawing_images()``, ``extract_drawing_image(...)``,
+``replace_drawing_image(...)``, ``inline_images()``,
+``extract_inline_image(...)``, and ``replace_inline_image(...)`` APIs are also
+available on ``TemplatePart`` handles when you need existing body/header/footer
+drawings from already loaded parts.
 
 ``set_paragraph_list(paragraph, kind, level)`` attaches managed bullet or
 decimal numbering to a paragraph. Use ``clear_paragraph_list(paragraph)`` when
@@ -413,6 +493,9 @@ an already loaded body/header/footer part. A valid handle exposes
 ``replace_bookmark_with_paragraphs(...)``,
 ``replace_bookmark_with_table_rows(...)``, and
 ``replace_bookmark_with_table(...)``, ``replace_bookmark_with_image(...)``,
+``drawing_images()``, ``extract_drawing_image(...)``,
+``replace_drawing_image(...)``, ``inline_images()``,
+``extract_inline_image(...)``, ``replace_inline_image(...)``,
 ``set_bookmark_block_visibility(...)``, and
 ``apply_bookmark_block_visibility(...)``. Missing section-specific references
 return an empty handle instead of creating a new part implicitly.
@@ -734,10 +817,15 @@ Current Limitations
   ``set_bookmark_block_visibility(...)`` and
   ``apply_bookmark_block_visibility(...)``, but there is still no high-level
   API for structured template schema validation.
-- Images can now be appended as inline body drawings, and bookmark-based image
-  replacement now also works across body, header, and footer template parts,
-  but there is still no high-level API for reading existing images, floating
-  placement, wrapping, or cropping.
+- Images can now be appended as inline body drawings, enumerated through
+  ``inline_images()`` or the broader ``drawing_images()``, extracted through
+  ``extract_inline_image(...)`` / ``extract_drawing_image(...)``, and replaced
+  through ``replace_inline_image(...)`` / ``replace_drawing_image(...)``.
+  Bookmark-based image replacement and existing image
+  enumeration/extraction/replacement also work across body, header, and footer
+  ``TemplatePart`` handles, including already-anchored drawings. There is
+  still no high-level API to create floating placement or to control wrapping
+  and cropping.
 
 Source Layout
 -------------
@@ -745,7 +833,7 @@ The core implementation is now split into smaller source files instead of
 staying in one large translation unit:
 
 - ``src/document.cpp``: ``Document`` open/save flow, ZIP archive handling, and diagnostics
-- ``src/document_image.cpp``: inline body image insertion, media part allocation, and drawing relationship updates
+- ``src/document_image.cpp``: body/part image insertion, drawing enumeration, extraction, replacement, media part allocation, and drawing relationship updates
 - ``src/document_numbering.cpp``: managed paragraph list numbering, numbering part attachment, and numbering definition generation
 - ``src/document_styles.cpp``: paragraph/run style references and ``word/styles.xml`` attachment/persistence
 - ``src/document_template.cpp``: bookmark-based template filling and batch replacement APIs

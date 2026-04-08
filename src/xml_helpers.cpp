@@ -51,6 +51,17 @@ pugi::xml_node next_named_sibling(pugi::xml_node node, std::string_view node_nam
     return {};
 }
 
+pugi::xml_node previous_named_sibling(pugi::xml_node node, std::string_view node_name) {
+    for (auto sibling = node.previous_sibling(); sibling != pugi::xml_node{};
+         sibling = sibling.previous_sibling()) {
+        if (std::string_view{sibling.name()} == node_name) {
+            return sibling;
+        }
+    }
+
+    return {};
+}
+
 pugi::xml_node ensure_run_properties_node(pugi::xml_node run) {
     if (run == pugi::xml_node{}) {
         return {};
@@ -153,6 +164,35 @@ pugi::xml_node append_table_node(pugi::xml_node parent) {
     }
 
     return parent.append_child("w:tbl");
+}
+
+std::size_t count_remaining_block_children(pugi::xml_node parent,
+                                           pugi::xml_node skipped_child) {
+    std::size_t count = 0U;
+    const auto parent_name = std::string_view{parent.name()};
+
+    for (auto child = parent.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (child == skipped_child || child.type() != pugi::node_element) {
+            continue;
+        }
+
+        const auto child_name = std::string_view{child.name()};
+        if ((parent_name == "w:body" && child_name == "w:sectPr") ||
+            (parent_name == "w:tc" && child_name == "w:tcPr")) {
+            continue;
+        }
+
+        ++count;
+    }
+
+    return count;
+}
+
+bool parent_requires_nonempty_block_content(pugi::xml_node parent) {
+    const auto parent_name = std::string_view{parent.name()};
+    return parent_name == "w:body" || parent_name == "w:hdr" ||
+           parent_name == "w:ftr" || parent_name == "w:tc";
 }
 
 } // namespace featherdoc::detail

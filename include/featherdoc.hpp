@@ -64,6 +64,7 @@ class Run {
     [[nodiscard]] bool clear_font_family() const;
     [[nodiscard]] bool clear_language() const;
     [[nodiscard]] bool clear_rtl() const;
+    [[nodiscard]] bool remove();
 
     Run &next();
     [[nodiscard]] bool has_next() const;
@@ -93,6 +94,9 @@ class Paragraph {
     [[nodiscard]] std::optional<bool> bidi() const;
     [[nodiscard]] bool set_bidi(bool enabled = true) const;
     [[nodiscard]] bool clear_bidi() const;
+    [[nodiscard]] bool set_text(const std::string &) const;
+    [[nodiscard]] bool set_text(const char *) const;
+    [[nodiscard]] bool remove();
 
     Run &runs();
     Run add_run(const std::string &,
@@ -121,6 +125,9 @@ class TableCell {
     void set_current(pugi::xml_node);
 
     Paragraph &paragraphs();
+    [[nodiscard]] std::string get_text() const;
+    [[nodiscard]] bool set_text(const std::string &) const;
+    [[nodiscard]] bool set_text(const char *) const;
     [[nodiscard]] std::optional<std::uint32_t> width_twips() const;
     [[nodiscard]] bool set_width_twips(std::uint32_t width_twips);
     [[nodiscard]] bool clear_width();
@@ -179,6 +186,7 @@ class TableRow {
     [[nodiscard]] bool repeats_header() const;
     [[nodiscard]] bool set_repeats_header();
     [[nodiscard]] bool clear_repeats_header();
+    [[nodiscard]] bool remove();
     TableCell append_cell();
 
     [[nodiscard]] bool has_next() const;
@@ -229,6 +237,7 @@ class Table {
     [[nodiscard]] bool set_border(featherdoc::table_border_edge edge,
                                   featherdoc::border_definition border);
     [[nodiscard]] bool clear_border(featherdoc::table_border_edge edge);
+    [[nodiscard]] bool remove();
     TableRow append_row(std::size_t cell_count = 1U);
 };
 
@@ -283,6 +292,32 @@ struct bookmark_block_visibility_result {
     }
 };
 
+struct inline_image_info {
+    std::size_t index{};
+    std::string relationship_id;
+    std::string entry_name;
+    std::string display_name;
+    std::string content_type;
+    std::uint32_t width_px{};
+    std::uint32_t height_px{};
+};
+
+enum class drawing_image_placement {
+    inline_object = 0,
+    anchored_object,
+};
+
+struct drawing_image_info {
+    std::size_t index{};
+    drawing_image_placement placement{drawing_image_placement::inline_object};
+    std::string relationship_id;
+    std::string entry_name;
+    std::string display_name;
+    std::string content_type;
+    std::uint32_t width_px{};
+    std::uint32_t height_px{};
+};
+
 class TemplatePart {
   private:
     friend class Document;
@@ -319,6 +354,16 @@ class TemplatePart {
     [[nodiscard]] std::size_t replace_bookmark_with_image(
         std::string_view bookmark_name, const std::filesystem::path &image_path,
         std::uint32_t width_px, std::uint32_t height_px);
+    [[nodiscard]] std::vector<drawing_image_info> drawing_images() const;
+    [[nodiscard]] bool extract_drawing_image(
+        std::size_t image_index, const std::filesystem::path &output_path) const;
+    [[nodiscard]] bool replace_drawing_image(std::size_t image_index,
+                                             const std::filesystem::path &image_path);
+    [[nodiscard]] std::vector<inline_image_info> inline_images() const;
+    [[nodiscard]] bool extract_inline_image(
+        std::size_t image_index, const std::filesystem::path &output_path) const;
+    [[nodiscard]] bool replace_inline_image(std::size_t image_index,
+                                            const std::filesystem::path &image_path);
     [[nodiscard]] std::size_t set_bookmark_block_visibility(
         std::string_view bookmark_name, bool visible);
     [[nodiscard]] bookmark_block_visibility_result apply_bookmark_block_visibility(
@@ -397,6 +442,8 @@ class Document {
         std::vector<std::unique_ptr<xml_part_state>> &parts, const char *part_root_name,
         const char *reference_name, const char *relationship_type, const char *content_type);
     [[nodiscard]] xml_part_state *find_related_part_state(std::string_view entry_name);
+    [[nodiscard]] const xml_part_state *find_related_part_state(
+        std::string_view entry_name) const;
     [[nodiscard]] std::uint32_t next_drawing_object_id() const;
     [[nodiscard]] bool append_inline_image_part(
         std::string image_data, std::string extension, std::string content_type,
@@ -412,6 +459,22 @@ class Document {
         pugi::xml_node insert_before, std::string image_data, std::string extension,
         std::string content_type, std::string display_name, std::uint32_t width_px,
         std::uint32_t height_px);
+    [[nodiscard]] std::vector<drawing_image_info> drawing_images_in_part(
+        std::string_view entry_name) const;
+    [[nodiscard]] bool extract_drawing_image_from_part(
+        std::string_view entry_name, std::size_t image_index,
+        const std::filesystem::path &output_path) const;
+    [[nodiscard]] bool replace_drawing_image_in_part(
+        std::string_view entry_name, std::size_t image_index,
+        const std::filesystem::path &image_path);
+    [[nodiscard]] std::vector<inline_image_info> inline_images_in_part(
+        std::string_view entry_name) const;
+    [[nodiscard]] bool extract_inline_image_from_part(
+        std::string_view entry_name, std::size_t image_index,
+        const std::filesystem::path &output_path) const;
+    [[nodiscard]] bool replace_inline_image_in_part(
+        std::string_view entry_name, std::size_t image_index,
+        const std::filesystem::path &image_path);
     [[nodiscard]] std::size_t replace_bookmark_with_image_in_part(
         pugi::xml_document &xml_document, std::string_view entry_name,
         std::string_view bookmark_name, const std::filesystem::path &image_path,
@@ -448,6 +511,7 @@ class Document {
     bool styles_loaded{false};
     bool styles_dirty{false};
     mutable std::unordered_set<std::string> removed_related_part_entries;
+    std::unordered_set<std::string> removed_archive_entries;
     mutable document_error_info last_error_info;
 
   public:
@@ -613,6 +677,16 @@ class Document {
     Paragraph &paragraphs();
     Table &tables();
     Table append_table(std::size_t row_count = 1U, std::size_t column_count = 1U);
+    [[nodiscard]] std::vector<drawing_image_info> drawing_images() const;
+    [[nodiscard]] bool extract_drawing_image(
+        std::size_t image_index, const std::filesystem::path &output_path) const;
+    [[nodiscard]] bool replace_drawing_image(std::size_t image_index,
+                                             const std::filesystem::path &image_path);
+    [[nodiscard]] std::vector<inline_image_info> inline_images() const;
+    [[nodiscard]] bool extract_inline_image(
+        std::size_t image_index, const std::filesystem::path &output_path) const;
+    [[nodiscard]] bool replace_inline_image(std::size_t image_index,
+                                            const std::filesystem::path &image_path);
     [[nodiscard]] bool append_image(const std::filesystem::path &image_path);
     [[nodiscard]] bool append_image(const std::filesystem::path &image_path,
                                     std::uint32_t width_px,

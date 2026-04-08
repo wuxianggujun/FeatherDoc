@@ -425,6 +425,21 @@ bool Run::clear_rtl() const {
     return true;
 }
 
+bool Run::remove() {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto next_run = detail::next_named_sibling(this->current, "w:r");
+    const auto previous_run = detail::previous_named_sibling(this->current, "w:r");
+    if (!this->parent.remove_child(this->current)) {
+        return false;
+    }
+
+    this->current = next_run != pugi::xml_node{} ? next_run : previous_run;
+    return true;
+}
+
 Run &Run::next() {
     this->current = detail::next_named_sibling(this->current, "w:r");
     return *this;

@@ -139,6 +139,56 @@ bool Paragraph::clear_bidi() const {
     return true;
 }
 
+bool Paragraph::set_text(const std::string &text) const { return this->set_text(text.c_str()); }
+
+bool Paragraph::set_text(const char *text) const {
+    if (this->current == pugi::xml_node{} || text == nullptr) {
+        return false;
+    }
+
+    auto paragraph_node = this->current;
+    for (auto child = paragraph_node.first_child(); child != pugi::xml_node{};) {
+        const auto next_child = child.next_sibling();
+        if (std::string_view{child.name()} != "w:pPr") {
+            paragraph_node.remove_child(child);
+        }
+        child = next_child;
+    }
+
+    if (text[0] == '\0') {
+        return true;
+    }
+
+    Paragraph updated_paragraph(this->parent, this->current);
+    return updated_paragraph.add_run(text).has_next();
+}
+
+bool Paragraph::remove() {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    if (this->current.child("w:pPr").child("w:sectPr") != pugi::xml_node{}) {
+        return false;
+    }
+
+    if (detail::parent_requires_nonempty_block_content(this->parent) &&
+        detail::count_remaining_block_children(this->parent, this->current) == 0U) {
+        return false;
+    }
+
+    const auto next_paragraph = detail::next_named_sibling(this->current, "w:p");
+    const auto previous_paragraph = detail::previous_named_sibling(this->current, "w:p");
+    if (!this->parent.remove_child(this->current)) {
+        return false;
+    }
+
+    this->current =
+        next_paragraph != pugi::xml_node{} ? next_paragraph : previous_paragraph;
+    this->run.set_parent(this->current);
+    return true;
+}
+
 Run &Paragraph::runs() {
     this->run.set_parent(this->current);
     return this->run;

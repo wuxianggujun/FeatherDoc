@@ -88,9 +88,22 @@ jobs:
 
               .\featherdoc_visual_smoke_tables.exe ".\output\visual-smoke\table_visual_smoke.docx"
               Assert-Docx ".\output\visual-smoke\table_visual_smoke.docx"
+
+              .\featherdoc_sample_edit_existing.exe ".\output\sample-edit-existing\edited_existing.docx"
+              Assert-Docx ".\output\sample-edit-existing\edited_existing.docx"
           } finally {
               Pop-Location
           }
+
+      - name: Install package and verify external find_package consumer
+        shell: pwsh
+        run: >
+          pwsh -ExecutionPolicy Bypass -File .\scripts\run_install_find_package_smoke.ps1
+          -BuildDir build-msvc-nmake
+          -InstallDir build-msvc-install
+          -ConsumerBuildDir build-msvc-install-consumer
+          -Generator "NMake Makefiles"
+          -Config Release
 
       - name: Upload generated sample documents
         if: always()
@@ -100,4 +113,5 @@ jobs:
           path: |
             build-msvc-nmake/my_test.docx
             build-msvc-nmake/output/**/*.docx
+            build-msvc-install-consumer/**/*.docx
           if-no-files-found: warn

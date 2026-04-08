@@ -405,6 +405,60 @@ auto read_test_docx_entry(const std::filesystem::path &path, const char *entry_n
     return content;
 }
 
+auto read_test_archive_entries(const std::filesystem::path &path)
+    -> std::vector<std::pair<std::string, std::string>> {
+    int zip_error = 0;
+    zip_t *zip = zip_openwitherror(path.string().c_str(),
+                                   ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
+                                   &zip_error);
+    REQUIRE(zip != nullptr);
+
+    std::vector<std::pair<std::string, std::string>> entries;
+    const auto total_entries = zip_entries_total(zip);
+    REQUIRE_GE(total_entries, 0);
+    entries.reserve(static_cast<std::size_t>(total_entries));
+
+    for (ssize_t index = 0; index < total_entries; ++index) {
+        REQUIRE_EQ(zip_entry_openbyindex(zip, static_cast<std::size_t>(index)), 0);
+
+        const auto *current_entry_name = zip_entry_name(zip);
+        REQUIRE(current_entry_name != nullptr);
+
+        void *buffer = nullptr;
+        size_t buffer_size = 0U;
+        REQUIRE_GE(zip_entry_read(zip, &buffer, &buffer_size), 0);
+        REQUIRE(buffer != nullptr);
+
+        entries.emplace_back(
+            current_entry_name,
+            std::string(static_cast<const char *>(buffer), buffer_size));
+        std::free(buffer);
+        REQUIRE_EQ(zip_entry_close(zip), 0);
+    }
+
+    zip_close(zip);
+    return entries;
+}
+
+auto rewrite_test_docx_entry(const std::filesystem::path &path, const char *entry_name,
+                             std::string content) -> void {
+    auto entries = read_test_archive_entries(path);
+
+    bool replaced = false;
+    for (auto &[current_entry_name, current_content] : entries) {
+        if (current_entry_name != entry_name) {
+            continue;
+        }
+
+        current_content = std::move(content);
+        replaced = true;
+        break;
+    }
+
+    REQUIRE(replaced);
+    write_test_archive_entries(path, entries);
+}
+
 auto test_docx_entry_exists(const std::filesystem::path &path, const char *entry_name)
     -> bool {
     int zip_error = 0;
@@ -422,6 +476,39 @@ auto test_docx_entry_exists(const std::filesystem::path &path, const char *entry
     }
     zip_close(zip);
     return exists;
+}
+
+auto convert_nth_inline_drawing_to_anchor(std::string xml_text, std::size_t inline_index)
+    -> std::string {
+    constexpr auto inline_open_tag = "<wp:inline";
+    constexpr auto inline_close_tag = "</wp:inline>";
+    constexpr auto anchor_open_attributes =
+        R"( distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1")";
+    constexpr auto anchor_positioning_xml =
+        R"(<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:wrapNone/>)";
+
+    std::size_t open_search_from = 0U;
+    std::size_t open_tag_position = std::string::npos;
+    for (std::size_t current_index = 0U; current_index <= inline_index; ++current_index) {
+        open_tag_position = xml_text.find(inline_open_tag, open_search_from);
+        REQUIRE_NE(open_tag_position, std::string::npos);
+        open_search_from = open_tag_position + std::strlen(inline_open_tag);
+    }
+
+    const auto open_tag_end = xml_text.find('>', open_tag_position);
+    REQUIRE_NE(open_tag_end, std::string::npos);
+    xml_text.replace(open_tag_position, std::strlen(inline_open_tag), "<wp:anchor");
+    xml_text.insert(open_tag_end, anchor_open_attributes);
+
+    const auto extent_position = xml_text.find("<wp:extent", open_tag_end);
+    REQUIRE_NE(extent_position, std::string::npos);
+    xml_text.insert(extent_position, anchor_positioning_xml);
+
+    const auto close_tag_position = xml_text.find(inline_close_tag, open_tag_end);
+    REQUIRE_NE(close_tag_position, std::string::npos);
+    xml_text.replace(close_tag_position, std::strlen(inline_close_tag), "</wp:anchor>");
+
+    return xml_text;
 }
 } // namespace
 
@@ -732,6 +819,124 @@ TEST_CASE("create_empty supports save through the configured path") {
     CHECK_EQ(collect_document_text(reopened), "Saved with save()\n");
 
     fs::remove(target);
+}
+
+TEST_CASE("paragraph set_text replaces all runs in place") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "paragraph_set_text.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    auto first_run = paragraph.add_run("first");
+    REQUIRE(first_run.has_next());
+    REQUIRE(paragraph.add_run(" second").has_next());
+    REQUIRE(paragraph.add_run(" third").has_next());
+
+    CHECK(paragraph.set_text("replaced paragraph"));
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "replaced paragraph\n");
+
+    auto reopened_paragraph = reopened.paragraphs();
+    REQUIRE(reopened_paragraph.has_next());
+
+    std::size_t run_count = 0U;
+    for (auto run = reopened_paragraph.runs(); run.has_next(); run.next()) {
+        ++run_count;
+    }
+    CHECK_EQ(run_count, 1U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("run remove deletes the targeted run from a paragraph") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "run_remove.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.set_text("seed"));
+
+    auto first_run = paragraph.runs();
+    REQUIRE(first_run.has_next());
+    REQUIRE(first_run.set_text("left"));
+    auto removed_run = paragraph.add_run(" middle");
+    REQUIRE(removed_run.has_next());
+    REQUIRE(paragraph.add_run(" right").has_next());
+
+    CHECK(removed_run.remove());
+    CHECK(removed_run.has_next());
+    CHECK_EQ(removed_run.get_text(), " right");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "left right\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("paragraph remove deletes a middle body paragraph and keeps the wrapper usable") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "paragraph_remove.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto first = doc.paragraphs();
+    REQUIRE(first.has_next());
+    REQUIRE(first.set_text("first"));
+
+    auto removed = first.insert_paragraph_after("second");
+    REQUIRE(removed.has_next());
+    auto third = removed.insert_paragraph_after("third");
+    REQUIRE(third.has_next());
+
+    CHECK(removed.remove());
+    CHECK(removed.has_next());
+    CHECK_EQ(removed.runs().get_text(), "third");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "first\nthird\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("paragraph remove rejects removing the last body paragraph") {
+    featherdoc::Document doc;
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK_FALSE(paragraph.remove());
+    CHECK(paragraph.has_next());
+}
+
+TEST_CASE("paragraph remove rejects removing the last paragraph in a table cell") {
+    featherdoc::Document doc;
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(1, 1);
+    auto cell_paragraph = table.rows().cells().paragraphs();
+    REQUIRE(cell_paragraph.has_next());
+    CHECK_FALSE(cell_paragraph.remove());
+    CHECK(cell_paragraph.has_next());
 }
 
 TEST_CASE("save_as rejects an empty output path") {
@@ -1549,6 +1754,600 @@ TEST_CASE("header and footer template parts can replace bookmark placeholders wi
 
     fs::remove(target);
     fs::remove(image_path);
+}
+
+TEST_CASE("template parts list existing inline images and can extract them") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+
+    const fs::path target = fs::current_path() / "template_part_inline_images.docx";
+    const fs::path image_path = fs::current_path() / "template_part_inline_images.png";
+    const fs::path extracted_path =
+        fs::current_path() / "template_part_inline_images_extracted.png";
+    fs::remove(target);
+    fs::remove(image_path);
+    fs::remove(extracted_path);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>body</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+      <w:footerReference w:type="default" r:id="rId3"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:bookmarkStart w:id="0" w:name="header_logo_one"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="0"/>
+  </w:p>
+  <w:p>
+    <w:bookmarkStart w:id="1" w:name="header_logo_two"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="1"/>
+  </w:p>
+</w:hdr>
+)";
+
+    const std::string footer_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:bookmarkStart w:id="2" w:name="footer_logo"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="2"/>
+  </w:p>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header_xml},
+            {"word/footer1.xml", footer_xml},
+        });
+
+    const std::string image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                 sizeof(tiny_png_bytes));
+    const std::vector<unsigned char> expected_image_data(image_data.begin(), image_data.end());
+    write_binary_file(image_path, image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_one", image_path, 20U, 10U),
+             1);
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_two", image_path, 30U, 15U),
+             1);
+
+    auto footer_template = doc.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    CHECK_EQ(footer_template.replace_bookmark_with_image("footer_logo", image_path, 40U, 20U),
+             1);
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    header_template = reopened.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    const auto header_images = header_template.inline_images();
+    REQUIRE_EQ(header_images.size(), 2U);
+    CHECK_EQ(header_images[0].entry_name, "word/media/image1.png");
+    CHECK_EQ(header_images[0].content_type, "image/png");
+    CHECK_EQ(header_images[0].width_px, 20U);
+    CHECK_EQ(header_images[0].height_px, 10U);
+    CHECK_EQ(header_images[1].entry_name, "word/media/image2.png");
+    CHECK_EQ(header_images[1].content_type, "image/png");
+    CHECK_EQ(header_images[1].width_px, 30U);
+    CHECK_EQ(header_images[1].height_px, 15U);
+    CHECK(header_template.extract_inline_image(1U, extracted_path));
+    CHECK_EQ(read_binary_file(extracted_path), expected_image_data);
+    CHECK_FALSE(header_template.extract_inline_image(2U, extracted_path));
+    CHECK_EQ(reopened.last_error().code,
+             std::make_error_code(std::errc::result_out_of_range));
+
+    footer_template = reopened.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    const auto footer_images = footer_template.inline_images();
+    REQUIRE_EQ(footer_images.size(), 1U);
+    CHECK_EQ(footer_images[0].entry_name, "word/media/image3.png");
+    CHECK_EQ(footer_images[0].content_type, "image/png");
+    CHECK_EQ(footer_images[0].width_px, 40U);
+    CHECK_EQ(footer_images[0].height_px, 20U);
+
+    fs::remove(target);
+    fs::remove(image_path);
+    fs::remove(extracted_path);
+}
+
+TEST_CASE("template part replace_inline_image updates only the selected header image") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+    constexpr unsigned char tiny_gif_bytes[] = {
+        0x47U, 0x49U, 0x46U, 0x38U, 0x39U, 0x61U, 0x01U, 0x00U, 0x01U, 0x00U, 0x80U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0xFFU, 0xFFU, 0xFFU, 0x21U, 0xF9U, 0x04U,
+        0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x2CU, 0x00U, 0x00U, 0x00U, 0x00U, 0x01U,
+        0x00U, 0x01U, 0x00U, 0x00U, 0x02U, 0x02U, 0x44U, 0x01U, 0x00U, 0x3BU,
+    };
+
+    const fs::path target = fs::current_path() / "template_part_replace_inline_image.docx";
+    const fs::path source_image_path =
+        fs::current_path() / "template_part_replace_inline_image_source.png";
+    const fs::path replacement_image_path =
+        fs::current_path() / "template_part_replace_inline_image_replacement.gif";
+    const fs::path extracted_path =
+        fs::current_path() / "template_part_replace_inline_image_extracted.gif";
+    fs::remove(target);
+    fs::remove(source_image_path);
+    fs::remove(replacement_image_path);
+    fs::remove(extracted_path);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>body</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+      <w:footerReference w:type="default" r:id="rId3"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:bookmarkStart w:id="0" w:name="header_logo_one"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="0"/>
+  </w:p>
+  <w:p>
+    <w:bookmarkStart w:id="1" w:name="header_logo_two"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="1"/>
+  </w:p>
+</w:hdr>
+)";
+
+    const std::string footer_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:bookmarkStart w:id="2" w:name="footer_logo"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="2"/>
+  </w:p>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header_xml},
+            {"word/footer1.xml", footer_xml},
+        });
+
+    const std::string source_image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                        sizeof(tiny_png_bytes));
+    const std::string replacement_image_data(reinterpret_cast<const char *>(tiny_gif_bytes),
+                                             sizeof(tiny_gif_bytes));
+    const std::vector<unsigned char> expected_replacement_data(
+        replacement_image_data.begin(), replacement_image_data.end());
+    write_binary_file(source_image_path, source_image_data);
+    write_binary_file(replacement_image_path, replacement_image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_one",
+                                                         source_image_path, 20U, 10U),
+             1);
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_two",
+                                                         source_image_path, 30U, 15U),
+             1);
+
+    auto footer_template = doc.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    CHECK_EQ(footer_template.replace_bookmark_with_image("footer_logo", source_image_path,
+                                                         40U, 20U),
+             1);
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    header_template = reopened.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK(header_template.replace_inline_image(1U, replacement_image_path));
+
+    auto header_images = header_template.inline_images();
+    REQUIRE_EQ(header_images.size(), 2U);
+    CHECK_EQ(header_images[0].entry_name, "word/media/image1.png");
+    CHECK_EQ(header_images[0].content_type, "image/png");
+    CHECK_EQ(header_images[1].width_px, 30U);
+    CHECK_EQ(header_images[1].height_px, 15U);
+    CHECK_EQ(header_images[1].content_type, "image/gif");
+    CHECK(header_images[1].entry_name.ends_with(".gif"));
+    CHECK_NE(header_images[1].entry_name, "word/media/image2.png");
+
+    footer_template = reopened.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    auto footer_images = footer_template.inline_images();
+    REQUIRE_EQ(footer_images.size(), 1U);
+    CHECK_EQ(footer_images[0].entry_name, "word/media/image3.png");
+    CHECK_EQ(footer_images[0].content_type, "image/png");
+
+    const auto replacement_entry_name = header_images[1].entry_name;
+    const auto replacement_target =
+        (fs::path{"media"} / fs::path{replacement_entry_name}.filename()).generic_string();
+
+    CHECK_FALSE(reopened.save());
+
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK_FALSE(test_docx_entry_exists(target, "word/media/image2.png"));
+    CHECK(test_docx_entry_exists(target, "word/media/image3.png"));
+    CHECK(test_docx_entry_exists(target, replacement_entry_name.c_str()));
+    CHECK_EQ(read_test_docx_entry(target, replacement_entry_name.c_str()),
+             replacement_image_data);
+
+    const auto saved_header_relationships =
+        read_test_docx_entry(target, "word/_rels/header1.xml.rels");
+    CHECK_NE(saved_header_relationships.find("Target=\"media/image1.png\""),
+             std::string::npos);
+    CHECK_EQ(saved_header_relationships.find("Target=\"media/image2.png\""),
+             std::string::npos);
+    CHECK_NE(saved_header_relationships.find("Target=\"" + replacement_target + "\""),
+             std::string::npos);
+
+    const auto saved_footer_relationships =
+        read_test_docx_entry(target, "word/_rels/footer1.xml.rels");
+    CHECK_NE(saved_footer_relationships.find("Target=\"media/image3.png\""),
+             std::string::npos);
+
+    const auto saved_content_types = read_test_docx_entry(target, test_content_types_xml_entry);
+    CHECK_NE(saved_content_types.find("Extension=\"gif\""), std::string::npos);
+    CHECK_NE(saved_content_types.find("ContentType=\"image/gif\""), std::string::npos);
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+    header_template = reopened_again.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    header_images = header_template.inline_images();
+    REQUIRE_EQ(header_images.size(), 2U);
+    CHECK_EQ(header_images[1].content_type, "image/gif");
+    CHECK_EQ(header_images[1].width_px, 30U);
+    CHECK_EQ(header_images[1].height_px, 15U);
+    CHECK_EQ(header_images[1].entry_name, replacement_entry_name);
+    CHECK(header_template.extract_inline_image(1U, extracted_path));
+    CHECK_EQ(read_binary_file(extracted_path), expected_replacement_data);
+
+    footer_template = reopened_again.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    footer_images = footer_template.inline_images();
+    REQUIRE_EQ(footer_images.size(), 1U);
+    CHECK_EQ(footer_images[0].entry_name, "word/media/image3.png");
+    CHECK_EQ(footer_images[0].content_type, "image/png");
+
+    fs::remove(target);
+    fs::remove(source_image_path);
+    fs::remove(replacement_image_path);
+    fs::remove(extracted_path);
+}
+
+TEST_CASE("template part drawing_images includes anchored header images") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+    constexpr unsigned char tiny_gif_bytes[] = {
+        0x47U, 0x49U, 0x46U, 0x38U, 0x39U, 0x61U, 0x01U, 0x00U, 0x01U, 0x00U, 0x80U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0xFFU, 0xFFU, 0xFFU, 0x21U, 0xF9U, 0x04U,
+        0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x2CU, 0x00U, 0x00U, 0x00U, 0x00U, 0x01U,
+        0x00U, 0x01U, 0x00U, 0x00U, 0x02U, 0x02U, 0x44U, 0x01U, 0x00U, 0x3BU,
+    };
+
+    const fs::path target = fs::current_path() / "template_part_drawing_images_anchor.docx";
+    const fs::path source_image_path =
+        fs::current_path() / "template_part_drawing_images_anchor_source.png";
+    const fs::path replacement_image_path =
+        fs::current_path() / "template_part_drawing_images_anchor_replacement.gif";
+    const fs::path extracted_path =
+        fs::current_path() / "template_part_drawing_images_anchor_extracted.gif";
+    fs::remove(target);
+    fs::remove(source_image_path);
+    fs::remove(replacement_image_path);
+    fs::remove(extracted_path);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>body</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+      <w:footerReference w:type="default" r:id="rId3"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:bookmarkStart w:id="0" w:name="header_logo_one"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="0"/>
+  </w:p>
+  <w:p>
+    <w:bookmarkStart w:id="1" w:name="header_logo_two"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="1"/>
+  </w:p>
+</w:hdr>
+)";
+
+    const std::string footer_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:bookmarkStart w:id="2" w:name="footer_logo"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="2"/>
+  </w:p>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header_xml},
+            {"word/footer1.xml", footer_xml},
+        });
+
+    const std::string source_image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                        sizeof(tiny_png_bytes));
+    const std::string replacement_image_data(reinterpret_cast<const char *>(tiny_gif_bytes),
+                                             sizeof(tiny_gif_bytes));
+    const std::vector<unsigned char> expected_replacement_data(
+        replacement_image_data.begin(), replacement_image_data.end());
+    write_binary_file(source_image_path, source_image_data);
+    write_binary_file(replacement_image_path, replacement_image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_one",
+                                                         source_image_path, 20U, 10U),
+             1);
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_two",
+                                                         source_image_path, 30U, 15U),
+             1);
+
+    auto footer_template = doc.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    CHECK_EQ(footer_template.replace_bookmark_with_image("footer_logo", source_image_path,
+                                                         40U, 20U),
+             1);
+    CHECK_FALSE(doc.save());
+
+    auto anchored_header_xml = read_test_docx_entry(target, "word/header1.xml");
+    anchored_header_xml = convert_nth_inline_drawing_to_anchor(anchored_header_xml, 1U);
+    CHECK_EQ(count_substring_occurrences(anchored_header_xml, "<wp:anchor"), 1U);
+    rewrite_test_docx_entry(target, "word/header1.xml", std::move(anchored_header_xml));
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    header_template = reopened.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+
+    const auto header_drawing_images = header_template.drawing_images();
+    REQUIRE_EQ(header_drawing_images.size(), 2U);
+    CHECK_EQ(header_drawing_images[0].placement,
+             featherdoc::drawing_image_placement::inline_object);
+    CHECK_EQ(header_drawing_images[1].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+    CHECK_EQ(header_drawing_images[1].width_px, 30U);
+    CHECK_EQ(header_drawing_images[1].height_px, 15U);
+
+    const auto header_inline_images = header_template.inline_images();
+    REQUIRE_EQ(header_inline_images.size(), 1U);
+    CHECK_EQ(header_inline_images[0].entry_name, "word/media/image1.png");
+
+    CHECK(header_template.extract_drawing_image(1U, extracted_path));
+    CHECK_EQ(read_binary_file(extracted_path),
+             std::vector<unsigned char>(source_image_data.begin(), source_image_data.end()));
+
+    CHECK(header_template.replace_drawing_image(1U, replacement_image_path));
+
+    auto updated_header_images = header_template.drawing_images();
+    REQUIRE_EQ(updated_header_images.size(), 2U);
+    CHECK_EQ(updated_header_images[1].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+    CHECK_EQ(updated_header_images[1].content_type, "image/gif");
+    CHECK(updated_header_images[1].entry_name.ends_with(".gif"));
+    const auto replacement_entry_name = updated_header_images[1].entry_name;
+    const auto replacement_target =
+        (fs::path{"media"} / fs::path{replacement_entry_name}.filename()).generic_string();
+
+    CHECK_FALSE(reopened.save());
+
+    const auto saved_header_xml = read_test_docx_entry(target, "word/header1.xml");
+    CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:inline"), 1U);
+    CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:anchor"), 1U);
+
+    const auto saved_header_relationships =
+        read_test_docx_entry(target, "word/_rels/header1.xml.rels");
+    CHECK_NE(saved_header_relationships.find("Target=\"media/image1.png\""),
+             std::string::npos);
+    CHECK_EQ(saved_header_relationships.find("Target=\"media/image2.png\""), std::string::npos);
+    CHECK_NE(saved_header_relationships.find("Target=\"" + replacement_target + "\""),
+             std::string::npos);
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+    header_template = reopened_again.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    updated_header_images = header_template.drawing_images();
+    REQUIRE_EQ(updated_header_images.size(), 2U);
+    CHECK_EQ(updated_header_images[1].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+    CHECK_EQ(updated_header_images[1].content_type, "image/gif");
+    CHECK_EQ(updated_header_images[1].entry_name, replacement_entry_name);
+    CHECK(header_template.extract_drawing_image(1U, extracted_path));
+    CHECK_EQ(read_binary_file(extracted_path), expected_replacement_data);
+
+    footer_template = reopened_again.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    const auto footer_images = footer_template.inline_images();
+    REQUIRE_EQ(footer_images.size(), 1U);
+    CHECK_EQ(footer_images[0].entry_name, "word/media/image3.png");
+    CHECK_EQ(footer_images[0].content_type, "image/png");
+
+    fs::remove(target);
+    fs::remove(source_image_path);
+    fs::remove(replacement_image_path);
+    fs::remove(extracted_path);
 }
 
 TEST_CASE("apply_bookmark_block_visibility keeps and removes body template blocks") {
@@ -4381,6 +5180,236 @@ TEST_CASE("table cells can set and clear explicit widths") {
     fs::remove(target);
 }
 
+TEST_CASE("table cells can replace text while preserving cell properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_cell_set_text.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto cell = doc.append_table(1, 1).rows().cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_fill_color("D9EAF7"));
+    CHECK(cell.set_margin_twips(featherdoc::cell_margin_edge::left, 120U));
+
+    auto paragraph = cell.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("before"));
+    auto extra_paragraph = paragraph.insert_paragraph_after("after");
+    REQUIRE(extra_paragraph.has_next());
+    CHECK_EQ(cell.get_text(), "before\nafter");
+
+    CHECK(cell.set_text("updated"));
+    CHECK_EQ(cell.get_text(), "updated");
+
+    REQUIRE(cell.fill_color().has_value());
+    CHECK_EQ(*cell.fill_color(), "D9EAF7");
+    REQUIRE(cell.margin_twips(featherdoc::cell_margin_edge::left).has_value());
+    CHECK_EQ(*cell.margin_twips(featherdoc::cell_margin_edge::left), 120U);
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto cell_node = xml_document.child("w:document")
+                               .child("w:body")
+                               .child("w:tbl")
+                               .child("w:tr")
+                               .child("w:tc");
+    REQUIRE(cell_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(cell_node, "w:p"), 1);
+    CHECK_EQ(std::string_view{
+                 cell_node.child("w:tcPr").child("w:shd").attribute("w:fill").value()},
+             "D9EAF7");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_cell = reopened.tables().rows().cells();
+    REQUIRE(reopened_cell.has_next());
+    CHECK_EQ(reopened_cell.get_text(), "updated");
+    REQUIRE(reopened_cell.fill_color().has_value());
+    CHECK_EQ(*reopened_cell.fill_color(), "D9EAF7");
+    REQUIRE(reopened_cell.margin_twips(featherdoc::cell_margin_edge::left).has_value());
+    CHECK_EQ(*reopened_cell.margin_twips(featherdoc::cell_margin_edge::left), 120U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("table rows can remove a middle row and keep the wrapper usable") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_row_remove.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(3, 1);
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+    CHECK(row.cells().set_text("row-1"));
+
+    row.next();
+    REQUIRE(row.has_next());
+    CHECK(row.cells().set_text("row-2"));
+    auto removed_row = row;
+
+    row.next();
+    REQUIRE(row.has_next());
+    CHECK(row.cells().set_text("row-3"));
+
+    CHECK(removed_row.remove());
+    CHECK(removed_row.has_next());
+    CHECK_EQ(removed_row.cells().get_text(), "row-3");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "row-1\nrow-3\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("tables can remove a middle table and keep the wrapper usable") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_remove.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto first_table = doc.append_table(1, 1);
+    REQUIRE(first_table.has_next());
+    CHECK(first_table.rows().cells().set_text("table-1"));
+
+    auto second_table = doc.append_table(1, 1);
+    REQUIRE(second_table.has_next());
+    CHECK(second_table.rows().cells().set_text("table-2"));
+    auto removed_table = second_table;
+
+    auto third_table = doc.append_table(1, 1);
+    REQUIRE(third_table.has_next());
+    CHECK(third_table.rows().cells().set_text("table-3"));
+
+    CHECK(removed_table.remove());
+    CHECK(removed_table.has_next());
+    CHECK_EQ(removed_table.rows().cells().get_text(), "table-3");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "table-1\ntable-3\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("table remove rejects removing the last block item in the document body") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_remove_last_block.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tr>
+        <w:tc>
+          <w:p>
+            <w:r><w:t>only table</w:t></w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto table = doc.tables();
+    REQUIRE(table.has_next());
+    CHECK_FALSE(table.remove());
+    CHECK(table.has_next());
+
+    fs::remove(target);
+}
+
+TEST_CASE("table row remove rejects removing the last table row") {
+    featherdoc::Document doc;
+    CHECK_FALSE(doc.create_empty());
+
+    auto row = doc.append_table(1, 1).rows();
+    REQUIRE(row.has_next());
+    CHECK_FALSE(row.remove());
+    CHECK(row.has_next());
+}
+
+TEST_CASE("table row remove promotes the next vertical-merge continuation row") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_row_remove_vertical_merge.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(3, 1);
+    auto first_row = table.rows();
+    REQUIRE(first_row.has_next());
+
+    auto merged_cell = first_row.cells();
+    REQUIRE(merged_cell.has_next());
+    CHECK(merged_cell.set_text("merged"));
+    CHECK(merged_cell.merge_down(2U));
+
+    CHECK(first_row.remove());
+    CHECK(first_row.has_next());
+    CHECK_EQ(first_row.cells().get_text(), "merged");
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(table_node, "w:tr"), 2);
+
+    const auto promoted_cell = table_node.child("w:tr").child("w:tc");
+    REQUIRE(promoted_cell != pugi::xml_node{});
+    CHECK_EQ(std::string_view{
+                 promoted_cell.child("w:tcPr").child("w:vMerge").attribute("w:val").value()},
+             "restart");
+    CHECK_EQ(std::string_view{
+                 promoted_cell.child("w:p").child("w:r").child("w:t").text().get()},
+             "merged");
+
+    const auto trailing_cell = table_node.child("w:tr").next_sibling("w:tr").child("w:tc");
+    REQUIRE(trailing_cell != pugi::xml_node{});
+    CHECK_EQ(std::string_view{
+                 trailing_cell.child("w:tcPr").child("w:vMerge").attribute("w:val").value()},
+             "continue");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "merged\n\n");
+
+    fs::remove(target);
+}
+
 TEST_CASE("table cells can merge right across following cells") {
     namespace fs = std::filesystem;
 
@@ -5601,6 +6630,297 @@ TEST_CASE("append_image writes inline media parts and preserves them across reop
 
     fs::remove(target);
     fs::remove(image_path);
+}
+
+TEST_CASE("inline_images lists existing body images and can extract them") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+
+    const fs::path target = fs::current_path() / "inline_images_roundtrip.docx";
+    const fs::path image_path = fs::current_path() / "inline_images_roundtrip.png";
+    const fs::path extracted_path = fs::current_path() / "inline_images_extracted.png";
+    fs::remove(target);
+    fs::remove(image_path);
+    fs::remove(extracted_path);
+
+    const std::string image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                 sizeof(tiny_png_bytes));
+    const std::vector<unsigned char> expected_image_data(image_data.begin(), image_data.end());
+    write_binary_file(image_path, image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+    CHECK(doc.append_image(image_path));
+    CHECK(doc.append_image(image_path, 20U, 10U));
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto images = reopened.inline_images();
+    REQUIRE_EQ(images.size(), 2U);
+
+    CHECK_EQ(images[0].index, 0U);
+    CHECK_EQ(images[0].entry_name, "word/media/image1.png");
+    CHECK_EQ(images[0].display_name, image_path.filename().string());
+    CHECK_EQ(images[0].content_type, "image/png");
+    CHECK_EQ(images[0].width_px, 1U);
+    CHECK_EQ(images[0].height_px, 1U);
+
+    CHECK_EQ(images[1].index, 1U);
+    CHECK_EQ(images[1].entry_name, "word/media/image2.png");
+    CHECK_EQ(images[1].display_name, image_path.filename().string());
+    CHECK_EQ(images[1].content_type, "image/png");
+    CHECK_EQ(images[1].width_px, 20U);
+    CHECK_EQ(images[1].height_px, 10U);
+
+    CHECK(reopened.extract_inline_image(1U, extracted_path));
+    CHECK_EQ(read_binary_file(extracted_path), expected_image_data);
+
+    CHECK_FALSE(reopened.extract_inline_image(2U, extracted_path));
+    CHECK_EQ(reopened.last_error().code,
+             std::make_error_code(std::errc::result_out_of_range));
+
+    fs::remove(target);
+    fs::remove(image_path);
+    fs::remove(extracted_path);
+}
+
+TEST_CASE("replace_inline_image updates only the selected body image and preserves layout") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+    constexpr unsigned char tiny_gif_bytes[] = {
+        0x47U, 0x49U, 0x46U, 0x38U, 0x39U, 0x61U, 0x01U, 0x00U, 0x01U, 0x00U, 0x80U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0xFFU, 0xFFU, 0xFFU, 0x21U, 0xF9U, 0x04U,
+        0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x2CU, 0x00U, 0x00U, 0x00U, 0x00U, 0x01U,
+        0x00U, 0x01U, 0x00U, 0x00U, 0x02U, 0x02U, 0x44U, 0x01U, 0x00U, 0x3BU,
+    };
+
+    const fs::path target = fs::current_path() / "replace_inline_image.docx";
+    const fs::path source_image_path = fs::current_path() / "replace_inline_image_source.png";
+    const fs::path replacement_image_path =
+        fs::current_path() / "replace_inline_image_replacement.gif";
+    const fs::path extracted_path =
+        fs::current_path() / "replace_inline_image_extracted.gif";
+    fs::remove(target);
+    fs::remove(source_image_path);
+    fs::remove(replacement_image_path);
+    fs::remove(extracted_path);
+
+    const std::string source_image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                        sizeof(tiny_png_bytes));
+    const std::string replacement_image_data(reinterpret_cast<const char *>(tiny_gif_bytes),
+                                             sizeof(tiny_gif_bytes));
+    const std::vector<unsigned char> expected_replacement_data(
+        replacement_image_data.begin(), replacement_image_data.end());
+    write_binary_file(source_image_path, source_image_data);
+    write_binary_file(replacement_image_path, replacement_image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+    CHECK(doc.append_image(source_image_path));
+    CHECK(doc.append_image(source_image_path, 20U, 10U));
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK(reopened.replace_inline_image(1U, replacement_image_path));
+
+    auto images = reopened.inline_images();
+    REQUIRE_EQ(images.size(), 2U);
+    CHECK_EQ(images[0].entry_name, "word/media/image1.png");
+    CHECK_EQ(images[0].content_type, "image/png");
+    CHECK_EQ(images[1].width_px, 20U);
+    CHECK_EQ(images[1].height_px, 10U);
+    CHECK_EQ(images[1].content_type, "image/gif");
+    CHECK(images[1].entry_name.ends_with(".gif"));
+    CHECK_NE(images[1].entry_name, "word/media/image2.png");
+
+    const auto replacement_entry_name = images[1].entry_name;
+    const auto replacement_target =
+        (fs::path{"media"} / fs::path{replacement_entry_name}.filename()).generic_string();
+
+    CHECK_FALSE(reopened.save());
+
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK_FALSE(test_docx_entry_exists(target, "word/media/image2.png"));
+    CHECK(test_docx_entry_exists(target, replacement_entry_name.c_str()));
+    CHECK_EQ(read_test_docx_entry(target, replacement_entry_name.c_str()),
+             replacement_image_data);
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(saved_relationships.find("Target=\"media/image1.png\""), std::string::npos);
+    CHECK_EQ(saved_relationships.find("Target=\"media/image2.png\""), std::string::npos);
+    CHECK_NE(saved_relationships.find("Target=\"" + replacement_target + "\""),
+             std::string::npos);
+
+    const auto saved_content_types = read_test_docx_entry(target, test_content_types_xml_entry);
+    CHECK_NE(saved_content_types.find("Extension=\"gif\""), std::string::npos);
+    CHECK_NE(saved_content_types.find("ContentType=\"image/gif\""), std::string::npos);
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+    images = reopened_again.inline_images();
+    REQUIRE_EQ(images.size(), 2U);
+    CHECK_EQ(images[1].content_type, "image/gif");
+    CHECK_EQ(images[1].width_px, 20U);
+    CHECK_EQ(images[1].height_px, 10U);
+    CHECK_EQ(images[1].entry_name, replacement_entry_name);
+    CHECK(reopened_again.extract_inline_image(1U, extracted_path));
+    CHECK_EQ(read_binary_file(extracted_path), expected_replacement_data);
+
+    fs::remove(target);
+    fs::remove(source_image_path);
+    fs::remove(replacement_image_path);
+    fs::remove(extracted_path);
+}
+
+TEST_CASE("drawing_images includes anchored body images and replace_drawing_image preserves them") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+    constexpr unsigned char tiny_gif_bytes[] = {
+        0x47U, 0x49U, 0x46U, 0x38U, 0x39U, 0x61U, 0x01U, 0x00U, 0x01U, 0x00U, 0x80U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0xFFU, 0xFFU, 0xFFU, 0x21U, 0xF9U, 0x04U,
+        0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x2CU, 0x00U, 0x00U, 0x00U, 0x00U, 0x01U,
+        0x00U, 0x01U, 0x00U, 0x00U, 0x02U, 0x02U, 0x44U, 0x01U, 0x00U, 0x3BU,
+    };
+
+    const fs::path target = fs::current_path() / "drawing_images_anchor.docx";
+    const fs::path source_image_path = fs::current_path() / "drawing_images_anchor_source.png";
+    const fs::path replacement_image_path =
+        fs::current_path() / "drawing_images_anchor_replacement.gif";
+    const fs::path extracted_path =
+        fs::current_path() / "drawing_images_anchor_extracted.gif";
+    fs::remove(target);
+    fs::remove(source_image_path);
+    fs::remove(replacement_image_path);
+    fs::remove(extracted_path);
+
+    const std::string source_image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                        sizeof(tiny_png_bytes));
+    const std::string replacement_image_data(reinterpret_cast<const char *>(tiny_gif_bytes),
+                                             sizeof(tiny_gif_bytes));
+    const std::vector<unsigned char> expected_replacement_data(
+        replacement_image_data.begin(), replacement_image_data.end());
+    write_binary_file(source_image_path, source_image_data);
+    write_binary_file(replacement_image_path, replacement_image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+    CHECK(doc.append_image(source_image_path));
+    CHECK(doc.append_image(source_image_path, 20U, 10U));
+    CHECK_FALSE(doc.save());
+
+    auto anchored_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    anchored_document_xml = convert_nth_inline_drawing_to_anchor(anchored_document_xml, 1U);
+    CHECK_EQ(count_substring_occurrences(anchored_document_xml, "<wp:anchor"), 1U);
+    rewrite_test_docx_entry(target, test_document_xml_entry, std::move(anchored_document_xml));
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto drawing_images = reopened.drawing_images();
+    REQUIRE_EQ(drawing_images.size(), 2U);
+    CHECK_EQ(drawing_images[0].placement,
+             featherdoc::drawing_image_placement::inline_object);
+    CHECK_EQ(drawing_images[1].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+    CHECK_EQ(drawing_images[0].content_type, "image/png");
+    CHECK_EQ(drawing_images[1].content_type, "image/png");
+    CHECK_EQ(drawing_images[1].width_px, 20U);
+    CHECK_EQ(drawing_images[1].height_px, 10U);
+
+    const auto inline_images = reopened.inline_images();
+    REQUIRE_EQ(inline_images.size(), 1U);
+    CHECK_EQ(inline_images[0].entry_name, "word/media/image1.png");
+
+    CHECK(reopened.extract_drawing_image(1U, extracted_path));
+    CHECK_EQ(read_binary_file(extracted_path),
+             std::vector<unsigned char>(source_image_data.begin(), source_image_data.end()));
+    CHECK_FALSE(reopened.extract_inline_image(1U, extracted_path));
+    CHECK_EQ(reopened.last_error().code,
+             std::make_error_code(std::errc::result_out_of_range));
+
+    CHECK(reopened.replace_drawing_image(1U, replacement_image_path));
+
+    auto updated_images = reopened.drawing_images();
+    REQUIRE_EQ(updated_images.size(), 2U);
+    CHECK_EQ(updated_images[1].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+    CHECK_EQ(updated_images[1].width_px, 20U);
+    CHECK_EQ(updated_images[1].height_px, 10U);
+    CHECK_EQ(updated_images[1].content_type, "image/gif");
+    CHECK(updated_images[1].entry_name.ends_with(".gif"));
+    const auto replacement_entry_name = updated_images[1].entry_name;
+    const auto replacement_target =
+        (fs::path{"media"} / fs::path{replacement_entry_name}.filename()).generic_string();
+
+    CHECK_FALSE(reopened.save());
+
+    CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK_FALSE(test_docx_entry_exists(target, "word/media/image2.png"));
+    CHECK(test_docx_entry_exists(target, replacement_entry_name.c_str()));
+    CHECK_EQ(read_test_docx_entry(target, replacement_entry_name.c_str()),
+             replacement_image_data);
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:inline"), 1U);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:anchor"), 1U);
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(saved_relationships.find("Target=\"media/image1.png\""), std::string::npos);
+    CHECK_EQ(saved_relationships.find("Target=\"media/image2.png\""), std::string::npos);
+    CHECK_NE(saved_relationships.find("Target=\"" + replacement_target + "\""),
+             std::string::npos);
+
+    const auto saved_content_types = read_test_docx_entry(target, test_content_types_xml_entry);
+    CHECK_NE(saved_content_types.find("Extension=\"gif\""), std::string::npos);
+    CHECK_NE(saved_content_types.find("ContentType=\"image/gif\""), std::string::npos);
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+    updated_images = reopened_again.drawing_images();
+    REQUIRE_EQ(updated_images.size(), 2U);
+    CHECK_EQ(updated_images[1].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+    CHECK_EQ(updated_images[1].content_type, "image/gif");
+    CHECK_EQ(updated_images[1].entry_name, replacement_entry_name);
+    CHECK(reopened_again.extract_drawing_image(1U, extracted_path));
+    CHECK_EQ(read_binary_file(extracted_path), expected_replacement_data);
+
+    fs::remove(target);
+    fs::remove(source_image_path);
+    fs::remove(replacement_image_path);
+    fs::remove(extracted_path);
 }
 
 TEST_CASE("append_image reports unsupported image extensions explicitly") {

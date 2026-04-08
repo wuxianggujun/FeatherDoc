@@ -973,6 +973,71 @@ void clear_cell_contents_for_vertical_merge(pugi::xml_node cell) {
     }
 }
 
+void replace_cell_body_contents(pugi::xml_node target_cell, pugi::xml_node source_cell) {
+    if (target_cell == pugi::xml_node{} || source_cell == pugi::xml_node{}) {
+        return;
+    }
+
+    const auto target_properties = target_cell.child("w:tcPr");
+    for (auto child = target_cell.first_child(); child != pugi::xml_node{};) {
+        const auto next_child = child.next_sibling();
+        if (child != target_properties) {
+            target_cell.remove_child(child);
+        }
+        child = next_child;
+    }
+
+    const auto source_properties = source_cell.child("w:tcPr");
+    for (auto child = source_cell.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (child != source_properties) {
+            target_cell.append_copy(child);
+        }
+    }
+
+    if (target_cell.child("w:p") == pugi::xml_node{}) {
+        target_cell.append_child("w:p");
+    }
+}
+
+auto successor_vertical_merge_promotions_for_row_removal(pugi::xml_node row)
+    -> std::vector<std::pair<pugi::xml_node, pugi::xml_node>> {
+    std::vector<std::pair<pugi::xml_node, pugi::xml_node>> promotions;
+    if (row == pugi::xml_node{}) {
+        return promotions;
+    }
+
+    const auto next_row = detail::next_named_sibling(row, "w:tr");
+    if (next_row == pugi::xml_node{}) {
+        return promotions;
+    }
+
+    for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
+         cell = detail::next_named_sibling(cell, "w:tc")) {
+        if (cell_vertical_merge_state_for(cell) != cell_vertical_merge_state::restart) {
+            continue;
+        }
+
+        const auto column_index = cell_column_index(cell);
+        if (!column_index.has_value()) {
+            promotions.clear();
+            return promotions;
+        }
+
+        const auto next_cell =
+            find_row_cell_at_columns(next_row, *column_index, cell_column_span(cell));
+        if (next_cell == pugi::xml_node{} ||
+            cell_vertical_merge_state_for(next_cell) !=
+                cell_vertical_merge_state::continue_merge) {
+            continue;
+        }
+
+        promotions.emplace_back(cell, next_cell);
+    }
+
+    return promotions;
+}
+
 auto to_xml_border_style(featherdoc::border_style style) -> const char * {
     switch (style) {
     case featherdoc::border_style::none:
@@ -1288,6 +1353,48 @@ void TableCell::set_current(pugi::xml_node node) {
 Paragraph &TableCell::paragraphs() {
     this->paragraph.set_parent(this->current);
     return this->paragraph;
+}
+
+std::string TableCell::get_text() const {
+    if (this->current == pugi::xml_node{}) {
+        return {};
+    }
+
+    std::string text;
+    bool first_paragraph = true;
+    for (auto paragraph = this->current.child("w:p"); paragraph != pugi::xml_node{};
+         paragraph = detail::next_named_sibling(paragraph, "w:p")) {
+        if (!first_paragraph) {
+            text.push_back('\n');
+        }
+        first_paragraph = false;
+
+        for (auto run = paragraph.child("w:r"); run != pugi::xml_node{};
+             run = detail::next_named_sibling(run, "w:r")) {
+            text += run.child("w:t").text().get();
+        }
+    }
+
+    return text;
+}
+
+bool TableCell::set_text(const std::string &text) const { return this->set_text(text.c_str()); }
+
+bool TableCell::set_text(const char *text) const {
+    if (this->current == pugi::xml_node{} || text == nullptr) {
+        return false;
+    }
+
+    auto cell_node = this->current;
+    for (auto child = cell_node.first_child(); child != pugi::xml_node{};) {
+        const auto next_child = child.next_sibling();
+        if (std::string_view{child.name()} != "w:tcPr") {
+            cell_node.remove_child(child);
+        }
+        child = next_child;
+    }
+
+    return detail::append_plain_text_paragraph(cell_node, text);
 }
 
 std::optional<std::uint32_t> TableCell::width_twips() const {
@@ -1870,6 +1977,37 @@ bool TableRow::clear_repeats_header() {
     return true;
 }
 
+bool TableRow::remove() {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    if (count_named_children(this->parent, "w:tr") <= 1U) {
+        return false;
+    }
+
+    const auto promotions = successor_vertical_merge_promotions_for_row_removal(this->current);
+    for (const auto &[source_cell, target_cell] : promotions) {
+        const auto target_merge = ensure_cell_vertical_merge_node(target_cell);
+        if (target_merge == pugi::xml_node{}) {
+            return false;
+        }
+
+        ensure_attribute_value(target_merge, "w:val", "restart");
+        replace_cell_body_contents(target_cell, source_cell);
+    }
+
+    const auto next_row = detail::next_named_sibling(this->current, "w:tr");
+    const auto previous_row = detail::previous_named_sibling(this->current, "w:tr");
+    if (!this->parent.remove_child(this->current)) {
+        return false;
+    }
+
+    this->current = next_row != pugi::xml_node{} ? next_row : previous_row;
+    this->cell.set_parent(this->current);
+    return true;
+}
+
 TableCell TableRow::append_cell() {
     if (this->current == pugi::xml_node{} && this->parent != pugi::xml_node{}) {
         this->current = this->parent.append_child("w:tr");
@@ -2258,6 +2396,28 @@ bool Table::clear_border(featherdoc::table_border_edge edge) {
     }
 
     remove_empty_container(table_properties, "w:tblBorders");
+    return true;
+}
+
+bool Table::remove() {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    if (detail::parent_requires_nonempty_block_content(this->parent) &&
+        detail::count_remaining_block_children(this->parent, this->current) == 0U) {
+        return false;
+    }
+
+    const auto next_table = detail::next_named_sibling(this->current, "w:tbl");
+    const auto previous_table = detail::previous_named_sibling(this->current, "w:tbl");
+    if (!this->parent.remove_child(this->current)) {
+        return false;
+    }
+
+    this->current =
+        next_table != pugi::xml_node{} ? next_table : previous_table;
+    this->row.set_parent(this->current);
     return true;
 }
 

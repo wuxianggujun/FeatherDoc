@@ -52,19 +52,35 @@
 
 每次正式发布前，至少应确认：
 
-1. 当前版本号已经同步到 ``CMakeLists.txt``。
-2. README 与文档首页没有明显过时信息。
-3. 许可、NOTICE、LEGAL、赞助入口仍与当前仓库状态一致。
-4. MSVC 构建与测试通过。
-5. 公开 API 变更已经反映到样例、测试和文档中。
+1. 对外变化已经整理到根目录 ``CHANGELOG.md``。
+2. 当前版本号已经同步到 ``CMakeLists.txt``。
+3. README 与文档首页没有明显过时信息。
+4. 许可、NOTICE、LEGAL、赞助入口仍与当前仓库状态一致。
+5. MSVC 构建、测试、样例运行通过。
+6. ``cmake --install`` 之后，外部最小工程可以 ``find_package(FeatherDoc CONFIG REQUIRED)`` 并成功链接运行。
+7. 本地 Word visual smoke 已执行，确认当前发布候选在真实 Word 渲染下没有明显回归。
+8. 公开 API 变更已经反映到样例、测试和文档中。
+9. 完成以上检查后再打 tag / 创建 release。
 
 当前推荐的最低验证命令：
 
 .. code-block:: bat
 
-    cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON
+    cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON -DBUILD_CLI=ON
     cmake --build build-msvc-nmake
     ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_install_find_package_smoke.ps1 `
+        -BuildDir build-msvc-nmake `
+        -InstallDir build-msvc-install `
+        -ConsumerBuildDir build-msvc-install-consumer `
+        -Generator "NMake Makefiles" `
+        -Config Release
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 `
+        -BuildDir .\build-msvc-nmake
 
 
 依赖升级策略
@@ -102,6 +118,18 @@ CHANGELOG 维护建议
 2. 破坏性变更有显式标注。
 3. 依赖升级有记录。
 4. 重要的构建、安装导出、许可或项目元数据变化有记录。
+
+
+发布执行顺序建议
+----------------
+
+为了避免“小改动频繁立刻发版”，建议把正式发布动作固定为下面顺序：
+
+1. 先整理 ``CHANGELOG.md``，确认这次是否真的值得发版。
+2. 再核对 ``CMakeLists.txt`` 里的版本号与发布说明是否一致。
+3. 完成 MSVC 构建、测试、样例、安装后外部消费 smoke。
+4. 跑一次本地 Word visual smoke。
+5. 最后再打 tag，并基于 ``CHANGELOG.md`` 生成 release 说明。
 
 
 建议的发布定位

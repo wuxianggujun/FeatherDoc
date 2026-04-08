@@ -1,5 +1,7 @@
 # FeatherDoc
 
+[![Windows MSVC CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml/badge.svg?branch=master)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml)
+
 FeatherDoc is a modernized C++ library for reading and writing Microsoft Word
 `.docx` files.
 
@@ -29,7 +31,7 @@ Open an `x64` Visual Studio Developer Command Prompt first, or initialize the
 environment with `VsDevCmd.bat -arch=x64 -host_arch=x64`, then run:
 
 ```bat
-cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON -DBUILD_CLI=ON
+cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON -DBUILD_CLI=ON
 cmake --build build-msvc-nmake
 ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
 ```
@@ -170,6 +172,20 @@ The installed package now also carries repository-facing metadata and legal
 files under `share/FeatherDoc`, including `CHANGELOG.md`, `README.md`,
 `LICENSE`, `LICENSE.upstream-mit`, `NOTICE`, and `LEGAL.md`.
 
+To validate the installed package from a clean external CMake consumer, run:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\scripts\run_install_find_package_smoke.ps1 `
+    -BuildDir build-msvc-nmake `
+    -InstallDir build-msvc-install `
+    -ConsumerBuildDir build-msvc-install-consumer `
+    -Generator "NMake Makefiles" `
+    -Config Release
+```
+
+This is the same `install + find_package` smoke path that the Windows CI now
+uses after the main build, tests, and sample runs.
+
 ## Use From CMake
 
 ```cmake
@@ -241,6 +257,34 @@ is split into multiple runs, concatenate `run.get_text()` values inside a
 paragraph before printing. Text inside tables is traversed through
 `doc.tables() -> rows() -> cells() -> paragraphs()`.
 
+Use `Paragraph::set_text(...)` when you want to replace one paragraph's body
+content in place while preserving paragraph-level properties such as style or
+bidirectional settings. Use `Run::remove()` to drop one run from a paragraph,
+and `Paragraph::remove()` when you want to delete one paragraph without leaving
+an invalid container behind. `Paragraph::remove()` intentionally refuses to
+remove section-break paragraphs or the last required paragraph inside a body,
+header, footer, or table cell container.
+
+```cpp
+auto paragraph = doc.paragraphs();
+paragraph.set_text("Replaced paragraph text");
+
+auto removable_run = paragraph.add_run(" temporary");
+removable_run.remove();
+
+auto removable_paragraph = paragraph.insert_paragraph_after("Delete me");
+removable_paragraph.remove();
+```
+
+For a runnable "edit an existing document and save it back" example, build
+`featherdoc_sample_edit_existing` from `samples/sample_edit_existing.cpp`.
+FeatherDoc already supports opening an existing `.docx`, mutating paragraphs,
+runs, table cells, inline body images, headers, footers, and bookmark-backed
+template regions, and saving the result back to disk.
+For a focused "reopen and replace existing header/footer images" example,
+build `featherdoc_sample_edit_existing_part_images` from
+`samples/sample_edit_existing_part_images.cpp`.
+
 Use `append_table(row_count, column_count)` when you need to create a new body
 table programmatically. The returned `Table` can be extended with
 `append_row()`, and each `TableRow` can be widened with `append_cell()`.
@@ -250,21 +294,22 @@ auto table = doc.append_table(2, 2);
 
 auto first_row = table.rows();
 auto first_cell = first_row.cells();
-first_cell.paragraphs().add_run("r0c0");
+first_cell.set_text("r0c0");
 first_cell.next();
-first_cell.paragraphs().add_run("r0c1");
+first_cell.set_text("r0c1");
 
 auto extra_row = table.append_row();
 auto extra_cell = extra_row.cells();
-extra_cell.paragraphs().add_run("tail");
-extra_row.append_cell().paragraphs().add_run("tail-2");
+extra_cell.set_text("tail");
+extra_row.append_cell().set_text("tail-2");
 ```
 
 Use `Table::set_width_twips(...)`, `set_style_id(...)`, `set_border(...)`,
 `set_layout_mode(...)`, `set_alignment(...)`, `set_indent_twips(...)`, and
 `set_cell_margin_twips(...)`
-alongside `TableCell::set_width_twips(...)`,
-`merge_right(...)`, `merge_down(...)`, `set_vertical_alignment(...)`,
+alongside `TableCell::set_text(...)`, `get_text()`, `set_width_twips(...)`,
+`Table::remove()`, `TableRow::remove()`, `merge_right(...)`, `merge_down(...)`,
+`set_vertical_alignment(...)`,
 `set_border(...)`,
 `set_fill_color(...)`, and `set_margin_twips(...)` when you need lightweight
 table layout editing without dropping down to raw WordprocessingML.
@@ -274,8 +319,13 @@ auto-fit mode, `alignment()` / `indent_twips()` report table placement,
 `cell_margin_twips()` reports per-edge default cell margins,
 `height_twips()` / `height_rule()` report the current row height override,
 `cant_split()` reports whether Word keeps the row on one page,
-`repeats_header()` reports whether a row repeats as a table header, and
-`column_span()` reports the current horizontal span.
+`repeats_header()` reports whether a row repeats as a table header,
+`Table::remove()` deletes one table while refusing to leave the parent
+container without the required block content, `TableRow::remove()` deletes one
+row while refusing to remove the last remaining row, and
+`column_span()` reports the current horizontal span. `TableCell::set_text(...)`
+replaces one cell's body with a single paragraph while preserving cell-level
+properties such as shading, margins, borders, and explicit width.
 
 ```cpp
 auto table = doc.append_table(1, 3);
@@ -323,6 +373,51 @@ and `.bmp` for now.
 doc.append_image("logo.png");
 doc.append_image("badge.png", 96, 48);
 ```
+
+Use `inline_images()` to inspect inline images that already exist in the main
+document body. Each returned `inline_image_info` includes the image index,
+relationship id, media entry path, display name, content type, and rendered
+pixel size derived from `wp:extent`.
+
+Use `drawing_images()` when you need the full picture list from an existing
+document part, including both `wp:inline` and `wp:anchor` drawings. Each
+returned `drawing_image_info` includes the same metadata plus a
+`drawing_image_placement` value so you can distinguish inline and anchored
+objects.
+
+Use `extract_drawing_image(index, path)` to copy any existing drawing-backed
+image out of the `.docx`, and `replace_drawing_image(index, path)` to swap one
+inline or anchored image with a new file while preserving the current rendered
+size and placement XML.
+
+```cpp
+const auto drawings = doc.drawing_images();
+for (const auto& image : drawings) {
+    if (image.placement == featherdoc::drawing_image_placement::anchored_object) {
+        doc.replace_drawing_image(image.index, "floating-replacement.png");
+    }
+}
+```
+
+Use `extract_inline_image(index, path)` to copy one existing inline body image
+out of the `.docx`, and `replace_inline_image(index, path)` to swap one body
+image with a new file while preserving the current displayed size. Replacement
+retargets only the selected relationship. If the old media part becomes
+unreferenced afterwards, FeatherDoc removes it from the next saved archive.
+
+```cpp
+const auto images = doc.inline_images();
+if (!images.empty()) {
+    doc.extract_inline_image(images[0].index, "first-image.bin");
+    doc.replace_inline_image(images[0].index, "replacement.png");
+}
+```
+
+The same `drawing_images()`, `extract_drawing_image(...)`,
+`replace_drawing_image(...)`, `inline_images()`, `extract_inline_image(...)`,
+and `replace_inline_image(...)` APIs are also available on `TemplatePart`
+handles when you need existing body/header/footer drawings from already loaded
+parts.
 
 Use `set_paragraph_list(paragraph, kind, level)` to attach managed bullet or
 decimal numbering to a paragraph. Call `clear_paragraph_list(paragraph)` when
@@ -493,6 +588,9 @@ supports `entry_name()`, `replace_bookmark_text(...)`, `fill_bookmarks(...)`,
 `replace_bookmark_with_paragraphs(...)`,
 `replace_bookmark_with_table_rows(...)`, and
 `replace_bookmark_with_table(...)`, `replace_bookmark_with_image(...)`,
+`drawing_images()`, `extract_drawing_image(...)`,
+`replace_drawing_image(...)`, `inline_images()`,
+`extract_inline_image(...)`, `replace_inline_image(...)`,
 `set_bookmark_block_visibility(...)`, and
 `apply_bookmark_block_visibility(...)`.
 Missing section-specific references return an empty handle instead of creating
@@ -811,10 +909,15 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   through `set_bookmark_block_visibility(...)` and
   `apply_bookmark_block_visibility(...)`, but there is still no high-level API
   for structured template schema validation.
-- Images can now be appended as inline body drawings, and bookmark-based image
-  replacement now also works across body, header, and footer template parts,
-  but there is still no high-level API for reading existing images,
-  floating/anchored placement, wrapping, or cropping.
+- Images can now be appended as inline body drawings, enumerated through
+  `inline_images()` or the broader `drawing_images()`, extracted through
+  `extract_inline_image(...)` / `extract_drawing_image(...)`, and replaced
+  through `replace_inline_image(...)` / `replace_drawing_image(...)`.
+  Bookmark-based image replacement and existing image
+  enumeration/extraction/replacement also work across body, header, and footer
+  `TemplatePart` handles, including already-anchored drawings. There is still
+  no high-level API to create floating placement or to control wrapping and
+  cropping.
 
 ## Source Layout
 
@@ -822,7 +925,7 @@ The core implementation is now split into focused translation units instead of
 living in a single large `.cpp` file:
 
 - `src/document.cpp`: `Document` open/save flow, archive handling, and error reporting
-- `src/document_image.cpp`: inline body image insertion, media part allocation, and drawing relationship updates
+- `src/document_image.cpp`: inline body image insertion, enumeration, extraction, replacement, media part allocation, and drawing relationship updates
 - `src/document_numbering.cpp`: managed paragraph list numbering, numbering part attachment, and numbering definition generation
 - `src/document_styles.cpp`: paragraph/run style references and `word/styles.xml` attachment/persistence
 - `src/document_template.cpp`: bookmark-based template filling and batch replacement APIs
