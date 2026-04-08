@@ -8,6 +8,14 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added `remove_drawing_image(...)` and `remove_inline_image(...)` across
+  `Document` and `TemplatePart` so existing inline or anchored images can be
+  deleted while automatically pruning orphaned media parts on the next save.
+- Added `samples/sample_remove_images.cpp` as a runnable workflow that creates,
+  removes, and re-saves existing drawing-backed images for manual review.
+
 ## [1.4.0] - 2026-04-08
 
 ### Added

@@ -2350,6 +2350,189 @@ TEST_CASE("template part drawing_images includes anchored header images") {
     fs::remove(extracted_path);
 }
 
+TEST_CASE("template part remove_drawing_image and remove_inline_image prune header media") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+
+    const fs::path target = fs::current_path() / "template_part_remove_images.docx";
+    const fs::path image_path = fs::current_path() / "template_part_remove_images_source.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>body</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+      <w:footerReference w:type="default" r:id="rId3"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:bookmarkStart w:id="0" w:name="header_logo_one"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="0"/>
+  </w:p>
+  <w:p>
+    <w:bookmarkStart w:id="1" w:name="header_logo_two"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="1"/>
+  </w:p>
+</w:hdr>
+)";
+
+    const std::string footer_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:bookmarkStart w:id="2" w:name="footer_logo"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="2"/>
+  </w:p>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header_xml},
+            {"word/footer1.xml", footer_xml},
+        });
+
+    const std::string image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                 sizeof(tiny_png_bytes));
+    write_binary_file(image_path, image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_one", image_path,
+                                                         20U, 10U),
+             1);
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_two", image_path,
+                                                         30U, 15U),
+             1);
+
+    auto footer_template = doc.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    CHECK_EQ(footer_template.replace_bookmark_with_image("footer_logo", image_path, 40U, 20U),
+             1);
+    CHECK_FALSE(doc.save());
+
+    auto anchored_header_xml = read_test_docx_entry(target, "word/header1.xml");
+    anchored_header_xml = convert_nth_inline_drawing_to_anchor(anchored_header_xml, 1U);
+    CHECK_EQ(count_substring_occurrences(anchored_header_xml, "<wp:anchor"), 1U);
+    rewrite_test_docx_entry(target, "word/header1.xml", std::move(anchored_header_xml));
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    header_template = reopened.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+
+    auto header_drawing_images = header_template.drawing_images();
+    REQUIRE_EQ(header_drawing_images.size(), 2U);
+    CHECK_EQ(header_drawing_images[1].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+
+    CHECK(header_template.remove_drawing_image(1U));
+    header_drawing_images = header_template.drawing_images();
+    REQUIRE_EQ(header_drawing_images.size(), 1U);
+    CHECK_EQ(header_drawing_images[0].placement,
+             featherdoc::drawing_image_placement::inline_object);
+    CHECK_EQ(header_template.inline_images().size(), 1U);
+
+    CHECK(header_template.remove_inline_image(0U));
+    CHECK(header_template.drawing_images().empty());
+    CHECK(header_template.inline_images().empty());
+    CHECK_FALSE(header_template.remove_drawing_image(0U));
+    CHECK_EQ(reopened.last_error().code,
+             std::make_error_code(std::errc::result_out_of_range));
+
+    footer_template = reopened.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    const auto footer_images = footer_template.inline_images();
+    REQUIRE_EQ(footer_images.size(), 1U);
+    CHECK_EQ(footer_images[0].entry_name, "word/media/image3.png");
+
+    CHECK_FALSE(reopened.save());
+
+    const auto saved_header_xml = read_test_docx_entry(target, "word/header1.xml");
+    CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:inline"), 0U);
+    CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:anchor"), 0U);
+    const auto saved_header_relationships =
+        read_test_docx_entry(target, "word/_rels/header1.xml.rels");
+    CHECK_EQ(saved_header_relationships.find("relationships/image"), std::string::npos);
+
+    CHECK_FALSE(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK_FALSE(test_docx_entry_exists(target, "word/media/image2.png"));
+    CHECK(test_docx_entry_exists(target, "word/media/image3.png"));
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+    header_template = reopened_again.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK(header_template.drawing_images().empty());
+    CHECK(header_template.inline_images().empty());
+
+    footer_template = reopened_again.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    CHECK_EQ(footer_template.inline_images().size(), 1U);
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
 TEST_CASE("template part replace_bookmark_with_floating_image writes anchored header drawings") {
     namespace fs = std::filesystem;
 
@@ -7220,6 +7403,85 @@ TEST_CASE("drawing_images includes anchored body images and replace_drawing_imag
     fs::remove(source_image_path);
     fs::remove(replacement_image_path);
     fs::remove(extracted_path);
+}
+
+TEST_CASE("remove_drawing_image and remove_inline_image prune body media parts") {
+    namespace fs = std::filesystem;
+
+    constexpr unsigned char tiny_png_bytes[] = {
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
+        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
+        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
+        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
+        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
+        0x82U,
+    };
+
+    const fs::path target = fs::current_path() / "drawing_images_remove.docx";
+    const fs::path image_path = fs::current_path() / "drawing_images_remove_source.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    const std::string image_data(reinterpret_cast<const char *>(tiny_png_bytes),
+                                 sizeof(tiny_png_bytes));
+    write_binary_file(image_path, image_data);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+    CHECK(doc.append_image(image_path));
+    CHECK(doc.append_image(image_path, 20U, 10U));
+    CHECK_FALSE(doc.save());
+
+    auto anchored_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    anchored_document_xml = convert_nth_inline_drawing_to_anchor(anchored_document_xml, 1U);
+    CHECK_EQ(count_substring_occurrences(anchored_document_xml, "<wp:anchor"), 1U);
+    rewrite_test_docx_entry(target, test_document_xml_entry, std::move(anchored_document_xml));
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto drawing_images = reopened.drawing_images();
+    REQUIRE_EQ(drawing_images.size(), 2U);
+    CHECK_EQ(drawing_images[0].placement,
+             featherdoc::drawing_image_placement::inline_object);
+    CHECK_EQ(drawing_images[1].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+
+    CHECK(reopened.remove_drawing_image(1U));
+    drawing_images = reopened.drawing_images();
+    REQUIRE_EQ(drawing_images.size(), 1U);
+    CHECK_EQ(drawing_images[0].placement,
+             featherdoc::drawing_image_placement::inline_object);
+    CHECK_EQ(reopened.inline_images().size(), 1U);
+
+    CHECK(reopened.remove_inline_image(0U));
+    CHECK(reopened.drawing_images().empty());
+    CHECK(reopened.inline_images().empty());
+    CHECK_FALSE(reopened.remove_inline_image(0U));
+    CHECK_EQ(reopened.last_error().code,
+             std::make_error_code(std::errc::result_out_of_range));
+
+    CHECK_FALSE(reopened.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:inline"), 0U);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:anchor"), 0U);
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_EQ(saved_relationships.find("relationships/image"), std::string::npos);
+
+    CHECK_FALSE(test_docx_entry_exists(target, "word/media/image1.png"));
+    CHECK_FALSE(test_docx_entry_exists(target, "word/media/image2.png"));
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+    CHECK(reopened_again.drawing_images().empty());
+    CHECK(reopened_again.inline_images().empty());
+
+    fs::remove(target);
+    fs::remove(image_path);
 }
 
 TEST_CASE("append_image reports unsupported image extensions explicitly") {

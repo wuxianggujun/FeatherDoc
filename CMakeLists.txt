@@ -143,6 +143,12 @@ if(BUILD_SAMPLES)
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_floating_images)
 
+    add_executable(featherdoc_sample_remove_images
+        samples/sample_remove_images.cpp)
+    target_link_libraries(featherdoc_sample_remove_images
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_remove_images)
+
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/my_test.docx
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/chinese_invoice_template.docx

@@ -298,7 +298,9 @@ or anchored.
 ``extract_drawing_image(index, path)`` copies any existing drawing-backed
 image out of the ``.docx``. ``replace_drawing_image(index, path)`` swaps one
 inline or anchored image with a new file while preserving the current rendered
-size and placement XML.
+size and placement XML. ``remove_drawing_image(index)`` deletes one inline or
+anchored drawing and drops its media part on the next save once no
+relationship still references it.
 
 .. code-block:: cpp
 
@@ -306,13 +308,14 @@ size and placement XML.
     for (const auto &image : drawings) {
         if (image.placement ==
             featherdoc::drawing_image_placement::anchored_object) {
-            doc.replace_drawing_image(image.index, "floating-replacement.png");
+            doc.remove_drawing_image(image.index);
         }
     }
 
 ``extract_inline_image(index, path)`` copies one existing inline body image out
 of the ``.docx``. ``replace_inline_image(index, path)`` swaps one body image
-with a new file while preserving the current displayed size. Replacement only
+with a new file while preserving the current displayed size.
+``remove_inline_image(index)`` deletes only inline images. Replacement only
 retargets the selected relationship. If the old media part becomes
 unreferenced afterwards, FeatherDoc drops it from the next saved archive.
 
@@ -321,18 +324,21 @@ unreferenced afterwards, FeatherDoc drops it from the next saved archive.
     const auto images = doc.inline_images();
     if (!images.empty()) {
         doc.extract_inline_image(images[0].index, "first-image.bin");
-        doc.replace_inline_image(images[0].index, "replacement.png");
+        doc.remove_inline_image(images[0].index);
     }
 
 The same ``drawing_images()``, ``extract_drawing_image(...)``,
-``replace_drawing_image(...)``, ``inline_images()``,
-``extract_inline_image(...)``, and ``replace_inline_image(...)`` APIs are also
+``remove_drawing_image(...)``, ``replace_drawing_image(...)``,
+``inline_images()``, ``extract_inline_image(...)``,
+``remove_inline_image(...)``, and ``replace_inline_image(...)`` APIs are also
 available on ``TemplatePart`` handles when you need existing body/header/footer
 drawings from already loaded parts.
 
-For a runnable visual sample that mixes inline and floating body drawings,
-build ``featherdoc_sample_floating_images`` from
-``samples/sample_floating_images.cpp``.
+For runnable visual samples, build ``featherdoc_sample_floating_images`` from
+``samples/sample_floating_images.cpp`` when you want mixed inline/floating
+body drawings, or ``featherdoc_sample_remove_images`` from
+``samples/sample_remove_images.cpp`` when you want a minimal existing-image
+removal workflow.
 
 ``set_paragraph_list(paragraph, kind, level)`` attaches managed bullet or
 decimal numbering to a paragraph. Use ``clear_paragraph_list(paragraph)`` when
@@ -534,8 +540,9 @@ an already loaded body/header/footer part. A valid handle exposes
 ``replace_bookmark_with_table(...)``, ``replace_bookmark_with_image(...)``,
 ``replace_bookmark_with_floating_image(...)``,
 ``drawing_images()``, ``extract_drawing_image(...)``,
-``replace_drawing_image(...)``, ``inline_images()``,
-``extract_inline_image(...)``, ``replace_inline_image(...)``,
+``remove_drawing_image(...)``, ``replace_drawing_image(...)``,
+``inline_images()``, ``extract_inline_image(...)``,
+``remove_inline_image(...)``, ``replace_inline_image(...)``,
 ``set_bookmark_block_visibility(...)``, and
 ``apply_bookmark_block_visibility(...)``. Missing section-specific references
 return an empty handle instead of creating a new part implicitly.
@@ -859,8 +866,9 @@ Current Limitations
   API for structured template schema validation.
 - Images can now be appended as inline body drawings, enumerated through
   ``inline_images()`` or the broader ``drawing_images()``, extracted through
-  ``extract_inline_image(...)`` / ``extract_drawing_image(...)``, and replaced
-  through ``replace_inline_image(...)`` / ``replace_drawing_image(...)``.
+  ``extract_inline_image(...)`` / ``extract_drawing_image(...)``, removed
+  through ``remove_inline_image(...)`` / ``remove_drawing_image(...)``, and
+  replaced through ``replace_inline_image(...)`` / ``replace_drawing_image(...)``.
   Floating body image creation is now supported through
   ``append_floating_image(...)``, and bookmark-based floating image
   replacement is available through

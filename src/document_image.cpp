@@ -218,11 +218,13 @@ struct drawing_image_reference_state final {
     std::string display_name;
     std::uint32_t width_px{};
     std::uint32_t height_px{};
+    pugi::xml_node drawing_container;
+    pugi::xml_node drawing_object;
 };
 
 void collect_drawing_image_reference(
-    pugi::xml_node drawing_node, featherdoc::drawing_image_placement placement,
-    pugi::xml_node relationships_root,
+    pugi::xml_node drawing_container, pugi::xml_node drawing_node,
+    featherdoc::drawing_image_placement placement, pugi::xml_node relationships_root,
     std::vector<drawing_image_reference_state> &references) {
     if (drawing_node == pugi::xml_node{} || relationships_root == pugi::xml_node{}) {
         return;
@@ -281,7 +283,8 @@ void collect_drawing_image_reference(
     references.push_back(
         {references.size(), placement, std::string{relationship_id}, target_entry,
          std::move(display_name), width_emu.has_value() ? emu_to_pixels(*width_emu) : 0U,
-         height_emu.has_value() ? emu_to_pixels(*height_emu) : 0U});
+         height_emu.has_value() ? emu_to_pixels(*height_emu) : 0U, drawing_container,
+         drawing_node});
 }
 
 void collect_drawing_image_references(pugi::xml_node node, pugi::xml_node relationships_root,
@@ -290,11 +293,11 @@ void collect_drawing_image_references(pugi::xml_node node, pugi::xml_node relati
          child = child.next_sibling()) {
         if (std::string_view{child.name()} == "w:drawing") {
             collect_drawing_image_reference(
-                child.child("wp:inline"),
+                child, child.child("wp:inline"),
                 featherdoc::drawing_image_placement::inline_object, relationships_root,
                 references);
             collect_drawing_image_reference(
-                child.child("wp:anchor"),
+                child, child.child("wp:anchor"),
                 featherdoc::drawing_image_placement::anchored_object, relationships_root,
                 references);
         }
@@ -334,6 +337,59 @@ auto drawing_index_for_inline_image(
     }
 
     return std::nullopt;
+}
+
+auto find_image_relationship_node(pugi::xml_node relationships_root,
+                                  std::string_view relationship_id) -> pugi::xml_node {
+    for (auto relationship = relationships_root.child("Relationship");
+         relationship != pugi::xml_node{};
+         relationship = relationship.next_sibling("Relationship")) {
+        if (std::string_view{relationship.attribute("Id").value()} == relationship_id &&
+            std::string_view{relationship.attribute("Type").value()} ==
+                image_relationship_type) {
+            return relationship;
+        }
+    }
+
+    return {};
+}
+
+void collect_relationship_image_targets(const pugi::xml_document &source_relationships,
+                                       std::unordered_set<std::string> &used_part_entries) {
+    const auto source_root = source_relationships.child("Relationships");
+    for (auto relationship = source_root.child("Relationship");
+         relationship != pugi::xml_node{};
+         relationship = relationship.next_sibling("Relationship")) {
+        if (std::string_view{relationship.attribute("Type").value()} !=
+            image_relationship_type) {
+            continue;
+        }
+
+        const auto target = std::string_view{relationship.attribute("Target").value()};
+        if (!target.empty()) {
+            used_part_entries.insert(normalize_word_part_entry(target));
+        }
+    }
+}
+
+auto relationships_reference_image_entry(const pugi::xml_document &source_relationships,
+                                         std::string_view entry_name) -> bool {
+    const auto source_root = source_relationships.child("Relationships");
+    for (auto relationship = source_root.child("Relationship");
+         relationship != pugi::xml_node{};
+         relationship = relationship.next_sibling("Relationship")) {
+        if (std::string_view{relationship.attribute("Type").value()} !=
+            image_relationship_type) {
+            continue;
+        }
+
+        if (normalize_word_part_entry(relationship.attribute("Target").value()) ==
+            entry_name) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 auto signed_pixels_to_emu(std::int32_t pixels) -> std::int64_t {
@@ -699,18 +755,8 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
         return false;
     }
 
-    auto relationship_node = pugi::xml_node{};
-    for (auto relationship = relationships.child("Relationship");
-         relationship != pugi::xml_node{};
-         relationship = relationship.next_sibling("Relationship")) {
-        if (std::string_view{relationship.attribute("Id").value()} ==
-                images[image_index].relationship_id &&
-            std::string_view{relationship.attribute("Type").value()} ==
-                image_relationship_type) {
-            relationship_node = relationship;
-            break;
-        }
-    }
+    auto relationship_node =
+        find_image_relationship_node(relationships, images[image_index].relationship_id);
 
     if (relationship_node == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
@@ -730,31 +776,12 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
     }
 
     std::unordered_set<std::string> used_part_entries;
-    const auto collect_relationship_image_targets =
-        [&](const pugi::xml_document &source_relationships) {
-            const auto source_root = source_relationships.child("Relationships");
-            for (auto relationship = source_root.child("Relationship");
-                 relationship != pugi::xml_node{};
-                 relationship = relationship.next_sibling("Relationship")) {
-                if (std::string_view{relationship.attribute("Type").value()} !=
-                    image_relationship_type) {
-                    continue;
-                }
-
-                const auto target =
-                    std::string_view{relationship.attribute("Target").value()};
-                if (!target.empty()) {
-                    used_part_entries.insert(normalize_word_part_entry(target));
-                }
-            }
-        };
-
-    collect_relationship_image_targets(this->document_relationships);
+    collect_relationship_image_targets(this->document_relationships, used_part_entries);
     for (const auto &part : this->header_parts) {
-        collect_relationship_image_targets(part->relationships);
+        collect_relationship_image_targets(part->relationships, used_part_entries);
     }
     for (const auto &part : this->footer_parts) {
-        collect_relationship_image_targets(part->relationships);
+        collect_relationship_image_targets(part->relationships, used_part_entries);
     }
     for (const auto &part : this->image_parts) {
         used_part_entries.insert(part.entry_name);
@@ -806,37 +833,20 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
     this->content_types_dirty = true;
 
     const auto has_image_relationship_reference =
-        [&](std::string_view entry_name) {
-            const auto matches_relationships =
-                [&](const pugi::xml_document &source_relationships) {
-                    const auto source_root = source_relationships.child("Relationships");
-                    for (auto relationship = source_root.child("Relationship");
-                         relationship != pugi::xml_node{};
-                         relationship = relationship.next_sibling("Relationship")) {
-                        if (std::string_view{relationship.attribute("Type").value()} !=
-                            image_relationship_type) {
-                            continue;
-                        }
-
-                        if (normalize_word_part_entry(
-                                relationship.attribute("Target").value()) == entry_name) {
-                            return true;
-                        }
-                    }
-
-                    return false;
-                };
-
-            if (matches_relationships(this->document_relationships)) {
+        [&](std::string_view target_entry_name) {
+            if (relationships_reference_image_entry(this->document_relationships,
+                                                    target_entry_name)) {
                 return true;
             }
             for (const auto &part : this->header_parts) {
-                if (matches_relationships(part->relationships)) {
+                if (relationships_reference_image_entry(part->relationships,
+                                                        target_entry_name)) {
                     return true;
                 }
             }
             for (const auto &part : this->footer_parts) {
-                if (matches_relationships(part->relationships)) {
+                if (relationships_reference_image_entry(part->relationships,
+                                                        target_entry_name)) {
                     return true;
                 }
             }
@@ -862,10 +872,140 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
     return true;
 }
 
+bool Document::remove_drawing_image_in_part(std::string_view entry_name,
+                                            std::size_t image_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before removing drawing images");
+        return false;
+    }
+
+    pugi::xml_node root;
+    pugi::xml_document *relationships_document = nullptr;
+    bool *relationships_dirty = nullptr;
+    if (entry_name == document_xml_entry) {
+        root = this->document.child("w:document").child("w:body");
+        relationships_document = &this->document_relationships;
+        relationships_dirty = &this->document_relationships_dirty;
+    } else if (auto *part = this->find_related_part_state(entry_name); part != nullptr) {
+        root = part->xml.document_element();
+        relationships_document = &part->relationships;
+        relationships_dirty = &part->relationships_dirty;
+    } else {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template part is not attached to this document",
+                       std::string{entry_name});
+        return false;
+    }
+
+    if (root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       std::string{entry_name} +
+                           " does not contain a valid drawing image root",
+                       std::string{entry_name});
+        return false;
+    }
+
+    auto relationships_root =
+        relationships_document != nullptr ? relationships_document->child("Relationships")
+                                          : pugi::xml_node{};
+    std::vector<drawing_image_reference_state> references;
+    collect_drawing_image_references(root, relationships_root, references);
+    if (image_index >= references.size()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::result_out_of_range),
+                       "drawing image index is out of range",
+                       std::to_string(image_index));
+        return false;
+    }
+
+    const auto &reference = references[image_index];
+    if (reference.drawing_container == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "the requested drawing image could not be resolved to an XML node",
+                       std::to_string(image_index));
+        return false;
+    }
+
+    const auto has_shared_relationship =
+        std::any_of(references.begin(), references.end(),
+                    [&](const drawing_image_reference_state &candidate) {
+                        return candidate.index != reference.index &&
+                               candidate.relationship_id == reference.relationship_id;
+                    });
+
+    auto drawing_parent = reference.drawing_container.parent();
+    if (drawing_parent == pugi::xml_node{} ||
+        !drawing_parent.remove_child(reference.drawing_container)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::io_error),
+                       "failed to remove the requested drawing image from its parent node",
+                       std::string{entry_name});
+        return false;
+    }
+
+    if (!has_shared_relationship) {
+        const auto relationship_node =
+            find_image_relationship_node(relationships_root, reference.relationship_id);
+        if (relationship_node != pugi::xml_node{}) {
+            relationships_root.remove_child(relationship_node);
+            if (relationships_dirty != nullptr) {
+                *relationships_dirty = true;
+            }
+        }
+    }
+
+    const auto has_image_relationship_reference =
+        [&](std::string_view target_entry_name) {
+            if (relationships_reference_image_entry(this->document_relationships,
+                                                    target_entry_name)) {
+                return true;
+            }
+            for (const auto &part : this->header_parts) {
+                if (relationships_reference_image_entry(part->relationships,
+                                                        target_entry_name)) {
+                    return true;
+                }
+            }
+            for (const auto &part : this->footer_parts) {
+                if (relationships_reference_image_entry(part->relationships,
+                                                        target_entry_name)) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+    if (!has_image_relationship_reference(reference.entry_name)) {
+        this->image_parts.erase(
+            std::remove_if(this->image_parts.begin(), this->image_parts.end(),
+                           [&](const image_part_state &part) {
+                               return part.entry_name == reference.entry_name;
+                           }),
+            this->image_parts.end());
+        if (this->has_source_archive) {
+            this->removed_archive_entries.insert(reference.entry_name);
+        }
+    } else {
+        this->removed_archive_entries.erase(reference.entry_name);
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::replace_drawing_image(std::size_t image_index,
                                      const std::filesystem::path &image_path) {
     return this->replace_drawing_image_in_part(document_xml_entry, image_index,
                                                image_path);
+}
+
+bool Document::remove_drawing_image(std::size_t image_index) {
+    return this->remove_drawing_image_in_part(document_xml_entry, image_index);
 }
 
 bool Document::replace_inline_image_in_part(std::string_view entry_name,
@@ -888,10 +1028,33 @@ bool Document::replace_inline_image_in_part(std::string_view entry_name,
     return this->replace_drawing_image_in_part(entry_name, *drawing_index, image_path);
 }
 
+bool Document::remove_inline_image_in_part(std::string_view entry_name,
+                                           std::size_t image_index) {
+    const auto images = this->drawing_images_in_part(entry_name);
+    if (this->last_error_info) {
+        return false;
+    }
+
+    const auto drawing_index = drawing_index_for_inline_image(images, image_index);
+    if (!drawing_index.has_value()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::result_out_of_range),
+                       "inline image index is out of range",
+                       std::to_string(image_index));
+        return false;
+    }
+
+    return this->remove_drawing_image_in_part(entry_name, *drawing_index);
+}
+
 bool Document::replace_inline_image(std::size_t image_index,
                                     const std::filesystem::path &image_path) {
     return this->replace_inline_image_in_part(document_xml_entry, image_index,
                                               image_path);
+}
+
+bool Document::remove_inline_image(std::size_t image_index) {
+    return this->remove_inline_image_in_part(document_xml_entry, image_index);
 }
 
 std::vector<drawing_image_info> TemplatePart::drawing_images() const {
@@ -922,6 +1085,21 @@ bool TemplatePart::extract_drawing_image(
 
     return this->owner->extract_drawing_image_from_part(this->entry_name_storage,
                                                         image_index, output_path);
+}
+
+bool TemplatePart::remove_drawing_image(std::size_t image_index) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr ||
+        this->owner == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "template part is not available", this->entry_name_storage);
+        }
+        return false;
+    }
+
+    return this->owner->remove_drawing_image_in_part(this->entry_name_storage,
+                                                     image_index);
 }
 
 bool TemplatePart::replace_drawing_image(std::size_t image_index,
@@ -968,6 +1146,21 @@ bool TemplatePart::extract_inline_image(
 
     return this->owner->extract_inline_image_from_part(this->entry_name_storage,
                                                        image_index, output_path);
+}
+
+bool TemplatePart::remove_inline_image(std::size_t image_index) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr ||
+        this->owner == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "template part is not available", this->entry_name_storage);
+        }
+        return false;
+    }
+
+    return this->owner->remove_inline_image_in_part(this->entry_name_storage,
+                                                    image_index);
 }
 
 bool TemplatePart::replace_inline_image(std::size_t image_index,
