@@ -168,6 +168,10 @@ bookmark-backed template regions, and saving the result back to disk.
 For a focused "reopen and replace existing header/footer images" example,
 build ``featherdoc_sample_edit_existing_part_images`` from
 ``samples/sample_edit_existing_part_images.cpp``.
+For a focused "reopen and append body/header/footer paragraphs through
+TemplatePart handles" example, build
+``featherdoc_sample_edit_existing_part_paragraphs`` from
+``samples/sample_edit_existing_part_paragraphs.cpp``.
 For a focused "reopen and append new images to existing body/header/footer
 parts" example, build ``featherdoc_sample_edit_existing_part_append_images``
 from ``samples/sample_edit_existing_part_append_images.cpp``.
@@ -610,7 +614,8 @@ floating placement uses the same ``floating_image_options`` struct as
 ``section_footer_template(section_index, kind)`` return a lightweight
 ``TemplatePart`` handle for running the same bookmark-based template APIs on
 an already loaded body/header/footer part. A valid handle exposes
-``entry_name()``, ``paragraphs()``, ``tables()``, ``append_table(...)``,
+``entry_name()``, ``paragraphs()``, ``append_paragraph(...)``, ``tables()``,
+``append_table(...)``,
 ``replace_bookmark_text(...)``, ``fill_bookmarks(...)``,
 ``replace_bookmark_with_paragraphs(...)``, ``remove_bookmark_block(...)``,
 ``replace_bookmark_with_table_rows(...)``, and
@@ -628,6 +633,8 @@ return an empty handle instead of creating a new part implicitly.
 
     auto header_template = doc.section_header_template(0);
     if (header_template) {
+        auto note = header_template.append_paragraph("Header note");
+        note.add_run(" added after opening the template part.");
         auto summary_table = header_template.append_table(2, 2);
         summary_table.rows().cells().set_text("Header cell");
         header_template.replace_bookmark_with_image("header_logo", "logo.png");
@@ -652,6 +659,11 @@ return an empty handle instead of creating a new part implicitly.
                 "Second line",
             });
     }
+
+``append_paragraph(...)`` appends a new paragraph to the existing
+body/header/footer part and returns the appended ``Paragraph``, so you can
+continue editing it immediately through ``add_run(...)``, ``set_text(...)``,
+or the paragraph-level bidi helpers.
 
 For a runnable existing-part table example, build
 ``featherdoc_sample_edit_existing_part_tables`` from

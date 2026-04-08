@@ -1035,6 +1035,49 @@ Paragraph TemplatePart::paragraphs() {
     return {container, container.child("w:p")};
 }
 
+Paragraph TemplatePart::append_paragraph(const std::string &text,
+                                         featherdoc::formatting_flag formatting) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    const auto container = template_part_block_container(*this->xml_document);
+    if (container == pugi::xml_node{}) {
+        set_last_error(*this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template part does not contain a supported block container",
+                       this->entry_name_storage);
+        return {};
+    }
+
+    const auto paragraph_node = detail::append_paragraph_node(container);
+    if (paragraph_node == pugi::xml_node{}) {
+        set_last_error(*this->last_error_info,
+                       std::make_error_code(std::errc::io_error),
+                       "failed to append paragraph to template part",
+                       this->entry_name_storage);
+        return {};
+    }
+
+    auto paragraph = Paragraph(container, paragraph_node);
+    if (!text.empty() && !paragraph.add_run(text, formatting).has_next()) {
+        set_last_error(*this->last_error_info,
+                       std::make_error_code(std::errc::io_error),
+                       "failed to append paragraph text to template part",
+                       this->entry_name_storage);
+        return {};
+    }
+
+    this->last_error_info->clear();
+    return paragraph;
+}
+
 Table TemplatePart::tables() {
     if (this->xml_document == nullptr || this->last_error_info == nullptr) {
         if (this->last_error_info != nullptr) {

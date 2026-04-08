@@ -137,6 +137,12 @@ if(BUILD_SAMPLES)
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_part_tables)
 
+    add_executable(featherdoc_sample_edit_existing_part_paragraphs
+        samples/sample_edit_existing_part_paragraphs.cpp)
+    target_link_libraries(featherdoc_sample_edit_existing_part_paragraphs
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_part_paragraphs)
+
     add_executable(featherdoc_sample_edit_existing_part_images
         samples/sample_edit_existing_part_images.cpp)
     target_link_libraries(featherdoc_sample_edit_existing_part_images

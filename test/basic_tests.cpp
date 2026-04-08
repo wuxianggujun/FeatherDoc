@@ -1620,6 +1620,128 @@ TEST_CASE("body template part can append and edit tables") {
     fs::remove(target);
 }
 
+TEST_CASE("body template part can append paragraphs before section properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "body_template_append_paragraph.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto &header = doc.ensure_section_header_paragraphs(0);
+    REQUIRE(header.has_next());
+    CHECK(header.set_text("header"));
+
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+
+    auto paragraph = body_template.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("body intro"));
+
+    auto appended = body_template.append_paragraph("body appended");
+    REQUIRE(appended.has_next());
+    CHECK(appended.add_run(" tail").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_body = reopened.body_template();
+    REQUIRE(static_cast<bool>(reopened_body));
+    CHECK_EQ(collect_template_part_text(reopened_body), "body intro\nbody appended tail\n");
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto body_node = xml_document.child("w:document").child("w:body");
+    REQUIRE(body_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(body_node, "w:p"), 2U);
+    CHECK_EQ(std::string_view{body_node.last_child().name()}, "w:sectPr");
+
+    fs::remove(target);
+}
+
+TEST_CASE("header template part can append paragraphs and keep the returned paragraph editable") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "header_template_append_paragraph.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto &header = doc.ensure_section_header_paragraphs(0);
+    REQUIRE(header.has_next());
+    CHECK(header.set_text("Header intro"));
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+
+    auto appended = header_template.append_paragraph("Header appended");
+    REQUIRE(appended.has_next());
+    CHECK(appended.add_run(" tail").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    header_template = reopened.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(collect_template_part_text(header_template), "Header intro\nHeader appended tail\n");
+
+    const auto header_xml = read_test_docx_entry(target, "word/header1.xml");
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(header_xml.c_str()));
+    const auto header_node = xml_document.child("w:hdr");
+    REQUIRE(header_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(header_node, "w:p"), 2U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("footer template part can append an empty paragraph and populate it later") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "footer_template_append_paragraph.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto &footer = doc.ensure_section_footer_paragraphs(0);
+    REQUIRE(footer.has_next());
+    CHECK(footer.set_text("Footer intro"));
+
+    auto footer_template = doc.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+
+    auto appended = footer_template.append_paragraph();
+    REQUIRE(appended.has_next());
+    CHECK(appended.add_run("Footer appended").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    footer_template = reopened.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    CHECK_EQ(collect_template_part_text(footer_template), "Footer intro\nFooter appended\n");
+
+    const auto footer_xml = read_test_docx_entry(target, "word/footer1.xml");
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(footer_xml.c_str()));
+    const auto footer_node = xml_document.child("w:ftr");
+    REQUIRE(footer_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(footer_node, "w:p"), 2U);
+
+    fs::remove(target);
+}
+
 TEST_CASE("header template part tables can remove a middle table and keep the wrapper usable") {
     namespace fs = std::filesystem;
 

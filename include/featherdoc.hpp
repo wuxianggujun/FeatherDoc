@@ -368,6 +368,9 @@ class TemplatePart {
     explicit operator bool() const noexcept;
     [[nodiscard]] std::string_view entry_name() const noexcept;
     Paragraph paragraphs();
+    Paragraph append_paragraph(
+        const std::string &text = {},
+        featherdoc::formatting_flag formatting = featherdoc::formatting_flag::none);
     Table tables();
     Table append_table(std::size_t row_count = 1U, std::size_t column_count = 1U);
     [[nodiscard]] bool append_image(const std::filesystem::path &image_path);

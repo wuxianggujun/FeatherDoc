@@ -18,6 +18,10 @@ performance.
   `TemplatePart::append_floating_image(...)` so existing body, header, and
   footer parts can append new inline or anchored images without dropping back
   to the owning `Document`.
+- Added `TemplatePart::append_paragraph(...)` so existing body, header, and
+  footer parts can append a new paragraph directly and continue editing the
+  returned `Paragraph` handle without dropping back to paragraph cursor
+  bookkeeping.
 - Added `TableRow::insert_row_before()` for cloning the current row structure
   into a new empty row directly above it, while conservatively refusing rows
   that participate in vertical merge chains.
@@ -49,6 +53,9 @@ performance.
 - Added `samples/sample_edit_existing_part_append_images.cpp` as a runnable
   workflow that seeds body/header/footer content, reopens the saved `.docx`,
   and appends new inline or floating images through `TemplatePart` handles.
+- Added `samples/sample_edit_existing_part_paragraphs.cpp` as a runnable
+  workflow that seeds body/header/footer content, reopens the saved `.docx`,
+  and appends new paragraphs through `TemplatePart` handles.
 - Added `samples/sample_insert_table_row_before.cpp` as a runnable workflow
   that reopens a saved `.docx`, inserts a formatted row above an existing row,
   and saves the edited result back out.
@@ -84,6 +91,10 @@ performance.
   `featherdoc_sample_edit_existing_part_append_images`, including a final
   manual review of the generated PDF/PNG evidence after correcting header
   floating-image placement.
+- Revalidated template-part paragraph append flows with MSVC build + `ctest`
+  and a Word visual smoke pass for
+  `featherdoc_sample_edit_existing_part_paragraphs` before the next release
+  cut.
 
 ## [1.4.0] - 2026-04-08
 
