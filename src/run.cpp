@@ -178,6 +178,83 @@ void remove_empty_run_language_node(pugi::xml_node run_properties) {
     }
 }
 
+auto insert_run_node(pugi::xml_node parent, pugi::xml_node insert_before) -> pugi::xml_node {
+    if (parent == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (insert_before != pugi::xml_node{}) {
+        if (insert_before.parent() != parent) {
+            return {};
+        }
+        return parent.insert_child_before("w:r", insert_before);
+    }
+
+    return parent.append_child("w:r");
+}
+
+auto insert_formatted_run(pugi::xml_node parent, pugi::xml_node insert_before,
+                          const char *text, featherdoc::formatting_flag formatting)
+    -> pugi::xml_node {
+    if (text == nullptr) {
+        return {};
+    }
+
+    auto run = insert_run_node(parent, insert_before);
+    if (run == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto run_properties = run.append_child("w:rPr");
+    if (run_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::bold)) {
+        run_properties.append_child("w:b");
+    }
+
+    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::italic)) {
+        run_properties.append_child("w:i");
+    }
+
+    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::underline)) {
+        run_properties.append_child("w:u").append_attribute("w:val").set_value("single");
+    }
+
+    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::strikethrough)) {
+        run_properties.append_child("w:strike").append_attribute("w:val").set_value("true");
+    }
+
+    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::superscript)) {
+        run_properties.append_child("w:vertAlign").append_attribute("w:val").set_value(
+            "superscript");
+    } else if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::subscript)) {
+        run_properties.append_child("w:vertAlign").append_attribute("w:val").set_value(
+            "subscript");
+    }
+
+    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::smallcaps)) {
+        run_properties.append_child("w:smallCaps").append_attribute("w:val").set_value("true");
+    }
+
+    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::shadow)) {
+        run_properties.append_child("w:shadow").append_attribute("w:val").set_value("true");
+    }
+
+    auto text_node = run.append_child("w:t");
+    if (text_node == pugi::xml_node{}) {
+        return {};
+    }
+
+    detail::update_xml_space_attribute(text_node, text);
+    if (!text_node.text().set(text)) {
+        return {};
+    }
+
+    return run;
+}
+
 } // namespace
 
 Run::Run() = default;
@@ -438,6 +515,21 @@ bool Run::remove() {
 
     this->current = next_run != pugi::xml_node{} ? next_run : previous_run;
     return true;
+}
+
+Run Run::insert_run_before(const std::string &text, featherdoc::formatting_flag formatting) {
+    const auto inserted_run = insert_formatted_run(this->parent, this->current, text.c_str(),
+                                                   formatting);
+    return Run(this->parent, inserted_run);
+}
+
+Run Run::insert_run_after(const std::string &text, featherdoc::formatting_flag formatting) {
+    const auto next_run = this->current == pugi::xml_node{}
+                              ? pugi::xml_node{}
+                              : detail::next_named_sibling(this->current, "w:r");
+    const auto inserted_run = insert_formatted_run(this->parent, next_run, text.c_str(),
+                                                   formatting);
+    return Run(this->parent, inserted_run);
 }
 
 Run &Run::next() {

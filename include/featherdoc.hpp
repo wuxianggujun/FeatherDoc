@@ -65,6 +65,12 @@ class Run {
     [[nodiscard]] bool clear_language() const;
     [[nodiscard]] bool clear_rtl() const;
     [[nodiscard]] bool remove();
+    Run insert_run_before(const std::string &,
+                          featherdoc::formatting_flag =
+                              featherdoc::formatting_flag::none);
+    Run insert_run_after(const std::string &,
+                         featherdoc::formatting_flag =
+                             featherdoc::formatting_flag::none);
 
     Run &next();
     [[nodiscard]] bool has_next() const;

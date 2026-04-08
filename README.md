@@ -261,18 +261,24 @@ Use `Paragraph::set_text(...)` when you want to replace one paragraph's body
 content in place while preserving paragraph-level properties such as style or
 bidirectional settings. Use `Paragraph::insert_paragraph_before(...)` or
 `insert_paragraph_after(...)` when you need to add a sibling paragraph around
-an existing anchor paragraph, `Run::remove()` to drop one run from a paragraph,
-and `Paragraph::remove()` when you want to delete one paragraph without leaving
-an invalid container behind. `Paragraph::remove()` intentionally refuses to
-remove section-break paragraphs or the last required paragraph inside a body,
-header, footer, or table cell container.
+an existing anchor paragraph, `Run::insert_run_before(...)` /
+`insert_run_after(...)` when you need to add sibling runs around an existing
+anchor run, `Run::remove()` to drop one run from a paragraph, and
+`Paragraph::remove()` when you want to delete one paragraph without leaving an
+invalid container behind. `Paragraph::remove()` intentionally refuses to remove
+section-break paragraphs or the last required paragraph inside a body, header,
+footer, or table cell container.
 
 ```cpp
 auto paragraph = doc.paragraphs();
-paragraph.set_text("Replaced paragraph text");
+paragraph.set_text("anchor");
 
 auto prepended = paragraph.insert_paragraph_before("Lead-in");
 prepended.add_run(" note");
+
+auto anchor = paragraph.runs();
+anchor.insert_run_before("left ", featherdoc::formatting_flag::bold);
+anchor.insert_run_after(" right");
 
 auto removable_run = paragraph.add_run(" temporary");
 removable_run.remove();
@@ -296,6 +302,9 @@ TemplatePart handles" example, build
 For a focused "reopen and insert body/header/footer paragraphs before existing
 anchor paragraphs" example, build `featherdoc_sample_insert_paragraph_before`
 from `samples/sample_insert_paragraph_before.cpp`.
+For a focused "reopen and insert runs around existing body/header/footer anchor
+runs" example, build `featherdoc_sample_insert_run_around_existing` from
+`samples/sample_insert_run_around_existing.cpp`.
 For a focused "reopen and append new images to existing body/header/footer
 parts" example, build `featherdoc_sample_edit_existing_part_append_images`
 from `samples/sample_edit_existing_part_append_images.cpp`.
@@ -1086,7 +1095,7 @@ living in a single large `.cpp` file:
 - `src/document_template.cpp`: bookmark-based template filling and batch replacement APIs
 - `src/paragraph.cpp`: paragraph traversal, run creation, and paragraph insertion
 - `src/image_helpers.cpp` / `src/image_helpers.hpp`: image binary loading plus file format and size detection helpers
-- `src/run.cpp`: run traversal and text read/write behavior
+- `src/run.cpp`: run traversal, text/property edits, and run insertion/removal
 - `src/table.cpp`: table creation plus row/cell traversal and editing helpers
 - `src/xml_helpers.cpp` / `src/xml_helpers.hpp`: internal XML helper utilities shared by the modules
 - `src/constants.cpp`: exported constants and error-category plumbing

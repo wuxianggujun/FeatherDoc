@@ -1012,6 +1012,104 @@ TEST_CASE("run remove deletes the targeted run from a paragraph") {
     fs::remove(target);
 }
 
+TEST_CASE("run insertions keep the anchor usable and preserve run order") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "run_insert_around_anchor.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("anchor"));
+
+    auto anchor = paragraph.runs();
+    REQUIRE(anchor.has_next());
+
+    auto inserted_before =
+        anchor.insert_run_before("left ", featherdoc::formatting_flag::bold);
+    REQUIRE(inserted_before.has_next());
+    auto inserted_after = anchor.insert_run_after(" right");
+    REQUIRE(inserted_after.has_next());
+
+    CHECK(anchor.has_next());
+    CHECK_EQ(anchor.get_text(), "anchor");
+    CHECK_EQ(inserted_before.get_text(), "left ");
+    CHECK_EQ(inserted_after.get_text(), " right");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "left anchor right\n");
+
+    auto reopened_runs = reopened.paragraphs().runs();
+    REQUIRE(reopened_runs.has_next());
+    CHECK_EQ(reopened_runs.get_text(), "left ");
+    reopened_runs.next();
+    REQUIRE(reopened_runs.has_next());
+    CHECK_EQ(reopened_runs.get_text(), "anchor");
+    reopened_runs.next();
+    REQUIRE(reopened_runs.has_next());
+    CHECK_EQ(reopened_runs.get_text(), " right");
+
+    fs::remove(target);
+}
+
+TEST_CASE("insert_run_before saves cleanly from an empty paragraph run cursor") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "insert_run_before_empty_cursor.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto runs = doc.paragraphs().runs();
+    CHECK_FALSE(runs.has_next());
+
+    auto inserted = runs.insert_run_before("created from empty run cursor");
+    REQUIRE(inserted.has_next());
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "created from empty run cursor\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("insert_run_after appends cleanly from an exhausted run cursor") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "insert_run_after_exhausted_cursor.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("seed"));
+
+    auto runs = paragraph.runs();
+    while (runs.has_next()) {
+        runs.next();
+    }
+
+    auto inserted = runs.insert_run_after(" tail");
+    REQUIRE(inserted.has_next());
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "seed tail\n");
+
+    fs::remove(target);
+}
+
 TEST_CASE("paragraph remove deletes a middle body paragraph and keeps the wrapper usable") {
     namespace fs = std::filesystem;
 

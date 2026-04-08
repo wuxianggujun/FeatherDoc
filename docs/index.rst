@@ -146,18 +146,24 @@ printing. Text stored inside tables is accessed through
 while preserving paragraph-level properties such as style or bidi settings.
 ``Paragraph::insert_paragraph_before(...)`` and
 ``insert_paragraph_after(...)`` add a sibling paragraph around the current
-anchor paragraph, ``Run::remove()`` drops one run from a paragraph, and
-``Paragraph::remove()`` deletes a paragraph only when doing so would not leave
-an invalid body, header, footer, or table-cell container behind. The
-paragraph removal helper also refuses to remove section-break paragraphs.
+anchor paragraph, ``Run::insert_run_before(...)`` and
+``insert_run_after(...)`` add sibling runs around the current anchor run,
+``Run::remove()`` drops one run from a paragraph, and ``Paragraph::remove()``
+deletes a paragraph only when doing so would not leave an invalid body,
+header, footer, or table-cell container behind. The paragraph removal helper
+also refuses to remove section-break paragraphs.
 
 .. code-block:: cpp
 
     auto paragraph = doc.paragraphs();
-    paragraph.set_text("Replaced paragraph text");
+    paragraph.set_text("anchor");
 
     auto prepended = paragraph.insert_paragraph_before("Lead-in");
     prepended.add_run(" note");
+
+    auto anchor = paragraph.runs();
+    anchor.insert_run_before("left ", featherdoc::formatting_flag::bold);
+    anchor.insert_run_after(" right");
 
     auto removable_run = paragraph.add_run(" temporary");
     removable_run.remove();
@@ -180,6 +186,9 @@ TemplatePart handles" example, build
 For a focused "reopen and insert body/header/footer paragraphs before existing
 anchor paragraphs" example, build ``featherdoc_sample_insert_paragraph_before``
 from ``samples/sample_insert_paragraph_before.cpp``.
+For a focused "reopen and insert runs around existing body/header/footer anchor
+runs" example, build ``featherdoc_sample_insert_run_around_existing`` from
+``samples/sample_insert_run_around_existing.cpp``.
 For a focused "reopen and append new images to existing body/header/footer
 parts" example, build ``featherdoc_sample_edit_existing_part_append_images``
 from ``samples/sample_edit_existing_part_append_images.cpp``.
@@ -1001,7 +1010,7 @@ staying in one large translation unit:
 - ``src/document_template.cpp``: bookmark-based template filling and batch replacement APIs
 - ``src/paragraph.cpp``: paragraph traversal, run creation, and paragraph insertion
 - ``src/image_helpers.cpp`` / ``src/image_helpers.hpp``: image binary loading plus file format and size detection helpers
-- ``src/run.cpp``: run traversal and text read/write behavior
+- ``src/run.cpp``: run traversal, text/property edits, and run insertion/removal
 - ``src/table.cpp``: table creation plus row/cell traversal and editing helpers
 - ``src/xml_helpers.cpp`` / ``src/xml_helpers.hpp``: shared internal XML helper utilities
 - ``src/constants.cpp``: exported constants and error-category plumbing
