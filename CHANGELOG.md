@@ -24,9 +24,16 @@ performance.
 - Added `TableRow::insert_row_after()` for cloning the current row structure
   into a new empty row directly below it, while conservatively refusing rows
   that participate in vertical merge chains.
+- Added `Table::insert_table_before()` and `Table::insert_table_after()` for
+  inserting new sibling tables directly around an existing body/header/footer
+  table while retargeting the wrapper to the inserted table.
 - Added `samples/sample_remove_table.cpp` as a runnable workflow that reopens
   a saved `.docx`, removes a temporary middle table, and continues editing the
   following table through the same wrapper.
+- Added `samples/sample_insert_table_around_existing.cpp` as a runnable
+  workflow that reopens a saved `.docx`, inserts new tables directly before and
+  after an existing anchor table, and continues editing the surrounding tables
+  through the returned wrappers.
 - Added `samples/sample_edit_existing_part_tables.cpp` as a runnable workflow
   that creates header tables, reopens the saved `.docx`, removes a temporary
   middle header table, and continues editing the following table through the
@@ -58,6 +65,7 @@ performance.
 - Revalidated the table-removal and row-insertion editing flows with MSVC
   build + `ctest` and Word visual smoke passes for
   `featherdoc_sample_remove_table`,
+  `featherdoc_sample_insert_table_around_existing`,
   `featherdoc_sample_edit_existing_part_tables`, and
   `featherdoc_sample_insert_table_row_before` before the next release cut.
 - Revalidated template-part image append flows with MSVC build + `ctest` and a

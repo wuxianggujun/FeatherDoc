@@ -25,6 +25,8 @@ void remove_empty_run_properties(pugi::xml_node run);
                                                std::string_view text);
 [[nodiscard]] bool append_plain_text_paragraph(pugi::xml_node parent,
                                                std::string_view text);
+[[nodiscard]] pugi::xml_node insert_table_node(pugi::xml_node parent,
+                                               pugi::xml_node insert_before);
 [[nodiscard]] pugi::xml_node append_table_node(pugi::xml_node parent);
 [[nodiscard]] std::size_t count_remaining_block_children(pugi::xml_node parent,
                                                          pugi::xml_node skipped_child);

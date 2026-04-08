@@ -2496,6 +2496,43 @@ bool Table::remove() {
     return true;
 }
 
+Table Table::insert_table_before(std::size_t row_count, std::size_t column_count) {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return {};
+    }
+
+    const auto table_node = detail::insert_table_node(this->parent, this->current);
+    auto created_table = Table(this->parent, table_node);
+    created_table.set_owner(this->owner);
+
+    for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
+        created_table.append_row(column_count);
+    }
+
+    this->current = table_node;
+    this->row.set_parent(this->current);
+    return created_table;
+}
+
+Table Table::insert_table_after(std::size_t row_count, std::size_t column_count) {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return {};
+    }
+
+    const auto next_table = detail::next_named_sibling(this->current, "w:tbl");
+    const auto table_node = detail::insert_table_node(this->parent, next_table);
+    auto created_table = Table(this->parent, table_node);
+    created_table.set_owner(this->owner);
+
+    for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
+        created_table.append_row(column_count);
+    }
+
+    this->current = table_node;
+    this->row.set_parent(this->current);
+    return created_table;
+}
+
 TableRow Table::append_row(std::size_t cell_count) {
     if (this->current == pugi::xml_node{} && this->parent != pugi::xml_node{}) {
         this->current = detail::append_table_node(this->parent);

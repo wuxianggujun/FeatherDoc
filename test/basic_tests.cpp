@@ -6552,6 +6552,94 @@ TEST_CASE("tables can remove a middle table and keep the wrapper usable") {
     fs::remove(target);
 }
 
+TEST_CASE("tables can insert a new table before the selected body table and keep the wrapper usable") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_insert_before.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("body paragraph"));
+
+    auto first_table = doc.append_table(1, 1);
+    REQUIRE(first_table.has_next());
+    CHECK(first_table.rows().cells().set_text("table-1"));
+
+    auto last_table = doc.append_table(1, 1);
+    REQUIRE(last_table.has_next());
+    CHECK(last_table.rows().cells().set_text("table-3"));
+
+    auto inserted_table = last_table.insert_table_before(1, 1);
+    REQUIRE(inserted_table.has_next());
+    CHECK(last_table.has_next());
+    CHECK(last_table.rows().cells().set_text("table-2"));
+    CHECK_EQ(inserted_table.rows().cells().get_text(), "table-2");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "body paragraph\n");
+    CHECK_EQ(collect_table_text(reopened), "table-1\ntable-2\ntable-3\n");
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto body_node = xml_document.child("w:document").child("w:body");
+    REQUIRE(body_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(body_node, "w:tbl"), 3U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("tables can insert a new table after the last body table before section properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_insert_after_last.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("body paragraph"));
+
+    auto &header = doc.ensure_section_header_paragraphs(0);
+    REQUIRE(header.has_next());
+    CHECK(header.set_text("header"));
+
+    auto last_table = doc.append_table(1, 1);
+    REQUIRE(last_table.has_next());
+    CHECK(last_table.rows().cells().set_text("table-1"));
+
+    auto inserted_table = last_table.insert_table_after(1, 1);
+    REQUIRE(inserted_table.has_next());
+    CHECK(last_table.has_next());
+    CHECK(last_table.rows().cells().set_text("table-2"));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "body paragraph\n");
+    CHECK_EQ(collect_table_text(reopened), "table-1\ntable-2\n");
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto body_node = xml_document.child("w:document").child("w:body");
+    REQUIRE(body_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(body_node, "w:tbl"), 2U);
+    CHECK_EQ(std::string_view{body_node.last_child().name()}, "w:sectPr");
+
+    fs::remove(target);
+}
+
 TEST_CASE("table remove rejects removing the last block item in the document body") {
     namespace fs = std::filesystem;
 
@@ -6664,6 +6752,69 @@ TEST_CASE("tables can remove the last table and keep the wrapper usable") {
     const auto body_node = xml_document.child("w:document").child("w:body");
     REQUIRE(body_node != pugi::xml_node{});
     CHECK_EQ(count_named_children(body_node, "w:tbl"), 1U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("header template part tables can insert a new table after the selected header table") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "header_template_table_insert_after.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto body_paragraph = doc.paragraphs();
+    REQUIRE(body_paragraph.has_next());
+    CHECK(body_paragraph.set_text("body paragraph"));
+
+    auto &header_paragraph = doc.ensure_section_header_paragraphs(0);
+    REQUIRE(header_paragraph.has_next());
+    CHECK(header_paragraph.set_text("Header intro"));
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+
+    auto first_table = header_template.append_table(1, 1);
+    REQUIRE(first_table.has_next());
+    CHECK(first_table.rows().cells().set_text("header-1"));
+
+    auto last_table = header_template.append_table(1, 1);
+    REQUIRE(last_table.has_next());
+    CHECK(last_table.rows().cells().set_text("header-3"));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    header_template = reopened.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    auto selected_table = header_template.tables();
+    REQUIRE(selected_table.has_next());
+
+    auto inserted_table = selected_table.insert_table_after(1, 1);
+    REQUIRE(inserted_table.has_next());
+    CHECK(selected_table.has_next());
+    CHECK(selected_table.rows().cells().set_text("header-2"));
+
+    CHECK_FALSE(reopened.save());
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+    header_template = reopened_again.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(collect_template_part_text(header_template), "Header intro\n");
+    CHECK_EQ(collect_template_part_table_text(header_template),
+             "header-1\nheader-2\nheader-3\n");
+
+    const auto header_xml = read_test_docx_entry(target, "word/header1.xml");
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(header_xml.c_str()));
+    const auto header_node = xml_document.child("w:hdr");
+    REQUIRE(header_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(header_node, "w:tbl"), 3U);
 
     fs::remove(target);
 }

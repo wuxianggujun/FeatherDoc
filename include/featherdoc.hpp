@@ -240,6 +240,10 @@ class Table {
                                   featherdoc::border_definition border);
     [[nodiscard]] bool clear_border(featherdoc::table_border_edge edge);
     [[nodiscard]] bool remove();
+    Table insert_table_before(std::size_t row_count = 1U,
+                              std::size_t column_count = 1U);
+    Table insert_table_after(std::size_t row_count = 1U,
+                             std::size_t column_count = 1U);
     TableRow append_row(std::size_t cell_count = 1U);
 };
 

@@ -151,9 +151,16 @@ bool append_plain_text_paragraph(pugi::xml_node parent, std::string_view text) {
     return insert_plain_text_paragraph(parent, {}, text);
 }
 
-pugi::xml_node append_table_node(pugi::xml_node parent) {
+pugi::xml_node insert_table_node(pugi::xml_node parent, pugi::xml_node insert_before) {
     if (parent == pugi::xml_node{}) {
         return {};
+    }
+
+    if (insert_before != pugi::xml_node{}) {
+        if (insert_before.parent() != parent) {
+            return {};
+        }
+        return parent.insert_child_before("w:tbl", insert_before);
     }
 
     if (std::string_view{parent.name()} == "w:body") {
@@ -164,6 +171,10 @@ pugi::xml_node append_table_node(pugi::xml_node parent) {
     }
 
     return parent.append_child("w:tbl");
+}
+
+pugi::xml_node append_table_node(pugi::xml_node parent) {
+    return insert_table_node(parent, {});
 }
 
 std::size_t count_remaining_block_children(pugi::xml_node parent,

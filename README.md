@@ -290,7 +290,9 @@ from `samples/sample_edit_existing_part_append_images.cpp`.
 
 Use `append_table(row_count, column_count)` when you need to create a new body
 table programmatically. The returned `Table` can be extended with
-`append_row()`, and each `TableRow` can be widened with `append_cell()`.
+`append_row()`, widened with `append_cell()`, or used as an anchor for
+`insert_table_before(...)` / `insert_table_after(...)` when you need to insert
+new sibling tables around an existing one.
 
 ```cpp
 auto table = doc.append_table(2, 2);
@@ -305,14 +307,18 @@ auto extra_row = table.append_row();
 auto extra_cell = extra_row.cells();
 extra_cell.set_text("tail");
 extra_row.append_cell().set_text("tail-2");
+
+auto inserted = table.insert_table_after(1, 2);
+inserted.rows().cells().set_text("inserted");
 ```
 
 Use `Table::set_width_twips(...)`, `set_style_id(...)`, `set_border(...)`,
 `set_layout_mode(...)`, `set_alignment(...)`, `set_indent_twips(...)`, and
 `set_cell_margin_twips(...)`
 alongside `TableCell::set_text(...)`, `get_text()`, `set_width_twips(...)`,
-`Table::remove()`, `TableRow::remove()`, `insert_row_before()`,
-`insert_row_after()`, `merge_right(...)`, `merge_down(...)`,
+`Table::remove()`, `insert_table_before()`, `insert_table_after()`,
+`TableRow::remove()`, `insert_row_before()`, `insert_row_after()`,
+`merge_right(...)`, `merge_down(...)`,
 `set_vertical_alignment(...)`,
 `set_border(...)`,
 `set_fill_color(...)`, and `set_margin_twips(...)` when you need lightweight
@@ -326,7 +332,10 @@ auto-fit mode, `alignment()` / `indent_twips()` report table placement,
 `repeats_header()` reports whether a row repeats as a table header,
 `Table::remove()` deletes one table while refusing to leave the parent
 container without the required block content and retargets the wrapper to the
-next surviving table when possible (otherwise the previous one),
+next surviving table when possible (otherwise the previous one).
+`insert_table_before()` and `insert_table_after()` create a new empty sibling
+table directly before or after the selected table and retarget the wrapper to
+the inserted table.
 `TableRow::remove()` deletes one row while refusing to remove the last
 remaining row, `insert_row_before()` and `insert_row_after()` clone the
 current row structure into a new empty row directly before or after it while
@@ -389,6 +398,11 @@ For a runnable table-removal example, build `featherdoc_sample_remove_table`
 from `samples/sample_remove_table.cpp`. It creates three body tables, reopens
 the saved `.docx`, removes the temporary middle table, and continues editing
 the following table through the same wrapper.
+For a runnable table-insertion example, build
+`featherdoc_sample_insert_table_around_existing` from
+`samples/sample_insert_table_around_existing.cpp`. It reopens a saved `.docx`,
+inserts new tables directly before and after an existing anchor table, and
+continues editing the surrounding tables through the returned wrappers.
 
 Use `append_image(path)` to append an inline image at its intrinsic pixel size,
 or `append_image(path, width_px, height_px)` when you want explicit scaling.

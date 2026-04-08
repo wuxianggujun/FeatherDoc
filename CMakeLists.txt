@@ -173,6 +173,12 @@ if(BUILD_SAMPLES)
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_remove_table)
 
+    add_executable(featherdoc_sample_insert_table_around_existing
+        samples/sample_insert_table_around_existing.cpp)
+    target_link_libraries(featherdoc_sample_insert_table_around_existing
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_table_around_existing)
+
     add_executable(featherdoc_sample_insert_table_row
         samples/sample_insert_table_row.cpp)
     target_link_libraries(featherdoc_sample_insert_table_row
