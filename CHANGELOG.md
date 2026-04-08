@@ -10,6 +10,10 @@ performance.
 
 ### Added
 
+- Added `TemplatePart::paragraphs()`, `tables()`, and `append_table(...)` so
+  existing body, header, and footer parts can use direct paragraph/table
+  traversal and lightweight table creation/editing without dropping back to the
+  owning `Document`.
 - Added `TableRow::insert_row_before()` for cloning the current row structure
   into a new empty row directly above it, while conservatively refusing rows
   that participate in vertical merge chains.
@@ -19,6 +23,10 @@ performance.
 - Added `samples/sample_remove_table.cpp` as a runnable workflow that reopens
   a saved `.docx`, removes a temporary middle table, and continues editing the
   following table through the same wrapper.
+- Added `samples/sample_edit_existing_part_tables.cpp` as a runnable workflow
+  that creates header tables, reopens the saved `.docx`, removes a temporary
+  middle header table, and continues editing the following table through the
+  same wrapper.
 - Added `samples/sample_insert_table_row_before.cpp` as a runnable workflow
   that reopens a saved `.docx`, inserts a formatted row above an existing row,
   and saves the edited result back out.
@@ -42,7 +50,8 @@ performance.
 
 - Revalidated the table-removal and row-insertion editing flows with MSVC
   build + `ctest` and Word visual smoke passes for
-  `featherdoc_sample_remove_table` and
+  `featherdoc_sample_remove_table`,
+  `featherdoc_sample_edit_existing_part_tables`, and
   `featherdoc_sample_insert_table_row_before` before the next release cut.
 
 ## [1.4.0] - 2026-04-08

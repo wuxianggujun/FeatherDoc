@@ -19,6 +19,23 @@ constexpr auto document_relationships_xml_entry =
 constexpr auto unavailable_template_part_detail =
     std::string_view{"template part is not available"};
 
+auto template_part_block_container(pugi::xml_document &xml_document) -> pugi::xml_node {
+    if (const auto body = xml_document.child("w:document").child("w:body");
+        body != pugi::xml_node{}) {
+        return body;
+    }
+
+    if (const auto header = xml_document.child("w:hdr"); header != pugi::xml_node{}) {
+        return header;
+    }
+
+    if (const auto footer = xml_document.child("w:ftr"); footer != pugi::xml_node{}) {
+        return footer;
+    }
+
+    return {};
+}
+
 struct block_bookmark_placeholder final {
     pugi::xml_node paragraph;
     pugi::xml_node bookmark_start;
@@ -992,6 +1009,88 @@ TemplatePart::operator bool() const noexcept { return this->xml_document != null
 
 std::string_view TemplatePart::entry_name() const noexcept {
     return this->entry_name_storage;
+}
+
+Paragraph TemplatePart::paragraphs() {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    const auto container = template_part_block_container(*this->xml_document);
+    if (container == pugi::xml_node{}) {
+        set_last_error(*this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template part does not contain a supported block container",
+                       this->entry_name_storage);
+        return {};
+    }
+
+    this->last_error_info->clear();
+    return {container, container.child("w:p")};
+}
+
+Table TemplatePart::tables() {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    const auto container = template_part_block_container(*this->xml_document);
+    if (container == pugi::xml_node{}) {
+        set_last_error(*this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template part does not contain a supported block container",
+                       this->entry_name_storage);
+        return {};
+    }
+
+    this->last_error_info->clear();
+    auto table = Table(container, container.child("w:tbl"));
+    table.set_owner(this->owner);
+    return table;
+}
+
+Table TemplatePart::append_table(std::size_t row_count, std::size_t column_count) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    const auto container = template_part_block_container(*this->xml_document);
+    if (container == pugi::xml_node{}) {
+        set_last_error(*this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template part does not contain a supported block container",
+                       this->entry_name_storage);
+        return {};
+    }
+
+    const auto table_node = detail::append_table_node(container);
+    auto created_table = Table(container, table_node);
+    created_table.set_owner(this->owner);
+
+    for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
+        created_table.append_row(column_count);
+    }
+
+    this->last_error_info->clear();
+    return created_table;
 }
 
 std::size_t TemplatePart::replace_bookmark_text(const std::string &bookmark_name,

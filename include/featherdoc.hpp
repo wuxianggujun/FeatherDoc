@@ -361,6 +361,9 @@ class TemplatePart {
 
     explicit operator bool() const noexcept;
     [[nodiscard]] std::string_view entry_name() const noexcept;
+    Paragraph paragraphs();
+    Table tables();
+    Table append_table(std::size_t row_count = 1U, std::size_t column_count = 1U);
 
     [[nodiscard]] std::size_t replace_bookmark_text(const std::string &bookmark_name,
                                                     const std::string &replacement);

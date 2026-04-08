@@ -572,7 +572,8 @@ floating placement uses the same ``floating_image_options`` struct as
 ``section_footer_template(section_index, kind)`` return a lightweight
 ``TemplatePart`` handle for running the same bookmark-based template APIs on
 an already loaded body/header/footer part. A valid handle exposes
-``entry_name()``, ``replace_bookmark_text(...)``, ``fill_bookmarks(...)``,
+``entry_name()``, ``paragraphs()``, ``tables()``, ``append_table(...)``,
+``replace_bookmark_text(...)``, ``fill_bookmarks(...)``,
 ``replace_bookmark_with_paragraphs(...)``, ``remove_bookmark_block(...)``,
 ``replace_bookmark_with_table_rows(...)``, and
 ``replace_bookmark_with_table(...)``, ``replace_bookmark_with_image(...)``,
@@ -589,6 +590,8 @@ return an empty handle instead of creating a new part implicitly.
 
     auto header_template = doc.section_header_template(0);
     if (header_template) {
+        auto summary_table = header_template.append_table(2, 2);
+        summary_table.rows().cells().set_text("Header cell");
         header_template.replace_bookmark_with_image("header_logo", "logo.png");
         header_template.replace_bookmark_with_table_rows(
             "line_item_row",
@@ -611,6 +614,13 @@ return an empty handle instead of creating a new part implicitly.
                 "Second line",
             });
     }
+
+For a runnable existing-part table example, build
+``featherdoc_sample_edit_existing_part_tables`` from
+``samples/sample_edit_existing_part_tables.cpp``. It creates a default header,
+adds three header tables, reopens the saved ``.docx``, removes the temporary
+middle table, and continues editing the following header table through the same
+wrapper.
 
 ``set_bookmark_block_visibility(name, visible)`` and
 ``apply_bookmark_block_visibility(...)`` control optional template blocks backed

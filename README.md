@@ -664,7 +664,8 @@ Use `body_template()`, `header_template(index)`, `footer_template(index)`,
 `section_footer_template(section_index, kind)` when you want the same
 bookmark-based template APIs on an already loaded body/header/footer part.
 Each method returns a lightweight `TemplatePart` handle. A valid handle
-supports `entry_name()`, `replace_bookmark_text(...)`, `fill_bookmarks(...)`,
+supports `entry_name()`, `paragraphs()`, `tables()`, `append_table(...)`,
+`replace_bookmark_text(...)`, `fill_bookmarks(...)`,
 `replace_bookmark_with_paragraphs(...)`, `remove_bookmark_block(...)`,
 `replace_bookmark_with_table_rows(...)`, and
 `replace_bookmark_with_table(...)`, `replace_bookmark_with_image(...)`,
@@ -681,6 +682,8 @@ Missing section-specific references return an empty handle instead of creating
 ```cpp
 auto header_template = doc.section_header_template(0);
 if (header_template) {
+    auto summary_table = header_template.append_table(2, 2);
+    summary_table.rows().cells().set_text("Header cell");
     header_template.replace_bookmark_with_image("header_logo", "logo.png");
     header_template.replace_bookmark_with_table_rows(
         "line_item_row",
@@ -704,6 +707,13 @@ if (footer_template) {
         });
 }
 ```
+
+For a runnable existing-part table example, build
+`featherdoc_sample_edit_existing_part_tables` from
+`samples/sample_edit_existing_part_tables.cpp`. It creates a default header,
+adds three header tables, reopens the saved `.docx`, removes the temporary
+middle table, and continues editing the following header table through the same
+wrapper.
 
 Use `set_bookmark_block_visibility(name, visible)` or
 `apply_bookmark_block_visibility(...)` when a bookmark pair should guard an

@@ -117,6 +117,36 @@ auto collect_table_text(featherdoc::Document &doc) -> std::string {
     return stream.str();
 }
 
+auto collect_template_part_text(featherdoc::TemplatePart part) -> std::string {
+    std::ostringstream stream;
+    for (featherdoc::Paragraph paragraph = part.paragraphs(); paragraph.has_next();
+         paragraph.next()) {
+        for (featherdoc::Run run = paragraph.runs(); run.has_next(); run.next()) {
+            stream << run.get_text();
+        }
+        stream << '\n';
+    }
+    return stream.str();
+}
+
+auto collect_template_part_table_text(featherdoc::TemplatePart part) -> std::string {
+    std::ostringstream stream;
+    for (featherdoc::Table table = part.tables(); table.has_next(); table.next()) {
+        for (featherdoc::TableRow row = table.rows(); row.has_next(); row.next()) {
+            for (featherdoc::TableCell cell = row.cells(); cell.has_next(); cell.next()) {
+                for (featherdoc::Paragraph paragraph = cell.paragraphs();
+                     paragraph.has_next(); paragraph.next()) {
+                    for (featherdoc::Run run = paragraph.runs(); run.has_next(); run.next()) {
+                        stream << run.get_text();
+                    }
+                    stream << '\n';
+                }
+            }
+        }
+    }
+    return stream.str();
+}
+
 auto count_named_children(pugi::xml_node parent, const char *child_name) -> std::size_t {
     std::size_t count = 0;
     for (auto child = parent.child(child_name); child != pugi::xml_node{};
@@ -1438,6 +1468,162 @@ TEST_CASE("ensure_header_paragraphs creates a default header for existing docume
     CHECK_EQ(collect_document_text(reopened), "body text\n");
     CHECK_EQ(reopened.header_count(), 1);
     CHECK_EQ(reopened.header_paragraphs().runs().get_text(), "generated header");
+
+    fs::remove(target);
+}
+
+TEST_CASE("body template part can append and edit tables") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "body_template_tables.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    auto paragraph = body_template.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("body intro"));
+
+    auto first_table = body_template.append_table(1, 2);
+    REQUIRE(first_table.has_next());
+    auto first_cell = first_table.rows().cells();
+    REQUIRE(first_cell.has_next());
+    CHECK(first_cell.set_text("body-a"));
+    first_cell.next();
+    REQUIRE(first_cell.has_next());
+    CHECK(first_cell.set_text("body-b"));
+
+    auto removable_table = body_template.append_table(1, 1);
+    REQUIRE(removable_table.has_next());
+    CHECK(removable_table.rows().cells().set_text("temporary table"));
+
+    CHECK(removable_table.remove());
+    CHECK(removable_table.has_next());
+    CHECK_EQ(removable_table.rows().cells().get_text(), "body-a");
+    CHECK(removable_table.rows().cells().set_text("body-a-updated"));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_body = reopened.body_template();
+    REQUIRE(static_cast<bool>(reopened_body));
+    CHECK_EQ(collect_template_part_text(reopened_body), "body intro\n");
+    CHECK_EQ(collect_template_part_table_text(reopened_body), "body-a-updated\nbody-b\n");
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto body_node = xml_document.child("w:document").child("w:body");
+    REQUIRE(body_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(body_node, "w:tbl"), 1U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("header template part tables can remove a middle table and keep the wrapper usable") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "header_template_table_remove.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto header_paragraph = doc.ensure_section_header_paragraphs(0);
+    REQUIRE(header_paragraph.has_next());
+    CHECK(header_paragraph.set_text("Header intro"));
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+
+    auto first_table = header_template.append_table(2, 2);
+    REQUIRE(first_table.has_next());
+    auto row = first_table.rows();
+    REQUIRE(row.has_next());
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("Section"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("Status"));
+    row.next();
+    REQUIRE(row.has_next());
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("Retained"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("Header table"));
+
+    auto removable_table = header_template.append_table(1, 1);
+    REQUIRE(removable_table.has_next());
+    CHECK(removable_table.rows().cells().set_text("temporary middle table"));
+
+    auto final_table = header_template.append_table(2, 2);
+    REQUIRE(final_table.has_next());
+    row = final_table.rows();
+    REQUIRE(row.has_next());
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("Final"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("State"));
+    row.next();
+    REQUIRE(row.has_next());
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("Pending"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("Will be updated"));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    header_template = reopened.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    auto selected_table = header_template.tables();
+    REQUIRE(selected_table.has_next());
+    selected_table.next();
+    REQUIRE(selected_table.has_next());
+    CHECK(selected_table.remove());
+    CHECK(selected_table.has_next());
+
+    row = selected_table.rows();
+    row.next();
+    REQUIRE(row.has_next());
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("Final"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("Reached after middle-table removal"));
+
+    CHECK_FALSE(reopened.save());
+
+    const auto saved_header = read_test_docx_entry(target, "word/header1.xml");
+    pugi::xml_document header_document;
+    REQUIRE(header_document.load_string(saved_header.c_str()));
+    const auto header_root = header_document.child("w:hdr");
+    REQUIRE(header_root != pugi::xml_node{});
+    CHECK_EQ(count_named_children(header_root, "w:tbl"), 2U);
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+
+    header_template = reopened_again.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(collect_template_part_text(header_template), "Header intro\n");
+    CHECK_EQ(collect_template_part_table_text(header_template),
+             "Section\nStatus\nRetained\nHeader table\nFinal\nState\nFinal\nReached after middle-table removal\n");
 
     fs::remove(target);
 }
