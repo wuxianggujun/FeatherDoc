@@ -103,6 +103,9 @@ class Paragraph {
                 featherdoc::formatting_flag = featherdoc::formatting_flag::none);
     Run add_run(const char *,
                 featherdoc::formatting_flag = featherdoc::formatting_flag::none);
+    Paragraph insert_paragraph_before(const std::string &,
+                                      featherdoc::formatting_flag =
+                                          featherdoc::formatting_flag::none);
     Paragraph insert_paragraph_after(const std::string &,
                                      featherdoc::formatting_flag =
                                          featherdoc::formatting_flag::none);

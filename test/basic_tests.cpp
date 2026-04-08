@@ -1308,6 +1308,84 @@ TEST_CASE("insert_paragraph_after saves cleanly from the document paragraph curs
     fs::remove(target);
 }
 
+TEST_CASE("insert_paragraph_before prepends a body paragraph and keeps the anchor usable") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "insert_paragraph_before_body.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto anchor = doc.paragraphs();
+    REQUIRE(anchor.has_next());
+    CHECK(anchor.set_text("anchor"));
+
+    auto inserted = anchor.insert_paragraph_before("before");
+    REQUIRE(inserted.has_next());
+    CHECK(inserted.add_run(" intro").has_next());
+    CHECK(anchor.has_next());
+    CHECK_EQ(anchor.runs().get_text(), "anchor");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "before intro\nanchor\n");
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto body_node = xml_document.child("w:document").child("w:body");
+    REQUIRE(body_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(body_node, "w:p"), 2U);
+    CHECK_EQ(std::string_view{body_node.first_child().name()}, "w:p");
+
+    fs::remove(target);
+}
+
+TEST_CASE("insert_paragraph_before works inside a table cell") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "insert_paragraph_before_cell.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(1, 1);
+    REQUIRE(table.has_next());
+
+    auto anchor = table.rows().cells().paragraphs();
+    REQUIRE(anchor.has_next());
+    CHECK(anchor.set_text("cell anchor"));
+
+    auto inserted = anchor.insert_paragraph_before("cell before");
+    REQUIRE(inserted.has_next());
+    CHECK(inserted.add_run(" intro").has_next());
+    CHECK(anchor.has_next());
+    CHECK_EQ(anchor.runs().get_text(), "cell anchor");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "cell before intro\ncell anchor\n");
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto cell_node = xml_document.child("w:document")
+                               .child("w:body")
+                               .child("w:tbl")
+                               .child("w:tr")
+                               .child("w:tc");
+    REQUIRE(cell_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(cell_node, "w:p"), 2U);
+
+    fs::remove(target);
+}
+
 TEST_CASE("run iteration skips non-run siblings inside a paragraph") {
     namespace fs = std::filesystem;
 

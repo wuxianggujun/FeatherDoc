@@ -247,6 +247,14 @@ Run Paragraph::add_run(const char *text, featherdoc::formatting_flag f) {
     return Run(this->current, new_run);
 }
 
+Paragraph Paragraph::insert_paragraph_before(const std::string &text,
+                                             featherdoc::formatting_flag f) {
+    const auto new_para = detail::insert_paragraph_node(this->parent, this->current);
+    Paragraph paragraph(this->parent, new_para);
+    paragraph.add_run(text, f);
+    return paragraph;
+}
+
 Paragraph Paragraph::insert_paragraph_after(const std::string &text,
                                            featherdoc::formatting_flag f) {
     pugi::xml_node new_para;

@@ -259,7 +259,9 @@ paragraph before printing. Text inside tables is traversed through
 
 Use `Paragraph::set_text(...)` when you want to replace one paragraph's body
 content in place while preserving paragraph-level properties such as style or
-bidirectional settings. Use `Run::remove()` to drop one run from a paragraph,
+bidirectional settings. Use `Paragraph::insert_paragraph_before(...)` or
+`insert_paragraph_after(...)` when you need to add a sibling paragraph around
+an existing anchor paragraph, `Run::remove()` to drop one run from a paragraph,
 and `Paragraph::remove()` when you want to delete one paragraph without leaving
 an invalid container behind. `Paragraph::remove()` intentionally refuses to
 remove section-break paragraphs or the last required paragraph inside a body,
@@ -268,6 +270,9 @@ header, footer, or table cell container.
 ```cpp
 auto paragraph = doc.paragraphs();
 paragraph.set_text("Replaced paragraph text");
+
+auto prepended = paragraph.insert_paragraph_before("Lead-in");
+prepended.add_run(" note");
 
 auto removable_run = paragraph.add_run(" temporary");
 removable_run.remove();
@@ -288,6 +293,9 @@ For a focused "reopen and append body/header/footer paragraphs through
 TemplatePart handles" example, build
 `featherdoc_sample_edit_existing_part_paragraphs` from
 `samples/sample_edit_existing_part_paragraphs.cpp`.
+For a focused "reopen and insert body/header/footer paragraphs before existing
+anchor paragraphs" example, build `featherdoc_sample_insert_paragraph_before`
+from `samples/sample_insert_paragraph_before.cpp`.
 For a focused "reopen and append new images to existing body/header/footer
 parts" example, build `featherdoc_sample_edit_existing_part_append_images`
 from `samples/sample_edit_existing_part_append_images.cpp`.
