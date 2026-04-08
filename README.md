@@ -308,8 +308,8 @@ Use `Table::set_width_twips(...)`, `set_style_id(...)`, `set_border(...)`,
 `set_layout_mode(...)`, `set_alignment(...)`, `set_indent_twips(...)`, and
 `set_cell_margin_twips(...)`
 alongside `TableCell::set_text(...)`, `get_text()`, `set_width_twips(...)`,
-`Table::remove()`, `TableRow::remove()`, `merge_right(...)`, `merge_down(...)`,
-`set_vertical_alignment(...)`,
+`Table::remove()`, `TableRow::remove()`, `insert_row_after()`,
+`merge_right(...)`, `merge_down(...)`, `set_vertical_alignment(...)`,
 `set_border(...)`,
 `set_fill_color(...)`, and `set_margin_twips(...)` when you need lightweight
 table layout editing without dropping down to raw WordprocessingML.
@@ -322,7 +322,9 @@ auto-fit mode, `alignment()` / `indent_twips()` report table placement,
 `repeats_header()` reports whether a row repeats as a table header,
 `Table::remove()` deletes one table while refusing to leave the parent
 container without the required block content, `TableRow::remove()` deletes one
-row while refusing to remove the last remaining row, and
+row while refusing to remove the last remaining row, `insert_row_after()`
+clones the current row structure into a new empty row directly below it while
+refusing rows that participate in vertical merge chains, and
 `column_span()` reports the current horizontal span. `TableCell::set_text(...)`
 replaces one cell's body with a single paragraph while preserving cell-level
 properties such as shading, margins, borders, and explicit width.
@@ -361,8 +363,16 @@ merged_column.paragraphs().add_run("Below");
 cell = row.cells();
 cell.merge_down(1);
 
+auto inserted_row = row.insert_row_after();
+inserted_row.cells().set_text("Inserted");
+
 std::cout << cell.column_span() << '\n'; // 2
 ```
+
+For a runnable insertion example, build `featherdoc_sample_insert_table_row`
+from `samples/sample_insert_table_row.cpp`. It creates a seed table, reopens
+the saved `.docx`, inserts a cloned row in the middle with
+`TableRow::insert_row_after()`, and writes the updated result back out.
 
 Use `append_image(path)` to append an inline body image at its intrinsic pixel
 size, or `append_image(path, width_px, height_px)` when you want explicit

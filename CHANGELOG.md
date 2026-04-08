@@ -10,6 +10,12 @@ performance.
 
 ### Added
 
+- Added `TableRow::insert_row_after()` for cloning the current row structure
+  into a new empty row directly below it, while conservatively refusing rows
+  that participate in vertical merge chains.
+- Added `samples/sample_insert_table_row.cpp` as a runnable workflow that
+  reopens a saved `.docx`, inserts a formatted row in the middle of an
+  existing table, and saves the edited result back out.
 - Added `remove_bookmark_block(...)` across `Document` and `TemplatePart` as a
   high-level helper for deleting standalone bookmark placeholder paragraphs in
   body, header, or footer parts without having to pass an explicit empty

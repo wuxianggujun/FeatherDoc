@@ -909,6 +909,21 @@ auto cell_vertical_merge_state_for(pugi::xml_node cell) -> cell_vertical_merge_s
     return cell_vertical_merge_state::continue_merge;
 }
 
+auto row_contains_vertical_merge_cells(pugi::xml_node row) -> bool {
+    if (row == pugi::xml_node{}) {
+        return false;
+    }
+
+    for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
+         cell = detail::next_named_sibling(cell, "w:tc")) {
+        if (cell_vertical_merge_state_for(cell) != cell_vertical_merge_state::none) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 auto cell_column_index(pugi::xml_node cell) -> std::optional<std::size_t> {
     if (cell == pugi::xml_node{}) {
         return std::nullopt;
@@ -2006,6 +2021,35 @@ bool TableRow::remove() {
     this->current = next_row != pugi::xml_node{} ? next_row : previous_row;
     this->cell.set_parent(this->current);
     return true;
+}
+
+TableRow TableRow::insert_row_after() {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return {};
+    }
+
+    const auto next_row = detail::next_named_sibling(this->current, "w:tr");
+    if (row_contains_vertical_merge_cells(this->current) ||
+        row_contains_vertical_merge_cells(next_row)) {
+        return {};
+    }
+
+    auto inserted_row = this->parent.insert_copy_after(this->current, this->current);
+    if (inserted_row == pugi::xml_node{}) {
+        return {};
+    }
+
+    for (auto row_cell = inserted_row.child("w:tc"); row_cell != pugi::xml_node{};
+         row_cell = detail::next_named_sibling(row_cell, "w:tc")) {
+        if (!TableCell(inserted_row, row_cell).set_text("")) {
+            this->parent.remove_child(inserted_row);
+            return {};
+        }
+    }
+
+    this->current = inserted_row;
+    this->cell.set_parent(this->current);
+    return TableRow(this->parent, inserted_row);
 }
 
 TableCell TableRow::append_cell() {

@@ -5842,6 +5842,79 @@ TEST_CASE("table rows can remove a middle row and keep the wrapper usable") {
     fs::remove(target);
 }
 
+TEST_CASE("table rows can insert a formatted row after the current row") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_row_insert_after.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(2, 2);
+    auto first_row = table.rows();
+    REQUIRE(first_row.has_next());
+    CHECK(first_row.set_cant_split());
+
+    auto first_cell = first_row.cells();
+    REQUIRE(first_cell.has_next());
+    CHECK(first_cell.set_width_twips(2400U));
+    CHECK(first_cell.set_fill_color("D9EAF7"));
+    CHECK(first_cell.set_text("row-1a"));
+
+    auto second_cell = first_cell;
+    second_cell.next();
+    REQUIRE(second_cell.has_next());
+    CHECK(second_cell.set_text("row-1b"));
+
+    auto last_row = first_row;
+    last_row.next();
+    REQUIRE(last_row.has_next());
+    CHECK(last_row.cells().set_text("row-2a"));
+    auto last_row_second_cell = last_row.cells();
+    last_row_second_cell.next();
+    REQUIRE(last_row_second_cell.has_next());
+    CHECK(last_row_second_cell.set_text("row-2b"));
+
+    auto inserted_row = table.rows().insert_row_after();
+    REQUIRE(inserted_row.has_next());
+    CHECK(table.rows().has_next());
+    CHECK_EQ(table.rows().cells().get_text(), "row-1a");
+
+    auto inserted_cell = inserted_row.cells();
+    REQUIRE(inserted_cell.has_next());
+    CHECK_EQ(inserted_cell.get_text(), "");
+    CHECK(inserted_cell.set_text("inserted-a"));
+
+    auto inserted_second_cell = inserted_cell;
+    inserted_second_cell.next();
+    REQUIRE(inserted_second_cell.has_next());
+    CHECK_EQ(inserted_second_cell.get_text(), "");
+    CHECK(inserted_second_cell.set_text("inserted-b"));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened),
+             "row-1a\nrow-1b\ninserted-a\ninserted-b\nrow-2a\nrow-2b\n");
+
+    auto reopened_row = reopened.tables().rows();
+    REQUIRE(reopened_row.has_next());
+    reopened_row.next();
+    REQUIRE(reopened_row.has_next());
+    CHECK(reopened_row.cant_split());
+
+    auto reopened_cell = reopened_row.cells();
+    REQUIRE(reopened_cell.has_next());
+    REQUIRE(reopened_cell.fill_color().has_value());
+    CHECK_EQ(*reopened_cell.fill_color(), "D9EAF7");
+    REQUIRE(reopened_cell.width_twips().has_value());
+    CHECK_EQ(*reopened_cell.width_twips(), 2400U);
+
+    fs::remove(target);
+}
+
 TEST_CASE("tables can remove a middle table and keep the wrapper usable") {
     namespace fs = std::filesystem;
 
@@ -5920,6 +5993,39 @@ TEST_CASE("table row remove rejects removing the last table row") {
     REQUIRE(row.has_next());
     CHECK_FALSE(row.remove());
     CHECK(row.has_next());
+}
+
+TEST_CASE("table row insert after rejects vertical-merge rows") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_row_insert_after_vertical_merge.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto row = doc.append_table(2, 1).rows();
+    REQUIRE(row.has_next());
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("merged"));
+    CHECK(cell.merge_down(1U));
+
+    auto inserted = row.insert_row_after();
+    CHECK_FALSE(inserted.has_next());
+    CHECK(row.has_next());
+    CHECK_EQ(row.cells().get_text(), "merged");
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(table_node, "w:tr"), 2);
+
+    fs::remove(target);
 }
 
 TEST_CASE("table row remove promotes the next vertical-merge continuation row") {
