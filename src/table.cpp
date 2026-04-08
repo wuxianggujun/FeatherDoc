@@ -953,6 +953,44 @@ auto insert_empty_clone_row(pugi::xml_node table, pugi::xml_node source_row,
     return inserted_row;
 }
 
+auto clear_table_cell_contents(pugi::xml_node table) -> bool {
+    if (table == pugi::xml_node{}) {
+        return false;
+    }
+
+    for (auto row = table.child("w:tr"); row != pugi::xml_node{};
+         row = detail::next_named_sibling(row, "w:tr")) {
+        for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
+             cell = detail::next_named_sibling(cell, "w:tc")) {
+            if (!TableCell(row, cell).set_text("")) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+auto insert_empty_clone_table(pugi::xml_node parent, pugi::xml_node source_table,
+                              bool insert_after) -> pugi::xml_node {
+    if (parent == pugi::xml_node{} || source_table == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto inserted_table = insert_after ? parent.insert_copy_after(source_table, source_table)
+                                       : parent.insert_copy_before(source_table, source_table);
+    if (inserted_table == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (!clear_table_cell_contents(inserted_table)) {
+        parent.remove_child(inserted_table);
+        return {};
+    }
+
+    return inserted_table;
+}
+
 auto cell_column_index(pugi::xml_node cell) -> std::optional<std::size_t> {
     if (cell == pugi::xml_node{}) {
         return std::nullopt;
@@ -2527,6 +2565,42 @@ Table Table::insert_table_after(std::size_t row_count, std::size_t column_count)
     for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
         created_table.append_row(column_count);
     }
+
+    this->current = table_node;
+    this->row.set_parent(this->current);
+    return created_table;
+}
+
+Table Table::insert_table_like_before() {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return {};
+    }
+
+    const auto table_node = insert_empty_clone_table(this->parent, this->current, false);
+    if (table_node == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto created_table = Table(this->parent, table_node);
+    created_table.set_owner(this->owner);
+
+    this->current = table_node;
+    this->row.set_parent(this->current);
+    return created_table;
+}
+
+Table Table::insert_table_like_after() {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return {};
+    }
+
+    const auto table_node = insert_empty_clone_table(this->parent, this->current, true);
+    if (table_node == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto created_table = Table(this->parent, table_node);
+    created_table.set_owner(this->owner);
 
     this->current = table_node;
     this->row.set_parent(this->current);

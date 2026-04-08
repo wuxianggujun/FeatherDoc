@@ -292,7 +292,9 @@ Use `append_table(row_count, column_count)` when you need to create a new body
 table programmatically. The returned `Table` can be extended with
 `append_row()`, widened with `append_cell()`, or used as an anchor for
 `insert_table_before(...)` / `insert_table_after(...)` when you need to insert
-new sibling tables around an existing one.
+new sibling tables around an existing one. Use `insert_table_like_before()` /
+`insert_table_like_after()` when you want to clone the current table's layout
+and formatting into a new empty sibling table.
 
 ```cpp
 auto table = doc.append_table(2, 2);
@@ -317,6 +319,7 @@ Use `Table::set_width_twips(...)`, `set_style_id(...)`, `set_border(...)`,
 `set_cell_margin_twips(...)`
 alongside `TableCell::set_text(...)`, `get_text()`, `set_width_twips(...)`,
 `Table::remove()`, `insert_table_before()`, `insert_table_after()`,
+`insert_table_like_before()`, `insert_table_like_after()`,
 `TableRow::remove()`, `insert_row_before()`, `insert_row_after()`,
 `merge_right(...)`, `merge_down(...)`,
 `set_vertical_alignment(...)`,
@@ -335,7 +338,10 @@ container without the required block content and retargets the wrapper to the
 next surviving table when possible (otherwise the previous one).
 `insert_table_before()` and `insert_table_after()` create a new empty sibling
 table directly before or after the selected table and retarget the wrapper to
-the inserted table.
+the inserted table. `insert_table_like_before()` and
+`insert_table_like_after()` clone the selected table's structure plus
+table/row/cell formatting into a new sibling table, clear the cloned cell
+content, and retarget the wrapper to the inserted table.
 `TableRow::remove()` deletes one row while refusing to remove the last
 remaining row, `insert_row_before()` and `insert_row_after()` clone the
 current row structure into a new empty row directly before or after it while
@@ -403,6 +409,11 @@ For a runnable table-insertion example, build
 `samples/sample_insert_table_around_existing.cpp`. It reopens a saved `.docx`,
 inserts new tables directly before and after an existing anchor table, and
 continues editing the surrounding tables through the returned wrappers.
+For a runnable styled-table cloning example, build
+`featherdoc_sample_insert_table_like_existing` from
+`samples/sample_insert_table_like_existing.cpp`. It reopens a saved `.docx`,
+duplicates an existing table's layout and styling into new empty sibling
+tables, fills the clones, and keeps the original anchor table editable.
 
 Use `append_image(path)` to append an inline image at its intrinsic pixel size,
 or `append_image(path, width_px, height_px)` when you want explicit scaling.

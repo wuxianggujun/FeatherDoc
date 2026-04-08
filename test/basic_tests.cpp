@@ -147,6 +147,87 @@ auto collect_template_part_table_text(featherdoc::TemplatePart part) -> std::str
     return stream.str();
 }
 
+auto set_two_cell_row_text(featherdoc::TableRow row, std::string_view left,
+                           std::string_view right) -> bool {
+    auto cell = row.cells();
+    if (!cell.has_next()) {
+        return false;
+    }
+    if (!cell.set_text(std::string{left})) {
+        return false;
+    }
+
+    cell.next();
+    if (!cell.has_next()) {
+        return false;
+    }
+
+    return cell.set_text(std::string{right});
+}
+
+auto configure_clone_template_table(featherdoc::Table table, std::string_view prefix) -> bool {
+    if (!table.has_next()) {
+        return false;
+    }
+
+    if (!table.set_width_twips(7200U) || !table.set_style_id("TableGrid") ||
+        !table.set_layout_mode(featherdoc::table_layout_mode::fixed) ||
+        !table.set_alignment(featherdoc::table_alignment::center) ||
+        !table.set_cell_margin_twips(featherdoc::cell_margin_edge::left, 120U) ||
+        !table.set_cell_margin_twips(featherdoc::cell_margin_edge::right, 120U)) {
+        return false;
+    }
+
+    auto header_row = table.rows();
+    if (!header_row.has_next() ||
+        !header_row.set_height_twips(360U, featherdoc::row_height_rule::exact) ||
+        !header_row.set_repeats_header()) {
+        return false;
+    }
+
+    auto header_cell = header_row.cells();
+    if (!header_cell.has_next() ||
+        !header_cell.set_fill_color("D9EAF7") ||
+        !header_cell.set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center) ||
+        !header_cell.set_text(std::string{prefix} + "-h1")) {
+        return false;
+    }
+
+    header_cell.next();
+    if (!header_cell.has_next() ||
+        !header_cell.set_fill_color("D9EAF7") ||
+        !header_cell.set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center) ||
+        !header_cell.set_text(std::string{prefix} + "-h2")) {
+        return false;
+    }
+
+    header_row.next();
+    if (!header_row.has_next() ||
+        !header_row.set_height_twips(420U, featherdoc::row_height_rule::at_least)) {
+        return false;
+    }
+
+    auto body_cell = header_row.cells();
+    if (!body_cell.has_next() ||
+        !body_cell.set_fill_color("FCE4D6") ||
+        !body_cell.set_margin_twips(featherdoc::cell_margin_edge::left, 160U) ||
+        !body_cell.set_text(std::string{prefix} + "-b1")) {
+        return false;
+    }
+
+    body_cell.next();
+    if (!body_cell.has_next() ||
+        !body_cell.set_fill_color("FFF2CC") ||
+        !body_cell.set_margin_twips(featherdoc::cell_margin_edge::right, 160U) ||
+        !body_cell.set_text(std::string{prefix} + "-b2")) {
+        return false;
+    }
+
+    return true;
+}
+
 auto count_named_children(pugi::xml_node parent, const char *child_name) -> std::size_t {
     std::size_t count = 0;
     for (auto child = parent.child(child_name); child != pugi::xml_node{};
@@ -6636,6 +6717,236 @@ TEST_CASE("tables can insert a new table after the last body table before sectio
     REQUIRE(body_node != pugi::xml_node{});
     CHECK_EQ(count_named_children(body_node, "w:tbl"), 2U);
     CHECK_EQ(std::string_view{body_node.last_child().name()}, "w:sectPr");
+
+    fs::remove(target);
+}
+
+TEST_CASE("tables can insert a styled table clone before the selected body table") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_insert_like_before.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("body paragraph"));
+
+    auto first_table = doc.append_table(2, 2);
+    REQUIRE(first_table.has_next());
+    REQUIRE(configure_clone_template_table(first_table, "seed"));
+
+    auto anchor_table = doc.append_table(2, 2);
+    REQUIRE(anchor_table.has_next());
+    REQUIRE(configure_clone_template_table(anchor_table, "anchor"));
+
+    auto inserted_table = anchor_table.insert_table_like_before();
+    REQUIRE(inserted_table.has_next());
+    CHECK(anchor_table.has_next());
+
+    const auto inserted_width = inserted_table.width_twips();
+    REQUIRE(inserted_width.has_value());
+    CHECK_EQ(*inserted_width, 7200U);
+
+    const auto inserted_style = inserted_table.style_id();
+    REQUIRE(inserted_style.has_value());
+    CHECK_EQ(*inserted_style, "TableGrid");
+
+    const auto inserted_layout = inserted_table.layout_mode();
+    REQUIRE(inserted_layout.has_value());
+    CHECK_EQ(*inserted_layout, featherdoc::table_layout_mode::fixed);
+
+    auto inserted_row = inserted_table.rows();
+    REQUIRE(inserted_row.has_next());
+    CHECK(inserted_row.repeats_header());
+    CHECK_EQ(inserted_row.height_twips().value_or(0U), 360U);
+
+    auto inserted_cell = inserted_row.cells();
+    REQUIRE(inserted_cell.has_next());
+    CHECK_EQ(inserted_cell.fill_color().value_or(""), "D9EAF7");
+    CHECK_EQ(inserted_cell.get_text(), "");
+
+    inserted_cell.next();
+    REQUIRE(inserted_cell.has_next());
+    CHECK_EQ(inserted_cell.fill_color().value_or(""), "D9EAF7");
+    CHECK_EQ(inserted_cell.get_text(), "");
+
+    inserted_row.next();
+    REQUIRE(inserted_row.has_next());
+    CHECK_EQ(inserted_row.height_twips().value_or(0U), 420U);
+    inserted_cell = inserted_row.cells();
+    REQUIRE(inserted_cell.has_next());
+    CHECK_EQ(inserted_cell.fill_color().value_or(""), "FCE4D6");
+    CHECK_EQ(inserted_cell.margin_twips(featherdoc::cell_margin_edge::left).value_or(0U),
+             160U);
+    CHECK_EQ(inserted_cell.get_text(), "");
+
+    inserted_cell.next();
+    REQUIRE(inserted_cell.has_next());
+    CHECK_EQ(inserted_cell.fill_color().value_or(""), "FFF2CC");
+    CHECK_EQ(inserted_cell.margin_twips(featherdoc::cell_margin_edge::right).value_or(0U),
+             160U);
+    CHECK_EQ(inserted_cell.get_text(), "");
+
+    inserted_row = inserted_table.rows();
+    REQUIRE(inserted_row.has_next());
+    CHECK(set_two_cell_row_text(inserted_row, "clone-h1", "clone-h2"));
+    inserted_row.next();
+    REQUIRE(inserted_row.has_next());
+    CHECK(set_two_cell_row_text(inserted_row, "clone-b1", "clone-b2"));
+
+    anchor_table.next();
+    REQUIRE(anchor_table.has_next());
+    CHECK_EQ(anchor_table.rows().cells().get_text(), "anchor-h1");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "body paragraph\n");
+    CHECK_EQ(collect_table_text(reopened),
+             "seed-h1\nseed-h2\nseed-b1\nseed-b2\n"
+             "clone-h1\nclone-h2\nclone-b1\nclone-b2\n"
+             "anchor-h1\nanchor-h2\nanchor-b1\nanchor-b2\n");
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto body_node = xml_document.child("w:document").child("w:body");
+    REQUIRE(body_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(body_node, "w:tbl"), 3U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("tables can insert a styled table clone after the last body table before section properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_insert_like_after_last.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("body paragraph"));
+
+    auto &header = doc.ensure_section_header_paragraphs(0);
+    REQUIRE(header.has_next());
+    CHECK(header.set_text("header"));
+
+    auto anchor_table = doc.append_table(2, 2);
+    REQUIRE(anchor_table.has_next());
+    REQUIRE(configure_clone_template_table(anchor_table, "anchor"));
+
+    auto inserted_table = anchor_table.insert_table_like_after();
+    REQUIRE(inserted_table.has_next());
+    CHECK(anchor_table.has_next());
+
+    auto inserted_row = inserted_table.rows();
+    REQUIRE(inserted_row.has_next());
+    CHECK(inserted_row.repeats_header());
+    CHECK_EQ(inserted_row.cells().fill_color().value_or(""), "D9EAF7");
+    CHECK_EQ(inserted_row.cells().get_text(), "");
+
+    inserted_row = inserted_table.rows();
+    REQUIRE(inserted_row.has_next());
+    CHECK(set_two_cell_row_text(inserted_row, "clone-h1", "clone-h2"));
+    inserted_row.next();
+    REQUIRE(inserted_row.has_next());
+    CHECK(set_two_cell_row_text(inserted_row, "clone-b1", "clone-b2"));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "body paragraph\n");
+    CHECK_EQ(collect_table_text(reopened),
+             "anchor-h1\nanchor-h2\nanchor-b1\nanchor-b2\n"
+             "clone-h1\nclone-h2\nclone-b1\nclone-b2\n");
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto body_node = xml_document.child("w:document").child("w:body");
+    REQUIRE(body_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(body_node, "w:tbl"), 2U);
+    CHECK_EQ(std::string_view{body_node.last_child().name()}, "w:sectPr");
+
+    fs::remove(target);
+}
+
+TEST_CASE("header template part tables can insert a styled table clone after the selected header table") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "header_template_table_insert_like_after.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto body_paragraph = doc.paragraphs();
+    REQUIRE(body_paragraph.has_next());
+    CHECK(body_paragraph.set_text("body paragraph"));
+
+    auto &header_paragraph = doc.ensure_section_header_paragraphs(0);
+    REQUIRE(header_paragraph.has_next());
+    CHECK(header_paragraph.set_text("Header intro"));
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+
+    auto anchor_table = header_template.append_table(2, 2);
+    REQUIRE(anchor_table.has_next());
+    REQUIRE(configure_clone_template_table(anchor_table, "anchor"));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    header_template = reopened.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    auto selected_table = header_template.tables();
+    REQUIRE(selected_table.has_next());
+
+    auto inserted_table = selected_table.insert_table_like_after();
+    REQUIRE(inserted_table.has_next());
+    CHECK(selected_table.has_next());
+
+    auto inserted_row = inserted_table.rows();
+    REQUIRE(inserted_row.has_next());
+    CHECK(inserted_row.repeats_header());
+    CHECK_EQ(inserted_row.cells().fill_color().value_or(""), "D9EAF7");
+    CHECK_EQ(inserted_row.cells().get_text(), "");
+
+    inserted_row = inserted_table.rows();
+    REQUIRE(inserted_row.has_next());
+    CHECK(set_two_cell_row_text(inserted_row, "clone-h1", "clone-h2"));
+    inserted_row.next();
+    REQUIRE(inserted_row.has_next());
+    CHECK(set_two_cell_row_text(inserted_row, "clone-b1", "clone-b2"));
+
+    CHECK_FALSE(reopened.save());
+
+    featherdoc::Document reopened_again(target);
+    CHECK_FALSE(reopened_again.open());
+    header_template = reopened_again.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    CHECK_EQ(collect_template_part_text(header_template), "Header intro\n");
+    CHECK_EQ(collect_template_part_table_text(header_template),
+             "anchor-h1\nanchor-h2\nanchor-b1\nanchor-b2\n"
+             "clone-h1\nclone-h2\nclone-b1\nclone-b2\n");
+
+    const auto header_xml = read_test_docx_entry(target, "word/header1.xml");
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(header_xml.c_str()));
+    const auto header_node = xml_document.child("w:hdr");
+    REQUIRE(header_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(header_node, "w:tbl"), 2U);
 
     fs::remove(target);
 }
