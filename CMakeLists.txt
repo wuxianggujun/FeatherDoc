@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(
     FeatherDoc
-    VERSION 1.3.0
+    VERSION 1.4.0
     DESCRIPTION "Modern C++ .docx library focused on explicit diagnostics, MSVC support, and clean API behavior"
     LANGUAGES C CXX
 )
@@ -136,6 +136,12 @@ if(BUILD_SAMPLES)
     target_link_libraries(featherdoc_sample_edit_existing_part_images
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_part_images)
+
+    add_executable(featherdoc_sample_floating_images
+        samples/sample_floating_images.cpp)
+    target_link_libraries(featherdoc_sample_floating_images
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_floating_images)
 
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/my_test.docx
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

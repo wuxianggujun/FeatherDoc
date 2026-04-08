@@ -307,6 +307,31 @@ enum class drawing_image_placement {
     anchored_object,
 };
 
+enum class floating_image_horizontal_reference : std::uint8_t {
+    page = 0U,
+    margin,
+    column,
+    character,
+};
+
+enum class floating_image_vertical_reference : std::uint8_t {
+    page = 0U,
+    margin,
+    paragraph,
+    line,
+};
+
+struct floating_image_options {
+    featherdoc::floating_image_horizontal_reference horizontal_reference{
+        featherdoc::floating_image_horizontal_reference::column};
+    std::int32_t horizontal_offset_px{0};
+    featherdoc::floating_image_vertical_reference vertical_reference{
+        featherdoc::floating_image_vertical_reference::paragraph};
+    std::int32_t vertical_offset_px{0};
+    bool behind_text{false};
+    bool allow_overlap{true};
+};
+
 struct drawing_image_info {
     std::size_t index{};
     drawing_image_placement placement{drawing_image_placement::inline_object};
@@ -354,6 +379,13 @@ class TemplatePart {
     [[nodiscard]] std::size_t replace_bookmark_with_image(
         std::string_view bookmark_name, const std::filesystem::path &image_path,
         std::uint32_t width_px, std::uint32_t height_px);
+    [[nodiscard]] std::size_t replace_bookmark_with_floating_image(
+        std::string_view bookmark_name, const std::filesystem::path &image_path,
+        featherdoc::floating_image_options options = {});
+    [[nodiscard]] std::size_t replace_bookmark_with_floating_image(
+        std::string_view bookmark_name, const std::filesystem::path &image_path,
+        std::uint32_t width_px, std::uint32_t height_px,
+        featherdoc::floating_image_options options = {});
     [[nodiscard]] std::vector<drawing_image_info> drawing_images() const;
     [[nodiscard]] bool extract_drawing_image(
         std::size_t image_index, const std::filesystem::path &output_path) const;
@@ -459,6 +491,30 @@ class Document {
         pugi::xml_node insert_before, std::string image_data, std::string extension,
         std::string content_type, std::string display_name, std::uint32_t width_px,
         std::uint32_t height_px);
+    [[nodiscard]] bool append_drawing_image_part(
+        pugi::xml_document &xml_document, std::string_view xml_entry_name,
+        pugi::xml_document &relationships_document, std::string_view relationships_entry_name,
+        bool &has_relationships_part, bool &relationships_dirty, pugi::xml_node parent,
+        pugi::xml_node insert_before, std::string image_data, std::string extension,
+        std::string content_type, std::string display_name, std::uint32_t width_px,
+        std::uint32_t height_px,
+        std::optional<featherdoc::floating_image_options> floating_options);
+    [[nodiscard]] bool append_floating_image_part(
+        std::string image_data, std::string extension, std::string content_type,
+        std::string display_name, std::uint32_t width_px, std::uint32_t height_px,
+        featherdoc::floating_image_options options);
+    [[nodiscard]] bool append_floating_image_part(
+        pugi::xml_node parent, pugi::xml_node insert_before, std::string image_data,
+        std::string extension, std::string content_type, std::string display_name,
+        std::uint32_t width_px, std::uint32_t height_px,
+        featherdoc::floating_image_options options);
+    [[nodiscard]] bool append_floating_image_part(
+        pugi::xml_document &xml_document, std::string_view xml_entry_name,
+        pugi::xml_document &relationships_document, std::string_view relationships_entry_name,
+        bool &has_relationships_part, bool &relationships_dirty, pugi::xml_node parent,
+        pugi::xml_node insert_before, std::string image_data, std::string extension,
+        std::string content_type, std::string display_name, std::uint32_t width_px,
+        std::uint32_t height_px, featherdoc::floating_image_options options);
     [[nodiscard]] std::vector<drawing_image_info> drawing_images_in_part(
         std::string_view entry_name) const;
     [[nodiscard]] bool extract_drawing_image_from_part(
@@ -479,6 +535,11 @@ class Document {
         pugi::xml_document &xml_document, std::string_view entry_name,
         std::string_view bookmark_name, const std::filesystem::path &image_path,
         std::optional<std::pair<std::uint32_t, std::uint32_t>> dimensions);
+    [[nodiscard]] std::size_t replace_bookmark_with_floating_image_in_part(
+        pugi::xml_document &xml_document, std::string_view entry_name,
+        std::string_view bookmark_name, const std::filesystem::path &image_path,
+        std::optional<std::pair<std::uint32_t, std::uint32_t>> dimensions,
+        featherdoc::floating_image_options options);
 
     friend class IteratorHelper;
     friend class TemplatePart;
@@ -614,6 +675,13 @@ class Document {
     [[nodiscard]] std::size_t replace_bookmark_with_image(
         std::string_view bookmark_name, const std::filesystem::path &image_path,
         std::uint32_t width_px, std::uint32_t height_px);
+    [[nodiscard]] std::size_t replace_bookmark_with_floating_image(
+        std::string_view bookmark_name, const std::filesystem::path &image_path,
+        featherdoc::floating_image_options options = {});
+    [[nodiscard]] std::size_t replace_bookmark_with_floating_image(
+        std::string_view bookmark_name, const std::filesystem::path &image_path,
+        std::uint32_t width_px, std::uint32_t height_px,
+        featherdoc::floating_image_options options = {});
     [[nodiscard]] std::size_t set_bookmark_block_visibility(
         std::string_view bookmark_name, bool visible);
     [[nodiscard]] bookmark_block_visibility_result apply_bookmark_block_visibility(
@@ -691,6 +759,13 @@ class Document {
     [[nodiscard]] bool append_image(const std::filesystem::path &image_path,
                                     std::uint32_t width_px,
                                     std::uint32_t height_px);
+    [[nodiscard]] bool append_floating_image(
+        const std::filesystem::path &image_path,
+        featherdoc::floating_image_options options = {});
+    [[nodiscard]] bool append_floating_image(
+        const std::filesystem::path &image_path, std::uint32_t width_px,
+        std::uint32_t height_px,
+        featherdoc::floating_image_options options = {});
 };
 } // namespace featherdoc
 

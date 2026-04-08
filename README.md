@@ -374,6 +374,26 @@ doc.append_image("logo.png");
 doc.append_image("badge.png", 96, 48);
 ```
 
+Use `append_floating_image(path, options)` or
+`append_floating_image(path, width_px, height_px, options)` when you want an
+anchored `wp:anchor` body image with explicit margin/page-relative offsets.
+`floating_image_options` currently lets you pick horizontal/vertical reference
+frames, pixel offsets, whether the image sits behind text, and whether overlap
+is allowed. The generated floating drawing currently uses `wrapNone`, so Word
+does not reflow surrounding body text for you.
+
+```cpp
+featherdoc::floating_image_options options;
+options.horizontal_reference =
+    featherdoc::floating_image_horizontal_reference::margin;
+options.horizontal_offset_px = 460;
+options.vertical_reference =
+    featherdoc::floating_image_vertical_reference::margin;
+options.vertical_offset_px = 24;
+
+doc.append_floating_image("badge.png", 144, 48, options);
+```
+
 Use `inline_images()` to inspect inline images that already exist in the main
 document body. Each returned `inline_image_info` includes the image index,
 relationship id, media entry path, display name, content type, and rendered
@@ -418,6 +438,10 @@ The same `drawing_images()`, `extract_drawing_image(...)`,
 and `replace_inline_image(...)` APIs are also available on `TemplatePart`
 handles when you need existing body/header/footer drawings from already loaded
 parts.
+
+For a runnable visual sample that mixes inline and floating body drawings,
+build `featherdoc_sample_floating_images` from
+`samples/sample_floating_images.cpp`.
 
 Use `set_paragraph_list(paragraph, kind, level)` to attach managed bullet or
 decimal numbering to a paragraph. Call `clear_paragraph_list(paragraph)` when
@@ -579,6 +603,21 @@ doc.replace_bookmark_with_image("company_logo", "logo.png");
 doc.replace_bookmark_with_image("stamp", "stamp.png", 96, 48);
 ```
 
+Use `replace_bookmark_with_floating_image(...)` when that standalone bookmark
+paragraph should instead become an anchored image paragraph. The floating
+placement uses the same `floating_image_options` struct as
+`append_floating_image(...)`.
+
+```cpp
+featherdoc::floating_image_options options;
+options.horizontal_reference =
+    featherdoc::floating_image_horizontal_reference::page;
+options.horizontal_offset_px = 24;
+
+doc.replace_bookmark_with_floating_image("callout", "badge.png", 144, 48,
+                                         options);
+```
+
 Use `body_template()`, `header_template(index)`, `footer_template(index)`,
 `section_header_template(section_index, kind)`, and
 `section_footer_template(section_index, kind)` when you want the same
@@ -588,6 +627,7 @@ supports `entry_name()`, `replace_bookmark_text(...)`, `fill_bookmarks(...)`,
 `replace_bookmark_with_paragraphs(...)`,
 `replace_bookmark_with_table_rows(...)`, and
 `replace_bookmark_with_table(...)`, `replace_bookmark_with_image(...)`,
+`replace_bookmark_with_floating_image(...)`,
 `drawing_images()`, `extract_drawing_image(...)`,
 `replace_drawing_image(...)`, `inline_images()`,
 `extract_inline_image(...)`, `replace_inline_image(...)`,
@@ -913,11 +953,11 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   `inline_images()` or the broader `drawing_images()`, extracted through
   `extract_inline_image(...)` / `extract_drawing_image(...)`, and replaced
   through `replace_inline_image(...)` / `replace_drawing_image(...)`.
-  Bookmark-based image replacement and existing image
-  enumeration/extraction/replacement also work across body, header, and footer
-  `TemplatePart` handles, including already-anchored drawings. There is still
-  no high-level API to create floating placement or to control wrapping and
-  cropping.
+  Floating body image creation is now supported through
+  `append_floating_image(...)`, and bookmark-based floating image replacement
+  is available through `replace_bookmark_with_floating_image(...)` across
+  body, header, and footer `TemplatePart` handles. Advanced wrapping and
+  cropping control are still not exposed as high-level APIs.
 
 ## Source Layout
 

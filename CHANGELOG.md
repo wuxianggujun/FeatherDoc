@@ -8,21 +8,39 @@ performance.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-04-08
+
+### Added
+
+- Expanded existing `.docx` editing workflows across paragraphs, runs,
+  tables, bookmarks, headers/footers, and drawing-backed images, including
+  safe `TableRow::remove()` behavior that preserves vertical merge restarts
+  when deleting the first row of a merged block.
+- Added `floating_image_horizontal_reference`,
+  `floating_image_vertical_reference`, `floating_image_options`,
+  `append_floating_image(...)`, and
+  `replace_bookmark_with_floating_image(...)` so body/header/footer parts can
+  create or replace anchored `wp:anchor` drawings without dropping to manual
+  XML editing.
+
 ### Documentation
 
-- Added a minimal Chinese/CJK quickstart example to `README.md` and
-  `docs/index.rst` showing how to set default East Asia font and language
-  metadata before saving a generated `.docx`.
-- Added `samples/sample_chinese.cpp` as a runnable Chinese/CJK generation
-  sample and linked it from the quickstart documentation.
-- Updated `README.md` to show actual Word-rendered output screenshots and to
-  present the Alipay/WeChat sponsor QR codes side by side at a smaller size.
-- Expanded the `README.md` screenshot gallery with the rendered output from the
-  Chinese template-filling sample so readers can compare minimal Chinese text,
-  business-template output, and the visual smoke sample side by side.
-- Added `samples/sample_chinese_template.cpp` plus
-  `samples/chinese_invoice_template.docx` as a runnable Chinese
-  template-filling and bookmarked table-row expansion example.
+- Added `samples/sample_edit_existing.cpp`,
+  `samples/sample_edit_existing_part_images.cpp`, and
+  `samples/sample_floating_images.cpp`, then documented the related edit,
+  drawing-image, and floating-image workflows in `README.md` and
+  `docs/index.rst`.
+- Added a minimal Chinese/CJK quickstart example and runnable Chinese template
+  samples to `README.md` and `docs/index.rst`, and refreshed the README
+  screenshot gallery plus sponsor layout.
+
+### Validation
+
+- Added `scripts/run_install_find_package_smoke.ps1` together with a minimal
+  `find_package(FeatherDoc CONFIG REQUIRED)` consumer smoke project for MSVC
+  install/export validation.
+- Revalidated the release candidate with MSVC build + `ctest`, install smoke,
+  and Word visual smoke for the floating image sample before cutting `1.4.0`.
 
 ## [1.3.0] - 2026-04-07
 
