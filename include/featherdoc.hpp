@@ -141,6 +141,7 @@ class TableCell {
     [[nodiscard]] std::string get_text() const;
     [[nodiscard]] bool set_text(const std::string &) const;
     [[nodiscard]] bool set_text(const char *) const;
+    [[nodiscard]] bool remove();
     [[nodiscard]] std::optional<std::uint32_t> width_twips() const;
     [[nodiscard]] bool set_width_twips(std::uint32_t width_twips);
     [[nodiscard]] bool clear_width();

@@ -18,12 +18,19 @@ performance.
   numbering can restart from a fresh `w:num` instance while adjacent list items
   continue the restarted sequence instead of falling back to the shared default
   instance.
+- Added `TableCell::remove()` so lightweight table editing can delete one
+  standalone column across the whole table while refusing to remove the last
+  remaining column or any column that intersects a horizontal merge span.
 - Added `samples/sample_edit_existing_table_style_look.cpp` as a runnable
   workflow that reopens a saved `.docx`, updates `tblLook` on an existing
   table, and preserves the underlying style reference.
 - Added `samples/sample_restart_paragraph_list.cpp` as a runnable workflow that
   reopens a saved `.docx`, restarts an existing decimal list at `1.`, and
   continues the restarted sequence in later paragraphs.
+- Added `samples/sample_remove_table_column.cpp` as a runnable workflow that
+  reopens a saved `.docx`, removes a temporary middle column from an existing
+  table, and continues editing the surviving result column through the same
+  wrapper.
 
 ### Validation
 
@@ -34,6 +41,10 @@ performance.
 - Validated paragraph-list restart edits with MinGW build + `ctest` and a Word
   visual smoke pass for `featherdoc_sample_restart_paragraph_list`, confirming
   the rendered document shows two decimal sequences that both begin at `1.`.
+- Validated table-column removal edits with MinGW build + `ctest` and a Word
+  visual smoke pass for `featherdoc_sample_remove_table_column`, confirming
+  the rendered document keeps only the surviving two columns and the saved
+  table shrinks to two `w:gridCol` entries.
 
 ## [1.5.0] - 2026-04-09
 

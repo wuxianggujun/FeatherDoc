@@ -359,7 +359,8 @@ Use `Table::set_width_twips(...)`, `set_style_id(...)`, `set_border(...)`,
 alongside `TableCell::set_text(...)`, `get_text()`, `set_width_twips(...)`,
 `Table::remove()`, `insert_table_before()`, `insert_table_after()`,
 `insert_table_like_before()`, `insert_table_like_after()`,
-`TableRow::remove()`, `insert_row_before()`, `insert_row_after()`,
+`TableCell::remove()`, `TableRow::remove()`, `insert_row_before()`,
+`insert_row_after()`,
 `merge_right(...)`, `merge_down(...)`,
 `set_vertical_alignment(...)`,
 `set_border(...)`,
@@ -378,6 +379,10 @@ reports per-edge default cell margins,
 `Table::remove()` deletes one table while refusing to leave the parent
 container without the required block content and retargets the wrapper to the
 next surviving table when possible (otherwise the previous one).
+`TableCell::remove()` deletes one unmerged column across the whole table while
+refusing to remove the last remaining column, refusing any column that
+intersects a horizontal merge span, and retargeting the wrapper to the next
+surviving cell when possible (otherwise the previous one).
 `insert_table_before()` and `insert_table_after()` create a new empty sibling
 table directly before or after the selected table and retarget the wrapper to
 the inserted table. `insert_table_like_before()` and
@@ -453,6 +458,11 @@ For a runnable table-removal example, build `featherdoc_sample_remove_table`
 from `samples/sample_remove_table.cpp`. It creates three body tables, reopens
 the saved `.docx`, removes the temporary middle table, and continues editing
 the following table through the same wrapper.
+For a runnable table-column removal example, build
+`featherdoc_sample_remove_table_column` from
+`samples/sample_remove_table_column.cpp`. It creates a three-column body
+table, reopens the saved `.docx`, removes the temporary middle column, and
+continues editing the surviving result column through the same cell wrapper.
 For a runnable table-insertion example, build
 `featherdoc_sample_insert_table_around_existing` from
 `samples/sample_insert_table_around_existing.cpp`. It reopens a saved `.docx`,

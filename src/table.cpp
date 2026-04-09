@@ -1243,6 +1243,115 @@ auto find_row_cell_at_columns(pugi::xml_node row, std::size_t target_column_inde
     return {};
 }
 
+struct row_cell_cover_result final {
+    pugi::xml_node cell;
+    std::size_t start_column{};
+    std::size_t span{};
+};
+
+auto find_row_cell_covering_column(pugi::xml_node row, std::size_t target_column_index)
+    -> row_cell_cover_result {
+    if (row == pugi::xml_node{}) {
+        return {};
+    }
+
+    std::size_t column_index = 0U;
+    for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
+         cell = detail::next_named_sibling(cell, "w:tc")) {
+        const auto span = cell_column_span(cell);
+        if (target_column_index < column_index + span) {
+            return {cell, column_index, span};
+        }
+
+        column_index += span;
+    }
+
+    return {};
+}
+
+struct table_column_removal_target final {
+    pugi::xml_node row;
+    pugi::xml_node cell;
+};
+
+struct table_column_removal_plan final {
+    std::size_t column_index{};
+    std::vector<table_column_removal_target> targets;
+};
+
+auto plan_table_column_removal(pugi::xml_node cell) -> std::optional<table_column_removal_plan> {
+    if (cell == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto row = cell.parent();
+    const auto table = row.parent();
+    if (row == pugi::xml_node{} || table == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    if (cell_column_span(cell) != 1U) {
+        return std::nullopt;
+    }
+
+    const auto column_index = cell_column_index(cell);
+    if (!column_index.has_value()) {
+        return std::nullopt;
+    }
+
+    if (current_table_column_count(table) <= 1U) {
+        return std::nullopt;
+    }
+
+    auto plan = table_column_removal_plan{};
+    plan.column_index = *column_index;
+
+    for (auto row_cursor = table.child("w:tr"); row_cursor != pugi::xml_node{};
+         row_cursor = detail::next_named_sibling(row_cursor, "w:tr")) {
+        if (count_named_children(row_cursor, "w:tc") <= 1U) {
+            return std::nullopt;
+        }
+
+        const auto match = find_row_cell_covering_column(row_cursor, *column_index);
+        if (match.cell == pugi::xml_node{} || match.span != 1U) {
+            return std::nullopt;
+        }
+
+        plan.targets.push_back({row_cursor, match.cell});
+    }
+
+    if (plan.targets.empty()) {
+        return std::nullopt;
+    }
+
+    return plan;
+}
+
+bool remove_table_grid_column(pugi::xml_node table, std::size_t target_column_index) {
+    if (table == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto column_count = current_table_column_count(table);
+    if (column_count == 0U || target_column_index >= column_count) {
+        return false;
+    }
+
+    ensure_table_grid_columns(table, column_count);
+    auto table_grid = table.child("w:tblGrid");
+    if (table_grid == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto grid_column = table_grid.child("w:gridCol");
+    for (std::size_t index = 0U; index < target_column_index && grid_column != pugi::xml_node{};
+         ++index) {
+        grid_column = detail::next_named_sibling(grid_column, "w:gridCol");
+    }
+
+    return grid_column != pugi::xml_node{} && table_grid.remove_child(grid_column);
+}
+
 void clear_cell_contents_for_vertical_merge(pugi::xml_node cell) {
     if (cell == pugi::xml_node{}) {
         return;
@@ -1684,6 +1793,50 @@ bool TableCell::set_text(const char *text) const {
     }
 
     return detail::append_plain_text_paragraph(cell_node, text);
+}
+
+bool TableCell::remove() {
+    if (this->current == pugi::xml_node{} || this->parent == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto table = this->parent.parent();
+    if (table == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto removal_plan = plan_table_column_removal(this->current);
+    if (!removal_plan.has_value()) {
+        return false;
+    }
+
+    const auto next_cell = detail::next_named_sibling(this->current, "w:tc");
+    const auto previous_cell = detail::previous_named_sibling(this->current, "w:tc");
+    const auto surviving_cell =
+        next_cell != pugi::xml_node{} ? next_cell : previous_cell;
+    if (surviving_cell == pugi::xml_node{}) {
+        return false;
+    }
+
+    for (auto &target : removal_plan->targets) {
+        if (target.cell == this->current) {
+            continue;
+        }
+        if (!target.row.remove_child(target.cell)) {
+            return false;
+        }
+    }
+
+    if (!remove_table_grid_column(table, removal_plan->column_index)) {
+        return false;
+    }
+
+    if (!this->parent.remove_child(this->current)) {
+        return false;
+    }
+
+    this->set_current(surviving_cell);
+    return true;
 }
 
 std::optional<std::uint32_t> TableCell::width_twips() const {
