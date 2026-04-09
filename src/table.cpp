@@ -7,6 +7,13 @@
 namespace featherdoc {
 namespace {
 
+constexpr auto table_style_look_first_row_bit = std::uint16_t{0x0020};
+constexpr auto table_style_look_last_row_bit = std::uint16_t{0x0040};
+constexpr auto table_style_look_first_column_bit = std::uint16_t{0x0080};
+constexpr auto table_style_look_last_column_bit = std::uint16_t{0x0100};
+constexpr auto table_style_look_no_hband_bit = std::uint16_t{0x0200};
+constexpr auto table_style_look_no_vband_bit = std::uint16_t{0x0400};
+
 enum class cell_vertical_merge_state {
     none = 0,
     restart,
@@ -71,6 +78,147 @@ auto ensure_table_properties_node(pugi::xml_node table) -> pugi::xml_node {
     return table.append_child("w:tblPr");
 }
 
+auto ensure_table_look_node(pugi::xml_node table) -> pugi::xml_node {
+    auto table_properties = ensure_table_properties_node(table);
+    if (table_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto table_look = table_properties.child("w:tblLook");
+    if (table_look != pugi::xml_node{}) {
+        return table_look;
+    }
+
+    if (const auto margins = table_properties.child("w:tblCellMar");
+        margins != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblLook", margins);
+    }
+
+    if (const auto table_layout = table_properties.child("w:tblLayout");
+        table_layout != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblLook", table_layout);
+    }
+
+    if (const auto table_borders = table_properties.child("w:tblBorders");
+        table_borders != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblLook", table_borders);
+    }
+
+    if (const auto spacing = table_properties.child("w:tblCellSpacing");
+        spacing != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblLook", spacing);
+    }
+
+    if (const auto table_indent = table_properties.child("w:tblInd");
+        table_indent != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblLook", table_indent);
+    }
+
+    if (const auto alignment = table_properties.child("w:jc");
+        alignment != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblLook", alignment);
+    }
+
+    if (const auto table_width = table_properties.child("w:tblW");
+        table_width != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblLook", table_width);
+    }
+
+    if (const auto table_style = table_properties.child("w:tblStyle");
+        table_style != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblLook", table_style);
+    }
+
+    if (const auto first_child = table_properties.first_child(); first_child != pugi::xml_node{}) {
+        return table_properties.insert_child_before("w:tblLook", first_child);
+    }
+
+    return table_properties.append_child("w:tblLook");
+}
+
+auto encode_table_style_look(featherdoc::table_style_look style_look) -> std::uint16_t {
+    auto value = std::uint16_t{0U};
+    if (style_look.first_row) {
+        value = static_cast<std::uint16_t>(value | table_style_look_first_row_bit);
+    }
+    if (style_look.last_row) {
+        value = static_cast<std::uint16_t>(value | table_style_look_last_row_bit);
+    }
+    if (style_look.first_column) {
+        value = static_cast<std::uint16_t>(value | table_style_look_first_column_bit);
+    }
+    if (style_look.last_column) {
+        value = static_cast<std::uint16_t>(value | table_style_look_last_column_bit);
+    }
+    if (!style_look.banded_rows) {
+        value = static_cast<std::uint16_t>(value | table_style_look_no_hband_bit);
+    }
+    if (!style_look.banded_columns) {
+        value = static_cast<std::uint16_t>(value | table_style_look_no_vband_bit);
+    }
+    return value;
+}
+
+auto format_short_hex(std::uint16_t value) -> std::string {
+    constexpr auto digits = std::string_view{"0123456789ABCDEF"};
+    auto result = std::string(4U, '0');
+    for (auto index = std::size_t{0U}; index < result.size(); ++index) {
+        const auto shift = static_cast<unsigned>((result.size() - index - 1U) * 4U);
+        result[index] = digits[(value >> shift) & 0x0FU];
+    }
+    return result;
+}
+
+auto parse_xml_on_off_value(std::string_view value) -> std::optional<bool> {
+    if (value.empty()) {
+        return std::nullopt;
+    }
+
+    if (value == "1" || value == "true" || value == "on" || value == "TRUE" ||
+        value == "ON") {
+        return true;
+    }
+
+    if (value == "0" || value == "false" || value == "off" || value == "FALSE" ||
+        value == "OFF") {
+        return false;
+    }
+
+    return std::nullopt;
+}
+
+auto parse_short_hex_value(std::string_view value) -> std::optional<std::uint16_t> {
+    if (value.empty()) {
+        return std::nullopt;
+    }
+
+    auto parsed = std::uint16_t{0U};
+    const auto *begin = value.data();
+    const auto *end = begin + value.size();
+    const auto [ptr, ec] = std::from_chars(begin, end, parsed, 16);
+    if (ec != std::errc{} || ptr != end) {
+        return std::nullopt;
+    }
+
+    return parsed;
+}
+
+auto decode_table_style_look_flag(std::optional<bool> attribute_value,
+                                  std::optional<std::uint16_t> encoded_value,
+                                  std::uint16_t bit, bool default_value,
+                                  bool inverted = false) -> bool {
+    if (attribute_value.has_value()) {
+        return inverted ? !*attribute_value : *attribute_value;
+    }
+
+    if (encoded_value.has_value()) {
+        const auto raw_value = (*encoded_value & bit) != 0U;
+        return inverted ? !raw_value : raw_value;
+    }
+
+    return default_value;
+}
+
 void ensure_default_table_properties(pugi::xml_node table) {
     auto table_properties = ensure_table_properties_node(table);
     if (table_properties == pugi::xml_node{}) {
@@ -84,10 +232,7 @@ void ensure_default_table_properties(pugi::xml_node table) {
     ensure_default_attribute_value(table_width, "w:w", "0");
     ensure_default_attribute_value(table_width, "w:type", "auto");
 
-    auto table_look = table_properties.child("w:tblLook");
-    if (table_look == pugi::xml_node{}) {
-        table_look = table_properties.append_child("w:tblLook");
-    }
+    auto table_look = ensure_table_look_node(table);
     ensure_default_attribute_value(table_look, "w:val", "04A0");
     ensure_default_attribute_value(table_look, "w:firstRow", "1");
     ensure_default_attribute_value(table_look, "w:firstColumn", "1");
@@ -2572,6 +2717,80 @@ bool Table::clear_style_id() {
 
     const auto style_node = table_properties.child("w:tblStyle");
     return style_node == pugi::xml_node{} || table_properties.remove_child(style_node);
+}
+
+std::optional<featherdoc::table_style_look> Table::style_look() const {
+    if (this->current == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto table_look_node = this->current.child("w:tblPr").child("w:tblLook");
+    if (table_look_node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto encoded_value =
+        parse_short_hex_value(std::string_view{table_look_node.attribute("w:val").value()});
+    auto style_look = featherdoc::table_style_look{};
+    style_look.first_row = decode_table_style_look_flag(
+        parse_xml_on_off_value(std::string_view{table_look_node.attribute("w:firstRow").value()}),
+        encoded_value, table_style_look_first_row_bit, style_look.first_row);
+    style_look.last_row = decode_table_style_look_flag(
+        parse_xml_on_off_value(std::string_view{table_look_node.attribute("w:lastRow").value()}),
+        encoded_value, table_style_look_last_row_bit, style_look.last_row);
+    style_look.first_column = decode_table_style_look_flag(
+        parse_xml_on_off_value(
+            std::string_view{table_look_node.attribute("w:firstColumn").value()}),
+        encoded_value, table_style_look_first_column_bit, style_look.first_column);
+    style_look.last_column = decode_table_style_look_flag(
+        parse_xml_on_off_value(
+            std::string_view{table_look_node.attribute("w:lastColumn").value()}),
+        encoded_value, table_style_look_last_column_bit, style_look.last_column);
+    style_look.banded_rows = decode_table_style_look_flag(
+        parse_xml_on_off_value(std::string_view{table_look_node.attribute("w:noHBand").value()}),
+        encoded_value, table_style_look_no_hband_bit, style_look.banded_rows, true);
+    style_look.banded_columns = decode_table_style_look_flag(
+        parse_xml_on_off_value(std::string_view{table_look_node.attribute("w:noVBand").value()}),
+        encoded_value, table_style_look_no_vband_bit, style_look.banded_columns, true);
+    return style_look;
+}
+
+bool Table::set_style_look(featherdoc::table_style_look style_look) {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto table_look_node = ensure_table_look_node(this->current);
+    if (table_look_node == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto encoded_value = format_short_hex(encode_table_style_look(style_look));
+    ensure_attribute_value(table_look_node, "w:val", encoded_value.c_str());
+    ensure_attribute_value(table_look_node, "w:firstRow", style_look.first_row ? "1" : "0");
+    ensure_attribute_value(table_look_node, "w:lastRow", style_look.last_row ? "1" : "0");
+    ensure_attribute_value(table_look_node, "w:firstColumn",
+                           style_look.first_column ? "1" : "0");
+    ensure_attribute_value(table_look_node, "w:lastColumn",
+                           style_look.last_column ? "1" : "0");
+    ensure_attribute_value(table_look_node, "w:noHBand", style_look.banded_rows ? "0" : "1");
+    ensure_attribute_value(table_look_node, "w:noVBand",
+                           style_look.banded_columns ? "0" : "1");
+    return true;
+}
+
+bool Table::clear_style_look() {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto table_properties = this->current.child("w:tblPr");
+    if (table_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    const auto table_look_node = table_properties.child("w:tblLook");
+    return table_look_node == pugi::xml_node{} || table_properties.remove_child(table_look_node);
 }
 
 bool Table::set_border(featherdoc::table_border_edge edge,

@@ -354,8 +354,8 @@ inserted.rows().cells().set_text("inserted");
 
 Use `Table::set_width_twips(...)`, `set_style_id(...)`, `set_border(...)`,
 `set_layout_mode(...)`, `set_alignment(...)`, `set_indent_twips(...)`,
-`set_cell_spacing_twips(...)`, and
-`set_cell_margin_twips(...)`
+`set_cell_spacing_twips(...)`, `set_cell_margin_twips(...)`, and
+`set_style_look(...)`
 alongside `TableCell::set_text(...)`, `get_text()`, `set_width_twips(...)`,
 `Table::remove()`, `insert_table_before()`, `insert_table_after()`,
 `insert_table_like_before()`, `insert_table_like_after()`,
@@ -366,8 +366,10 @@ alongside `TableCell::set_text(...)`, `get_text()`, `set_width_twips(...)`,
 `set_fill_color(...)`, and `set_margin_twips(...)` when you need lightweight
 table layout editing without dropping down to raw WordprocessingML.
 `width_twips()` reports an explicit `dxa` width when present, `style_id()`
-reports the current table style reference, `layout_mode()` reports the current
-auto-fit mode, `alignment()` / `indent_twips()` report table placement,
+reports the current table style reference, `style_look()` reports the current
+first/last row or column emphasis together with row/column banding flags,
+`layout_mode()` reports the current auto-fit mode, `alignment()` /
+`indent_twips()` report table placement,
 `cell_spacing_twips()` reports inter-cell spacing, and `cell_margin_twips()`
 reports per-edge default cell margins,
 `height_twips()` / `height_rule()` report the current row height override,
@@ -394,6 +396,7 @@ properties such as shading, margins, borders, and explicit width.
 auto table = doc.append_table(1, 3);
 table.set_width_twips(7200);
 table.set_style_id("TableGrid");
+table.set_style_look({true, false, false, false, true, false});
 table.set_layout_mode(featherdoc::table_layout_mode::fixed);
 table.set_alignment(featherdoc::table_alignment::center);
 table.set_indent_twips(240);
@@ -434,6 +437,11 @@ inserted_before.cells().set_text("Inserted above");
 std::cout << cell.column_span() << '\n'; // 2
 ```
 
+`style_look()` only changes the style-routing flags stored in `w:tblLook`, so
+visible differences depend on the table style definition present in the
+document. It is useful when you want to keep the same style id but switch which
+rows or columns that style treats as emphasized or banded.
+
 For runnable insertion examples, build `featherdoc_sample_insert_table_row`
 from `samples/sample_insert_table_row.cpp` for the `insert_row_after()` flow,
 or `featherdoc_sample_insert_table_row_before` from
@@ -460,6 +468,11 @@ For a runnable table-spacing edit example, build
 `samples/sample_edit_existing_table_spacing.cpp`. It reopens a saved `.docx`,
 adds `tblCellSpacing` to an existing table, and makes the new gutters visible
 in Word's rendered output.
+For a runnable table-style-look edit example, build
+`featherdoc_sample_edit_existing_table_style_look` from
+`samples/sample_edit_existing_table_style_look.cpp`. It reopens a saved
+`.docx`, updates `tblLook` on an existing table, and keeps the original table
+style reference in place.
 
 Use `append_image(path)` to append an inline image at its intrinsic pixel size,
 or `append_image(path, width_px, height_px)` when you want explicit scaling.
@@ -1079,9 +1092,10 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   borders, switched between fixed and autofit layout, aligned/indented within
   the page, pointed at existing table style ids, given basic table-level
   default cell margins and cell shading/margins, assigned row heights,
-  controlled for page splitting, assigned cell vertical alignment, and marked
-  to repeat header rows, but there is still no high-level API for custom
-  table style definitions or richer table layout editing.
+  controlled for page splitting, assigned cell vertical alignment, marked to
+  repeat header rows, and retuned through `tblLook` style-routing flags, but
+  there is still no high-level API for custom table style definitions or
+  floating table positioning.
 - Paragraphs can now be attached to managed bullet and decimal lists, but there
   is still no high-level API for custom numbering definitions, list restarts,
   or paragraph style-based numbering.

@@ -221,6 +221,12 @@ if(BUILD_SAMPLES)
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_table_spacing)
 
+    add_executable(featherdoc_sample_edit_existing_table_style_look
+        samples/sample_edit_existing_table_style_look.cpp)
+    target_link_libraries(featherdoc_sample_edit_existing_table_style_look
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_table_style_look)
+
     add_executable(featherdoc_sample_insert_table_row
         samples/sample_insert_table_row.cpp)
     target_link_libraries(featherdoc_sample_insert_table_row

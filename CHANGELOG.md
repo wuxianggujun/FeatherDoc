@@ -8,6 +8,23 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added `table_style_look`, `Table::style_look()`, `set_style_look(...)`, and
+  `clear_style_look()` for editing `w:tblLook` on existing tables so first/last
+  row or column emphasis plus row/column banding can be retuned without
+  dropping to raw XML.
+- Added `samples/sample_edit_existing_table_style_look.cpp` as a runnable
+  workflow that reopens a saved `.docx`, updates `tblLook` on an existing
+  table, and preserves the underlying style reference.
+
+### Validation
+
+- Validated table style-look edits with MinGW build + `ctest` and a Word visual
+  smoke pass for `featherdoc_sample_edit_existing_table_style_look`, including
+  a final XML check that the saved table keeps `w:tblStyle` and writes the
+  expected `w:tblLook`.
+
 ## [1.5.0] - 2026-04-09
 
 ### Added

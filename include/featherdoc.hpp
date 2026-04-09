@@ -252,6 +252,9 @@ class Table {
     [[nodiscard]] std::optional<std::string> style_id() const;
     [[nodiscard]] bool set_style_id(std::string_view style_id);
     [[nodiscard]] bool clear_style_id();
+    [[nodiscard]] std::optional<featherdoc::table_style_look> style_look() const;
+    [[nodiscard]] bool set_style_look(featherdoc::table_style_look style_look);
+    [[nodiscard]] bool clear_style_look();
     [[nodiscard]] bool set_border(featherdoc::table_border_edge edge,
                                   featherdoc::border_definition border);
     [[nodiscard]] bool clear_border(featherdoc::table_border_edge edge);

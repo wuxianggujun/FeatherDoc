@@ -125,6 +125,15 @@ enum class table_border_edge : std::uint8_t {
     inside_vertical,
 };
 
+struct table_style_look {
+    bool first_row{true};
+    bool last_row{false};
+    bool first_column{true};
+    bool last_column{false};
+    bool banded_rows{true};
+    bool banded_columns{false};
+};
+
 struct border_definition {
     featherdoc::border_style style{featherdoc::border_style::single};
     std::uint32_t size_eighth_points{4U};

@@ -8264,6 +8264,147 @@ TEST_CASE("table widths style ids and borders can be cleared") {
     fs::remove(target);
 }
 
+TEST_CASE("table style look can be set saved and reopened") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_style_look.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(2, 2);
+    auto initial_style_look = table.style_look();
+    REQUIRE(initial_style_look.has_value());
+    CHECK(initial_style_look->first_row);
+    CHECK_FALSE(initial_style_look->last_row);
+    CHECK(initial_style_look->first_column);
+    CHECK_FALSE(initial_style_look->last_column);
+    CHECK(initial_style_look->banded_rows);
+    CHECK_FALSE(initial_style_look->banded_columns);
+
+    featherdoc::table_style_look updated_style_look{};
+    updated_style_look.first_row = false;
+    updated_style_look.last_row = true;
+    updated_style_look.first_column = false;
+    updated_style_look.last_column = true;
+    updated_style_look.banded_rows = false;
+    updated_style_look.banded_columns = true;
+    CHECK(table.set_style_look(updated_style_look));
+
+    const auto style_look = table.style_look();
+    REQUIRE(style_look.has_value());
+    CHECK_FALSE(style_look->first_row);
+    CHECK(style_look->last_row);
+    CHECK_FALSE(style_look->first_column);
+    CHECK(style_look->last_column);
+    CHECK_FALSE(style_look->banded_rows);
+    CHECK(style_look->banded_columns);
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_look = xml_document.child("w:document")
+                                .child("w:body")
+                                .child("w:tbl")
+                                .child("w:tblPr")
+                                .child("w:tblLook");
+    REQUIRE(table_look != pugi::xml_node{});
+    CHECK_EQ(std::string_view{table_look.attribute("w:val").value()}, "0340");
+    CHECK_EQ(std::string_view{table_look.attribute("w:firstRow").value()}, "0");
+    CHECK_EQ(std::string_view{table_look.attribute("w:lastRow").value()}, "1");
+    CHECK_EQ(std::string_view{table_look.attribute("w:firstColumn").value()}, "0");
+    CHECK_EQ(std::string_view{table_look.attribute("w:lastColumn").value()}, "1");
+    CHECK_EQ(std::string_view{table_look.attribute("w:noHBand").value()}, "1");
+    CHECK_EQ(std::string_view{table_look.attribute("w:noVBand").value()}, "0");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    auto reopened_style_look = reopened_table.style_look();
+    REQUIRE(reopened_style_look.has_value());
+    CHECK_FALSE(reopened_style_look->first_row);
+    CHECK(reopened_style_look->last_row);
+    CHECK_FALSE(reopened_style_look->first_column);
+    CHECK(reopened_style_look->last_column);
+    CHECK_FALSE(reopened_style_look->banded_rows);
+    CHECK(reopened_style_look->banded_columns);
+
+    fs::remove(target);
+}
+
+TEST_CASE("table style look can be read from val-only XML and cleared") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_style_look_val_only.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblLook w:val="0260"/>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="2400"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2400" w:type="dxa"/>
+          </w:tcPr>
+          <w:p><w:r><w:t>seed</w:t></w:r></w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto table = doc.tables();
+    REQUIRE(table.has_next());
+    const auto style_look = table.style_look();
+    REQUIRE(style_look.has_value());
+    CHECK(style_look->first_row);
+    CHECK(style_look->last_row);
+    CHECK_FALSE(style_look->first_column);
+    CHECK_FALSE(style_look->last_column);
+    CHECK_FALSE(style_look->banded_rows);
+    CHECK(style_look->banded_columns);
+
+    CHECK(table.clear_style_look());
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_properties =
+        xml_document.child("w:document").child("w:body").child("w:tbl").child("w:tblPr");
+    REQUIRE(table_properties != pugi::xml_node{});
+    CHECK_EQ(table_properties.child("w:tblLook"), pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    CHECK_FALSE(reopened_table.style_look().has_value());
+
+    fs::remove(target);
+}
+
 TEST_CASE("table-level properties survive append_row") {
     namespace fs = std::filesystem;
 
