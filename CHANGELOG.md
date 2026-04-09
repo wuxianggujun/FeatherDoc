@@ -14,9 +14,16 @@ performance.
   `clear_style_look()` for editing `w:tblLook` on existing tables so first/last
   row or column emphasis plus row/column banding can be retuned without
   dropping to raw XML.
+- Added `Document::restart_paragraph_list(...)` so managed bullet or decimal
+  numbering can restart from a fresh `w:num` instance while adjacent list items
+  continue the restarted sequence instead of falling back to the shared default
+  instance.
 - Added `samples/sample_edit_existing_table_style_look.cpp` as a runnable
   workflow that reopens a saved `.docx`, updates `tblLook` on an existing
   table, and preserves the underlying style reference.
+- Added `samples/sample_restart_paragraph_list.cpp` as a runnable workflow that
+  reopens a saved `.docx`, restarts an existing decimal list at `1.`, and
+  continues the restarted sequence in later paragraphs.
 
 ### Validation
 
@@ -24,6 +31,9 @@ performance.
   smoke pass for `featherdoc_sample_edit_existing_table_style_look`, including
   a final XML check that the saved table keeps `w:tblStyle` and writes the
   expected `w:tblLook`.
+- Validated paragraph-list restart edits with MinGW build + `ctest` and a Word
+  visual smoke pass for `featherdoc_sample_restart_paragraph_list`, confirming
+  the rendered document shows two decimal sequences that both begin at `1.`.
 
 ## [1.5.0] - 2026-04-09
 

@@ -744,6 +744,8 @@ class Document {
         std::initializer_list<bookmark_block_visibility_binding> bindings);
     [[nodiscard]] bool set_paragraph_list(
         Paragraph paragraph, featherdoc::list_kind kind, std::uint32_t level = 0U);
+    [[nodiscard]] bool restart_paragraph_list(
+        Paragraph paragraph, featherdoc::list_kind kind, std::uint32_t level = 0U);
     [[nodiscard]] bool clear_paragraph_list(Paragraph paragraph);
     [[nodiscard]] std::optional<std::string> default_run_font_family();
     [[nodiscard]] std::optional<std::string> default_run_east_asia_font_family();

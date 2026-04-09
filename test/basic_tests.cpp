@@ -9894,6 +9894,122 @@ TEST_CASE("clear_paragraph_list removes numbering markup and invalid level is re
     fs::remove(target);
 }
 
+TEST_CASE("restart_paragraph_list creates a fresh numbering instance and adjacent items continue it") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "paragraph_list_restart.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto first_item = doc.paragraphs();
+    CHECK(doc.set_paragraph_list(first_item, featherdoc::list_kind::decimal));
+    CHECK(first_item.add_run("first list item").has_next());
+
+    auto second_item = first_item.insert_paragraph_after("");
+    CHECK(doc.set_paragraph_list(second_item, featherdoc::list_kind::decimal));
+    CHECK(second_item.add_run("first list item 2").has_next());
+
+    auto spacer = second_item.insert_paragraph_after("restart here");
+    REQUIRE(spacer.has_next());
+
+    auto restarted_first = spacer.insert_paragraph_after("");
+    CHECK(doc.restart_paragraph_list(restarted_first, featherdoc::list_kind::decimal));
+    CHECK(restarted_first.add_run("second list item 1").has_next());
+
+    auto restarted_second = restarted_first.insert_paragraph_after("");
+    CHECK(doc.set_paragraph_list(restarted_second, featherdoc::list_kind::decimal));
+    CHECK(restarted_second.add_run("second list item 2").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(saved_document_xml.c_str()));
+
+    const auto body = xml_document.child("w:document").child("w:body");
+    auto paragraph = body.child("w:p");
+    REQUIRE(paragraph != pugi::xml_node{});
+    auto second_paragraph = paragraph.next_sibling("w:p");
+    REQUIRE(second_paragraph != pugi::xml_node{});
+    auto spacer_paragraph = second_paragraph.next_sibling("w:p");
+    REQUIRE(spacer_paragraph != pugi::xml_node{});
+    auto restarted_first_paragraph = spacer_paragraph.next_sibling("w:p");
+    REQUIRE(restarted_first_paragraph != pugi::xml_node{});
+    auto restarted_second_paragraph = restarted_first_paragraph.next_sibling("w:p");
+    REQUIRE(restarted_second_paragraph != pugi::xml_node{});
+
+    const auto first_num_pr = paragraph.child("w:pPr").child("w:numPr");
+    const auto second_num_pr = second_paragraph.child("w:pPr").child("w:numPr");
+    const auto restarted_first_num_pr =
+        restarted_first_paragraph.child("w:pPr").child("w:numPr");
+    const auto restarted_second_num_pr =
+        restarted_second_paragraph.child("w:pPr").child("w:numPr");
+    REQUIRE(first_num_pr != pugi::xml_node{});
+    REQUIRE(second_num_pr != pugi::xml_node{});
+    REQUIRE(restarted_first_num_pr != pugi::xml_node{});
+    REQUIRE(restarted_second_num_pr != pugi::xml_node{});
+
+    const auto first_num_id = std::string{first_num_pr.child("w:numId").attribute("w:val").value()};
+    const auto second_num_id =
+        std::string{second_num_pr.child("w:numId").attribute("w:val").value()};
+    const auto restarted_first_num_id =
+        std::string{restarted_first_num_pr.child("w:numId").attribute("w:val").value()};
+    const auto restarted_second_num_id =
+        std::string{restarted_second_num_pr.child("w:numId").attribute("w:val").value()};
+
+    CHECK_EQ(first_num_id, second_num_id);
+    CHECK_NE(first_num_id, restarted_first_num_id);
+    CHECK_EQ(restarted_first_num_id, restarted_second_num_id);
+
+    const auto numbering_xml = read_test_docx_entry(target, "word/numbering.xml");
+    pugi::xml_document numbering_document;
+    REQUIRE(numbering_document.load_string(numbering_xml.c_str()));
+    const auto numbering_root = numbering_document.child("w:numbering");
+    REQUIRE(numbering_root != pugi::xml_node{});
+
+    auto restarted_numbering_instance = pugi::xml_node{};
+    for (auto numbering_instance = numbering_root.child("w:num");
+         numbering_instance != pugi::xml_node{};
+         numbering_instance = numbering_instance.next_sibling("w:num")) {
+        if (std::string_view{numbering_instance.attribute("w:numId").value()} ==
+            restarted_first_num_id) {
+            restarted_numbering_instance = numbering_instance;
+            break;
+        }
+    }
+    REQUIRE(restarted_numbering_instance != pugi::xml_node{});
+    const auto restart_level_override = restarted_numbering_instance.child("w:lvlOverride");
+    REQUIRE(restart_level_override != pugi::xml_node{});
+    CHECK_EQ(std::string_view{restart_level_override.attribute("w:ilvl").value()}, "0");
+    CHECK_EQ(std::string_view{
+                 restart_level_override.child("w:startOverride").attribute("w:val").value()},
+             "1");
+
+    CHECK_EQ(count_substring_occurrences(numbering_xml, "<w:num "), 2);
+    CHECK_EQ(count_substring_occurrences(numbering_xml, "FeatherDocDecimalList"), 1);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_paragraph = reopened.paragraphs();
+    REQUIRE(reopened_paragraph.has_next());
+    reopened_paragraph.next();
+    REQUIRE(reopened_paragraph.has_next());
+    reopened_paragraph.next();
+    REQUIRE(reopened_paragraph.has_next());
+    reopened_paragraph.next();
+    REQUIRE(reopened_paragraph.has_next());
+    reopened_paragraph.next();
+    REQUIRE(reopened_paragraph.has_next());
+
+    CHECK(reopened.restart_paragraph_list(reopened_paragraph, featherdoc::list_kind::decimal));
+    CHECK_FALSE(reopened.save());
+
+    fs::remove(target);
+}
+
 TEST_CASE("set_paragraph_style and set_run_style create styles parts and round-trip") {
     namespace fs = std::filesystem;
 

@@ -462,8 +462,11 @@ body drawings, or ``featherdoc_sample_remove_images`` from
 removal workflow.
 
 ``set_paragraph_list(paragraph, kind, level)`` attaches managed bullet or
-decimal numbering to a paragraph. Use ``clear_paragraph_list(paragraph)`` when
-you want to remove the list marker again.
+decimal numbering to a paragraph. Use
+``restart_paragraph_list(paragraph, kind, level)`` when you want a fresh
+managed list sequence that starts over at the default marker for that kind,
+and ``clear_paragraph_list(paragraph)`` when you want to remove the list
+marker again.
 
 .. code-block:: cpp
 
@@ -474,6 +477,16 @@ you want to remove the list marker again.
     auto nested = item.insert_paragraph_after("");
     doc.set_paragraph_list(nested, featherdoc::list_kind::decimal, 1);
     nested.add_run("nested item");
+
+    auto restarted = nested.insert_paragraph_after("");
+    doc.restart_paragraph_list(restarted, featherdoc::list_kind::decimal);
+    restarted.add_run("restarted item 1");
+
+For a runnable list-restart example, build
+``featherdoc_sample_restart_paragraph_list`` from
+``samples/sample_restart_paragraph_list.cpp``. It reopens a saved ``.docx``,
+starts a second decimal list from ``1.``, and keeps the restarted sequence
+consistent in Word's rendered output.
 
 ``set_paragraph_style(paragraph, style_id)`` and ``set_run_style(run,
 style_id)`` attach paragraph/run style references. When the source document
@@ -1007,9 +1020,9 @@ Current Limitations
   direction, marked to repeat header rows, and retuned through ``tblLook``
   style-routing flags, but there is still no high-level API for custom table
   style definitions or floating table positioning.
-- Paragraphs can now be attached to managed bullet and decimal lists, but
-  there is still no high-level API for custom numbering definitions, list
-  restarts, or paragraph style-based numbering.
+- Paragraphs can now be attached to managed bullet and decimal lists and can
+  restart managed list sequences, but there is still no high-level API for
+  custom numbering definitions or paragraph style-based numbering.
 - Paragraph and run style references can now be attached and cleared, and a
   minimal ``word/styles.xml`` is created automatically when needed, but there
   is still no high-level API for custom style definition editing, style

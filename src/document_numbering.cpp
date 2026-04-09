@@ -290,6 +290,19 @@ auto find_numbering_instance_for_abstract(pugi::xml_node numbering_root,
     return {};
 }
 
+auto find_numbering_instance_by_id(pugi::xml_node numbering_root, std::uint32_t num_id)
+    -> pugi::xml_node {
+    const auto num_id_text = std::to_string(num_id);
+    for (auto num = numbering_root.child("w:num"); num != pugi::xml_node{};
+         num = num.next_sibling("w:num")) {
+        if (std::string_view{num.attribute("w:numId").value()} == num_id_text) {
+            return num;
+        }
+    }
+
+    return {};
+}
+
 auto append_level_definition(pugi::xml_node abstract_num, featherdoc::list_kind kind,
                              std::uint32_t level) -> bool {
     auto level_node = abstract_num.append_child("w:lvl");
@@ -334,7 +347,7 @@ auto append_level_definition(pugi::xml_node abstract_num, featherdoc::list_kind 
     return true;
 }
 
-auto ensure_managed_numbering_instance(pugi::xml_node numbering_root, featherdoc::list_kind kind)
+auto ensure_managed_abstract_numbering(pugi::xml_node numbering_root, featherdoc::list_kind kind)
     -> std::optional<std::uint32_t> {
     const auto managed_name = list_name_for(kind);
 
@@ -366,32 +379,144 @@ auto ensure_managed_numbering_instance(pugi::xml_node numbering_root, featherdoc
         }
     }
 
-    const auto abstract_num_id =
-        parse_u32_attribute_value(abstract_num.attribute("w:abstractNumId").value());
+    return parse_u32_attribute_value(abstract_num.attribute("w:abstractNumId").value());
+}
+
+auto append_numbering_instance_for_abstract(pugi::xml_node numbering_root,
+                                            std::uint32_t abstract_num_id,
+                                            std::optional<std::uint32_t> restart_level =
+                                                std::nullopt)
+    -> std::optional<std::uint32_t> {
+    const auto num_id = max_numbering_id(numbering_root, "w:num", "w:numId") + 1U;
+    auto numbering_instance = numbering_root.append_child("w:num");
+    if (numbering_instance == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    ensure_attribute_value(numbering_instance, "w:numId", std::to_string(num_id));
+
+    auto abstract_num_id_node = numbering_instance.append_child("w:abstractNumId");
+    if (abstract_num_id_node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+    ensure_attribute_value(abstract_num_id_node, "w:val", std::to_string(abstract_num_id));
+
+    if (restart_level.has_value()) {
+        auto level_override = numbering_instance.append_child("w:lvlOverride");
+        if (level_override == pugi::xml_node{}) {
+            return std::nullopt;
+        }
+        ensure_attribute_value(level_override, "w:ilvl", std::to_string(*restart_level));
+
+        auto start_override = level_override.append_child("w:startOverride");
+        if (start_override == pugi::xml_node{}) {
+            return std::nullopt;
+        }
+        ensure_attribute_value(start_override, "w:val", "1");
+    }
+
+    return num_id;
+}
+
+auto managed_list_kind_for_num_id(pugi::xml_node numbering_root, std::uint32_t num_id)
+    -> std::optional<featherdoc::list_kind> {
+    const auto numbering_instance = find_numbering_instance_by_id(numbering_root, num_id);
+    if (numbering_instance == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto abstract_num_id = parse_u32_attribute_value(
+        numbering_instance.child("w:abstractNumId").attribute("w:val").value());
     if (!abstract_num_id.has_value()) {
         return std::nullopt;
     }
 
-    auto numbering_instance =
-        find_numbering_instance_for_abstract(numbering_root, *abstract_num_id);
-    if (numbering_instance == pugi::xml_node{}) {
-        const auto num_id = max_numbering_id(numbering_root, "w:num", "w:numId") + 1U;
-        numbering_instance = numbering_root.append_child("w:num");
-        if (numbering_instance == pugi::xml_node{}) {
-            return std::nullopt;
+    for (auto abstract_num = numbering_root.child("w:abstractNum");
+         abstract_num != pugi::xml_node{};
+         abstract_num = abstract_num.next_sibling("w:abstractNum")) {
+        if (parse_u32_attribute_value(abstract_num.attribute("w:abstractNumId").value()) !=
+            abstract_num_id) {
+            continue;
         }
 
-        ensure_attribute_value(numbering_instance, "w:numId", std::to_string(num_id));
-
-        auto abstract_num_id_node = numbering_instance.append_child("w:abstractNumId");
-        if (abstract_num_id_node == pugi::xml_node{}) {
-            return std::nullopt;
+        const auto name =
+            std::string_view{abstract_num.child("w:name").attribute("w:val").value()};
+        if (name == managed_bullet_list_name) {
+            return featherdoc::list_kind::bullet;
         }
-        ensure_attribute_value(abstract_num_id_node, "w:val", std::to_string(*abstract_num_id));
-        return num_id;
+        if (name == managed_decimal_list_name) {
+            return featherdoc::list_kind::decimal;
+        }
+        return std::nullopt;
     }
 
-    return parse_u32_attribute_value(numbering_instance.attribute("w:numId").value());
+    return std::nullopt;
+}
+
+auto previous_managed_num_id_for_kind(pugi::xml_node paragraph, pugi::xml_node numbering_root,
+                                      featherdoc::list_kind kind)
+    -> std::optional<std::uint32_t> {
+    if (paragraph == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto previous_paragraph = paragraph.previous_sibling("w:p");
+    if (previous_paragraph == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto num_id = parse_u32_attribute_value(previous_paragraph.child("w:pPr")
+                                                      .child("w:numPr")
+                                                      .child("w:numId")
+                                                      .attribute("w:val")
+                                                      .value());
+    if (!num_id.has_value()) {
+        return std::nullopt;
+    }
+
+    const auto previous_kind = managed_list_kind_for_num_id(numbering_root, *num_id);
+    if (!previous_kind.has_value() || *previous_kind != kind) {
+        return std::nullopt;
+    }
+
+    return num_id;
+}
+
+auto ensure_managed_numbering_instance(
+    pugi::xml_node numbering_root, featherdoc::list_kind kind,
+    std::optional<std::uint32_t> restart_level = std::nullopt, bool force_new_instance = false)
+    -> std::optional<std::uint32_t> {
+    const auto abstract_num_id = ensure_managed_abstract_numbering(numbering_root, kind);
+    if (!abstract_num_id.has_value()) {
+        return std::nullopt;
+    }
+
+    if (!force_new_instance) {
+        const auto numbering_instance =
+            find_numbering_instance_for_abstract(numbering_root, *abstract_num_id);
+        if (numbering_instance != pugi::xml_node{}) {
+            return parse_u32_attribute_value(numbering_instance.attribute("w:numId").value());
+        }
+    }
+
+    return append_numbering_instance_for_abstract(numbering_root, *abstract_num_id,
+                                                  restart_level);
+}
+
+auto apply_list_numbering(pugi::xml_node paragraph, pugi::xml_node numbering_root,
+                          featherdoc::list_kind kind, std::uint32_t level, bool force_restart)
+    -> std::optional<std::uint32_t> {
+    if (!force_restart) {
+        if (const auto previous_num_id =
+                previous_managed_num_id_for_kind(paragraph, numbering_root, kind);
+            previous_num_id.has_value()) {
+            return previous_num_id;
+        }
+    }
+
+    return ensure_managed_numbering_instance(
+        numbering_root, kind,
+        force_restart ? std::optional<std::uint32_t>{level} : std::nullopt, force_restart);
 }
 } // namespace
 
@@ -634,11 +759,104 @@ bool Document::set_paragraph_list(Paragraph target_paragraph, featherdoc::list_k
         return false;
     }
 
-    const auto num_id = ensure_managed_numbering_instance(numbering_root, kind);
+    const auto num_id =
+        apply_list_numbering(target_paragraph.current, numbering_root, kind, level, false);
     if (!num_id.has_value()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create or reuse a managed numbering definition",
+                       std::string{numbering_xml_entry});
+        return false;
+    }
+
+    auto paragraph_properties = ensure_paragraph_properties_node(target_paragraph.current);
+    if (paragraph_properties == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:pPr for the target paragraph",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    auto numbering_properties = paragraph_properties.child("w:numPr");
+    if (numbering_properties == pugi::xml_node{}) {
+        numbering_properties = paragraph_properties.append_child("w:numPr");
+    }
+    if (numbering_properties == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:numPr for the target paragraph",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    auto level_node = numbering_properties.child("w:ilvl");
+    if (level_node == pugi::xml_node{}) {
+        level_node = numbering_properties.append_child("w:ilvl");
+    }
+    auto num_id_node = numbering_properties.child("w:numId");
+    if (num_id_node == pugi::xml_node{}) {
+        num_id_node = numbering_properties.append_child("w:numId");
+    }
+    if (level_node == pugi::xml_node{} || num_id_node == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to populate numbering metadata for the target paragraph",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    ensure_attribute_value(level_node, "w:val", std::to_string(level));
+    ensure_attribute_value(num_id_node, "w:val", std::to_string(*num_id));
+
+    this->numbering_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::restart_paragraph_list(Paragraph target_paragraph, featherdoc::list_kind kind,
+                                      std::uint32_t level) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing paragraph lists");
+        return false;
+    }
+
+    if (!target_paragraph.has_next() || target_paragraph.current == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "target paragraph handle is not valid",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    if (level > max_list_level) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "list level must be in the range [0, 8]",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_numbering_part_attached()) {
+        return false;
+    }
+
+    auto numbering_root = this->numbering.child("w:numbering");
+    if (numbering_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       document_errc::numbering_xml_parse_failed,
+                       "word/numbering.xml does not contain the expected w:numbering root",
+                       std::string{numbering_xml_entry});
+        return false;
+    }
+
+    const auto num_id =
+        apply_list_numbering(target_paragraph.current, numbering_root, kind, level, true);
+    if (!num_id.has_value()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create a restarted managed numbering definition",
                        std::string{numbering_xml_entry});
         return false;
     }
