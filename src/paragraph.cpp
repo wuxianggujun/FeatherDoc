@@ -72,6 +72,53 @@ void remove_empty_paragraph_properties(pugi::xml_node paragraph) {
     }
 }
 
+auto copy_paragraph_properties_without_section_break(pugi::xml_node source_paragraph,
+                                                     pugi::xml_node target_paragraph)
+    -> bool {
+    if (source_paragraph == pugi::xml_node{} || target_paragraph == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto source_properties = source_paragraph.child("w:pPr");
+    if (source_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    auto copied_properties = target_paragraph.append_copy(source_properties);
+    if (copied_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    if (const auto section_properties = copied_properties.child("w:sectPr");
+        section_properties != pugi::xml_node{}) {
+        copied_properties.remove_child(section_properties);
+    }
+
+    remove_empty_paragraph_properties(target_paragraph);
+    return true;
+}
+
+auto insert_paragraph_like_node(pugi::xml_node parent, pugi::xml_node anchor,
+                                bool insert_after) -> pugi::xml_node {
+    if (parent == pugi::xml_node{} || anchor == pugi::xml_node{} ||
+        anchor.parent() != parent) {
+        return {};
+    }
+
+    const auto insert_before = insert_after ? anchor.next_sibling() : anchor;
+    auto inserted_paragraph = detail::insert_paragraph_node(parent, insert_before);
+    if (inserted_paragraph == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (!copy_paragraph_properties_without_section_break(anchor, inserted_paragraph)) {
+        parent.remove_child(inserted_paragraph);
+        return {};
+    }
+
+    return inserted_paragraph;
+}
+
 } // namespace
 
 Paragraph::Paragraph() = default;
@@ -267,6 +314,14 @@ Paragraph Paragraph::insert_paragraph_after(const std::string &text,
     Paragraph paragraph(this->parent, new_para);
     paragraph.add_run(text, f);
     return paragraph;
+}
+
+Paragraph Paragraph::insert_paragraph_like_before() {
+    return Paragraph(this->parent, insert_paragraph_like_node(this->parent, this->current, false));
+}
+
+Paragraph Paragraph::insert_paragraph_like_after() {
+    return Paragraph(this->parent, insert_paragraph_like_node(this->parent, this->current, true));
 }
 
 } // namespace featherdoc

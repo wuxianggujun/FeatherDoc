@@ -115,6 +115,8 @@ class Paragraph {
     Paragraph insert_paragraph_after(const std::string &,
                                      featherdoc::formatting_flag =
                                          featherdoc::formatting_flag::none);
+    Paragraph insert_paragraph_like_before();
+    Paragraph insert_paragraph_like_after();
 };
 
 // TableCell contains one or more paragraphs

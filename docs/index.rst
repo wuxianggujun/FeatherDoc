@@ -146,7 +146,9 @@ printing. Text stored inside tables is accessed through
 while preserving paragraph-level properties such as style or bidi settings.
 ``Paragraph::insert_paragraph_before(...)`` and
 ``insert_paragraph_after(...)`` add a sibling paragraph around the current
-anchor paragraph, ``Run::insert_run_before(...)`` and
+anchor paragraph, ``insert_paragraph_like_before(...)`` and
+``insert_paragraph_like_after(...)`` add a sibling paragraph that inherits the
+anchor paragraph's paragraph-level properties, ``Run::insert_run_before(...)`` and
 ``insert_run_after(...)`` add sibling runs around the current anchor run,
 ``Run::remove()`` drops one run from a paragraph, and ``Paragraph::remove()``
 deletes a paragraph only when doing so would not leave an invalid body,
@@ -160,6 +162,9 @@ also refuses to remove section-break paragraphs.
 
     auto prepended = paragraph.insert_paragraph_before("Lead-in");
     prepended.add_run(" note");
+
+    auto cloned = paragraph.insert_paragraph_like_after();
+    cloned.set_text("Another paragraph with the same paragraph style");
 
     auto anchor = paragraph.runs();
     anchor.insert_run_before("left ", featherdoc::formatting_flag::bold);
@@ -186,6 +191,10 @@ TemplatePart handles" example, build
 For a focused "reopen and insert body/header/footer paragraphs before existing
 anchor paragraphs" example, build ``featherdoc_sample_insert_paragraph_before``
 from ``samples/sample_insert_paragraph_before.cpp``.
+For a focused "reopen and clone paragraph formatting around existing
+body/header/footer anchor paragraphs" example, build
+``featherdoc_sample_insert_paragraph_like_existing`` from
+``samples/sample_insert_paragraph_like_existing.cpp``.
 For a focused "reopen and insert runs around existing body/header/footer anchor
 runs" example, build ``featherdoc_sample_insert_run_around_existing`` from
 ``samples/sample_insert_run_around_existing.cpp``.
@@ -1008,7 +1017,7 @@ staying in one large translation unit:
 - ``src/document_numbering.cpp``: managed paragraph list numbering, numbering part attachment, and numbering definition generation
 - ``src/document_styles.cpp``: paragraph/run style references and ``word/styles.xml`` attachment/persistence
 - ``src/document_template.cpp``: bookmark-based template filling and batch replacement APIs
-- ``src/paragraph.cpp``: paragraph traversal, run creation, and paragraph insertion
+- ``src/paragraph.cpp``: paragraph traversal, run creation, paragraph insertion, and paragraph-property cloning
 - ``src/image_helpers.cpp`` / ``src/image_helpers.hpp``: image binary loading plus file format and size detection helpers
 - ``src/run.cpp``: run traversal, text/property edits, and run insertion/removal
 - ``src/table.cpp``: table creation plus row/cell traversal and editing helpers

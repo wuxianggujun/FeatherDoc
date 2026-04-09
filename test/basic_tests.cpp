@@ -1484,6 +1484,153 @@ TEST_CASE("insert_paragraph_before works inside a table cell") {
     fs::remove(target);
 }
 
+TEST_CASE("insert_paragraph_like_before clones paragraph properties and keeps the anchor usable") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "insert_paragraph_like_before_body.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto anchor = doc.paragraphs();
+    REQUIRE(anchor.has_next());
+    CHECK(doc.set_paragraph_style(anchor, "Heading1"));
+    CHECK(anchor.set_bidi());
+    CHECK(doc.set_paragraph_list(anchor, featherdoc::list_kind::bullet));
+    CHECK(anchor.set_text("anchor"));
+
+    auto inserted = anchor.insert_paragraph_like_before();
+    REQUIRE(inserted.has_next());
+    CHECK(inserted.set_text("before"));
+    REQUIRE(inserted.bidi().has_value());
+    CHECK(*inserted.bidi());
+    CHECK(anchor.has_next());
+    CHECK_EQ(anchor.runs().get_text(), "anchor");
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml,
+                                         "<w:pStyle w:val=\"Heading1\""),
+             2U);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:bidi"), 2U);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:numPr>"), 2U);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "before\nanchor\n");
+
+    auto reopened_inserted = reopened.paragraphs();
+    REQUIRE(reopened_inserted.has_next());
+    REQUIRE(reopened_inserted.bidi().has_value());
+    CHECK(*reopened_inserted.bidi());
+    reopened_inserted.next();
+    REQUIRE(reopened_inserted.has_next());
+    REQUIRE(reopened_inserted.bidi().has_value());
+    CHECK(*reopened_inserted.bidi());
+
+    fs::remove(target);
+}
+
+TEST_CASE("insert_paragraph_like_after clones cell paragraph properties without copying body text") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "insert_paragraph_like_after_cell.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto anchor = doc.append_table(1, 1).rows().cells().paragraphs();
+    REQUIRE(anchor.has_next());
+    CHECK(doc.set_paragraph_style(anchor, "Heading2"));
+    CHECK(anchor.set_bidi());
+    CHECK(anchor.set_text("cell anchor"));
+
+    auto inserted = anchor.insert_paragraph_like_after();
+    REQUIRE(inserted.has_next());
+    CHECK(inserted.set_text("cell like"));
+    REQUIRE(inserted.bidi().has_value());
+    CHECK(*inserted.bidi());
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml,
+                                         "<w:pStyle w:val=\"Heading2\""),
+             2U);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:bidi"), 2U);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_table_text(reopened), "cell anchor\ncell like\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("insert_paragraph_like strips section breaks from cloned paragraph properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "insert_paragraph_like_sectpr.docx";
+    fs::remove(target);
+
+    const auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:sectPr>
+          <w:pgSz w:w="12240" w:h="15840"/>
+        </w:sectPr>
+      </w:pPr>
+      <w:r><w:t>anchor</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:r><w:t>tail</w:t></w:r>
+    </w:p>
+    <w:sectPr/>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto anchor = doc.paragraphs();
+    REQUIRE(anchor.has_next());
+    CHECK_EQ(anchor.runs().get_text(), "anchor");
+
+    auto inserted = anchor.insert_paragraph_like_before();
+    REQUIRE(inserted.has_next());
+    CHECK(inserted.set_text("before"));
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:sectPr"), 2U);
+
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(saved_document_xml.c_str()));
+    const auto body = xml_document.child("w:document").child("w:body");
+    REQUIRE(body != pugi::xml_node{});
+
+    const auto inserted_paragraph = body.child("w:p");
+    REQUIRE(inserted_paragraph != pugi::xml_node{});
+    CHECK_EQ(inserted_paragraph.child("w:pPr").child("w:sectPr"), pugi::xml_node{});
+
+    const auto anchor_paragraph = inserted_paragraph.next_sibling("w:p");
+    REQUIRE(anchor_paragraph != pugi::xml_node{});
+    CHECK_NE(anchor_paragraph.child("w:pPr").child("w:sectPr"), pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "before\nanchor\ntail\n");
+
+    fs::remove(target);
+}
+
 TEST_CASE("run iteration skips non-run siblings inside a paragraph") {
     namespace fs = std::filesystem;
 

@@ -25,6 +25,11 @@ performance.
 - Added `Paragraph::insert_paragraph_before()` so existing body, header,
   footer, and table-cell paragraph handles can prepend a new sibling paragraph
   directly before the current anchor without dropping to manual XML ordering.
+- Added `Paragraph::insert_paragraph_like_before()` and
+  `Paragraph::insert_paragraph_like_after()` so existing body, header, footer,
+  and table-cell paragraph handles can clone paragraph-level properties such as
+  styles, bidi flags, and list numbering into new sibling paragraphs without
+  copying the anchor paragraph's body content.
 - Added `Run::insert_run_before()` and `Run::insert_run_after()` so existing
   body, header, footer, and table-cell paragraphs can insert sibling runs
   around the current anchor run while keeping the anchor handle usable.
@@ -65,6 +70,10 @@ performance.
 - Added `samples/sample_insert_paragraph_before.cpp` as a runnable workflow
   that seeds body/header/footer anchor paragraphs, reopens the saved `.docx`,
   and inserts new paragraphs directly before those existing anchors.
+- Added `samples/sample_insert_paragraph_like_existing.cpp` as a runnable
+  workflow that seeds styled body/header/footer anchor paragraphs, reopens the
+  saved `.docx`, and clones paragraph formatting into new sibling paragraphs
+  around those existing anchors.
 - Added `samples/sample_insert_run_around_existing.cpp` as a runnable workflow
   that seeds body/header/footer anchor runs, reopens the saved `.docx`, and
   inserts new runs directly around those existing anchors.
@@ -110,6 +119,10 @@ performance.
 - Revalidated paragraph insertion-before flows with MSVC build + `ctest` and a
   Word visual smoke pass for `featherdoc_sample_insert_paragraph_before`
   before the next release cut.
+- Revalidated paragraph property-clone insertion flows with MinGW build +
+  `ctest` and a Word visual smoke pass for
+  `featherdoc_sample_insert_paragraph_like_existing` before the next release
+  cut.
 - Revalidated run insertion-around-anchor flows with MinGW build + `ctest` and
   a Word visual smoke pass for `featherdoc_sample_insert_run_around_existing`
   before the next release cut.
