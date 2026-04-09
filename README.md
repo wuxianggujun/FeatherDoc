@@ -265,7 +265,9 @@ an existing anchor paragraph, `insert_paragraph_like_before()` /
 `insert_paragraph_like_after()` when you want the new paragraph to inherit the
 anchor paragraph's paragraph-level properties, `Run::insert_run_before(...)` /
 `insert_run_after(...)` when you need to add sibling runs around an existing
-anchor run, `Run::remove()` to drop one run from a paragraph, and
+anchor run, `Run::insert_run_like_before()` / `insert_run_like_after()` to
+clone the anchor run's formatting into a new empty sibling run, `Run::remove()`
+to drop one run from a paragraph, and
 `Paragraph::remove()` when you want to delete one paragraph without leaving an
 invalid container behind. `Paragraph::remove()` intentionally refuses to remove
 section-break paragraphs or the last required paragraph inside a body, header,
@@ -284,6 +286,9 @@ cloned.set_text("Another paragraph with the same paragraph style");
 auto anchor = paragraph.runs();
 anchor.insert_run_before("left ", featherdoc::formatting_flag::bold);
 anchor.insert_run_after(" right");
+
+auto cloned_run = anchor.insert_run_like_before();
+cloned_run.set_text("styled clone ");
 
 auto removable_run = paragraph.add_run(" temporary");
 removable_run.remove();
@@ -314,6 +319,9 @@ body/header/footer anchor paragraphs" example, build
 For a focused "reopen and insert runs around existing body/header/footer anchor
 runs" example, build `featherdoc_sample_insert_run_around_existing` from
 `samples/sample_insert_run_around_existing.cpp`.
+For a focused "reopen and clone run formatting around existing body/header/footer
+anchor runs" example, build `featherdoc_sample_insert_run_like_existing` from
+`samples/sample_insert_run_like_existing.cpp`.
 For a focused "reopen and append new images to existing body/header/footer
 parts" example, build `featherdoc_sample_edit_existing_part_append_images`
 from `samples/sample_edit_existing_part_append_images.cpp`.

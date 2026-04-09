@@ -33,6 +33,10 @@ performance.
 - Added `Run::insert_run_before()` and `Run::insert_run_after()` so existing
   body, header, footer, and table-cell paragraphs can insert sibling runs
   around the current anchor run while keeping the anchor handle usable.
+- Added `Run::insert_run_like_before()` and `Run::insert_run_like_after()` so
+  existing body, header, footer, and table-cell paragraphs can clone the
+  current anchor run's formatting properties into a new empty sibling run
+  without copying the anchor's body content.
 - Added `TableRow::insert_row_before()` for cloning the current row structure
   into a new empty row directly above it, while conservatively refusing rows
   that participate in vertical merge chains.
@@ -77,6 +81,10 @@ performance.
 - Added `samples/sample_insert_run_around_existing.cpp` as a runnable workflow
   that seeds body/header/footer anchor runs, reopens the saved `.docx`, and
   inserts new runs directly around those existing anchors.
+- Added `samples/sample_insert_run_like_existing.cpp` as a runnable workflow
+  that seeds styled body/header/footer anchor runs, reopens the saved `.docx`,
+  and clones run formatting into new sibling runs around those existing
+  anchors.
 - Added `samples/sample_insert_table_row_before.cpp` as a runnable workflow
   that reopens a saved `.docx`, inserts a formatted row above an existing row,
   and saves the edited result back out.
@@ -126,6 +134,9 @@ performance.
 - Revalidated run insertion-around-anchor flows with MinGW build + `ctest` and
   a Word visual smoke pass for `featherdoc_sample_insert_run_around_existing`
   before the next release cut.
+- Revalidated run property-clone insertion flows with MinGW build + `ctest`
+  and a Word visual smoke pass for
+  `featherdoc_sample_insert_run_like_existing` before the next release cut.
 
 ## [1.4.0] - 2026-04-08
 

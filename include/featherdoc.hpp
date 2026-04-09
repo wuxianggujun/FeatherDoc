@@ -71,6 +71,8 @@ class Run {
     Run insert_run_after(const std::string &,
                          featherdoc::formatting_flag =
                              featherdoc::formatting_flag::none);
+    Run insert_run_like_before();
+    Run insert_run_like_after();
 
     Run &next();
     [[nodiscard]] bool has_next() const;

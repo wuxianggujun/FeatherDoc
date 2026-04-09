@@ -255,6 +255,46 @@ auto insert_formatted_run(pugi::xml_node parent, pugi::xml_node insert_before,
     return run;
 }
 
+auto copy_run_properties(pugi::xml_node source_run, pugi::xml_node target_run) -> bool {
+    if (source_run == pugi::xml_node{} || target_run == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto source_properties = source_run.child("w:rPr");
+    if (source_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    return target_run.append_copy(source_properties) != pugi::xml_node{};
+}
+
+auto insert_empty_run_like_node(pugi::xml_node parent, pugi::xml_node anchor,
+                                bool insert_after) -> pugi::xml_node {
+    if (parent == pugi::xml_node{} || anchor == pugi::xml_node{} ||
+        anchor.parent() != parent) {
+        return {};
+    }
+
+    const auto insert_before =
+        insert_after ? detail::next_named_sibling(anchor, "w:r") : anchor;
+    auto inserted_run = insert_run_node(parent, insert_before);
+    if (inserted_run == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (!copy_run_properties(anchor, inserted_run)) {
+        parent.remove_child(inserted_run);
+        return {};
+    }
+
+    if (inserted_run.append_child("w:t") == pugi::xml_node{}) {
+        parent.remove_child(inserted_run);
+        return {};
+    }
+
+    return inserted_run;
+}
+
 } // namespace
 
 Run::Run() = default;
@@ -530,6 +570,14 @@ Run Run::insert_run_after(const std::string &text, featherdoc::formatting_flag f
     const auto inserted_run = insert_formatted_run(this->parent, next_run, text.c_str(),
                                                    formatting);
     return Run(this->parent, inserted_run);
+}
+
+Run Run::insert_run_like_before() {
+    return Run(this->parent, insert_empty_run_like_node(this->parent, this->current, false));
+}
+
+Run Run::insert_run_like_after() {
+    return Run(this->parent, insert_empty_run_like_node(this->parent, this->current, true));
 }
 
 Run &Run::next() {
