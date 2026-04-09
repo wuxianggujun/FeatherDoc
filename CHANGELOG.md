@@ -8,6 +8,8 @@ performance.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-04-09
+
 ### Added
 
 - Added `TemplatePart::paragraphs()`, `tables()`, and `append_table(...)` so
@@ -117,35 +119,33 @@ performance.
   `featherdoc_sample_remove_table`,
   `featherdoc_sample_insert_table_around_existing`,
   `featherdoc_sample_edit_existing_part_tables`, and
-  `featherdoc_sample_insert_table_row_before` before the next release cut.
+  `featherdoc_sample_insert_table_row_before` before cutting `1.5.0`.
 - Revalidated styled table-clone insertion with MSVC build + `ctest` and a
   Word visual smoke pass for `featherdoc_sample_insert_table_like_existing`
-  before the next release cut.
+  before cutting `1.5.0`.
 - Revalidated table cell-spacing edits with MinGW build + `ctest` and a Word
   visual smoke pass for `featherdoc_sample_edit_existing_table_spacing`
-  before the next release cut.
+  before cutting `1.5.0`.
 - Revalidated template-part image append flows with MSVC build + `ctest` and a
   Word visual smoke pass for
   `featherdoc_sample_edit_existing_part_append_images`, including a final
   manual review of the generated PDF/PNG evidence after correcting header
-  floating-image placement.
+  floating-image placement before cutting `1.5.0`.
 - Revalidated template-part paragraph append flows with MSVC build + `ctest`
   and a Word visual smoke pass for
-  `featherdoc_sample_edit_existing_part_paragraphs` before the next release
-  cut.
+  `featherdoc_sample_edit_existing_part_paragraphs` before cutting `1.5.0`.
 - Revalidated paragraph insertion-before flows with MSVC build + `ctest` and a
   Word visual smoke pass for `featherdoc_sample_insert_paragraph_before`
-  before the next release cut.
+  before cutting `1.5.0`.
 - Revalidated paragraph property-clone insertion flows with MinGW build +
   `ctest` and a Word visual smoke pass for
-  `featherdoc_sample_insert_paragraph_like_existing` before the next release
-  cut.
+  `featherdoc_sample_insert_paragraph_like_existing` before cutting `1.5.0`.
 - Revalidated run insertion-around-anchor flows with MinGW build + `ctest` and
   a Word visual smoke pass for `featherdoc_sample_insert_run_around_existing`
-  before the next release cut.
+  before cutting `1.5.0`.
 - Revalidated run property-clone insertion flows with MinGW build + `ctest`
   and a Word visual smoke pass for
-  `featherdoc_sample_insert_run_like_existing` before the next release cut.
+  `featherdoc_sample_insert_run_like_existing` before cutting `1.5.0`.
 
 ## [1.4.0] - 2026-04-08
 
