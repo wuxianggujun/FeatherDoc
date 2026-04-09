@@ -237,8 +237,9 @@ clone the current table's layout and formatting into a new empty sibling table.
     inserted.rows().cells().set_text("inserted");
 
 ``Table::set_width_twips(...)``, ``set_style_id(...)``, ``set_border(...)``,
-``set_layout_mode(...)``, ``set_alignment(...)``, and
-``set_indent_twips(...)``, and ``set_cell_margin_twips(...)`` work alongside
+``set_layout_mode(...)``, ``set_alignment(...)``, ``set_indent_twips(...)``,
+``set_cell_spacing_twips(...)``, and
+``set_cell_margin_twips(...)`` work alongside
 ``TableCell::set_text(...)`` and ``get_text()``, plus ``set_width_twips(...)``,
 ``Table::remove()``, ``insert_table_before()``, ``insert_table_after()``,
 ``insert_table_like_before()``, ``insert_table_like_after()``,
@@ -252,6 +253,7 @@ for higher-level table layout edits without dropping down to raw XML.
 explicit ``dxa`` width when present, ``style_id()`` reports the current table
 style reference, ``layout_mode()`` reports the current auto-fit mode,
 ``alignment()`` / ``indent_twips()`` report table placement,
+``cell_spacing_twips()`` reports inter-cell spacing, and
 ``cell_margin_twips()`` reports per-edge default cell margins,
 ``height_twips()`` / ``height_rule()`` report the current row height override,
 ``cant_split()`` reports whether Word keeps the row on one page,
@@ -283,6 +285,7 @@ margins, borders, and explicit width.
     table.set_layout_mode(featherdoc::table_layout_mode::fixed);
     table.set_alignment(featherdoc::table_alignment::center);
     table.set_indent_twips(240);
+    table.set_cell_spacing_twips(120);
     table.set_cell_margin_twips(featherdoc::cell_margin_edge::left, 96);
     table.set_cell_margin_twips(featherdoc::cell_margin_edge::right, 96);
     table.set_border(featherdoc::table_border_edge::inside_vertical,
@@ -345,6 +348,11 @@ For a runnable styled-table cloning example, build
 ``.docx``, duplicates an existing table's layout and styling into new empty
 sibling tables, fills the clones, and keeps the original anchor table
 editable.
+For a runnable table-spacing edit example, build
+``featherdoc_sample_edit_existing_table_spacing`` from
+``samples/sample_edit_existing_table_spacing.cpp``. It reopens a saved
+``.docx``, adds ``tblCellSpacing`` to an existing table, and makes the new
+gutters visible in Word's rendered output.
 
 ``append_image(path)`` appends an inline image at the source image's intrinsic
 pixel size. Use ``append_image(path, width_px, height_px)`` when you want

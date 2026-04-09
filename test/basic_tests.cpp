@@ -8279,6 +8279,7 @@ TEST_CASE("table-level properties survive append_row") {
     CHECK(table.set_layout_mode(featherdoc::table_layout_mode::fixed));
     CHECK(table.set_alignment(featherdoc::table_alignment::center));
     CHECK(table.set_indent_twips(360U));
+    CHECK(table.set_cell_spacing_twips(180U));
     CHECK(table.set_cell_margin_twips(featherdoc::cell_margin_edge::top, 120U));
     CHECK(table.set_cell_margin_twips(featherdoc::cell_margin_edge::left, 240U));
     CHECK(table.set_cell_margin_twips(featherdoc::cell_margin_edge::bottom, 360U));
@@ -8303,6 +8304,8 @@ TEST_CASE("table-level properties survive append_row") {
     CHECK_EQ(*table.alignment(), featherdoc::table_alignment::center);
     REQUIRE(table.indent_twips().has_value());
     CHECK_EQ(*table.indent_twips(), 360U);
+    REQUIRE(table.cell_spacing_twips().has_value());
+    CHECK_EQ(*table.cell_spacing_twips(), 180U);
     REQUIRE(table.cell_margin_twips(featherdoc::cell_margin_edge::top).has_value());
     CHECK_EQ(*table.cell_margin_twips(featherdoc::cell_margin_edge::top), 120U);
     REQUIRE(table.cell_margin_twips(featherdoc::cell_margin_edge::left).has_value());
@@ -8333,6 +8336,14 @@ TEST_CASE("table-level properties survive append_row") {
              "center");
     CHECK_EQ(std::string_view{table_properties.child("w:tblInd").attribute("w:w").value()},
              "360");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblCellSpacing")
+                                  .attribute("w:w")
+                                  .value()},
+             "180");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblCellSpacing")
+                                  .attribute("w:type")
+                                  .value()},
+             "dxa");
     CHECK_EQ(std::string_view{table_properties.child("w:tblCellMar")
                                   .child("w:top")
                                   .attribute("w:w")
@@ -8369,6 +8380,8 @@ TEST_CASE("table-level properties survive append_row") {
     CHECK_EQ(*reopened_table.alignment(), featherdoc::table_alignment::center);
     REQUIRE(reopened_table.indent_twips().has_value());
     CHECK_EQ(*reopened_table.indent_twips(), 360U);
+    REQUIRE(reopened_table.cell_spacing_twips().has_value());
+    CHECK_EQ(*reopened_table.cell_spacing_twips(), 180U);
     REQUIRE(reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::top).has_value());
     CHECK_EQ(*reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::top), 120U);
     REQUIRE(reopened_table.cell_margin_twips(featherdoc::cell_margin_edge::left).has_value());
@@ -8482,6 +8495,53 @@ TEST_CASE("tables can set and clear alignment and indent") {
     REQUIRE(table_node != pugi::xml_node{});
     CHECK_EQ(table_node.child("w:tblPr").child("w:jc"), pugi::xml_node{});
     CHECK_EQ(table_node.child("w:tblPr").child("w:tblInd"), pugi::xml_node{});
+
+    fs::remove(target);
+}
+
+TEST_CASE("tables can set and clear cell spacing") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "table_cell_spacing.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(1, 1);
+    CHECK_FALSE(table.cell_spacing_twips().has_value());
+    CHECK(table.set_cell_spacing_twips(180U));
+    REQUIRE(table.cell_spacing_twips().has_value());
+    CHECK_EQ(*table.cell_spacing_twips(), 180U);
+    CHECK_FALSE(doc.save());
+
+    auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    auto spacing_node = table_node.child("w:tblPr").child("w:tblCellSpacing");
+    REQUIRE(spacing_node != pugi::xml_node{});
+    CHECK_EQ(std::string_view{spacing_node.attribute("w:w").value()}, "180");
+    CHECK_EQ(std::string_view{spacing_node.attribute("w:type").value()}, "dxa");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    REQUIRE(reopened_table.cell_spacing_twips().has_value());
+    CHECK_EQ(*reopened_table.cell_spacing_twips(), 180U);
+    CHECK(reopened_table.clear_cell_spacing());
+    CHECK_FALSE(reopened_table.cell_spacing_twips().has_value());
+    CHECK_FALSE(reopened.save());
+
+    xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    xml_document.reset();
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    CHECK_EQ(table_node.child("w:tblPr").child("w:tblCellSpacing"), pugi::xml_node{});
 
     fs::remove(target);
 }

@@ -50,6 +50,9 @@ performance.
   for cloning an existing body/header/footer table's structure and
   table/row/cell formatting into a new empty sibling table while retargeting
   the wrapper to the inserted clone.
+- Added `Table::cell_spacing_twips()`, `set_cell_spacing_twips()`, and
+  `clear_cell_spacing()` for editing `w:tblCellSpacing` on existing tables
+  without dropping to raw XML.
 - Added `samples/sample_remove_table.cpp` as a runnable workflow that reopens
   a saved `.docx`, removes a temporary middle table, and continues editing the
   following table through the same wrapper.
@@ -61,6 +64,9 @@ performance.
   that reopens a saved `.docx`, duplicates an existing table's layout and
   styling into new empty sibling tables, fills the clones, and keeps the
   original anchor table editable.
+- Added `samples/sample_edit_existing_table_spacing.cpp` as a runnable workflow
+  that reopens a saved `.docx`, adds visible inter-cell spacing to an existing
+  table, and saves the updated layout back out.
 - Added `samples/sample_edit_existing_part_tables.cpp` as a runnable workflow
   that creates header tables, reopens the saved `.docx`, removes a temporary
   middle header table, and continues editing the following table through the
@@ -114,6 +120,9 @@ performance.
   `featherdoc_sample_insert_table_row_before` before the next release cut.
 - Revalidated styled table-clone insertion with MSVC build + `ctest` and a
   Word visual smoke pass for `featherdoc_sample_insert_table_like_existing`
+  before the next release cut.
+- Revalidated table cell-spacing edits with MinGW build + `ctest` and a Word
+  visual smoke pass for `featherdoc_sample_edit_existing_table_spacing`
   before the next release cut.
 - Revalidated template-part image append flows with MSVC build + `ctest` and a
   Word visual smoke pass for

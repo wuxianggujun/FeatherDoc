@@ -228,6 +228,63 @@ auto ensure_table_indent_node(pugi::xml_node table) -> pugi::xml_node {
     return table_properties.append_child("w:tblInd");
 }
 
+auto ensure_table_cell_spacing_node(pugi::xml_node table) -> pugi::xml_node {
+    auto table_properties = ensure_table_properties_node(table);
+    if (table_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto spacing = table_properties.child("w:tblCellSpacing");
+    if (spacing != pugi::xml_node{}) {
+        return spacing;
+    }
+
+    if (const auto table_indent = table_properties.child("w:tblInd");
+        table_indent != pugi::xml_node{}) {
+        return table_properties.insert_child_before("w:tblCellSpacing", table_indent);
+    }
+
+    if (const auto table_borders = table_properties.child("w:tblBorders");
+        table_borders != pugi::xml_node{}) {
+        return table_properties.insert_child_before("w:tblCellSpacing", table_borders);
+    }
+
+    if (const auto table_layout = table_properties.child("w:tblLayout");
+        table_layout != pugi::xml_node{}) {
+        return table_properties.insert_child_before("w:tblCellSpacing", table_layout);
+    }
+
+    if (const auto margins = table_properties.child("w:tblCellMar");
+        margins != pugi::xml_node{}) {
+        return table_properties.insert_child_before("w:tblCellSpacing", margins);
+    }
+
+    if (const auto table_look = table_properties.child("w:tblLook");
+        table_look != pugi::xml_node{}) {
+        return table_properties.insert_child_before("w:tblCellSpacing", table_look);
+    }
+
+    if (const auto alignment = table_properties.child("w:jc"); alignment != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblCellSpacing", alignment);
+    }
+
+    if (const auto table_width = table_properties.child("w:tblW");
+        table_width != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblCellSpacing", table_width);
+    }
+
+    if (const auto table_style = table_properties.child("w:tblStyle");
+        table_style != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblCellSpacing", table_style);
+    }
+
+    if (const auto first_child = table_properties.first_child(); first_child != pugi::xml_node{}) {
+        return table_properties.insert_child_before("w:tblCellSpacing", first_child);
+    }
+
+    return table_properties.append_child("w:tblCellSpacing");
+}
+
 auto ensure_table_style_node(pugi::xml_node table) -> pugi::xml_node {
     auto table_properties = ensure_table_properties_node(table);
     if (table_properties == pugi::xml_node{}) {
@@ -275,6 +332,11 @@ auto ensure_table_cell_margins_node(pugi::xml_node table) -> pugi::xml_node {
     if (const auto table_borders = table_properties.child("w:tblBorders");
         table_borders != pugi::xml_node{}) {
         return table_properties.insert_child_after("w:tblCellMar", table_borders);
+    }
+
+    if (const auto spacing = table_properties.child("w:tblCellSpacing");
+        spacing != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblCellMar", spacing);
     }
 
     if (const auto table_indent = table_properties.child("w:tblInd");
@@ -2355,6 +2417,54 @@ bool Table::clear_indent() {
 
     const auto indent_node = table_properties.child("w:tblInd");
     return indent_node == pugi::xml_node{} || table_properties.remove_child(indent_node);
+}
+
+std::optional<std::uint32_t> Table::cell_spacing_twips() const {
+    if (this->current == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto spacing = this->current.child("w:tblPr").child("w:tblCellSpacing");
+    if (spacing == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    if (const auto spacing_type = std::string_view{spacing.attribute("w:type").value()};
+        !spacing_type.empty() && spacing_type != "dxa") {
+        return std::nullopt;
+    }
+
+    return parse_unsigned_attribute(spacing, "w:w");
+}
+
+bool Table::set_cell_spacing_twips(std::uint32_t spacing_twips) {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto spacing = ensure_table_cell_spacing_node(this->current);
+    if (spacing == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto spacing_text = std::to_string(spacing_twips);
+    ensure_attribute_value(spacing, "w:w", spacing_text.c_str());
+    ensure_attribute_value(spacing, "w:type", "dxa");
+    return true;
+}
+
+bool Table::clear_cell_spacing() {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto table_properties = this->current.child("w:tblPr");
+    if (table_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    const auto spacing = table_properties.child("w:tblCellSpacing");
+    return spacing == pugi::xml_node{} || table_properties.remove_child(spacing);
 }
 
 std::optional<std::uint32_t> Table::cell_margin_twips(

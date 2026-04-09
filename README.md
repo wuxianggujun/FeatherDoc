@@ -353,7 +353,8 @@ inserted.rows().cells().set_text("inserted");
 ```
 
 Use `Table::set_width_twips(...)`, `set_style_id(...)`, `set_border(...)`,
-`set_layout_mode(...)`, `set_alignment(...)`, `set_indent_twips(...)`, and
+`set_layout_mode(...)`, `set_alignment(...)`, `set_indent_twips(...)`,
+`set_cell_spacing_twips(...)`, and
 `set_cell_margin_twips(...)`
 alongside `TableCell::set_text(...)`, `get_text()`, `set_width_twips(...)`,
 `Table::remove()`, `insert_table_before()`, `insert_table_after()`,
@@ -367,7 +368,8 @@ table layout editing without dropping down to raw WordprocessingML.
 `width_twips()` reports an explicit `dxa` width when present, `style_id()`
 reports the current table style reference, `layout_mode()` reports the current
 auto-fit mode, `alignment()` / `indent_twips()` report table placement,
-`cell_margin_twips()` reports per-edge default cell margins,
+`cell_spacing_twips()` reports inter-cell spacing, and `cell_margin_twips()`
+reports per-edge default cell margins,
 `height_twips()` / `height_rule()` report the current row height override,
 `cant_split()` reports whether Word keeps the row on one page,
 `repeats_header()` reports whether a row repeats as a table header,
@@ -395,6 +397,7 @@ table.set_style_id("TableGrid");
 table.set_layout_mode(featherdoc::table_layout_mode::fixed);
 table.set_alignment(featherdoc::table_alignment::center);
 table.set_indent_twips(240);
+table.set_cell_spacing_twips(120);
 table.set_cell_margin_twips(featherdoc::cell_margin_edge::left, 96);
 table.set_cell_margin_twips(featherdoc::cell_margin_edge::right, 96);
 table.set_border(featherdoc::table_border_edge::inside_vertical,
@@ -452,6 +455,11 @@ For a runnable styled-table cloning example, build
 `samples/sample_insert_table_like_existing.cpp`. It reopens a saved `.docx`,
 duplicates an existing table's layout and styling into new empty sibling
 tables, fills the clones, and keeps the original anchor table editable.
+For a runnable table-spacing edit example, build
+`featherdoc_sample_edit_existing_table_spacing` from
+`samples/sample_edit_existing_table_spacing.cpp`. It reopens a saved `.docx`,
+adds `tblCellSpacing` to an existing table, and makes the new gutters visible
+in Word's rendered output.
 
 Use `append_image(path)` to append an inline image at its intrinsic pixel size,
 or `append_image(path, width_px, height_px)` when you want explicit scaling.

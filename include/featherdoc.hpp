@@ -241,6 +241,9 @@ class Table {
     [[nodiscard]] std::optional<std::uint32_t> indent_twips() const;
     [[nodiscard]] bool set_indent_twips(std::uint32_t indent_twips);
     [[nodiscard]] bool clear_indent();
+    [[nodiscard]] std::optional<std::uint32_t> cell_spacing_twips() const;
+    [[nodiscard]] bool set_cell_spacing_twips(std::uint32_t spacing_twips);
+    [[nodiscard]] bool clear_cell_spacing();
     [[nodiscard]] std::optional<std::uint32_t> cell_margin_twips(
         featherdoc::cell_margin_edge edge) const;
     [[nodiscard]] bool set_cell_margin_twips(featherdoc::cell_margin_edge edge,
