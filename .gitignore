@@ -50,3 +50,5 @@ table_visual_smoke.docx
 # vim swap files
 **/*.swp
 .ace-tool/
+__pycache__/
+*.py[cod]
