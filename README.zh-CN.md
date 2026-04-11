@@ -183,12 +183,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 
   <sub>上图：当前 6 页 Word visual smoke 联系图，覆盖表格、分页、合并/拆分、文字方向、fixed-grid 列宽编辑以及 RTL/LTR/CJK 混排检查。</sub>
 </p>
 <p align="center">
-  <img src="docs/assets/readme/visual-smoke-page-05.png" alt="Word 渲染的 fixed-grid 和列编辑检查页" width="260" />
+  <img src="docs/assets/readme/reopened-fixed-layout-column-widths-page-01.png" alt="Word 渲染的 reopened fixed-layout 列宽编辑样例页" width="260" />
   <img src="docs/assets/readme/fixed-grid-aggregate-contact-sheet.png" alt="fixed-grid merge 和 unmerge 回归联系图" width="260" />
   <img src="docs/assets/readme/visual-smoke-page-06.png" alt="Word 渲染的纵排文字和混合方向检查页" width="260" />
 </p>
 <p align="center">
-  <sub>下排从左到右：fixed-grid 宽度与列编辑检查页、fixed-grid merge/unmerge 四件套聚合图，以及纵排文字与混合方向文本检查页。中间这张图覆盖 <code>merge_right()</code>、<code>merge_down()</code>、<code>unmerge_right()</code> 和 <code>unmerge_down()</code>，都已经过真实 Microsoft Word 渲染并完成截图级人工签收。</sub>
+  <sub>下排从左到右：独立的 reopened fixed-layout 列宽编辑工作流、fixed-grid merge/unmerge 四件套聚合图，以及纵排文字与混合方向文本检查页。左图来自 <code>sample_edit_existing_table_column_widths.cpp</code>，展示 reopen 之后通过 API 把列宽稳定收敛到 <code>1200 / 2200 / 4400</code> twips 的真实 Word 渲染结果。中间这张图覆盖 <code>merge_right()</code>、<code>merge_down()</code>、<code>unmerge_right()</code> 和 <code>unmerge_down()</code>，都已经过真实 Microsoft Word 渲染并完成截图级人工签收。</sub>
 </p>
 
 如果你只想重跑中间这组 fixed-grid 四件套，并顺手生成一个可直接复核的

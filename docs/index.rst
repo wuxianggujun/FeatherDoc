@@ -28,8 +28,8 @@ the same validation chain.
 .. list-table::
    :widths: 34 33 33
 
-   * - .. image:: assets/readme/visual-smoke-page-05.png
-          :alt: Word-rendered fixed-grid width and column editing review page
+   * - .. image:: assets/readme/reopened-fixed-layout-column-widths-page-01.png
+          :alt: Word-rendered reopened fixed-layout column-width sample page
           :width: 100%
      - .. image:: assets/readme/fixed-grid-aggregate-contact-sheet.png
           :alt: Fixed-grid merge and unmerge regression contact sheet
@@ -37,8 +37,8 @@ the same validation chain.
      - .. image:: assets/readme/visual-smoke-page-06.png
           :alt: Word-rendered vertical-text and mixed-direction review page
           :width: 100%
-    * - Fixed-grid width editing, safe column insertion, merge-boundary checks,
-        and narrow/medium/wide column review on a real Word-rendered page.
+    * - Dedicated reopened fixed-layout column-width editing rendered through
+        Word after the API converges the table to ``1200 / 2200 / 4400`` twips.
       - The dedicated fixed-grid regression bundle covers ``merge_right()``,
         ``merge_down()``, ``unmerge_right()``, and ``unmerge_down()`` in one
         screenshot-backed contact sheet that is intended for manual signoff,

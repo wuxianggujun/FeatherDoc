@@ -188,12 +188,12 @@ rendering quality, and screenshot-backed review surface directly.
   <sub>Top: the full 6-page Word visual smoke contact sheet generated from the current validation flow, covering tables, pagination, merges, text direction, fixed-grid width editing, and mixed RTL/LTR/CJK review content.</sub>
 </p>
 <p align="center">
-  <img src="docs/assets/readme/visual-smoke-page-05.png" alt="Word-rendered fixed-grid and column-edit review page" width="260" />
+  <img src="docs/assets/readme/reopened-fixed-layout-column-widths-page-01.png" alt="Word-rendered reopened fixed-layout column-width sample page" width="260" />
   <img src="docs/assets/readme/fixed-grid-aggregate-contact-sheet.png" alt="Fixed-grid merge and unmerge regression contact sheet" width="260" />
   <img src="docs/assets/readme/visual-smoke-page-06.png" alt="Word-rendered vertical-text and mixed-direction review page" width="260" />
 </p>
 <p align="center">
-  <sub>Bottom row, left to right: fixed-grid width and column-edit inspection, the fixed-grid merge/unmerge quartet regression bundle, and vertical-text plus mixed-direction review content. The center image covers <code>merge_right()</code>, <code>merge_down()</code>, <code>unmerge_right()</code>, and <code>unmerge_down()</code>, all rendered through Microsoft Word and manually signed off from screenshot evidence.</sub>
+  <sub>Bottom row, left to right: the dedicated reopened fixed-layout column-width workflow, the fixed-grid merge/unmerge quartet regression bundle, and vertical-text plus mixed-direction review content. The left image comes from <code>sample_edit_existing_table_column_widths.cpp</code> and shows the post-reopen <code>1200 / 2200 / 4400</code> twip split rendered through Microsoft Word. The center image covers <code>merge_right()</code>, <code>merge_down()</code>, <code>unmerge_right()</code>, and <code>unmerge_down()</code>, all rendered through Microsoft Word and manually signed off from screenshot evidence.</sub>
 </p>
 
 To rerun just the fixed-grid quartet that feeds the center gallery image and

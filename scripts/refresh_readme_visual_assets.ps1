@@ -29,6 +29,7 @@ param(
     [string]$TaskOutputRoot = "output/word-visual-smoke/tasks",
     [string]$DocumentTaskDir = "",
     [string]$FixedGridTaskDir = "",
+    [string]$ColumnWidthVisualDir = "output/word-visual-sample-edit-existing-table-column-widths",
     [string]$AssetsDir = "docs/assets/readme"
 )
 
@@ -180,6 +181,27 @@ function Resolve-FixedGridEvidence {
     throw "Unable to resolve fixed-grid aggregate evidence from task directory or task manifest: $TaskDir"
 }
 
+function Resolve-ColumnWidthEvidence {
+    param(
+        [string]$RepoRoot,
+        [string]$InputPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($InputPath)) {
+        return $null
+    }
+
+    $resolvedRoot = Resolve-RepoPath -RepoRoot $RepoRoot -InputPath $InputPath
+    $pagePath = Join-Path $resolvedRoot "evidence\pages\page-01.png"
+    if (-not (Test-Path -LiteralPath $pagePath)) {
+        return $null
+    }
+
+    return [ordered]@{
+        page_01 = $pagePath
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedTaskOutputRoot = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $TaskOutputRoot
 $resolvedAssetsDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $AssetsDir
@@ -217,6 +239,7 @@ Assert-PathExists -Path $resolvedFixedGridTaskDir -Label "fixed-grid task direct
 
 $documentEvidence = Resolve-DocumentEvidence -TaskDir $resolvedDocumentTaskDir
 $fixedGridEvidence = Resolve-FixedGridEvidence -TaskDir $resolvedFixedGridTaskDir
+$columnWidthEvidence = Resolve-ColumnWidthEvidence -RepoRoot $repoRoot -InputPath $ColumnWidthVisualDir
 
 New-Item -ItemType Directory -Path $resolvedAssetsDir -Force | Out-Null
 
@@ -237,6 +260,12 @@ $copies = @(
         Destination = Join-Path $resolvedAssetsDir "visual-smoke-page-06.png"
     },
     @{
+        Label = "reopened fixed-layout column-width page 01"
+        Source = if ($null -eq $columnWidthEvidence) { "" } else { $columnWidthEvidence.page_01 }
+        Destination = Join-Path $resolvedAssetsDir "reopened-fixed-layout-column-widths-page-01.png"
+        Optional = $true
+    },
+    @{
         Label = "fixed-grid aggregate contact sheet"
         Source = $fixedGridEvidence.aggregate_contact_sheet
         Destination = Join-Path $resolvedAssetsDir "fixed-grid-aggregate-contact-sheet.png"
@@ -244,6 +273,12 @@ $copies = @(
 )
 
 foreach ($copy in $copies) {
+    $isOptional = $copy.ContainsKey("Optional") -and $copy.Optional
+    if ($isOptional -and [string]::IsNullOrWhiteSpace($copy.Source)) {
+        Write-Step "Skipping optional asset because source evidence is unavailable: $($copy.Destination)"
+        continue
+    }
+
     Assert-PathExists -Path $copy.Source -Label $copy.Label
     Copy-Item -LiteralPath $copy.Source -Destination $copy.Destination -Force
 }
