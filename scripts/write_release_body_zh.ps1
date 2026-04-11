@@ -486,6 +486,10 @@ function Get-ShortSummaryFallbackBullet {
 
     $label = Get-ChineseSectionName -SectionName $SectionName
     $trimmed = $Bullet.Trim()
+    $trimmed = $trimmed.Replace("public release drafts", "public release notes")
+    $trimmed = $trimmed.Replace("release drafts and reviewer handoff material", "release notes and reviewer handoff material")
+    $trimmed = $trimmed.Replace("release drafts", "release notes")
+    $trimmed = $trimmed.Replace("release draft", "release notes")
     if ($trimmed.Length -gt 92) {
         $trimmed = $trimmed.Substring(0, 89).TrimEnd() + "..."
     }

@@ -197,7 +197,7 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add($packageAssetsCommand)
 [void]$lines.Add('```')
 [void]$lines.Add("")
-[void]$lines.Add("Run that command after the release drafts are finalized so the install ZIP, visual gallery ZIP, and release-evidence ZIP are regenerated from the current summary.")
+[void]$lines.Add("Run that command after the release notes are finalized so the install ZIP, visual gallery ZIP, and release-evidence ZIP are regenerated from the current summary.")
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8
