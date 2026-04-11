@@ -4,6 +4,9 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+from pathlib import Path
+import re
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -20,8 +23,22 @@
 project = 'FeatherDoc'
 copyright = '2026, wuxianggujun and upstream contributors'
 author = 'wuxianggujun and upstream contributors'
-version = '1.5.0'
-release = '1.5.0'
+
+
+def load_project_version() -> str:
+    repo_root = Path(__file__).resolve().parent.parent
+    cmake_lists = (repo_root / 'CMakeLists.txt').read_text(encoding='utf-8')
+    match = re.search(
+        r'project\([\s\S]*?\bVERSION\s+([0-9]+\.[0-9]+\.[0-9]+)',
+        cmake_lists,
+    )
+    if not match:
+        raise RuntimeError('Unable to determine FeatherDoc version from CMakeLists.txt')
+    return match.group(1)
+
+
+version = load_project_version()
+release = version
 
 # -- General configuration ---------------------------------------------------
 

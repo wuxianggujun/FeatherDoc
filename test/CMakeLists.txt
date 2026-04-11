@@ -40,6 +40,8 @@ add_test(
 if(WIN32)
     find_program(FEATHERDOC_POWERSHELL_EXECUTABLE NAMES pwsh powershell)
     if(FEATHERDOC_POWERSHELL_EXECUTABLE)
+        find_program(FEATHERDOC_PYTHON_EXECUTABLE NAMES python python3)
+
         add_test(
             NAME
             release_note_bundle_version
@@ -54,6 +56,23 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/release_note_bundle_version
         )
+
+        if(FEATHERDOC_PYTHON_EXECUTABLE)
+            add_test(
+                NAME
+                docs_conf_version_sync
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/docs_conf_version_sync_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -PythonExecutable
+                ${FEATHERDOC_PYTHON_EXECUTABLE}
+            )
+        endif()
 
         if(
             TARGET featherdoc_sample_merge_right_fixed_grid
