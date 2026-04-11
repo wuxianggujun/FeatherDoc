@@ -2,6 +2,8 @@
   "task_id": "{{TASK_ID}}",
   "mode": "{{MODE}}",
   "generated_at": "{{GENERATED_AT}}",
+  "source_kind": "{{SOURCE_KIND}}",
+  "source_path": "{{SOURCE_PATH}}",
   "document_path": "{{DOCX_PATH}}",
   "evidence_dir": "{{EVIDENCE_DIR}}",
   "report_dir": "{{REPORT_DIR}}",

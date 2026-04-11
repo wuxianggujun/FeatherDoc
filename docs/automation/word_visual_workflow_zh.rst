@@ -61,6 +61,35 @@
         -DocxPath C:\path\to\target.docx `
         -Mode review-only
 
+fixed-grid 四联回归包模式：
+
+.. code-block:: powershell
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 `
+        -FixedGridRegressionRoot .\output\fixed-grid-merge-unmerge-regression `
+        -Mode review-only
+
+fixed-grid 一键回归并生成 review task：
+
+.. code-block:: powershell
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_regression.ps1 `
+        -PrepareReviewTask `
+        -ReviewMode review-only
+
+总 gate 模式（常规 smoke + fixed-grid quartet + 双 review task）：
+
+.. code-block:: powershell
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1
+
+若只想复用已有 build 目录、重点验证脚本链路：
+
+.. code-block:: powershell
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
+        -SkipBuild
+
 检查并修复模式：
 
 .. code-block:: powershell
@@ -76,6 +105,69 @@
 - ``evidence/``：截图和分页证据目录。
 - ``report/``：本轮检查报告目录。
 - ``repair/``：修复闭环目录。
+
+同时，``TaskOutputRoot`` 根目录下还会刷新稳定指针文件：
+
+- ``latest_task.json``：指向最近一次生成的任务包。
+- ``latest_<source-kind>_task.json``：按 source kind 分流的最近任务，
+  例如 ``latest_fixed-grid-regression-bundle_task.json``。
+
+若你希望直接消费这些稳定指针，而不是自己解析时间戳目录，可以使用：
+
+.. code-block:: powershell
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1
+
+若只想拿最近一次 fixed-grid bundle task：
+
+.. code-block:: powershell
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 `
+        -SourceKind fixed-grid-regression-bundle `
+        -PrintPrompt
+
+若上层 automation 只想拿纯路径或纯 prompt 内容：
+
+.. code-block:: powershell
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 `
+        -SourceKind fixed-grid-regression-bundle `
+        -PrintField task_dir
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 `
+        -SourceKind fixed-grid-regression-bundle `
+        -PromptOnly
+
+若只处理 fixed-grid 回归，也可以用更短的包装脚本：
+
+.. code-block:: powershell
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_fixed_grid_review_task.ps1 `
+        -PrintField task_dir
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\print_latest_fixed_grid_review_prompt.ps1
+
+若输入的是 fixed-grid 四联回归包，脚本还会把 aggregate contact sheet、
+bundle summary、bundle review manifest、aggregate first-page PNG，以及
+source bundle 自带的 ``review_checklist.md`` / ``final_review.md`` 一并复制进
+任务目录，方便 AI 或人工直接基于总览证据开始检查，并参考已有 bundle 审查上下文。
+
+若直接使用 ``run_fixed_grid_merge_unmerge_regression.ps1 -PrepareReviewTask``，
+则 quartet 回归、Word 截图证据收集，以及 task 包生成会串成一条命令。
+脚本还会把生成出来的 task 信息回写进根级 ``summary.json`` /
+``review_manifest.json``，便于后续自动化脚本继续消费。
+
+若使用 ``run_word_visual_release_gate.ps1``，则会在一个总控入口里依次完成：
+
+1. 常规 ``run_word_visual_smoke.ps1``。
+2. 针对 smoke 产物的 document review task 打包。
+3. ``run_fixed_grid_merge_unmerge_regression.ps1``。
+4. 针对 fixed-grid bundle 的 review task 打包。
+
+总 gate 的聚合结果会落在 ``output/word-visual-release-gate/`` 下，
+其中 ``report/gate_summary.json`` 和 ``report/gate_final_review.md``
+专门记录本次 gate 是否执行成功、两条链路的产物路径，以及两份 task 的稳定入口。
+需要注意：这个 gate 只负责**证据生成与任务打包成功**，不自动替代后续的截图级人工/AI 视觉判定。
 
 推荐使用方式：
 

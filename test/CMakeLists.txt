@@ -7,6 +7,9 @@ target_link_libraries(
     unit_tests
     PRIVATE FeatherDoc::FeatherDoc
 )
+if(MSVC)
+    target_compile_options(unit_tests PRIVATE /bigobj)
+endif()
 featherdoc_copy_runtime_dlls(unit_tests)
 
 add_test(

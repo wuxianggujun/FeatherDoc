@@ -8,8 +8,76 @@ performance.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-04-11
+
 ### Added
 
+- Added `README.zh-CN.md` as a repository-level Simplified Chinese README,
+  linked it from `README.md`, documented the bilingual entry in
+  `docs/index.rst`, refreshed the docs homepage with current Word-rendered
+  validation previews, added `scripts/refresh_readme_visual_assets.ps1` for
+  repository-gallery refresh, taught `run_word_visual_release_gate.ps1` and
+  `run_release_candidate_checks.ps1` to optionally trigger that refresh in the
+  same run, and installed both README files under `share/FeatherDoc`.
+- Added `VISUAL_VALIDATION.md` and `VISUAL_VALIDATION.zh-CN.md`, linked the
+  preview galleries back to those repro notes, and installed the same
+  screenshot assets plus repro guides under `share/FeatherDoc` so release
+  artifacts now keep the screenshot -> script -> review-task entry visible.
+- Added `VISUAL_VALIDATION_QUICKSTART.md` and
+  `VISUAL_VALIDATION_QUICKSTART.zh-CN.md` as install-facing shortcut guides so
+  `share/FeatherDoc` now exposes a direct preview PNG -> repro command ->
+  review-task path without making users scan the longer README first, and now
+  also points directly at the README-gallery refresh step.
+- Added `RELEASE_ARTIFACT_TEMPLATE.md`,
+  `RELEASE_ARTIFACT_TEMPLATE.zh-CN.md`, and
+  `scripts/write_release_artifact_handoff.ps1` so release-preflight output can
+  be turned into a release-facing handoff note that points back to installed
+  preview PNGs, repro commands, and evidence files.
+- Updated `scripts/run_release_candidate_checks.ps1` to reuse an already active
+  MSVC developer environment, and updated `windows-msvc.yml` to upload a
+  `windows-msvc-release-metadata` artifact carrying `share/FeatherDoc` plus a
+  CI-side `release_handoff.md` / summary bundle for release-note drafting.
+- Added `scripts/write_release_body_zh.ps1` so the release-preflight summary
+  can also emit a directly editable Chinese release-body draft
+  (`release_body.zh-CN.md`) alongside `release_handoff.md`, with the draft's
+  "highlights" section seeded from `CHANGELOG.md` `Unreleased` entries.
+- Updated `scripts/write_release_body_zh.ps1`,
+  `scripts/run_release_candidate_checks.ps1`, and
+  `scripts/write_release_artifact_handoff.ps1` so release-preflight now also
+  emits a shorter `release_summary.zh-CN.md` draft, wires that path into the
+  report bundle, and carries the short summary through handoff metadata and
+  installed release-note guidance.
+- Added `scripts/write_release_note_bundle.ps1` as the one-shot post-review
+  refresh entry, and updated the quickstarts, templates, README/docs release
+  notes, and handoff regeneration path to refresh `release_handoff.md`,
+  `release_body.zh-CN.md`, and `release_summary.zh-CN.md` together after a
+  later screenshot-backed visual verdict update.
+- Added `scripts/sync_visual_review_verdict.ps1` so screenshot-backed task
+  verdicts can now be promoted back into `gate_summary.json`,
+  release-preflight `summary.json`, `gate_final_review.md`, `final_review.md`,
+  and the regenerated release-note bundle without rerunning the full Windows
+  preflight.
+- Added `scripts/sync_latest_visual_review_verdict.ps1` as the shortest
+  post-review helper so the newest document/fixed-grid task pointers can now
+  auto-resolve the matching gate summary and release-preflight summary before
+  delegating to the explicit verdict-sync path.
+- Added a dedicated fixed-grid merge/unmerge regression bundle around
+  `scripts/run_fixed_grid_merge_unmerge_regression.ps1`, covering
+  `merge_right()`, `merge_down()`, `unmerge_right()`, and `unmerge_down()` via
+  standalone runnable samples, aggregate Word-rendered contact sheets,
+  screenshot-backed review-task packaging, and repository README gallery
+  refresh for the fixed-grid quartet.
+- Added `scripts/write_release_artifact_guide.ps1` so the generated report
+  bundle now includes an `ARTIFACT_GUIDE.md` index that points artifact
+  browsers at the installed `share/FeatherDoc` entry points plus the release
+  summary/body/handoff files before they dive into the raw evidence set.
+- Added `scripts/write_release_reviewer_checklist.ps1` so the report bundle now
+  also emits a `REVIEWER_CHECKLIST.md` with a fixed three-step reviewer flow
+  covering draft review, verification state, and publish-or-refresh handoff.
+- Added `scripts/write_release_metadata_start_here.ps1`, a summary-root
+  `START_HERE.md`, and an artifact-root `RELEASE_METADATA_START_HERE.md`, then
+  updated the README/docs/templates so release metadata now has one consistent
+  start-here entry before `ARTIFACT_GUIDE.md` and `REVIEWER_CHECKLIST.md`.
 - Added `table_style_look`, `Table::style_look()`, `set_style_look(...)`, and
   `clear_style_look()` for editing `w:tblLook` on existing tables so first/last
   row or column emphasis plus row/column banding can be retuned without
@@ -21,6 +89,44 @@ performance.
 - Added `TableCell::remove()` so lightweight table editing can delete one
   standalone column across the whole table while refusing to remove the last
   remaining column or any column that intersects a horizontal merge span.
+- Added `TableCell::insert_cell_before()` and `insert_cell_after()` so
+  lightweight table editing can insert one safe cloned column across the whole
+  table while expanding `w:tblGrid`, clearing copied merge markup on the new
+  cells, and refusing insertion points that land inside horizontal merge spans.
+- Added `TableCell::unmerge_right()` and `unmerge_down()` so lightweight table
+  editing can split one pure horizontal merged cell back into standalone
+  siblings and remove one full vertical merge chain while keeping restored
+  cells editable through the same wrappers.
+- Added `Table::column_width_twips()`, `set_column_width_twips(...)`, and
+  `clear_column_width()` so existing tables can edit `w:tblGrid/w:gridCol`
+  widths directly and persist explicit per-column twip widths without dropping
+  to raw XML. Fixed-layout tables now also mirror complete grid widths back
+  into cell `w:tcW` values, including when `set_layout_mode(fixed)` is applied
+  after the grid widths are already in place, while clearing one grid column
+  width removes stale `w:tcW` hints from cells that still cover that column.
+  Switching back to `autofit` or clearing `tblLayout` keeps the saved
+  `w:gridCol` / `w:tcW` widths as preferred widths instead of discarding them.
+  `set_width_twips(...)` and `clear_width()` likewise only change `w:tblW`
+  and leave the saved grid/cell preferred widths intact.
+  Manual `TableCell::set_width_twips(...)` / `clear_width()` edits remain
+  possible, but the next fixed-grid synchronization pass rewrites those cells
+  back to the grid-derived widths.
+  Reopened legacy fixed-layout tables with stale `w:tcW` values can be
+  normalized the same way by reapplying `set_layout_mode(fixed)`.
+  The same normalization also runs when those reopened fixed-layout tables go
+  through explicit span or column edits such as `merge_right()`,
+  `unmerge_right()`, `set_column_width_twips(...)`, `insert_cell_before()` /
+  `insert_cell_after()`, or `TableCell::remove()`.
+  `clear_column_width()` follows the same reopened fixed-layout path for the
+  cleared grid column, but only clears `w:tcW` on cells that still cover that
+  column instead of re-normalizing unrelated stale cell widths.
+  Plain non-grid edits such as `TableCell::set_text(...)`,
+  `set_fill_color(...)`, and `set_border(...)` do not trigger that
+  normalization on their own.
+  The same is true for row-only structural edits:
+  `TableRow::insert_row_before()`, `insert_row_after()`, and `remove()` keep
+  reopened stale `w:tcW` values as-is instead of re-normalizing them from
+  `w:tblGrid`.
 - Added `samples/sample_edit_existing_table_style_look.cpp` as a runnable
   workflow that reopens a saved `.docx`, updates `tblLook` on an existing
   table, and preserves the underlying style reference.
@@ -31,6 +137,23 @@ performance.
   reopens a saved `.docx`, removes a temporary middle column from an existing
   table, and continues editing the surviving result column through the same
   wrapper.
+- Added `samples/sample_insert_table_column.cpp` as a runnable workflow that
+  reopens a saved `.docx`, inserts one cloned column after the base column,
+  inserts another before the result column, and keeps editing the new cells.
+- Added `samples/sample_unmerge_table_cells.cpp` as a runnable workflow that
+  reopens a saved `.docx`, splits one horizontal merge and one vertical merge,
+  and continues editing the restored cells.
+- Added `samples/sample_edit_existing_table_column_widths.cpp` as a runnable
+  workflow that reopens a saved `.docx`, rewrites `w:tblGrid` column widths on
+  an existing table, and makes the resulting narrow/medium/wide split easy to
+  verify in Word.
+
+### Fixed
+
+- Fixed PowerShell parsing in `scripts/run_word_visual_smoke.ps1` and
+  `scripts/run_fixed_grid_merge_unmerge_regression.ps1` so the generated review
+  checklist text no longer trips `pwsh` on Markdown backticks during real local
+  Word-rendered validation runs.
 
 ### Validation
 
@@ -44,7 +167,21 @@ performance.
 - Validated table-column removal edits with MinGW build + `ctest` and a Word
   visual smoke pass for `featherdoc_sample_remove_table_column`, confirming
   the rendered document keeps only the surviving two columns and the saved
-  table shrinks to two `w:gridCol` entries.
+  table shrinks to two `w:gridCol` entries while dropping the removed
+  column's saved grid width.
+- Validated safe table-column insertion edits with targeted `unit_tests` cases
+  plus the Word visual smoke sample, confirming inserted columns stay aligned,
+  inherit the source-side `w:gridCol` width after
+  `insert_cell_before()` / `insert_cell_after()`, and still behave correctly
+  after insertion at a merged-block boundary.
+- Validated table-cell unmerge edits with targeted `unit_tests` cases plus the
+  Word visual smoke sample, confirming `unmerge_right()` and `unmerge_down()`
+  restore standalone cells without leftover merge markup in the saved XML.
+- Validated table grid-column width edits with targeted `unit_tests` cases plus
+  the Word visual smoke sample, confirming `Table::set_column_width_twips(...)`
+  updates `w:tblGrid/w:gridCol`, `clear_column_width()` removes one saved
+  `w:w` attribute, and the rendered layout keeps a visible narrow/medium/wide
+  split.
 
 ## [1.5.0] - 2026-04-09
 
@@ -433,8 +570,6 @@ performance.
   part-reordering limits,
   equations, and table creation.
 - Removed the leftover upstream DuckX image asset directory from the repository.
-
-### Fixed
 
 - `open()` now preserves a single custom `std::error_category` instance across
   Windows shared-library boundaries, so `document_errc` compares correctly in

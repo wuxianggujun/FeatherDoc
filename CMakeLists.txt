@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(
     FeatherDoc
-    VERSION 1.5.0
+    VERSION 1.6.0
     DESCRIPTION "Modern C++ .docx library focused on explicit diagnostics, MSVC support, and clean API behavior"
     LANGUAGES C CXX
 )
@@ -209,6 +209,42 @@ if(BUILD_SAMPLES)
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_remove_table_column)
 
+    add_executable(featherdoc_sample_insert_table_column
+        samples/sample_insert_table_column.cpp)
+    target_link_libraries(featherdoc_sample_insert_table_column
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_table_column)
+
+    add_executable(featherdoc_sample_unmerge_table_cells
+        samples/sample_unmerge_table_cells.cpp)
+    target_link_libraries(featherdoc_sample_unmerge_table_cells
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_unmerge_table_cells)
+
+    add_executable(featherdoc_sample_merge_right_fixed_grid
+        samples/sample_merge_right_fixed_grid.cpp)
+    target_link_libraries(featherdoc_sample_merge_right_fixed_grid
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_merge_right_fixed_grid)
+
+    add_executable(featherdoc_sample_merge_down_fixed_grid
+        samples/sample_merge_down_fixed_grid.cpp)
+    target_link_libraries(featherdoc_sample_merge_down_fixed_grid
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_merge_down_fixed_grid)
+
+    add_executable(featherdoc_sample_unmerge_right_fixed_grid
+        samples/sample_unmerge_right_fixed_grid.cpp)
+    target_link_libraries(featherdoc_sample_unmerge_right_fixed_grid
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_unmerge_right_fixed_grid)
+
+    add_executable(featherdoc_sample_unmerge_down_fixed_grid
+        samples/sample_unmerge_down_fixed_grid.cpp)
+    target_link_libraries(featherdoc_sample_unmerge_down_fixed_grid
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_unmerge_down_fixed_grid)
+
     add_executable(featherdoc_sample_insert_table_around_existing
         samples/sample_insert_table_around_existing.cpp)
     target_link_libraries(featherdoc_sample_insert_table_around_existing
@@ -226,6 +262,12 @@ if(BUILD_SAMPLES)
     target_link_libraries(featherdoc_sample_edit_existing_table_spacing
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_table_spacing)
+
+    add_executable(featherdoc_sample_edit_existing_table_column_widths
+        samples/sample_edit_existing_table_column_widths.cpp)
+    target_link_libraries(featherdoc_sample_edit_existing_table_column_widths
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_table_column_widths)
 
     add_executable(featherdoc_sample_edit_existing_table_style_look
         samples/sample_edit_existing_table_style_look.cpp)
@@ -322,11 +364,27 @@ install(
     FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/README.zh-CN.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/RELEASE_ARTIFACT_TEMPLATE.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/VISUAL_VALIDATION_QUICKSTART.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/VISUAL_VALIDATION_QUICKSTART.zh-CN.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/VISUAL_VALIDATION.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/VISUAL_VALIDATION.zh-CN.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
         "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.upstream-mit"
         "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
         "${CMAKE_CURRENT_SOURCE_DIR}/LEGAL.md"
     DESTINATION "${FEATHERDOC_INSTALL_DATADIR}"
+)
+
+install(
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-contact-sheet.png"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-page-05.png"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-page-06.png"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/fixed-grid-aggregate-contact-sheet.png"
+    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/visual-validation"
 )
 
 if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)

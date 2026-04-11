@@ -2,7 +2,9 @@
 
 - Task id: `{{TASK_ID}}`
 - Mode: `{{MODE}}`
-- Document: `{{DOCX_PATH}}`
+- Source kind: `{{SOURCE_KIND}}`
+- Review target: `{{SOURCE_PATH}}`
+- Primary document (if any): `{{DOCX_PATH}}`
 - Evidence directory: `{{EVIDENCE_DIR}}`
 - Report directory: `{{REPORT_DIR}}`
 - Repair directory: `{{REPAIR_DIR}}`

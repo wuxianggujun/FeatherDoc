@@ -118,6 +118,17 @@ auto set_row_widths(featherdoc::TableRow row, const std::array<std::uint32_t, N>
     return true;
 }
 
+template <std::size_t N>
+auto set_table_column_widths(featherdoc::Table table,
+                             const std::array<std::uint32_t, N> &widths) -> bool {
+    for (std::size_t index = 0; index < widths.size(); ++index) {
+        if (!table.set_column_width_twips(index, widths[index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 auto configure_table(featherdoc::Table table, std::uint32_t width_twips) -> bool {
     return table.set_width_twips(width_twips) &&
            table.set_layout_mode(featherdoc::table_layout_mode::fixed) &&
@@ -527,6 +538,469 @@ auto create_merge_table(featherdoc::Document &doc) -> bool {
     return true;
 }
 
+auto create_fixed_grid_merge_right_table(featherdoc::Document &doc) -> bool {
+    auto table = doc.append_table(2, 3);
+    if (!require_step(configure_table(table, 7000U), "fixed merge table configure") ||
+        !require_step(set_table_column_widths(
+                          table, std::array<std::uint32_t, 3>{1000U, 1900U, 4100U}),
+                      "fixed merge table grid widths")) {
+        return false;
+    }
+
+    auto row = table.rows();
+    if (!require_step(row.has_next(), "fixed merge row one exists") ||
+        !require_step(row.set_height_twips(900U, featherdoc::row_height_rule::at_least),
+                      "fixed merge row one height")) {
+        return false;
+    }
+
+    auto merged_cell = row.cells();
+    if (!require_step(merged_cell.has_next(), "fixed merge anchor exists") ||
+        !require_step(merged_cell.set_fill_color("D9EAF7"), "fixed merge anchor fill") ||
+        !require_step(add_cell_lines(merged_cell, {"Fixed-grid merge_right",
+                                                   "Expected merged width: 1000 + 1900"}),
+                      "fixed merge anchor text") ||
+        !require_step(merged_cell.merge_right(1U), "fixed merge anchor merge right")) {
+        return false;
+    }
+
+    auto tail_cell = merged_cell;
+    tail_cell.next();
+    if (!require_step(tail_cell.has_next(), "fixed merge tail exists") ||
+        !require_step(tail_cell.set_fill_color("E2F0D9"), "fixed merge tail fill") ||
+        !require_step(add_cell_lines(tail_cell, {"Tail grid column",
+                                                 "4100 twips, should stay visibly widest"}),
+                      "fixed merge tail text")) {
+        return false;
+    }
+
+    row.next();
+    if (!require_step(row.has_next(), "fixed merge row two exists") ||
+        !require_step(row.set_height_twips(820U, featherdoc::row_height_rule::at_least),
+                      "fixed merge row two height")) {
+        return false;
+    }
+
+    auto cell = row.cells();
+    if (!cell.has_next() || !cell.set_fill_color("F2F2F2") ||
+        !add_cell_lines(cell, {"1000", "Narrow base"})) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("FFF2CC") ||
+        !add_cell_lines(cell, {"1900", "Medium base"})) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("E2F0D9") ||
+        !add_cell_lines(cell, {"4100", "Visual tail cue"})) {
+        return false;
+    }
+
+    return true;
+}
+
+auto create_column_insertion_tables(featherdoc::Document &doc) -> bool {
+    auto table = doc.append_table(2, 2);
+    if (!require_step(configure_table(table, 8000U), "column insert table configure")) {
+        return false;
+    }
+
+    auto row = table.rows();
+    if (!require_step(row.has_next(), "column insert header exists") ||
+        !require_step(set_row_widths(row, std::array<std::uint32_t, 2>{2000U, 2000U}),
+                      "column insert header widths")) {
+        return false;
+    }
+
+    auto cell = row.cells();
+    if (!cell.has_next() || !cell.set_fill_color("D9EAF7") ||
+        !add_cell_lines(cell, {"Base", "Insert after this blue column"})) {
+        return false;
+    }
+
+    auto result_header = cell;
+    result_header.next();
+    if (!result_header.has_next() || !result_header.set_fill_color("E2F0D9") ||
+        !add_cell_lines(result_header, {"Result", "Insert before this green column"})) {
+        return false;
+    }
+
+    auto body_row = row;
+    body_row.next();
+    if (!body_row.has_next() ||
+        !require_step(set_row_widths(body_row, std::array<std::uint32_t, 2>{2000U, 2000U}),
+                      "column insert body widths")) {
+        return false;
+    }
+
+    cell = body_row.cells();
+    if (!cell.has_next() || !add_cell_text(cell, "Owner")) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !add_cell_text(cell, "Completed")) {
+        return false;
+    }
+
+    auto inserted_after = table.rows().cells().insert_cell_after();
+    if (!require_step(inserted_after.has_next(), "insert column after blue header") ||
+        !require_step(inserted_after.set_fill_color("FFF2CC"), "color inserted-after header") ||
+        !require_step(add_cell_lines(inserted_after, {"Priority", "Inserted after Base"}),
+                      "write inserted-after header")) {
+        return false;
+    }
+
+    auto inserted_after_body = table.rows();
+    inserted_after_body.next();
+    if (!inserted_after_body.has_next()) {
+        return false;
+    }
+    cell = inserted_after_body.cells();
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("FFF2CC") ||
+        !add_cell_lines(cell, {"High", "Cloned column stays aligned"})) {
+        return false;
+    }
+
+    auto inserted_before_anchor = table.rows().cells();
+    inserted_before_anchor.next();
+    inserted_before_anchor.next();
+    if (!inserted_before_anchor.has_next()) {
+        return false;
+    }
+    auto inserted_before = inserted_before_anchor.insert_cell_before();
+    if (!require_step(inserted_before.has_next(), "insert column before green header") ||
+        !require_step(inserted_before.set_fill_color("FCE4D6"), "color inserted-before header") ||
+        !require_step(add_cell_lines(inserted_before, {"Status", "Inserted before Result"}),
+                      "write inserted-before header")) {
+        return false;
+    }
+
+    auto inserted_before_body = table.rows();
+    inserted_before_body.next();
+    if (!inserted_before_body.has_next()) {
+        return false;
+    }
+    cell = inserted_before_body.cells();
+    cell.next();
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("FCE4D6") ||
+        !add_cell_lines(cell, {"Ready", "No border drift after second insert"})) {
+        return false;
+    }
+
+    cell.next();
+    if (!cell.has_next() ||
+        !add_cell_lines(cell, {"Completed", "Green result column stays rightmost"})) {
+        return false;
+    }
+
+    auto spacer = append_body_paragraph(doc, "");
+    if (!spacer.has_next()) {
+        return false;
+    }
+
+    table = doc.append_table(2, 3);
+    if (!require_step(configure_table(table, 8000U), "merged-boundary insert table configure")) {
+        return false;
+    }
+
+    row = table.rows();
+    if (!require_step(row.has_next(), "merged-boundary header exists") ||
+        !require_step(set_row_widths(row, std::array<std::uint32_t, 3>{2000U, 2000U, 2000U}),
+                      "merged-boundary header widths")) {
+        return false;
+    }
+
+    auto merged_header = row.cells();
+    if (!merged_header.has_next() || !merged_header.set_fill_color("D9EAF7") ||
+        !add_cell_lines(merged_header, {"Merged block", "Safe insert goes to the right"}) ||
+        !merged_header.merge_right(1U)) {
+        return false;
+    }
+
+    auto tail_header = merged_header;
+    tail_header.next();
+    if (!tail_header.has_next() || !tail_header.set_fill_color("E2F0D9") ||
+        !add_cell_lines(tail_header, {"Tail", "Should stay after the new yellow cell"})) {
+        return false;
+    }
+
+    body_row = row;
+    body_row.next();
+    if (!body_row.has_next() ||
+        !require_step(set_row_widths(body_row, std::array<std::uint32_t, 3>{2000U, 2000U, 2000U}),
+                      "merged-boundary body widths")) {
+        return false;
+    }
+
+    cell = body_row.cells();
+    if (!cell.has_next() || !add_cell_text(cell, "R2C1")) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !add_cell_text(cell, "R2C2")) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !add_cell_text(cell, "Tail body")) {
+        return false;
+    }
+
+    auto merged_inserted = table.rows().cells().insert_cell_after();
+    if (!require_step(merged_inserted.has_next(), "insert after merged block") ||
+        !require_step(merged_inserted.set_fill_color("FFF2CC"),
+                      "color merged-boundary inserted header") ||
+        !require_step(add_cell_lines(merged_inserted,
+                                     {"Inserted after merge", "No stray gridSpan or vMerge"}),
+                      "write merged-boundary inserted header")) {
+        return false;
+    }
+
+    auto merged_body_row = table.rows();
+    merged_body_row.next();
+    if (!merged_body_row.has_next()) {
+        return false;
+    }
+    cell = merged_body_row.cells();
+    cell.next();
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("FFF2CC") ||
+        !add_cell_lines(cell, {"Boundary insert", "Should sit between blue and green"})) {
+        return false;
+    }
+
+    return true;
+}
+
+auto create_column_width_table(featherdoc::Document &doc) -> bool {
+    auto table = doc.append_table(3, 3);
+    if (!require_step(configure_table(table, 7800U), "column width table configure") ||
+        !require_step(table.set_layout_mode(featherdoc::table_layout_mode::autofit),
+                      "column width table temporary autofit") ||
+        !require_step(set_table_column_widths(table,
+                                             std::array<std::uint32_t, 3>{1200U, 2200U, 4400U}),
+                      "column width table grid widths") ||
+        !require_step(table.clear_column_width(1U), "column width table clear middle width") ||
+        !require_step(table.set_column_width_twips(1U, 2200U),
+                      "column width table restore middle width") ||
+        !require_step(table.clear_width(), "column width table clear tblW") ||
+        !require_step(table.set_width_twips(7800U), "column width table restore tblW") ||
+        !require_step(table.clear_layout_mode(), "column width table clear layout mode") ||
+        !require_step(table.set_layout_mode(featherdoc::table_layout_mode::fixed),
+                      "column width table normalize tcW from grid")) {
+        return false;
+    }
+
+    auto override_row = table.rows();
+    override_row.next();
+    if (!require_step(override_row.has_next(), "column width override row exists")) {
+        return false;
+    }
+
+    auto override_cell = override_row.cells();
+    override_cell.next();
+    if (!require_step(override_cell.has_next(), "column width override middle cell exists") ||
+        !require_step(override_cell.set_width_twips(900U),
+                      "column width temporary tcW override")) {
+        return false;
+    }
+    override_cell.next();
+    if (!require_step(override_cell.has_next(), "column width clear target cell exists") ||
+        !require_step(override_cell.clear_width(), "column width temporary tcW clear") ||
+        !require_step(table.set_layout_mode(featherdoc::table_layout_mode::fixed),
+                      "column width restore tcW from grid after manual cell edits")) {
+        return false;
+    }
+
+    auto row = table.rows();
+    if (!require_step(row.has_next(), "column width header exists") ||
+        !require_step(row.set_height_twips(520U, featherdoc::row_height_rule::exact),
+                      "column width header height")) {
+        return false;
+    }
+
+    auto cell = row.cells();
+    if (!cell.has_next() || !cell.set_fill_color("D9EAF7") ||
+        !add_cell_text(cell, "Key", featherdoc::formatting_flag::bold)) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("FFF2CC") ||
+        !add_cell_text(cell, "Review state", featherdoc::formatting_flag::bold)) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("E2F0D9") ||
+        !add_cell_text(cell, "Evidence / notes", featherdoc::formatting_flag::bold)) {
+        return false;
+    }
+
+    row.next();
+    if (!require_step(row.has_next(), "column width body row one exists") ||
+        !require_step(row.set_height_twips(1050U, featherdoc::row_height_rule::at_least),
+                      "column width body row one height")) {
+        return false;
+    }
+
+    cell = row.cells();
+    if (!cell.has_next() || !add_cell_text(cell, "A-7")) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !add_cell_lines(cell, {"Waiting", "Middle column stays readable"})) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() ||
+        !add_cell_lines(cell,
+                        {"Wide evidence column",
+                         "This green column should remain visibly wider than the blue key column "
+                         "after Table::set_column_width_twips(...), even after a temporary "
+                         "tcW override/clear cycle." })) {
+        return false;
+    }
+
+    row.next();
+    if (!require_step(row.has_next(), "column width body row two exists") ||
+        !require_step(row.set_height_twips(1050U, featherdoc::row_height_rule::at_least),
+                      "column width body row two height")) {
+        return false;
+    }
+
+    cell = row.cells();
+    if (!cell.has_next() || !add_cell_text(cell, "B-2")) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !add_cell_lines(cell, {"Ready", "Center column should stay medium"})) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() ||
+        !add_cell_lines(cell,
+                        {"Regression cue",
+                         "If all three columns look nearly equal in Word, tblGrid column-width "
+                         "editing likely regressed."})) {
+        return false;
+    }
+
+    return true;
+}
+
+auto create_unmerge_table(featherdoc::Document &doc) -> bool {
+    auto table = doc.append_table(4, 3);
+    if (!require_step(configure_table(table, 9000U), "unmerge table configure")) {
+        return false;
+    }
+
+    auto row = table.rows();
+    if (!require_step(row.has_next(), "unmerge header exists") ||
+        !require_step(set_row_widths(row, std::array<std::uint32_t, 3>{3000U, 3000U, 3000U}),
+                      "unmerge header widths")) {
+        return false;
+    }
+
+    auto cell = row.cells();
+    if (!cell.has_next() || !cell.set_fill_color("D9EAF7") ||
+        !add_cell_text(cell, "Case", featherdoc::formatting_flag::bold)) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("D9EAF7") ||
+        !add_cell_text(cell, "Expected final layout", featherdoc::formatting_flag::bold)) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() || !cell.set_fill_color("D9EAF7") ||
+        !add_cell_text(cell, "Review notes", featherdoc::formatting_flag::bold)) {
+        return false;
+    }
+
+    row.next();
+    if (!require_step(row.has_next(), "unmerge horizontal row exists") ||
+        !require_step(set_row_widths(row, std::array<std::uint32_t, 3>{3000U, 3000U, 3000U}),
+                      "unmerge horizontal row widths")) {
+        return false;
+    }
+
+    auto horizontal_anchor = row.cells();
+    if (!horizontal_anchor.has_next() || !horizontal_anchor.set_fill_color("DDEBF7") ||
+        !add_cell_lines(horizontal_anchor, {"Horizontal merge anchor",
+                                           "This row is merged first, then split again"}) ||
+        !horizontal_anchor.merge_right(1U) ||
+        !horizontal_anchor.unmerge_right()) {
+        return false;
+    }
+
+    auto restored_horizontal = row.cells();
+    restored_horizontal.next();
+    if (!restored_horizontal.has_next() || !restored_horizontal.set_fill_color("FCE4D6") ||
+        !add_cell_lines(restored_horizontal, {"Restored right cell",
+                                             "Should be a standalone orange cell"})) {
+        return false;
+    }
+
+    auto horizontal_tail = restored_horizontal;
+    horizontal_tail.next();
+    if (!horizontal_tail.has_next() || !horizontal_tail.set_fill_color("E2F0D9") ||
+        !add_cell_lines(horizontal_tail, {"Tail", "Must stay on the far right"})) {
+        return false;
+    }
+
+    row.next();
+    if (!require_step(row.has_next(), "unmerge vertical anchor row exists") ||
+        !require_step(set_row_widths(row, std::array<std::uint32_t, 3>{3000U, 3000U, 3000U}),
+                      "unmerge vertical anchor row widths")) {
+        return false;
+    }
+
+    auto vertical_anchor = row.cells();
+    if (!vertical_anchor.has_next() || !vertical_anchor.set_fill_color("FFF2CC") ||
+        !add_cell_lines(vertical_anchor, {"Vertical merge anchor",
+                                         "Upper cell keeps the original text"}) ||
+        !vertical_anchor.merge_down(1U)) {
+        return false;
+    }
+
+    cell = row.cells();
+    cell.next();
+    if (!cell.has_next() || !add_cell_lines(cell, {"Upper row detail", "Should remain visible"})) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() ||
+        !add_cell_lines(cell, {"Review border continuity", "No stray merge markers after split"})) {
+        return false;
+    }
+
+    row.next();
+    if (!require_step(row.has_next(), "unmerge vertical continuation row exists") ||
+        !require_step(set_row_widths(row, std::array<std::uint32_t, 3>{3000U, 3000U, 3000U}),
+                      "unmerge vertical continuation row widths")) {
+        return false;
+    }
+
+    cell = row.cells();
+    if (!cell.has_next() || !cell.unmerge_down() || !cell.set_fill_color("E2F0D9") ||
+        !add_cell_lines(cell, {"Restored lower cell", "Should be an independent green cell"})) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() ||
+        !add_cell_lines(cell, {"Lower row detail", "Middle content must stay in place"})) {
+        return false;
+    }
+    cell.next();
+    if (!cell.has_next() ||
+        !add_cell_lines(cell, {"Check horizontal rules", "No collapsed row height"})) {
+        return false;
+    }
+
+    return true;
+}
+
 auto create_direction_stress_table(featherdoc::Document &doc) -> bool {
     auto table = doc.append_table(1, 4);
     if (!require_step(configure_table(table, 7200U), "direction stress table configure")) {
@@ -834,6 +1308,53 @@ int main(int argc, char **argv) {
 
     if (!create_merge_table(doc)) {
         std::cerr << "failed to build the merge smoke table\n";
+        return 1;
+    }
+
+    if (!create_fixed_grid_merge_right_table(doc)) {
+        std::cerr << "failed to build the fixed-grid merge-right smoke table\n";
+        return 1;
+    }
+
+    paragraph = append_body_paragraph(
+        doc, "Unmerge target: inspect the orange and green restored cells after splitting one "
+             "horizontal merge and one vertical merge. They should look like clean standalone "
+             "cells with no leftover merge artifacts.");
+    if (!paragraph.has_next()) {
+        std::cerr << "failed to append unmerge paragraph\n";
+        return 1;
+    }
+
+    if (!create_unmerge_table(doc)) {
+        std::cerr << "failed to build the unmerge smoke table\n";
+        return 1;
+    }
+
+    paragraph = append_body_paragraph(
+        doc, "Column insertion target: inspect inserted yellow and orange columns after both "
+             "insert_cell_after()/insert_cell_before() calls, plus the merged-boundary insert "
+             "that should place a yellow cell between the blue merged block and the green tail.");
+    if (!paragraph.has_next()) {
+        std::cerr << "failed to append column insertion paragraph\n";
+        return 1;
+    }
+
+    if (!create_column_insertion_tables(doc)) {
+        std::cerr << "failed to build the column insertion smoke tables\n";
+        return 1;
+    }
+
+    paragraph = append_body_paragraph(
+        doc, "Column-width target: inspect the blue/yellow/green three-column table and confirm "
+             "the left key column stays narrow, the middle column stays medium, and the right "
+             "evidence column stays obviously widest after tblGrid width edits.");
+    if (!paragraph.has_next()) {
+        std::cerr << "failed to append column-width paragraph\n";
+        return 1;
+    }
+
+    if (!create_column_width_table(doc)) {
+        std::cerr << "failed to build the column-width smoke table\n";
         return 1;
     }
 

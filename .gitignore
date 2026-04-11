@@ -35,6 +35,7 @@
 build/*
 build-*/
 output/
+RELEASE_METADATA_START_HERE.md
 tmp/
 .venv-word-visual-smoke/
 .idea/

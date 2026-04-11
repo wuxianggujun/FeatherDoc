@@ -35,13 +35,12 @@ bool require_step(bool ok, std::string_view operation) {
 }
 
 bool set_seed_column_widths(featherdoc::Table table) {
-    return table.has_next() && table.set_column_width_twips(0U, 1800U) &&
-           table.set_column_width_twips(1U, 1800U) &&
-           table.set_column_width_twips(2U, 3600U);
+    return table.has_next() && table.set_column_width_twips(0U, 2000U) &&
+           table.set_column_width_twips(1U, 2000U);
 }
 
-bool set_row_values(featherdoc::TableRow row, std::string_view first,
-                    std::string_view second, std::string_view third) {
+bool set_two_cell_values(featherdoc::TableRow row, std::string_view first,
+                         std::string_view second) {
     auto cell = row.cells();
     if (!cell.has_next()) {
         return false;
@@ -54,41 +53,24 @@ bool set_row_values(featherdoc::TableRow row, std::string_view first,
     if (!cell.has_next()) {
         return false;
     }
-    if (!cell.set_text(std::string{second})) {
-        return false;
-    }
-
-    cell.next();
-    if (!cell.has_next()) {
-        return false;
-    }
-    return cell.set_text(std::string{third});
+    return cell.set_text(std::string{second});
 }
 
-bool set_header_colors(featherdoc::TableRow row) {
+bool set_seed_header_styles(featherdoc::TableRow row) {
     auto cell = row.cells();
     if (!cell.has_next() || !cell.set_fill_color("D9EAF7")) {
         return false;
     }
 
     cell.next();
-    if (!cell.has_next() || !cell.set_fill_color("FCE4D6")) {
-        return false;
-    }
-
-    cell.next();
-    if (!cell.has_next() || !cell.set_fill_color("E2F0D9")) {
-        return false;
-    }
-
-    return true;
+    return cell.has_next() && cell.set_fill_color("E2F0D9");
 }
 
 } // namespace
 
 int main(int argc, char **argv) {
     const fs::path output_path =
-        argc > 1 ? fs::path(argv[1]) : fs::current_path() / "remove_table_column.docx";
+        argc > 1 ? fs::path(argv[1]) : fs::current_path() / "insert_table_column.docx";
 
     if (output_path.has_parent_path()) {
         std::error_code directory_error;
@@ -107,22 +89,22 @@ int main(int argc, char **argv) {
     }
 
     auto paragraph = seed.paragraphs();
-    if (!paragraph.set_text("Table column removal sample")) {
+    if (!paragraph.set_text("Table column insertion sample")) {
         print_document_error(seed, "set_text");
         return 1;
     }
     if (!paragraph
              .add_run(
-                 " Reopen the document, remove the temporary middle column, and "
-                 "continue editing the surviving result column through the same wrapper "
-                 "while the removed grid width disappears with it.")
+                 " Reopen the document, insert one cloned column after the base column, "
+                 "insert another before the result column, and keep editing the new cells "
+                 "while the inserted columns inherit the source grid widths.")
              .has_next()) {
         std::cerr << "add_run failed\n";
         return 1;
     }
 
-    auto table = seed.append_table(2, 3);
-    if (!table.has_next() || !table.set_width_twips(7200U) ||
+    auto table = seed.append_table(2, 2);
+    if (!table.has_next() || !table.set_width_twips(8000U) ||
         !table.set_style_id("TableGrid") ||
         !table.set_layout_mode(featherdoc::table_layout_mode::fixed) ||
         !require_step(set_seed_column_widths(table), "set seed column widths")) {
@@ -131,8 +113,9 @@ int main(int argc, char **argv) {
     }
 
     auto header_row = table.rows();
-    if (!header_row.has_next() || !require_step(set_header_colors(header_row), "set header colors") ||
-        !require_step(set_row_values(header_row, "Item", "Temporary", "Result"),
+    if (!header_row.has_next() ||
+        !require_step(set_seed_header_styles(header_row), "set header styles") ||
+        !require_step(set_two_cell_values(header_row, "Base", "Result"),
                       "set header values")) {
         return 1;
     }
@@ -140,9 +123,7 @@ int main(int argc, char **argv) {
     auto body_row = header_row;
     body_row.next();
     if (!body_row.has_next() ||
-        !require_step(set_row_values(body_row, "Keep this column",
-                                     "Remove this temporary column",
-                                     "Update this cell after removal"),
+        !require_step(set_two_cell_values(body_row, "Owner", "Completed"),
                       "set body values")) {
         return 1;
     }
@@ -160,8 +141,11 @@ int main(int argc, char **argv) {
 
     paragraph = doc.paragraphs();
     if (!paragraph.has_next() ||
-        !paragraph.add_run(" The final table should visibly keep only the blue and green columns.")
-              .has_next()) {
+        !paragraph
+             .add_run(" The final table should end with four columns: Base, Priority, "
+                      "Status, and Result, with the inserted columns inheriting the base "
+                      "and result grid widths.")
+             .has_next()) {
         std::cerr << "failed to update intro paragraph\n";
         return 1;
     }
@@ -172,50 +156,81 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    auto removable_column = table.rows().cells();
-    if (!removable_column.has_next()) {
-        std::cerr << "missing first header cell\n";
-        return 1;
-    }
-    removable_column.next();
-    if (!removable_column.has_next()) {
-        std::cerr << "missing removable middle header cell\n";
+    auto header_left = table.rows().cells();
+    if (!header_left.has_next()) {
+        std::cerr << "missing base header cell\n";
         return 1;
     }
 
-    if (!removable_column.remove()) {
-        std::cerr << "remove column failed\n";
-        return 1;
-    }
-    if (!removable_column.has_next()) {
-        std::cerr << "cell wrapper did not move to the surviving result column\n";
-        return 1;
-    }
-    if (!require_step(removable_column.set_text("Result (survived)"),
-                      "update surviving header cell")) {
+    auto inserted_after = header_left.insert_cell_after();
+    if (!inserted_after.has_next() ||
+        !require_step(inserted_after.set_fill_color("FFF2CC"),
+                      "color inserted-after header") ||
+        !require_step(inserted_after.set_text("Priority"),
+                      "set inserted-after header")) {
         return 1;
     }
 
     auto updated_body_row = table.rows();
     updated_body_row.next();
     if (!updated_body_row.has_next()) {
-        std::cerr << "missing body row after column removal\n";
+        std::cerr << "missing body row after first insertion\n";
         return 1;
     }
 
-    auto updated_body_cell = updated_body_row.cells();
-    if (!updated_body_cell.has_next()) {
-        std::cerr << "missing body first cell after column removal\n";
+    auto inserted_after_body = updated_body_row.cells();
+    inserted_after_body.next();
+    if (!inserted_after_body.has_next() ||
+        !require_step(inserted_after_body.set_fill_color("FFF2CC"),
+                      "color inserted-after body cell") ||
+        !require_step(inserted_after_body.set_text("High"),
+                      "set inserted-after body cell")) {
         return 1;
     }
-    updated_body_cell.next();
-    if (!updated_body_cell.has_next()) {
-        std::cerr << "missing surviving body result cell after column removal\n";
+
+    auto header_result = table.rows().cells();
+    header_result.next();
+    header_result.next();
+    if (!header_result.has_next()) {
+        std::cerr << "missing result header cell after first insertion\n";
         return 1;
     }
-    if (!require_step(updated_body_cell.set_text(
-                          "Reached through the updated two-column table after removing the middle column."),
-                      "update surviving body cell")) {
+
+    auto inserted_before = header_result.insert_cell_before();
+    if (!inserted_before.has_next() ||
+        !require_step(inserted_before.set_fill_color("FCE4D6"),
+                      "color inserted-before header") ||
+        !require_step(inserted_before.set_text("Status"),
+                      "set inserted-before header")) {
+        return 1;
+    }
+
+    updated_body_row = table.rows();
+    updated_body_row.next();
+    if (!updated_body_row.has_next()) {
+        std::cerr << "missing body row after second insertion\n";
+        return 1;
+    }
+
+    auto inserted_before_body = updated_body_row.cells();
+    inserted_before_body.next();
+    inserted_before_body.next();
+    if (!inserted_before_body.has_next() ||
+        !require_step(inserted_before_body.set_fill_color("FCE4D6"),
+                      "color inserted-before body cell") ||
+        !require_step(inserted_before_body.set_text("Ready"),
+                      "set inserted-before body cell")) {
+        return 1;
+    }
+
+    auto result_body = updated_body_row.cells();
+    result_body.next();
+    result_body.next();
+    result_body.next();
+    if (!result_body.has_next() ||
+        !require_step(result_body.set_text(
+                          "Reached through insert_cell_before/after after reopening the document."),
+                      "set final result body cell")) {
         return 1;
     }
 

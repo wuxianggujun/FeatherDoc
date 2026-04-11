@@ -58,11 +58,27 @@
 4. 许可、NOTICE、LEGAL、赞助入口仍与当前仓库状态一致。
 5. MSVC 构建、测试、样例运行通过。
 6. ``cmake --install`` 之后，外部最小工程可以 ``find_package(FeatherDoc CONFIG REQUIRED)`` 并成功链接运行。
-7. 本地 Word visual smoke 已执行，确认当前发布候选在真实 Word 渲染下没有明显回归。
+7. 本地 Word visual release gate 已执行，至少覆盖常规 smoke 与
+   fixed-grid merge/unmerge quartet，可在真实 Word 渲染下排查明显回归。
 8. 公开 API 变更已经反映到样例、测试和文档中。
 9. 完成以上检查后再打 tag / 创建 release。
 
 当前推荐的最低验证命令：
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
+
+如果只是复用已有 ``build-msvc-nmake`` 构建目录，可改为：
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 `
+        -SkipConfigure `
+        -SkipBuild
+
+前提是该构建目录已经包含最新的 ``featherdoc_cli``、visual smoke sample，
+以及 fixed-grid quartet sample；否则应去掉 ``-SkipBuild`` 让脚本先补齐产物。
 
 .. code-block:: bat
 
@@ -79,8 +95,19 @@
         -Generator "NMake Makefiles" `
         -Config Release
 
-    pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 `
-        -BuildDir .\build-msvc-nmake
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
+        -SmokeBuildDir .\build-msvc-nmake `
+        -FixedGridBuildDir .\build-msvc-nmake
+
+说明：
+
+1. ``run_release_candidate_checks.ps1`` 会把 ``MSVC configure/build``、
+   ``ctest``、``install + find_package smoke``、以及
+   ``run_word_visual_release_gate.ps1`` 串成一条本地发布前总检查。
+2. GitHub 云端 CI 仍适合做构建、单测和样例 ``.docx`` 结构验证，但不应代替
+   依赖本机 ``Microsoft Word`` 的最终视觉 gate。
+3. ``run_word_visual_release_gate.ps1`` 会继续拆成 document task 和
+   fixed-grid bundle task，便于后续把截图级人工/AI 复核接到发布流程里。
 
 
 依赖升级策略
@@ -105,6 +132,64 @@
 4. 是否升级了 vendored 依赖。
 5. 是否调整了许可、安装导出或项目元数据。
 6. 本次验证方式，尤其是 MSVC 验证结果。
+7. 安装产物里的复现入口，例如 ``share/FeatherDoc/VISUAL_VALIDATION_QUICKSTART.zh-CN.md``。
+8. 可视化证据与 release-preflight 证据文件路径。
+
+仓库根目录还提供了 ``RELEASE_ARTIFACT_TEMPLATE.md`` 与
+``RELEASE_ARTIFACT_TEMPLATE.zh-CN.md``，用于把安装包入口、验证结果和截图复现
+命令拼成一份对外发布说明骨架。
+
+当 ``run_release_candidate_checks.ps1`` 跑完后，输出根目录会自动写出
+``START_HERE.md``，``report`` 目录还会写出 ``ARTIFACT_GUIDE.md``、
+``REVIEWER_CHECKLIST.md``、``release_handoff.md``、``release_body.zh-CN.md``
+和 ``release_summary.zh-CN.md``。
+如果你后来又把 visual verdict 从 ``pending_manual_review`` 回写成
+``pass``，优先执行最短的一键同步命令，把最新 document task /
+fixed-grid task 的结论回灌进 gate summary、release-preflight summary，
+并顺手重刷整套 report：
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1
+
+如果你需要手动覆盖推断出来的 gate / release 路径，再改用显式命令：
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\sync_visual_review_verdict.ps1 `
+        -GateSummaryJson .\output\word-visual-release-gate\report\gate_summary.json `
+        -ReleaseCandidateSummaryJson .\output\release-candidate-checks\report\summary.json `
+        -RefreshReleaseBundle
+
+其中 ``START_HERE.md`` 是本地 summary 输出的首个入口，
+``ARTIFACT_GUIDE.md`` 负责先导索引，``REVIEWER_CHECKLIST.md`` 负责评审
+步骤，``release_body.zh-CN.md`` 用于给 GitHub Release 或手工发布说明
+提供一份中文草稿，``release_summary.zh-CN.md`` 则适合作为 GitHub Release
+首屏短摘要。后两者都会优先从 ``CHANGELOG.md`` 的 ``Unreleased`` 区块自动
+抽取“核心变化”要点。
+如果只想单独复跑 fixed-grid merge/unmerge 四件套，并生成可截图签收的
+review task，可另外执行：
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_regression.ps1 `
+        -PrepareReviewTask `
+        -ReviewMode review-only
+
+GitHub Actions 的 ``windows-msvc.yml`` 现在也会上传一个
+``windows-msvc-release-metadata`` artifact，其中包含安装树下的
+``share/FeatherDoc`` 文档入口、artifact 根级的
+``RELEASE_METADATA_START_HERE.md``，以及
+``output/release-candidate-checks-ci/START_HERE.md`` 和
+``output/release-candidate-checks-ci/report`` 里的 ``ARTIFACT_GUIDE.md``、
+``REVIEWER_CHECKLIST.md``、``summary.json``、``final_review.md``、
+``release_handoff.md``、``release_body.zh-CN.md``、
+``release_summary.zh-CN.md``。拿到 artifact 后建议先看
+``RELEASE_METADATA_START_HERE.md``，再进入 ``START_HERE.md``、
+``ARTIFACT_GUIDE.md``，最后按 ``REVIEWER_CHECKLIST.md`` 走评审流。
+不过 CI 没有真实 Word 渲染环境，因此这里只会生成 visual gate 为
+``skipped`` 的 handoff；正式发版前，仍然要用本地 Windows preflight
+补齐最终截图级结论。
 
 
 CHANGELOG 维护建议
@@ -128,7 +213,7 @@ CHANGELOG 维护建议
 1. 先整理 ``CHANGELOG.md``，确认这次是否真的值得发版。
 2. 再核对 ``CMakeLists.txt`` 里的版本号与发布说明是否一致。
 3. 完成 MSVC 构建、测试、样例、安装后外部消费 smoke。
-4. 跑一次本地 Word visual smoke。
+4. 跑一次本地 release candidate checks，至少覆盖 Word visual release gate。
 5. 最后再打 tag，并基于 ``CHANGELOG.md`` 生成 release 说明。
 
 

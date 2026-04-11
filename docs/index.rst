@@ -7,6 +7,91 @@ Release v\ |version|
 *FeatherDoc* is a C++ library for creating and editing Microsoft Word
 (.docx) files.
 
+Repository-level README entry points are available at ``README.md`` (English)
+and ``README.zh-CN.md`` (Simplified Chinese).
+
+Visual Validation Preview
+-------------------------
+FeatherDoc now keeps Word-rendered validation artifacts in the repository, so
+readers can inspect real layout output instead of relying on XML-only claims.
+
+.. image:: assets/readme/visual-smoke-contact-sheet.png
+   :alt: Full Word visual smoke contact sheet
+   :align: center
+   :width: 100%
+
+The current smoke flow covers multi-page tables, repeated headers, vertical and
+rotated text, fixed-grid width edits, merge/unmerge checks, and mixed
+RTL/LTR/CJK review content. The gallery below shows a few focused slices from
+the same validation chain.
+
+.. list-table::
+   :widths: 34 33 33
+
+   * - .. image:: assets/readme/visual-smoke-page-05.png
+          :alt: Word-rendered fixed-grid width and column editing review page
+          :width: 100%
+     - .. image:: assets/readme/fixed-grid-aggregate-contact-sheet.png
+          :alt: Fixed-grid merge and unmerge regression contact sheet
+          :width: 100%
+     - .. image:: assets/readme/visual-smoke-page-06.png
+          :alt: Word-rendered vertical-text and mixed-direction review page
+          :width: 100%
+    * - Fixed-grid width editing, safe column insertion, merge-boundary checks,
+        and narrow/medium/wide column review on a real Word-rendered page.
+      - The dedicated fixed-grid regression bundle covers ``merge_right()``,
+        ``merge_down()``, ``unmerge_right()``, and ``unmerge_down()`` in one
+        screenshot-backed contact sheet that is intended for manual signoff,
+        not just XML-only inspection.
+     - Vertical text, rotated text, and mixed RTL/LTR/CJK content remain part
+       of the routine screenshot review surface instead of XML-only testing.
+
+For the end-to-end local review flow, see
+:doc:`automation/word_visual_workflow_zh`. For the release-preflight wrapper,
+see :doc:`release_policy_zh`.
+
+When browsing an installed ``share/FeatherDoc`` tree, start with
+``VISUAL_VALIDATION_QUICKSTART.md`` or
+``VISUAL_VALIDATION_QUICKSTART.zh-CN.md`` for the shortest
+``preview PNG -> repro command -> review task`` entry.
+
+To reproduce the same screenshots locally on Windows with a real
+``Microsoft Word`` install, use:
+
+.. code-block:: powershell
+
+    # Full smoke contact sheet plus page slices
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1
+
+    # Fixed-grid quartet, aggregate contact sheet, plus a ready-to-review task package
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_regression.ps1 `
+        -PrepareReviewTask `
+        -ReviewMode review-only
+
+    # One-shot local gate for both flows
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1
+
+    # Same gate, but also refresh the repository gallery PNGs
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
+        -RefreshReadmeAssets
+
+    # Refresh the repository gallery PNGs from already-generated tasks only
+    powershell -ExecutionPolicy Bypass -File .\scripts\refresh_readme_visual_assets.ps1
+
+    # After both screenshot-backed task verdicts are written, sync them back
+    # into the gate summary
+    powershell -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1
+
+    # Same sync step, but with explicit paths when you need to override the
+    # auto-detected gate or release summary
+    powershell -ExecutionPolicy Bypass -File .\scripts\sync_visual_review_verdict.ps1 `
+        -GateSummaryJson output\word-visual-release-gate\report\gate_summary.json
+
+The install tree mirrors these preview entry points under ``share/FeatherDoc``
+through ``RELEASE_ARTIFACT_TEMPLATE*.md``,
+``VISUAL_VALIDATION_QUICKSTART*.md``, ``VISUAL_VALIDATION*.md``, and
+``visual-validation/*.png``.
+
 
 How to install
 --------------
@@ -18,10 +103,22 @@ The instructions to build and install FeatherDoc
     cmake --build build
     cmake --install build --prefix install
 
-The installed package also carries project-facing metadata and legal files
+The installed package also carries project-facing metadata, visual-validation
+preview assets, repro guides, release-artifact templates, and legal files
 under ``share/FeatherDoc``.
 Top-level builds enable ``BUILD_CLI`` by default, so ``featherdoc_cli`` is
 built unless ``-DBUILD_CLI=OFF`` is passed explicitly.
+
+The shortest installed-package path for visual reproduction is:
+
+.. code-block:: text
+
+    share/FeatherDoc/VISUAL_VALIDATION_QUICKSTART.zh-CN.md
+        -> run_word_visual_release_gate.ps1
+        -> open_latest_*_review_task.ps1
+        -> sync_latest_visual_review_verdict.ps1
+        -> sync_visual_review_verdict.ps1
+        -> RELEASE_ARTIFACT_TEMPLATE.zh-CN.md
 
 MSVC Build
 ----------
@@ -34,6 +131,30 @@ Command Prompt. Use an ``x64`` prompt, or initialize the environment with
     cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON -DBUILD_CLI=ON
     cmake --build build-msvc-nmake
     ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
+
+For a one-shot local release-preflight entry on Windows, use:
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
+
+That wrapper chains MSVC build/test, install ``find_package`` smoke, and the
+Word visual release gate. The visual stage is intentionally local because it
+depends on a real ``Microsoft Word`` installation for final rendering.
+It also writes ``output/release-candidate-checks/START_HERE.md`` plus
+``report/ARTIFACT_GUIDE.md``, ``REVIEWER_CHECKLIST.md``,
+``release_handoff.md``, ``release_body.zh-CN.md``, and
+``release_summary.zh-CN.md``. Use ``START_HERE.md`` as the local entry point.
+The CI metadata artifact adds a root ``RELEASE_METADATA_START_HERE.md`` that
+points back into the same bundle.
+After a later manual visual verdict update, prefer
+``scripts/sync_latest_visual_review_verdict.ps1`` for the shortest
+auto-detected path. When you need to override paths explicitly, keep using
+``scripts/sync_visual_review_verdict.ps1`` against the saved
+``gate_summary.json``. If a release-preflight ``summary.json`` also exists,
+pass it as ``-ReleaseCandidateSummaryJson`` together with
+``-RefreshReleaseBundle`` to refresh ``START_HERE.md`` plus the release-facing
+drafts without rerunning the full preflight.
 
 CLI
 ---
@@ -236,25 +357,29 @@ clone the current table's layout and formatting into a new empty sibling table.
     auto inserted = table.insert_table_after(1, 2);
     inserted.rows().cells().set_text("inserted");
 
-``Table::set_width_twips(...)``, ``set_style_id(...)``, ``set_border(...)``,
+``Table::set_width_twips(...)``, ``set_column_width_twips(...)``,
+``clear_column_width()``, ``set_style_id(...)``, ``set_border(...)``,
 ``set_layout_mode(...)``, ``set_alignment(...)``, ``set_indent_twips(...)``,
 ``set_cell_spacing_twips(...)``, ``set_cell_margin_twips(...)``, and
 ``set_style_look(...)`` work alongside
 ``TableCell::set_text(...)`` and ``get_text()``, plus ``set_width_twips(...)``,
 ``Table::remove()``, ``insert_table_before()``, ``insert_table_after()``,
 ``insert_table_like_before()``, ``insert_table_like_after()``,
-``TableCell::remove()``, ``TableRow::remove()``, ``insert_row_before()``,
+``TableCell::remove()``, ``insert_cell_before()``, ``insert_cell_after()``,
+``TableRow::remove()``, ``insert_row_before()``,
 ``insert_row_after()``,
-``merge_right(...)``, ``merge_down(...)``,
+``merge_right(...)``, ``merge_down(...)``, ``unmerge_right()``,
+``unmerge_down()``,
 ``set_vertical_alignment(...)``,
 ``set_text_direction(...)``,
 ``set_border(...)``, ``set_fill_color(...)``, and ``set_margin_twips(...)``
 for higher-level table layout edits without dropping down to raw XML.
-``width_twips()`` reports an
-explicit ``dxa`` width when present, ``style_id()`` reports the current table
-style reference, ``style_look()`` reports the current first/last row or column
-emphasis together with row/column banding flags, ``layout_mode()`` reports the
-current auto-fit mode, ``alignment()`` / ``indent_twips()`` report table placement,
+``width_twips()`` reports an explicit ``dxa`` width when present,
+``column_width_twips(column_index)`` reports the current ``w:tblGrid`` width
+for one grid column, ``style_id()`` reports the current table style reference,
+``style_look()`` reports the current first/last row or column emphasis
+together with row/column banding flags, ``layout_mode()`` reports the current
+auto-fit mode, ``alignment()`` / ``indent_twips()`` report table placement,
 ``cell_spacing_twips()`` reports inter-cell spacing, and
 ``cell_margin_twips()`` reports per-edge default cell margins,
 ``height_twips()`` / ``height_rule()`` report the current row height override,
@@ -266,7 +391,55 @@ next surviving table when possible (otherwise the previous one).
 ``TableCell::remove()`` deletes one unmerged column across the whole table
 while refusing to remove the last remaining column, refusing any column that
 intersects a horizontal merge span, and retargeting the wrapper to the next
-surviving cell when possible (otherwise the previous one).
+surviving cell when possible (otherwise the previous one). When the table uses
+explicit ``w:tblGrid`` widths, removal also drops the matching ``w:gridCol``
+entry so the deleted column's saved grid width disappears with it.
+``TableCell::insert_cell_before()`` and ``insert_cell_after()`` clone the
+target column structure across every row, expand ``w:tblGrid``, clear copied
+``w:gridSpan`` / ``w:vMerge`` markup on the inserted cells, copy the
+source-side ``w:gridCol`` width into the inserted grid column, and refuse
+insertion boundaries that would land inside a horizontal merge span.
+On tables that are already fixed-layout, or that later switch to
+fixed-layout, with explicit widths for every ``w:gridCol``,
+``set_layout_mode(featherdoc::table_layout_mode::fixed)``,
+``set_column_width_twips(...)``, ``TableCell::merge_right()``,
+``unmerge_right()``, ``TableCell::insert_cell_before()``,
+``insert_cell_after()``, and ``TableCell::remove()`` also normalize each
+cell's ``w:tcW`` to match the grid, while ``clear_column_width()`` drops
+``w:tcW`` from any cell that still covers the cleared grid column so stale
+width hints do not linger.
+Switching to ``autofit`` or calling ``clear_layout_mode()`` does not erase the
+saved ``w:gridCol`` / ``w:tcW`` widths; it only changes the layout algorithm
+Word uses when rendering the table.
+Likewise, ``set_width_twips(...)`` and ``clear_width()`` only rewrite
+``w:tblW``; they do not rescale or discard the saved ``w:gridCol`` /
+``w:tcW`` widths.
+When a table later re-runs fixed-grid normalization, any manual
+``TableCell::set_width_twips(...)`` / ``clear_width()`` edits on cells covered
+by that complete grid are overwritten back to the summed ``w:gridCol``
+widths.
+For reopened legacy fixed-layout tables whose saved ``w:tcW`` no longer
+matches ``w:gridCol``, reapplying
+``set_layout_mode(featherdoc::table_layout_mode::fixed)`` forces that same
+normalization pass.
+The same normalization also runs when those reopened fixed-layout tables go
+through explicit span or column edits such as ``merge_right()``,
+``unmerge_right()``, ``set_column_width_twips(...)``,
+``insert_cell_before()`` / ``insert_cell_after()``, or
+``TableCell::remove()``.
+``clear_column_width()`` follows the same reopened fixed-layout path for the
+cleared grid column, but only clears ``w:tcW`` on cells that still cover that
+column instead of re-normalizing unrelated stale cell widths.
+Plain non-grid edits such as ``TableCell::set_text(...)``,
+``set_fill_color(...)``, and ``set_border(...)`` do not trigger that
+normalization on their own.
+The same is true for row-only structural edits:
+``TableRow::insert_row_before()``, ``insert_row_after()``, and ``remove()``
+keep reopened stale ``w:tcW`` values as-is instead of re-normalizing them from
+``w:tblGrid``.
+``unmerge_right()`` splits one pure horizontal merged cell back into standalone
+cells in the current row while keeping the anchor text in the leftmost cell and
+leaving restored siblings empty for later editing.
 ``insert_table_before()`` and ``insert_table_after()`` create a new empty
 sibling table directly before or after the selected table and retarget the
 wrapper to the inserted table. ``insert_table_like_before()`` and
@@ -277,7 +450,10 @@ content, and retarget the wrapper to the inserted table.
 remaining row, ``insert_row_before()`` and ``insert_row_after()`` clone the
 current row structure into a new empty row directly before or after it while
 refusing rows that participate in vertical merge chains, and
-``column_span()`` reports the current horizontal span. ``text_direction()``
+``unmerge_down()`` removes one whole vertical merge chain even when the current
+wrapper points at a continuation cell, leaving the restored lower cells empty
+until the caller writes new content. ``column_span()`` reports the current
+horizontal span. ``text_direction()``
 reports the current table-cell writing direction when a cell uses vertical or
 rotated text flow. ``TableCell::set_text(...)`` replaces one cell's body with
 a single paragraph while preserving cell-level properties such as shading,
@@ -287,6 +463,9 @@ margins, borders, and explicit width.
 
     auto table = doc.append_table(1, 3);
     table.set_width_twips(7200);
+    table.set_column_width_twips(0, 1800);
+    table.set_column_width_twips(1, 2400);
+    table.set_column_width_twips(2, 3000);
     table.set_style_id("TableGrid");
     table.set_style_look({true, false, false, false, true, false});
     table.set_layout_mode(featherdoc::table_layout_mode::fixed);
@@ -343,6 +522,19 @@ from ``samples/sample_insert_table_row_before.cpp`` for the
 saved ``.docx``, insert a cloned row in the middle, and write the updated
 result back out.
 
+For a runnable column-insertion example, build
+``featherdoc_sample_insert_table_column`` from
+``samples/sample_insert_table_column.cpp``. It seeds a two-column table,
+reopens the saved ``.docx``, inserts one cloned column after the first column
+and another before the result column, and writes the updated four-column
+result back out.
+
+For a runnable unmerge example, build
+``featherdoc_sample_unmerge_table_cells`` from
+``samples/sample_unmerge_table_cells.cpp``. It creates one horizontal merge and
+one vertical merge, reopens the saved ``.docx``, splits them back into
+standalone cells, and continues editing the restored cells.
+
 For a runnable table-removal example, build
 ``featherdoc_sample_remove_table`` from
 ``samples/sample_remove_table.cpp``. It creates three body tables, reopens the
@@ -370,6 +562,11 @@ For a runnable table-spacing edit example, build
 ``samples/sample_edit_existing_table_spacing.cpp``. It reopens a saved
 ``.docx``, adds ``tblCellSpacing`` to an existing table, and makes the new
 gutters visible in Word's rendered output.
+For a runnable table-column-width edit example, build
+``featherdoc_sample_edit_existing_table_column_widths`` from
+``samples/sample_edit_existing_table_column_widths.cpp``. It reopens a saved
+``.docx``, rewrites ``w:tblGrid`` column widths on an existing table, and
+makes the narrow/medium/wide column split visible in Word's rendered output.
 For a runnable table-style-look edit example, build
 ``featherdoc_sample_edit_existing_table_style_look`` from
 ``samples/sample_edit_existing_table_style_look.cpp``. It reopens a saved
@@ -1021,8 +1218,9 @@ Current Limitations
   through ``move_section()``, but there is still no high-level API for part
   reordering.
 - Word equations (``OMML``) are not surfaced through a typed equation API.
-- Tables can now be appended, extended structurally, given explicit cell and
-  table widths, merged horizontally and vertically, assigned table/cell
+- Tables can now be appended, extended structurally, given explicit cell,
+  column, and table widths, merged horizontally and vertically, assigned
+  table/cell
   borders, switched between fixed and autofit layout, aligned/indented within
   the page, pointed at existing table style ids, given basic table-level
   default cell margins and cell shading/margins, assigned row heights,
@@ -1134,7 +1332,7 @@ Chinese workflow notes for Word visual review automation and repair loops:
 :doc:`automation/word_visual_workflow_zh`
 
 Repository-level short references are also available in the project root:
-``LEGAL.md`` and ``NOTICE``.
+``README.md``, ``README.zh-CN.md``, ``LEGAL.md``, and ``NOTICE``.
 
 Licensing
 --------------

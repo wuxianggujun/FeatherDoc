@@ -1,6 +1,6 @@
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$DocxPath,
+    [string]$DocxPath = "",
+    [string]$FixedGridRegressionRoot = "",
     [ValidateSet("review-only", "review-and-repair")]
     [string]$Mode = "review-only",
     [string]$TaskOutputRoot = "output/word-visual-smoke/tasks",
@@ -13,7 +13,7 @@ function Resolve-RepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 }
 
-function Resolve-DocumentPath {
+function Resolve-ExistingPath {
     param(
         [string]$RepoRoot,
         [string]$InputPath
@@ -26,16 +26,77 @@ function Resolve-DocumentPath {
     }
 
     if (-not (Test-Path $candidate)) {
-        throw "Target document does not exist: $candidate"
+        throw "Target path does not exist: $candidate"
     }
 
-    $resolved = (Resolve-Path $candidate).Path
+    return (Resolve-Path $candidate).Path
+}
+
+function Resolve-DocumentPath {
+    param(
+        [string]$RepoRoot,
+        [string]$InputPath
+    )
+
+    $resolved = Resolve-ExistingPath -RepoRoot $RepoRoot -InputPath $InputPath
     $extension = [System.IO.Path]::GetExtension($resolved).ToLowerInvariant()
     if ($extension -notin @(".doc", ".docx")) {
         throw "Only .doc and .docx files are supported: $resolved"
     }
 
     return $resolved
+}
+
+function Resolve-FixedGridRegressionBundle {
+    param(
+        [string]$RepoRoot,
+        [string]$InputPath
+    )
+
+    $resolvedRoot = Resolve-ExistingPath -RepoRoot $RepoRoot -InputPath $InputPath
+    if (-not (Test-Path $resolvedRoot -PathType Container)) {
+        throw "Fixed-grid regression root must be a directory: $resolvedRoot"
+    }
+
+    $summaryPath = Join-Path $resolvedRoot "summary.json"
+    $reviewManifestPath = Join-Path $resolvedRoot "review_manifest.json"
+    $reviewChecklistPath = Join-Path $resolvedRoot "review_checklist.md"
+    $finalReviewPath = Join-Path $resolvedRoot "final_review.md"
+    $aggregateEvidenceDir = Join-Path $resolvedRoot "aggregate-evidence"
+    $aggregateContactSheetPath = Join-Path $aggregateEvidenceDir "contact_sheet.png"
+    $aggregateFirstPagesDir = Join-Path $aggregateEvidenceDir "first-pages"
+
+    $requiredPaths = @(
+        $summaryPath,
+        $reviewManifestPath,
+        $aggregateContactSheetPath,
+        $aggregateFirstPagesDir
+    )
+
+    foreach ($requiredPath in $requiredPaths) {
+        if (-not (Test-Path $requiredPath)) {
+            throw "Fixed-grid regression bundle is incomplete, missing: $requiredPath"
+        }
+    }
+
+    return [ordered]@{
+        Root = $resolvedRoot
+        SummaryPath = (Resolve-Path $summaryPath).Path
+        ReviewManifestPath = (Resolve-Path $reviewManifestPath).Path
+        ReviewChecklistPath = if (Test-Path $reviewChecklistPath) {
+            (Resolve-Path $reviewChecklistPath).Path
+        } else {
+            ""
+        }
+        FinalReviewPath = if (Test-Path $finalReviewPath) {
+            (Resolve-Path $finalReviewPath).Path
+        } else {
+            ""
+        }
+        AggregateEvidenceDir = (Resolve-Path $aggregateEvidenceDir).Path
+        AggregateContactSheetPath = (Resolve-Path $aggregateContactSheetPath).Path
+        AggregateFirstPagesDir = (Resolve-Path $aggregateFirstPagesDir).Path
+    }
 }
 
 function Get-SafePathSegment {
@@ -50,16 +111,71 @@ function Get-SafePathSegment {
     return $safe
 }
 
+function Get-LatestTaskPointerPaths {
+    param(
+        [string]$TaskRoot,
+        [string]$SourceKind
+    )
+
+    $sourceKindSegment = Get-SafePathSegment -Name $SourceKind
+    return [ordered]@{
+        GenericPath = Join-Path $TaskRoot "latest_task.json"
+        SourceKindPath = Join-Path $TaskRoot "latest_$($sourceKindSegment)_task.json"
+    }
+}
+
+function Get-RelativePathCompat {
+    param(
+        [string]$BasePath,
+        [string]$TargetPath
+    )
+
+    $resolvedBase = [System.IO.Path]::GetFullPath($BasePath)
+    $resolvedTarget = [System.IO.Path]::GetFullPath($TargetPath)
+
+    if ([System.IO.Path]::GetPathRoot($resolvedBase) -ne
+        [System.IO.Path]::GetPathRoot($resolvedTarget)) {
+        return $resolvedTarget
+    }
+
+    if ((Test-Path $resolvedBase -PathType Container) -and
+        -not $resolvedBase.EndsWith([System.IO.Path]::DirectorySeparatorChar) -and
+        -not $resolvedBase.EndsWith([System.IO.Path]::AltDirectorySeparatorChar)) {
+        $resolvedBase += [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    if ((Test-Path $resolvedTarget -PathType Container) -and
+        -not $resolvedTarget.EndsWith([System.IO.Path]::DirectorySeparatorChar) -and
+        -not $resolvedTarget.EndsWith([System.IO.Path]::AltDirectorySeparatorChar)) {
+        $resolvedTarget += [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    $baseUri = New-Object System.Uri($resolvedBase)
+    $targetUri = New-Object System.Uri($resolvedTarget)
+    $relativeUri = $baseUri.MakeRelativeUri($targetUri)
+
+    return [System.Uri]::UnescapeDataString($relativeUri.ToString()).Replace("/", "\")
+}
+
 function Get-TemplatePath {
     param(
         [string]$RepoRoot,
-        [string]$Mode
+        [string]$Mode,
+        [string]$SourceKind
     )
 
-    $fileName = switch ($Mode) {
-        "review-only" { "task_prompt_review_only_template.md" }
-        "review-and-repair" { "task_prompt_review_and_repair_template.md" }
-        default { throw "Unsupported mode: $Mode" }
+    $fileName = switch ("$SourceKind|$Mode") {
+        "document|review-only" { "task_prompt_review_only_template.md" }
+        "document|review-and-repair" { "task_prompt_review_and_repair_template.md" }
+        "fixed-grid-regression-bundle|review-only" {
+            "task_prompt_fixed_grid_review_only_template.md"
+        }
+        "fixed-grid-regression-bundle|review-and-repair" {
+            "task_prompt_fixed_grid_review_and_repair_template.md"
+        }
+        default {
+            throw "Unsupported task source '$SourceKind' and mode '$Mode'."
+        }
     }
 
     return Join-Path $RepoRoot "docs\automation\$fileName"
@@ -123,16 +239,153 @@ function New-UniqueTaskLocation {
     }
 }
 
-$repoRoot = Resolve-RepoRoot
-$resolvedDocxPath = Resolve-DocumentPath -RepoRoot $repoRoot -InputPath $DocxPath
-$documentName = [System.IO.Path]::GetFileName($resolvedDocxPath)
-$documentStem = [System.IO.Path]::GetFileNameWithoutExtension($resolvedDocxPath)
-$safeStem = Get-SafePathSegment -Name $documentStem
+function Copy-PathIfExists {
+    param(
+        [string]$SourcePath,
+        [string]$DestinationPath
+    )
 
+    if ([string]::IsNullOrWhiteSpace($SourcePath) -or -not (Test-Path $SourcePath)) {
+        return ""
+    }
+
+    $destinationParent = Split-Path -Parent $DestinationPath
+    if (-not [string]::IsNullOrWhiteSpace($destinationParent)) {
+        New-Item -ItemType Directory -Path $destinationParent -Force | Out-Null
+    }
+
+    Copy-Item -Path $SourcePath -Destination $DestinationPath -Force
+    return $DestinationPath
+}
+
+function Copy-FixedGridBundleSupportFiles {
+    param(
+        $BundleInfo,
+        [string]$TaskDir,
+        [string]$EvidenceDir,
+        [string]$ReportDir
+    )
+
+    $summaryCopyPath = Join-Path $TaskDir "bundle_summary.json"
+    $reviewManifestCopyPath = Join-Path $TaskDir "bundle_review_manifest.json"
+    $aggregateContactSheetCopyPath = Join-Path $EvidenceDir "aggregate_contact_sheet.png"
+    $aggregateFirstPagesCopyDir = Join-Path $EvidenceDir "aggregate-first-pages"
+    $sourceChecklistCopyPath = Join-Path $ReportDir "source_bundle_review_checklist.md"
+    $sourceFinalReviewCopyPath = Join-Path $ReportDir "source_bundle_final_review.md"
+
+    Copy-PathIfExists -SourcePath $BundleInfo.SummaryPath -DestinationPath $summaryCopyPath | Out-Null
+    Copy-PathIfExists -SourcePath $BundleInfo.ReviewManifestPath -DestinationPath $reviewManifestCopyPath | Out-Null
+    Copy-PathIfExists -SourcePath $BundleInfo.AggregateContactSheetPath -DestinationPath $aggregateContactSheetCopyPath | Out-Null
+    Copy-PathIfExists -SourcePath $BundleInfo.ReviewChecklistPath -DestinationPath $sourceChecklistCopyPath | Out-Null
+    Copy-PathIfExists -SourcePath $BundleInfo.FinalReviewPath -DestinationPath $sourceFinalReviewCopyPath | Out-Null
+
+    New-Item -ItemType Directory -Path $aggregateFirstPagesCopyDir -Force | Out-Null
+    Copy-Item -Path (Join-Path $BundleInfo.AggregateFirstPagesDir "*") `
+        -Destination $aggregateFirstPagesCopyDir -Force
+
+    return [ordered]@{
+        SummaryPath = $summaryCopyPath
+        ReviewManifestPath = $reviewManifestCopyPath
+        AggregateContactSheetPath = $aggregateContactSheetCopyPath
+        AggregateFirstPagesDir = $aggregateFirstPagesCopyDir
+        SourceChecklistPath = if (Test-Path $sourceChecklistCopyPath) {
+            $sourceChecklistCopyPath
+        } else {
+            ""
+        }
+        SourceFinalReviewPath = if (Test-Path $sourceFinalReviewCopyPath) {
+            $sourceFinalReviewCopyPath
+        } else {
+            ""
+        }
+    }
+}
+
+function Write-LatestTaskPointers {
+    param(
+        [string]$RepoRoot,
+        [hashtable]$PointerPaths,
+        [hashtable]$TaskInfo
+    )
+
+    $taskRootRelative = Get-RelativePathCompat -BasePath $RepoRoot -TargetPath $TaskInfo.task_root
+    $taskDirRelative = Get-RelativePathCompat -BasePath $RepoRoot -TargetPath $TaskInfo.task_dir
+    $manifestRelative = Get-RelativePathCompat -BasePath $RepoRoot -TargetPath $TaskInfo.manifest_path
+    $promptRelative = Get-RelativePathCompat -BasePath $RepoRoot -TargetPath $TaskInfo.prompt_path
+    $reviewResultRelative = Get-RelativePathCompat -BasePath $RepoRoot -TargetPath $TaskInfo.review_result_path
+    $finalReviewRelative = Get-RelativePathCompat -BasePath $RepoRoot -TargetPath $TaskInfo.final_review_path
+
+    $payload = [ordered]@{
+        generated_at = $TaskInfo.generated_at
+        workspace = $RepoRoot
+        task_root = $TaskInfo.task_root
+        task_root_relative = $taskRootRelative
+        task_id = $TaskInfo.task_id
+        mode = $TaskInfo.mode
+        source = $TaskInfo.source
+        document = $TaskInfo.document
+        task_dir = $TaskInfo.task_dir
+        task_dir_relative = $taskDirRelative
+        manifest_path = $TaskInfo.manifest_path
+        manifest_path_relative = $manifestRelative
+        prompt_path = $TaskInfo.prompt_path
+        prompt_path_relative = $promptRelative
+        evidence_dir = $TaskInfo.evidence_dir
+        report_dir = $TaskInfo.report_dir
+        repair_dir = $TaskInfo.repair_dir
+        review_result_path = $TaskInfo.review_result_path
+        review_result_path_relative = $reviewResultRelative
+        final_review_path = $TaskInfo.final_review_path
+        final_review_path_relative = $finalReviewRelative
+        pointer_files = [ordered]@{
+            generic = $PointerPaths.GenericPath
+            source_kind = $PointerPaths.SourceKindPath
+        }
+    }
+
+    ($payload | ConvertTo-Json -Depth 6) | Set-Content -Path $PointerPaths.GenericPath -Encoding UTF8
+    ($payload | ConvertTo-Json -Depth 6) | Set-Content -Path $PointerPaths.SourceKindPath -Encoding UTF8
+}
+
+$repoRoot = Resolve-RepoRoot
+$hasDocxPath = -not [string]::IsNullOrWhiteSpace($DocxPath)
+$hasFixedGridBundle = -not [string]::IsNullOrWhiteSpace($FixedGridRegressionRoot)
+
+if ($hasDocxPath -eq $hasFixedGridBundle) {
+    throw "Specify exactly one of -DocxPath or -FixedGridRegressionRoot."
+}
+
+$sourceKind = ""
+$sourceLabel = ""
+$sourcePath = ""
+$resolvedDocxPath = ""
+$bundleInfo = $null
+$documentName = ""
+$documentStem = ""
+
+if ($hasDocxPath) {
+    $resolvedDocxPath = Resolve-DocumentPath -RepoRoot $repoRoot -InputPath $DocxPath
+    $documentName = [System.IO.Path]::GetFileName($resolvedDocxPath)
+    $documentStem = [System.IO.Path]::GetFileNameWithoutExtension($resolvedDocxPath)
+    $sourceKind = "document"
+    $sourceLabel = "Target document"
+    $sourcePath = $resolvedDocxPath
+} else {
+    $bundleInfo = Resolve-FixedGridRegressionBundle -RepoRoot $repoRoot `
+        -InputPath $FixedGridRegressionRoot
+    $documentName = [System.IO.Path]::GetFileName($bundleInfo.Root)
+    $documentStem = $documentName
+    $sourceKind = "fixed-grid-regression-bundle"
+    $sourceLabel = "Fixed-grid regression bundle"
+    $sourcePath = $bundleInfo.Root
+}
+
+$safeStem = Get-SafePathSegment -Name $documentStem
 $taskRoot = Join-Path $repoRoot $TaskOutputRoot
 $taskLocation = New-UniqueTaskLocation -TaskRoot $taskRoot -SafeStem $safeStem
 $taskId = $taskLocation.TaskId
 $taskDir = $taskLocation.TaskDir
+$taskRelativeDir = Get-RelativePathCompat -BasePath $repoRoot -TargetPath $taskDir
 $evidenceDir = Join-Path $taskDir "evidence"
 $reportDir = Join-Path $taskDir "report"
 $repairDir = Join-Path $taskDir "repair"
@@ -140,45 +393,121 @@ $manifestPath = Join-Path $taskDir "task_manifest.json"
 $promptPath = Join-Path $taskDir "task_prompt.md"
 $reviewResultPath = Join-Path $reportDir "review_result.json"
 $finalReviewPath = Join-Path $reportDir "final_review.md"
-$templatePath = Get-TemplatePath -RepoRoot $repoRoot -Mode $Mode
-$reviewResultTemplatePath = Get-ReportTemplatePath -RepoRoot $repoRoot -FileName "review_result_template.json"
-$finalReviewTemplatePath = Get-ReportTemplatePath -RepoRoot $repoRoot -FileName "final_review_template.md"
+$templatePath = Get-TemplatePath -RepoRoot $repoRoot -Mode $Mode -SourceKind $sourceKind
+$reviewResultTemplatePath = Get-ReportTemplatePath -RepoRoot $repoRoot `
+    -FileName "review_result_template.json"
+$finalReviewTemplatePath = Get-ReportTemplatePath -RepoRoot $repoRoot `
+    -FileName "final_review_template.md"
 
 New-Item -ItemType Directory -Path $taskDir -Force | Out-Null
 New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $repairDir -Force | Out-Null
 
+$bundleLocalInfo = $null
+$bundleRefreshOutputRelative = ""
+$bundleRepairOutputRelativeExample = ""
+$bundleRefreshCommand = ""
+$bundleRepairCommandExample = ""
+$latestTaskPointerPaths = Get-LatestTaskPointerPaths -TaskRoot $taskRoot -SourceKind $sourceKind
+
+if ($sourceKind -eq "fixed-grid-regression-bundle") {
+    $bundleLocalInfo = Copy-FixedGridBundleSupportFiles -BundleInfo $bundleInfo `
+        -TaskDir $taskDir -EvidenceDir $evidenceDir -ReportDir $reportDir
+
+    $bundleRefreshOutputRelative = [System.IO.Path]::Combine(
+        $taskRelativeDir, "bundle-regression-refresh").Replace("/", "\")
+    $bundleRepairOutputRelativeExample = [System.IO.Path]::Combine(
+        $taskRelativeDir, "repair", "fix-01", "bundle-regression").Replace("/", "\")
+    $bundleRefreshCommand = @(
+        "powershell -ExecutionPolicy Bypass -File"
+        "`"$repoRoot\scripts\run_fixed_grid_merge_unmerge_regression.ps1`""
+        "-OutputDir"
+        "`"$bundleRefreshOutputRelative`""
+    ) -join " "
+    $bundleRepairCommandExample = @(
+        "powershell -ExecutionPolicy Bypass -File"
+        "`"$repoRoot\scripts\run_fixed_grid_merge_unmerge_regression.ps1`""
+        "-OutputDir"
+        "`"$bundleRepairOutputRelativeExample`""
+    ) -join " "
+}
+
 $templateValues = @{
     "{{DOCX_PATH}}" = $resolvedDocxPath
     "{{DOC_NAME}}" = $documentName
     "{{TASK_ID}}" = $taskId
     "{{TASK_DIR}}" = $taskDir
+    "{{TASK_DIR_RELATIVE}}" = $taskRelativeDir
     "{{WORKSPACE}}" = $repoRoot
     "{{EVIDENCE_DIR}}" = $evidenceDir
     "{{REPORT_DIR}}" = $reportDir
     "{{REPAIR_DIR}}" = $repairDir
     "{{MODE}}" = $Mode
     "{{GENERATED_AT}}" = (Get-Date -Format "s")
+    "{{SOURCE_KIND}}" = $sourceKind
+    "{{SOURCE_LABEL}}" = $sourceLabel
+    "{{SOURCE_PATH}}" = $sourcePath
+    "{{BUNDLE_ROOT}}" = if ($bundleInfo) { $bundleInfo.Root } else { "" }
+    "{{TASK_BUNDLE_SUMMARY_PATH}}" = if ($bundleLocalInfo) {
+        $bundleLocalInfo.SummaryPath
+    } else {
+        ""
+    }
+    "{{TASK_BUNDLE_REVIEW_MANIFEST_PATH}}" = if ($bundleLocalInfo) {
+        $bundleLocalInfo.ReviewManifestPath
+    } else {
+        ""
+    }
+    "{{TASK_BUNDLE_AGGREGATE_CONTACT_SHEET}}" = if ($bundleLocalInfo) {
+        $bundleLocalInfo.AggregateContactSheetPath
+    } else {
+        ""
+    }
+    "{{TASK_BUNDLE_FIRST_PAGES_DIR}}" = if ($bundleLocalInfo) {
+        $bundleLocalInfo.AggregateFirstPagesDir
+    } else {
+        ""
+    }
+    "{{TASK_BUNDLE_SOURCE_CHECKLIST_PATH}}" = if ($bundleLocalInfo) {
+        $bundleLocalInfo.SourceChecklistPath
+    } else {
+        ""
+    }
+    "{{BUNDLE_REFRESH_OUTPUT_RELATIVE}}" = $bundleRefreshOutputRelative
+    "{{BUNDLE_REPAIR_OUTPUT_RELATIVE_EXAMPLE}}" = $bundleRepairOutputRelativeExample
+    "{{BUNDLE_REFRESH_COMMAND}}" = $bundleRefreshCommand
+    "{{BUNDLE_REPAIR_COMMAND_EXAMPLE}}" = $bundleRepairCommandExample
 }
 
 $promptContent = Expand-Template -TemplatePath $templatePath -Values $templateValues
 $promptContent | Set-Content -Path $promptPath -Encoding UTF8
 
 $jsonTemplateValues = ConvertTo-JsonTemplateValues -Values $templateValues
-$seedReviewResult = Expand-Template -TemplatePath $reviewResultTemplatePath -Values $jsonTemplateValues
+$seedReviewResult = Expand-Template -TemplatePath $reviewResultTemplatePath `
+    -Values $jsonTemplateValues
 $seedReviewResult | Set-Content -Path $reviewResultPath -Encoding UTF8
 
-$seedFinalReview = Expand-Template -TemplatePath $finalReviewTemplatePath -Values $templateValues
+$seedFinalReview = Expand-Template -TemplatePath $finalReviewTemplatePath `
+    -Values $templateValues
 $seedFinalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
 $manifest = [ordered]@{
     task_id = $taskId
     mode = $Mode
     generated_at = (Get-Date).ToString("s")
-    document = [ordered]@{
-        name = $documentName
-        path = $resolvedDocxPath
+    source = [ordered]@{
+        kind = $sourceKind
+        label = $sourceLabel
+        path = $sourcePath
+    }
+    document = if ($resolvedDocxPath) {
+        [ordered]@{
+            name = $documentName
+            path = $resolvedDocxPath
+        }
+    } else {
+        $null
     }
     workspace = $repoRoot
     task_dir = $taskDir
@@ -188,17 +517,76 @@ $manifest = [ordered]@{
     repair_dir = $repairDir
     review_result_path = $reviewResultPath
     final_review_path = $finalReviewPath
-    recommended_next_steps = @(
+    latest_task_pointers = [ordered]@{
+        generic_path = $latestTaskPointerPaths.GenericPath
+        source_kind_path = $latestTaskPointerPaths.SourceKindPath
+    }
+}
+
+if ($bundleInfo) {
+    $manifest.fixed_grid_bundle = [ordered]@{
+        root = $bundleInfo.Root
+        source_summary_path = $bundleInfo.SummaryPath
+        source_review_manifest_path = $bundleInfo.ReviewManifestPath
+        source_review_checklist_path = $bundleInfo.ReviewChecklistPath
+        source_final_review_path = $bundleInfo.FinalReviewPath
+        source_aggregate_contact_sheet = $bundleInfo.AggregateContactSheetPath
+        source_aggregate_first_pages_dir = $bundleInfo.AggregateFirstPagesDir
+        copied_summary_path = $bundleLocalInfo.SummaryPath
+        copied_review_manifest_path = $bundleLocalInfo.ReviewManifestPath
+        copied_aggregate_contact_sheet = $bundleLocalInfo.AggregateContactSheetPath
+        copied_aggregate_first_pages_dir = $bundleLocalInfo.AggregateFirstPagesDir
+        copied_source_review_checklist_path = $bundleLocalInfo.SourceChecklistPath
+        copied_source_final_review_path = $bundleLocalInfo.SourceFinalReviewPath
+        refresh_command = $bundleRefreshCommand
+        repair_command_example = $bundleRepairCommandExample
+    }
+}
+
+$manifest.recommended_next_steps = if ($bundleInfo) {
+    @(
         "Open task_prompt.md and send the full contents to the AI agent.",
-        "Tell the AI to first run scripts\\run_word_visual_smoke.ps1 with -InputDocx and -OutputDir pointing at this task directory.",
+        "Tell the AI to inspect evidence\aggregate_contact_sheet.png first, then use bundle_review_manifest.json to review each fixed-grid case.",
+        "If any bundle artifact is missing or stale, tell the AI to rerun: $bundleRefreshCommand",
+        "If the mode is review-and-repair, allow iterative fixes and reruns under repair\fix-XX\bundle-regression."
+    )
+} else {
+    @(
+        "Open task_prompt.md and send the full contents to the AI agent.",
+        "Tell the AI to first run scripts\run_word_visual_smoke.ps1 with -InputDocx and -OutputDir pointing at this task directory.",
         "Tell the AI to review the generated PDF/PNG evidence and write findings into the report directory.",
         "If the mode is review-and-repair, allow iterative fixes and full regressions under the repair directory."
     )
 }
-($manifest | ConvertTo-Json -Depth 5) | Set-Content -Path $manifestPath -Encoding UTF8
+
+($manifest | ConvertTo-Json -Depth 6) | Set-Content -Path $manifestPath -Encoding UTF8
+
+$latestTaskInfo = [ordered]@{
+    generated_at = (Get-Date).ToString("s")
+    task_root = $taskRoot
+    task_id = $taskId
+    mode = $Mode
+    source = $manifest.source
+    document = $manifest.document
+    task_dir = $taskDir
+    manifest_path = $manifestPath
+    prompt_path = $promptPath
+    evidence_dir = $evidenceDir
+    report_dir = $reportDir
+    repair_dir = $repairDir
+    review_result_path = $reviewResultPath
+    final_review_path = $finalReviewPath
+}
+Write-LatestTaskPointers -RepoRoot $repoRoot `
+    -PointerPaths $latestTaskPointerPaths `
+    -TaskInfo $latestTaskInfo
 
 Write-Host "Task id: $taskId"
-Write-Host "Document: $resolvedDocxPath"
+Write-Host "Source kind: $sourceKind"
+Write-Host "Source: $sourcePath"
+if ($resolvedDocxPath) {
+    Write-Host "Document: $resolvedDocxPath"
+}
 Write-Host "Mode: $Mode"
 Write-Host "Task directory: $taskDir"
 Write-Host "Prompt: $promptPath"
@@ -208,6 +596,12 @@ Write-Host "Report: $reportDir"
 Write-Host "Review result: $reviewResultPath"
 Write-Host "Final review: $finalReviewPath"
 Write-Host "Repair: $repairDir"
+if ($bundleInfo) {
+    Write-Host "Bundle review manifest copy: $($bundleLocalInfo.ReviewManifestPath)"
+    Write-Host "Bundle aggregate contact sheet copy: $($bundleLocalInfo.AggregateContactSheetPath)"
+}
+Write-Host "Latest task pointer: $($latestTaskPointerPaths.GenericPath)"
+Write-Host "Latest source-kind task pointer: $($latestTaskPointerPaths.SourceKindPath)"
 
 if ($OpenTaskDir) {
     Start-Process explorer.exe $taskDir | Out-Null

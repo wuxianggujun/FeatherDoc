@@ -105,6 +105,28 @@ jobs:
           -Generator "NMake Makefiles"
           -Config Release
 
+      - name: Generate release metadata bundle
+        shell: pwsh
+        run: >
+          pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
+          -BuildDir build-msvc-nmake
+          -InstallDir build-msvc-install
+          -ConsumerBuildDir build-msvc-install-consumer
+          -SummaryOutputDir output/release-candidate-checks-ci
+          -SkipConfigure
+          -SkipBuild
+          -SkipTests
+          -SkipVisualGate
+          -SkipReviewTasks
+
+      - name: Generate artifact root start-here note
+        shell: pwsh
+        run: >
+          pwsh -ExecutionPolicy Bypass -File .\scripts\write_release_metadata_start_here.ps1
+          -SummaryJson .\output\release-candidate-checks-ci\report\summary.json
+          -OutputPath .\RELEASE_METADATA_START_HERE.md
+          -ArtifactRootLayout
+
       - name: Upload generated sample documents
         if: always()
         uses: actions/upload-artifact@v4
@@ -114,4 +136,16 @@ jobs:
             build-msvc-nmake/my_test.docx
             build-msvc-nmake/output/**/*.docx
             build-msvc-install-consumer/**/*.docx
+          if-no-files-found: warn
+
+      - name: Upload installed metadata and release report bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msvc-release-metadata
+          path: |
+            RELEASE_METADATA_START_HERE.md
+            build-msvc-install/share/FeatherDoc/**
+            output/release-candidate-checks-ci/START_HERE.md
+            output/release-candidate-checks-ci/report/**
           if-no-files-found: warn

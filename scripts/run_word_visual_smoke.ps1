@@ -19,6 +19,19 @@ function Resolve-RepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 }
 
+function Resolve-RepoPath {
+    param(
+        [string]$RepoRoot,
+        [string]$InputPath
+    )
+
+    if ([System.IO.Path]::IsPathRooted($InputPath)) {
+        return [System.IO.Path]::GetFullPath($InputPath)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $InputPath))
+}
+
 function Get-VcvarsPath {
     $candidates = @(
         "D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat",
@@ -256,8 +269,8 @@ function Assert-RenderedEvidence {
 
 $repoRoot = Resolve-RepoRoot
 $vcvarsPath = Get-VcvarsPath
-$resolvedBuildDir = Join-Path $repoRoot $BuildDir
-$resolvedOutputDir = Join-Path $repoRoot $OutputDir
+$resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
+$resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir
 $evidenceDir = Join-Path $resolvedOutputDir "evidence"
 $pagesDir = Join-Path $evidenceDir "pages"
 $reportDir = Join-Path $resolvedOutputDir "report"
@@ -341,7 +354,11 @@ $reviewResult = [ordered]@{
         "Keep verdict as pass/fail/undetermined according to screenshot evidence.",
         "Confirm the Chinese/CJK and RTL/bidi sample text inherits readable fonts plus w:lang markers from docDefaults and style-based run formatting without tofu, broken RTL order, or unstable line wrapping.",
         "Confirm table-cell w:textDirection samples keep vertical or rotated text readable without clipped glyphs, border drift, or row-height collapse.",
-        "Confirm narrow table cells with mixed RTL/LTR/CJK content keep sane ordering, punctuation, line wrapping, and no overlap."
+        "Confirm narrow table cells with mixed RTL/LTR/CJK content keep sane ordering, punctuation, line wrapping, and no overlap.",
+        "Confirm the fixed-grid merge_right() cue keeps the blue merged cell visibly wider than the 1000-twip base column and still narrower than the green 4100-twip tail column; if it collapses to the narrow width, tcW synchronization likely regressed.",
+        "Confirm the unmerge showcase restores standalone orange and green cells after unmerge_right()/unmerge_down() without leftover merge artifacts, border breaks, or row-height collapse.",
+        "Confirm the column-insertion showcase keeps inserted columns aligned after insert_cell_before()/insert_cell_after() and after the merged-boundary insert without broken borders, missing fills, or misplaced cell order.",
+        "Confirm the column-width showcase keeps the left key column narrow, the middle column medium, and the right evidence column visibly widest after Table::set_column_width_twips(...) edits."
     )
 }
 ($reviewResult | ConvertTo-Json -Depth 6) | Set-Content -Path $reviewResultPath -Encoding UTF8
@@ -387,11 +404,16 @@ $checklist = @"
 - Verify the overview table banner spans the full first row without broken borders.
 - Verify the yellow vertical-merge block spans two rows without duplicate content.
 - Verify the multi-page audit table repeats its header row on every later page.
-- Verify the highlighted cantSplit row (`R16`) stays entirely on one page.
+- Verify the highlighted cantSplit row (``R16``) stays entirely on one page.
 - Verify fills, margins, and centered cells still look intentional after Word export.
-- Verify the Chinese/CJK and RTL/bidi samples inherit readable glyphs plus `w:lang` language markers from docDefaults and `Strong` style formatting with stable line breaks, sane RTL order, and no obvious fallback-font drift.
-- Verify the direction stress table keeps table-cell `w:textDirection` vertical/rotated text readable, with stable row heights and no clipped glyphs.
+- Verify the Chinese/CJK and RTL/bidi samples inherit readable glyphs plus ``w:lang`` language markers from docDefaults and ``Strong`` style formatting with stable line breaks, sane RTL order, and no obvious fallback-font drift.
+- Verify the direction stress table keeps table-cell ``w:textDirection`` vertical/rotated text readable, with stable row heights and no clipped glyphs.
 - Verify the narrow mixed RTL/LTR/CJK cells keep sane wrap order, punctuation placement, border continuity, and no overlap beside rotated cells.
+- Verify the fixed-grid ``merge_right()`` cue keeps the blue merged cell visibly wider than the gray ``1000`` base column and still narrower than the green ``4100`` tail column.
+- Verify the unmerge showcase restores the orange and green cells as clean standalone cells after ``unmerge_right()`` / ``unmerge_down()`` without stray merge artifacts.
+- Verify the yellow/orange inserted columns stay in the expected order after ``insert_cell_after()`` and ``insert_cell_before()`` without width collapse, broken borders, or misplaced fills.
+- Verify the merged-boundary insertion keeps a yellow cell between the blue merged block and the green tail without stray merge artifacts.
+- Verify the column-width showcase keeps the blue key column narrow, the yellow middle column medium, and the green evidence column clearly widest.
 - Verify the final merge matrix has no clipped text, border gaps, or missing shading.
 
 Artifacts:

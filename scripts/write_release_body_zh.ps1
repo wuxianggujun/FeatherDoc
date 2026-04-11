@@ -1,0 +1,629 @@
+﻿param(
+    [string]$SummaryJson = "output/release-candidate-checks/report/summary.json",
+    [string]$OutputPath = "",
+    [string]$ShortOutputPath = ""
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+function Resolve-RepoRoot {
+    return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+}
+
+function Resolve-FullPath {
+    param(
+        [string]$RepoRoot,
+        [string]$InputPath
+    )
+
+    $candidate = if ([System.IO.Path]::IsPathRooted($InputPath)) {
+        $InputPath
+    } else {
+        Join-Path $RepoRoot $InputPath
+    }
+
+    return [System.IO.Path]::GetFullPath($candidate)
+}
+
+function Get-OptionalPropertyValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return ""
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return ""
+    }
+
+    if ($null -eq $property.Value) {
+        return ""
+    }
+
+    return [string]$property.Value
+}
+
+function Get-OptionalPropertyObject {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $null
+    }
+
+    return $property.Value
+}
+
+function Get-DisplayValue {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return "(暂无)"
+    }
+
+    return $Value
+}
+
+function Get-ProjectVersion {
+    param([string]$RepoRoot)
+
+    $cmakePath = Join-Path $RepoRoot "CMakeLists.txt"
+    if (-not (Test-Path -LiteralPath $cmakePath)) {
+        return ""
+    }
+
+    $content = Get-Content -Raw $cmakePath
+    $match = [regex]::Match($content, 'VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)')
+    if (-not $match.Success) {
+        return ""
+    }
+
+    return $match.Groups[1].Value
+}
+
+function Get-ChineseSectionName {
+    param([string]$SectionName)
+
+    switch ($SectionName) {
+        "Added" { return "新增" }
+        "Changed" { return "变更" }
+        "Fixed" { return "修复" }
+        "Validation" { return "验证" }
+        "Performance" { return "性能" }
+        "Dependencies" { return "依赖" }
+        default { return $SectionName }
+    }
+}
+
+function Get-UnreleasedChangelogSections {
+    param([string]$RepoRoot)
+
+    $changelogPath = Join-Path $RepoRoot "CHANGELOG.md"
+    if (-not (Test-Path -LiteralPath $changelogPath)) {
+        return [ordered]@{}
+    }
+
+    $lines = Get-Content $changelogPath
+    $inUnreleased = $false
+    $currentSection = ""
+    $sections = [ordered]@{}
+
+    foreach ($rawLine in $lines) {
+        $line = $rawLine.TrimEnd()
+
+        if ($line -match '^## \[Unreleased\]') {
+            $inUnreleased = $true
+            continue
+        }
+
+        if (-not $inUnreleased) {
+            continue
+        }
+
+        if ($line -match '^## \[') {
+            break
+        }
+
+        if ($line -match '^###\s+(.+)$') {
+            $currentSection = $Matches[1].Trim()
+            if (-not $sections.Contains($currentSection)) {
+                $sections[$currentSection] = New-Object 'System.Collections.Generic.List[string]'
+            }
+            continue
+        }
+
+        if ([string]::IsNullOrWhiteSpace($currentSection)) {
+            continue
+        }
+
+        if ($line -match '^- ') {
+            $bullet = $line.Substring(2).Trim()
+            [void]$sections[$currentSection].Add($bullet)
+            continue
+        }
+
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        $sectionBullets = $sections[$currentSection]
+        if ($sectionBullets.Count -gt 0) {
+            $sectionBullets[$sectionBullets.Count - 1] = ($sectionBullets[$sectionBullets.Count - 1] + " " + $line.Trim())
+        }
+    }
+
+    return $sections
+}
+
+function Add-ChangelogSummaryLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        $Sections
+    )
+
+    if ($null -eq $Sections -or $Sections.Count -eq 0) {
+        [void]$Lines.Add('- 未能从 `CHANGELOG.md` 的 `Unreleased` 区块自动提取摘要，请手工补写。')
+        return
+    }
+
+    [void]$Lines.Add('- 以下要点根据 `CHANGELOG.md` 的 `Unreleased` 区块自动提取，发布前建议按外部读者视角再人工压缩。')
+
+    $preferredOrder = @("Added", "Changed", "Fixed", "Validation", "Performance", "Dependencies")
+    $orderedNames = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($name in $preferredOrder) {
+        if ($Sections.Contains($name)) {
+            [void]$orderedNames.Add($name)
+        }
+    }
+    foreach ($property in $Sections.Keys) {
+        if (-not $orderedNames.Contains($property)) {
+            [void]$orderedNames.Add($property)
+        }
+    }
+
+    foreach ($sectionName in $orderedNames) {
+        $bullets = $Sections[$sectionName]
+        if ($null -eq $bullets -or $bullets.Count -eq 0) {
+            continue
+        }
+
+        [void]$Lines.Add("- $(Get-ChineseSectionName -SectionName $sectionName)：")
+
+        $maxBullets = if ($sectionName -eq "Added") { 6 } else { 4 }
+        $takeCount = [Math]::Min($bullets.Count, $maxBullets)
+        for ($index = 0; $index -lt $takeCount; $index++) {
+            $normalizedBullet = $bullets[$index] -replace '\s+', ' '
+
+            switch ($sectionName) {
+                "Added" { $normalizedBullet = $normalizedBullet -replace '^(Added|Updated)\s+', '' }
+                "Changed" { $normalizedBullet = $normalizedBullet -replace '^Changed\s+', '' }
+                "Fixed" { $normalizedBullet = $normalizedBullet -replace '^Fixed\s+', '' }
+                "Validation" { $normalizedBullet = $normalizedBullet -replace '^Validated\s+', '' }
+                "Dependencies" { $normalizedBullet = $normalizedBullet -replace '^Updated\s+', '' }
+            }
+
+            [void]$Lines.Add("  - $normalizedBullet")
+        }
+
+        if ($bullets.Count -gt $takeCount) {
+            [void]$Lines.Add(('  - 其余 {0} 条请继续参考 `CHANGELOG.md`。' -f ($bullets.Count - $takeCount)))
+        }
+    }
+}
+
+function Add-UniqueLine {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [string]$Line
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Line)) {
+        return
+    }
+
+    if (-not $Lines.Contains($Line)) {
+        [void]$Lines.Add($Line)
+    }
+}
+
+function Normalize-ChangelogBullet {
+    param(
+        [string]$Bullet,
+        [string]$SectionName = ""
+    )
+
+    $normalizedBullet = ($Bullet -replace '\s+', ' ').Trim()
+    switch ($SectionName) {
+        "Added" { $normalizedBullet = $normalizedBullet -replace '^(Added|Updated)\s+', '' }
+        "Changed" { $normalizedBullet = $normalizedBullet -replace '^(Changed|Updated)\s+', '' }
+        "Fixed" { $normalizedBullet = $normalizedBullet -replace '^Fixed\s+', '' }
+        "Validation" { $normalizedBullet = $normalizedBullet -replace '^Validated\s+', '' }
+        "Dependencies" { $normalizedBullet = $normalizedBullet -replace '^Updated\s+', '' }
+    }
+
+    return $normalizedBullet.Trim()
+}
+
+function Get-NormalizedChangelogEntries {
+    param($Sections)
+
+    $entries = New-Object 'System.Collections.Generic.List[object]'
+    if ($null -eq $Sections -or $Sections.Count -eq 0) {
+        return $entries
+    }
+
+    $preferredOrder = @("Added", "Changed", "Fixed", "Validation", "Performance", "Dependencies")
+    $orderedNames = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($name in $preferredOrder) {
+        if ($Sections.Contains($name)) {
+            [void]$orderedNames.Add($name)
+        }
+    }
+    foreach ($property in $Sections.Keys) {
+        if (-not $orderedNames.Contains($property)) {
+            [void]$orderedNames.Add($property)
+        }
+    }
+
+    foreach ($sectionName in $orderedNames) {
+        $bullets = $Sections[$sectionName]
+        if ($null -eq $bullets) {
+            continue
+        }
+
+        foreach ($bullet in $bullets) {
+            $normalizedBullet = Normalize-ChangelogBullet -Bullet $bullet -SectionName $sectionName
+            if ([string]::IsNullOrWhiteSpace($normalizedBullet)) {
+                continue
+            }
+
+            [void]$entries.Add([pscustomobject]@{
+                Section = $sectionName
+                Text = $normalizedBullet
+            })
+        }
+    }
+
+    return $entries
+}
+
+function Test-ChangelogEntryMatch {
+    param(
+        [System.Collections.Generic.List[object]]$Entries,
+        [string]$Pattern
+    )
+
+    foreach ($entry in $Entries) {
+        if ($entry.Text -match $Pattern) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Get-ShortSummaryFallbackBullet {
+    param(
+        [string]$SectionName,
+        [string]$Bullet
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Bullet)) {
+        return ""
+    }
+
+    $label = Get-ChineseSectionName -SectionName $SectionName
+    $trimmed = $Bullet.Trim()
+    if ($trimmed.Length -gt 92) {
+        $trimmed = $trimmed.Substring(0, 89).TrimEnd() + "..."
+    }
+
+    return "$label：$trimmed"
+}
+
+function Get-ValidationSummaryBullet {
+    param(
+        [string]$ExecutionStatus,
+        [string]$ConfigureStatus,
+        [string]$BuildStatus,
+        [string]$TestsStatus,
+        [string]$InstallSmokeStatus,
+        [string]$VisualGateStatus,
+        [string]$VisualVerdict
+    )
+
+    $resolvedVerdict = if ([string]::IsNullOrWhiteSpace($VisualVerdict)) {
+        "pending_manual_review"
+    } else {
+        $VisualVerdict
+    }
+
+    if ($ExecutionStatus -eq "pass" -and $resolvedVerdict -eq "pass") {
+        return '本地 full release-preflight 当前为 pass：MSVC configure/build、ctest、install smoke 和 Word visual gate 均已通过，visual verdict 为 `pass`。'
+    }
+
+    if ($VisualGateStatus -eq "skipped") {
+        return 'CI 侧 release-preflight 草稿当前跳过了 Word visual gate；最终截图级结论仍需在本地 Windows + Microsoft Word 环境补齐。'
+    }
+
+    if ($ExecutionStatus -ne "pass") {
+        return ('release-preflight 当前未完全通过：MSVC configure/build={0}/{1}，ctest={2}，install smoke={3}，visual gate={4}，visual verdict={5}。' -f `
+            $ConfigureStatus, $BuildStatus, $TestsStatus, $InstallSmokeStatus, $VisualGateStatus, $resolvedVerdict)
+    }
+
+    return ('release-preflight 当前已完成，但 visual verdict 仍为 `{0}`；对外发布前还需要补齐最终人工复核。' -f $resolvedVerdict)
+}
+
+function Get-ShortSummaryBullets {
+    param(
+        $Sections,
+        [string]$ExecutionStatus,
+        [string]$ConfigureStatus,
+        [string]$BuildStatus,
+        [string]$TestsStatus,
+        [string]$InstallSmokeStatus,
+        [string]$VisualGateStatus,
+        [string]$VisualVerdict,
+        [string]$InstalledDataDir
+    )
+
+    $bullets = New-Object 'System.Collections.Generic.List[string]'
+    $entries = Get-NormalizedChangelogEntries -Sections $Sections
+
+    if (Test-ChangelogEntryMatch -Entries $entries -Pattern 'README\.zh-CN\.md|docs/index\.rst|VISUAL_VALIDATION(\.zh-CN)?\.md') {
+        Add-UniqueLine -Lines $bullets -Line '文档首页、仓库首页和安装树入口现在统一展示完整 Word smoke contact sheet，以及 fixed-grid、merge/unmerge、纵排与 RTL/LTR/CJK 混排重点图。'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($InstalledDataDir) -or
+        (Test-ChangelogEntryMatch -Entries $entries -Pattern 'VISUAL_VALIDATION_QUICKSTART|RELEASE_ARTIFACT_TEMPLATE')) {
+        Add-UniqueLine -Lines $bullets -Line '安装树 `share/FeatherDoc` 现在直接附带 quickstart、release 模板和预览 PNG，可从截图一路跳到复现脚本与 review task。'
+    }
+
+    if (Test-ChangelogEntryMatch -Entries $entries -Pattern 'write_release_artifact_handoff\.ps1|write_release_body_zh\.ps1|release_body\.zh-CN\.md|release_handoff\.md') {
+        Add-UniqueLine -Lines $bullets -Line 'release-preflight 现在会自动产出 `release_handoff.md`、`release_body.zh-CN.md` 和 `release_summary.zh-CN.md`，并从 `CHANGELOG.md` `Unreleased` 预填核心变化。'
+    }
+
+    if (Test-ChangelogEntryMatch -Entries $entries -Pattern 'windows-msvc-release-metadata|windows-msvc\.yml') {
+        Add-UniqueLine -Lines $bullets -Line 'Windows CI 现在会额外上传 `windows-msvc-release-metadata` artifact，把安装树文档入口和 release report 一并交给评审或发布人。'
+    }
+
+    if (Test-ChangelogEntryMatch -Entries $entries -Pattern 'table_style_look|w:tblLook') {
+        Add-UniqueLine -Lines $bullets -Line '现有表格现在可以直接编辑 `w:tblLook`，首末行列强调和行列 banding 可在不落回原始 XML 的情况下安全调节。'
+    }
+
+    if (Test-ChangelogEntryMatch -Entries $entries -Pattern 'insert_cell_before|insert_cell_after|TableCell::remove\(\)|unmerge_right|unmerge_down|column_width_twips|set_column_width_twips|clear_column_width') {
+        Add-UniqueLine -Lines $bullets -Line 'fixed-grid 表格现在补齐安全插列、删列、列宽编辑与 merge/unmerge 四象限能力，reopened fixed-layout 表格也能保持 `w:tblGrid` / `w:tcW` 一致。'
+    }
+
+    if (Test-ChangelogEntryMatch -Entries $entries -Pattern 'restart_paragraph_list') {
+        Add-UniqueLine -Lines $bullets -Line '段落列表现在支持安全重启编号，Word 渲染下可以稳定得到新的 `1.` 起始序列。'
+    }
+
+    foreach ($entry in $entries) {
+        if ($bullets.Count -ge 7) {
+            break
+        }
+
+        $fallbackBullet = Get-ShortSummaryFallbackBullet -SectionName $entry.Section -Bullet $entry.Text
+        Add-UniqueLine -Lines $bullets -Line $fallbackBullet
+    }
+
+    if ($bullets.Count -gt 7) {
+        while ($bullets.Count -gt 7) {
+            $bullets.RemoveAt($bullets.Count - 1)
+        }
+    }
+
+    Add-UniqueLine -Lines $bullets -Line (Get-ValidationSummaryBullet `
+        -ExecutionStatus $ExecutionStatus `
+        -ConfigureStatus $ConfigureStatus `
+        -BuildStatus $BuildStatus `
+        -TestsStatus $TestsStatus `
+        -InstallSmokeStatus $InstallSmokeStatus `
+        -VisualGateStatus $VisualGateStatus `
+        -VisualVerdict $VisualVerdict)
+
+    if ($bullets.Count -gt 8) {
+        while ($bullets.Count -gt 8) {
+            $bullets.RemoveAt($bullets.Count - 2)
+        }
+    }
+
+    return $bullets
+}
+
+function Get-ValidationNote {
+    param(
+        [string]$ExecutionStatus,
+        [string]$VisualGateStatus,
+        [string]$VisualVerdict
+    )
+
+    if ($ExecutionStatus -ne "pass") {
+        return "当前 preflight 未完全通过，发布前先处理失败步骤，再重刷本文件。"
+    }
+
+    if ($VisualGateStatus -eq "skipped") {
+        return "这份草稿来自 CI 或跳过 visual gate 的本地检查；Word 截图级复核仍需在本地 Windows + Microsoft Word 环境补齐。"
+    }
+
+    if ($VisualVerdict -eq "pass") {
+        return "本次 preflight 已补齐截图级 Word 复核，当前 visual verdict 为 pass。"
+    }
+
+    if ($VisualVerdict -eq "pending_manual_review" -or $VisualVerdict -eq "undecided" -or [string]::IsNullOrWhiteSpace($VisualVerdict)) {
+        return "本次 preflight 已跑到 visual gate，但截图级人工复核尚未完成；发布前请先补写 visual verdict。"
+    }
+
+    if ($VisualVerdict -eq "fail") {
+        return "截图级 Word 复核当前为 fail；发布前请先解决视觉回归。"
+    }
+
+    return "请根据当前验证结果确认是否可以对外发布。"
+}
+
+$repoRoot = Resolve-RepoRoot
+$resolvedSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryJson
+if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
+    throw "Summary JSON does not exist: $resolvedSummaryPath"
+}
+
+$resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
+    Join-Path (Split-Path -Parent $resolvedSummaryPath) "release_body.zh-CN.md"
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $OutputPath
+}
+
+$resolvedShortOutputPath = if ([string]::IsNullOrWhiteSpace($ShortOutputPath)) {
+    Join-Path (Split-Path -Parent $resolvedSummaryPath) "release_summary.zh-CN.md"
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $ShortOutputPath
+}
+
+$summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$projectVersion = Get-ProjectVersion -RepoRoot $repoRoot
+$reportDir = Split-Path -Parent $resolvedSummaryPath
+$finalReviewPath = Join-Path $reportDir "final_review.md"
+$releaseHandoffPath = Get-OptionalPropertyValue -Object $summary -Name "release_handoff"
+if ([string]::IsNullOrWhiteSpace($releaseHandoffPath)) {
+    $releaseHandoffPath = Join-Path $reportDir "release_handoff.md"
+}
+$artifactGuidePath = Get-OptionalPropertyValue -Object $summary -Name "artifact_guide"
+if ([string]::IsNullOrWhiteSpace($artifactGuidePath)) {
+    $artifactGuidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
+}
+$reviewerChecklistPath = Get-OptionalPropertyValue -Object $summary -Name "reviewer_checklist"
+if ([string]::IsNullOrWhiteSpace($reviewerChecklistPath)) {
+    $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
+}
+
+$installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
+$consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
+$gateSummaryPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "summary_json"
+$gateFinalReviewPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "final_review"
+
+$visualVerdict = ""
+$readmeGalleryStatus = ""
+$readmeGalleryAssetsDir = ""
+if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -LiteralPath $gateSummaryPath)) {
+    $gateSummary = Get-Content -Raw $gateSummaryPath | ConvertFrom-Json
+    $visualVerdict = Get-OptionalPropertyValue -Object $gateSummary -Name "visual_verdict"
+    $readmeGallery = Get-OptionalPropertyObject -Object $gateSummary -Name "readme_gallery"
+    $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
+    $readmeGalleryAssetsDir = Get-OptionalPropertyValue -Object $readmeGallery -Name "assets_dir"
+}
+
+$installedDataDir = ""
+$installedQuickstartZh = ""
+$installedTemplateZh = ""
+$installedVisualDir = ""
+if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
+    $installedDataDir = Join-Path $installPrefix "share\FeatherDoc"
+    $installedQuickstartZh = Join-Path $installedDataDir "VISUAL_VALIDATION_QUICKSTART.zh-CN.md"
+    $installedTemplateZh = Join-Path $installedDataDir "RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
+    $installedVisualDir = Join-Path $installedDataDir "visual-validation"
+}
+
+$validationNote = Get-ValidationNote `
+    -ExecutionStatus $summary.execution_status `
+    -VisualGateStatus $summary.steps.visual_gate.status `
+    -VisualVerdict $visualVerdict
+$changelogSections = Get-UnreleasedChangelogSections -RepoRoot $repoRoot
+$shortSummaryBullets = Get-ShortSummaryBullets `
+    -Sections $changelogSections `
+    -ExecutionStatus $summary.execution_status `
+    -ConfigureStatus $summary.steps.configure.status `
+    -BuildStatus $summary.steps.build.status `
+    -TestsStatus $summary.steps.tests.status `
+    -InstallSmokeStatus $summary.steps.install_smoke.status `
+    -VisualGateStatus $summary.steps.visual_gate.status `
+    -VisualVerdict $visualVerdict `
+    -InstalledDataDir $installedDataDir
+
+$releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
+$releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
+$refreshCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\write_release_note_bundle.ps1 -SummaryJson "{0}" -HandoffOutputPath "{1}" -BodyOutputPath "{2}" -ShortOutputPath "{3}"' -f `
+    $resolvedSummaryPath, $releaseHandoffPath, $resolvedOutputPath, $resolvedShortOutputPath
+
+$lines = New-Object 'System.Collections.Generic.List[string]'
+[void]$lines.Add("# FeatherDoc v$(if ($projectVersion) { $projectVersion } else { '<版本号>' }) 发布说明草稿")
+[void]$lines.Add("")
+[void]$lines.Add('> 这份文件由 `write_release_body_zh.ps1` 自动生成，请在发布前补齐“核心变化”部分。')
+[void]$lines.Add("")
+[void]$lines.Add("## 核心变化")
+[void]$lines.Add("- 建议优先突出可视化验证链路、安装包入口、发布流程，以及对外最值得读者关注的 API / 行为边界变化。")
+[void]$lines.Add("")
+Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections
+[void]$lines.Add("")
+[void]$lines.Add("## 验证结论")
+[void]$lines.Add("- 执行状态：$($summary.execution_status)")
+[void]$lines.Add("- MSVC configure/build：$($summary.steps.configure.status) / $($summary.steps.build.status)")
+[void]$lines.Add("- ctest：$($summary.steps.tests.status)")
+[void]$lines.Add("- install + find_package smoke：$($summary.steps.install_smoke.status)")
+[void]$lines.Add("- Word visual release gate：$($summary.steps.visual_gate.status)")
+[void]$lines.Add("- Visual verdict：$(if ($visualVerdict) { $visualVerdict } else { 'pending_manual_review' })")
+[void]$lines.Add("- README 展示图刷新：$(if ($readmeGalleryStatus) { $readmeGalleryStatus } else { 'unknown' })")
+[void]$lines.Add("- 说明：$validationNote")
+[void]$lines.Add("")
+[void]$lines.Add("## 安装包入口")
+[void]$lines.Add("- Quickstart：$(Get-DisplayValue -Value $installedQuickstartZh)")
+[void]$lines.Add("- Release 模板：$(Get-DisplayValue -Value $installedTemplateZh)")
+[void]$lines.Add("- 预览图目录：$(Get-DisplayValue -Value $installedVisualDir)")
+[void]$lines.Add("")
+[void]$lines.Add("## 复现与复核命令")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($releaseChecksCommand)
+[void]$lines.Add($releaseGateCommand)
+[void]$lines.Add($refreshCommand)
+[void]$lines.Add('```')
+[void]$lines.Add("")
+[void]$lines.Add("## 证据文件")
+[void]$lines.Add("- Release candidate summary JSON：$resolvedSummaryPath")
+[void]$lines.Add("- Final review：$(Get-DisplayValue -Value $finalReviewPath)")
+[void]$lines.Add("- Release handoff：$(Get-DisplayValue -Value $releaseHandoffPath)")
+[void]$lines.Add("- Release short summary：$resolvedShortOutputPath")
+[void]$lines.Add("- Artifact guide：$(Get-DisplayValue -Value $artifactGuidePath)")
+[void]$lines.Add("- Reviewer checklist：$(Get-DisplayValue -Value $reviewerChecklistPath)")
+[void]$lines.Add("- Visual gate summary：$(Get-DisplayValue -Value $gateSummaryPath)")
+[void]$lines.Add("- Visual gate final review：$(Get-DisplayValue -Value $gateFinalReviewPath)")
+[void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $readmeGalleryAssetsDir)")
+[void]$lines.Add("- install smoke consumer docx：$(Get-DisplayValue -Value $consumerDocument)")
+[void]$lines.Add("")
+[void]$lines.Add("## 发布前备注")
+[void]$lines.Add('- 如果 `Visual verdict` 不是 `pass`，请先完成本地 Word 截图级复核，再对外发布。')
+[void]$lines.Add("- 如果这是 CI 生成的草稿，请把它和本地 Windows preflight 的最终结论合并后再作为 release body。")
+
+New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
+New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedShortOutputPath) -Force | Out-Null
+($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8
+
+$shortLines = New-Object 'System.Collections.Generic.List[string]'
+[void]$shortLines.Add("# FeatherDoc v$(if ($projectVersion) { $projectVersion } else { '<版本号>' }) 发布摘要")
+[void]$shortLines.Add("")
+[void]$shortLines.Add('> 这份文件由 `write_release_body_zh.ps1` 自动生成，适合作为 GitHub Release 首屏摘要。')
+[void]$shortLines.Add("")
+
+if ($shortSummaryBullets.Count -eq 0) {
+    [void]$shortLines.Add('- 未能自动提取短摘要，请改为参考 `release_body.zh-CN.md` 手工压缩。')
+} else {
+    foreach ($bullet in $shortSummaryBullets) {
+        [void]$shortLines.Add("- $bullet")
+    }
+}
+
+($shortLines -join [Environment]::NewLine) | Set-Content -Path $resolvedShortOutputPath -Encoding UTF8
+
+Write-Host "Release body draft: $resolvedOutputPath"
+Write-Host "Release summary draft: $resolvedShortOutputPath"

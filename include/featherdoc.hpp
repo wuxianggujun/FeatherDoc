@@ -142,12 +142,16 @@ class TableCell {
     [[nodiscard]] bool set_text(const std::string &) const;
     [[nodiscard]] bool set_text(const char *) const;
     [[nodiscard]] bool remove();
+    TableCell insert_cell_before();
+    TableCell insert_cell_after();
     [[nodiscard]] std::optional<std::uint32_t> width_twips() const;
     [[nodiscard]] bool set_width_twips(std::uint32_t width_twips);
     [[nodiscard]] bool clear_width();
     [[nodiscard]] std::size_t column_span() const;
     [[nodiscard]] bool merge_right(std::size_t additional_cells = 1U);
     [[nodiscard]] bool merge_down(std::size_t additional_rows = 1U);
+    [[nodiscard]] bool unmerge_right();
+    [[nodiscard]] bool unmerge_down();
     [[nodiscard]] std::optional<featherdoc::cell_vertical_alignment>
     vertical_alignment() const;
     [[nodiscard]] bool set_vertical_alignment(
@@ -233,6 +237,11 @@ class Table {
     [[nodiscard]] std::optional<std::uint32_t> width_twips() const;
     [[nodiscard]] bool set_width_twips(std::uint32_t width_twips);
     [[nodiscard]] bool clear_width();
+    [[nodiscard]] std::optional<std::uint32_t>
+    column_width_twips(std::size_t column_index) const;
+    [[nodiscard]] bool set_column_width_twips(std::size_t column_index,
+                                              std::uint32_t width_twips);
+    [[nodiscard]] bool clear_column_width(std::size_t column_index);
     [[nodiscard]] std::optional<featherdoc::table_layout_mode> layout_mode() const;
     [[nodiscard]] bool set_layout_mode(featherdoc::table_layout_mode layout_mode);
     [[nodiscard]] bool clear_layout_mode();
