@@ -19,6 +19,20 @@ function Assert-Contains {
     }
 }
 
+function Assert-NotContains {
+    param(
+        [string]$Path,
+        [string]$UnexpectedText,
+        [string]$Label
+    )
+
+    $content = Get-Content -Raw -LiteralPath $Path
+    if (-not [string]::IsNullOrWhiteSpace($UnexpectedText) -and
+        $content -match [regex]::Escape($UnexpectedText)) {
+        throw "$Label unexpectedly contains '$UnexpectedText': $Path"
+    }
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $reportDir = Join-Path $resolvedWorkingDir "report"
@@ -40,8 +54,8 @@ $summary = [ordered]@{
         tests = [ordered]@{ status = "completed" }
         install_smoke = [ordered]@{
             status = "completed"
-            install_prefix = ""
-            consumer_document = ""
+            install_prefix = $installDir
+            consumer_document = (Join-Path $resolvedWorkingDir "consumer\install-smoke.docx")
         }
         visual_gate = [ordered]@{
             status = "completed"
@@ -64,6 +78,11 @@ Assert-Contains -Path $handoffPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'r
 Assert-Contains -Path $bodyPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText '`1.6.0`' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\VISUAL_VALIDATION_QUICKSTART.zh-CN.md' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\RELEASE_ARTIFACT_TEMPLATE.zh-CN.md' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\visual-validation' -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText $installDir -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText $resolvedWorkingDir -Label 'release_body.zh-CN.md'
 
 $bodyContent = Get-Content -Raw -LiteralPath $bodyPath
 if ($bodyContent -match 'v1\.6\.1') {

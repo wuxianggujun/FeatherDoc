@@ -77,6 +77,78 @@ function Get-DisplayValue {
     return $Value
 }
 
+function Get-RepoRelativePath {
+    param(
+        [string]$RepoRoot,
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return ""
+    }
+
+    try {
+        $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+        $resolvedValue = [System.IO.Path]::GetFullPath($Value)
+    } catch {
+        return ""
+    }
+
+    $relative = [System.IO.Path]::GetRelativePath($resolvedRepoRoot, $resolvedValue)
+    if ([string]::IsNullOrWhiteSpace($relative)) {
+        return ""
+    }
+
+    if ($relative -eq ".." -or
+        $relative.StartsWith("..\") -or
+        $relative.StartsWith("../")) {
+        return ""
+    }
+
+    return $relative
+}
+
+function Get-PublicArtifactPath {
+    param(
+        [string]$RepoRoot,
+        [string]$Value,
+        [string]$Fallback = ""
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $Fallback
+    }
+
+    $relative = Get-RepoRelativePath -RepoRoot $RepoRoot -Value $Value
+    if (-not [string]::IsNullOrWhiteSpace($relative)) {
+        return $relative
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Fallback)) {
+        return $Fallback
+    }
+
+    return Split-Path -Leaf $Value
+}
+
+function Get-CommandPathDisplayValue {
+    param(
+        [string]$RepoRoot,
+        [string]$Value
+    )
+
+    $relative = Get-RepoRelativePath -RepoRoot $RepoRoot -Value $Value
+    if ([string]::IsNullOrWhiteSpace($relative)) {
+        return $Value
+    }
+
+    if ($relative.StartsWith(".\") -or $relative.StartsWith("./")) {
+        return $relative
+    }
+
+    return ".\$relative"
+}
+
 function Get-ProjectVersion {
     param([string]$RepoRoot)
 
@@ -610,6 +682,33 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
     $installedVisualDir = Join-Path $installedDataDir "visual-validation"
 }
 
+$publicInstalledQuickstartZh = if ([string]::IsNullOrWhiteSpace($installedQuickstartZh)) {
+    ""
+} else {
+    "share\FeatherDoc\VISUAL_VALIDATION_QUICKSTART.zh-CN.md"
+}
+$publicInstalledTemplateZh = if ([string]::IsNullOrWhiteSpace($installedTemplateZh)) {
+    ""
+} else {
+    "share\FeatherDoc\RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
+}
+$publicInstalledVisualDir = if ([string]::IsNullOrWhiteSpace($installedVisualDir)) {
+    ""
+} else {
+    "share\FeatherDoc\visual-validation"
+}
+
+$publicSummaryPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $resolvedSummaryPath
+$publicShortOutputPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $resolvedShortOutputPath
+$publicFinalReviewPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $finalReviewPath
+$publicReleaseHandoffPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $releaseHandoffPath
+$publicArtifactGuidePath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $artifactGuidePath
+$publicReviewerChecklistPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $reviewerChecklistPath
+$publicGateSummaryPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $gateSummaryPath
+$publicGateFinalReviewPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $gateFinalReviewPath
+$publicReadmeGalleryAssetsDir = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $readmeGalleryAssetsDir
+$publicConsumerDocument = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $consumerDocument
+
 $validationNote = Get-ValidationNote `
     -ExecutionStatus $summary.execution_status `
     -VisualGateStatus $summary.steps.visual_gate.status `
@@ -632,7 +731,10 @@ $shortSummaryBullets = Get-ShortSummaryBullets `
 $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
 $refreshCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\write_release_note_bundle.ps1 -SummaryJson "{0}" -HandoffOutputPath "{1}" -BodyOutputPath "{2}" -ShortOutputPath "{3}"' -f `
-    $resolvedSummaryPath, $releaseHandoffPath, $resolvedOutputPath, $resolvedShortOutputPath
+    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $resolvedSummaryPath),
+    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $releaseHandoffPath),
+    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $resolvedOutputPath),
+    (Get-CommandPathDisplayValue -RepoRoot $repoRoot -Value $resolvedShortOutputPath)
 if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
     $refreshCommand += (' -ReleaseVersion "{0}"' -f $resolvedReleaseVersion)
 }
@@ -658,9 +760,10 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- 说明：$validationNote")
 [void]$lines.Add("")
 [void]$lines.Add("## 安装包入口")
-[void]$lines.Add("- Quickstart：$(Get-DisplayValue -Value $installedQuickstartZh)")
-[void]$lines.Add("- Release 模板：$(Get-DisplayValue -Value $installedTemplateZh)")
-[void]$lines.Add("- 预览图目录：$(Get-DisplayValue -Value $installedVisualDir)")
+[void]$lines.Add("- 以下路径使用安装树相对位置，不包含本机绝对目录。")
+[void]$lines.Add("- Quickstart：$(Get-DisplayValue -Value $publicInstalledQuickstartZh)")
+[void]$lines.Add("- Release 模板：$(Get-DisplayValue -Value $publicInstalledTemplateZh)")
+[void]$lines.Add("- 预览图目录：$(Get-DisplayValue -Value $publicInstalledVisualDir)")
 [void]$lines.Add("")
 [void]$lines.Add("## 复现与复核命令")
 [void]$lines.Add('```powershell')
@@ -670,16 +773,17 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add('```')
 [void]$lines.Add("")
 [void]$lines.Add("## 证据文件")
-[void]$lines.Add("- Release candidate summary JSON：$resolvedSummaryPath")
-[void]$lines.Add("- Final review：$(Get-DisplayValue -Value $finalReviewPath)")
-[void]$lines.Add("- Release handoff：$(Get-DisplayValue -Value $releaseHandoffPath)")
-[void]$lines.Add("- Release short summary：$resolvedShortOutputPath")
-[void]$lines.Add("- Artifact guide：$(Get-DisplayValue -Value $artifactGuidePath)")
-[void]$lines.Add("- Reviewer checklist：$(Get-DisplayValue -Value $reviewerChecklistPath)")
-[void]$lines.Add("- Visual gate summary：$(Get-DisplayValue -Value $gateSummaryPath)")
-[void]$lines.Add("- Visual gate final review：$(Get-DisplayValue -Value $gateFinalReviewPath)")
-[void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $readmeGalleryAssetsDir)")
-[void]$lines.Add("- install smoke consumer docx：$(Get-DisplayValue -Value $consumerDocument)")
+[void]$lines.Add("- 以下路径默认使用仓库相对位置，不包含本机绝对目录。")
+[void]$lines.Add("- Release candidate summary JSON：$(Get-DisplayValue -Value $publicSummaryPath)")
+[void]$lines.Add("- Final review：$(Get-DisplayValue -Value $publicFinalReviewPath)")
+[void]$lines.Add("- Release handoff：$(Get-DisplayValue -Value $publicReleaseHandoffPath)")
+[void]$lines.Add("- Release short summary：$(Get-DisplayValue -Value $publicShortOutputPath)")
+[void]$lines.Add("- Artifact guide：$(Get-DisplayValue -Value $publicArtifactGuidePath)")
+[void]$lines.Add("- Reviewer checklist：$(Get-DisplayValue -Value $publicReviewerChecklistPath)")
+[void]$lines.Add("- Visual gate summary：$(Get-DisplayValue -Value $publicGateSummaryPath)")
+[void]$lines.Add("- Visual gate final review：$(Get-DisplayValue -Value $publicGateFinalReviewPath)")
+[void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $publicReadmeGalleryAssetsDir)")
+[void]$lines.Add("- install smoke consumer docx：$(Get-DisplayValue -Value $publicConsumerDocument)")
 [void]$lines.Add("")
 [void]$lines.Add("## 发布前备注")
 [void]$lines.Add('- 如果 `Visual verdict` 不是 `pass`，请先完成本地 Word 截图级复核，再对外发布。')
