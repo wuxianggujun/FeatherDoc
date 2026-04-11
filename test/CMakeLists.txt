@@ -37,6 +37,26 @@ add_test(
     iterator_tests
 )
 
+if(WIN32)
+    find_program(FEATHERDOC_POWERSHELL_EXECUTABLE NAMES pwsh powershell)
+    if(FEATHERDOC_POWERSHELL_EXECUTABLE)
+        add_test(
+            NAME
+            release_note_bundle_version
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_note_bundle_version_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_note_bundle_version
+        )
+    endif()
+endif()
+
 if(TARGET featherdoc_cli)
     add_executable(
         cli_tests
