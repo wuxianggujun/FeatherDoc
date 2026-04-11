@@ -45,7 +45,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 `
 .EXAMPLE
 pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 `
     -SummaryJson .\output\release-candidate-checks\report\summary.json `
-    -UploadReleaseTag v1.6.3
+    -UploadReleaseTag v1.6.4
 #>
 param(
     [string]$SummaryJson = "output/release-candidate-checks/report/summary.json",

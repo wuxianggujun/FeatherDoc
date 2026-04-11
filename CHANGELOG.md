@@ -8,9 +8,30 @@ performance.
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-04-11
+
+### Added
+
+- Added `scripts/package_release_assets.ps1` so a single release-candidate
+  summary can now stage and package the public MSVC install ZIP, the
+  screenshot gallery ZIP, and the release-evidence ZIP, with optional
+  `gh release upload --clobber` publishing to the matching GitHub release.
+
+### Fixed
+
+- Release-facing metadata bundles now emit repository-relative paths across
+  `START_HERE.md`, `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`,
+  `release_handoff.md`, `final_review.md`, and `gate_final_review.md` instead
+  of leaking machine-local `C:\Users\...` paths back into public release
+  drafts and reviewer handoff material.
+- Visual-verdict sync and release-candidate final-review regeneration now keep
+  those reviewer-facing evidence paths relative even after a later screenshot
+  review refreshes the bundle.
+
+## [1.6.3] - 2026-04-11
+
 ### Changed
 
-- Started post-`1.6.2` development on `dev`; version bumped to `1.6.3`.
 - Refreshed the public README and Sphinx gallery so the repository now shows
   standalone Word-rendered `merge_right()` and `merge_down()` fixed-grid
   closure pages alongside the aggregate quartet signoff bundle and the Chinese
