@@ -8,13 +8,32 @@ performance.
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-04-11
+
+### Added
+
+- Added standalone fixed-grid merge/unmerge samples plus a bundled Word-rendered
+  regression flow for `merge_right()`, `merge_down()`, `unmerge_right()`, and
+  `unmerge_down()` so reopened tables now have screenshot-backed width-closure
+  repros and review tasks.
+- Added `fixed_grid_regression_bundle` and `docs_conf_version_sync` checks so
+  the release candidate suite now covers reopened fixed-layout table workflows
+  and guards Sphinx docs metadata drift from `CMakeLists.txt`.
+
 ### Changed
 
-- Started post-`1.6.0` development on `dev`; version bumped to `1.6.1`.
 - Release metadata generation now persists `release_version` in the preflight
   summary and refreshes `release_handoff.md` / `release_body.zh-CN.md` against
   the matching `CHANGELOG.md` release section when available, instead of always
   falling back to `Unreleased`.
+- Refreshed `README.md`, `README.zh-CN.md`, `docs/index.rst`, and installed
+  visual-validation assets to highlight the reopened fixed-layout column-width
+  Word rendering and fixed-grid aggregate evidence more directly.
+
+### Fixed
+
+- `docs/conf.py` now resolves `version` / `release` directly from the root
+  `CMakeLists.txt`, preventing stale documentation headers during release prep.
 
 ## [1.6.0] - 2026-04-11
 
