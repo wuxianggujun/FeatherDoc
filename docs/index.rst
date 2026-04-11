@@ -22,29 +22,38 @@ readers can inspect real layout output instead of relying on XML-only claims.
 
 The current smoke flow covers multi-page tables, repeated headers, vertical and
 rotated text, fixed-grid width edits, merge/unmerge checks, and mixed
-RTL/LTR/CJK review content. The gallery below shows a few focused slices from
-the same validation chain.
+RTL/LTR/CJK review content. The gallery below switches to more legible
+front-page slices: two standalone fixed-grid closure checks, the aggregate
+quartet signoff bundle, and one Chinese invoice template page rendered through
+Word.
 
 .. list-table::
-   :widths: 34 33 33
+   :widths: 25 25 25 25
 
-   * - .. image:: assets/readme/reopened-fixed-layout-column-widths-page-01.png
-          :alt: Word-rendered reopened fixed-layout column-width sample page
+   * - .. image:: assets/readme/fixed-grid-merge-right-page-01.png
+          :alt: Word-rendered standalone merge_right fixed-grid sample page
+          :width: 100%
+     - .. image:: assets/readme/fixed-grid-merge-down-page-01.png
+          :alt: Word-rendered standalone merge_down fixed-grid sample page
           :width: 100%
      - .. image:: assets/readme/fixed-grid-aggregate-contact-sheet.png
           :alt: Fixed-grid merge and unmerge regression contact sheet
           :width: 100%
-     - .. image:: assets/readme/visual-smoke-page-06.png
-          :alt: Word-rendered vertical-text and mixed-direction review page
+     - .. image:: assets/readme/sample-chinese-template-page-01.png
+          :alt: Word-rendered Chinese invoice template sample page
           :width: 100%
-    * - Dedicated reopened fixed-layout column-width editing rendered through
-        Word after the API converges the table to ``1200 / 2200 / 4400`` twips.
-      - The dedicated fixed-grid regression bundle covers ``merge_right()``,
-        ``merge_down()``, ``unmerge_right()``, and ``unmerge_down()`` in one
-        screenshot-backed contact sheet that is intended for manual signoff,
-        not just XML-only inspection.
-     - Vertical text, rotated text, and mixed RTL/LTR/CJK content remain part
-       of the routine screenshot review surface instead of XML-only testing.
+   * - Standalone ``merge_right()`` after reopen; the merged blue cell is
+       visibly wider than the ``1000`` twip base cell below it while remaining
+       narrower than the ``4100`` twip tail column.
+     - Standalone ``merge_down()`` after reopen; the merged orange pillar keeps
+       the fixed ``1000`` twip width across both rows while the neighbor
+       columns remain aligned.
+     - The dedicated fixed-grid regression bundle still keeps
+       ``merge_right()``, ``merge_down()``, ``unmerge_right()``, and
+       ``unmerge_down()`` in one screenshot-backed manual signoff surface.
+     - A Chinese invoice template sample keeps CJK font metadata, business
+       table output, and rendered spacing visible in Word instead of XML-only
+       claims.
 
 For the end-to-end local review flow, see
 :doc:`automation/word_visual_workflow_zh`. For the release-preflight wrapper,
@@ -62,6 +71,36 @@ To reproduce the same screenshots locally on Windows with a real
 
     # Full smoke contact sheet plus page slices
     powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1
+
+    # Build the standalone samples that feed the focused README gallery pages.
+    # Adjust the executable path if your generator stores sample binaries
+    # somewhere other than the build root.
+    cmake --build build-msvc-nmake --target `
+        featherdoc_sample_merge_right_fixed_grid `
+        featherdoc_sample_merge_down_fixed_grid `
+        featherdoc_sample_chinese_template
+
+    .\build-msvc-nmake\featherdoc_sample_merge_right_fixed_grid.exe `
+        .\output\sample-merge-right-fixed-grid\merge_right_fixed_grid.docx
+
+    .\build-msvc-nmake\featherdoc_sample_merge_down_fixed_grid.exe `
+        .\output\sample-merge-down-fixed-grid\merge_down_fixed_grid.docx
+
+    .\build-msvc-nmake\featherdoc_sample_chinese_template.exe `
+        .\samples\chinese_invoice_template.docx `
+        .\output\sample-chinese-template\sample_chinese_invoice_output.docx
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 `
+        -InputDocx .\output\sample-merge-right-fixed-grid\merge_right_fixed_grid.docx `
+        -OutputDir .\output\word-visual-sample-merge-right-fixed-grid
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 `
+        -InputDocx .\output\sample-merge-down-fixed-grid\merge_down_fixed_grid.docx `
+        -OutputDir .\output\word-visual-sample-merge-down-fixed-grid
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 `
+        -InputDocx .\output\sample-chinese-template\sample_chinese_invoice_output.docx `
+        -OutputDir .\output\word-visual-sample-chinese-template
 
     # Fixed-grid quartet, aggregate contact sheet, plus a ready-to-review task package
     powershell -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_regression.ps1 `

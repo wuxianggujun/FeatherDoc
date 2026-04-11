@@ -2,7 +2,7 @@
 
 [![Windows MSVC CI](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml/badge.svg?branch=master)](https://github.com/wuxianggujun/FeatherDoc/actions/workflows/windows-msvc.yml)
 
-[简体中文](README.zh-CN.md) | English
+[Simplified Chinese](README.zh-CN.md) | English
 
 FeatherDoc is a modernized C++ library for reading and writing Microsoft Word
 `.docx` files.
@@ -179,7 +179,10 @@ case path manually.
 
 The screenshots below come from actual Word-rendered validation artifacts saved
 in the repository, so README readers can see the current layout coverage,
-rendering quality, and screenshot-backed review surface directly.
+rendering quality, and screenshot-backed review surface directly. The focused
+row below intentionally mixes two standalone fixed-grid closure samples, the
+aggregate quartet signoff bundle, and one Chinese business-template result so
+the library's editing surface is visible at a glance.
 
 <p align="center">
   <img src="docs/assets/readme/visual-smoke-contact-sheet.png" alt="Full Word visual smoke contact sheet" width="900" />
@@ -188,15 +191,49 @@ rendering quality, and screenshot-backed review surface directly.
   <sub>Top: the full 6-page Word visual smoke contact sheet generated from the current validation flow, covering tables, pagination, merges, text direction, fixed-grid width editing, and mixed RTL/LTR/CJK review content.</sub>
 </p>
 <p align="center">
-  <img src="docs/assets/readme/reopened-fixed-layout-column-widths-page-01.png" alt="Word-rendered reopened fixed-layout column-width sample page" width="260" />
-  <img src="docs/assets/readme/fixed-grid-aggregate-contact-sheet.png" alt="Fixed-grid merge and unmerge regression contact sheet" width="260" />
-  <img src="docs/assets/readme/visual-smoke-page-06.png" alt="Word-rendered vertical-text and mixed-direction review page" width="260" />
+  <img src="docs/assets/readme/fixed-grid-merge-right-page-01.png" alt="Word-rendered standalone merge_right fixed-grid sample page" width="200" />
+  <img src="docs/assets/readme/fixed-grid-merge-down-page-01.png" alt="Word-rendered standalone merge_down fixed-grid sample page" width="200" />
+  <img src="docs/assets/readme/fixed-grid-aggregate-contact-sheet.png" alt="Fixed-grid merge and unmerge regression contact sheet" width="200" />
+  <img src="docs/assets/readme/sample-chinese-template-page-01.png" alt="Word-rendered Chinese invoice template sample page" width="200" />
 </p>
 <p align="center">
-  <sub>Bottom row, left to right: the dedicated reopened fixed-layout column-width workflow, the fixed-grid merge/unmerge quartet regression bundle, and vertical-text plus mixed-direction review content. The left image comes from <code>sample_edit_existing_table_column_widths.cpp</code> and shows the post-reopen <code>1200 / 2200 / 4400</code> twip split rendered through Microsoft Word. The center image covers <code>merge_right()</code>, <code>merge_down()</code>, <code>unmerge_right()</code>, and <code>unmerge_down()</code>, all rendered through Microsoft Word and manually signed off from screenshot evidence.</sub>
+  <sub>Bottom row, left to right: a standalone <code>merge_right()</code> closure check after reopen, a standalone <code>merge_down()</code> closure check after reopen, the aggregate fixed-grid quartet signoff bundle, and a Chinese invoice template rendered through Microsoft Word. The first two screenshots come from <code>sample_merge_right_fixed_grid.cpp</code> and <code>sample_merge_down_fixed_grid.cpp</code>; they make the fixed-width closure signal obvious without needing to read XML. The fourth image comes from <code>sample_chinese_template.cpp</code> and shows CJK text plus business-table output in Word rather than synthetic mockups.</sub>
 </p>
 
-To rerun just the fixed-grid quartet that feeds the center gallery image and
+To regenerate the exact focused gallery pages, build and run the dedicated
+sample targets first. Adjust the executable path if your generator places the
+sample binaries somewhere other than the build root:
+
+```powershell
+cmake --build build-msvc-nmake --target `
+    featherdoc_sample_merge_right_fixed_grid `
+    featherdoc_sample_merge_down_fixed_grid `
+    featherdoc_sample_chinese_template
+
+.\build-msvc-nmake\featherdoc_sample_merge_right_fixed_grid.exe `
+    .\output\sample-merge-right-fixed-grid\merge_right_fixed_grid.docx
+
+.\build-msvc-nmake\featherdoc_sample_merge_down_fixed_grid.exe `
+    .\output\sample-merge-down-fixed-grid\merge_down_fixed_grid.docx
+
+.\build-msvc-nmake\featherdoc_sample_chinese_template.exe `
+    .\samples\chinese_invoice_template.docx `
+    .\output\sample-chinese-template\sample_chinese_invoice_output.docx
+
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 `
+    -InputDocx .\output\sample-merge-right-fixed-grid\merge_right_fixed_grid.docx `
+    -OutputDir .\output\word-visual-sample-merge-right-fixed-grid
+
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 `
+    -InputDocx .\output\sample-merge-down-fixed-grid\merge_down_fixed_grid.docx `
+    -OutputDir .\output\word-visual-sample-merge-down-fixed-grid
+
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 `
+    -InputDocx .\output\sample-chinese-template\sample_chinese_invoice_output.docx `
+    -OutputDir .\output\word-visual-sample-chinese-template
+```
+
+To rerun the fixed-grid quartet that feeds the aggregate contact sheet and
 prepare a ready-to-review task package:
 
 ```powershell
@@ -205,24 +242,24 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_
     -ReviewMode review-only
 ```
 
-To regenerate the exact gallery, or jump from these screenshots to a review
-task handoff, start with
+To refresh the repository-side gallery PNGs after those sample renders or a new
+release-gate pass, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\refresh_readme_visual_assets.ps1
+```
+
+To jump from these screenshots to a review-task handoff, start with
 [VISUAL_VALIDATION_QUICKSTART.md](VISUAL_VALIDATION_QUICKSTART.md) and then use
 [VISUAL_VALIDATION.md](VISUAL_VALIDATION.md) or
 [VISUAL_VALIDATION.zh-CN.md](VISUAL_VALIDATION.zh-CN.md) for the longer
 mapping.
 
-To refresh the repository-side gallery PNGs after a new visual run:
+For a one-shot local gate that also refreshes the repository gallery, use:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
     -RefreshReadmeAssets
-```
-
-Or refresh from already-generated tasks only:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\refresh_readme_visual_assets.ps1
 ```
 
 After both screenshot-backed review tasks are signed off, sync the final

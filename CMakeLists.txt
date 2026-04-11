@@ -384,7 +384,10 @@ install(
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-page-05.png"
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-page-06.png"
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/reopened-fixed-layout-column-widths-page-01.png"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/fixed-grid-merge-right-page-01.png"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/fixed-grid-merge-down-page-01.png"
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/fixed-grid-aggregate-contact-sheet.png"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/sample-chinese-template-page-01.png"
     DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/visual-validation"
 )
 

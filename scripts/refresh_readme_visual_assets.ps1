@@ -30,6 +30,9 @@ param(
     [string]$DocumentTaskDir = "",
     [string]$FixedGridTaskDir = "",
     [string]$ColumnWidthVisualDir = "output/word-visual-sample-edit-existing-table-column-widths",
+    [string]$MergeRightVisualDir = "output/word-visual-sample-merge-right-fixed-grid",
+    [string]$MergeDownVisualDir = "output/word-visual-sample-merge-down-fixed-grid",
+    [string]$ChineseTemplateVisualDir = "output/word-visual-sample-chinese-template",
     [string]$AssetsDir = "docs/assets/readme"
 )
 
@@ -181,7 +184,7 @@ function Resolve-FixedGridEvidence {
     throw "Unable to resolve fixed-grid aggregate evidence from task directory or task manifest: $TaskDir"
 }
 
-function Resolve-ColumnWidthEvidence {
+function Resolve-Page01Evidence {
     param(
         [string]$RepoRoot,
         [string]$InputPath
@@ -239,7 +242,10 @@ Assert-PathExists -Path $resolvedFixedGridTaskDir -Label "fixed-grid task direct
 
 $documentEvidence = Resolve-DocumentEvidence -TaskDir $resolvedDocumentTaskDir
 $fixedGridEvidence = Resolve-FixedGridEvidence -TaskDir $resolvedFixedGridTaskDir
-$columnWidthEvidence = Resolve-ColumnWidthEvidence -RepoRoot $repoRoot -InputPath $ColumnWidthVisualDir
+$columnWidthEvidence = Resolve-Page01Evidence -RepoRoot $repoRoot -InputPath $ColumnWidthVisualDir
+$mergeRightEvidence = Resolve-Page01Evidence -RepoRoot $repoRoot -InputPath $MergeRightVisualDir
+$mergeDownEvidence = Resolve-Page01Evidence -RepoRoot $repoRoot -InputPath $MergeDownVisualDir
+$chineseTemplateEvidence = Resolve-Page01Evidence -RepoRoot $repoRoot -InputPath $ChineseTemplateVisualDir
 
 New-Item -ItemType Directory -Path $resolvedAssetsDir -Force | Out-Null
 
@@ -266,9 +272,27 @@ $copies = @(
         Optional = $true
     },
     @{
+        Label = "fixed-grid merge_right page 01"
+        Source = if ($null -eq $mergeRightEvidence) { "" } else { $mergeRightEvidence.page_01 }
+        Destination = Join-Path $resolvedAssetsDir "fixed-grid-merge-right-page-01.png"
+        Optional = $true
+    },
+    @{
+        Label = "fixed-grid merge_down page 01"
+        Source = if ($null -eq $mergeDownEvidence) { "" } else { $mergeDownEvidence.page_01 }
+        Destination = Join-Path $resolvedAssetsDir "fixed-grid-merge-down-page-01.png"
+        Optional = $true
+    },
+    @{
         Label = "fixed-grid aggregate contact sheet"
         Source = $fixedGridEvidence.aggregate_contact_sheet
         Destination = Join-Path $resolvedAssetsDir "fixed-grid-aggregate-contact-sheet.png"
+    },
+    @{
+        Label = "sample Chinese template page 01"
+        Source = if ($null -eq $chineseTemplateEvidence) { "" } else { $chineseTemplateEvidence.page_01 }
+        Destination = Join-Path $resolvedAssetsDir "sample-chinese-template-page-01.png"
+        Optional = $true
     }
 )
 

@@ -491,7 +491,10 @@ if ($RefreshReadmeAssets) {
         visual_smoke_contact_sheet = Join-Path $resolvedReadmeAssetsDir "visual-smoke-contact-sheet.png"
         visual_smoke_page_05 = Join-Path $resolvedReadmeAssetsDir "visual-smoke-page-05.png"
         visual_smoke_page_06 = Join-Path $resolvedReadmeAssetsDir "visual-smoke-page-06.png"
+        fixed_grid_merge_right_page_01 = Join-Path $resolvedReadmeAssetsDir "fixed-grid-merge-right-page-01.png"
+        fixed_grid_merge_down_page_01 = Join-Path $resolvedReadmeAssetsDir "fixed-grid-merge-down-page-01.png"
         fixed_grid_aggregate_contact_sheet = Join-Path $resolvedReadmeAssetsDir "fixed-grid-aggregate-contact-sheet.png"
+        sample_chinese_template_page_01 = Join-Path $resolvedReadmeAssetsDir "sample-chinese-template-page-01.png"
     }
 
     Assert-PathExists -Path $gateSummary.readme_gallery.visual_smoke_contact_sheet `
@@ -500,8 +503,14 @@ if ($RefreshReadmeAssets) {
         -Label "README gallery visual smoke page 05"
     Assert-PathExists -Path $gateSummary.readme_gallery.visual_smoke_page_06 `
         -Label "README gallery visual smoke page 06"
+    Assert-PathExists -Path $gateSummary.readme_gallery.fixed_grid_merge_right_page_01 `
+        -Label "README gallery fixed-grid merge_right page 01"
+    Assert-PathExists -Path $gateSummary.readme_gallery.fixed_grid_merge_down_page_01 `
+        -Label "README gallery fixed-grid merge_down page 01"
     Assert-PathExists -Path $gateSummary.readme_gallery.fixed_grid_aggregate_contact_sheet `
         -Label "README gallery fixed-grid aggregate contact sheet"
+    Assert-PathExists -Path $gateSummary.readme_gallery.sample_chinese_template_page_01 `
+        -Label "README gallery sample Chinese template page 01"
 } else {
     $gateSummary.readme_gallery = [ordered]@{
         status = "not_requested"
