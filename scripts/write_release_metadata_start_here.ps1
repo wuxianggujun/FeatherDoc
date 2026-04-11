@@ -54,11 +54,49 @@ function Get-DisplayValue {
     return $Value
 }
 
+function Get-DisplayPath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return "(not available)"
+    }
+
+    return Get-RepoRelativePath -RepoRoot $RepoRoot -Path $Path
+}
+
+function Get-RepoRelativePath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return ""
+    }
+
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relative)) {
+            return "."
+        }
+
+        return ".\" + ($relative -replace '/', '\')
+    }
+
+    return $resolvedPath
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryJson
 if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
     throw "Summary JSON does not exist: $resolvedSummaryPath"
 }
+$summaryCommandPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedSummaryPath
 
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $summaryRootDir = Split-Path -Parent $reportDir
@@ -71,6 +109,7 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$releaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
 $installDir = Get-OptionalPropertyValue -Object $summary -Name "install_dir"
 $installDirLeaf = if ([string]::IsNullOrWhiteSpace($installDir)) {
     "build-msvc-install"
@@ -94,6 +133,13 @@ $quickstartArtifactPath = Join-Path $installDirLeaf "share\FeatherDoc\VISUAL_VAL
 $templateArtifactPath = Join-Path $installDirLeaf "share\FeatherDoc\RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
+$packageAssetsCommand = if ($releaseVersion) {
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
+        $summaryCommandPath, $releaseVersion
+} else {
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
+        $summaryCommandPath
+}
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Metadata Start Here")
@@ -120,8 +166,8 @@ if ($ArtifactRootLayout) {
     [void]$lines.Add('- `REVIEWER_CHECKLIST.md`: `report/REVIEWER_CHECKLIST.md`')
     [void]$lines.Add('- `release_summary.zh-CN.md`: `report/release_summary.zh-CN.md`')
     [void]$lines.Add('- `release_body.zh-CN.md`: `report/release_body.zh-CN.md`')
-    [void]$lines.Add(('- Installed quickstart: `{0}`' -f (Get-DisplayValue -Value $quickstartLocalPath)))
-    [void]$lines.Add(('- Installed release template: `{0}`' -f (Get-DisplayValue -Value $templateLocalPath)))
+    [void]$lines.Add(('- Installed quickstart: `{0}`' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $quickstartLocalPath)))
+    [void]$lines.Add(('- Installed release template: `{0}`' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $templateLocalPath)))
 }
 
 [void]$lines.Add("")
@@ -144,6 +190,14 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add('```')
 [void]$lines.Add("")
 [void]$lines.Add("Use that command locally after the screenshot-backed manual review changes the final visual verdict. It will sync the detected latest task verdict back into the gate summary and refresh the release bundle.")
+[void]$lines.Add("")
+[void]$lines.Add("## Package The Public Release Assets")
+[void]$lines.Add("")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($packageAssetsCommand)
+[void]$lines.Add('```')
+[void]$lines.Add("")
+[void]$lines.Add("Run that command after the release drafts are finalized so the install ZIP, visual gallery ZIP, and release-evidence ZIP are regenerated from the current summary.")
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8

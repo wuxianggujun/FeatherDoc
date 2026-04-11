@@ -78,6 +78,30 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
+function Get-RepoRelativePath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return "(not available)"
+    }
+
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relative)) {
+            return "."
+        }
+
+        return ".\" + ($relative -replace '/', '\')
+    }
+
+    return $resolvedPath
+}
+
 function Get-ProjectVersion {
     param([string]$RepoRoot)
 
@@ -587,9 +611,23 @@ try {
 } finally {
     ($summary | ConvertTo-Json -Depth 8) | Set-Content -Path $summaryPath -Encoding UTF8
 
+    $repoRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $repoRoot
+    $summaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summaryPath
+    $buildDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedBuildDir
+    $installDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedInstallDir
+    $consumerBuildDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedConsumerBuildDir
+    $gateOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedGateOutputDir
+    $taskOutputRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedTaskOutputRoot
+    $releaseHandoffDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
+    $releaseBodyDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseBodyZhCnPath
+    $releaseSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseSummaryZhCnPath
+    $artifactGuideDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $artifactGuidePath
+    $reviewerChecklistDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $reviewerChecklistPath
+    $startHereDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
+
     $readmeGalleryStatusLine = switch ($summary.readme_gallery.status) {
         "completed" {
-            "- README gallery refresh: completed ($($summary.readme_gallery.assets_dir))"
+            "- README gallery refresh: completed ($(Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.readme_gallery.assets_dir))"
         }
         "not_requested" {
             "- README gallery refresh: not requested"
@@ -606,8 +644,8 @@ try {
 # Release Candidate Checks
 
 - Generated at: $(Get-Date -Format s)
-- Workspace: $repoRoot
-- Summary JSON: $summaryPath
+- Workspace: $repoRootDisplay
+- Summary JSON: $summaryDisplayPath
 - Execution status: $($summary.execution_status)
 - Failed step: $($summary.failed_step)
 - Error: $($summary.error)
@@ -624,17 +662,17 @@ $readmeGalleryStatusLine
 
 ## Key outputs
 
-- Build directory: $resolvedBuildDir
-- Install directory: $resolvedInstallDir
-- Consumer build directory: $resolvedConsumerBuildDir
-- Visual gate output: $resolvedGateOutputDir
-- Review task root: $resolvedTaskOutputRoot
-- Release handoff: $releaseHandoffPath
-- Release body draft: $releaseBodyZhCnPath
-- Release summary draft: $releaseSummaryZhCnPath
-- Artifact guide: $artifactGuidePath
-- Reviewer checklist: $reviewerChecklistPath
-- Start here: $startHerePath
+- Build directory: $buildDirDisplay
+- Install directory: $installDirDisplay
+- Consumer build directory: $consumerBuildDirDisplay
+- Visual gate output: $gateOutputDirDisplay
+- Review task root: $taskOutputRootDisplay
+- Release handoff: $releaseHandoffDisplayPath
+- Release body draft: $releaseBodyDisplayPath
+- Release summary draft: $releaseSummaryDisplayPath
+- Artifact guide: $artifactGuideDisplayPath
+- Reviewer checklist: $reviewerChecklistDisplayPath
+- Start here: $startHereDisplayPath
 "@
     $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 

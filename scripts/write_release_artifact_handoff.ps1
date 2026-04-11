@@ -76,6 +76,43 @@ function Get-DisplayValue {
     return $Value
 }
 
+function Get-DisplayPath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return "(not available)"
+    }
+
+    return Get-RepoRelativePath -RepoRoot $RepoRoot -Path $Path
+}
+
+function Get-RepoRelativePath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return ""
+    }
+
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relative)) {
+            return "."
+        }
+
+        return ".\" + ($relative -replace '/', '\')
+    }
+
+    return $resolvedPath
+}
+
 function Get-ProjectVersion {
     param([string]$RepoRoot)
 
@@ -98,6 +135,7 @@ $resolvedSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryJ
 if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
     throw "Summary JSON does not exist: $resolvedSummaryPath"
 }
+$summaryCommandPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedSummaryPath
 
 $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     Join-Path (Split-Path -Parent $resolvedSummaryPath) "release_handoff.md"
@@ -168,11 +206,19 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
 $syncExplicitCommand = ""
 if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath)) {
+    $gateSummaryCommandPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $gateSummaryPath
     $syncExplicitCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_visual_review_verdict.ps1 -GateSummaryJson "{0}" -ReleaseCandidateSummaryJson "{1}" -RefreshReleaseBundle' -f `
-        $gateSummaryPath, $resolvedSummaryPath
+        $gateSummaryCommandPath, $summaryCommandPath
 }
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
 $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
+$packageAssetsCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
+    $summaryCommandPath
+$packageAndUploadCommand = ""
+if ($projectVersion) {
+    $packageAndUploadCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
+        $summaryCommandPath, $projectVersion
+}
 $openDocumentTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1"
 $openFixedGridTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_fixed_grid_review_task.ps1 -PrintPrompt"
 
@@ -182,13 +228,13 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("- Generated at: $(Get-Date -Format s)")
 [void]$handoffLines.Add("- Project version: $(Get-DisplayValue -Value $projectVersion)")
-[void]$handoffLines.Add("- Release candidate summary: $resolvedSummaryPath")
-[void]$handoffLines.Add("- Release candidate final review: $(Get-DisplayValue -Value $finalReviewPath)")
-[void]$handoffLines.Add("- Release handoff: $resolvedOutputPath")
-[void]$handoffLines.Add("- Release body draft: $(Get-DisplayValue -Value $releaseBodyPath)")
-[void]$handoffLines.Add("- Release summary draft: $(Get-DisplayValue -Value $releaseSummaryPath)")
-[void]$handoffLines.Add("- Artifact guide: $(Get-DisplayValue -Value $artifactGuidePath)")
-[void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayValue -Value $reviewerChecklistPath)")
+[void]$handoffLines.Add("- Release candidate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
+[void]$handoffLines.Add("- Release candidate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $finalReviewPath)")
+[void]$handoffLines.Add("- Release handoff: $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedOutputPath)")
+[void]$handoffLines.Add("- Release body draft: $(Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBodyPath)")
+[void]$handoffLines.Add("- Release summary draft: $(Get-DisplayPath -RepoRoot $repoRoot -Path $releaseSummaryPath)")
+[void]$handoffLines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
+[void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath)")
 [void]$handoffLines.Add("- Execution status: $($summary.execution_status)")
 [void]$handoffLines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 [void]$handoffLines.Add("")
@@ -203,30 +249,31 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Installed Package Entry Points")
 [void]$handoffLines.Add("")
-[void]$handoffLines.Add("- Installed data dir: $(Get-DisplayValue -Value $installedDataDir)")
-[void]$handoffLines.Add("- Quickstart (EN): $(Get-DisplayValue -Value $installedQuickstartEn)")
-[void]$handoffLines.Add("- Quickstart (ZH-CN): $(Get-DisplayValue -Value $installedQuickstartZh)")
-[void]$handoffLines.Add("- Release template (EN): $(Get-DisplayValue -Value $installedTemplateEn)")
-[void]$handoffLines.Add("- Release template (ZH-CN): $(Get-DisplayValue -Value $installedTemplateZh)")
+[void]$handoffLines.Add("- Installed data dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $installedDataDir)")
+[void]$handoffLines.Add("- Quickstart (EN): $(Get-DisplayPath -RepoRoot $repoRoot -Path $installedQuickstartEn)")
+[void]$handoffLines.Add("- Quickstart (ZH-CN): $(Get-DisplayPath -RepoRoot $repoRoot -Path $installedQuickstartZh)")
+[void]$handoffLines.Add("- Release template (EN): $(Get-DisplayPath -RepoRoot $repoRoot -Path $installedTemplateEn)")
+[void]$handoffLines.Add("- Release template (ZH-CN): $(Get-DisplayPath -RepoRoot $repoRoot -Path $installedTemplateZh)")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Evidence Files")
 [void]$handoffLines.Add("")
-[void]$handoffLines.Add("- Consumer smoke document: $(Get-DisplayValue -Value $consumerDocument)")
-[void]$handoffLines.Add("- Release body draft: $(Get-DisplayValue -Value $releaseBodyPath)")
-[void]$handoffLines.Add("- Release summary draft: $(Get-DisplayValue -Value $releaseSummaryPath)")
-[void]$handoffLines.Add("- Artifact guide: $(Get-DisplayValue -Value $artifactGuidePath)")
-[void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayValue -Value $reviewerChecklistPath)")
-[void]$handoffLines.Add("- Visual gate summary: $(Get-DisplayValue -Value $gateSummaryPath)")
-[void]$handoffLines.Add("- Visual gate final review: $(Get-DisplayValue -Value $gateFinalReviewPath)")
-[void]$handoffLines.Add("- README gallery assets: $(Get-DisplayValue -Value $readmeGalleryAssetsDir)")
-[void]$handoffLines.Add("- Document review task: $(Get-DisplayValue -Value $documentTaskDir)")
-[void]$handoffLines.Add("- Fixed-grid review task: $(Get-DisplayValue -Value $fixedGridTaskDir)")
+[void]$handoffLines.Add("- Consumer smoke document: $(Get-DisplayPath -RepoRoot $repoRoot -Path $consumerDocument)")
+[void]$handoffLines.Add("- Release body draft: $(Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBodyPath)")
+[void]$handoffLines.Add("- Release summary draft: $(Get-DisplayPath -RepoRoot $repoRoot -Path $releaseSummaryPath)")
+[void]$handoffLines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
+[void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath)")
+[void]$handoffLines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
+[void]$handoffLines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
+[void]$handoffLines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")
+[void]$handoffLines.Add("- Document review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $documentTaskDir)")
+[void]$handoffLines.Add("- Fixed-grid review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $fixedGridTaskDir)")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Reproduction Commands")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
 [void]$handoffLines.Add($releaseChecksCommand)
 [void]$handoffLines.Add($releaseGateCommand)
+[void]$handoffLines.Add($packageAssetsCommand)
 [void]$handoffLines.Add($openDocumentTaskCommand)
 [void]$handoffLines.Add($openFixedGridTaskCommand)
 [void]$handoffLines.Add('```')
@@ -247,6 +294,20 @@ if (-not [string]::IsNullOrWhiteSpace($syncExplicitCommand)) {
     [void]$handoffLines.Add('```')
     [void]$handoffLines.Add("")
 }
+[void]$handoffLines.Add("Package the release-facing ZIP files after the verification bundle is signed off:")
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add('```powershell')
+[void]$handoffLines.Add($packageAssetsCommand)
+[void]$handoffLines.Add('```')
+[void]$handoffLines.Add("")
+if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
+    [void]$handoffLines.Add("Upload or refresh the GitHub Release attachments with:")
+    [void]$handoffLines.Add("")
+    [void]$handoffLines.Add('```powershell')
+    [void]$handoffLines.Add($packageAndUploadCommand)
+    [void]$handoffLines.Add('```')
+    [void]$handoffLines.Add("")
+}
 [void]$handoffLines.Add("## Release Body Seed")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```md')
@@ -263,20 +324,20 @@ if (-not [string]::IsNullOrWhiteSpace($syncExplicitCommand)) {
 [void]$handoffLines.Add("- Visual verdict: $(if ($visualVerdict) { $visualVerdict } else { '<pass|fail|pending_manual_review>' })")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Installed Package Entry Points")
-[void]$handoffLines.Add("- $(if ($installedQuickstartZh) { $installedQuickstartZh } else { 'share/FeatherDoc/VISUAL_VALIDATION_QUICKSTART.zh-CN.md' })")
-[void]$handoffLines.Add("- $(if ($installedTemplateZh) { $installedTemplateZh } else { 'share/FeatherDoc/RELEASE_ARTIFACT_TEMPLATE.zh-CN.md' })")
-[void]$handoffLines.Add("- $(if ($installedDataDir) { Join-Path $installedDataDir 'visual-validation' } else { 'share/FeatherDoc/visual-validation' })")
+[void]$handoffLines.Add("- $(if ($installedQuickstartZh) { Get-DisplayPath -RepoRoot $repoRoot -Path $installedQuickstartZh } else { 'share/FeatherDoc/VISUAL_VALIDATION_QUICKSTART.zh-CN.md' })")
+[void]$handoffLines.Add("- $(if ($installedTemplateZh) { Get-DisplayPath -RepoRoot $repoRoot -Path $installedTemplateZh } else { 'share/FeatherDoc/RELEASE_ARTIFACT_TEMPLATE.zh-CN.md' })")
+[void]$handoffLines.Add("- $(if ($installedDataDir) { Get-DisplayPath -RepoRoot $repoRoot -Path (Join-Path $installedDataDir 'visual-validation') } else { 'share/FeatherDoc/visual-validation' })")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Evidence Files")
-[void]$handoffLines.Add("- $resolvedSummaryPath")
-[void]$handoffLines.Add("- $(if (Test-Path -LiteralPath $finalReviewPath) { $finalReviewPath } else { 'output/release-candidate-checks/report/final_review.md' })")
-[void]$handoffLines.Add("- $resolvedOutputPath")
-[void]$handoffLines.Add("- $(if ($releaseBodyPath) { $releaseBodyPath } else { 'output/release-candidate-checks/report/release_body.zh-CN.md' })")
-[void]$handoffLines.Add("- $(if ($releaseSummaryPath) { $releaseSummaryPath } else { 'output/release-candidate-checks/report/release_summary.zh-CN.md' })")
-[void]$handoffLines.Add("- $(if ($artifactGuidePath) { $artifactGuidePath } else { 'output/release-candidate-checks/report/ARTIFACT_GUIDE.md' })")
-[void]$handoffLines.Add("- $(if ($reviewerChecklistPath) { $reviewerChecklistPath } else { 'output/release-candidate-checks/report/REVIEWER_CHECKLIST.md' })")
-[void]$handoffLines.Add("- $(if ($gateSummaryPath) { $gateSummaryPath } else { 'output/word-visual-release-gate/report/gate_summary.json' })")
-[void]$handoffLines.Add("- $(if ($gateFinalReviewPath) { $gateFinalReviewPath } else { 'output/word-visual-release-gate/report/gate_final_review.md' })")
+[void]$handoffLines.Add("- $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
+[void]$handoffLines.Add("- $(if (Test-Path -LiteralPath $finalReviewPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $finalReviewPath } else { 'output/release-candidate-checks/report/final_review.md' })")
+[void]$handoffLines.Add("- $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedOutputPath)")
+[void]$handoffLines.Add("- $(if ($releaseBodyPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBodyPath } else { 'output/release-candidate-checks/report/release_body.zh-CN.md' })")
+[void]$handoffLines.Add("- $(if ($releaseSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $releaseSummaryPath } else { 'output/release-candidate-checks/report/release_summary.zh-CN.md' })")
+[void]$handoffLines.Add("- $(if ($artifactGuidePath) { Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath } else { 'output/release-candidate-checks/report/ARTIFACT_GUIDE.md' })")
+[void]$handoffLines.Add("- $(if ($reviewerChecklistPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath } else { 'output/release-candidate-checks/report/REVIEWER_CHECKLIST.md' })")
+[void]$handoffLines.Add("- $(if ($gateSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath } else { 'output/word-visual-release-gate/report/gate_summary.json' })")
+[void]$handoffLines.Add("- $(if ($gateFinalReviewPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath } else { 'output/word-visual-release-gate/report/gate_final_review.md' })")
 [void]$handoffLines.Add('```')
 
 $handoff = $handoffLines -join [Environment]::NewLine

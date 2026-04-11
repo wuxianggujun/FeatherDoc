@@ -71,11 +71,49 @@ function Get-DisplayValue {
     return $Value
 }
 
+function Get-DisplayPath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return "(not available)"
+    }
+
+    return Get-RepoRelativePath -RepoRoot $RepoRoot -Path $Path
+}
+
+function Get-RepoRelativePath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return ""
+    }
+
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relative)) {
+            return "."
+        }
+
+        return ".\" + ($relative -replace '/', '\')
+    }
+
+    return $resolvedPath
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryJson
 if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
     throw "Summary JSON does not exist: $resolvedSummaryPath"
 }
+$summaryCommandPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedSummaryPath
 
 $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     Join-Path (Split-Path -Parent $resolvedSummaryPath) "ARTIFACT_GUIDE.md"
@@ -132,6 +170,19 @@ $artifactTemplatePath = Join-Path $installLeaf "share\FeatherDoc\RELEASE_ARTIFAC
 $artifactPreviewDir = Join-Path $installLeaf "share\FeatherDoc\visual-validation"
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
+$releaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
+$assetOutputDir = if ($releaseVersion) {
+    Join-Path ("output\release-assets") ("v{0}" -f $releaseVersion)
+} else {
+    "output\release-assets\v<version>"
+}
+$packageAssetsCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
+    $summaryCommandPath
+$packageAndUploadCommand = ""
+if ($releaseVersion) {
+    $packageAndUploadCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
+        $summaryCommandPath, $releaseVersion
+}
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Metadata Artifact Guide")
@@ -140,7 +191,7 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
 [void]$lines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
-[void]$lines.Add("- Summary JSON: $resolvedSummaryPath")
+[void]$lines.Add("- Summary JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
 [void]$lines.Add("")
 [void]$lines.Add("## Start Here")
 [void]$lines.Add("")
@@ -150,15 +201,15 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("")
 [void]$lines.Add("## Files In This Report Directory")
 [void]$lines.Add("")
-[void]$lines.Add("- Reviewer checklist: $(Get-DisplayValue -Value $reviewerChecklistPath)")
-[void]$lines.Add("- Short summary: $(Get-DisplayValue -Value $releaseSummaryPath)")
-[void]$lines.Add("- Full release body: $(Get-DisplayValue -Value $releaseBodyPath)")
-[void]$lines.Add("- Release handoff: $(Get-DisplayValue -Value $releaseHandoffPath)")
-[void]$lines.Add("- Final review: $(Get-DisplayValue -Value $finalReviewPath)")
-[void]$lines.Add("- Consumer smoke document: $(Get-DisplayValue -Value $consumerDocument)")
-[void]$lines.Add("- Visual gate summary: $(Get-DisplayValue -Value $gateSummaryPath)")
-[void]$lines.Add("- Visual gate final review: $(Get-DisplayValue -Value $gateFinalReviewPath)")
-[void]$lines.Add("- README gallery assets: $(Get-DisplayValue -Value $readmeGalleryAssetsDir)")
+[void]$lines.Add("- Reviewer checklist: $(Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath)")
+[void]$lines.Add("- Short summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $releaseSummaryPath)")
+[void]$lines.Add("- Full release body: $(Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBodyPath)")
+[void]$lines.Add("- Release handoff: $(Get-DisplayPath -RepoRoot $repoRoot -Path $releaseHandoffPath)")
+[void]$lines.Add("- Final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $finalReviewPath)")
+[void]$lines.Add("- Consumer smoke document: $(Get-DisplayPath -RepoRoot $repoRoot -Path $consumerDocument)")
+[void]$lines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
+[void]$lines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
+[void]$lines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")
 [void]$lines.Add("")
 [void]$lines.Add("## Installed Package Entry Points")
 [void]$lines.Add("")
@@ -170,6 +221,21 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("")
 [void]$lines.Add("Those files point from preview PNGs to the local repro scripts and review-task wrappers.")
 [void]$lines.Add("")
+[void]$lines.Add("## Package Release Assets")
+[void]$lines.Add("")
+[void]$lines.Add("- Release assets output dir: $assetOutputDir")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($packageAssetsCommand)
+[void]$lines.Add('```')
+[void]$lines.Add("")
+if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
+    [void]$lines.Add("To upload the generated ZIP files to the matching GitHub Release:")
+    [void]$lines.Add("")
+    [void]$lines.Add('```powershell')
+    [void]$lines.Add($packageAndUploadCommand)
+    [void]$lines.Add('```')
+    [void]$lines.Add("")
+}
 [void]$lines.Add("## Refresh After A Later Visual Verdict Update")
 [void]$lines.Add("")
 [void]$lines.Add('```powershell')

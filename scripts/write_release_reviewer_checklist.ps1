@@ -71,6 +71,43 @@ function Get-DisplayValue {
     return $Value
 }
 
+function Get-DisplayPath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return "(not available)"
+    }
+
+    return Get-RepoRelativePath -RepoRoot $RepoRoot -Path $Path
+}
+
+function Get-RepoRelativePath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return ""
+    }
+
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relative)) {
+            return "."
+        }
+
+        return ".\" + ($relative -replace '/', '\')
+    }
+
+    return $resolvedPath
+}
+
 function Add-CheckboxLine {
     param(
         [System.Collections.Generic.List[string]]$Lines,
@@ -85,6 +122,7 @@ $resolvedSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryJ
 if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
     throw "Summary JSON does not exist: $resolvedSummaryPath"
 }
+$summaryCommandPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedSummaryPath
 
 $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     Join-Path (Split-Path -Parent $resolvedSummaryPath) "REVIEWER_CHECKLIST.md"
@@ -132,6 +170,14 @@ if ([string]::IsNullOrWhiteSpace($visualVerdict)) {
 }
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
+$releaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
+$packageAssetsCommand = if ($releaseVersion) {
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
+        $summaryCommandPath, $releaseVersion
+} else {
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
+        $summaryCommandPath
+}
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Reviewer Checklist")
@@ -140,37 +186,37 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Visual gate status: $($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict: $visualVerdict")
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
-[void]$lines.Add("- Artifact guide: $(Get-DisplayValue -Value $artifactGuidePath)")
+[void]$lines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
 [void]$lines.Add("")
 [void]$lines.Add("## Step 1: Read The Release Drafts")
 [void]$lines.Add("")
-Add-CheckboxLine -Lines $lines -Text ('Open `ARTIFACT_GUIDE.md` and confirm the file map still matches this artifact: {0}' -f (Get-DisplayValue -Value $artifactGuidePath))
-Add-CheckboxLine -Lines $lines -Text ('Open `release_summary.zh-CN.md` and confirm the front-page bullets are still accurate: {0}' -f (Get-DisplayValue -Value $releaseSummaryPath))
-Add-CheckboxLine -Lines $lines -Text ('Open `release_body.zh-CN.md` and confirm the longer release body does not contradict the short summary: {0}' -f (Get-DisplayValue -Value $releaseBodyPath))
-Add-CheckboxLine -Lines $lines -Text ('Open `release_handoff.md` and confirm the evidence links and repro commands are still valid: {0}' -f (Get-DisplayValue -Value $releaseHandoffPath))
+Add-CheckboxLine -Lines $lines -Text ('Open `ARTIFACT_GUIDE.md` and confirm the file map still matches this artifact: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath))
+Add-CheckboxLine -Lines $lines -Text ('Open `release_summary.zh-CN.md` and confirm the front-page bullets are still accurate: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $releaseSummaryPath))
+Add-CheckboxLine -Lines $lines -Text ('Open `release_body.zh-CN.md` and confirm the longer release body does not contradict the short summary: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBodyPath))
+Add-CheckboxLine -Lines $lines -Text ('Open `release_handoff.md` and confirm the evidence links and repro commands are still valid: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $releaseHandoffPath))
 [void]$lines.Add("")
 [void]$lines.Add("## Step 2: Check The Verification State")
 [void]$lines.Add("")
-Add-CheckboxLine -Lines $lines -Text ('Confirm `summary.json` reports the expected step statuses: {0}' -f $resolvedSummaryPath)
-Add-CheckboxLine -Lines $lines -Text ('Confirm `final_review.md` still matches the current release status: {0}' -f (Get-DisplayValue -Value $finalReviewPath))
+Add-CheckboxLine -Lines $lines -Text ('Confirm `summary.json` reports the expected step statuses: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath))
+Add-CheckboxLine -Lines $lines -Text ('Confirm `final_review.md` still matches the current release status: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $finalReviewPath))
 
 if ($summary.steps.visual_gate.status -eq "skipped") {
     Add-CheckboxLine -Lines $lines -Text 'Treat this as a CI metadata artifact only; do not treat the visual verdict as the final Word screenshot-backed release signoff.'
 } elseif ($visualVerdict -eq "pass") {
-    Add-CheckboxLine -Lines $lines -Text ('Confirm the local Word visual evidence is already signed off as `pass`: {0}' -f (Get-DisplayValue -Value $gateSummaryPath))
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the local Word visual evidence is already signed off as `pass`: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath))
 } else {
     Add-CheckboxLine -Lines $lines -Text ('Stop here until the local Word visual review is completed and the visual verdict changes from `{0}`.' -f $visualVerdict)
 }
 
 if (-not [string]::IsNullOrWhiteSpace($consumerDocument)) {
-    Add-CheckboxLine -Lines $lines -Text ('Confirm the install smoke consumer document exists for spot checks: {0}' -f $consumerDocument)
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the install smoke consumer document exists for spot checks: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $consumerDocument))
 }
 
 if (-not [string]::IsNullOrWhiteSpace($gateFinalReviewPath)) {
-    Add-CheckboxLine -Lines $lines -Text ('Spot-check the visual gate final review notes if anything in the release draft feels risky: {0}' -f $gateFinalReviewPath)
+    Add-CheckboxLine -Lines $lines -Text ('Spot-check the visual gate final review notes if anything in the release draft feels risky: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath))
 }
 if ($readmeGalleryStatus -eq "completed") {
-    Add-CheckboxLine -Lines $lines -Text ('Confirm the repository README gallery PNGs were refreshed from the latest Word evidence: {0}' -f $readmeGalleryAssetsDir)
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the repository README gallery PNGs were refreshed from the latest Word evidence: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir))
 }
 
 [void]$lines.Add("")
@@ -178,13 +224,14 @@ if ($readmeGalleryStatus -eq "completed") {
 [void]$lines.Add("")
 Add-CheckboxLine -Lines $lines -Text 'Use `release_summary.zh-CN.md` for the GitHub Release first-screen bullets.'
 Add-CheckboxLine -Lines $lines -Text 'Use `release_body.zh-CN.md` for the full release notes or translated handoff draft.'
+Add-CheckboxLine -Lines $lines -Text ('Generate or refresh the public release ZIP files before publishing: `{0}`' -f $packageAssetsCommand)
 Add-CheckboxLine -Lines $lines -Text ('If the visual verdict changes later, rerun the verdict sync command so the gate summary and release drafts stay in sync: `{0}`' -f $syncLatestCommand)
 
 if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
     $installedQuickstartZh = Join-Path $installPrefix "share\FeatherDoc\VISUAL_VALIDATION_QUICKSTART.zh-CN.md"
     $installedTemplateZh = Join-Path $installPrefix "share\FeatherDoc\RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
-    Add-CheckboxLine -Lines $lines -Text ('Use the installed quickstart for the shortest preview -> command -> review-task path: {0}' -f $installedQuickstartZh)
-    Add-CheckboxLine -Lines $lines -Text ('Use the installed release template when the reviewer needs a copy-paste release-note skeleton: {0}' -f $installedTemplateZh)
+    Add-CheckboxLine -Lines $lines -Text ('Use the installed quickstart for the shortest preview -> command -> review-task path: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $installedQuickstartZh))
+    Add-CheckboxLine -Lines $lines -Text ('Use the installed release template when the reviewer needs a copy-paste release-note skeleton: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $installedTemplateZh))
 }
 
 [void]$lines.Add("")

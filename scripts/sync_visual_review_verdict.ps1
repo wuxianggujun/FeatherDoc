@@ -59,6 +59,30 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
+function Get-RepoRelativePath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return "(not available)"
+    }
+
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relative)) {
+            return "."
+        }
+
+        return ".\" + ($relative -replace '/', '\')
+    }
+
+    return $resolvedPath
+}
+
 function Assert-PathExists {
     param(
         [string]$Path,
@@ -232,13 +256,13 @@ function New-GateFinalReviewContent {
     )
 
     $smokeStatusLine = if ((Get-OptionalPropertyValue -Object $GateSummary.smoke -Name "status") -eq "completed") {
-        "- Smoke flow: completed ($(Get-OptionalPropertyValue -Object $GateSummary.smoke -Name 'docx_path'))"
+        "- Smoke flow: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $GateSummary.smoke -Name 'docx_path')))"
     } else {
         "- Smoke flow: skipped"
     }
 
     $fixedGridStatusLine = if ((Get-OptionalPropertyValue -Object $GateSummary.fixed_grid -Name "status") -eq "completed") {
-        "- Fixed-grid flow: completed ($(Get-OptionalPropertyValue -Object $GateSummary.fixed_grid -Name 'summary_json'))"
+        "- Fixed-grid flow: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $GateSummary.fixed_grid -Name 'summary_json')))"
     } else {
         "- Fixed-grid flow: skipped"
     }
@@ -247,7 +271,7 @@ function New-GateFinalReviewContent {
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
     $readmeGalleryAssetsDir = Get-OptionalPropertyValue -Object $readmeGallery -Name "assets_dir"
     $readmeGalleryStatusLine = if ($readmeGalleryStatus -eq "completed") {
-        "- README gallery refresh: completed ($readmeGalleryAssetsDir)"
+        "- README gallery refresh: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $readmeGalleryAssetsDir))"
     } elseif ([string]::IsNullOrWhiteSpace($readmeGalleryStatus)) {
         "- README gallery refresh: unknown"
     } else {
@@ -262,10 +286,10 @@ function New-GateFinalReviewContent {
     $documentTaskSummary = if ($null -ne $documentTask) {
         @(
             "- Document task id: $(Get-OptionalPropertyValue -Object $documentTask -Name 'task_id')"
-            "- Document task dir: $(Get-OptionalPropertyValue -Object $documentTask -Name 'task_dir')"
+            "- Document task dir: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $documentTask -Name 'task_dir'))"
             "- Document verdict: $($documentReview.verdict)"
-            "- Document review result: $($documentReview.review_result_path)"
-            "- Document final review: $($documentReview.final_review_path)"
+            "- Document review result: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $documentReview.review_result_path)"
+            "- Document final review: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $documentReview.final_review_path)"
         ) -join [Environment]::NewLine
     } else {
         "- Document review task: not available"
@@ -274,10 +298,10 @@ function New-GateFinalReviewContent {
     $fixedGridTaskSummary = if ($null -ne $fixedGridTask) {
         @(
             "- Fixed-grid task id: $(Get-OptionalPropertyValue -Object $fixedGridTask -Name 'task_id')"
-            "- Fixed-grid task dir: $(Get-OptionalPropertyValue -Object $fixedGridTask -Name 'task_dir')"
+            "- Fixed-grid task dir: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $fixedGridTask -Name 'task_dir'))"
             "- Fixed-grid verdict: $($fixedGridReview.verdict)"
-            "- Fixed-grid review result: $($fixedGridReview.review_result_path)"
-            "- Fixed-grid final review: $($fixedGridReview.final_review_path)"
+            "- Fixed-grid review result: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $fixedGridReview.review_result_path)"
+            "- Fixed-grid final review: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $fixedGridReview.final_review_path)"
         ) -join [Environment]::NewLine
     } else {
         "- Fixed-grid review task: not available"
@@ -314,9 +338,9 @@ function New-GateFinalReviewContent {
 # Word visual release gate
 
 - Generated at: $(Get-Date -Format s)
-- Workspace: $RepoRoot
-- Gate output directory: $(Get-OptionalPropertyValue -Object $GateSummary -Name 'gate_output_dir')
-- Gate summary JSON: $resolvedGateSummaryPath
+- Workspace: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $RepoRoot)
+- Gate output directory: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $GateSummary -Name 'gate_output_dir'))
+- Gate summary JSON: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $resolvedGateSummaryPath)
 - Execution status: $(Get-OptionalPropertyValue -Object $GateSummary -Name 'execution_status')
 - Visual review status: $(Get-OptionalPropertyValue -Object $GateSummary -Name 'visual_verdict')
 
@@ -346,7 +370,7 @@ function New-ReleaseCandidateFinalReviewContent {
     $readmeGallery = Get-OptionalPropertyObject -Object $Summary -Name "readme_gallery"
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
     $readmeGalleryStatusLine = switch ($readmeGalleryStatus) {
-        "completed" { "- README gallery refresh: completed ($(Get-OptionalPropertyValue -Object $readmeGallery -Name 'assets_dir'))" }
+        "completed" { "- README gallery refresh: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $readmeGallery -Name 'assets_dir')))" }
         "visual_gate_skipped" { "- README gallery refresh: unavailable (visual gate skipped)" }
         "pending" { "- README gallery refresh: pending" }
         "not_requested" { "- README gallery refresh: not requested" }
@@ -363,8 +387,8 @@ function New-ReleaseCandidateFinalReviewContent {
 # Release Candidate Checks
 
 - Generated at: $(Get-Date -Format s)
-- Workspace: $RepoRoot
-- Summary JSON: $resolvedReleaseSummaryPath
+- Workspace: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $RepoRoot)
+- Summary JSON: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $resolvedReleaseSummaryPath)
 - Execution status: $(Get-OptionalPropertyValue -Object $Summary -Name 'execution_status')
 - Visual verdict: $(Get-OptionalPropertyValue -Object $Summary -Name 'visual_verdict')
 - Failed step: $(Get-OptionalPropertyValue -Object $Summary -Name 'failed_step')
@@ -382,17 +406,17 @@ $readmeGalleryStatusLine
 
 ## Key outputs
 
-- Build directory: $(Get-OptionalPropertyValue -Object $Summary -Name 'build_dir')
-- Install directory: $(Get-OptionalPropertyValue -Object $Summary -Name 'install_dir')
-- Consumer build directory: $(Get-OptionalPropertyValue -Object $Summary -Name 'consumer_build_dir')
-- Visual gate output: $(Get-OptionalPropertyValue -Object $Summary -Name 'gate_output_dir')
-- Review task root: $(Get-OptionalPropertyValue -Object $Summary -Name 'task_output_root')
-- Release handoff: $(Get-OptionalPropertyValue -Object $Summary -Name 'release_handoff')
-- Release body draft: $(Get-OptionalPropertyValue -Object $Summary -Name 'release_body_zh_cn')
-- Release summary draft: $(Get-OptionalPropertyValue -Object $Summary -Name 'release_summary_zh_cn')
-- Artifact guide: $(Get-OptionalPropertyValue -Object $Summary -Name 'artifact_guide')
-- Reviewer checklist: $(Get-OptionalPropertyValue -Object $Summary -Name 'reviewer_checklist')
-- Start here: $(Get-OptionalPropertyValue -Object $Summary -Name 'start_here')
+- Build directory: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'build_dir'))
+- Install directory: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'install_dir'))
+- Consumer build directory: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'consumer_build_dir'))
+- Visual gate output: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'gate_output_dir'))
+- Review task root: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'task_output_root'))
+- Release handoff: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'release_handoff'))
+- Release body draft: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'release_body_zh_cn'))
+- Release summary draft: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'release_summary_zh_cn'))
+- Artifact guide: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'artifact_guide'))
+- Reviewer checklist: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'reviewer_checklist'))
+- Start here: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'start_here'))
 "@
 }
 
