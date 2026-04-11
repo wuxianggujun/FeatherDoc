@@ -176,11 +176,11 @@ if ($ArtifactRootLayout) {
 if ($ArtifactRootLayout) {
     [void]$lines.Add('1. Open `START_HERE.md` next for the summary-root view of the generated bundle.')
     [void]$lines.Add('2. Open `ARTIFACT_GUIDE.md` for the artifact file map, then follow `REVIEWER_CHECKLIST.md` line by line.')
-    [void]$lines.Add('3. Use `release_summary.zh-CN.md` and `release_body.zh-CN.md` as the final release-note drafts.')
+    [void]$lines.Add('3. Use `release_summary.zh-CN.md` and `release_body.zh-CN.md` as the final release notes.')
 } else {
     [void]$lines.Add('1. Open `ARTIFACT_GUIDE.md` for the artifact file map.')
     [void]$lines.Add('2. Follow `REVIEWER_CHECKLIST.md` line by line.')
-    [void]$lines.Add('3. Use `release_summary.zh-CN.md` and `release_body.zh-CN.md` as the final release-note drafts.')
+    [void]$lines.Add('3. Use `release_summary.zh-CN.md` and `release_body.zh-CN.md` as the final release notes.')
 }
 [void]$lines.Add("")
 [void]$lines.Add("## Refresh After A Later Visual Verdict Update")

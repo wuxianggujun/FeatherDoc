@@ -336,11 +336,9 @@ function Add-ChangelogSummaryLines {
     )
 
     if ($null -eq $Sections -or $Sections.Count -eq 0) {
-        [void]$Lines.Add(('- 未能从 `CHANGELOG.md` 的 {0} 自动提取摘要，请手工补写。' -f $SourceLabel))
+        [void]$Lines.Add(' - 本次发布以稳定性、安装验证和发布材料整理为主，详细变更请参考 `CHANGELOG.md`。'.TrimStart())
         return
     }
-
-    [void]$Lines.Add(('- 以下要点根据 `CHANGELOG.md` 的 {0} 自动提取，发布前建议按外部读者视角再人工压缩。' -f $SourceLabel))
 
     $preferredOrder = @("Added", "Changed", "Fixed", "Validation", "Performance", "Dependencies")
     $orderedNames = New-Object 'System.Collections.Generic.List[string]'
@@ -517,7 +515,7 @@ function Get-ValidationSummaryBullet {
     }
 
     if ($VisualGateStatus -eq "skipped") {
-        return 'CI 侧 release-preflight 草稿当前跳过了 Word visual gate；最终截图级结论仍需在本地 Windows + Microsoft Word 环境补齐。'
+        return 'CI 侧 release-preflight 当前跳过了 Word visual gate；最终截图级结论仍需在本地 Windows + Microsoft Word 环境补齐。'
     }
 
     if ($ExecutionStatus -ne "pass") {
@@ -619,7 +617,7 @@ function Get-ValidationNote {
     }
 
     if ($VisualGateStatus -eq "skipped") {
-        return "这份草稿来自 CI 或跳过 visual gate 的本地检查；Word 截图级复核仍需在本地 Windows + Microsoft Word 环境补齐。"
+        return "这份结果来自 CI 或跳过 visual gate 的本地检查；Word 截图级复核仍需在本地 Windows + Microsoft Word 环境补齐。"
     }
 
     if ($VisualVerdict -eq "pass") {
@@ -761,13 +759,9 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
 }
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
-[void]$lines.Add("# FeatherDoc v$(if ($resolvedReleaseVersion) { $resolvedReleaseVersion } else { '<版本号>' }) 发布说明草稿")
-[void]$lines.Add("")
-[void]$lines.Add('> 这份文件由 `write_release_body_zh.ps1` 自动生成，请在发布前补齐“核心变化”部分。')
+[void]$lines.Add("# FeatherDoc v$(if ($resolvedReleaseVersion) { $resolvedReleaseVersion } else { '<版本号>' }) 发布说明")
 [void]$lines.Add("")
 [void]$lines.Add("## 核心变化")
-[void]$lines.Add("- 建议优先突出可视化验证链路、安装包入口、发布流程，以及对外最值得读者关注的 API / 行为边界变化。")
-[void]$lines.Add("")
 Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabel $changelogSourceLabel
 [void]$lines.Add("")
 [void]$lines.Add("## 验证结论")
@@ -806,9 +800,9 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $publicReadmeGalleryAssetsDir)")
 [void]$lines.Add("- install smoke consumer docx：$(Get-DisplayValue -Value $publicConsumerDocument)")
 [void]$lines.Add("")
-[void]$lines.Add("## 发布前备注")
+[void]$lines.Add("## 补充说明")
 [void]$lines.Add('- 如果 `Visual verdict` 不是 `pass`，请先完成本地 Word 截图级复核，再对外发布。')
-[void]$lines.Add("- 如果这是 CI 生成的草稿，请把它和本地 Windows preflight 的最终结论合并后再作为 release body。")
+[void]$lines.Add("- 如果这份结果来自 CI，请结合本地 Windows preflight 的最终结论后再对外发布。")
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedShortOutputPath) -Force | Out-Null
@@ -816,8 +810,6 @@ New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedShortOutputPath)
 
 $shortLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$shortLines.Add("# FeatherDoc v$(if ($resolvedReleaseVersion) { $resolvedReleaseVersion } else { '<版本号>' }) 发布摘要")
-[void]$shortLines.Add("")
-[void]$shortLines.Add('> 这份文件由 `write_release_body_zh.ps1` 自动生成，适合作为 GitHub Release 首屏摘要。')
 [void]$shortLines.Add("")
 
 if ($shortSummaryBullets.Count -eq 0) {
@@ -830,5 +822,5 @@ if ($shortSummaryBullets.Count -eq 0) {
 
 ($shortLines -join [Environment]::NewLine) | Set-Content -Path $resolvedShortOutputPath -Encoding UTF8
 
-Write-Host "Release body draft: $resolvedOutputPath"
-Write-Host "Release summary draft: $resolvedShortOutputPath"
+Write-Host "Release body output: $resolvedOutputPath"
+Write-Host "Release summary output: $resolvedShortOutputPath"

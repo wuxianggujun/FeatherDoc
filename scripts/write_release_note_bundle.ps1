@@ -226,8 +226,8 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
     -OutputPath $resolvedStartHerePath
 
 Write-Host "Release handoff: $resolvedHandoffPath"
-Write-Host "Release body draft: $resolvedBodyPath"
-Write-Host "Release summary draft: $resolvedShortPath"
+Write-Host "Release body output: $resolvedBodyPath"
+Write-Host "Release summary output: $resolvedShortPath"
 Write-Host "Artifact guide: $resolvedGuidePath"
 Write-Host "Reviewer checklist: $resolvedChecklistPath"
 Write-Host "Start here: $resolvedStartHerePath"

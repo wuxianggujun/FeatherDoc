@@ -197,7 +197,7 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("")
 [void]$lines.Add('1. Open `REVIEWER_CHECKLIST.md` first for the reviewer flow.')
 [void]$lines.Add('2. Open `release_summary.zh-CN.md` next for the GitHub Release front-page bullets.')
-[void]$lines.Add('3. Open `release_body.zh-CN.md` for the full Chinese release-body draft, then `release_handoff.md` for evidence and repro links.')
+[void]$lines.Add('3. Open `release_body.zh-CN.md` for the full Chinese release body, then `release_handoff.md` for evidence and repro links.')
 [void]$lines.Add("")
 [void]$lines.Add("## Files In This Report Directory")
 [void]$lines.Add("")
@@ -242,12 +242,12 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$lines.Add($syncLatestCommand)
 [void]$lines.Add('```')
 [void]$lines.Add("")
-[void]$lines.Add("Use that command when the screenshot-backed manual review changes the visual verdict and you want to sync the latest task verdict back into the gate summary while refreshing the detected release-facing drafts without rerunning the full preflight.")
+[void]$lines.Add("Use that command when the screenshot-backed manual review changes the visual verdict and you want to sync the latest task verdict back into the gate summary while refreshing the generated release-facing materials without rerunning the full preflight.")
 [void]$lines.Add("")
 [void]$lines.Add("## Notes")
 [void]$lines.Add("")
 [void]$lines.Add("- CI artifacts intentionally keep the Word visual gate skipped; the final screenshot-backed verdict still belongs to a local Windows + Microsoft Word run.")
-[void]$lines.Add('- The installed `share/FeatherDoc` tree carries the preview PNGs, quickstarts, and release templates; the `report` directory carries the generated release drafts and evidence indexes.')
+[void]$lines.Add('- The installed `share/FeatherDoc` tree carries the preview PNGs, quickstarts, and release templates; the `report` directory carries the generated release notes and evidence indexes.')
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8

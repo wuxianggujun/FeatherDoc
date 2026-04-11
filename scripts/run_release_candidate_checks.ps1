@@ -668,8 +668,8 @@ $readmeGalleryStatusLine
 - Visual gate output: $gateOutputDirDisplay
 - Review task root: $taskOutputRootDisplay
 - Release handoff: $releaseHandoffDisplayPath
-- Release body draft: $releaseBodyDisplayPath
-- Release summary draft: $releaseSummaryDisplayPath
+- Release body: $releaseBodyDisplayPath
+- Release summary: $releaseSummaryDisplayPath
 - Artifact guide: $artifactGuideDisplayPath
 - Reviewer checklist: $reviewerChecklistDisplayPath
 - Start here: $startHereDisplayPath
@@ -706,8 +706,8 @@ Write-Step "Completed release-candidate checks"
 Write-Host "Summary: $summaryPath"
 Write-Host "Final review: $finalReviewPath"
 Write-Host "Release handoff: $releaseHandoffPath"
-Write-Host "Release body draft: $releaseBodyZhCnPath"
-Write-Host "Release summary draft: $releaseSummaryZhCnPath"
+Write-Host "Release body output: $releaseBodyZhCnPath"
+Write-Host "Release summary output: $releaseSummaryZhCnPath"
 Write-Host "Artifact guide: $artifactGuidePath"
 Write-Host "Reviewer checklist: $reviewerChecklistPath"
 Write-Host "Start here: $startHerePath"
