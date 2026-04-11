@@ -5,7 +5,8 @@ param(
     [string]$ShortOutputPath = "",
     [string]$GuideOutputPath = "",
     [string]$ChecklistOutputPath = "",
-    [string]$StartHereOutputPath = ""
+    [string]$StartHereOutputPath = "",
+    [string]$ReleaseVersion = ""
 )
 
 Set-StrictMode -Version Latest
@@ -48,6 +49,64 @@ function Get-OptionalPropertyValue {
     return [string]$property.Value
 }
 
+function Get-ProjectVersion {
+    param([string]$RepoRoot)
+
+    $cmakePath = Join-Path $RepoRoot "CMakeLists.txt"
+    if (-not (Test-Path -LiteralPath $cmakePath)) {
+        return ""
+    }
+
+    $content = Get-Content -Raw -LiteralPath $cmakePath
+    $match = [regex]::Match($content, 'VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)')
+    if (-not $match.Success) {
+        return ""
+    }
+
+    return $match.Groups[1].Value
+}
+
+function Get-ProjectVersionFromHandoff {
+    param([string]$HandoffPath)
+
+    if ([string]::IsNullOrWhiteSpace($HandoffPath) -or -not (Test-Path -LiteralPath $HandoffPath)) {
+        return ""
+    }
+
+    $content = Get-Content -Raw -LiteralPath $HandoffPath
+    $match = [regex]::Match($content, 'Project version:\s*([0-9]+\.[0-9]+\.[0-9]+)')
+    if (-not $match.Success) {
+        return ""
+    }
+
+    return $match.Groups[1].Value
+}
+
+function Resolve-ReleaseVersion {
+    param(
+        [string]$RepoRoot,
+        $Summary,
+        [string]$ExplicitVersion = "",
+        [string]$ExistingHandoffPath = ""
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ExplicitVersion)) {
+        return $ExplicitVersion
+    }
+
+    $summaryVersion = Get-OptionalPropertyValue -Object $Summary -Name "release_version"
+    if (-not [string]::IsNullOrWhiteSpace($summaryVersion)) {
+        return $summaryVersion
+    }
+
+    $handoffVersion = Get-ProjectVersionFromHandoff -HandoffPath $ExistingHandoffPath
+    if (-not [string]::IsNullOrWhiteSpace($handoffVersion)) {
+        return $handoffVersion
+    }
+
+    return Get-ProjectVersion -RepoRoot $RepoRoot
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryJson
 if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
@@ -67,6 +126,12 @@ $resolvedHandoffPath = if ([string]::IsNullOrWhiteSpace($HandoffOutputPath)) {
 } else {
     Resolve-FullPath -RepoRoot $repoRoot -InputPath $HandoffOutputPath
 }
+
+$resolvedReleaseVersion = Resolve-ReleaseVersion `
+    -RepoRoot $repoRoot `
+    -Summary $summary `
+    -ExplicitVersion $ReleaseVersion `
+    -ExistingHandoffPath $resolvedHandoffPath
 
 $resolvedBodyPath = if ([string]::IsNullOrWhiteSpace($BodyOutputPath)) {
     $candidate = Get-OptionalPropertyValue -Object $summary -Name "release_body_zh_cn"
@@ -129,14 +194,24 @@ $guideScript = Join-Path $repoRoot "scripts\write_release_artifact_guide.ps1"
 $checklistScript = Join-Path $repoRoot "scripts\write_release_reviewer_checklist.ps1"
 $startHereScript = Join-Path $repoRoot "scripts\write_release_metadata_start_here.ps1"
 
-& $handoffScript `
-    -SummaryJson $resolvedSummaryPath `
-    -OutputPath $resolvedHandoffPath
+$handoffParams = @{
+    SummaryJson = $resolvedSummaryPath
+    OutputPath = $resolvedHandoffPath
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
+    $handoffParams.ReleaseVersion = $resolvedReleaseVersion
+}
+& $handoffScript @handoffParams
 
-& $bodyScript `
-    -SummaryJson $resolvedSummaryPath `
-    -OutputPath $resolvedBodyPath `
-    -ShortOutputPath $resolvedShortPath
+$bodyParams = @{
+    SummaryJson = $resolvedSummaryPath
+    OutputPath = $resolvedBodyPath
+    ShortOutputPath = $resolvedShortPath
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
+    $bodyParams.ReleaseVersion = $resolvedReleaseVersion
+}
+& $bodyScript @bodyParams
 
 & $guideScript `
     -SummaryJson $resolvedSummaryPath `

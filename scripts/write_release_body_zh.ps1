@@ -1,7 +1,8 @@
 ﻿param(
     [string]$SummaryJson = "output/release-candidate-checks/report/summary.json",
     [string]$OutputPath = "",
-    [string]$ShortOutputPath = ""
+    [string]$ShortOutputPath = "",
+    [string]$ReleaseVersion = ""
 )
 
 Set-StrictMode -Version Latest
@@ -93,6 +94,47 @@ function Get-ProjectVersion {
     return $match.Groups[1].Value
 }
 
+function Get-ProjectVersionFromHandoff {
+    param([string]$HandoffPath)
+
+    if ([string]::IsNullOrWhiteSpace($HandoffPath) -or -not (Test-Path -LiteralPath $HandoffPath)) {
+        return ""
+    }
+
+    $content = Get-Content -Raw -LiteralPath $HandoffPath
+    $match = [regex]::Match($content, 'Project version:\s*([0-9]+\.[0-9]+\.[0-9]+)')
+    if (-not $match.Success) {
+        return ""
+    }
+
+    return $match.Groups[1].Value
+}
+
+function Resolve-ReleaseVersion {
+    param(
+        [string]$RepoRoot,
+        $Summary,
+        [string]$ExplicitVersion = "",
+        [string]$ExistingHandoffPath = ""
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ExplicitVersion)) {
+        return $ExplicitVersion
+    }
+
+    $summaryVersion = Get-OptionalPropertyValue -Object $Summary -Name "release_version"
+    if (-not [string]::IsNullOrWhiteSpace($summaryVersion)) {
+        return $summaryVersion
+    }
+
+    $handoffVersion = Get-ProjectVersionFromHandoff -HandoffPath $ExistingHandoffPath
+    if (-not [string]::IsNullOrWhiteSpace($handoffVersion)) {
+        return $handoffVersion
+    }
+
+    return Get-ProjectVersion -RepoRoot $RepoRoot
+}
+
 function Get-ChineseSectionName {
     param([string]$SectionName)
 
@@ -107,8 +149,11 @@ function Get-ChineseSectionName {
     }
 }
 
-function Get-UnreleasedChangelogSections {
-    param([string]$RepoRoot)
+function Get-ChangelogSectionsByHeader {
+    param(
+        [string]$RepoRoot,
+        [string]$SectionHeader
+    )
 
     $changelogPath = Join-Path $RepoRoot "CHANGELOG.md"
     if (-not (Test-Path -LiteralPath $changelogPath)) {
@@ -116,19 +161,20 @@ function Get-UnreleasedChangelogSections {
     }
 
     $lines = Get-Content $changelogPath
-    $inUnreleased = $false
+    $escapedSectionHeader = [regex]::Escape($SectionHeader)
+    $inSection = $false
     $currentSection = ""
     $sections = [ordered]@{}
 
     foreach ($rawLine in $lines) {
         $line = $rawLine.TrimEnd()
 
-        if ($line -match '^## \[Unreleased\]') {
-            $inUnreleased = $true
+        if ($line -match ('^## \[' + $escapedSectionHeader + '\]')) {
+            $inSection = $true
             continue
         }
 
-        if (-not $inUnreleased) {
+        if (-not $inSection) {
             continue
         }
 
@@ -167,18 +213,41 @@ function Get-UnreleasedChangelogSections {
     return $sections
 }
 
+function Resolve-ChangelogSelection {
+    param(
+        [string]$RepoRoot,
+        [string]$ReleaseVersion
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ReleaseVersion)) {
+        $versionSections = Get-ChangelogSectionsByHeader -RepoRoot $RepoRoot -SectionHeader $ReleaseVersion
+        if ($versionSections.Count -gt 0) {
+            return [pscustomobject]@{
+                Sections = $versionSections
+                SourceLabel = ('`{0}` 版本区块' -f $ReleaseVersion)
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        Sections = (Get-ChangelogSectionsByHeader -RepoRoot $RepoRoot -SectionHeader "Unreleased")
+        SourceLabel = '`Unreleased` 区块'
+    }
+}
+
 function Add-ChangelogSummaryLines {
     param(
         [System.Collections.Generic.List[string]]$Lines,
-        $Sections
+        $Sections,
+        [string]$SourceLabel = '`Unreleased` 区块'
     )
 
     if ($null -eq $Sections -or $Sections.Count -eq 0) {
-        [void]$Lines.Add('- 未能从 `CHANGELOG.md` 的 `Unreleased` 区块自动提取摘要，请手工补写。')
+        [void]$Lines.Add(('- 未能从 `CHANGELOG.md` 的 {0} 自动提取摘要，请手工补写。' -f $SourceLabel))
         return
     }
 
-    [void]$Lines.Add('- 以下要点根据 `CHANGELOG.md` 的 `Unreleased` 区块自动提取，发布前建议按外部读者视角再人工压缩。')
+    [void]$Lines.Add(('- 以下要点根据 `CHANGELOG.md` 的 {0} 自动提取，发布前建议按外部读者视角再人工压缩。' -f $SourceLabel))
 
     $preferredOrder = @("Added", "Changed", "Fixed", "Validation", "Performance", "Dependencies")
     $orderedNames = New-Object 'System.Collections.Generic.List[string]'
@@ -369,6 +438,7 @@ function Get-ValidationSummaryBullet {
 function Get-ShortSummaryBullets {
     param(
         $Sections,
+        [string]$ChangelogSourceLabel = '`Unreleased` 区块',
         [string]$ExecutionStatus,
         [string]$ConfigureStatus,
         [string]$BuildStatus,
@@ -392,7 +462,7 @@ function Get-ShortSummaryBullets {
     }
 
     if (Test-ChangelogEntryMatch -Entries $entries -Pattern 'write_release_artifact_handoff\.ps1|write_release_body_zh\.ps1|release_body\.zh-CN\.md|release_handoff\.md') {
-        Add-UniqueLine -Lines $bullets -Line 'release-preflight 现在会自动产出 `release_handoff.md`、`release_body.zh-CN.md` 和 `release_summary.zh-CN.md`，并从 `CHANGELOG.md` `Unreleased` 预填核心变化。'
+        Add-UniqueLine -Lines $bullets -Line ('release-preflight 现在会自动产出 `release_handoff.md`、`release_body.zh-CN.md` 和 `release_summary.zh-CN.md`，并从 `CHANGELOG.md` 的 {0} 预填核心变化。' -f $ChangelogSourceLabel)
     }
 
     if (Test-ChangelogEntryMatch -Entries $entries -Pattern 'windows-msvc-release-metadata|windows-msvc\.yml') {
@@ -493,7 +563,6 @@ $resolvedShortOutputPath = if ([string]::IsNullOrWhiteSpace($ShortOutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
-$projectVersion = Get-ProjectVersion -RepoRoot $repoRoot
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $finalReviewPath = Join-Path $reportDir "final_review.md"
 $releaseHandoffPath = Get-OptionalPropertyValue -Object $summary -Name "release_handoff"
@@ -508,6 +577,11 @@ $reviewerChecklistPath = Get-OptionalPropertyValue -Object $summary -Name "revie
 if ([string]::IsNullOrWhiteSpace($reviewerChecklistPath)) {
     $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 }
+$resolvedReleaseVersion = Resolve-ReleaseVersion `
+    -RepoRoot $repoRoot `
+    -Summary $summary `
+    -ExplicitVersion $ReleaseVersion `
+    -ExistingHandoffPath $releaseHandoffPath
 
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
 $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
@@ -540,9 +614,12 @@ $validationNote = Get-ValidationNote `
     -ExecutionStatus $summary.execution_status `
     -VisualGateStatus $summary.steps.visual_gate.status `
     -VisualVerdict $visualVerdict
-$changelogSections = Get-UnreleasedChangelogSections -RepoRoot $repoRoot
+$changelogSelection = Resolve-ChangelogSelection -RepoRoot $repoRoot -ReleaseVersion $resolvedReleaseVersion
+$changelogSections = $changelogSelection.Sections
+$changelogSourceLabel = $changelogSelection.SourceLabel
 $shortSummaryBullets = Get-ShortSummaryBullets `
     -Sections $changelogSections `
+    -ChangelogSourceLabel $changelogSourceLabel `
     -ExecutionStatus $summary.execution_status `
     -ConfigureStatus $summary.steps.configure.status `
     -BuildStatus $summary.steps.build.status `
@@ -556,16 +633,19 @@ $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_releas
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
 $refreshCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\write_release_note_bundle.ps1 -SummaryJson "{0}" -HandoffOutputPath "{1}" -BodyOutputPath "{2}" -ShortOutputPath "{3}"' -f `
     $resolvedSummaryPath, $releaseHandoffPath, $resolvedOutputPath, $resolvedShortOutputPath
+if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
+    $refreshCommand += (' -ReleaseVersion "{0}"' -f $resolvedReleaseVersion)
+}
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
-[void]$lines.Add("# FeatherDoc v$(if ($projectVersion) { $projectVersion } else { '<版本号>' }) 发布说明草稿")
+[void]$lines.Add("# FeatherDoc v$(if ($resolvedReleaseVersion) { $resolvedReleaseVersion } else { '<版本号>' }) 发布说明草稿")
 [void]$lines.Add("")
 [void]$lines.Add('> 这份文件由 `write_release_body_zh.ps1` 自动生成，请在发布前补齐“核心变化”部分。')
 [void]$lines.Add("")
 [void]$lines.Add("## 核心变化")
 [void]$lines.Add("- 建议优先突出可视化验证链路、安装包入口、发布流程，以及对外最值得读者关注的 API / 行为边界变化。")
 [void]$lines.Add("")
-Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections
+Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabel $changelogSourceLabel
 [void]$lines.Add("")
 [void]$lines.Add("## 验证结论")
 [void]$lines.Add("- 执行状态：$($summary.execution_status)")
@@ -610,7 +690,7 @@ New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedShortOutputPath)
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8
 
 $shortLines = New-Object 'System.Collections.Generic.List[string]'
-[void]$shortLines.Add("# FeatherDoc v$(if ($projectVersion) { $projectVersion } else { '<版本号>' }) 发布摘要")
+[void]$shortLines.Add("# FeatherDoc v$(if ($resolvedReleaseVersion) { $resolvedReleaseVersion } else { '<版本号>' }) 发布摘要")
 [void]$shortLines.Add("")
 [void]$shortLines.Add('> 这份文件由 `write_release_body_zh.ps1` 自动生成，适合作为 GitHub Release 首屏摘要。')
 [void]$shortLines.Add("")

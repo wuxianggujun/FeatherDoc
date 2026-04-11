@@ -8,7 +8,13 @@ performance.
 
 ## [Unreleased]
 
-- Start post-`1.6.0` development on `dev`; version bumped to `1.6.1`.
+### Changed
+
+- Started post-`1.6.0` development on `dev`; version bumped to `1.6.1`.
+- Release metadata generation now persists `release_version` in the preflight
+  summary and refreshes `release_handoff.md` / `release_body.zh-CN.md` against
+  the matching `CHANGELOG.md` release section when available, instead of always
+  falling back to `Unreleased`.
 
 ## [1.6.0] - 2026-04-11
 

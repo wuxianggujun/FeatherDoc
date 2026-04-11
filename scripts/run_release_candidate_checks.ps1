@@ -78,6 +78,23 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($candidate)
 }
 
+function Get-ProjectVersion {
+    param([string]$RepoRoot)
+
+    $cmakePath = Join-Path $RepoRoot "CMakeLists.txt"
+    if (-not (Test-Path -LiteralPath $cmakePath)) {
+        return ""
+    }
+
+    $content = Get-Content -Raw -LiteralPath $cmakePath
+    $match = [regex]::Match($content, 'VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)')
+    if (-not $match.Success) {
+        return ""
+    }
+
+    return $match.Groups[1].Value
+}
+
 function Get-MsvcBootstrap {
     $existingCl = Get-Command cl.exe -ErrorAction SilentlyContinue
     if ($env:VSCMD_VER -or $env:VCINSTALLDIR -or $existingCl) {
@@ -357,6 +374,7 @@ $resolvedConsumerBuildDir = Resolve-FullPath -RepoRoot $repoRoot -InputPath $Con
 $resolvedGateOutputDir = Resolve-FullPath -RepoRoot $repoRoot -InputPath $GateOutputDir
 $resolvedTaskOutputRoot = Resolve-FullPath -RepoRoot $repoRoot -InputPath $TaskOutputRoot
 $resolvedSummaryOutputDir = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryOutputDir
+$projectVersion = Get-ProjectVersion -RepoRoot $repoRoot
 $reportDir = Join-Path $resolvedSummaryOutputDir "report"
 $summaryPath = Join-Path $reportDir "summary.json"
 $finalReviewPath = Join-Path $reportDir "final_review.md"
@@ -386,6 +404,7 @@ $summary = [ordered]@{
     ctest_timeout_seconds = $CtestTimeoutSeconds
     review_mode = if ($SkipReviewTasks) { "" } else { $ReviewMode }
     msvc_bootstrap_mode = $msvcBootstrap.mode
+    release_version = $projectVersion
     execution_status = "running"
     failed_step = ""
     error = ""
@@ -624,6 +643,8 @@ $readmeGalleryStatusLine
             -Arguments @(
                 "-SummaryJson"
                 $summaryPath
+                "-ReleaseVersion"
+                $projectVersion
                 "-HandoffOutputPath"
                 $releaseHandoffPath
                 "-BodyOutputPath"

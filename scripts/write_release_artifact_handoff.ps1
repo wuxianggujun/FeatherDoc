@@ -1,6 +1,7 @@
 param(
     [string]$SummaryJson = "output/release-candidate-checks/report/summary.json",
-    [string]$OutputPath = ""
+    [string]$OutputPath = "",
+    [string]$ReleaseVersion = ""
 )
 
 Set-StrictMode -Version Latest
@@ -105,7 +106,14 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
-$projectVersion = Get-ProjectVersion -RepoRoot $repoRoot
+$summaryReleaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
+$projectVersion = if (-not [string]::IsNullOrWhiteSpace($ReleaseVersion)) {
+    $ReleaseVersion
+} elseif (-not [string]::IsNullOrWhiteSpace($summaryReleaseVersion)) {
+    $summaryReleaseVersion
+} else {
+    Get-ProjectVersion -RepoRoot $repoRoot
+}
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $finalReviewPath = Join-Path $reportDir "final_review.md"
 $releaseBodyPath = Get-OptionalPropertyValue -Object $summary -Name "release_body_zh_cn"
