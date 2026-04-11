@@ -2203,14 +2203,14 @@ std::string TableCell::get_text() const {
 
     std::string text;
     bool first_paragraph = true;
-    for (auto paragraph = this->current.child("w:p"); paragraph != pugi::xml_node{};
-         paragraph = detail::next_named_sibling(paragraph, "w:p")) {
+    for (auto paragraph_node = this->current.child("w:p"); paragraph_node != pugi::xml_node{};
+         paragraph_node = detail::next_named_sibling(paragraph_node, "w:p")) {
         if (!first_paragraph) {
             text.push_back('\n');
         }
         first_paragraph = false;
 
-        for (auto run = paragraph.child("w:r"); run != pugi::xml_node{};
+        for (auto run = paragraph_node.child("w:r"); run != pugi::xml_node{};
              run = detail::next_named_sibling(run, "w:r")) {
             text += run.child("w:t").text().get();
         }
