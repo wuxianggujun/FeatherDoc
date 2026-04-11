@@ -8,6 +8,10 @@ performance.
 
 ## [Unreleased]
 
+### Changed
+
+- Started post-`1.6.2` development on `dev`; version bumped to `1.6.3`.
+
 ## [1.6.2] - 2026-04-11
 
 ### Fixed
