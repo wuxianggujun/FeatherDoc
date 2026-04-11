@@ -1,3 +1,4 @@
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -11965,6 +11966,177 @@ TEST_CASE("column width edits normalize reopened inconsistent fixed cell widths"
     REQUIRE(reopened_cell.has_next());
     REQUIRE(reopened_cell.width_twips().has_value());
     CHECK_EQ(*reopened_cell.width_twips(), 2400U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("reopened fixed-layout column width workflow keeps tblGrid and tcW aligned") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "table_reopened_fixed_layout_column_width_workflow.docx";
+    fs::remove(target);
+    const std::array<const char *, 3> header_texts = {
+        "Key",
+        "Review state",
+        "Evidence and implementation note",
+    };
+    const std::array<const char *, 3> first_body_texts = {
+        "A-7",
+        "Waiting",
+        "This column will become the widest one after reopening the document.",
+    };
+    const std::array<const char *, 3> second_body_texts = {
+        "B-2",
+        "Ready",
+        "Use Table::set_column_width_twips(...) to widen this detail column while keeping the table layout fixed.",
+    };
+
+    auto fill_row = [](featherdoc::TableRow row,
+                       const std::array<const char *, 3> &texts) {
+        if (!row.has_next()) {
+            return false;
+        }
+
+        auto cell = row.cells();
+        for (const auto *text : texts) {
+            if (!cell.has_next() || !cell.set_text(text)) {
+                return false;
+            }
+            cell.next();
+        }
+
+        return true;
+    };
+
+    featherdoc::Document seed(target);
+    CHECK_FALSE(seed.create_empty());
+
+    auto paragraph = seed.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("Seed a three-column table, reopen it, and edit tblGrid column widths "
+                             "without touching raw XML."));
+
+    auto table = seed.append_table(3, 3);
+    REQUIRE(table.has_next());
+    CHECK(table.set_width_twips(7800U));
+    CHECK(table.set_layout_mode(featherdoc::table_layout_mode::fixed));
+    CHECK(table.set_alignment(featherdoc::table_alignment::center));
+    CHECK(table.set_style_id("TableGrid"));
+
+    auto row = table.rows();
+    CHECK(fill_row(row, header_texts));
+    row.next();
+    CHECK(fill_row(row, first_body_texts));
+    row.next();
+    CHECK(fill_row(row, second_body_texts));
+
+    CHECK_FALSE(seed.save());
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    REQUIRE(paragraph
+                .add_run(" The reopened table now uses column widths 1200 / 2200 / 4400 twips "
+                         "through Table::set_column_width_twips(...), then re-applies fixed layout "
+                         "to normalize any stale cell tcW values back to tblGrid.")
+                .has_next());
+
+    table = doc.tables();
+    REQUIRE(table.has_next());
+    CHECK(table.set_column_width_twips(0U, 1200U));
+    CHECK(table.set_column_width_twips(1U, 2200U));
+    CHECK(table.set_column_width_twips(2U, 4400U));
+    CHECK(table.clear_column_width(1U));
+    CHECK_FALSE(table.column_width_twips(1U).has_value());
+    CHECK(table.set_column_width_twips(1U, 2200U));
+    CHECK(table.set_layout_mode(featherdoc::table_layout_mode::fixed));
+
+    REQUIRE(table.layout_mode().has_value());
+    CHECK_EQ(*table.layout_mode(), featherdoc::table_layout_mode::fixed);
+    REQUIRE(table.alignment().has_value());
+    CHECK_EQ(*table.alignment(), featherdoc::table_alignment::center);
+    REQUIRE(table.column_width_twips(0U).has_value());
+    CHECK_EQ(*table.column_width_twips(0U), 1200U);
+    REQUIRE(table.column_width_twips(1U).has_value());
+    CHECK_EQ(*table.column_width_twips(1U), 2200U);
+    REQUIRE(table.column_width_twips(2U).has_value());
+    CHECK_EQ(*table.column_width_twips(2U), 4400U);
+
+    row = table.rows();
+    const std::array<std::uint32_t, 3> expected_widths = {1200U, 2200U, 4400U};
+    for (std::size_t row_index = 0; row_index < 3U; ++row_index) {
+        REQUIRE(row.has_next());
+        auto cell = row.cells();
+        for (const auto expected_width : expected_widths) {
+            REQUIRE(cell.has_next());
+            REQUIRE(cell.width_twips().has_value());
+            CHECK_EQ(*cell.width_twips(), expected_width);
+            cell.next();
+        }
+        row.next();
+    }
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
+    REQUIRE(table_node != pugi::xml_node{});
+    CHECK_EQ(table_node.child("w:tblPr").child("w:tblLayout").attribute("w:type").value(),
+             std::string{"fixed"});
+    CHECK_EQ(table_node.child("w:tblPr").child("w:tblW").attribute("w:w").value(), std::string{"7800"});
+
+    const auto table_grid_widths = collect_table_grid_width_values(table_node);
+    REQUIRE_EQ(table_grid_widths.size(), 3U);
+    CHECK_EQ(table_grid_widths[0], "1200");
+    CHECK_EQ(table_grid_widths[1], "2200");
+    CHECK_EQ(table_grid_widths[2], "4400");
+
+    auto xml_row = table_node.child("w:tr");
+    for (std::size_t row_index = 0; row_index < 3U; ++row_index) {
+        REQUIRE(xml_row != pugi::xml_node{});
+        const auto row_widths = collect_row_cell_width_values(xml_row);
+        REQUIRE_EQ(row_widths.size(), 3U);
+        CHECK_EQ(row_widths[0], "1200");
+        CHECK_EQ(row_widths[1], "2200");
+        CHECK_EQ(row_widths[2], "4400");
+        xml_row = xml_row.next_sibling("w:tr");
+    }
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_NE(collect_document_text(reopened).find("1200 / 2200 / 4400 twips"), std::string::npos);
+
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    REQUIRE(reopened_table.layout_mode().has_value());
+    CHECK_EQ(*reopened_table.layout_mode(), featherdoc::table_layout_mode::fixed);
+    REQUIRE(reopened_table.alignment().has_value());
+    CHECK_EQ(*reopened_table.alignment(), featherdoc::table_alignment::center);
+    REQUIRE(reopened_table.column_width_twips(0U).has_value());
+    CHECK_EQ(*reopened_table.column_width_twips(0U), 1200U);
+    REQUIRE(reopened_table.column_width_twips(1U).has_value());
+    CHECK_EQ(*reopened_table.column_width_twips(1U), 2200U);
+    REQUIRE(reopened_table.column_width_twips(2U).has_value());
+    CHECK_EQ(*reopened_table.column_width_twips(2U), 4400U);
+
+    auto reopened_row = reopened_table.rows();
+    for (std::size_t row_index = 0; row_index < 3U; ++row_index) {
+        REQUIRE(reopened_row.has_next());
+        auto reopened_cell = reopened_row.cells();
+        for (const auto expected_width : expected_widths) {
+            REQUIRE(reopened_cell.has_next());
+            REQUIRE(reopened_cell.width_twips().has_value());
+            CHECK_EQ(*reopened_cell.width_twips(), expected_width);
+            reopened_cell.next();
+        }
+        reopened_row.next();
+    }
 
     fs::remove(target);
 }

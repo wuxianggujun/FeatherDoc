@@ -54,6 +54,31 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/release_note_bundle_version
         )
+
+        if(
+            TARGET featherdoc_sample_merge_right_fixed_grid
+            AND TARGET featherdoc_sample_merge_down_fixed_grid
+            AND TARGET featherdoc_sample_unmerge_right_fixed_grid
+            AND TARGET featherdoc_sample_unmerge_down_fixed_grid
+        )
+            add_test(
+                NAME
+                fixed_grid_regression_bundle
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/fixed_grid_regression_bundle_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/fixed_grid_regression_bundle
+            )
+        endif()
+
     endif()
 endif()
 
