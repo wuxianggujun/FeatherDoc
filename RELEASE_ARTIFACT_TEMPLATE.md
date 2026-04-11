@@ -25,15 +25,21 @@ gate or release paths, fall back to `sync_visual_review_verdict.ps1`.
 - `share/FeatherDoc/RELEASE_ARTIFACT_TEMPLATE.zh-CN.md`
 - `share/FeatherDoc/VISUAL_VALIDATION.md`
 - `share/FeatherDoc/VISUAL_VALIDATION.zh-CN.md`
-- `share/FeatherDoc/visual-validation/*.png`
+- `share/FeatherDoc/visual-validation/visual-smoke-contact-sheet.png`
+- `share/FeatherDoc/visual-validation/reopened-fixed-layout-column-widths-page-01.png`
+- `share/FeatherDoc/visual-validation/fixed-grid-merge-right-page-01.png`
+- `share/FeatherDoc/visual-validation/fixed-grid-merge-down-page-01.png`
+- `share/FeatherDoc/visual-validation/fixed-grid-aggregate-contact-sheet.png`
+- `share/FeatherDoc/visual-validation/sample-chinese-template-page-01.png`
 
 ## Copy-Paste Release Summary
 
 ````md
 - Use 5 to 8 bullets that cover the visual-validation entry points, installed
   package entry points, CI metadata artifact, fixed-grid / merge / unmerge /
-  column-editing capability, the fixed-grid quartet contact sheet, and the
-  current validation result.
+  column-editing capability, the standalone `merge_right()` / `merge_down()`
+  closure pages, the fixed-grid quartet contact sheet, the Chinese template
+  preview, and the current validation result.
 - If `output/release-candidate-checks/report/release_summary.zh-CN.md` already
   exists, start by trimming that draft.
 ````
@@ -57,6 +63,10 @@ gate or release paths, fall back to `sync_visual_review_verdict.ps1`.
 - `share/FeatherDoc/VISUAL_VALIDATION_QUICKSTART.zh-CN.md`
 - `share/FeatherDoc/RELEASE_ARTIFACT_TEMPLATE.zh-CN.md`
 - `share/FeatherDoc/visual-validation/`
+- `share/FeatherDoc/visual-validation/fixed-grid-merge-right-page-01.png`
+- `share/FeatherDoc/visual-validation/fixed-grid-merge-down-page-01.png`
+- `share/FeatherDoc/visual-validation/fixed-grid-aggregate-contact-sheet.png`
+- `share/FeatherDoc/visual-validation/sample-chinese-template-page-01.png`
 
 ## Reproduce The Screenshots
 ```powershell
@@ -82,6 +92,9 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_latest_visual_review
 - `output/word-visual-release-gate/report/gate_summary.json`
 - `output/word-visual-release-gate/report/gate_final_review.md`
 - `output/fixed-grid-merge-unmerge-regression/aggregate-evidence/contact_sheet.png`
+- `output/word-visual-sample-merge-right-fixed-grid/evidence/pages/page-01.png`
+- `output/word-visual-sample-merge-down-fixed-grid/evidence/pages/page-01.png`
+- `output/word-visual-sample-chinese-template/evidence/pages/page-01.png`
 ````
 
 ## Notes

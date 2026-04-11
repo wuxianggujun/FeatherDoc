@@ -6,9 +6,13 @@
 ## 这个文件旁边有什么
 
 - `visual-validation/visual-smoke-contact-sheet.png`
+- `visual-validation/reopened-fixed-layout-column-widths-page-01.png`
+- `visual-validation/fixed-grid-merge-right-page-01.png`
+- `visual-validation/fixed-grid-merge-down-page-01.png`
 - `visual-validation/visual-smoke-page-05.png`
 - `visual-validation/visual-smoke-page-06.png`
 - `visual-validation/fixed-grid-aggregate-contact-sheet.png`
+- `visual-validation/sample-chinese-template-page-01.png`
 - `VISUAL_VALIDATION.md`
 - `VISUAL_VALIDATION.zh-CN.md`
 
@@ -57,7 +61,7 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\refresh_readme_visual_ass
 如果你跑的是完整 `release-preflight`，报告目录还会同时生成
 `release_handoff.md`、`release_body.zh-CN.md` 和 `release_summary.zh-CN.md`。
 上面这条短命令会自动解析最新 task pointer 和匹配的 release summary。
-如果你需要手动覆盖路径，再继续使用下面的显式同步命令。
+如果你需要手动覆盖路径，再继续使用显式同步命令。
 如果 `summary.json` 已经带上最终 verdict，只是后面又改了 release 文案，
 想重刷这几份草稿而不重跑 preflight，也可以继续用更窄的入口：
 
@@ -71,6 +75,26 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\write_release_note_bundle
 ```powershell
 # 只生成 smoke 图集。
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_smoke.ps1
+
+# 只生成 README / docs 公共展示面用的三张独立样例页。
+<build-dir>\featherdoc_sample_merge_right_fixed_grid.exe `
+    <repo-root>\output\sample-merge-right-fixed-grid\merge_right_fixed_grid.docx
+pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_smoke.ps1 `
+    -InputDocx <repo-root>\output\sample-merge-right-fixed-grid\merge_right_fixed_grid.docx `
+    -OutputDir <repo-root>\output\word-visual-sample-merge-right-fixed-grid
+
+<build-dir>\featherdoc_sample_merge_down_fixed_grid.exe `
+    <repo-root>\output\sample-merge-down-fixed-grid\merge_down_fixed_grid.docx
+pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_smoke.ps1 `
+    -InputDocx <repo-root>\output\sample-merge-down-fixed-grid\merge_down_fixed_grid.docx `
+    -OutputDir <repo-root>\output\word-visual-sample-merge-down-fixed-grid
+
+<build-dir>\featherdoc_sample_chinese_template.exe `
+    <repo-root>\samples\chinese_invoice_template.docx `
+    <repo-root>\output\sample-chinese-template\sample_chinese_invoice_output.docx
+pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_smoke.ps1 `
+    -InputDocx <repo-root>\output\sample-chinese-template\sample_chinese_invoice_output.docx `
+    -OutputDir <repo-root>\output\word-visual-sample-chinese-template
 
 # 只生成 fixed-grid 四联回归图，并顺带准备 review task。
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_fixed_grid_merge_unmerge_regression.ps1 `

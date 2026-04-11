@@ -7,9 +7,13 @@ commands.
 ## What Is Included Next To This File
 
 - `visual-validation/visual-smoke-contact-sheet.png`
+- `visual-validation/reopened-fixed-layout-column-widths-page-01.png`
+- `visual-validation/fixed-grid-merge-right-page-01.png`
+- `visual-validation/fixed-grid-merge-down-page-01.png`
 - `visual-validation/visual-smoke-page-05.png`
 - `visual-validation/visual-smoke-page-06.png`
 - `visual-validation/fixed-grid-aggregate-contact-sheet.png`
+- `visual-validation/sample-chinese-template-page-01.png`
 - `VISUAL_VALIDATION.md`
 - `VISUAL_VALIDATION.zh-CN.md`
 
@@ -73,6 +77,26 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\write_release_note_bundle
 ```powershell
 # Smoke gallery only.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_smoke.ps1
+
+# Standalone pages that feed the public README / docs gallery.
+<build-dir>\featherdoc_sample_merge_right_fixed_grid.exe `
+    <repo-root>\output\sample-merge-right-fixed-grid\merge_right_fixed_grid.docx
+pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_smoke.ps1 `
+    -InputDocx <repo-root>\output\sample-merge-right-fixed-grid\merge_right_fixed_grid.docx `
+    -OutputDir <repo-root>\output\word-visual-sample-merge-right-fixed-grid
+
+<build-dir>\featherdoc_sample_merge_down_fixed_grid.exe `
+    <repo-root>\output\sample-merge-down-fixed-grid\merge_down_fixed_grid.docx
+pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_smoke.ps1 `
+    -InputDocx <repo-root>\output\sample-merge-down-fixed-grid\merge_down_fixed_grid.docx `
+    -OutputDir <repo-root>\output\word-visual-sample-merge-down-fixed-grid
+
+<build-dir>\featherdoc_sample_chinese_template.exe `
+    <repo-root>\samples\chinese_invoice_template.docx `
+    <repo-root>\output\sample-chinese-template\sample_chinese_invoice_output.docx
+pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_smoke.ps1 `
+    -InputDocx <repo-root>\output\sample-chinese-template\sample_chinese_invoice_output.docx `
+    -OutputDir <repo-root>\output\word-visual-sample-chinese-template
 
 # Fixed-grid quartet only, plus a ready-to-review task package.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_fixed_grid_merge_unmerge_regression.ps1 `

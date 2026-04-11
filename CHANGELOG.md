@@ -11,6 +11,15 @@ performance.
 ### Changed
 
 - Started post-`1.6.2` development on `dev`; version bumped to `1.6.3`.
+- Refreshed the public README and Sphinx gallery so the repository now shows
+  standalone Word-rendered `merge_right()` and `merge_down()` fixed-grid
+  closure pages alongside the aggregate quartet signoff bundle and the Chinese
+  invoice template output.
+- Rebuilt `README.zh-CN.md` as a readable UTF-8 Simplified Chinese entry point
+  instead of shipping a garbled document.
+- Expanded release-facing quickstarts, templates, and README-gallery refresh
+  scripts so installed `visual-validation/` assets now include the standalone
+  fixed-grid closure pages and the Chinese business-template preview.
 
 ## [1.6.2] - 2026-04-11
 
