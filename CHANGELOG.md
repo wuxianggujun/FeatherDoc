@@ -8,6 +8,21 @@ performance.
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-04-11
+
+### Fixed
+
+- Public Chinese release-note generation now emits install-tree relative paths
+  such as `share/FeatherDoc/...` plus repository-relative evidence paths instead
+  of leaking machine-local absolute paths into `release_body.zh-CN.md` and
+  `release_summary.zh-CN.md`.
+- Replaced the release-note relative-path helper with a PowerShell-compatible
+  implementation so local release-preflight runs no longer depend on
+  `System.IO.Path.GetRelativePath()` availability.
+- Added regression coverage for the public release-note bundle so the generated
+  Chinese release body now fails tests if it contains the local install prefix
+  or local working directory.
+
 ## [1.6.1] - 2026-04-11
 
 ### Added

@@ -94,10 +94,31 @@ function Get-RepoRelativePath {
         return ""
     }
 
-    $relative = [System.IO.Path]::GetRelativePath($resolvedRepoRoot, $resolvedValue)
-    if ([string]::IsNullOrWhiteSpace($relative)) {
+    if (-not $resolvedRepoRoot.EndsWith([System.IO.Path]::DirectorySeparatorChar) -and
+        -not $resolvedRepoRoot.EndsWith([System.IO.Path]::AltDirectorySeparatorChar)) {
+        $resolvedRepoRoot += [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    try {
+        $repoUri = [System.Uri]::new($resolvedRepoRoot)
+        $valueUri = [System.Uri]::new($resolvedValue)
+    } catch {
         return ""
     }
+
+    if ($repoUri.Scheme -ne $valueUri.Scheme) {
+        return ""
+    }
+
+    try {
+        $relativeUri = $repoUri.MakeRelativeUri($valueUri)
+    } catch {
+        return ""
+    }
+
+    $relative = [System.Uri]::UnescapeDataString(
+        $relativeUri.ToString()
+    ).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
 
     if ($relative -eq ".." -or
         $relative.StartsWith("..\") -or
