@@ -411,6 +411,8 @@ function Normalize-ReleaseFacingText {
     $normalized = $normalized.Replace("`release_summary.zh-CN.md` draft", "`release_summary.zh-CN.md` summary")
     $normalized = $normalized.Replace("发布说明草稿", "发布说明")
     $normalized = $normalized.Replace("草稿", "说明")
+    $normalized = $normalized.Replace("C:\Users\...", "Windows absolute paths")
+    $normalized = $normalized.Replace("/Users/...", "Unix-style absolute paths")
 
     return $normalized
 }

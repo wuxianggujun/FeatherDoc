@@ -26,6 +26,9 @@ performance.
   `release_body.zh-CN.md` can safely sync into the matching GitHub Release,
   with an explicit `-Publish` path that flips `draft=false` only after final
   local Word signoff.
+- Taught `write_release_body_zh.ps1` to normalize absolute-path examples such
+  as `C:\Users\...` into public-safe wording before they can flow into
+  generated release notes.
 
 ### Documentation
 
@@ -50,8 +53,8 @@ performance.
 - Release-facing metadata bundles now emit repository-relative paths across
   `START_HERE.md`, `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`,
   `release_handoff.md`, `final_review.md`, and `gate_final_review.md` instead
-  of leaking machine-local `C:\Users\...` paths back into public release
-  drafts and reviewer handoff material.
+  of leaking machine-local Windows absolute paths back into public release
+  notes and reviewer handoff material.
 - Visual-verdict sync and release-candidate final-review regeneration now keep
   those reviewer-facing evidence paths relative even after a later screenshot
   review refreshes the bundle.
