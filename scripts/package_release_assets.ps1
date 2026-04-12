@@ -307,6 +307,13 @@ function Get-VisualVerdict {
     return ""
 }
 
+function Get-VisualGateStatus {
+    param($Summary)
+
+    $visualGate = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $Summary -Name "steps") -Name "visual_gate"
+    return Get-OptionalPropertyValue -Object $visualGate -Name "status"
+}
+
 function Get-AssetDescriptor {
     param(
         [string]$Path,
@@ -461,6 +468,7 @@ if ([string]::IsNullOrWhiteSpace($releaseVersion)) {
 
 $executionStatus = Get-OptionalPropertyValue -Object $summary -Name "execution_status"
 $visualVerdict = Get-VisualVerdict -RepoRoot $repoRoot -Summary $summary
+$visualGateStatus = Get-VisualGateStatus -Summary $summary
 
 if (-not $AllowIncomplete) {
     if ($executionStatus -ne "pass") {
@@ -501,14 +509,28 @@ $resolvedStartHerePath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $startH
 Assert-PathExists -Path $resolvedStartHerePath -Label "release START_HERE"
 
 $resolvedGateRoot = Resolve-GateRoot -RepoRoot $repoRoot -Summary $summary
-Assert-PathExists -Path $resolvedGateRoot -Label "Word visual gate output directory"
+$resolvedGateReportDir = ""
+$resolvedSmokeEvidenceDir = ""
+$resolvedFixedGridAggregateDir = ""
+$hasVisualGateEvidence = $false
+if (-not [string]::IsNullOrWhiteSpace($resolvedGateRoot) -and (Test-Path -LiteralPath $resolvedGateRoot)) {
+    $resolvedGateReportDir = Join-Path $resolvedGateRoot "report"
+    $resolvedSmokeEvidenceDir = Join-Path $resolvedGateRoot "smoke\evidence"
+    $resolvedFixedGridAggregateDir = Join-Path $resolvedGateRoot "fixed-grid\aggregate-evidence"
+    $hasVisualGateEvidence = `
+        (Test-Path -LiteralPath $resolvedGateReportDir) -and `
+        (Test-Path -LiteralPath $resolvedSmokeEvidenceDir) -and `
+        (Test-Path -LiteralPath $resolvedFixedGridAggregateDir)
+}
 
-$resolvedGateReportDir = Join-Path $resolvedGateRoot "report"
-$resolvedSmokeEvidenceDir = Join-Path $resolvedGateRoot "smoke\evidence"
-$resolvedFixedGridAggregateDir = Join-Path $resolvedGateRoot "fixed-grid\aggregate-evidence"
-Assert-PathExists -Path $resolvedGateReportDir -Label "gate report directory"
-Assert-PathExists -Path $resolvedSmokeEvidenceDir -Label "smoke evidence directory"
-Assert-PathExists -Path $resolvedFixedGridAggregateDir -Label "fixed-grid aggregate evidence directory"
+if (-not $hasVisualGateEvidence) {
+    if (-not $AllowIncomplete -or $visualGateStatus -ne "skipped") {
+        Assert-PathExists -Path $resolvedGateRoot -Label "Word visual gate output directory"
+        Assert-PathExists -Path $resolvedGateReportDir -Label "gate report directory"
+        Assert-PathExists -Path $resolvedSmokeEvidenceDir -Label "smoke evidence directory"
+        Assert-PathExists -Path $resolvedFixedGridAggregateDir -Label "fixed-grid aggregate evidence directory"
+    }
+}
 
 $versionOutputDir = Join-Path $resolvedOutputRoot ("v{0}" -f $releaseVersion)
 $stagingRoot = Join-Path $versionOutputDir "staging"
@@ -543,9 +565,22 @@ Copy-FileToPath -Source $resolvedStartHerePath -Destination (Join-Path $stageRel
 Copy-PathTree -Source $reportDir -Destination (Join-Path $stageReleaseCandidateRoot "report")
 
 New-Item -ItemType Directory -Path $stageWordVisualRoot -Force | Out-Null
-Copy-PathTree -Source $resolvedGateReportDir -Destination (Join-Path $stageWordVisualRoot "report")
-Copy-PathTree -Source $resolvedSmokeEvidenceDir -Destination (Join-Path $stageWordVisualRoot "smoke\evidence")
-Copy-PathTree -Source $resolvedFixedGridAggregateDir -Destination (Join-Path $stageWordVisualRoot "fixed-grid\aggregate-evidence")
+if ($hasVisualGateEvidence) {
+    Copy-PathTree -Source $resolvedGateReportDir -Destination (Join-Path $stageWordVisualRoot "report")
+    Copy-PathTree -Source $resolvedSmokeEvidenceDir -Destination (Join-Path $stageWordVisualRoot "smoke\evidence")
+    Copy-PathTree -Source $resolvedFixedGridAggregateDir -Destination (Join-Path $stageWordVisualRoot "fixed-grid\aggregate-evidence")
+} elseif ($AllowIncomplete -and $visualGateStatus -eq "skipped") {
+    $incompleteNote = @'
+# Word Visual Gate Skipped
+
+- This release-evidence preview was packaged from a CI-style summary with `visual_gate=skipped`.
+- Screenshot-backed Word evidence was not available in this environment, so this bundle only keeps the release-candidate report set.
+- Run the local Windows preflight with Microsoft Word before publishing public release assets.
+'@
+    Set-Content -LiteralPath (Join-Path $stageWordVisualRoot "README.md") -Encoding UTF8 -Value $incompleteNote
+} else {
+    throw "Visual gate evidence is unavailable for packaging."
+}
 
 Write-Step "Sanitizing staged release materials"
 Sanitize-StagedReleaseMaterials -RepoRoot $repoRoot -RootPaths @(
@@ -602,6 +637,8 @@ $manifest = [ordered]@{
     readme_assets_dir = $resolvedReadmeAssetsDir
     gate_output_dir = $resolvedGateRoot
     output_dir = $versionOutputDir
+    visual_gate_status = $visualGateStatus
+    visual_gate_evidence_included = $hasVisualGateEvidence
     assets = @(
         (Get-AssetDescriptor -Path $installZipPath -Label "msvc_install")
         (Get-AssetDescriptor -Path $galleryZipPath -Label "visual_validation_gallery")

@@ -74,6 +74,21 @@ if(WIN32)
 
         add_test(
             NAME
+            package_release_assets_allow_incomplete
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/package_release_assets_allow_incomplete_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/package_release_assets_allow_incomplete
+        )
+
+        add_test(
+            NAME
             assert_release_material_safety
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}

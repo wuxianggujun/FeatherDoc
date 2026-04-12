@@ -127,6 +127,14 @@ jobs:
           -OutputPath .\RELEASE_METADATA_START_HERE.md
           -ArtifactRootLayout
 
+      - name: Package public release asset preview
+        shell: pwsh
+        run: >
+          pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1
+          -SummaryJson .\output\release-candidate-checks-ci\report\summary.json
+          -OutputRoot .\output\release-assets-ci
+          -AllowIncomplete
+
       - name: Upload generated sample documents
         if: always()
         uses: actions/upload-artifact@v4
@@ -148,4 +156,13 @@ jobs:
             build-msvc-install/share/FeatherDoc/**
             output/release-candidate-checks-ci/START_HERE.md
             output/release-candidate-checks-ci/report/**
+          if-no-files-found: warn
+
+      - name: Upload release asset preview bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msvc-release-assets-preview
+          path: |
+            output/release-assets-ci/**
           if-no-files-found: warn

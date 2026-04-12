@@ -14,6 +14,10 @@ performance.
   `write_release_note_bundle.ps1`, and taught `package_release_assets.ps1` to
   sanitize repo-local absolute paths inside staged text/JSON metadata before
   auditing and zipping public release materials.
+- Allowed `package_release_assets.ps1 -AllowIncomplete` to package a CI preview
+  bundle when `visual_gate` is explicitly `skipped`, recording the gate status,
+  adding a placeholder README instead of fake Word evidence, and uploading the
+  sanitized preview bundle from `windows-msvc.yml`.
 
 ### Documentation
 
