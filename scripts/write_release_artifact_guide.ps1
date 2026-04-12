@@ -183,6 +183,12 @@ if ($releaseVersion) {
     $packageAndUploadCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
         $summaryCommandPath, $releaseVersion
 }
+$syncReleaseNotesCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_github_release_notes.ps1 -SummaryJson "{0}"' -f `
+    $summaryCommandPath
+if ($releaseVersion) {
+    $syncReleaseNotesCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
+}
+$publishReleaseCommand = $syncReleaseNotesCommand + " -Publish"
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Metadata Artifact Guide")
@@ -236,6 +242,18 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
     [void]$lines.Add('```')
     [void]$lines.Add("")
 }
+[void]$lines.Add("To sync the audited `release_body.zh-CN.md` into the matching GitHub Release notes:")
+[void]$lines.Add("")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($syncReleaseNotesCommand)
+[void]$lines.Add('```')
+[void]$lines.Add("")
+[void]$lines.Add("When the final local Windows + Word signoff is complete and the GitHub Release is ready to go live:")
+[void]$lines.Add("")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($publishReleaseCommand)
+[void]$lines.Add('```')
+[void]$lines.Add("")
 [void]$lines.Add("## Refresh After A Later Visual Verdict Update")
 [void]$lines.Add("")
 [void]$lines.Add('```powershell')

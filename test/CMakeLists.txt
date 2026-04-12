@@ -102,6 +102,36 @@ if(WIN32)
 
         add_test(
             NAME
+            sync_github_release_notes
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_github_release_notes_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_github_release_notes
+        )
+
+        add_test(
+            NAME
+            sync_github_release_notes_publish_guard
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_github_release_notes_publish_guard_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_github_release_notes_publish_guard
+        )
+
+        add_test(
+            NAME
             assert_release_material_safety
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}

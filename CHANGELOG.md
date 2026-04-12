@@ -22,6 +22,10 @@ performance.
   template docs, and added regression coverage so `release_body.zh-CN.md` /
   `release_summary.zh-CN.md` do not fall back to the old
   `write_release_body_zh.ps1` draft boilerplate.
+- Added `sync_github_release_notes.ps1` so the audited
+  `release_body.zh-CN.md` can safely sync into the matching GitHub Release,
+  with an explicit `-Publish` path that flips `draft=false` only after final
+  local Word signoff.
 
 ### Documentation
 

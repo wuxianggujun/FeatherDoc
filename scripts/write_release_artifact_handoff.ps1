@@ -219,6 +219,12 @@ if ($projectVersion) {
     $packageAndUploadCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
         $summaryCommandPath, $projectVersion
 }
+$syncReleaseNotesCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_github_release_notes.ps1 -SummaryJson "{0}"' -f `
+    $summaryCommandPath
+if ($projectVersion) {
+    $syncReleaseNotesCommand += (' -ReleaseTag "v{0}"' -f $projectVersion)
+}
+$publishReleaseCommand = $syncReleaseNotesCommand + " -Publish"
 $openDocumentTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1"
 $openFixedGridTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_fixed_grid_review_task.ps1 -PrintPrompt"
 
@@ -308,6 +314,18 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
     [void]$handoffLines.Add('```')
     [void]$handoffLines.Add("")
 }
+[void]$handoffLines.Add("Sync the audited `release_body.zh-CN.md` into the GitHub Release notes with:")
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add('```powershell')
+[void]$handoffLines.Add($syncReleaseNotesCommand)
+[void]$handoffLines.Add('```')
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add("When the final local signoff is complete and the GitHub Release is ready to go live:")
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add('```powershell')
+[void]$handoffLines.Add($publishReleaseCommand)
+[void]$handoffLines.Add('```')
+[void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Release Body Seed")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```md')
