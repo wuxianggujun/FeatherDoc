@@ -118,7 +118,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 `
-    -DocxPath C:\path\to\target.docx `
+    -DocxPath .\path\to\target.docx `
     -Mode review-only
 ```
 

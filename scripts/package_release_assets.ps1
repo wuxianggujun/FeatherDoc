@@ -391,6 +391,46 @@ function Convert-RepoPathToRelative {
     return ".\" + ($relative -replace '/', '\')
 }
 
+function Convert-ReleaseTextToPublic {
+    param(
+        [string]$Value,
+        [string]$RepoRoot
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $Value
+    }
+
+    $result = $Value
+    $result = $result.Replace($RepoRoot, ".")
+    $result = $result.Replace(($RepoRoot -replace '\\', '/'), ".")
+    $result = [regex]::Replace($result, '(?i)\b[a-z]:(?:\\\\|\\)[^\s"''`<>|]+', '<windows-absolute-path>')
+    $result = [regex]::Replace($result, '(?<!\w)/(?:Users|home)/[^\s"''`<>|]+', '<unix-absolute-path>')
+
+    $replacements = @(
+        @{ Pattern = '(?i)发布说明草稿'; Replacement = '发布说明预览版' }
+        @{ Pattern = '(?i)请在发布前补齐'; Replacement = '请在公开发布前完善' }
+        @{ Pattern = '(?i)\brelease body draft\b'; Replacement = 'release body preview' }
+        @{ Pattern = '(?i)\brelease-note drafts\b'; Replacement = 'release-note previews' }
+        @{ Pattern = '(?i)\bpublic release drafts\b'; Replacement = 'public release previews' }
+        @{ Pattern = '(?i)\brelease drafts\b'; Replacement = 'release previews' }
+        @{ Pattern = '(?i)\bdraft review\b'; Replacement = 'release-note review' }
+        @{ Pattern = '(?i)\bdraft boilerplate\b'; Replacement = 'placeholder boilerplate' }
+        @{ Pattern = '(?i)\brelease-note drafting\b'; Replacement = 'release-note preparation' }
+        @{ Pattern = '(?i)\bdraft=false\b'; Replacement = 'public-release-enabled' }
+        @{ Pattern = '(?i)\bdrafts\b'; Replacement = 'previews' }
+        @{ Pattern = '(?i)\bdrafting\b'; Replacement = 'preparation' }
+        @{ Pattern = '(?i)\bdraft\b'; Replacement = 'preview' }
+        @{ Pattern = '草稿'; Replacement = '预览版' }
+    )
+
+    foreach ($replacement in $replacements) {
+        $result = [regex]::Replace($result, $replacement.Pattern, $replacement.Replacement)
+    }
+
+    return $result
+}
+
 function Convert-StructuredValueToPublic {
     param(
         $Value,
@@ -402,7 +442,8 @@ function Convert-StructuredValueToPublic {
     }
 
     if ($Value -is [string]) {
-        return Convert-RepoPathToRelative -Value $Value -RepoRoot $RepoRoot
+        $relativeValue = Convert-RepoPathToRelative -Value $Value -RepoRoot $RepoRoot
+        return Convert-ReleaseTextToPublic -Value $relativeValue -RepoRoot $RepoRoot
     }
 
     if ($Value -is [System.Collections.IDictionary]) {
@@ -447,8 +488,7 @@ function Sanitize-StagedReleaseMaterials {
         }
 
         $content = Get-Content -Raw -LiteralPath $filePath
-        $content = $content.Replace($RepoRoot, ".")
-        $content = $content.Replace(($RepoRoot -replace '\\', '/'), ".")
+        $content = Convert-ReleaseTextToPublic -Value $content -RepoRoot $RepoRoot
         Set-Content -LiteralPath $filePath -Encoding UTF8 -Value $content
     }
 }

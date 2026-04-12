@@ -18,14 +18,14 @@ performance.
   bundle when `visual_gate` is explicitly `skipped`, recording the gate status,
   adding a placeholder README instead of fake Word evidence, and uploading the
   sanitized preview bundle from `windows-msvc.yml`.
-- Removed remaining public-facing "draft" wording from the release quickstart /
+- Removed remaining public-facing placeholder wording from the release quickstart /
   template docs, and added regression coverage so `release_body.zh-CN.md` /
   `release_summary.zh-CN.md` do not fall back to the old
-  `write_release_body_zh.ps1` draft boilerplate.
+  `write_release_body_zh.ps1` placeholder boilerplate.
 - Added `sync_github_release_notes.ps1` so the audited
   `release_body.zh-CN.md` can safely sync into the matching GitHub Release,
-  with an explicit `-Publish` path that flips `draft=false` only after final
-  local Word signoff.
+  with an explicit `-Publish` path that only makes the release public after
+  final local Word signoff.
 - Added `publish_github_release.ps1` as the one-shot wrapper for uploading the
   public ZIP assets and syncing the audited GitHub Release notes against the
   same tag before an optional final publish step.
@@ -36,7 +36,7 @@ performance.
 - Simplified the generated release metadata so reviewers can choose the correct
   workflow button in `Actions` without manually editing workflow form fields.
 - Taught `write_release_body_zh.ps1` to normalize absolute-path examples such
-  as `C:\Users\...` into public-safe wording before they can flow into
+  as Windows absolute path examples into public-safe wording before they can flow into
   generated release notes.
 
 ### Documentation
@@ -152,15 +152,15 @@ performance.
 - Updated `scripts/run_release_candidate_checks.ps1` to reuse an already active
   MSVC developer environment, and updated `windows-msvc.yml` to upload a
   `windows-msvc-release-metadata` artifact carrying `share/FeatherDoc` plus a
-  CI-side `release_handoff.md` / summary bundle for release-note drafting.
+  CI-side `release_handoff.md` / summary bundle for release-note preparation.
 - Added `scripts/write_release_body_zh.ps1` so the release-preflight summary
-  can also emit a directly editable Chinese release-body draft
-  (`release_body.zh-CN.md`) alongside `release_handoff.md`, with the draft's
+  can also emit a directly editable Chinese release-body preview
+  (`release_body.zh-CN.md`) alongside `release_handoff.md`, with the initial
   "highlights" section seeded from `CHANGELOG.md` `Unreleased` entries.
 - Updated `scripts/write_release_body_zh.ps1`,
   `scripts/run_release_candidate_checks.ps1`, and
   `scripts/write_release_artifact_handoff.ps1` so release-preflight now also
-  emits a shorter `release_summary.zh-CN.md` draft, wires that path into the
+  emits a shorter `release_summary.zh-CN.md` preview, wires that path into the
   report bundle, and carries the short summary through handoff metadata and
   installed release-note guidance.
 - Added `scripts/write_release_note_bundle.ps1` as the one-shot post-review
@@ -189,7 +189,7 @@ performance.
   summary/body/handoff files before they dive into the raw evidence set.
 - Added `scripts/write_release_reviewer_checklist.ps1` so the report bundle now
   also emits a `REVIEWER_CHECKLIST.md` with a fixed three-step reviewer flow
-  covering draft review, verification state, and publish-or-refresh handoff.
+  covering release-note review, verification state, and publish-or-refresh handoff.
 - Added `scripts/write_release_metadata_start_here.ps1`, a summary-root
   `START_HERE.md`, and an artifact-root `RELEASE_METADATA_START_HERE.md`, then
   updated the README/docs/templates so release metadata now has one consistent

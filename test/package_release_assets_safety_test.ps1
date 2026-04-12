@@ -35,6 +35,14 @@ function Assert-NotContains {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
+$workingDirParent = Split-Path -Parent $resolvedWorkingDir
+if (-not [string]::IsNullOrWhiteSpace($workingDirParent)) {
+    New-Item -ItemType Directory -Path $workingDirParent -Force | Out-Null
+}
+if (Test-Path -LiteralPath $resolvedWorkingDir) {
+    Remove-Item -LiteralPath $resolvedWorkingDir -Recurse -Force
+}
+$null = New-Item -ItemType Directory -Path $resolvedWorkingDir -Force
 $relativeWorkingDir = $resolvedWorkingDir.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
 $installPrefix = Join-Path $resolvedWorkingDir "build-msvc-install"
 $summaryOutputDir = Join-Path $resolvedWorkingDir "output\release-candidate-checks"
@@ -60,6 +68,8 @@ $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $gateSummaryPath = Join-Path $gateReportDir "gate_summary.json"
 $gateFinalReviewPath = Join-Path $gateReportDir "gate_final_review.md"
 $summaryPath = Join-Path $reportDir "summary.json"
+$installedReadmePath = Join-Path $installPrefix "share\FeatherDoc\README.md"
+$installedChangelogPath = Join-Path $installPrefix "share\FeatherDoc\CHANGELOG.md"
 
 Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 # START_HERE
@@ -102,6 +112,25 @@ Set-Content -LiteralPath $gateFinalReviewPath -Encoding UTF8 -Value @"
 
 - Local gate report: $resolvedRepoRoot\output\word-visual-release-gate\report
 "@
+
+Set-Content -LiteralPath $installedReadmePath -Encoding UTF8 -Value @'
+# README
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 `
+    -DocxPath C:\path\to\target.docx `
+    -Mode review-only
+```
+'@
+
+Set-Content -LiteralPath $installedChangelogPath -Encoding UTF8 -Value @'
+# Changelog
+
+- Removed remaining public-facing "draft" wording from release docs.
+- The release-note drafting helper still keeps the old draft boilerplate.
+- `-Publish` flips `draft=false` after final signoff.
+- Normalize `C:\Users\someone\workspace` before public release.
+'@
 
 Set-Content -LiteralPath (Join-Path $smokeEvidenceDir "README.md") -Encoding UTF8 -Value @"
 # Smoke Evidence
@@ -178,6 +207,8 @@ $stagingRoot = Join-Path $outputRoot "v1.6.4\staging"
 $stagedSummaryPath = Join-Path $stagingRoot "release-candidate-checks\report\summary.json"
 $stagedGateSummaryPath = Join-Path $stagingRoot "word-visual-release-gate\report\gate_summary.json"
 $stagedHandoffPath = Join-Path $stagingRoot "release-candidate-checks\report\release_handoff.md"
+$stagedInstalledReadmePath = Join-Path $stagingRoot "build-msvc-install\share\FeatherDoc\README.md"
+$stagedInstalledChangelogPath = Join-Path $stagingRoot "build-msvc-install\share\FeatherDoc\CHANGELOG.md"
 $installZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-msvc-install.zip"
 $galleryZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-visual-validation-gallery.zip"
 $evidenceZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-release-evidence.zip"
@@ -189,6 +220,12 @@ $stagedGateSummary = Get-Content -Raw -LiteralPath $stagedGateSummaryPath | Conv
 Assert-NotContains -Path $stagedSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged summary.json'
 Assert-NotContains -Path $stagedGateSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged gate_summary.json'
 Assert-NotContains -Path $stagedHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_handoff.md'
+Assert-NotContains -Path $stagedInstalledReadmePath -UnexpectedText 'C:\path\to\target.docx' -Label 'staged installed README.md'
+Assert-NotContains -Path $stagedInstalledChangelogPath -UnexpectedText 'draft' -Label 'staged installed CHANGELOG.md'
+Assert-NotContains -Path $stagedInstalledChangelogPath -UnexpectedText 'C:\Users\someone\workspace' -Label 'staged installed CHANGELOG.md'
+Assert-Contains -Path $stagedInstalledReadmePath -ExpectedText '<windows-absolute-path>' -Label 'staged installed README.md'
+Assert-Contains -Path $stagedInstalledChangelogPath -ExpectedText 'preview' -Label 'staged installed CHANGELOG.md'
+Assert-Contains -Path $stagedInstalledChangelogPath -ExpectedText '<windows-absolute-path>' -Label 'staged installed CHANGELOG.md'
 if ($stagedSummary.release_handoff -ne $expectedRelativeHandoff) {
     throw "staged summary.json did not rewrite release_handoff to the expected relative path."
 }
