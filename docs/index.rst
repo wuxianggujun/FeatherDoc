@@ -1346,6 +1346,13 @@ Chinese release and versioning notes for the current FeatherDoc fork:
 
 :doc:`release_policy_zh`
 
+Release History Backfill
+------------------------
+Chinese internal playbook for historical GitHub Release body cleanup,
+artifact rebuilding, and sanitized re-upload workflow:
+
+:doc:`release_history_backfill_playbook_zh`
+
 Project Audit
 --------------
 Chinese audit and modernization notes for the current fork:
