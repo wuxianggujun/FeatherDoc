@@ -211,7 +211,7 @@ GitHub Actions 的 ``windows-msvc.yml`` 现在也会上传一个
 
 
 CHANGELOG 维护建议
------------------
+--------------------
 
 建议把对外可见的版本变化同步记录到根目录 ``CHANGELOG.md``。
 

@@ -10,6 +10,18 @@ Release v\ |version|
 Repository-level README entry points are available at ``README.md`` (English)
 and ``README.zh-CN.md`` (Simplified Chinese).
 
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   project_identity_zh
+   release_policy_zh
+   release_history_backfill_playbook_zh
+   project_audit_zh
+   upstream_issue_triage_zh
+   licensing_zh
+   automation/word_visual_workflow_zh
+
 Visual Validation Preview
 -------------------------
 FeatherDoc now keeps Word-rendered validation artifacts in the repository, so

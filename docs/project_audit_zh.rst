@@ -211,7 +211,7 @@ cloc 代码量统计
 - 本机存在 ``clang++ 18.1.6``，我用它对项目做了 ``C++20`` 语法检查。
 - 在添加 ``-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH`` 后：
 
- - ``src/duckx.cpp`` 可通过语法检查。
+  - ``src/duckx.cpp`` 可通过语法检查。
   - ``samples/sample1.cpp`` 可通过语法检查。
   - ``test/basic_tests.cpp`` 与 ``test/iterator_tests.cpp`` 失败，
     主要原因是 vendored ``doctest 2.3.5`` 仍依赖 ``std::uncaught_exception``。
@@ -254,7 +254,7 @@ cloc 代码量统计
 结论
 ----
 
-这个项目**不是“大而旧”**，而是**“很小，但带着明显的老工程壳子”**。
+这个项目不是“**大而旧**”，而是“**很小，但带着明显的老工程壳子**”。
 
 真正需要你重构的核心库主体只有大约 ``421`` 行 code，
 所以非常适合直接以现代 C++ 思路做一次干净升级。

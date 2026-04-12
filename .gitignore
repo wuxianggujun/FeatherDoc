@@ -34,6 +34,7 @@
 .DS_Store
 build/*
 build-*/
+docs/_build/
 output/
 RELEASE_METADATA_START_HERE.md
 tmp/
