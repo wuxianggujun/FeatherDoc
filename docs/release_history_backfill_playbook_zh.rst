@@ -176,3 +176,21 @@
 
 如果只是准备新版本发布，不要再走这份手册，直接回到 :doc:`release_policy_zh`
 中的正式发版流程。
+
+
+2026-04-12 基线状态
+-------------------
+
+截至 ``2026-04-12``，这一轮历史回补已经达到下面的基线：
+
+1. 远端 ``v1.0.0`` 到 ``v1.6.4`` 均为 ``draft=false``。
+2. 远端 ``v1.0.0`` 到 ``v1.6.4`` 均为 ``prerelease=false``。
+3. 上述版本当前均保留 3 个公开附件：
+
+   - ``FeatherDoc-vX.Y.Z-msvc-install.zip``
+   - ``FeatherDoc-vX.Y.Z-visual-validation-gallery.zip``
+   - ``FeatherDoc-vX.Y.Z-release-evidence.zip``
+
+4. 公开正文已经再次复扫，不再包含 ``draft``、``草稿`` 或本机绝对路径。
+5. 详细过程、分层策略和最终远端清点结果见
+   ``output/release-history/historical_release_backfill_audit_2026-04-12.md``。

@@ -8,6 +8,15 @@ performance.
 
 ## [Unreleased]
 
+### Documentation
+
+- Added a Chinese historical-release backfill playbook, linked it from the
+  Sphinx docs homepage and release policy, and recorded the current
+  `2026-04-12` recovery baseline for the `v1.0.0` to `v1.6.4` release set.
+- Cleaned the Sphinx documentation build by adding a hidden docs toctree,
+  fixing existing reStructuredText syntax issues, adding the docs static
+  directory placeholder, and ignoring `docs/_build/` in Git.
+
 ## [1.6.4] - 2026-04-11
 
 ### Added
