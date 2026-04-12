@@ -413,7 +413,7 @@ for the shortest auto-detected path. If you need to override paths manually,
 keep using `sync_visual_review_verdict.ps1` with explicit
 `-GateSummaryJson` / `-ReleaseCandidateSummaryJson` arguments. Both routes can
 promote the final Word verdict into the saved summaries and refresh
-`START_HERE.md`, the guide/checklist, and the release-facing drafts without
+`START_HERE.md`, the guide/checklist, and the release-facing notes without
 rerunning the full preflight.
 
 ## Use From CMake

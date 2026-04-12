@@ -48,7 +48,7 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_visual_review_verdic
     -GateSummaryJson <repo-root>\output\word-visual-release-gate\report\gate_summary.json
 
 # 如果你跑的是完整 release-preflight，再把 verdict 上卷到 summary.json，
-# 并顺手刷新 START_HERE.md 与整套 release 草稿。
+# 并顺手刷新 START_HERE.md 与整套 release 说明。
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_visual_review_verdict.ps1 `
     -GateSummaryJson <repo-root>\output\word-visual-release-gate\report\gate_summary.json `
     -ReleaseCandidateSummaryJson <repo-root>\output\release-candidate-checks\report\summary.json `
@@ -63,7 +63,7 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\refresh_readme_visual_ass
 上面这条短命令会自动解析最新 task pointer 和匹配的 release summary。
 如果你需要手动覆盖路径，再继续使用显式同步命令。
 如果 `summary.json` 已经带上最终 verdict，只是后面又改了 release 文案，
-想重刷这几份草稿而不重跑 preflight，也可以继续用更窄的入口：
+想重刷这几份说明而不重跑 preflight，也可以继续用更窄的入口：
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\write_release_note_bundle.ps1 `

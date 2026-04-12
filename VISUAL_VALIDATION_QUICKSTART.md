@@ -49,7 +49,7 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_visual_review_verdic
     -GateSummaryJson <repo-root>\output\word-visual-release-gate\report\gate_summary.json
 
 # Same sync step, but also promote the verdict into release-preflight summary.json
-# and refresh START_HERE.md plus the release-facing drafts in one shot.
+# and refresh START_HERE.md plus the release-facing notes in one shot.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_visual_review_verdict.ps1 `
     -GateSummaryJson <repo-root>\output\word-visual-release-gate\report\gate_summary.json `
     -ReleaseCandidateSummaryJson <repo-root>\output\release-candidate-checks\report\summary.json `
@@ -64,7 +64,7 @@ If you ran the full `release-preflight`, the same report directory also gets
 The short helper above auto-resolves the newest task pointers and matching
 release summary. If you need to override paths manually, keep using the longer
 commands below. If `summary.json` already carries the final verdict and you
-only need to regenerate those drafts after later editorial edits, the narrower
+only need to regenerate those release notes after later editorial edits, the narrower
 fallback is:
 
 ```powershell

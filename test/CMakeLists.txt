@@ -89,6 +89,19 @@ if(WIN32)
 
         add_test(
             NAME
+            public_release_wording_regression
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/public_release_wording_regression_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+
+        add_test(
+            NAME
             assert_release_material_safety
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}

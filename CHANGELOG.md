@@ -18,6 +18,10 @@ performance.
   bundle when `visual_gate` is explicitly `skipped`, recording the gate status,
   adding a placeholder README instead of fake Word evidence, and uploading the
   sanitized preview bundle from `windows-msvc.yml`.
+- Removed remaining public-facing "draft" wording from the release quickstart /
+  template docs, and added regression coverage so `release_body.zh-CN.md` /
+  `release_summary.zh-CN.md` do not fall back to the old
+  `write_release_body_zh.ps1` draft boilerplate.
 
 ### Documentation
 

@@ -205,7 +205,7 @@ auto-detected path. When you need to override paths explicitly, keep using
 ``gate_summary.json``. If a release-preflight ``summary.json`` also exists,
 pass it as ``-ReleaseCandidateSummaryJson`` together with
 ``-RefreshReleaseBundle`` to refresh ``START_HERE.md`` plus the release-facing
-drafts without rerunning the full preflight.
+notes without rerunning the full preflight.
 
 CLI
 ---

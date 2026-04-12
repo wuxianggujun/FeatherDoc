@@ -84,6 +84,12 @@ Assert-NotContains -Path $bodyPath -UnexpectedText $installDir -Label 'release_b
 Assert-NotContains -Path $bodyPath -UnexpectedText $resolvedWorkingDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText 'draft' -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText '草稿' -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText '发布说明草稿' -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText '请在发布前补齐' -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText '这份文件由 `write_release_body_zh.ps1` 自动生成' -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $shortPath -UnexpectedText 'draft' -Label 'release_summary.zh-CN.md'
+Assert-NotContains -Path $shortPath -UnexpectedText '草稿' -Label 'release_summary.zh-CN.md'
+Assert-NotContains -Path $shortPath -UnexpectedText '这份文件由 `write_release_body_zh.ps1` 自动生成' -Label 'release_summary.zh-CN.md'
 
 $bodyContent = Get-Content -Raw -LiteralPath $bodyPath
 if ($bodyContent -match 'v1\.6\.1') {

@@ -13,7 +13,7 @@ screenshot-backed document/fixed-grid task verdicts back into
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_latest_visual_review_verdict.ps1
 ```
 
-This is the fastest way to refresh the release-facing drafts after a later
+This is the fastest way to refresh the release-facing notes after a later
 screenshot-backed visual verdict update. When you need to override the inferred
 gate or release paths, fall back to `sync_visual_review_verdict.ps1`.
 
@@ -41,7 +41,7 @@ gate or release paths, fall back to `sync_visual_review_verdict.ps1`.
   closure pages, the fixed-grid quartet contact sheet, the Chinese template
   preview, and the current validation result.
 - If `output/release-candidate-checks/report/release_summary.zh-CN.md` already
-  exists, start by trimming that draft.
+  exists, start by trimming that generated summary.
 ````
 
 ## Copy-Paste Release Body

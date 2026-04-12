@@ -164,7 +164,7 @@ fixed-grid task 的结论回灌进 gate summary、release-preflight summary，
 其中 ``START_HERE.md`` 是本地 summary 输出的首个入口，
 ``ARTIFACT_GUIDE.md`` 负责先导索引，``REVIEWER_CHECKLIST.md`` 负责评审
 步骤，``release_body.zh-CN.md`` 用于给 GitHub Release 或手工发布说明
-提供一份中文草稿，``release_summary.zh-CN.md`` 则适合作为 GitHub Release
+提供一份中文正文，``release_summary.zh-CN.md`` 则适合作为 GitHub Release
 首屏短摘要。后两者都会优先从 ``CHANGELOG.md`` 的 ``Unreleased`` 区块自动
 抽取“核心变化”要点。
 如果只想单独复跑 fixed-grid merge/unmerge 四件套，并生成可截图签收的
