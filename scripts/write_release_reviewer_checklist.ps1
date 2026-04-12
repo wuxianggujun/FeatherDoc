@@ -184,6 +184,12 @@ if ($releaseVersion) {
     $syncReleaseNotesCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
 }
 $publishReleaseCommand = $syncReleaseNotesCommand + " -Publish"
+$publishWorkflowCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -SummaryJson "{0}"' -f `
+    $summaryCommandPath
+if ($releaseVersion) {
+    $publishWorkflowCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
+}
+$publishWorkflowFinalCommand = $publishWorkflowCommand + " -Publish"
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Reviewer Checklist")
@@ -233,6 +239,8 @@ Add-CheckboxLine -Lines $lines -Text 'Use `release_body.zh-CN.md` for the full r
 Add-CheckboxLine -Lines $lines -Text ('Generate or refresh the public release ZIP files before publishing: `{0}`' -f $packageAssetsCommand)
 Add-CheckboxLine -Lines $lines -Text ('Sync the audited full release body into the GitHub Release notes: `{0}`' -f $syncReleaseNotesCommand)
 Add-CheckboxLine -Lines $lines -Text ('When all gates pass and the GitHub Release is ready to go live, publish it with: `{0}`' -f $publishReleaseCommand)
+Add-CheckboxLine -Lines $lines -Text ('Use the one-shot wrapper when you want ZIP upload plus note sync together: `{0}`' -f $publishWorkflowCommand)
+Add-CheckboxLine -Lines $lines -Text ('Use the same wrapper with final publish enabled when the release is ready to go live: `{0}`' -f $publishWorkflowFinalCommand)
 Add-CheckboxLine -Lines $lines -Text ('If the visual verdict changes later, rerun the verdict sync command so the gate summary and release notes stay in sync: `{0}`' -f $syncLatestCommand)
 
 if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {

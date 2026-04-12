@@ -189,6 +189,12 @@ if ($releaseVersion) {
     $syncReleaseNotesCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
 }
 $publishReleaseCommand = $syncReleaseNotesCommand + " -Publish"
+$publishWorkflowCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -SummaryJson "{0}"' -f `
+    $summaryCommandPath
+if ($releaseVersion) {
+    $publishWorkflowCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
+}
+$publishWorkflowFinalCommand = $publishWorkflowCommand + " -Publish"
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Metadata Artifact Guide")
@@ -252,6 +258,18 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$lines.Add("")
 [void]$lines.Add('```powershell')
 [void]$lines.Add($publishReleaseCommand)
+[void]$lines.Add('```')
+[void]$lines.Add("")
+[void]$lines.Add("If you want a single command that uploads the ZIPs and syncs the audited notes together:")
+[void]$lines.Add("")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($publishWorkflowCommand)
+[void]$lines.Add('```')
+[void]$lines.Add("")
+[void]$lines.Add("When that same one-shot flow should also publish the GitHub Release:")
+[void]$lines.Add("")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($publishWorkflowFinalCommand)
 [void]$lines.Add('```')
 [void]$lines.Add("")
 [void]$lines.Add("## Refresh After A Later Visual Verdict Update")

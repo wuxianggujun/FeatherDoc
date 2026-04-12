@@ -26,6 +26,9 @@ performance.
   `release_body.zh-CN.md` can safely sync into the matching GitHub Release,
   with an explicit `-Publish` path that flips `draft=false` only after final
   local Word signoff.
+- Added `publish_github_release.ps1` as the one-shot wrapper for uploading the
+  public ZIP assets and syncing the audited GitHub Release notes against the
+  same tag before an optional final publish step.
 - Taught `write_release_body_zh.ps1` to normalize absolute-path examples such
   as `C:\Users\...` into public-safe wording before they can flow into
   generated release notes.

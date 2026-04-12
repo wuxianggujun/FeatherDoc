@@ -140,6 +140,12 @@ $packageAssetsCommand = if ($releaseVersion) {
     'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
         $summaryCommandPath
 }
+$publishWorkflowCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -SummaryJson "{0}"' -f `
+    $summaryCommandPath
+if ($releaseVersion) {
+    $publishWorkflowCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
+}
+$publishWorkflowFinalCommand = $publishWorkflowCommand + " -Publish"
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Metadata Start Here")
@@ -198,6 +204,20 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add('```')
 [void]$lines.Add("")
 [void]$lines.Add("Run that command after the release notes are finalized so the install ZIP, visual gallery ZIP, and release-evidence ZIP are regenerated from the current summary.")
+[void]$lines.Add("")
+[void]$lines.Add("## One-Shot GitHub Release Refresh")
+[void]$lines.Add("")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($publishWorkflowCommand)
+[void]$lines.Add('```')
+[void]$lines.Add("")
+[void]$lines.Add("Use that command when you want the ZIP upload plus audited GitHub release-note sync in one step.")
+[void]$lines.Add("")
+[void]$lines.Add("When the release is ready to go live and the final local signoff is already complete:")
+[void]$lines.Add("")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($publishWorkflowFinalCommand)
+[void]$lines.Add('```')
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8

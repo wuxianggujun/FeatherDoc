@@ -75,6 +75,7 @@ $shortPath = Join-Path $reportDir "release_summary.zh-CN.md"
 
 Assert-Contains -Path $handoffPath -ExpectedText 'Project version: 1.6.0' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'publish_github_release.ps1' -Label 'release_handoff.md'
 Assert-Contains -Path $bodyPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $shortPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'release_summary.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\VISUAL_VALIDATION_QUICKSTART.zh-CN.md' -Label 'release_body.zh-CN.md'
@@ -90,6 +91,13 @@ Assert-NotContains -Path $bodyPath -UnexpectedText '这份文件由 `write_relea
 Assert-NotContains -Path $shortPath -UnexpectedText 'draft' -Label 'release_summary.zh-CN.md'
 Assert-NotContains -Path $shortPath -UnexpectedText '草稿' -Label 'release_summary.zh-CN.md'
 Assert-NotContains -Path $shortPath -UnexpectedText '这份文件由 `write_release_body_zh.ps1` 自动生成' -Label 'release_summary.zh-CN.md'
+
+$guidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
+$checklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
+$startHerePath = Join-Path (Split-Path -Parent $reportDir) "START_HERE.md"
+Assert-Contains -Path $guidePath -ExpectedText 'publish_github_release.ps1' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'publish_github_release.ps1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'publish_github_release.ps1' -Label 'START_HERE.md'
 
 $bodyContent = Get-Content -Raw -LiteralPath $bodyPath
 if ($bodyContent -match 'v1\.6\.1') {

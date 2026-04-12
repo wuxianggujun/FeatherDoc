@@ -225,6 +225,12 @@ if ($projectVersion) {
     $syncReleaseNotesCommand += (' -ReleaseTag "v{0}"' -f $projectVersion)
 }
 $publishReleaseCommand = $syncReleaseNotesCommand + " -Publish"
+$publishWorkflowCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -SummaryJson "{0}"' -f `
+    $summaryCommandPath
+if ($projectVersion) {
+    $publishWorkflowCommand += (' -ReleaseTag "v{0}"' -f $projectVersion)
+}
+$publishWorkflowFinalCommand = $publishWorkflowCommand + " -Publish"
 $openDocumentTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1"
 $openFixedGridTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_fixed_grid_review_task.ps1 -PrintPrompt"
 
@@ -324,6 +330,18 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
 [void]$handoffLines.Add($publishReleaseCommand)
+[void]$handoffLines.Add('```')
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add("If you want one command that uploads ZIPs and syncs the audited notes together:")
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add('```powershell')
+[void]$handoffLines.Add($publishWorkflowCommand)
+[void]$handoffLines.Add('```')
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add("When that same one-shot flow should also publish the GitHub Release:")
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add('```powershell')
+[void]$handoffLines.Add($publishWorkflowFinalCommand)
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Release Body Seed")
