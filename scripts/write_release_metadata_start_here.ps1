@@ -234,6 +234,14 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add("- `output_root`: keep `output/release-assets` unless you intentionally want a different artifact root.")
 [void]$lines.Add("- `keep_staging`: keep `keep_staging=false` for normal runs.")
 [void]$lines.Add("- `publish`: keep `publish=false` for refresh-only runs; set `publish=true` only for the final go-live pass.")
+[void]$lines.Add("")
+[void]$lines.Add("### GitHub Web UI: 5-Step Runbook")
+[void]$lines.Add("")
+[void]$lines.Add("1. Open the repository `Actions` tab and choose `Release Publish`.")
+[void]$lines.Add("2. Pick the branch that already contains this validated release bundle in the self-hosted runner workspace.")
+[void]$lines.Add("3. Keep the default values above unless you intentionally need an override; for a refresh-only run, leave `publish=false`.")
+[void]$lines.Add("4. Click `Run workflow`, wait for the `publish` job to finish, and open the uploaded `release-publish-output` artifact if you need the packaged ZIPs.")
+[void]$lines.Add("5. Check the GitHub Release page; if the release still should stay private, stop here. When the final local signoff is complete, rerun once with `publish=true`.")
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8

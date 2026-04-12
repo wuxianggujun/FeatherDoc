@@ -35,6 +35,9 @@ performance.
 - Documented the recommended `Release Publish` workflow inputs so the summary
   path, publish toggle, and override fields are filled consistently during the
   final GitHub-side release step.
+- Added a compact GitHub web UI runbook so the generated release metadata tells
+  reviewers exactly where to click in `Actions` and when to rerun with
+  `publish=true`.
 - Taught `write_release_body_zh.ps1` to normalize absolute-path examples such
   as `C:\Users\...` into public-safe wording before they can flow into
   generated release notes.

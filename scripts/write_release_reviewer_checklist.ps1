@@ -250,6 +250,7 @@ Add-CheckboxLine -Lines $lines -Text 'If a self-hosted Windows runner already ca
 Add-CheckboxLine -Lines $lines -Text ('For GitHub Actions `Release Publish`, keep `summary_json` at `{0}` unless that runner stores the validated bundle elsewhere.' -f $summaryCommandPath)
 Add-CheckboxLine -Lines $lines -Text ('For GitHub Actions `Release Publish`, leave `release_tag` blank to derive `{0}` automatically unless you intentionally need another `v...` override.' -f $workflowDerivedTag)
 Add-CheckboxLine -Lines $lines -Text 'For GitHub Actions `Release Publish`, leave `body_path` / `title` blank, keep `output_root` at `output/release-assets`, keep `keep_staging=false`, and switch `publish=true` only for the final go-live pass.'
+Add-CheckboxLine -Lines $lines -Text 'For the GitHub web flow, go to `Actions` -> `Release Publish`, click `Run workflow`, wait for the `publish` job to finish, then inspect the `release-publish-output` artifact and the target GitHub Release page.'
 Add-CheckboxLine -Lines $lines -Text ('If the visual verdict changes later, rerun the verdict sync command so the gate summary and release notes stay in sync: `{0}`' -f $syncLatestCommand)
 
 if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
