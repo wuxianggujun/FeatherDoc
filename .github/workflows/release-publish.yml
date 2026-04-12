@@ -1,0 +1,122 @@
+name: Release Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      summary_json:
+        description: Validated release summary JSON path on the runner workspace
+        required: true
+        default: output/release-candidate-checks/report/summary.json
+        type: string
+      release_tag:
+        description: Optional GitHub release tag override
+        required: false
+        default: ""
+        type: string
+      body_path:
+        description: Optional release body override
+        required: false
+        default: ""
+        type: string
+      title:
+        description: Optional GitHub release title override
+        required: false
+        default: ""
+        type: string
+      output_root:
+        description: Release asset output root
+        required: true
+        default: output/release-assets
+        type: string
+      keep_staging:
+        description: Keep staging directory after packaging
+        required: true
+        default: false
+        type: boolean
+      publish:
+        description: Publish the GitHub Release after asset upload and note sync
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on:
+      - self-hosted
+      - windows
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          clean: false
+          fetch-depth: 0
+
+      - name: Validate release bundle
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+
+          $summaryPath = "${{ inputs.summary_json }}"
+          if (-not (Test-Path -LiteralPath $summaryPath)) {
+              throw "Summary JSON not found: $summaryPath. This workflow expects a completed local release-preflight bundle to already exist in the self-hosted runner workspace."
+          }
+
+      - name: Publish GitHub release assets and notes
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+
+          $arguments = @(
+              "-ExecutionPolicy"
+              "Bypass"
+              "-File"
+              ".\scripts\publish_github_release.ps1"
+              "-SummaryJson"
+              "${{ inputs.summary_json }}"
+              "-OutputRoot"
+              "${{ inputs.output_root }}"
+          )
+
+          if (-not [string]::IsNullOrWhiteSpace("${{ inputs.release_tag }}")) {
+              $arguments += @("-ReleaseTag", "${{ inputs.release_tag }}")
+          }
+
+          if (-not [string]::IsNullOrWhiteSpace("${{ inputs.body_path }}")) {
+              $arguments += @("-BodyPath", "${{ inputs.body_path }}")
+          }
+
+          if (-not [string]::IsNullOrWhiteSpace("${{ inputs.title }}")) {
+              $arguments += @("-Title", "${{ inputs.title }}")
+          }
+
+          if ("${{ inputs.keep_staging }}" -eq "true") {
+              $arguments += "-KeepStaging"
+          }
+
+          if ("${{ inputs.publish }}" -eq "true") {
+              $arguments += "-Publish"
+          }
+
+          & pwsh @arguments
+
+      - name: Upload release publish output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-publish-output
+          path: |
+            ${{ inputs.output_root }}/**
+          if-no-files-found: warn

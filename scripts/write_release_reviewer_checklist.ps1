@@ -241,6 +241,7 @@ Add-CheckboxLine -Lines $lines -Text ('Sync the audited full release body into t
 Add-CheckboxLine -Lines $lines -Text ('When all gates pass and the GitHub Release is ready to go live, publish it with: `{0}`' -f $publishReleaseCommand)
 Add-CheckboxLine -Lines $lines -Text ('Use the one-shot wrapper when you want ZIP upload plus note sync together: `{0}`' -f $publishWorkflowCommand)
 Add-CheckboxLine -Lines $lines -Text ('Use the same wrapper with final publish enabled when the release is ready to go live: `{0}`' -f $publishWorkflowFinalCommand)
+Add-CheckboxLine -Lines $lines -Text 'If a self-hosted Windows runner already carries the validated bundle, you may use GitHub Actions `Release Publish` (`.github/workflows/release-publish.yml`) instead of running the wrapper locally.'
 Add-CheckboxLine -Lines $lines -Text ('If the visual verdict changes later, rerun the verdict sync command so the gate summary and release notes stay in sync: `{0}`' -f $syncLatestCommand)
 
 if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {

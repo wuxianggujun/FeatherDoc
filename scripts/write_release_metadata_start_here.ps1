@@ -218,6 +218,8 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add('```powershell')
 [void]$lines.Add($publishWorkflowFinalCommand)
 [void]$lines.Add('```')
+[void]$lines.Add("")
+[void]$lines.Add("If the validated bundle already exists in a self-hosted Windows runner workspace, you may trigger GitHub Actions `Release Publish` (`.github/workflows/release-publish.yml`) instead of running the wrapper locally.")
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8

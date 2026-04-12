@@ -272,6 +272,8 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$lines.Add($publishWorkflowFinalCommand)
 [void]$lines.Add('```')
 [void]$lines.Add("")
+[void]$lines.Add("If the validated bundle already exists in a self-hosted Windows runner workspace, the same flow can also be started from GitHub Actions `Release Publish` (`.github/workflows/release-publish.yml`).")
+[void]$lines.Add("")
 [void]$lines.Add("## Refresh After A Later Visual Verdict Update")
 [void]$lines.Add("")
 [void]$lines.Add('```powershell')

@@ -29,6 +29,9 @@ performance.
 - Added `publish_github_release.ps1` as the one-shot wrapper for uploading the
   public ZIP assets and syncing the audited GitHub Release notes against the
   same tag before an optional final publish step.
+- Added a manual GitHub Actions workflow, `Release Publish`
+  (`.github/workflows/release-publish.yml`), for self-hosted Windows runners
+  that already have the validated local release bundle on disk.
 - Taught `write_release_body_zh.ps1` to normalize absolute-path examples such
   as `C:\Users\...` into public-safe wording before they can flow into
   generated release notes.

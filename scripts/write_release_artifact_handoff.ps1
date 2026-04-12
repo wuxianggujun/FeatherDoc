@@ -344,6 +344,8 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add($publishWorkflowFinalCommand)
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
+[void]$handoffLines.Add("If the validated bundle already exists in a self-hosted Windows runner workspace, the same flow can also be started from GitHub Actions `Release Publish` (`.github/workflows/release-publish.yml`).")
+[void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Release Body Seed")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```md')
