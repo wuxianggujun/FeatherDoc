@@ -364,15 +364,7 @@ function Add-ChangelogSummaryLines {
         $maxBullets = if ($sectionName -eq "Added") { 6 } else { 4 }
         $takeCount = [Math]::Min($bullets.Count, $maxBullets)
         for ($index = 0; $index -lt $takeCount; $index++) {
-            $normalizedBullet = $bullets[$index] -replace '\s+', ' '
-
-            switch ($sectionName) {
-                "Added" { $normalizedBullet = $normalizedBullet -replace '^(Added|Updated)\s+', '' }
-                "Changed" { $normalizedBullet = $normalizedBullet -replace '^Changed\s+', '' }
-                "Fixed" { $normalizedBullet = $normalizedBullet -replace '^Fixed\s+', '' }
-                "Validation" { $normalizedBullet = $normalizedBullet -replace '^Validated\s+', '' }
-                "Dependencies" { $normalizedBullet = $normalizedBullet -replace '^Updated\s+', '' }
-            }
+            $normalizedBullet = Normalize-ChangelogBullet -Bullet $bullets[$index] -SectionName $sectionName
 
             [void]$Lines.Add("  - $normalizedBullet")
         }
@@ -398,13 +390,38 @@ function Add-UniqueLine {
     }
 }
 
+function Normalize-ReleaseFacingText {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return ""
+    }
+
+    $normalized = ($Text -replace '\s+', ' ').Trim()
+    $normalized = $normalized.Replace("public release drafts", "public release notes")
+    $normalized = $normalized.Replace("release drafts and reviewer handoff material", "release notes and reviewer handoff material")
+    $normalized = $normalized.Replace("release-note drafts", "release notes")
+    $normalized = $normalized.Replace("release-note drafting", "release-note preparation")
+    $normalized = $normalized.Replace("release-body drafts", "release bodies")
+    $normalized = $normalized.Replace("release-body draft", "release body")
+    $normalized = $normalized.Replace("draft review", "release-note review")
+    $normalized = $normalized.Replace("release drafts", "release notes")
+    $normalized = $normalized.Replace("release draft", "release notes")
+    $normalized = $normalized.Replace("draft's", "generated")
+    $normalized = $normalized.Replace("`release_summary.zh-CN.md` draft", "`release_summary.zh-CN.md` summary")
+    $normalized = $normalized.Replace("发布说明草稿", "发布说明")
+    $normalized = $normalized.Replace("草稿", "说明")
+
+    return $normalized
+}
+
 function Normalize-ChangelogBullet {
     param(
         [string]$Bullet,
         [string]$SectionName = ""
     )
 
-    $normalizedBullet = ($Bullet -replace '\s+', ' ').Trim()
+    $normalizedBullet = Normalize-ReleaseFacingText -Text $Bullet
     switch ($SectionName) {
         "Added" { $normalizedBullet = $normalizedBullet -replace '^(Added|Updated)\s+', '' }
         "Changed" { $normalizedBullet = $normalizedBullet -replace '^(Changed|Updated)\s+', '' }
@@ -485,11 +502,7 @@ function Get-ShortSummaryFallbackBullet {
     }
 
     $label = Get-ChineseSectionName -SectionName $SectionName
-    $trimmed = $Bullet.Trim()
-    $trimmed = $trimmed.Replace("public release drafts", "public release notes")
-    $trimmed = $trimmed.Replace("release drafts and reviewer handoff material", "release notes and reviewer handoff material")
-    $trimmed = $trimmed.Replace("release drafts", "release notes")
-    $trimmed = $trimmed.Replace("release draft", "release notes")
+    $trimmed = Normalize-ReleaseFacingText -Text $Bullet
     if ($trimmed.Length -gt 92) {
         $trimmed = $trimmed.Substring(0, 89).TrimEnd() + "..."
     }

@@ -324,7 +324,130 @@ function Get-AssetDescriptor {
     }
 }
 
+function Get-TextLikeFiles {
+    param([string[]]$RootPaths)
+
+    $textExtensions = @(
+        ".md",
+        ".txt",
+        ".json",
+        ".xml",
+        ".yml",
+        ".yaml",
+        ".csv",
+        ".log",
+        ".rst"
+    )
+
+    $results = [System.Collections.Generic.List[string]]::new()
+    foreach ($rootPath in $RootPaths) {
+        if ([string]::IsNullOrWhiteSpace($rootPath) -or -not (Test-Path -LiteralPath $rootPath)) {
+            continue
+        }
+
+        foreach ($file in Get-ChildItem -LiteralPath $rootPath -Recurse -File) {
+            if ($textExtensions -contains $file.Extension.ToLowerInvariant()) {
+                [void]$results.Add($file.FullName)
+            }
+        }
+    }
+
+    return @($results | Sort-Object -Unique)
+}
+
+function Convert-RepoPathToRelative {
+    param(
+        [string]$Value,
+        [string]$RepoRoot
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $Value
+    }
+
+    $normalizedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $normalizedValue = $Value -replace '/', '\'
+    if (-not [System.IO.Path]::IsPathRooted($normalizedValue)) {
+        return $Value
+    }
+
+    $resolvedValue = [System.IO.Path]::GetFullPath($normalizedValue)
+    if (-not $resolvedValue.StartsWith($normalizedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $Value
+    }
+
+    $relative = $resolvedValue.Substring($normalizedRepoRoot.Length).TrimStart('\', '/')
+    if ([string]::IsNullOrWhiteSpace($relative)) {
+        return "."
+    }
+
+    return ".\" + ($relative -replace '/', '\')
+}
+
+function Convert-StructuredValueToPublic {
+    param(
+        $Value,
+        [string]$RepoRoot
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [string]) {
+        return Convert-RepoPathToRelative -Value $Value -RepoRoot $RepoRoot
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $result = [ordered]@{}
+        foreach ($key in $Value.Keys) {
+            $result[$key] = Convert-StructuredValueToPublic -Value $Value[$key] -RepoRoot $RepoRoot
+        }
+        return $result
+    }
+
+    if ($Value -is [pscustomobject]) {
+        $result = [ordered]@{}
+        foreach ($property in $Value.PSObject.Properties) {
+            $result[$property.Name] = Convert-StructuredValueToPublic -Value $property.Value -RepoRoot $RepoRoot
+        }
+        return $result
+    }
+
+    if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
+        $result = @()
+        foreach ($item in $Value) {
+            $result += ,(Convert-StructuredValueToPublic -Value $item -RepoRoot $RepoRoot)
+        }
+        return $result
+    }
+
+    return $Value
+}
+
+function Sanitize-StagedReleaseMaterials {
+    param(
+        [string]$RepoRoot,
+        [string[]]$RootPaths
+    )
+
+    foreach ($filePath in Get-TextLikeFiles -RootPaths $RootPaths) {
+        if ([System.IO.Path]::GetExtension($filePath).Equals(".json", [System.StringComparison]::OrdinalIgnoreCase)) {
+            $content = Get-Content -Raw -LiteralPath $filePath | ConvertFrom-Json
+            $sanitized = Convert-StructuredValueToPublic -Value $content -RepoRoot $RepoRoot
+            ($sanitized | ConvertTo-Json -Depth 100) | Set-Content -LiteralPath $filePath -Encoding UTF8
+            continue
+        }
+
+        $content = Get-Content -Raw -LiteralPath $filePath
+        $content = $content.Replace($RepoRoot, ".")
+        $content = $content.Replace(($RepoRoot -replace '\\', '/'), ".")
+        Set-Content -LiteralPath $filePath -Encoding UTF8 -Value $content
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
+$releaseMaterialAuditScript = Join-Path $repoRoot "scripts\assert_release_material_safety.ps1"
 $resolvedSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryJson
 $resolvedOutputRoot = Resolve-FullPath -RepoRoot $repoRoot -InputPath $OutputRoot
 
@@ -423,6 +546,20 @@ New-Item -ItemType Directory -Path $stageWordVisualRoot -Force | Out-Null
 Copy-PathTree -Source $resolvedGateReportDir -Destination (Join-Path $stageWordVisualRoot "report")
 Copy-PathTree -Source $resolvedSmokeEvidenceDir -Destination (Join-Path $stageWordVisualRoot "smoke\evidence")
 Copy-PathTree -Source $resolvedFixedGridAggregateDir -Destination (Join-Path $stageWordVisualRoot "fixed-grid\aggregate-evidence")
+
+Write-Step "Sanitizing staged release materials"
+Sanitize-StagedReleaseMaterials -RepoRoot $repoRoot -RootPaths @(
+    $stageInstallRoot
+    $stageReleaseCandidateRoot
+    $stageWordVisualRoot
+)
+
+Write-Step "Auditing staged release materials"
+& $releaseMaterialAuditScript -Path @(
+    $stageInstallRoot
+    $stageReleaseCandidateRoot
+    $stageWordVisualRoot
+)
 
 $installZipPath = Join-Path $versionOutputDir ("FeatherDoc-v{0}-msvc-install.zip" -f $releaseVersion)
 $galleryZipPath = Join-Path $versionOutputDir ("FeatherDoc-v{0}-visual-validation-gallery.zip" -f $releaseVersion)

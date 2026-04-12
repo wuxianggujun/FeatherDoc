@@ -1,0 +1,205 @@
+param(
+    [string]$RepoRoot,
+    [string]$WorkingDir
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+function Assert-Contains {
+    param(
+        [string]$Path,
+        [string]$ExpectedText,
+        [string]$Label
+    )
+
+    $content = Get-Content -Raw -LiteralPath $Path
+    if ($content -notmatch [regex]::Escape($ExpectedText)) {
+        throw "$Label does not contain expected text '$ExpectedText': $Path"
+    }
+}
+
+function Assert-NotContains {
+    param(
+        [string]$Path,
+        [string]$UnexpectedText,
+        [string]$Label
+    )
+
+    $content = Get-Content -Raw -LiteralPath $Path
+    if (-not [string]::IsNullOrWhiteSpace($UnexpectedText) -and
+        $content -match [regex]::Escape($UnexpectedText)) {
+        throw "$Label unexpectedly contains '$UnexpectedText': $Path"
+    }
+}
+
+$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+$resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
+$relativeWorkingDir = $resolvedWorkingDir.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
+$installPrefix = Join-Path $resolvedWorkingDir "build-msvc-install"
+$summaryOutputDir = Join-Path $resolvedWorkingDir "output\release-candidate-checks"
+$reportDir = Join-Path $summaryOutputDir "report"
+$gateOutputDir = Join-Path $resolvedWorkingDir "output\word-visual-release-gate"
+$gateReportDir = Join-Path $gateOutputDir "report"
+$smokeEvidenceDir = Join-Path $gateOutputDir "smoke\evidence"
+$fixedGridAggregateDir = Join-Path $gateOutputDir "fixed-grid\aggregate-evidence"
+$outputRoot = Join-Path $resolvedWorkingDir "release-assets"
+
+New-Item -ItemType Directory -Path (Join-Path $installPrefix "share\FeatherDoc") -Force | Out-Null
+New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+New-Item -ItemType Directory -Path $gateReportDir -Force | Out-Null
+New-Item -ItemType Directory -Path $smokeEvidenceDir -Force | Out-Null
+New-Item -ItemType Directory -Path $fixedGridAggregateDir -Force | Out-Null
+
+$startHerePath = Join-Path $summaryOutputDir "START_HERE.md"
+$releaseHandoffPath = Join-Path $reportDir "release_handoff.md"
+$releaseBodyPath = Join-Path $reportDir "release_body.zh-CN.md"
+$releaseSummaryPath = Join-Path $reportDir "release_summary.zh-CN.md"
+$artifactGuidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
+$reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
+$gateSummaryPath = Join-Path $gateReportDir "gate_summary.json"
+$gateFinalReviewPath = Join-Path $gateReportDir "gate_final_review.md"
+$summaryPath = Join-Path $reportDir "summary.json"
+
+Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Evidence root: $resolvedRepoRoot\output\release-candidate-checks\report
+"@
+
+Set-Content -LiteralPath $releaseHandoffPath -Encoding UTF8 -Value @"
+# FeatherDoc v1.6.4
+
+- Handoff path: $resolvedRepoRoot\output\release-candidate-checks\report\release_handoff.md
+"@
+
+Set-Content -LiteralPath $releaseBodyPath -Encoding UTF8 -Value @"
+# FeatherDoc v1.6.4 发布说明
+
+- 证据目录：$resolvedRepoRoot\output\word-visual-release-gate\report
+"@
+
+Set-Content -LiteralPath $releaseSummaryPath -Encoding UTF8 -Value @"
+# FeatherDoc v1.6.4 发布摘要
+
+- 摘要路径：$resolvedRepoRoot\output\release-candidate-checks\report\release_summary.zh-CN.md
+"@
+
+Set-Content -LiteralPath $artifactGuidePath -Encoding UTF8 -Value @"
+# Artifact Guide
+
+- Report root: $resolvedRepoRoot\output\release-candidate-checks\report
+"@
+
+Set-Content -LiteralPath $reviewerChecklistPath -Encoding UTF8 -Value @"
+# Reviewer Checklist
+
+- Review root: $resolvedRepoRoot\output\word-visual-release-gate\report
+"@
+
+Set-Content -LiteralPath $gateFinalReviewPath -Encoding UTF8 -Value @"
+# Gate Final Review
+
+- Local gate report: $resolvedRepoRoot\output\word-visual-release-gate\report
+"@
+
+Set-Content -LiteralPath (Join-Path $smokeEvidenceDir "README.md") -Encoding UTF8 -Value @"
+# Smoke Evidence
+
+- Local smoke evidence: $resolvedRepoRoot\output\word-visual-release-gate\smoke\evidence
+"@
+
+Set-Content -LiteralPath (Join-Path $fixedGridAggregateDir "README.md") -Encoding UTF8 -Value @"
+# Fixed Grid Evidence
+
+- Local aggregate evidence: $resolvedRepoRoot\output\word-visual-release-gate\fixed-grid\aggregate-evidence
+"@
+
+$gateSummary = [ordered]@{
+    generated_at = "2026-04-12T12:00:00"
+    workspace = $resolvedRepoRoot
+    gate_output_dir = $gateOutputDir
+    report_dir = $gateReportDir
+    execution_status = "pass"
+    visual_verdict = "pass"
+    smoke = [ordered]@{
+        evidence_dir = $smokeEvidenceDir
+    }
+    fixed_grid = [ordered]@{
+        aggregate_evidence_dir = $fixedGridAggregateDir
+    }
+}
+($gateSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $gateSummaryPath -Encoding UTF8
+
+$summary = [ordered]@{
+    generated_at = "2026-04-12T12:00:00"
+    workspace = $resolvedRepoRoot
+    build_dir = (Join-Path $resolvedWorkingDir "build-msvc-nmake")
+    install_dir = $installPrefix
+    consumer_build_dir = (Join-Path $resolvedWorkingDir "build-msvc-install-consumer")
+    gate_output_dir = $gateOutputDir
+    task_output_root = (Join-Path $resolvedWorkingDir "output\word-visual-smoke\tasks-release-gate")
+    release_version = "1.6.4"
+    execution_status = "pass"
+    visual_verdict = "pass"
+    release_handoff = $releaseHandoffPath
+    release_body_zh_cn = $releaseBodyPath
+    release_summary_zh_cn = $releaseSummaryPath
+    artifact_guide = $artifactGuidePath
+    reviewer_checklist = $reviewerChecklistPath
+    start_here = $startHerePath
+    readme_gallery = [ordered]@{
+        status = "completed"
+        assets_dir = (Join-Path $resolvedRepoRoot "docs\assets\readme")
+    }
+    steps = [ordered]@{
+        install_smoke = [ordered]@{
+            status = "completed"
+            install_prefix = $installPrefix
+            consumer_document = (Join-Path $resolvedWorkingDir "build-msvc-install-consumer\featherdoc-install-smoke.docx")
+        }
+        visual_gate = [ordered]@{
+            status = "completed"
+            summary_json = $gateSummaryPath
+            final_review = $gateFinalReviewPath
+            visual_verdict = "pass"
+        }
+    }
+}
+($summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+
+$packageScript = Join-Path $resolvedRepoRoot "scripts\package_release_assets.ps1"
+& $packageScript `
+    -SummaryJson $summaryPath `
+    -OutputRoot $outputRoot `
+    -KeepStaging
+
+$stagingRoot = Join-Path $outputRoot "v1.6.4\staging"
+$stagedSummaryPath = Join-Path $stagingRoot "release-candidate-checks\report\summary.json"
+$stagedGateSummaryPath = Join-Path $stagingRoot "word-visual-release-gate\report\gate_summary.json"
+$stagedHandoffPath = Join-Path $stagingRoot "release-candidate-checks\report\release_handoff.md"
+$installZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-msvc-install.zip"
+$galleryZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-visual-validation-gallery.zip"
+$evidenceZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-release-evidence.zip"
+$expectedRelativeHandoff = ".\$relativeWorkingDir\output\release-candidate-checks\report\release_handoff.md"
+$expectedRelativeGateReport = ".\$relativeWorkingDir\output\word-visual-release-gate\report"
+$stagedSummary = Get-Content -Raw -LiteralPath $stagedSummaryPath | ConvertFrom-Json
+$stagedGateSummary = Get-Content -Raw -LiteralPath $stagedGateSummaryPath | ConvertFrom-Json
+
+Assert-NotContains -Path $stagedSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged summary.json'
+Assert-NotContains -Path $stagedGateSummaryPath -UnexpectedText $resolvedRepoRoot -Label 'staged gate_summary.json'
+Assert-NotContains -Path $stagedHandoffPath -UnexpectedText $resolvedRepoRoot -Label 'staged release_handoff.md'
+if ($stagedSummary.release_handoff -ne $expectedRelativeHandoff) {
+    throw "staged summary.json did not rewrite release_handoff to the expected relative path."
+}
+if ($stagedGateSummary.report_dir -ne $expectedRelativeGateReport) {
+    throw "staged gate_summary.json did not rewrite report_dir to the expected relative path."
+}
+
+foreach ($zipPath in @($installZipPath, $galleryZipPath, $evidenceZipPath)) {
+    if (-not (Test-Path -LiteralPath $zipPath)) {
+        throw "Expected ZIP archive was not created: $zipPath"
+    }
+}
+
+Write-Host "Package release assets safety regression passed."

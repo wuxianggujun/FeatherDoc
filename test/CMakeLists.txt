@@ -57,6 +57,21 @@ if(WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/release_note_bundle_version
         )
 
+        add_test(
+            NAME
+            package_release_assets_safety
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/package_release_assets_safety_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/package_release_assets_safety
+        )
+
         if(FEATHERDOC_PYTHON_EXECUTABLE)
             add_test(
                 NAME

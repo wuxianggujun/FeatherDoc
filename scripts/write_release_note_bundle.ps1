@@ -193,6 +193,7 @@ $bodyScript = Join-Path $repoRoot "scripts\write_release_body_zh.ps1"
 $guideScript = Join-Path $repoRoot "scripts\write_release_artifact_guide.ps1"
 $checklistScript = Join-Path $repoRoot "scripts\write_release_reviewer_checklist.ps1"
 $startHereScript = Join-Path $repoRoot "scripts\write_release_metadata_start_here.ps1"
+$releaseMaterialAuditScript = Join-Path $repoRoot "scripts\assert_release_material_safety.ps1"
 
 $handoffParams = @{
     SummaryJson = $resolvedSummaryPath
@@ -224,6 +225,15 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
 & $startHereScript `
     -SummaryJson $resolvedSummaryPath `
     -OutputPath $resolvedStartHerePath
+
+& $releaseMaterialAuditScript -Path @(
+    $resolvedStartHerePath
+    $resolvedGuidePath
+    $resolvedChecklistPath
+    $resolvedHandoffPath
+    $resolvedBodyPath
+    $resolvedShortPath
+)
 
 Write-Host "Release handoff: $resolvedHandoffPath"
 Write-Host "Release body output: $resolvedBodyPath"
