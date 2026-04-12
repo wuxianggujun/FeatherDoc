@@ -109,7 +109,7 @@ function New-Rule {
 }
 
 $repoRoot = Resolve-RepoRoot
-$scanFiles = Get-ScanFiles -RepoRoot $repoRoot -InputPaths $Path
+$scanFiles = @(Get-ScanFiles -RepoRoot $repoRoot -InputPaths $Path)
 if ($scanFiles.Count -eq 0) {
     Write-Step "No text-like files matched the requested paths."
     exit 0

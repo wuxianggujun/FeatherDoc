@@ -72,6 +72,21 @@ if(WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/package_release_assets_safety
         )
 
+        add_test(
+            NAME
+            assert_release_material_safety
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/assert_release_material_safety_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/assert_release_material_safety
+        )
+
         if(FEATHERDOC_PYTHON_EXECUTABLE)
             add_test(
                 NAME
