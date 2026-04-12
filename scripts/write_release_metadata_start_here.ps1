@@ -146,11 +146,10 @@ if ($releaseVersion) {
     $publishWorkflowCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
 }
 $publishWorkflowFinalCommand = $publishWorkflowCommand + " -Publish"
-$workflowDerivedTag = if ($releaseVersion) {
-    "v$releaseVersion"
-} else {
-    "v<release_version>"
-}
+$refreshWorkflowName = "Release Refresh"
+$refreshWorkflowFile = ".github/workflows/release-refresh.yml"
+$publishWorkflowName = "Release Publish"
+$publishWorkflowFile = ".github/workflows/release-publish.yml"
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Metadata Start Here")
@@ -224,24 +223,14 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add($publishWorkflowFinalCommand)
 [void]$lines.Add('```')
 [void]$lines.Add("")
-[void]$lines.Add("If the validated bundle already exists in a self-hosted Windows runner workspace, you may trigger GitHub Actions `Release Publish` (`.github/workflows/release-publish.yml`) instead of running the wrapper locally.")
+[void]$lines.Add(("If the validated bundle already exists in a self-hosted Windows runner workspace, you may trigger GitHub Actions `{0}` (`{1}`) for a safe refresh, or `{2}` (`{3}`) for the final public release, instead of running the wrapper locally." -f $refreshWorkflowName, $refreshWorkflowFile, $publishWorkflowName, $publishWorkflowFile))
 [void]$lines.Add("")
-[void]$lines.Add("### GitHub Actions `Release Publish` Quick Fill")
+[void]$lines.Add("### GitHub Web UI: 4-Step Runbook")
 [void]$lines.Add("")
-[void]$lines.Add(('- `summary_json`: keep `{0}` unless the validated bundle lives elsewhere in that runner workspace.' -f $summaryCommandPath))
-[void]$lines.Add(('- `release_tag`: leave it blank to derive `{0}` from the summary, or enter another `v...` override.' -f $workflowDerivedTag))
-[void]$lines.Add("- `body_path` / `title`: normally leave both blank.")
-[void]$lines.Add("- `output_root`: keep `output/release-assets` unless you intentionally want a different artifact root.")
-[void]$lines.Add("- `keep_staging`: keep `keep_staging=false` for normal runs.")
-[void]$lines.Add("- `publish`: keep `publish=false` for refresh-only runs; set `publish=true` only for the final go-live pass.")
-[void]$lines.Add("")
-[void]$lines.Add("### GitHub Web UI: 5-Step Runbook")
-[void]$lines.Add("")
-[void]$lines.Add("1. Open the repository `Actions` tab and choose `Release Publish`.")
-[void]$lines.Add("2. Pick the branch that already contains this validated release bundle in the self-hosted runner workspace.")
-[void]$lines.Add("3. Keep the default values above unless you intentionally need an override; for a refresh-only run, leave `publish=false`.")
-[void]$lines.Add("4. Click `Run workflow`, wait for the `publish` job to finish, and open the uploaded `release-publish-output` artifact if you need the packaged ZIPs.")
-[void]$lines.Add("5. Check the GitHub Release page; if the release still should stay private, stop here. When the final local signoff is complete, rerun once with `publish=true`.")
+[void]$lines.Add(("1. Open the repository `Actions` tab and choose `{0}` for a safe refresh, or `{1}` for the final public release." -f $refreshWorkflowName, $publishWorkflowName))
+[void]$lines.Add("2. Pick the branch that already contains this validated release bundle in the self-hosted runner workspace and click `Run workflow`.")
+[void]$lines.Add("3. No additional form input is required; wait for the job to finish, then inspect the uploaded artifact (`release-refresh-output` or `release-publish-output`) if you need the packaged ZIPs.")
+[void]$lines.Add("4. Check the GitHub Release page. Use the refresh workflow for note/asset updates that should stay private, and the publish workflow only after final local Word signoff is complete.")
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8

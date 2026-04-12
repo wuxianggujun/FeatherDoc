@@ -1,4 +1,4 @@
-name: Release Publish
+name: Release Refresh
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  refresh:
     runs-on:
       - self-hosted
       - windows
@@ -39,7 +39,7 @@ jobs:
               throw "Summary JSON not found: $summaryPath. This workflow expects a completed local release-preflight bundle to already exist in the self-hosted runner workspace."
           }
 
-      - name: Publish GitHub release assets and notes
+      - name: Refresh GitHub release assets and notes
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -51,14 +51,13 @@ jobs:
               -ExecutionPolicy Bypass `
               -File .\scripts\publish_github_release.ps1 `
               -SummaryJson $env:RELEASE_SUMMARY_JSON `
-              -OutputRoot $env:RELEASE_OUTPUT_ROOT `
-              -Publish
+              -OutputRoot $env:RELEASE_OUTPUT_ROOT
 
-      - name: Upload release publish output
+      - name: Upload release refresh output
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: release-publish-output
+          name: release-refresh-output
           path: |
             output/release-assets/**
           if-no-files-found: warn
