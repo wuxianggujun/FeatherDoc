@@ -190,6 +190,11 @@ if ($releaseVersion) {
     $publishWorkflowCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
 }
 $publishWorkflowFinalCommand = $publishWorkflowCommand + " -Publish"
+$workflowDerivedTag = if ($releaseVersion) {
+    "v$releaseVersion"
+} else {
+    "v<release_version>"
+}
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Reviewer Checklist")
@@ -242,6 +247,9 @@ Add-CheckboxLine -Lines $lines -Text ('When all gates pass and the GitHub Releas
 Add-CheckboxLine -Lines $lines -Text ('Use the one-shot wrapper when you want ZIP upload plus note sync together: `{0}`' -f $publishWorkflowCommand)
 Add-CheckboxLine -Lines $lines -Text ('Use the same wrapper with final publish enabled when the release is ready to go live: `{0}`' -f $publishWorkflowFinalCommand)
 Add-CheckboxLine -Lines $lines -Text 'If a self-hosted Windows runner already carries the validated bundle, you may use GitHub Actions `Release Publish` (`.github/workflows/release-publish.yml`) instead of running the wrapper locally.'
+Add-CheckboxLine -Lines $lines -Text ('For GitHub Actions `Release Publish`, keep `summary_json` at `{0}` unless that runner stores the validated bundle elsewhere.' -f $summaryCommandPath)
+Add-CheckboxLine -Lines $lines -Text ('For GitHub Actions `Release Publish`, leave `release_tag` blank to derive `{0}` automatically unless you intentionally need another `v...` override.' -f $workflowDerivedTag)
+Add-CheckboxLine -Lines $lines -Text 'For GitHub Actions `Release Publish`, leave `body_path` / `title` blank, keep `output_root` at `output/release-assets`, keep `keep_staging=false`, and switch `publish=true` only for the final go-live pass.'
 Add-CheckboxLine -Lines $lines -Text ('If the visual verdict changes later, rerun the verdict sync command so the gate summary and release notes stay in sync: `{0}`' -f $syncLatestCommand)
 
 if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {

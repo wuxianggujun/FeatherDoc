@@ -231,6 +231,11 @@ if ($projectVersion) {
     $publishWorkflowCommand += (' -ReleaseTag "v{0}"' -f $projectVersion)
 }
 $publishWorkflowFinalCommand = $publishWorkflowCommand + " -Publish"
+$workflowDerivedTag = if ($projectVersion) {
+    "v$projectVersion"
+} else {
+    "v<release_version>"
+}
 $openDocumentTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1"
 $openFixedGridTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_fixed_grid_review_task.ps1 -PrintPrompt"
 
@@ -345,6 +350,16 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("If the validated bundle already exists in a self-hosted Windows runner workspace, the same flow can also be started from GitHub Actions `Release Publish` (`.github/workflows/release-publish.yml`).")
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add("### GitHub Actions `Release Publish` Quick Fill")
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add("- Runner: use a self-hosted Windows runner whose workspace already contains this validated release bundle.")
+[void]$handoffLines.Add(('- `summary_json`: keep `{0}` unless the validated bundle lives elsewhere in that runner workspace.' -f $summaryCommandPath))
+[void]$handoffLines.Add(('- `release_tag`: leave it blank to derive `{0}` from the summary, or enter another `v...` override.' -f $workflowDerivedTag))
+[void]$handoffLines.Add("- `body_path` / `title`: normally leave both blank unless you intentionally want to override the generated note body or release title.")
+[void]$handoffLines.Add("- `output_root`: keep `output/release-assets` unless the runner should write packaged ZIPs somewhere else.")
+[void]$handoffLines.Add("- `keep_staging`: keep `keep_staging=false` for normal runs; switch to `keep_staging=true` only when you need to inspect the staging directory on the runner.")
+[void]$handoffLines.Add("- `publish`: keep `publish=false` for refresh-only runs; change to `publish=true` only for the final go-live pass after local Word signoff is complete.")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Release Body Seed")
 [void]$handoffLines.Add("")

@@ -195,6 +195,11 @@ if ($releaseVersion) {
     $publishWorkflowCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
 }
 $publishWorkflowFinalCommand = $publishWorkflowCommand + " -Publish"
+$workflowDerivedTag = if ($releaseVersion) {
+    "v$releaseVersion"
+} else {
+    "v<release_version>"
+}
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Metadata Artifact Guide")
@@ -273,6 +278,16 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$lines.Add('```')
 [void]$lines.Add("")
 [void]$lines.Add("If the validated bundle already exists in a self-hosted Windows runner workspace, the same flow can also be started from GitHub Actions `Release Publish` (`.github/workflows/release-publish.yml`).")
+[void]$lines.Add("")
+[void]$lines.Add("### GitHub Actions `Release Publish` Quick Fill")
+[void]$lines.Add("")
+[void]$lines.Add("- Runner: use a self-hosted Windows runner whose workspace already contains this validated release bundle.")
+[void]$lines.Add(('- `summary_json`: keep `{0}` unless the validated bundle lives elsewhere in that runner workspace.' -f $summaryCommandPath))
+[void]$lines.Add(('- `release_tag`: leave it blank to derive `{0}` from the summary, or enter another `v...` override.' -f $workflowDerivedTag))
+[void]$lines.Add("- `body_path` / `title`: normally leave both blank unless you intentionally want to override the generated note body or release title.")
+[void]$lines.Add("- `output_root`: keep `output/release-assets` unless the runner should write packaged ZIPs somewhere else.")
+[void]$lines.Add("- `keep_staging`: keep `keep_staging=false` for normal runs; switch to `keep_staging=true` only when you need to inspect the staging directory on the runner.")
+[void]$lines.Add("- `publish`: keep `publish=false` for refresh-only runs; change to `publish=true` only for the final go-live pass after local Word signoff is complete.")
 [void]$lines.Add("")
 [void]$lines.Add("## Refresh After A Later Visual Verdict Update")
 [void]$lines.Add("")

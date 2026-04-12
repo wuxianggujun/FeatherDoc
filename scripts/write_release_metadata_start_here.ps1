@@ -146,6 +146,11 @@ if ($releaseVersion) {
     $publishWorkflowCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
 }
 $publishWorkflowFinalCommand = $publishWorkflowCommand + " -Publish"
+$workflowDerivedTag = if ($releaseVersion) {
+    "v$releaseVersion"
+} else {
+    "v<release_version>"
+}
 
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Metadata Start Here")
@@ -220,6 +225,15 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add('```')
 [void]$lines.Add("")
 [void]$lines.Add("If the validated bundle already exists in a self-hosted Windows runner workspace, you may trigger GitHub Actions `Release Publish` (`.github/workflows/release-publish.yml`) instead of running the wrapper locally.")
+[void]$lines.Add("")
+[void]$lines.Add("### GitHub Actions `Release Publish` Quick Fill")
+[void]$lines.Add("")
+[void]$lines.Add(('- `summary_json`: keep `{0}` unless the validated bundle lives elsewhere in that runner workspace.' -f $summaryCommandPath))
+[void]$lines.Add(('- `release_tag`: leave it blank to derive `{0}` from the summary, or enter another `v...` override.' -f $workflowDerivedTag))
+[void]$lines.Add("- `body_path` / `title`: normally leave both blank.")
+[void]$lines.Add("- `output_root`: keep `output/release-assets` unless you intentionally want a different artifact root.")
+[void]$lines.Add("- `keep_staging`: keep `keep_staging=false` for normal runs.")
+[void]$lines.Add("- `publish`: keep `publish=false` for refresh-only runs; set `publish=true` only for the final go-live pass.")
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8

@@ -101,6 +101,9 @@ Assert-Contains -Path $startHerePath -ExpectedText 'publish_github_release.ps1' 
 Assert-Contains -Path $guidePath -ExpectedText 'release-publish.yml' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'release-publish.yml' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'release-publish.yml' -Label 'START_HERE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'summary_json' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'publish=true' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'publish=false' -Label 'START_HERE.md'
 
 $bodyContent = Get-Content -Raw -LiteralPath $bodyPath
 if ($bodyContent -match 'v1\.6\.1') {
