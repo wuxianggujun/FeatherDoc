@@ -327,6 +327,7 @@ featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark h
 featherdoc_cli inspect-images input.docx
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
+featherdoc_cli replace-image input.docx replacement.gif --relationship-id rId5 --output updated.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -972,6 +973,15 @@ example:
 featherdoc_cli inspect-images report.docx
 featherdoc_cli inspect-images report.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --json
+```
+
+To mutate an existing drawing-backed image while preserving the current size and
+placement XML, use `featherdoc_cli replace-image` with the same part/image
+selection flags plus the replacement file path:
+
+```bash
+featherdoc_cli replace-image report.docx replacement.gif --image 1 --output updated.docx --json
+featherdoc_cli replace-image report.docx replacement.gif --part header --index 0 --image-entry-name word/media/image1.png
 ```
 
 Use `extract_inline_image(index, path)` to copy one existing inline body image

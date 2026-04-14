@@ -237,6 +237,7 @@ section-aware header/footer operations.
     featherdoc_cli inspect-images input.docx
     featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
     featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
+    featherdoc_cli replace-image input.docx replacement.gif --relationship-id rId5 --output updated.docx --json
     featherdoc_cli inspect-header-parts input.docx --json
     featherdoc_cli inspect-footer-parts input.docx
     featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -793,6 +794,15 @@ or resolved media entry path before inspecting the whole list or one image:
     featherdoc_cli inspect-images report.docx
     featherdoc_cli inspect-images report.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
     featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --json
+
+To replace one existing drawing-backed image while preserving the current size
+and inline/anchor placement XML, use ``featherdoc_cli replace-image`` with the
+same part/image selectors plus the new image path:
+
+.. code-block:: sh
+
+    featherdoc_cli replace-image report.docx replacement.gif --image 1 --output updated.docx --json
+    featherdoc_cli replace-image report.docx replacement.gif --part header --index 0 --image-entry-name word/media/image1.png
 
 ``extract_inline_image(index, path)`` copies one existing inline body image out
 of the ``.docx``. ``replace_inline_image(index, path)`` swaps one body image

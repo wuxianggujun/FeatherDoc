@@ -255,6 +255,7 @@ featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark h
 featherdoc_cli inspect-images input.docx
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
+featherdoc_cli replace-image input.docx replacement.gif --relationship-id rId5 --output updated.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -619,6 +620,15 @@ featherdoc_cli inspect-bookmarks report.docx --part header --index 0 --bookmark 
 featherdoc_cli inspect-images report.docx
 featherdoc_cli inspect-images report.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --json
+```
+
+如果你要直接替换现有 drawing 图片，同时保留原来的尺寸和 inline/anchor
+布局，也可以用 `featherdoc_cli replace-image`。它复用同一套部件和图片选择参数，
+再额外接一个替换图片路径：
+
+```bash
+featherdoc_cli replace-image report.docx replacement.gif --image 1 --output updated.docx --json
+featherdoc_cli replace-image report.docx replacement.gif --part header --index 0 --image-entry-name word/media/image1.png
 ```
 
 ## 模板预检

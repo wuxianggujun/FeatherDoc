@@ -64,6 +64,9 @@ performance.
   `--image-entry-name` filters so image inspection can target a stable drawing
   relationship or resolved media package path before emitting list/single-image
   output.
+- Added `featherdoc_cli replace-image` so existing body/header/footer/
+  section-scoped drawing images can be replaced from the CLI while preserving
+  their current size and inline versus anchored placement metadata.
 
 ### Fixed
 

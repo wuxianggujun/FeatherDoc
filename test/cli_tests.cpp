@@ -53,6 +53,40 @@ auto shell_quote(std::string_view value) -> std::string {
 #endif
 }
 
+auto json_quote(std::string_view value) -> std::string {
+    std::string quoted = "\"";
+    for (const char ch : value) {
+        switch (ch) {
+        case '\\':
+            quoted += "\\\\";
+            break;
+        case '"':
+            quoted += "\\\"";
+            break;
+        case '\b':
+            quoted += "\\b";
+            break;
+        case '\f':
+            quoted += "\\f";
+            break;
+        case '\n':
+            quoted += "\\n";
+            break;
+        case '\r':
+            quoted += "\\r";
+            break;
+        case '\t':
+            quoted += "\\t";
+            break;
+        default:
+            quoted += ch;
+            break;
+        }
+    }
+    quoted += '"';
+    return quoted;
+}
+
 auto normalize_system_status(int status) -> int {
 #if defined(_WIN32)
     return status;
@@ -102,6 +136,18 @@ auto tiny_png_data() -> std::string {
     };
 
     return {reinterpret_cast<const char *>(tiny_png_bytes), sizeof(tiny_png_bytes)};
+}
+
+auto tiny_gif_data() -> std::string {
+    constexpr unsigned char tiny_gif_bytes[] = {
+        0x47U, 0x49U, 0x46U, 0x38U, 0x39U, 0x61U, 0x01U, 0x00U, 0x01U, 0x00U,
+        0x80U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0xFFU, 0xFFU, 0xFFU, 0x21U,
+        0xF9U, 0x04U, 0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x2CU, 0x00U, 0x00U,
+        0x00U, 0x00U, 0x01U, 0x00U, 0x01U, 0x00U, 0x00U, 0x02U, 0x02U, 0x44U,
+        0x01U, 0x00U, 0x3BU,
+    };
+
+    return {reinterpret_cast<const char *>(tiny_gif_bytes), sizeof(tiny_gif_bytes)};
 }
 
 auto read_docx_entry(const fs::path &path, const char *entry_name) -> std::string {
@@ -2258,6 +2304,90 @@ TEST_CASE("cli inspect-images reports json parse errors") {
             "inspection requires --section <index>\"}\n"});
 
     remove_if_exists(source);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli replace-image replaces a filtered anchored body image") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_replace_image_source.docx";
+    const fs::path replacement = working_directory / "cli_replace_image_replacement.gif";
+    const fs::path updated = working_directory / "cli_replace_image_updated.docx";
+    const fs::path output = working_directory / "cli_replace_image.json";
+
+    remove_if_exists(source);
+    remove_if_exists(replacement);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_image_fixture(source);
+    write_binary_file(replacement, tiny_gif_data());
+
+    featherdoc::Document doc(source);
+    REQUIRE_FALSE(doc.open());
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    const auto images = body_template.drawing_images();
+    REQUIRE_EQ(images.size(), 2U);
+    const auto &anchored_image = images[1];
+
+    CHECK_EQ(run_cli({"replace-image",
+                      source.string(),
+                      replacement.string(),
+                      "--relationship-id",
+                      anchored_image.relationship_id,
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"replace-image\""), std::string::npos);
+    CHECK_NE(json.find("\"part\":\"body\""), std::string::npos);
+    CHECK_NE(json.find("\"replacement_path\":" + json_quote(replacement.string())),
+             std::string::npos);
+    CHECK_NE(json.find("\"filters\":{\"relationship_id\":\"" +
+                           anchored_image.relationship_id + "\"}"),
+             std::string::npos);
+    CHECK_NE(json.find("\"placement\":\"anchored\""), std::string::npos);
+    CHECK_NE(json.find("\"content_type\":\"image/gif\""), std::string::npos);
+
+    featherdoc::Document reopened(updated);
+    CHECK_FALSE(reopened.open());
+    const auto updated_images = reopened.drawing_images();
+    REQUIRE_EQ(updated_images.size(), 2U);
+    CHECK_EQ(updated_images[1].index, anchored_image.index);
+    CHECK_EQ(updated_images[1].placement,
+             featherdoc::drawing_image_placement::anchored_object);
+    CHECK_EQ(updated_images[1].width_px, anchored_image.width_px);
+    CHECK_EQ(updated_images[1].height_px, anchored_image.height_px);
+    CHECK_EQ(updated_images[1].content_type, "image/gif");
+    CHECK(updated_images[1].entry_name.ends_with(".gif"));
+    CHECK_EQ(read_docx_entry(updated, updated_images[1].entry_name.c_str()),
+             tiny_gif_data());
+
+    remove_if_exists(source);
+    remove_if_exists(replacement);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli replace-image requires an explicit image selector") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path output = working_directory / "cli_replace_image_parse.json";
+
+    remove_if_exists(output);
+
+    CHECK_EQ(run_cli({"replace-image", "missing.docx", "replacement.gif", "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"replace-image\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"replace-image requires --image "
+            "<index>, --relationship-id <id>, or --image-entry-name <path>\"}\n"});
+
     remove_if_exists(output);
 }
 
