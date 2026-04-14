@@ -428,6 +428,12 @@ enum class floating_image_vertical_reference : std::uint8_t {
     line,
 };
 
+enum class floating_image_wrap_mode : std::uint8_t {
+    none = 0U,
+    square,
+    top_bottom,
+};
+
 struct floating_image_options {
     featherdoc::floating_image_horizontal_reference horizontal_reference{
         featherdoc::floating_image_horizontal_reference::column};
@@ -437,6 +443,12 @@ struct floating_image_options {
     std::int32_t vertical_offset_px{0};
     bool behind_text{false};
     bool allow_overlap{true};
+    featherdoc::floating_image_wrap_mode wrap_mode{
+        featherdoc::floating_image_wrap_mode::none};
+    std::uint32_t wrap_distance_left_px{0};
+    std::uint32_t wrap_distance_right_px{0};
+    std::uint32_t wrap_distance_top_px{0};
+    std::uint32_t wrap_distance_bottom_px{0};
 };
 
 struct drawing_image_info {

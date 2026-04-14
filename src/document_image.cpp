@@ -427,6 +427,26 @@ auto to_xml_reference(
 
     return "paragraph";
 }
+
+void append_wrap_mode_node(
+    pugi::xml_node drawing_container,
+    featherdoc::floating_image_wrap_mode wrap_mode) {
+    switch (wrap_mode) {
+    case featherdoc::floating_image_wrap_mode::none:
+        drawing_container.append_child("wp:wrapNone");
+        return;
+    case featherdoc::floating_image_wrap_mode::square: {
+        auto wrap_square = drawing_container.append_child("wp:wrapSquare");
+        ensure_attribute_value(wrap_square, "wrapText", "bothSides");
+        return;
+    }
+    case featherdoc::floating_image_wrap_mode::top_bottom:
+        drawing_container.append_child("wp:wrapTopAndBottom");
+        return;
+    }
+
+    drawing_container.append_child("wp:wrapNone");
+}
 } // namespace
 
 namespace featherdoc {
@@ -1672,10 +1692,29 @@ bool Document::append_drawing_image_part(
     ensure_attribute_value(drawing, "xmlns:wp", wordprocessing_drawing_namespace_uri);
     ensure_attribute_value(drawing, "xmlns:a", drawingml_main_namespace_uri);
     ensure_attribute_value(drawing, "xmlns:pic", drawingml_picture_namespace_uri);
-    ensure_attribute_value(drawing_container, "distT", "0");
-    ensure_attribute_value(drawing_container, "distB", "0");
-    ensure_attribute_value(drawing_container, "distL", "0");
-    ensure_attribute_value(drawing_container, "distR", "0");
+    std::string wrap_distance_top_text{"0"};
+    std::string wrap_distance_bottom_text{"0"};
+    std::string wrap_distance_left_text{"0"};
+    std::string wrap_distance_right_text{"0"};
+
+    if (floating_options.has_value()) {
+        wrap_distance_top_text = std::to_string(
+            featherdoc::detail::pixels_to_emu(
+                floating_options->wrap_distance_top_px));
+        wrap_distance_bottom_text = std::to_string(
+            featherdoc::detail::pixels_to_emu(
+                floating_options->wrap_distance_bottom_px));
+        wrap_distance_left_text = std::to_string(
+            featherdoc::detail::pixels_to_emu(
+                floating_options->wrap_distance_left_px));
+        wrap_distance_right_text = std::to_string(
+            featherdoc::detail::pixels_to_emu(
+                floating_options->wrap_distance_right_px));
+    }
+    ensure_attribute_value(drawing_container, "distT", wrap_distance_top_text);
+    ensure_attribute_value(drawing_container, "distB", wrap_distance_bottom_text);
+    ensure_attribute_value(drawing_container, "distL", wrap_distance_left_text);
+    ensure_attribute_value(drawing_container, "distR", wrap_distance_right_text);
 
     if (floating_options.has_value()) {
         ensure_attribute_value(drawing_container, "simplePos", "0");
@@ -1723,7 +1762,7 @@ bool Document::append_drawing_image_part(
     ensure_attribute_value(effect_extent, "b", "0");
 
     if (floating_options.has_value()) {
-        drawing_container.append_child("wp:wrapNone");
+        append_wrap_mode_node(drawing_container, floating_options->wrap_mode);
     }
 
     auto doc_properties = drawing_container.append_child("wp:docPr");

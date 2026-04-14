@@ -903,10 +903,10 @@ Use `append_floating_image(path, options)` or
 `append_floating_image(path, width_px, height_px, options)` when you want an
 anchored `wp:anchor` image with explicit margin/page-relative offsets.
 `floating_image_options` currently lets you pick horizontal/vertical reference
-frames, pixel offsets, whether the image sits behind text, and whether overlap
-is allowed. The same API works on `Document` and `TemplatePart`. The generated
-floating drawing currently uses `wrapNone`, so Word does not reflow
-surrounding text for you.
+frames, pixel offsets, whether the image sits behind text, whether overlap is
+allowed, and the floating wrap mode plus wrap distances. The same API works on
+`Document` and `TemplatePart`. Use `wrap_mode` when you want `wrapNone`,
+square wrapping, or top/bottom-only flow around the anchored drawing.
 
 ```cpp
 featherdoc::floating_image_options options;
@@ -916,6 +916,9 @@ options.horizontal_offset_px = 460;
 options.vertical_reference =
     featherdoc::floating_image_vertical_reference::margin;
 options.vertical_offset_px = 24;
+options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
+options.wrap_distance_left_px = 12;
+options.wrap_distance_right_px = 12;
 
 doc.append_floating_image("badge.png", 144, 48, options);
 
@@ -1336,7 +1339,7 @@ doc.replace_bookmark_with_image("stamp", "stamp.png", 96, 48);
 Use `replace_bookmark_with_floating_image(...)` when that standalone bookmark
 paragraph should instead become an anchored image paragraph. The floating
 placement uses the same `floating_image_options` struct as
-`append_floating_image(...)`.
+`append_floating_image(...)`, including wrap mode and wrap-distance control.
 
 ```cpp
 featherdoc::floating_image_options options;
@@ -1784,8 +1787,9 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   Floating body image creation is now supported through
   `append_floating_image(...)`, and bookmark-based floating image replacement
   is available through `replace_bookmark_with_floating_image(...)` across
-  body, header, and footer `TemplatePart` handles. Advanced wrapping and
-  cropping control are still not exposed as high-level APIs.
+  body, header, and footer `TemplatePart` handles. Basic wrapping control is
+  now exposed through `floating_image_options::wrap_mode` plus per-edge wrap
+  distances, while image cropping is still not exposed as a high-level API.
 
 ## Source Layout
 

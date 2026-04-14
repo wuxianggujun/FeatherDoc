@@ -4110,6 +4110,9 @@ TEST_CASE("body template part can append floating images and preserve them acros
     options.vertical_offset_px = -8;
     options.behind_text = true;
     options.allow_overlap = false;
+    options.wrap_mode = featherdoc::floating_image_wrap_mode::top_bottom;
+    options.wrap_distance_top_px = 4U;
+    options.wrap_distance_bottom_px = 9U;
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.create_empty());
@@ -4141,6 +4144,9 @@ TEST_CASE("body template part can append floating images and preserve them acros
              std::string::npos);
     CHECK_NE(saved_document_xml.find("behindDoc=\"1\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("allowOverlap=\"0\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("distT=\"38100\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("distB=\"85725\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("<wp:wrapTopAndBottom"), std::string::npos);
 
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
@@ -4271,6 +4277,9 @@ TEST_CASE("header template part can append floating images") {
     options.vertical_reference =
         featherdoc::floating_image_vertical_reference::margin;
     options.vertical_offset_px = 12;
+    options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
+    options.wrap_distance_left_px = 5U;
+    options.wrap_distance_right_px = 7U;
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.create_empty());
@@ -4298,6 +4307,10 @@ TEST_CASE("header template part can append floating images") {
     CHECK_NE(saved_header_xml.find("<wp:posOffset>381000</wp:posOffset>"),
              std::string::npos);
     CHECK_NE(saved_header_xml.find("<wp:posOffset>114300</wp:posOffset>"),
+             std::string::npos);
+    CHECK_NE(saved_header_xml.find("distL=\"47625\""), std::string::npos);
+    CHECK_NE(saved_header_xml.find("distR=\"66675\""), std::string::npos);
+    CHECK_NE(saved_header_xml.find("<wp:wrapSquare wrapText=\"bothSides\""),
              std::string::npos);
 
     const auto saved_header_relationships =
@@ -7194,6 +7207,9 @@ TEST_CASE("replace_bookmark_with_floating_image swaps a standalone bookmark para
     options.vertical_offset_px = -8;
     options.behind_text = true;
     options.allow_overlap = false;
+    options.wrap_mode = featherdoc::floating_image_wrap_mode::top_bottom;
+    options.wrap_distance_top_px = 6U;
+    options.wrap_distance_bottom_px = 10U;
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.open());
@@ -7216,7 +7232,9 @@ TEST_CASE("replace_bookmark_with_floating_image swaps a standalone bookmark para
              std::string::npos);
     CHECK_NE(saved_document_xml.find("behindDoc=\"1\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("allowOverlap=\"0\""), std::string::npos);
-    CHECK_NE(saved_document_xml.find("<wp:wrapNone"), std::string::npos);
+    CHECK_NE(saved_document_xml.find("distT=\"57150\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("distB=\"95250\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("<wp:wrapTopAndBottom"), std::string::npos);
     CHECK_EQ(saved_document_xml.find("w:name=\"logo\""), std::string::npos);
 
     featherdoc::Document reopened(target);
@@ -13901,6 +13919,11 @@ TEST_CASE("append_floating_image writes anchored media parts and preserves them 
     options.vertical_offset_px = -8;
     options.behind_text = true;
     options.allow_overlap = false;
+    options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
+    options.wrap_distance_left_px = 8U;
+    options.wrap_distance_right_px = 10U;
+    options.wrap_distance_top_px = 6U;
+    options.wrap_distance_bottom_px = 12U;
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.create_empty());
@@ -13929,6 +13952,12 @@ TEST_CASE("append_floating_image writes anchored media parts and preserves them 
              std::string::npos);
     CHECK_NE(saved_document_xml.find("behindDoc=\"1\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("allowOverlap=\"0\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("distT=\"57150\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("distB=\"114300\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("distL=\"76200\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("distR=\"95250\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("<wp:wrapSquare wrapText=\"bothSides\""),
+             std::string::npos);
     CHECK_NE(saved_document_xml.find("cx=\"190500\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("cy=\"95250\""), std::string::npos);
 

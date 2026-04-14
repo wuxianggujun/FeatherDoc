@@ -44,6 +44,10 @@ performance.
 - Extended style-usage hit reporting so body matches now carry their owning
   `section_index`, while header/footer hits continue to expose shared-part
   section linkage through `references` metadata.
+- Extended floating image placement so `floating_image_options` now supports
+  `wrap_mode` plus per-edge wrap distances for square and top/bottom text
+  flow around anchored drawings written through `Document`,
+  `TemplatePart`, and bookmark-replacement helpers.
 
 ### Fixed
 
