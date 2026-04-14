@@ -8,6 +8,40 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added explicit per-section page setup read/write support through
+  `Document::get_section_page_setup(...)` and
+  `Document::set_section_page_setup(...)`, including round-trip coverage for
+  implicit final sections, section-local `w:pgSz` / `w:pgMar` updates, and
+  optional `page_number_start` handling.
+- Added `featherdoc_sample_section_page_setup`, `featherdoc_cli
+  inspect-page-setup`, and `featherdoc_cli set-section-page-setup`, together
+  with CLI regression coverage for partial updates and implicit-final-section
+  materialization.
+- Added `TemplatePart::append_page_number_field()` and
+  `TemplatePart::append_total_pages_field()`, the
+  `featherdoc_sample_page_number_fields` sample, and matching
+  `featherdoc_cli append-page-number-field` /
+  `featherdoc_cli append-total-pages-field` commands so page-number fields can
+  be appended to body, header, footer, and section-scoped template parts with
+  regression coverage.
+- Added `scripts/run_section_page_setup_regression.ps1` and the
+  `section_page_setup_regression_bundle` PowerShell test so the repository now
+  has a one-shot bundle for the API sample, the CLI rewrite flow, machine-
+  readable page-setup inspection JSON, and optional Word-rendered evidence.
+- Added `scripts/run_page_number_fields_regression.ps1` and the
+  `page_number_fields_regression_bundle` PowerShell test so the repository now
+  has a screenshot-backed review bundle for API-written and CLI-appended
+  `PAGE` / `NUMPAGES` fields, together with per-case `field_summary.json`
+  artifacts.
+- Added richer style inspection coverage through `Document::find_style(...)`,
+  `Document::find_style_usage(...)`, and `featherdoc_cli inspect-styles`,
+  including style-linked numbering summaries, body/header/footer usage
+  breakdowns, and per-hit `references` metadata that reports which sections
+  reuse a shared header/footer part via `default` / `first` / `even`
+  relationships.
+
 ### Fixed
 
 - Added `scripts/assert_release_material_safety.ps1`, wired it into

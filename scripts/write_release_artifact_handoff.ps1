@@ -89,6 +89,71 @@ function Get-DisplayPath {
     return Get-RepoRelativePath -RepoRoot $RepoRoot -Path $Path
 }
 
+function Get-SupersededReviewTasksReportPath {
+    param(
+        $Summary,
+        $VisualGateSummary
+    )
+
+    $reportPath = Get-OptionalPropertyValue -Object $VisualGateSummary -Name "superseded_review_tasks_report"
+    if (-not [string]::IsNullOrWhiteSpace($reportPath)) {
+        return $reportPath
+    }
+
+    return Get-OptionalPropertyValue -Object $Summary -Name "superseded_review_tasks_report"
+}
+
+function Get-SupersededReviewTaskCount {
+    param([string]$ReportPath)
+
+    if ([string]::IsNullOrWhiteSpace($ReportPath) -or -not (Test-Path -LiteralPath $ReportPath)) {
+        return ""
+    }
+
+    try {
+        $report = Get-Content -Raw -LiteralPath $ReportPath | ConvertFrom-Json
+    } catch {
+        return ""
+    }
+
+    return Get-OptionalPropertyValue -Object $report -Name "superseded_task_count"
+}
+
+function Get-VisualTaskDir {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryTaskDir = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_task_dir" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryTaskDir)) {
+        return $summaryTaskDir
+    }
+
+    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
+    $taskInfo = Get-OptionalPropertyObject -Object $reviewTasks -Name $TaskKey
+    return Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
+}
+
+function Get-VisualTaskVerdict {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryVerdict = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_verdict" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryVerdict)) {
+        return $summaryVerdict
+    }
+
+    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
+    $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
+    $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
+    return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$RepoRoot,
@@ -170,17 +235,18 @@ $reviewerChecklistPath = Get-OptionalPropertyValue -Object $summary -Name "revie
 if ([string]::IsNullOrWhiteSpace($reviewerChecklistPath)) {
     $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 }
+$taskOutputRoot = Get-OptionalPropertyValue -Object $summary -Name "task_output_root"
 
+$visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
 $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
-$gateSummaryPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "summary_json"
-$gateFinalReviewPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "final_review"
-$documentTaskDir = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "document_task_dir"
-$fixedGridTaskDir = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "fixed_grid_task_dir"
+$gateSummaryPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "summary_json"
+$gateFinalReviewPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "final_review"
 
 $visualVerdict = ""
 $readmeGalleryStatus = ""
 $readmeGalleryAssetsDir = ""
+$gateSummary = $null
 if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -LiteralPath $gateSummaryPath)) {
     $gateSummary = Get-Content -Raw $gateSummaryPath | ConvertFrom-Json
     $visualVerdict = Get-OptionalPropertyValue -Object $gateSummary -Name "visual_verdict"
@@ -188,6 +254,17 @@ if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -Literal
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
     $readmeGalleryAssetsDir = Get-OptionalPropertyValue -Object $readmeGallery -Name "assets_dir"
 }
+$documentTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "document"
+$fixedGridTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$supersededReviewTasksReportPath = Get-SupersededReviewTasksReportPath -Summary $summary -VisualGateSummary $visualGateStep
+if ([string]::IsNullOrWhiteSpace($taskOutputRoot) -and -not [string]::IsNullOrWhiteSpace($supersededReviewTasksReportPath)) {
+    $taskOutputRoot = Split-Path -Parent $supersededReviewTasksReportPath
+}
+$supersededReviewTasksCount = Get-SupersededReviewTaskCount -ReportPath $supersededReviewTasksReportPath
 
 $installedDataDir = ""
 $installedQuickstartEn = ""
@@ -237,6 +314,13 @@ $publishWorkflowName = "Release Publish"
 $publishWorkflowFile = ".github/workflows/release-publish.yml"
 $openDocumentTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1"
 $openFixedGridTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_fixed_grid_review_task.ps1 -PrintPrompt"
+$openSectionPageSetupTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_section_page_setup_review_task.ps1 -PrintPrompt"
+$openPageNumberFieldsTaskCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_page_number_fields_review_task.ps1 -PrintPrompt"
+$findSupersededTasksCommand = ""
+if (-not [string]::IsNullOrWhiteSpace($taskOutputRoot)) {
+    $findSupersededTasksCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\find_superseded_review_tasks.ps1 -TaskOutputRoot "{0}"' -f `
+        (Get-RepoRelativePath -RepoRoot $repoRoot -Path $taskOutputRoot)
+}
 
 $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 
@@ -253,6 +337,10 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath)")
 [void]$handoffLines.Add("- Execution status: $($summary.execution_status)")
 [void]$handoffLines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
+[void]$handoffLines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
+[void]$handoffLines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
+[void]$handoffLines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
+[void]$handoffLines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Verification Snapshot")
 [void]$handoffLines.Add("")
@@ -262,6 +350,9 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Install smoke: $($summary.steps.install_smoke.status)")
 [void]$handoffLines.Add("- Visual gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
+[void]$handoffLines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
+[void]$handoffLines.Add("- Section page setup task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
+[void]$handoffLines.Add("- Page number fields task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Installed Package Entry Points")
 [void]$handoffLines.Add("")
@@ -280,9 +371,12 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath)")
 [void]$handoffLines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$handoffLines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
+[void]$handoffLines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
 [void]$handoffLines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")
 [void]$handoffLines.Add("- Document review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $documentTaskDir)")
 [void]$handoffLines.Add("- Fixed-grid review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $fixedGridTaskDir)")
+[void]$handoffLines.Add("- Section page setup review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
+[void]$handoffLines.Add("- Page number fields review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Reproduction Commands")
 [void]$handoffLines.Add("")
@@ -292,6 +386,8 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add($packageAssetsCommand)
 [void]$handoffLines.Add($openDocumentTaskCommand)
 [void]$handoffLines.Add($openFixedGridTaskCommand)
+[void]$handoffLines.Add($openSectionPageSetupTaskCommand)
+[void]$handoffLines.Add($openPageNumberFieldsTaskCommand)
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("If the visual verdict changes after screenshot-backed manual review, rerun the shortest verdict sync first:")
@@ -302,6 +398,14 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("That command auto-detects the latest review task, syncs the final verdict back into the gate summary, and refreshes the detected release bundle.")
 [void]$handoffLines.Add("")
+if (-not [string]::IsNullOrWhiteSpace($findSupersededTasksCommand)) {
+    [void]$handoffLines.Add("Rerun the stale-task audit directly when you need to inspect older preserved task directories:")
+    [void]$handoffLines.Add("")
+    [void]$handoffLines.Add('```powershell')
+    [void]$handoffLines.Add($findSupersededTasksCommand)
+    [void]$handoffLines.Add('```')
+    [void]$handoffLines.Add("")
+}
 if (-not [string]::IsNullOrWhiteSpace($syncExplicitCommand)) {
     [void]$handoffLines.Add("If the inferred gate or release paths need to be overridden manually, use:")
     [void]$handoffLines.Add("")
@@ -324,7 +428,7 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
     [void]$handoffLines.Add('```')
     [void]$handoffLines.Add("")
 }
-[void]$handoffLines.Add("Sync the audited `release_body.zh-CN.md` into the GitHub Release notes with:")
+[void]$handoffLines.Add('Sync the audited `release_body.zh-CN.md` into the GitHub Release notes with:')
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
 [void]$handoffLines.Add($syncReleaseNotesCommand)
@@ -348,13 +452,13 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add($publishWorkflowFinalCommand)
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
-[void]$handoffLines.Add(("If the validated bundle already exists in a self-hosted Windows runner workspace, you can use GitHub Actions `{0}` (`{1}`) for a one-click asset/note refresh, or `{2}` (`{3}`) for the final public release." -f $refreshWorkflowName, $refreshWorkflowFile, $publishWorkflowName, $publishWorkflowFile))
+[void]$handoffLines.Add(('If the validated bundle already exists in a self-hosted Windows runner workspace, you can use GitHub Actions `{0}` (`{1}`) for a one-click asset/note refresh, or `{2}` (`{3}`) for the final public release.' -f $refreshWorkflowName, $refreshWorkflowFile, $publishWorkflowName, $publishWorkflowFile))
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("### GitHub Web UI: 4-Step Runbook")
 [void]$handoffLines.Add("")
-[void]$handoffLines.Add(("1. Open the repository `Actions` tab and choose `{0}` for a safe refresh, or `{1}` for the final public release." -f $refreshWorkflowName, $publishWorkflowName))
-[void]$handoffLines.Add("2. Pick the branch that already contains this validated release bundle in the self-hosted runner workspace and click `Run workflow`.")
-[void]$handoffLines.Add("3. No additional form input is required; wait for the job to finish, then inspect the uploaded artifact (`release-refresh-output` or `release-publish-output`) if you need the packaged ZIPs.")
+[void]$handoffLines.Add(('1. Open the repository `Actions` tab and choose `{0}` for a safe refresh, or `{1}` for the final public release.' -f $refreshWorkflowName, $publishWorkflowName))
+[void]$handoffLines.Add('2. Pick the branch that already contains this validated release bundle in the self-hosted runner workspace and click `Run workflow`.')
+[void]$handoffLines.Add('3. No additional form input is required; wait for the job to finish, then inspect the uploaded artifact (`release-refresh-output` or `release-publish-output`) if you need the packaged ZIPs.')
 [void]$handoffLines.Add("4. Check the GitHub Release page. Use the refresh workflow for note/asset updates that should stay private, and the publish workflow only after final local Word signoff is complete.")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Release Body Seed")
@@ -371,6 +475,8 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add("- install + find_package smoke: $($summary.steps.install_smoke.status)")
 [void]$handoffLines.Add("- Word visual release gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- Visual verdict: $(if ($visualVerdict) { $visualVerdict } else { '<pass|fail|pending_manual_review>' })")
+[void]$handoffLines.Add("- Section page setup verdict: $(if ($sectionPageSetupVerdict) { $sectionPageSetupVerdict } else { '<pass|fail|pending_manual_review>' })")
+[void]$handoffLines.Add("- Page number fields verdict: $(if ($pageNumberFieldsVerdict) { $pageNumberFieldsVerdict } else { '<pass|fail|pending_manual_review>' })")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Installed Package Entry Points")
 [void]$handoffLines.Add("- $(if ($installedQuickstartZh) { Get-DisplayPath -RepoRoot $repoRoot -Path $installedQuickstartZh } else { 'share/FeatherDoc/VISUAL_VALIDATION_QUICKSTART.zh-CN.md' })")

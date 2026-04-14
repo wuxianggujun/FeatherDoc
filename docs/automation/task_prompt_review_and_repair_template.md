@@ -11,6 +11,7 @@
 - Repair directory: `{{REPAIR_DIR}}`
 
 请先做严格的视觉检查；若检查不通过，再继续修复生成逻辑并重新做完整回归。不要手工直接改原始 Word 文档。
+如果任务包里已经有 `{{REPORT_DIR}}\summary.json`、`{{REPORT_DIR}}\review_checklist.md`、`{{EVIDENCE_DIR}}\contact_sheet.png` 和 `{{EVIDENCE_DIR}}\pages\*.png`，优先复用这些现成证据；只有在证据缺失、明显过期或与当前文档不一致时，才执行首轮渲染命令。
 
 强制约束：
 

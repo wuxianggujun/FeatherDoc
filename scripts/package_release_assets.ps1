@@ -407,9 +407,16 @@ function Convert-ReleaseTextToPublic {
     $result = [regex]::Replace($result, '(?i)\b[a-z]:(?:\\\\|\\)[^\s"''`<>|]+', '<windows-absolute-path>')
     $result = [regex]::Replace($result, '(?<!\w)/(?:Users|home)/[^\s"''`<>|]+', '<unix-absolute-path>')
 
+    $zhReleaseNoteDraft = [string]::Concat(([char[]](0x53D1, 0x5E03, 0x8BF4, 0x660E, 0x8349, 0x7A3F)))
+    $zhReleaseNotePreview = [string]::Concat(([char[]](0x53D1, 0x5E03, 0x8BF4, 0x660E, 0x9884, 0x89C8, 0x7248)))
+    $zhFillBeforeRelease = [string]::Concat(([char[]](0x8BF7, 0x5728, 0x53D1, 0x5E03, 0x524D, 0x8865, 0x9F50)))
+    $zhFillBeforePublicRelease = [string]::Concat(([char[]](0x8BF7, 0x5728, 0x516C, 0x5F00, 0x53D1, 0x5E03, 0x524D, 0x5B8C, 0x5584)))
+    $zhDraft = [string]::Concat(([char[]](0x8349, 0x7A3F)))
+    $zhPreview = [string]::Concat(([char[]](0x9884, 0x89C8, 0x7248)))
+
     $replacements = @(
-        @{ Pattern = '(?i)发布说明草稿'; Replacement = '发布说明预览版' }
-        @{ Pattern = '(?i)请在发布前补齐'; Replacement = '请在公开发布前完善' }
+        @{ Pattern = "(?i)$zhReleaseNoteDraft"; Replacement = $zhReleaseNotePreview }
+        @{ Pattern = "(?i)$zhFillBeforeRelease"; Replacement = $zhFillBeforePublicRelease }
         @{ Pattern = '(?i)\brelease body draft\b'; Replacement = 'release body preview' }
         @{ Pattern = '(?i)\brelease-note drafts\b'; Replacement = 'release-note previews' }
         @{ Pattern = '(?i)\bpublic release drafts\b'; Replacement = 'public release previews' }
@@ -421,7 +428,7 @@ function Convert-ReleaseTextToPublic {
         @{ Pattern = '(?i)\bdrafts\b'; Replacement = 'previews' }
         @{ Pattern = '(?i)\bdrafting\b'; Replacement = 'preparation' }
         @{ Pattern = '(?i)\bdraft\b'; Replacement = 'preview' }
-        @{ Pattern = '草稿'; Replacement = '预览版' }
+        @{ Pattern = $zhDraft; Replacement = $zhPreview }
     )
 
     foreach ($replacement in $replacements) {
@@ -552,15 +559,18 @@ $resolvedGateRoot = Resolve-GateRoot -RepoRoot $repoRoot -Summary $summary
 $resolvedGateReportDir = ""
 $resolvedSmokeEvidenceDir = ""
 $resolvedFixedGridAggregateDir = ""
+$resolvedSectionPageSetupAggregateDir = ""
 $hasVisualGateEvidence = $false
 if (-not [string]::IsNullOrWhiteSpace($resolvedGateRoot) -and (Test-Path -LiteralPath $resolvedGateRoot)) {
     $resolvedGateReportDir = Join-Path $resolvedGateRoot "report"
     $resolvedSmokeEvidenceDir = Join-Path $resolvedGateRoot "smoke\evidence"
     $resolvedFixedGridAggregateDir = Join-Path $resolvedGateRoot "fixed-grid\aggregate-evidence"
+    $resolvedSectionPageSetupAggregateDir = Join-Path $resolvedGateRoot "section-page-setup\aggregate-evidence"
     $hasVisualGateEvidence = `
         (Test-Path -LiteralPath $resolvedGateReportDir) -and `
         (Test-Path -LiteralPath $resolvedSmokeEvidenceDir) -and `
-        (Test-Path -LiteralPath $resolvedFixedGridAggregateDir)
+        (Test-Path -LiteralPath $resolvedFixedGridAggregateDir) -and `
+        (Test-Path -LiteralPath $resolvedSectionPageSetupAggregateDir)
 }
 
 if (-not $hasVisualGateEvidence) {
@@ -569,6 +579,7 @@ if (-not $hasVisualGateEvidence) {
         Assert-PathExists -Path $resolvedGateReportDir -Label "gate report directory"
         Assert-PathExists -Path $resolvedSmokeEvidenceDir -Label "smoke evidence directory"
         Assert-PathExists -Path $resolvedFixedGridAggregateDir -Label "fixed-grid aggregate evidence directory"
+        Assert-PathExists -Path $resolvedSectionPageSetupAggregateDir -Label "section page setup aggregate evidence directory"
     }
 }
 
@@ -609,6 +620,7 @@ if ($hasVisualGateEvidence) {
     Copy-PathTree -Source $resolvedGateReportDir -Destination (Join-Path $stageWordVisualRoot "report")
     Copy-PathTree -Source $resolvedSmokeEvidenceDir -Destination (Join-Path $stageWordVisualRoot "smoke\evidence")
     Copy-PathTree -Source $resolvedFixedGridAggregateDir -Destination (Join-Path $stageWordVisualRoot "fixed-grid\aggregate-evidence")
+    Copy-PathTree -Source $resolvedSectionPageSetupAggregateDir -Destination (Join-Path $stageWordVisualRoot "section-page-setup\aggregate-evidence")
 } elseif ($AllowIncomplete -and $visualGateStatus -eq "skipped") {
     $incompleteNote = @'
 # Word Visual Gate Skipped

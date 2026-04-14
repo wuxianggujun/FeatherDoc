@@ -42,6 +42,8 @@ param(
     [switch]$SkipTests,
     [switch]$SkipInstallSmoke,
     [switch]$SkipVisualGate,
+    [switch]$SkipSectionPageSetup,
+    [switch]$SkipPageNumberFields,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -373,6 +375,10 @@ function Parse-VisualGateOutput {
             $result.document_task_dir = $Matches[1].Trim()
         } elseif ($line -match '^Fixed-grid task:\s*(.+)$') {
             $result.fixed_grid_task_dir = $Matches[1].Trim()
+        } elseif ($line -match '^Section page setup task:\s*(.+)$') {
+            $result.section_page_setup_task_dir = $Matches[1].Trim()
+        } elseif ($line -match '^Page number fields task:\s*(.+)$') {
+            $result.page_number_fields_task_dir = $Matches[1].Trim()
         }
     }
 
@@ -384,6 +390,12 @@ function Parse-VisualGateOutput {
     }
     if ($result.fixed_grid_task_dir) {
         Assert-PathExists -Path $result.fixed_grid_task_dir -Label "visual gate fixed-grid task"
+    }
+    if ($result.section_page_setup_task_dir) {
+        Assert-PathExists -Path $result.section_page_setup_task_dir -Label "visual gate section page setup task"
+    }
+    if ($result.page_number_fields_task_dir) {
+        Assert-PathExists -Path $result.page_number_fields_task_dir -Label "visual gate page number fields task"
     }
 
     return $result
@@ -429,6 +441,7 @@ $summary = [ordered]@{
     review_mode = if ($SkipReviewTasks) { "" } else { $ReviewMode }
     msvc_bootstrap_mode = $msvcBootstrap.mode
     release_version = $projectVersion
+    visual_verdict = if ($SkipVisualGate) { "visual_gate_skipped" } else { "pending_manual_review" }
     execution_status = "running"
     failed_step = ""
     error = ""
@@ -486,6 +499,10 @@ try {
                 -Label "installable CLI executable"
         }
         if (-not $SkipVisualGate) {
+            $summary.steps.build.visual_prereq_section_page_setup_cli = Assert-BuildExecutablePresent `
+                -BuildRoot $resolvedBuildDir `
+                -ExecutableStem "featherdoc_cli" `
+                -Label "section page setup regression CLI"
             $summary.steps.build.visual_prereq_smoke = Assert-BuildExecutablePresent `
                 -BuildRoot $resolvedBuildDir `
                 -ExecutableStem "featherdoc_visual_smoke_tables" `
@@ -506,6 +523,18 @@ try {
                 -BuildRoot $resolvedBuildDir `
                 -ExecutableStem "featherdoc_sample_unmerge_down_fixed_grid" `
                 -Label "fixed-grid unmerge-down sample"
+            if (-not $SkipSectionPageSetup) {
+                $summary.steps.build.visual_prereq_section_page_setup = Assert-BuildExecutablePresent `
+                    -BuildRoot $resolvedBuildDir `
+                    -ExecutableStem "featherdoc_sample_section_page_setup" `
+                    -Label "section page setup sample"
+            }
+            if (-not $SkipPageNumberFields) {
+                $summary.steps.build.visual_prereq_page_number_fields = Assert-BuildExecutablePresent `
+                    -BuildRoot $resolvedBuildDir `
+                    -ExecutableStem "featherdoc_sample_page_number_fields" `
+                    -Label "page number fields sample"
+            }
         }
     }
 
@@ -552,6 +581,10 @@ try {
             $resolvedBuildDir
             "-FixedGridBuildDir"
             $resolvedBuildDir
+            "-SectionPageSetupBuildDir"
+            $resolvedBuildDir
+            "-PageNumberFieldsBuildDir"
+            $resolvedBuildDir
             "-TaskOutputRoot"
             $resolvedTaskOutputRoot
             "-ReviewMode"
@@ -562,6 +595,12 @@ try {
         )
         if ($SkipReviewTasks) {
             $visualGateArgs += "-SkipReviewTasks"
+        }
+        if ($SkipSectionPageSetup) {
+            $visualGateArgs += "-SkipSectionPageSetup"
+        }
+        if ($SkipPageNumberFields) {
+            $visualGateArgs += "-SkipPageNumberFields"
         }
         if ($RefreshReadmeAssets) {
             $visualGateArgs += @(
@@ -589,6 +628,19 @@ try {
         }
         if ($visualGateInfo.fixed_grid_task_dir) {
             $summary.steps.visual_gate.fixed_grid_task_dir = $visualGateInfo.fixed_grid_task_dir
+        }
+        if ($visualGateInfo.section_page_setup_task_dir) {
+            $summary.steps.visual_gate.section_page_setup_task_dir = $visualGateInfo.section_page_setup_task_dir
+        }
+        if ($visualGateInfo.page_number_fields_task_dir) {
+            $summary.steps.visual_gate.page_number_fields_task_dir = $visualGateInfo.page_number_fields_task_dir
+        }
+
+        $gateSummary = Get-Content -Raw -LiteralPath $visualGateInfo.gate_summary | ConvertFrom-Json
+        $gateVisualVerdict = Get-OptionalPropertyValue -Object $gateSummary -Name "visual_verdict"
+        if (-not [string]::IsNullOrWhiteSpace([string]$gateVisualVerdict)) {
+            $summary.visual_verdict = [string]$gateVisualVerdict
+            $summary.steps.visual_gate.visual_verdict = [string]$gateVisualVerdict
         }
 
         $readmeGalleryInfo = Get-ReadmeGalleryInfoFromGateSummary -GateSummaryPath $visualGateInfo.gate_summary

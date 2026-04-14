@@ -51,6 +51,7 @@ $gateOutputDir = Join-Path $resolvedWorkingDir "output\word-visual-release-gate"
 $gateReportDir = Join-Path $gateOutputDir "report"
 $smokeEvidenceDir = Join-Path $gateOutputDir "smoke\evidence"
 $fixedGridAggregateDir = Join-Path $gateOutputDir "fixed-grid\aggregate-evidence"
+$sectionPageSetupAggregateDir = Join-Path $gateOutputDir "section-page-setup\aggregate-evidence"
 $outputRoot = Join-Path $resolvedWorkingDir "release-assets"
 
 New-Item -ItemType Directory -Path (Join-Path $installPrefix "share\FeatherDoc") -Force | Out-Null
@@ -58,6 +59,7 @@ New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $gateReportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $smokeEvidenceDir -Force | Out-Null
 New-Item -ItemType Directory -Path $fixedGridAggregateDir -Force | Out-Null
+New-Item -ItemType Directory -Path $sectionPageSetupAggregateDir -Force | Out-Null
 
 $startHerePath = Join-Path $summaryOutputDir "START_HERE.md"
 $releaseHandoffPath = Join-Path $reportDir "release_handoff.md"
@@ -142,6 +144,12 @@ Set-Content -LiteralPath (Join-Path $fixedGridAggregateDir "README.md") -Encodin
 # Fixed Grid Evidence
 
 - Local aggregate evidence: $resolvedRepoRoot\output\word-visual-release-gate\fixed-grid\aggregate-evidence
+"@
+
+Set-Content -LiteralPath (Join-Path $sectionPageSetupAggregateDir "README.md") -Encoding UTF8 -Value @"
+# Section Page Setup Evidence
+
+- Local aggregate evidence: $resolvedRepoRoot\output\word-visual-release-gate\section-page-setup\aggregate-evidence
 "@
 
 $gateSummary = [ordered]@{

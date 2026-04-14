@@ -84,6 +84,71 @@ function Get-DisplayPath {
     return Get-RepoRelativePath -RepoRoot $RepoRoot -Path $Path
 }
 
+function Get-SupersededReviewTasksReportPath {
+    param(
+        $Summary,
+        $VisualGateSummary
+    )
+
+    $reportPath = Get-OptionalPropertyValue -Object $VisualGateSummary -Name "superseded_review_tasks_report"
+    if (-not [string]::IsNullOrWhiteSpace($reportPath)) {
+        return $reportPath
+    }
+
+    return Get-OptionalPropertyValue -Object $Summary -Name "superseded_review_tasks_report"
+}
+
+function Get-SupersededReviewTaskCount {
+    param([string]$ReportPath)
+
+    if ([string]::IsNullOrWhiteSpace($ReportPath) -or -not (Test-Path -LiteralPath $ReportPath)) {
+        return ""
+    }
+
+    try {
+        $report = Get-Content -Raw -LiteralPath $ReportPath | ConvertFrom-Json
+    } catch {
+        return ""
+    }
+
+    return Get-OptionalPropertyValue -Object $report -Name "superseded_task_count"
+}
+
+function Get-VisualTaskDir {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryTaskDir = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_task_dir" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryTaskDir)) {
+        return $summaryTaskDir
+    }
+
+    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
+    $taskInfo = Get-OptionalPropertyObject -Object $reviewTasks -Name $TaskKey
+    return Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
+}
+
+function Get-VisualTaskVerdict {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryVerdict = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_verdict" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryVerdict)) {
+        return $summaryVerdict
+    }
+
+    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
+    $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
+    $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
+    return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$RepoRoot,
@@ -149,15 +214,18 @@ if ([string]::IsNullOrWhiteSpace($releaseSummaryPath)) {
     $releaseSummaryPath = Join-Path $reportDir "release_summary.zh-CN.md"
 }
 $finalReviewPath = Join-Path $reportDir "final_review.md"
+$taskOutputRoot = Get-OptionalPropertyValue -Object $summary -Name "task_output_root"
 
+$visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
 $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
-$gateSummaryPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "summary_json"
-$gateFinalReviewPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "final_review"
+$gateSummaryPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "summary_json"
+$gateFinalReviewPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "final_review"
 
 $visualVerdict = ""
 $readmeGalleryStatus = ""
 $readmeGalleryAssetsDir = ""
+$gateSummary = $null
 if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -LiteralPath $gateSummaryPath)) {
     $gateSummary = Get-Content -Raw $gateSummaryPath | ConvertFrom-Json
     $visualVerdict = Get-OptionalPropertyValue -Object $gateSummary -Name "visual_verdict"
@@ -165,11 +233,25 @@ if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -Literal
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
     $readmeGalleryAssetsDir = Get-OptionalPropertyValue -Object $readmeGallery -Name "assets_dir"
 }
+$sectionPageSetupTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$supersededReviewTasksReportPath = Get-SupersededReviewTasksReportPath -Summary $summary -VisualGateSummary $visualGateStep
+if ([string]::IsNullOrWhiteSpace($taskOutputRoot) -and -not [string]::IsNullOrWhiteSpace($supersededReviewTasksReportPath)) {
+    $taskOutputRoot = Split-Path -Parent $supersededReviewTasksReportPath
+}
+$supersededReviewTasksCount = Get-SupersededReviewTaskCount -ReportPath $supersededReviewTasksReportPath
 if ([string]::IsNullOrWhiteSpace($visualVerdict)) {
     $visualVerdict = "pending_manual_review"
 }
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
+$findSupersededTasksCommand = ""
+if (-not [string]::IsNullOrWhiteSpace($taskOutputRoot)) {
+    $findSupersededTasksCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\find_superseded_review_tasks.ps1 -TaskOutputRoot "{0}"' -f `
+        (Get-RepoRelativePath -RepoRoot $repoRoot -Path $taskOutputRoot)
+}
 $releaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
 $packageAssetsCommand = if ($releaseVersion) {
     'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
@@ -201,6 +283,10 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
 [void]$lines.Add("- Visual gate status: $($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict: $visualVerdict")
+[void]$lines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
+[void]$lines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
+[void]$lines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
+[void]$lines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
 [void]$lines.Add("")
@@ -215,6 +301,13 @@ Add-CheckboxLine -Lines $lines -Text ('Open `release_handoff.md` and confirm the
 [void]$lines.Add("")
 Add-CheckboxLine -Lines $lines -Text ('Confirm `summary.json` reports the expected step statuses: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath))
 Add-CheckboxLine -Lines $lines -Text ('Confirm `final_review.md` still matches the current release status: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $finalReviewPath))
+if (-not [string]::IsNullOrWhiteSpace($supersededReviewTasksCount)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm `superseded_review_tasks.json` reports zero stale task directories or intentionally explains any preserved older tasks (current count: {0}): {1}' -f `
+            $supersededReviewTasksCount, (Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath))
+} else {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm `superseded_review_tasks.json` reports zero stale task directories or intentionally explains any preserved older tasks: {0}' -f `
+            (Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath))
+}
 
 if ($summary.steps.visual_gate.status -eq "skipped") {
     Add-CheckboxLine -Lines $lines -Text 'Treat this as a CI metadata artifact only; do not treat the visual verdict as the final Word screenshot-backed release signoff.'
@@ -230,6 +323,12 @@ if (-not [string]::IsNullOrWhiteSpace($consumerDocument)) {
 
 if (-not [string]::IsNullOrWhiteSpace($gateFinalReviewPath)) {
     Add-CheckboxLine -Lines $lines -Text ('Spot-check the visual gate final review notes if anything in the release notes feels risky: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath))
+}
+if (-not [string]::IsNullOrWhiteSpace($sectionPageSetupTaskDir)) {
+    Add-CheckboxLine -Lines $lines -Text ('Open the section page setup review task if the release touches layout or orientation behavior: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir))
+}
+if (-not [string]::IsNullOrWhiteSpace($pageNumberFieldsTaskDir)) {
+    Add-CheckboxLine -Lines $lines -Text ('Open the page number fields review task if the release touches page numbers, PAGE/NUMPAGES fields, or field refresh behavior: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir))
 }
 if ($readmeGalleryStatus -eq "completed") {
     Add-CheckboxLine -Lines $lines -Text ('Confirm the repository README gallery PNGs were refreshed from the latest Word evidence: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir))
@@ -249,6 +348,9 @@ Add-CheckboxLine -Lines $lines -Text ('If a self-hosted Windows runner already c
 Add-CheckboxLine -Lines $lines -Text ('Use GitHub Actions `{0}` (`{1}`) only after final local Word signoff when the GitHub Release should go live publicly.' -f $publishWorkflowName, $publishWorkflowFile)
 Add-CheckboxLine -Lines $lines -Text ('For the GitHub web flow, go to `Actions`, choose `{0}` or `{1}`, click `Run workflow`, then inspect `release-refresh-output` / `release-publish-output` and the target GitHub Release page.' -f $refreshWorkflowName, $publishWorkflowName)
 Add-CheckboxLine -Lines $lines -Text ('If the visual verdict changes later, rerun the verdict sync command so the gate summary and release notes stay in sync: `{0}`' -f $syncLatestCommand)
+if (-not [string]::IsNullOrWhiteSpace($findSupersededTasksCommand)) {
+    Add-CheckboxLine -Lines $lines -Text ('Rerun the superseded review-task audit when you need to recheck older preserved task directories: `{0}`' -f $findSupersededTasksCommand)
+}
 
 if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
     $installedQuickstartZh = Join-Path $installPrefix "share\FeatherDoc\VISUAL_VALIDATION_QUICKSTART.zh-CN.md"
@@ -260,8 +362,8 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
 [void]$lines.Add("")
 [void]$lines.Add("## Stop Conditions")
 [void]$lines.Add("")
-[void]$lines.Add("- Do not approve for public release when `execution_status` is not `pass`.")
-[void]$lines.Add("- Do not approve for public release when the final local visual verdict is not `pass`.")
+[void]$lines.Add('- Do not approve for public release when `execution_status` is not `pass`.')
+[void]$lines.Add('- Do not approve for public release when the final local visual verdict is not `pass`.')
 [void]$lines.Add("- Do not treat a CI-only artifact with visual gate = skipped as the final screenshot-backed release signoff.")
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null

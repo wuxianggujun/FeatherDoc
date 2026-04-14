@@ -160,6 +160,141 @@ if(WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/assert_release_material_safety
         )
 
+        add_test(
+            NAME
+            prepare_document_review_task
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/prepare_document_review_task_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/prepare_document_review_task
+        )
+
+        add_test(
+            NAME
+            prepare_section_page_setup_review_task
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/prepare_section_page_setup_review_task_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/prepare_section_page_setup_review_task
+        )
+
+        add_test(
+            NAME
+            prepare_page_number_fields_review_task
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/prepare_page_number_fields_review_task_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/prepare_page_number_fields_review_task
+        )
+
+        add_test(
+            NAME
+            open_latest_section_page_setup_review_task
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/open_latest_section_page_setup_review_task_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/open_latest_section_page_setup_review_task
+        )
+
+        add_test(
+            NAME
+            open_latest_page_number_fields_review_task
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/open_latest_page_number_fields_review_task_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/open_latest_page_number_fields_review_task
+        )
+
+        add_test(
+            NAME
+            sync_visual_review_verdict_section_page_setup
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_visual_review_verdict_section_page_setup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_visual_review_verdict_section_page_setup
+        )
+
+        add_test(
+            NAME
+            sync_visual_review_verdict_page_number_fields
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_visual_review_verdict_page_number_fields_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_visual_review_verdict_page_number_fields
+        )
+
+        add_test(
+            NAME
+            sync_latest_visual_review_verdict
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_latest_visual_review_verdict_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict
+        )
+
+        add_test(
+            NAME
+            find_superseded_review_tasks
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/find_superseded_review_tasks_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/find_superseded_review_tasks
+        )
+
         if(FEATHERDOC_PYTHON_EXECUTABLE)
             add_test(
                 NAME
@@ -198,6 +333,74 @@ if(WIN32)
                 ${PROJECT_BINARY_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/fixed_grid_regression_bundle
+            )
+        endif()
+
+        if(
+            TARGET featherdoc_sample_section_page_setup
+            AND TARGET featherdoc_cli
+        )
+            add_test(
+                NAME
+                section_page_setup_regression_bundle
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/section_page_setup_regression_bundle_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/section_page_setup_regression_bundle
+            )
+        endif()
+
+        if(
+            TARGET featherdoc_sample_page_number_fields
+            AND TARGET featherdoc_sample_section_page_setup
+            AND TARGET featherdoc_cli
+        )
+            add_test(
+                NAME
+                page_number_fields_regression_bundle
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/page_number_fields_regression_bundle_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/page_number_fields_regression_bundle
+            )
+        endif()
+
+        if(
+            TARGET featherdoc_sample_template_validation
+            AND TARGET featherdoc_sample_part_template_validation
+            AND TARGET featherdoc_cli
+        )
+            add_test(
+                NAME
+                template_validation_regression_bundle
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/template_validation_regression_bundle_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/template_validation_regression_bundle
             )
         endif()
 

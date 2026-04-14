@@ -148,6 +148,55 @@ auto collect_template_part_table_text(featherdoc::TemplatePart part) -> std::str
     return stream.str();
 }
 
+auto find_style_summary(const std::vector<featherdoc::style_summary> &styles,
+                        std::string_view style_id)
+    -> const featherdoc::style_summary * {
+    for (const auto &style : styles) {
+        if (style.style_id == style_id) {
+            return &style;
+        }
+    }
+
+    return nullptr;
+}
+
+auto find_style_xml_node(pugi::xml_node styles_root, std::string_view style_id) -> pugi::xml_node {
+    for (auto style = styles_root.child("w:style"); style != pugi::xml_node{};
+         style = style.next_sibling("w:style")) {
+        if (std::string_view{style.attribute("w:styleId").value()} == style_id) {
+            return style;
+        }
+    }
+
+    return {};
+}
+
+auto find_numbering_abstract_xml_node(pugi::xml_node numbering_root, std::string_view name)
+    -> pugi::xml_node {
+    for (auto abstract_num = numbering_root.child("w:abstractNum");
+         abstract_num != pugi::xml_node{};
+         abstract_num = abstract_num.next_sibling("w:abstractNum")) {
+        if (std::string_view{abstract_num.child("w:name").attribute("w:val").value()} == name) {
+            return abstract_num;
+        }
+    }
+
+    return {};
+}
+
+auto find_numbering_level_xml_node(pugi::xml_node abstract_num, std::uint32_t level)
+    -> pugi::xml_node {
+    const auto level_text = std::to_string(level);
+    for (auto level_node = abstract_num.child("w:lvl"); level_node != pugi::xml_node{};
+         level_node = level_node.next_sibling("w:lvl")) {
+        if (std::string_view{level_node.attribute("w:ilvl").value()} == level_text) {
+            return level_node;
+        }
+    }
+
+    return {};
+}
+
 auto collect_table_grid_width_values(pugi::xml_node table_node) -> std::vector<std::string> {
     auto widths = std::vector<std::string>{};
     const auto table_grid = table_node.child("w:tblGrid");
@@ -2275,6 +2324,90 @@ TEST_CASE("footer template part can append an empty paragraph and populate it la
     fs::remove(target);
 }
 
+TEST_CASE("header and footer template parts can append page number fields") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_part_page_number_fields.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto &header = doc.ensure_section_header_paragraphs(0);
+    auto &footer = doc.ensure_section_footer_paragraphs(0);
+    REQUIRE(header.has_next());
+    REQUIRE(footer.has_next());
+
+    auto header_template = doc.section_header_template(0);
+    auto footer_template = doc.section_footer_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    REQUIRE(static_cast<bool>(footer_template));
+
+    CHECK(header_template.append_page_number_field());
+    CHECK(footer_template.append_total_pages_field());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    REQUIRE(static_cast<bool>(reopened.section_header_template(0)));
+    REQUIRE(static_cast<bool>(reopened.section_footer_template(0)));
+
+    const auto header_xml = read_test_docx_entry(target, "word/header1.xml");
+    const auto footer_xml = read_test_docx_entry(target, "word/footer1.xml");
+
+    pugi::xml_document header_document;
+    pugi::xml_document footer_document;
+    REQUIRE(header_document.load_string(header_xml.c_str()));
+    REQUIRE(footer_document.load_string(footer_xml.c_str()));
+
+    const auto header_node = header_document.child("w:hdr");
+    const auto footer_node = footer_document.child("w:ftr");
+    REQUIRE(header_node != pugi::xml_node{});
+    REQUIRE(footer_node != pugi::xml_node{});
+    CHECK_EQ(count_named_children(header_node, "w:p"), 1U);
+    CHECK_EQ(count_named_children(footer_node, "w:p"), 1U);
+
+    const auto header_field = header_node.child("w:p").child("w:fldSimple");
+    const auto footer_field = footer_node.child("w:p").child("w:fldSimple");
+    REQUIRE(header_field != pugi::xml_node{});
+    REQUIRE(footer_field != pugi::xml_node{});
+    CHECK_EQ(std::string_view{header_field.attribute("w:instr").value()}, " PAGE ");
+    CHECK_EQ(std::string_view{footer_field.attribute("w:instr").value()},
+             " NUMPAGES ");
+    CHECK_EQ(std::string_view{header_field.child("w:r").child("w:t").text().get()},
+             "1");
+    CHECK_EQ(std::string_view{footer_field.child("w:r").child("w:t").text().get()},
+             "1");
+
+    fs::remove(target);
+}
+
+TEST_CASE("template part page number fields report unavailable parts") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "template_part_page_number_fields_error.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto missing_header_template = doc.section_header_template(1);
+    CHECK_FALSE(static_cast<bool>(missing_header_template));
+    CHECK_FALSE(missing_header_template.append_page_number_field());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().detail, "template part is not available");
+
+    auto missing_footer_template = doc.section_footer_template(1);
+    CHECK_FALSE(static_cast<bool>(missing_footer_template));
+    CHECK_FALSE(missing_footer_template.append_total_pages_field());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().detail, "template part is not available");
+
+    fs::remove(target);
+}
+
 TEST_CASE("header template part tables can remove a middle table and keep the wrapper usable") {
     namespace fs = std::filesystem;
 
@@ -2537,6 +2670,172 @@ TEST_CASE("header and footer template parts reuse bookmark template APIs") {
         footer_lines << '\n';
     }
     CHECK_EQ(footer_lines.str(), "Company: Acme Corp\nFirst line\nSecond line\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("template parts can validate header and footer bookmark schemas") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_part_validate.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>body</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+      <w:footerReference w:type="default" r:id="rId3"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:r><w:t>Header title: </w:t></w:r>
+    <w:bookmarkStart w:id="0" w:name="header_title"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="0"/>
+  </w:p>
+  <w:p>
+    <w:bookmarkStart w:id="1" w:name="header_note"/>
+    <w:r><w:t>standalone note</w:t></w:r>
+    <w:bookmarkEnd w:id="1"/>
+  </w:p>
+  <w:tbl>
+    <w:tblGrid>
+      <w:gridCol w:w="2400"/>
+      <w:gridCol w:w="2400"/>
+    </w:tblGrid>
+    <w:tr>
+      <w:tc><w:p><w:r><w:t>Name</w:t></w:r></w:p></w:tc>
+      <w:tc><w:p><w:r><w:t>Qty</w:t></w:r></w:p></w:tc>
+    </w:tr>
+    <w:tr>
+      <w:tc>
+        <w:p>
+          <w:bookmarkStart w:id="2" w:name="header_rows"/>
+          <w:r><w:t>row placeholder</w:t></w:r>
+          <w:bookmarkEnd w:id="2"/>
+        </w:p>
+      </w:tc>
+      <w:tc><w:p><w:r><w:t>0</w:t></w:r></w:p></w:tc>
+    </w:tr>
+  </w:tbl>
+</w:hdr>
+)";
+
+    const std::string footer_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:r><w:t>Footer company A: </w:t></w:r>
+    <w:bookmarkStart w:id="3" w:name="footer_company"/>
+    <w:r><w:t>placeholder A</w:t></w:r>
+    <w:bookmarkEnd w:id="3"/>
+  </w:p>
+  <w:p>
+    <w:r><w:t>Footer company B: </w:t></w:r>
+    <w:bookmarkStart w:id="4" w:name="footer_company"/>
+    <w:r><w:t>placeholder B</w:t></w:r>
+    <w:bookmarkEnd w:id="4"/>
+  </w:p>
+  <w:p>
+    <w:r><w:t>Summary: prefix </w:t></w:r>
+    <w:bookmarkStart w:id="5" w:name="footer_summary"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="5"/>
+    <w:r><w:t> suffix</w:t></w:r>
+  </w:p>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header_xml},
+            {"word/footer1.xml", footer_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    const auto header_result = header_template.validate_template(
+        {
+            {"header_title", featherdoc::template_slot_kind::text, true},
+            {"header_note", featherdoc::template_slot_kind::block, true},
+            {"header_rows", featherdoc::template_slot_kind::table_rows, true},
+        });
+    CHECK_FALSE(doc.last_error());
+    CHECK(header_result.missing_required.empty());
+    CHECK(header_result.duplicate_bookmarks.empty());
+    CHECK(header_result.malformed_placeholders.empty());
+    CHECK(static_cast<bool>(header_result));
+
+    auto footer_template = doc.section_footer_template(0);
+    REQUIRE(static_cast<bool>(footer_template));
+    const auto footer_result = footer_template.validate_template(
+        {
+            {"footer_company", featherdoc::template_slot_kind::text, true},
+            {"footer_summary", featherdoc::template_slot_kind::block, true},
+            {"footer_signature", featherdoc::template_slot_kind::text, true},
+        });
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(footer_result.missing_required.size() == 1);
+    CHECK_EQ(footer_result.missing_required.front(), "footer_signature");
+    REQUIRE(footer_result.duplicate_bookmarks.size() == 1);
+    CHECK_EQ(footer_result.duplicate_bookmarks.front(), "footer_company");
+    REQUIRE(footer_result.malformed_placeholders.size() == 1);
+    CHECK_EQ(footer_result.malformed_placeholders.front(), "footer_summary");
+    CHECK_FALSE(static_cast<bool>(footer_result));
+
+    auto missing_header_template = doc.section_header_template(1);
+    CHECK_FALSE(static_cast<bool>(missing_header_template));
+    const auto unavailable_result = missing_header_template.validate_template(
+        {{"unused", featherdoc::template_slot_kind::text, true}});
+    CHECK(unavailable_result.missing_required.empty());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_NE(doc.last_error().detail.find("template part is not available"),
+             std::string::npos);
 
     fs::remove(target);
 }
@@ -6194,6 +6493,201 @@ TEST_CASE("fill_bookmarks rejects duplicate or empty binding names") {
     CHECK_EQ(empty_result.requested, 1);
     CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
     CHECK_NE(doc.last_error().detail.find("must not be empty"), std::string::npos);
+
+    fs::remove(target);
+}
+
+TEST_CASE("validate_template reports missing required bookmarks") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_validate_missing.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t>Customer: </w:t></w:r>
+      <w:bookmarkStart w:id="0" w:name="customer"/>
+      <w:r><w:t>placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto result = doc.validate_template(
+        {
+            {"customer", featherdoc::template_slot_kind::text, true},
+            {"invoice", featherdoc::template_slot_kind::text, true},
+            {"notes", featherdoc::template_slot_kind::block, false},
+        });
+
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(result.missing_required.size() == 1);
+    CHECK_EQ(result.missing_required.front(), "invoice");
+    CHECK(result.duplicate_bookmarks.empty());
+    CHECK(result.malformed_placeholders.empty());
+    CHECK_FALSE(static_cast<bool>(result));
+
+    fs::remove(target);
+}
+
+TEST_CASE("validate_template reports duplicate bookmark names") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_validate_duplicates.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="customer"/>
+      <w:r><w:t>first</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p>
+      <w:bookmarkStart w:id="1" w:name="customer"/>
+      <w:r><w:t>second</w:t></w:r>
+      <w:bookmarkEnd w:id="1"/>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto result = doc.validate_template(
+        {{"customer", featherdoc::template_slot_kind::text, true}});
+
+    CHECK_FALSE(doc.last_error());
+    CHECK(result.missing_required.empty());
+    REQUIRE(result.duplicate_bookmarks.size() == 1);
+    CHECK_EQ(result.duplicate_bookmarks.front(), "customer");
+    CHECK(result.malformed_placeholders.empty());
+    CHECK_FALSE(static_cast<bool>(result));
+
+    fs::remove(target);
+}
+
+TEST_CASE("validate_template reports malformed block placeholders") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_validate_malformed.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t>prefix </w:t></w:r>
+      <w:bookmarkStart w:id="0" w:name="items"/>
+      <w:r><w:t>placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+      <w:r><w:t> suffix</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto result = doc.validate_template(
+        {{"items", featherdoc::template_slot_kind::block, true}});
+
+    CHECK_FALSE(doc.last_error());
+    CHECK(result.missing_required.empty());
+    CHECK(result.duplicate_bookmarks.empty());
+    REQUIRE(result.malformed_placeholders.size() == 1);
+    CHECK_EQ(result.malformed_placeholders.front(), "items");
+    CHECK_FALSE(static_cast<bool>(result));
+
+    fs::remove(target);
+}
+
+TEST_CASE("validate_template passes a valid mixed bookmark template") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_validate_valid.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t>Customer: </w:t></w:r>
+      <w:bookmarkStart w:id="0" w:name="customer"/>
+      <w:r><w:t>placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p>
+      <w:bookmarkStart w:id="1" w:name="intro_block"/>
+      <w:r><w:t>intro placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="1"/>
+    </w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc>
+          <w:p>
+            <w:bookmarkStart w:id="2" w:name="line_items"/>
+            <w:r><w:t>row placeholder</w:t></w:r>
+            <w:bookmarkEnd w:id="2"/>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p>
+      <w:bookmarkStart w:id="3" w:name="summary_table"/>
+      <w:r><w:t>table placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="3"/>
+    </w:p>
+    <w:p>
+      <w:bookmarkStart w:id="4" w:name="signature_image"/>
+      <w:r><w:t>image placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="4"/>
+    </w:p>
+    <w:p>
+      <w:bookmarkStart w:id="5" w:name="seal_image"/>
+      <w:r><w:t>floating image placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="5"/>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto result = doc.validate_template(
+        {
+            {"customer", featherdoc::template_slot_kind::text, true},
+            {"intro_block", featherdoc::template_slot_kind::block, true},
+            {"line_items", featherdoc::template_slot_kind::table_rows, true},
+            {"summary_table", featherdoc::template_slot_kind::table, true},
+            {"signature_image", featherdoc::template_slot_kind::image, true},
+            {"seal_image", featherdoc::template_slot_kind::floating_image, true},
+            {"notes", featherdoc::template_slot_kind::text, false},
+        });
+
+    CHECK_FALSE(doc.last_error());
+    CHECK(result.missing_required.empty());
+    CHECK(result.duplicate_bookmarks.empty());
+    CHECK(result.malformed_placeholders.empty());
+    CHECK(static_cast<bool>(result));
 
     fs::remove(target);
 }
@@ -14070,6 +14564,664 @@ TEST_CASE("restart_paragraph_list creates a fresh numbering instance and adjacen
     fs::remove(target);
 }
 
+TEST_CASE("numbering metadata exposes instance overrides for restarted managed lists") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "managed_numbering_metadata.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto first_item = doc.paragraphs();
+    REQUIRE(first_item.has_next());
+    CHECK(doc.set_paragraph_list(first_item, featherdoc::list_kind::decimal));
+    CHECK(first_item.add_run("first item").has_next());
+
+    auto spacer = first_item.insert_paragraph_after("restart here");
+    REQUIRE(spacer.has_next());
+
+    auto restarted_item = spacer.insert_paragraph_after("");
+    REQUIRE(restarted_item.has_next());
+    CHECK(doc.restart_paragraph_list(restarted_item, featherdoc::list_kind::decimal));
+    CHECK(restarted_item.add_run("restarted item").has_next());
+
+    const auto definitions = doc.list_numbering_definitions();
+    CHECK_FALSE(doc.last_error());
+    const auto managed_definition =
+        std::find_if(definitions.begin(), definitions.end(), [](const auto &summary) {
+            return summary.name == "FeatherDocDecimalList";
+        });
+    REQUIRE(managed_definition != definitions.end());
+    REQUIRE_EQ(managed_definition->instance_ids.size(), 2U);
+    REQUIRE_EQ(managed_definition->instances.size(), 2U);
+    CHECK_EQ(managed_definition->instances[0].instance_id,
+             managed_definition->instance_ids[0]);
+    CHECK(managed_definition->instances[0].level_overrides.empty());
+    CHECK_EQ(managed_definition->instances[1].instance_id,
+             managed_definition->instance_ids[1]);
+    REQUIRE_EQ(managed_definition->instances[1].level_overrides.size(), 1U);
+    CHECK_EQ(managed_definition->instances[1].level_overrides[0].level, 0U);
+    REQUIRE(managed_definition->instances[1].level_overrides[0].start_override.has_value());
+    CHECK_EQ(*managed_definition->instances[1].level_overrides[0].start_override, 1U);
+    CHECK_FALSE(
+        managed_definition->instances[1].level_overrides[0].level_definition.has_value());
+
+    const auto found_instance =
+        doc.find_numbering_instance(managed_definition->instance_ids[1]);
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(found_instance.has_value());
+    CHECK_EQ(found_instance->definition_id, managed_definition->definition_id);
+    CHECK_EQ(found_instance->definition_name, managed_definition->name);
+    CHECK_EQ(found_instance->instance.instance_id, managed_definition->instance_ids[1]);
+    REQUIRE_EQ(found_instance->instance.level_overrides.size(), 1U);
+    CHECK_EQ(found_instance->instance.level_overrides[0].level, 0U);
+    REQUIRE(found_instance->instance.level_overrides[0].start_override.has_value());
+    CHECK_EQ(*found_instance->instance.level_overrides[0].start_override, 1U);
+
+    const auto found = doc.find_numbering_definition(managed_definition->definition_id);
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(found.has_value());
+    CHECK_EQ(found->instance_ids, managed_definition->instance_ids);
+    CHECK_EQ(found->instances.size(), managed_definition->instances.size());
+    REQUIRE_EQ(found->instances[1].level_overrides.size(), 1U);
+    CHECK_EQ(found->instances[1].level_overrides[0].level, 0U);
+    REQUIRE(found->instances[1].level_overrides[0].start_override.has_value());
+    CHECK_EQ(*found->instances[1].level_overrides[0].start_override, 1U);
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_definition =
+        reopened.find_numbering_definition(managed_definition->definition_id);
+    CHECK_FALSE(reopened.last_error());
+    REQUIRE(reopened_definition.has_value());
+    CHECK_EQ(reopened_definition->instance_ids, managed_definition->instance_ids);
+    CHECK_EQ(reopened_definition->instances.size(), managed_definition->instances.size());
+    REQUIRE_EQ(reopened_definition->instances[1].level_overrides.size(), 1U);
+    CHECK_EQ(reopened_definition->instances[1].level_overrides[0].level, 0U);
+    REQUIRE(reopened_definition->instances[1].level_overrides[0].start_override.has_value());
+    CHECK_EQ(*reopened_definition->instances[1].level_overrides[0].start_override, 1U);
+
+    const auto reopened_instance =
+        reopened.find_numbering_instance(managed_definition->instance_ids[1]);
+    CHECK_FALSE(reopened.last_error());
+    REQUIRE(reopened_instance.has_value());
+    CHECK_EQ(reopened_instance->definition_id, managed_definition->definition_id);
+    CHECK_EQ(reopened_instance->definition_name, managed_definition->name);
+    REQUIRE_EQ(reopened_instance->instance.level_overrides.size(), 1U);
+    CHECK_EQ(reopened_instance->instance.level_overrides[0].level, 0U);
+    REQUIRE(reopened_instance->instance.level_overrides[0].start_override.has_value());
+    CHECK_EQ(*reopened_instance->instance.level_overrides[0].start_override, 1U);
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "ensure_numbering_definition and set_paragraph_numbering create custom numbering "
+    "definitions and round-trip") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "custom_numbering_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto definition = featherdoc::numbering_definition{};
+    definition.name = "LegalOutline";
+    definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 3U, 0U, "%1."},
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 1U, "%1.%2."},
+    };
+
+    const auto numbering_id = doc.ensure_numbering_definition(definition);
+    REQUIRE(numbering_id.has_value());
+
+    const auto reused_numbering_id = doc.ensure_numbering_definition(definition);
+    REQUIRE(reused_numbering_id.has_value());
+    CHECK_EQ(*reused_numbering_id, *numbering_id);
+
+    auto first = doc.paragraphs();
+    REQUIRE(first.has_next());
+    CHECK(doc.set_paragraph_numbering(first, *numbering_id));
+    CHECK(first.add_run("chapter 3").has_next());
+
+    auto second = first.insert_paragraph_after("");
+    REQUIRE(second.has_next());
+    CHECK(doc.set_paragraph_numbering(second, *numbering_id, 1U));
+    CHECK(second.add_run("chapter 3.1").has_next());
+
+    auto third = second.insert_paragraph_after("");
+    REQUIRE(third.has_next());
+    CHECK(doc.set_paragraph_numbering(third, *numbering_id));
+    CHECK(third.add_run("chapter 4").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    const auto numbering_xml = read_test_docx_entry(target, "word/numbering.xml");
+    pugi::xml_document numbering_document;
+    REQUIRE(numbering_document.load_string(numbering_xml.c_str()));
+
+    const auto numbering_root = numbering_document.child("w:numbering");
+    REQUIRE(numbering_root != pugi::xml_node{});
+
+    const auto abstract_num = find_numbering_abstract_xml_node(numbering_root, "LegalOutline");
+    REQUIRE(abstract_num != pugi::xml_node{});
+    CHECK_EQ(std::string_view{abstract_num.attribute("w:abstractNumId").value()},
+             std::to_string(*numbering_id));
+    CHECK_EQ(count_named_children(abstract_num, "w:lvl"), 2U);
+
+    const auto level_zero = find_numbering_level_xml_node(abstract_num, 0U);
+    const auto level_one = find_numbering_level_xml_node(abstract_num, 1U);
+    REQUIRE(level_zero != pugi::xml_node{});
+    REQUIRE(level_one != pugi::xml_node{});
+    CHECK_EQ(std::string_view{level_zero.child("w:start").attribute("w:val").value()}, "3");
+    CHECK_EQ(std::string_view{level_zero.child("w:numFmt").attribute("w:val").value()},
+             "decimal");
+    CHECK_EQ(std::string_view{level_zero.child("w:lvlText").attribute("w:val").value()},
+             "%1.");
+    CHECK_EQ(std::string_view{level_one.child("w:start").attribute("w:val").value()}, "1");
+    CHECK_EQ(std::string_view{level_one.child("w:lvlText").attribute("w:val").value()},
+             "%1.%2.");
+    CHECK_EQ(count_substring_occurrences(numbering_xml, "<w:num "), 1U);
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document document_xml;
+    REQUIRE(document_xml.load_string(saved_document_xml.c_str()));
+    const auto body = document_xml.child("w:document").child("w:body");
+    auto first_paragraph = body.child("w:p");
+    REQUIRE(first_paragraph != pugi::xml_node{});
+    auto second_paragraph = first_paragraph.next_sibling("w:p");
+    REQUIRE(second_paragraph != pugi::xml_node{});
+    auto third_paragraph = second_paragraph.next_sibling("w:p");
+    REQUIRE(third_paragraph != pugi::xml_node{});
+
+    const auto first_num_pr = first_paragraph.child("w:pPr").child("w:numPr");
+    const auto second_num_pr = second_paragraph.child("w:pPr").child("w:numPr");
+    const auto third_num_pr = third_paragraph.child("w:pPr").child("w:numPr");
+    REQUIRE(first_num_pr != pugi::xml_node{});
+    REQUIRE(second_num_pr != pugi::xml_node{});
+    REQUIRE(third_num_pr != pugi::xml_node{});
+    CHECK_EQ(std::string_view{first_num_pr.child("w:ilvl").attribute("w:val").value()}, "0");
+    CHECK_EQ(std::string_view{second_num_pr.child("w:ilvl").attribute("w:val").value()}, "1");
+    CHECK_EQ(std::string_view{third_num_pr.child("w:ilvl").attribute("w:val").value()}, "0");
+
+    const auto first_num_id =
+        std::string{first_num_pr.child("w:numId").attribute("w:val").value()};
+    CHECK_EQ(first_num_id,
+             std::string{second_num_pr.child("w:numId").attribute("w:val").value()});
+    CHECK_EQ(first_num_id,
+             std::string{third_num_pr.child("w:numId").attribute("w:val").value()});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_numbering_id = reopened.ensure_numbering_definition(definition);
+    REQUIRE(reopened_numbering_id.has_value());
+    CHECK_EQ(*reopened_numbering_id, *numbering_id);
+
+    auto reopened_paragraph = reopened.paragraphs();
+    REQUIRE(reopened_paragraph.has_next());
+    auto inserted = reopened_paragraph.insert_paragraph_after("");
+    REQUIRE(inserted.has_next());
+    CHECK(reopened.set_paragraph_numbering(inserted, *reopened_numbering_id, 1U));
+    CHECK(inserted.add_run("inserted subsection").has_next());
+    CHECK_FALSE(reopened.save());
+
+    fs::remove(target);
+}
+
+TEST_CASE("ensure_numbering_definition updates existing custom numbering definitions") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "custom_numbering_update.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto definition = featherdoc::numbering_definition{};
+    definition.name = "PolicyOutline";
+    definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1)"},
+    };
+
+    const auto initial_numbering_id = doc.ensure_numbering_definition(definition);
+    REQUIRE(initial_numbering_id.has_value());
+
+    definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 5U, 0U, "(%1)"},
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::bullet, 1U, 1U, "o"},
+    };
+
+    const auto updated_numbering_id = doc.ensure_numbering_definition(definition);
+    REQUIRE(updated_numbering_id.has_value());
+    CHECK_EQ(*updated_numbering_id, *initial_numbering_id);
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(doc.set_paragraph_numbering(paragraph, *updated_numbering_id));
+    CHECK(paragraph.add_run("policy item").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    const auto numbering_xml = read_test_docx_entry(target, "word/numbering.xml");
+    pugi::xml_document numbering_document;
+    REQUIRE(numbering_document.load_string(numbering_xml.c_str()));
+    const auto numbering_root = numbering_document.child("w:numbering");
+    REQUIRE(numbering_root != pugi::xml_node{});
+
+    const auto abstract_num = find_numbering_abstract_xml_node(numbering_root, "PolicyOutline");
+    REQUIRE(abstract_num != pugi::xml_node{});
+    CHECK_EQ(std::string_view{abstract_num.attribute("w:abstractNumId").value()},
+             std::to_string(*initial_numbering_id));
+    CHECK_EQ(count_named_children(abstract_num, "w:lvl"), 2U);
+
+    const auto level_zero = find_numbering_level_xml_node(abstract_num, 0U);
+    const auto level_one = find_numbering_level_xml_node(abstract_num, 1U);
+    REQUIRE(level_zero != pugi::xml_node{});
+    REQUIRE(level_one != pugi::xml_node{});
+    CHECK_EQ(std::string_view{level_zero.child("w:start").attribute("w:val").value()}, "5");
+    CHECK_EQ(std::string_view{level_zero.child("w:lvlText").attribute("w:val").value()},
+             "(%1)");
+    CHECK_EQ(std::string_view{level_one.child("w:numFmt").attribute("w:val").value()},
+             "bullet");
+    CHECK_EQ(std::string_view{level_one.child("w:lvlText").attribute("w:val").value()}, "o");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_paragraph = reopened.paragraphs();
+    REQUIRE(reopened_paragraph.has_next());
+    auto nested = reopened_paragraph.insert_paragraph_after("");
+    REQUIRE(nested.has_next());
+    CHECK(reopened.set_paragraph_numbering(nested, *updated_numbering_id, 1U));
+    CHECK(nested.add_run("policy sub item").has_next());
+    CHECK_FALSE(reopened.save());
+
+    fs::remove(target);
+}
+
+TEST_CASE("list_numbering_definitions and find_numbering_definition expose numbering metadata") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "custom_numbering_metadata.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto definition = featherdoc::numbering_definition{};
+    definition.name = "LegalOutline";
+    definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 3U, 0U, "%1."},
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 1U, "%1.%2."},
+    };
+
+    const auto numbering_id = doc.ensure_numbering_definition(definition);
+    REQUIRE(numbering_id.has_value());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(doc.set_paragraph_numbering(paragraph, *numbering_id));
+    CHECK(paragraph.add_run("legal heading").has_next());
+
+    const auto definitions = doc.list_numbering_definitions();
+    CHECK_FALSE(doc.last_error());
+    REQUIRE_EQ(definitions.size(), 1U);
+
+    const auto &summary = definitions.front();
+    CHECK_EQ(summary.definition_id, *numbering_id);
+    CHECK_EQ(summary.name, "LegalOutline");
+    REQUIRE_EQ(summary.levels.size(), 2U);
+    CHECK_EQ(summary.levels[0].level, 0U);
+    CHECK_EQ(summary.levels[0].kind, featherdoc::list_kind::decimal);
+    CHECK_EQ(summary.levels[0].start, 3U);
+    CHECK_EQ(summary.levels[0].text_pattern, "%1.");
+    CHECK_EQ(summary.levels[1].level, 1U);
+    CHECK_EQ(summary.levels[1].kind, featherdoc::list_kind::decimal);
+    CHECK_EQ(summary.levels[1].start, 1U);
+    CHECK_EQ(summary.levels[1].text_pattern, "%1.%2.");
+    REQUIRE_EQ(summary.instance_ids.size(), 1U);
+    CHECK_NE(summary.instance_ids.front(), 0U);
+    REQUIRE_EQ(summary.instances.size(), 1U);
+    CHECK_EQ(summary.instances.front().instance_id, summary.instance_ids.front());
+    CHECK(summary.instances.front().level_overrides.empty());
+
+    const auto found = doc.find_numbering_definition(*numbering_id);
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(found.has_value());
+    CHECK_EQ(found->definition_id, summary.definition_id);
+    CHECK_EQ(found->name, summary.name);
+    CHECK_EQ(found->levels.size(), summary.levels.size());
+    CHECK_EQ(found->instance_ids, summary.instance_ids);
+    REQUIRE_EQ(found->instances.size(), 1U);
+    CHECK_EQ(found->instances.front().instance_id, summary.instance_ids.front());
+    CHECK(found->instances.front().level_overrides.empty());
+
+    const auto found_instance = doc.find_numbering_instance(summary.instance_ids.front());
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(found_instance.has_value());
+    CHECK_EQ(found_instance->definition_id, summary.definition_id);
+    CHECK_EQ(found_instance->definition_name, summary.name);
+    CHECK_EQ(found_instance->instance.instance_id, summary.instance_ids.front());
+    CHECK(found_instance->instance.level_overrides.empty());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_summary = reopened.find_numbering_definition(*numbering_id);
+    CHECK_FALSE(reopened.last_error());
+    REQUIRE(reopened_summary.has_value());
+    CHECK_EQ(reopened_summary->definition_id, *numbering_id);
+    CHECK_EQ(reopened_summary->name, "LegalOutline");
+    REQUIRE_EQ(reopened_summary->levels.size(), 2U);
+    CHECK_EQ(reopened_summary->levels[0].start, 3U);
+    CHECK_EQ(reopened_summary->levels[1].text_pattern, "%1.%2.");
+    CHECK_EQ(reopened_summary->instance_ids, summary.instance_ids);
+    REQUIRE_EQ(reopened_summary->instances.size(), 1U);
+    CHECK_EQ(reopened_summary->instances.front().instance_id, summary.instance_ids.front());
+    CHECK(reopened_summary->instances.front().level_overrides.empty());
+
+    const auto reopened_instance =
+        reopened.find_numbering_instance(summary.instance_ids.front());
+    CHECK_FALSE(reopened.last_error());
+    REQUIRE(reopened_instance.has_value());
+    CHECK_EQ(reopened_instance->definition_id, *numbering_id);
+    CHECK_EQ(reopened_instance->definition_name, "LegalOutline");
+    CHECK_EQ(reopened_instance->instance.instance_id, summary.instance_ids.front());
+    CHECK(reopened_instance->instance.level_overrides.empty());
+
+    const auto reopened_definitions = reopened.list_numbering_definitions();
+    CHECK_FALSE(reopened.last_error());
+    REQUIRE_EQ(reopened_definitions.size(), 1U);
+    CHECK_EQ(reopened_definitions.front().definition_id, *numbering_id);
+    CHECK_EQ(reopened_definitions.front().instance_ids, summary.instance_ids);
+    REQUIRE_EQ(reopened_definitions.front().instances.size(), 1U);
+    CHECK_EQ(reopened_definitions.front().instances.front().instance_id,
+             summary.instance_ids.front());
+    CHECK(reopened_definitions.front().instances.front().level_overrides.empty());
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "custom numbering definition APIs validate inputs and reject missing definitions") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "custom_numbering_validation.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto invalid_definition = featherdoc::numbering_definition{};
+    CHECK_FALSE(doc.ensure_numbering_definition(invalid_definition).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    invalid_definition.name = "EmptyLevels";
+    CHECK_FALSE(doc.ensure_numbering_definition(invalid_definition).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    invalid_definition.name = "ReservedName";
+    invalid_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 0U, 0U, "%1."},
+    };
+    CHECK_FALSE(doc.ensure_numbering_definition(invalid_definition).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    invalid_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 9U, "%1."},
+    };
+    CHECK_FALSE(doc.ensure_numbering_definition(invalid_definition).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    invalid_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, ""},
+    };
+    CHECK_FALSE(doc.ensure_numbering_definition(invalid_definition).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    invalid_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1."},
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::bullet, 1U, 0U, "o"},
+    };
+    CHECK_FALSE(doc.ensure_numbering_definition(invalid_definition).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    invalid_definition.name = "FeatherDocBulletList";
+    invalid_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::bullet, 1U, 0U, "o"},
+    };
+    CHECK_FALSE(doc.ensure_numbering_definition(invalid_definition).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    auto valid_definition = featherdoc::numbering_definition{};
+    valid_definition.name = "ValidOutline";
+    valid_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1."},
+    };
+
+    const auto numbering_id = doc.ensure_numbering_definition(valid_definition);
+    REQUIRE(numbering_id.has_value());
+
+    CHECK_FALSE(doc.set_paragraph_numbering(featherdoc::Paragraph{}, *numbering_id));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK_FALSE(doc.find_numbering_instance(9999U).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK_FALSE(doc.set_paragraph_numbering(paragraph, 9999U));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK_FALSE(doc.set_paragraph_numbering(paragraph, *numbering_id, 1U));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK_FALSE(doc.set_paragraph_numbering(paragraph, *numbering_id, 9U));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "set_paragraph_style_numbering links custom numbering definitions to paragraph styles") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "style_numbering_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph_style = featherdoc::paragraph_style_definition{};
+    paragraph_style.name = "Legal Heading";
+    paragraph_style.based_on = std::string{"Heading1"};
+    paragraph_style.paragraph_bidi = false;
+    CHECK(doc.ensure_paragraph_style("LegalHeading", paragraph_style));
+
+    auto numbering_definition = featherdoc::numbering_definition{};
+    numbering_definition.name = "LegalHeadingOutline";
+    numbering_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1."},
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 1U, "%1.%2."},
+    };
+
+    const auto numbering_id = doc.ensure_numbering_definition(numbering_definition);
+    REQUIRE(numbering_id.has_value());
+    CHECK(doc.set_paragraph_style_numbering("LegalHeading", *numbering_id, 1U));
+
+    const auto style_summary = doc.find_style("LegalHeading");
+    REQUIRE(style_summary.has_value());
+    REQUIRE(style_summary->numbering.has_value());
+    REQUIRE(style_summary->numbering->num_id.has_value());
+    REQUIRE(style_summary->numbering->level.has_value());
+    CHECK_EQ(*style_summary->numbering->level, 1U);
+    REQUIRE(style_summary->numbering->definition_id.has_value());
+    CHECK_EQ(*style_summary->numbering->definition_id, *numbering_id);
+    REQUIRE(style_summary->numbering->definition_name.has_value());
+    CHECK_EQ(*style_summary->numbering->definition_name, "LegalHeadingOutline");
+    REQUIRE(style_summary->numbering->instance.has_value());
+    CHECK_EQ(style_summary->numbering->instance->instance_id,
+             *style_summary->numbering->num_id);
+    CHECK(style_summary->numbering->instance->level_overrides.empty());
+
+    const auto styles = doc.list_styles();
+    const auto *listed_style = find_style_summary(styles, "LegalHeading");
+    REQUIRE(listed_style != nullptr);
+    REQUIRE(listed_style->numbering.has_value());
+    REQUIRE(listed_style->numbering->instance.has_value());
+    CHECK_EQ(listed_style->numbering->instance->instance_id,
+             *style_summary->numbering->num_id);
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(doc.set_paragraph_style(paragraph, "LegalHeading"));
+    CHECK(paragraph.add_run("styled numbered heading").has_next());
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(saved_styles_xml.c_str()));
+    const auto styles_root = styles_document.child("w:styles");
+    REQUIRE(styles_root != pugi::xml_node{});
+
+    const auto style = find_style_xml_node(styles_root, "LegalHeading");
+    REQUIRE(style != pugi::xml_node{});
+    const auto style_num_pr = style.child("w:pPr").child("w:numPr");
+    REQUIRE(style_num_pr != pugi::xml_node{});
+    CHECK_EQ(std::string_view{style_num_pr.child("w:ilvl").attribute("w:val").value()}, "1");
+    CHECK_NE(std::string_view{style_num_pr.child("w:numId").attribute("w:val").value()}, "");
+    CHECK(style.child("w:pPr").child("w:bidi") != pugi::xml_node{});
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document document_xml;
+    REQUIRE(document_xml.load_string(saved_document_xml.c_str()));
+    const auto body = document_xml.child("w:document").child("w:body");
+    const auto first_paragraph = body.child("w:p");
+    REQUIRE(first_paragraph != pugi::xml_node{});
+    CHECK(first_paragraph.child("w:pPr").child("w:pStyle") != pugi::xml_node{});
+    CHECK(first_paragraph.child("w:pPr").child("w:numPr") == pugi::xml_node{});
+
+    const auto numbering_xml = read_test_docx_entry(target, "word/numbering.xml");
+    pugi::xml_document numbering_document;
+    REQUIRE(numbering_document.load_string(numbering_xml.c_str()));
+    const auto numbering_root = numbering_document.child("w:numbering");
+    REQUIRE(numbering_root != pugi::xml_node{});
+    CHECK_EQ(count_substring_occurrences(numbering_xml, "<w:num "), 1U);
+    CHECK(find_numbering_abstract_xml_node(numbering_root, "LegalHeadingOutline") !=
+          pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    const auto reopened_style = reopened.find_style("LegalHeading");
+    REQUIRE(reopened_style.has_value());
+    REQUIRE(reopened_style->numbering.has_value());
+    REQUIRE(reopened_style->numbering->num_id.has_value());
+    CHECK_EQ(*reopened_style->numbering->num_id, *style_summary->numbering->num_id);
+    REQUIRE(reopened_style->numbering->level.has_value());
+    CHECK_EQ(*reopened_style->numbering->level, 1U);
+    REQUIRE(reopened_style->numbering->definition_id.has_value());
+    CHECK_EQ(*reopened_style->numbering->definition_id, *numbering_id);
+    REQUIRE(reopened_style->numbering->definition_name.has_value());
+    CHECK_EQ(*reopened_style->numbering->definition_name, "LegalHeadingOutline");
+    REQUIRE(reopened_style->numbering->instance.has_value());
+    CHECK_EQ(reopened_style->numbering->instance->instance_id,
+             *reopened_style->numbering->num_id);
+    CHECK(reopened_style->numbering->instance->level_overrides.empty());
+    auto inserted = reopened.paragraphs().insert_paragraph_after("");
+    REQUIRE(inserted.has_next());
+    CHECK(reopened.set_paragraph_style(inserted, "LegalHeading"));
+    CHECK(inserted.add_run("reopened styled heading").has_next());
+    CHECK_FALSE(reopened.save());
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "paragraph style numbering APIs validate inputs and clear numbering without removing unrelated markup") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "style_numbering_validation.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph_style = featherdoc::paragraph_style_definition{};
+    paragraph_style.name = "Body Numbered";
+    paragraph_style.paragraph_bidi = true;
+    CHECK(doc.ensure_paragraph_style("BodyNumbered", paragraph_style));
+
+    auto numbering_definition = featherdoc::numbering_definition{};
+    numbering_definition.name = "BodyOutline";
+    numbering_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1."},
+    };
+
+    const auto numbering_id = doc.ensure_numbering_definition(numbering_definition);
+    REQUIRE(numbering_id.has_value());
+
+    CHECK_FALSE(doc.set_paragraph_style_numbering("", *numbering_id));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.set_paragraph_style_numbering("MissingStyle", *numbering_id));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.set_paragraph_style_numbering("Emphasis", *numbering_id));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.set_paragraph_style_numbering("BodyNumbered", 9999U));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.set_paragraph_style_numbering("BodyNumbered", *numbering_id, 1U));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK(doc.set_paragraph_style_numbering("BodyNumbered", *numbering_id));
+    CHECK(doc.clear_paragraph_style_numbering("BodyNumbered"));
+    CHECK_FALSE(doc.clear_paragraph_style_numbering(""));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.clear_paragraph_style_numbering("MissingStyle"));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.clear_paragraph_style_numbering("Emphasis"));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(saved_styles_xml.c_str()));
+    const auto styles_root = styles_document.child("w:styles");
+    REQUIRE(styles_root != pugi::xml_node{});
+
+    const auto style = find_style_xml_node(styles_root, "BodyNumbered");
+    REQUIRE(style != pugi::xml_node{});
+    CHECK(style.child("w:pPr").child("w:numPr") == pugi::xml_node{});
+    CHECK(style.child("w:pPr").child("w:bidi") != pugi::xml_node{});
+
+    fs::remove(target);
+}
+
 TEST_CASE("set_paragraph_style and set_run_style create styles parts and round-trip") {
     namespace fs = std::filesystem;
 
@@ -14116,6 +15268,548 @@ TEST_CASE("set_paragraph_style and set_run_style create styles parts and round-t
     CHECK(reopened.paragraphs().add_run(" tail").has_next());
     CHECK_FALSE(reopened.save());
     CHECK(test_docx_entry_exists(target, "word/styles.xml"));
+
+    fs::remove(target);
+}
+
+TEST_CASE("list_styles exposes the generated default styles catalog") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "style_catalog_defaults.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    const auto styles = doc.list_styles();
+    CHECK_EQ(styles.size(), 9U);
+
+    const auto *normal = find_style_summary(styles, "Normal");
+    REQUIRE(normal != nullptr);
+    CHECK_EQ(normal->kind, featherdoc::style_kind::paragraph);
+    CHECK_EQ(normal->type_name, "paragraph");
+    CHECK_EQ(normal->name, "Normal");
+    CHECK_FALSE(normal->numbering.has_value());
+    CHECK(normal->is_default);
+    CHECK_FALSE(normal->based_on.has_value());
+    CHECK(normal->is_quick_format);
+
+    const auto *default_paragraph_font = find_style_summary(styles, "DefaultParagraphFont");
+    REQUIRE(default_paragraph_font != nullptr);
+    CHECK_EQ(default_paragraph_font->kind, featherdoc::style_kind::character);
+    CHECK(default_paragraph_font->is_default);
+    CHECK(default_paragraph_font->is_semi_hidden);
+    CHECK(default_paragraph_font->is_unhide_when_used);
+
+    const auto *table_grid = find_style_summary(styles, "TableGrid");
+    REQUIRE(table_grid != nullptr);
+    CHECK_EQ(table_grid->kind, featherdoc::style_kind::table);
+    REQUIRE(table_grid->based_on.has_value());
+    CHECK_EQ(*table_grid->based_on, "TableNormal");
+
+    const auto strong = doc.find_style("Strong");
+    REQUIRE(strong.has_value());
+    CHECK_EQ(strong->kind, featherdoc::style_kind::character);
+    CHECK_EQ(strong->type_name, "character");
+    CHECK_EQ(strong->name, "Strong");
+    REQUIRE(strong->based_on.has_value());
+    CHECK_EQ(*strong->based_on, "DefaultParagraphFont");
+    CHECK(strong->is_quick_format);
+
+    CHECK_FALSE(doc.find_style("MissingStyle").has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK_FALSE(doc.save());
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    const auto reopened_styles = reopened.list_styles();
+    CHECK_EQ(reopened_styles.size(), styles.size());
+
+    fs::remove(target);
+}
+
+TEST_CASE("list_styles reads existing styles metadata and preserves unknown kinds") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "style_catalog_existing.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+)";
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>seed</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+</Relationships>
+)";
+    const std::string styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="CustomBody" w:customStyle="1">
+    <w:name w:val="Custom Body"/>
+    <w:basedOn w:val="Normal"/>
+    <w:qFormat/>
+  </w:style>
+  <w:style w:type="numbering" w:styleId="NumberedStyle">
+    <w:name w:val="Numbered"/>
+    <w:semiHidden/>
+    <w:unhideWhenUsed/>
+  </w:style>
+  <w:style w:type="mystery" w:styleId="MysteryStyle">
+    <w:name w:val="Mystery"/>
+  </w:style>
+</w:styles>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/styles.xml", styles_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto styles = doc.list_styles();
+    CHECK_EQ(styles.size(), 4U);
+
+    const auto *custom_body = find_style_summary(styles, "CustomBody");
+    REQUIRE(custom_body != nullptr);
+    CHECK_EQ(custom_body->kind, featherdoc::style_kind::paragraph);
+    CHECK_EQ(custom_body->type_name, "paragraph");
+    CHECK_EQ(custom_body->name, "Custom Body");
+    CHECK_FALSE(custom_body->numbering.has_value());
+    REQUIRE(custom_body->based_on.has_value());
+    CHECK_EQ(*custom_body->based_on, "Normal");
+    CHECK(custom_body->is_custom);
+    CHECK(custom_body->is_quick_format);
+
+    const auto numbered = doc.find_style("NumberedStyle");
+    REQUIRE(numbered.has_value());
+    CHECK_EQ(numbered->kind, featherdoc::style_kind::numbering);
+    CHECK_EQ(numbered->type_name, "numbering");
+    CHECK(numbered->is_semi_hidden);
+    CHECK(numbered->is_unhide_when_used);
+
+    const auto *mystery = find_style_summary(styles, "MysteryStyle");
+    REQUIRE(mystery != nullptr);
+    CHECK_EQ(mystery->kind, featherdoc::style_kind::unknown);
+    CHECK_EQ(mystery->type_name, "mystery");
+    CHECK_EQ(mystery->name, "Mystery");
+
+    CHECK_FALSE(doc.save());
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"CustomBody\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:type=\"mystery\""), std::string::npos);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:styleId=\"TableGrid\""), 0);
+
+    fs::remove(target);
+}
+
+TEST_CASE("find_style_usage scans paragraph run and table references from the main document") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "style_usage_existing.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+)";
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr><w:pStyle w:val="CustomBody"/></w:pPr>
+      <w:r><w:rPr><w:rStyle w:val="Strong"/></w:rPr><w:t>alpha</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:pStyle w:val="CustomBody"/></w:pPr>
+      <w:r><w:t>beta</w:t></w:r>
+      <w:r><w:rPr><w:rStyle w:val="Strong"/></w:rPr><w:t>gamma</w:t></w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblStyle w:val="ReportTable"/>
+        <w:tblW w:w="0" w:type="auto"/>
+      </w:tblPr>
+      <w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+</Relationships>
+)";
+    const std::string styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="CustomBody" w:customStyle="1">
+    <w:name w:val="Custom Body"/>
+    <w:basedOn w:val="Normal"/>
+    <w:qFormat/>
+  </w:style>
+  <w:style w:type="character" w:styleId="Strong">
+    <w:name w:val="Strong"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="ReportTable">
+    <w:name w:val="Report Table"/>
+  </w:style>
+</w:styles>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/styles.xml", styles_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto paragraph_usage = doc.find_style_usage("CustomBody");
+    REQUIRE(paragraph_usage.has_value());
+    CHECK_EQ(paragraph_usage->style_id, "CustomBody");
+    CHECK_EQ(paragraph_usage->paragraph_count, 2U);
+    CHECK_EQ(paragraph_usage->run_count, 0U);
+    CHECK_EQ(paragraph_usage->table_count, 0U);
+    CHECK_EQ(paragraph_usage->total_count(), 2U);
+    CHECK_EQ(paragraph_usage->body.paragraph_count, 2U);
+    CHECK_EQ(paragraph_usage->body.total_count(), 2U);
+    CHECK_EQ(paragraph_usage->header.total_count(), 0U);
+    CHECK_EQ(paragraph_usage->footer.total_count(), 0U);
+    REQUIRE_EQ(paragraph_usage->hits.size(), 2U);
+    CHECK_EQ(paragraph_usage->hits[0].part, featherdoc::style_usage_part_kind::body);
+    CHECK_EQ(paragraph_usage->hits[0].kind, featherdoc::style_usage_hit_kind::paragraph);
+    CHECK_EQ(paragraph_usage->hits[0].entry_name, "word/document.xml");
+    CHECK_EQ(paragraph_usage->hits[0].ordinal, 1U);
+    CHECK(paragraph_usage->hits[0].references.empty());
+    CHECK_EQ(paragraph_usage->hits[1].part, featherdoc::style_usage_part_kind::body);
+    CHECK_EQ(paragraph_usage->hits[1].kind, featherdoc::style_usage_hit_kind::paragraph);
+    CHECK_EQ(paragraph_usage->hits[1].entry_name, "word/document.xml");
+    CHECK_EQ(paragraph_usage->hits[1].ordinal, 2U);
+    CHECK(paragraph_usage->hits[1].references.empty());
+
+    const auto run_usage = doc.find_style_usage("Strong");
+    REQUIRE(run_usage.has_value());
+    CHECK_EQ(run_usage->style_id, "Strong");
+    CHECK_EQ(run_usage->paragraph_count, 0U);
+    CHECK_EQ(run_usage->run_count, 2U);
+    CHECK_EQ(run_usage->table_count, 0U);
+    CHECK_EQ(run_usage->total_count(), 2U);
+    CHECK_EQ(run_usage->body.run_count, 2U);
+    CHECK_EQ(run_usage->header.total_count(), 0U);
+    CHECK_EQ(run_usage->footer.total_count(), 0U);
+    REQUIRE_EQ(run_usage->hits.size(), 2U);
+    CHECK_EQ(run_usage->hits[0].part, featherdoc::style_usage_part_kind::body);
+    CHECK_EQ(run_usage->hits[0].kind, featherdoc::style_usage_hit_kind::run);
+    CHECK_EQ(run_usage->hits[0].entry_name, "word/document.xml");
+    CHECK_EQ(run_usage->hits[0].ordinal, 1U);
+    CHECK(run_usage->hits[0].references.empty());
+    CHECK_EQ(run_usage->hits[1].part, featherdoc::style_usage_part_kind::body);
+    CHECK_EQ(run_usage->hits[1].kind, featherdoc::style_usage_hit_kind::run);
+    CHECK_EQ(run_usage->hits[1].entry_name, "word/document.xml");
+    CHECK_EQ(run_usage->hits[1].ordinal, 2U);
+    CHECK(run_usage->hits[1].references.empty());
+
+    const auto table_usage = doc.find_style_usage("ReportTable");
+    REQUIRE(table_usage.has_value());
+    CHECK_EQ(table_usage->style_id, "ReportTable");
+    CHECK_EQ(table_usage->paragraph_count, 0U);
+    CHECK_EQ(table_usage->run_count, 0U);
+    CHECK_EQ(table_usage->table_count, 1U);
+    CHECK_EQ(table_usage->total_count(), 1U);
+    CHECK_EQ(table_usage->body.table_count, 1U);
+    CHECK_EQ(table_usage->header.total_count(), 0U);
+    CHECK_EQ(table_usage->footer.total_count(), 0U);
+    REQUIRE_EQ(table_usage->hits.size(), 1U);
+    CHECK_EQ(table_usage->hits[0].part, featherdoc::style_usage_part_kind::body);
+    CHECK_EQ(table_usage->hits[0].kind, featherdoc::style_usage_hit_kind::table);
+    CHECK_EQ(table_usage->hits[0].entry_name, "word/document.xml");
+    CHECK_EQ(table_usage->hits[0].ordinal, 1U);
+    CHECK(table_usage->hits[0].references.empty());
+
+    const auto unused_usage = doc.find_style_usage("Normal");
+    REQUIRE(unused_usage.has_value());
+    CHECK_EQ(unused_usage->style_id, "Normal");
+    CHECK_EQ(unused_usage->total_count(), 0U);
+    CHECK(unused_usage->hits.empty());
+
+    CHECK_FALSE(doc.find_style_usage("MissingStyle").has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+}
+
+TEST_CASE("find_style_usage also scans header and footer parts") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "style_usage_header_footer.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>section 0 body</w:t></w:r></w:p>
+    <w:p>
+      <w:pPr>
+        <w:sectPr>
+          <w:headerReference w:type="default" r:id="rId3"/>
+          <w:footerReference w:type="default" r:id="rId4"/>
+        </w:sectPr>
+      </w:pPr>
+      <w:r><w:t>section break</w:t></w:r>
+    </w:p>
+    <w:p><w:r><w:t>section 1 body</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId3"/>
+      <w:footerReference w:type="first" r:id="rId4"/>
+      <w:titlePg/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId4"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+    const std::string styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="CustomBody" w:customStyle="1">
+    <w:name w:val="Custom Body"/>
+    <w:basedOn w:val="Normal"/>
+    <w:qFormat/>
+  </w:style>
+  <w:style w:type="character" w:styleId="Strong">
+    <w:name w:val="Strong"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="ReportTable">
+    <w:name w:val="Report Table"/>
+  </w:style>
+</w:styles>
+)";
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:pPr><w:pStyle w:val="CustomBody"/></w:pPr>
+    <w:r><w:t>header paragraph</w:t></w:r>
+  </w:p>
+  <w:tbl>
+    <w:tblPr>
+      <w:tblStyle w:val="ReportTable"/>
+      <w:tblW w:w="0" w:type="auto"/>
+    </w:tblPr>
+    <w:tr><w:tc><w:p><w:r><w:t>header cell</w:t></w:r></w:p></w:tc></w:tr>
+  </w:tbl>
+</w:hdr>
+)";
+    const std::string footer_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:r>
+      <w:rPr><w:rStyle w:val="Strong"/></w:rPr>
+      <w:t>footer run</w:t>
+    </w:r>
+  </w:p>
+  <w:tbl>
+    <w:tblPr>
+      <w:tblStyle w:val="ReportTable"/>
+      <w:tblW w:w="0" w:type="auto"/>
+    </w:tblPr>
+    <w:tr><w:tc><w:p><w:r><w:t>footer cell</w:t></w:r></w:p></w:tc></w:tr>
+  </w:tbl>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/styles.xml", styles_xml},
+            {"word/header1.xml", header_xml},
+            {"word/footer1.xml", footer_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto paragraph_usage = doc.find_style_usage("CustomBody");
+    REQUIRE(paragraph_usage.has_value());
+    CHECK_EQ(paragraph_usage->style_id, "CustomBody");
+    CHECK_EQ(paragraph_usage->paragraph_count, 1U);
+    CHECK_EQ(paragraph_usage->run_count, 0U);
+    CHECK_EQ(paragraph_usage->table_count, 0U);
+    CHECK_EQ(paragraph_usage->total_count(), 1U);
+    CHECK_EQ(paragraph_usage->body.total_count(), 0U);
+    CHECK_EQ(paragraph_usage->header.paragraph_count, 1U);
+    CHECK_EQ(paragraph_usage->header.total_count(), 1U);
+    CHECK_EQ(paragraph_usage->footer.total_count(), 0U);
+    REQUIRE_EQ(paragraph_usage->hits.size(), 1U);
+    CHECK_EQ(paragraph_usage->hits[0].part, featherdoc::style_usage_part_kind::header);
+    CHECK_EQ(paragraph_usage->hits[0].kind, featherdoc::style_usage_hit_kind::paragraph);
+    CHECK_EQ(paragraph_usage->hits[0].entry_name, "word/header1.xml");
+    CHECK_EQ(paragraph_usage->hits[0].ordinal, 1U);
+    REQUIRE_EQ(paragraph_usage->hits[0].references.size(), 2U);
+    CHECK_EQ(paragraph_usage->hits[0].references[0].section_index, 0U);
+    CHECK_EQ(paragraph_usage->hits[0].references[0].reference_kind,
+             featherdoc::section_reference_kind::default_reference);
+    CHECK_EQ(paragraph_usage->hits[0].references[1].section_index, 1U);
+    CHECK_EQ(paragraph_usage->hits[0].references[1].reference_kind,
+             featherdoc::section_reference_kind::default_reference);
+
+    const auto run_usage = doc.find_style_usage("Strong");
+    REQUIRE(run_usage.has_value());
+    CHECK_EQ(run_usage->style_id, "Strong");
+    CHECK_EQ(run_usage->paragraph_count, 0U);
+    CHECK_EQ(run_usage->run_count, 1U);
+    CHECK_EQ(run_usage->table_count, 0U);
+    CHECK_EQ(run_usage->total_count(), 1U);
+    CHECK_EQ(run_usage->body.total_count(), 0U);
+    CHECK_EQ(run_usage->header.total_count(), 0U);
+    CHECK_EQ(run_usage->footer.run_count, 1U);
+    CHECK_EQ(run_usage->footer.total_count(), 1U);
+    REQUIRE_EQ(run_usage->hits.size(), 1U);
+    CHECK_EQ(run_usage->hits[0].part, featherdoc::style_usage_part_kind::footer);
+    CHECK_EQ(run_usage->hits[0].kind, featherdoc::style_usage_hit_kind::run);
+    CHECK_EQ(run_usage->hits[0].entry_name, "word/footer1.xml");
+    CHECK_EQ(run_usage->hits[0].ordinal, 1U);
+    REQUIRE_EQ(run_usage->hits[0].references.size(), 2U);
+    CHECK_EQ(run_usage->hits[0].references[0].section_index, 0U);
+    CHECK_EQ(run_usage->hits[0].references[0].reference_kind,
+             featherdoc::section_reference_kind::default_reference);
+    CHECK_EQ(run_usage->hits[0].references[1].section_index, 1U);
+    CHECK_EQ(run_usage->hits[0].references[1].reference_kind,
+             featherdoc::section_reference_kind::first_page);
+
+    const auto table_usage = doc.find_style_usage("ReportTable");
+    REQUIRE(table_usage.has_value());
+    CHECK_EQ(table_usage->style_id, "ReportTable");
+    CHECK_EQ(table_usage->paragraph_count, 0U);
+    CHECK_EQ(table_usage->run_count, 0U);
+    CHECK_EQ(table_usage->table_count, 2U);
+    CHECK_EQ(table_usage->total_count(), 2U);
+    CHECK_EQ(table_usage->body.total_count(), 0U);
+    CHECK_EQ(table_usage->header.table_count, 1U);
+    CHECK_EQ(table_usage->footer.table_count, 1U);
+    CHECK_EQ(table_usage->header.total_count(), 1U);
+    CHECK_EQ(table_usage->footer.total_count(), 1U);
+    REQUIRE_EQ(table_usage->hits.size(), 2U);
+    CHECK_EQ(table_usage->hits[0].part, featherdoc::style_usage_part_kind::header);
+    CHECK_EQ(table_usage->hits[0].kind, featherdoc::style_usage_hit_kind::table);
+    CHECK_EQ(table_usage->hits[0].entry_name, "word/header1.xml");
+    CHECK_EQ(table_usage->hits[0].ordinal, 1U);
+    REQUIRE_EQ(table_usage->hits[0].references.size(), 2U);
+    CHECK_EQ(table_usage->hits[0].references[0].section_index, 0U);
+    CHECK_EQ(table_usage->hits[0].references[0].reference_kind,
+             featherdoc::section_reference_kind::default_reference);
+    CHECK_EQ(table_usage->hits[0].references[1].section_index, 1U);
+    CHECK_EQ(table_usage->hits[0].references[1].reference_kind,
+             featherdoc::section_reference_kind::default_reference);
+    CHECK_EQ(table_usage->hits[1].part, featherdoc::style_usage_part_kind::footer);
+    CHECK_EQ(table_usage->hits[1].kind, featherdoc::style_usage_hit_kind::table);
+    CHECK_EQ(table_usage->hits[1].entry_name, "word/footer1.xml");
+    CHECK_EQ(table_usage->hits[1].ordinal, 1U);
+    REQUIRE_EQ(table_usage->hits[1].references.size(), 2U);
+    CHECK_EQ(table_usage->hits[1].references[0].section_index, 0U);
+    CHECK_EQ(table_usage->hits[1].references[0].reference_kind,
+             featherdoc::section_reference_kind::default_reference);
+    CHECK_EQ(table_usage->hits[1].references[1].section_index, 1U);
+    CHECK_EQ(table_usage->hits[1].references[1].reference_kind,
+             featherdoc::section_reference_kind::first_page);
+
+    const auto unused_usage = doc.find_style_usage("Normal");
+    REQUIRE(unused_usage.has_value());
+    CHECK_EQ(unused_usage->style_id, "Normal");
+    CHECK_EQ(unused_usage->total_count(), 0U);
+    CHECK_EQ(unused_usage->body.total_count(), 0U);
+    CHECK_EQ(unused_usage->header.total_count(), 0U);
+    CHECK_EQ(unused_usage->footer.total_count(), 0U);
+    CHECK(unused_usage->hits.empty());
 
     fs::remove(target);
 }
@@ -14984,6 +16678,743 @@ TEST_CASE("style direction APIs edit styles.xml and preserve unrelated style mar
     CHECK_FALSE(cleared.style_run_rtl("Emphasis").has_value());
     CHECK_FALSE(cleared.style_paragraph_bidi("Heading1").has_value());
     CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("ensure style definition APIs create paragraph character and table styles") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "ensure_style_definitions_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph_definition = featherdoc::paragraph_style_definition{};
+    paragraph_definition.name = "Body Text";
+    paragraph_definition.based_on = std::string{"Normal"};
+    paragraph_definition.next_style = std::string{"BodyText"};
+    paragraph_definition.is_quick_format = true;
+    paragraph_definition.run_font_family = std::string{"Segoe UI"};
+    paragraph_definition.run_east_asia_font_family = std::string{"Microsoft YaHei"};
+    paragraph_definition.run_language = std::string{"en-US"};
+    paragraph_definition.run_east_asia_language = std::string{"zh-CN"};
+    paragraph_definition.run_bidi_language = std::string{"ar-SA"};
+    paragraph_definition.run_rtl = false;
+    paragraph_definition.paragraph_bidi = false;
+    paragraph_definition.outline_level = 2U;
+    CHECK(doc.ensure_paragraph_style("BodyText", paragraph_definition));
+
+    auto character_definition = featherdoc::character_style_definition{};
+    character_definition.name = "Accent Strong";
+    character_definition.based_on = std::string{"DefaultParagraphFont"};
+    character_definition.is_quick_format = true;
+    character_definition.run_font_family = std::string{"Aptos"};
+    character_definition.run_east_asia_font_family = std::string{"SimSun"};
+    character_definition.run_language = std::string{"fr-FR"};
+    character_definition.run_east_asia_language = std::string{"ja-JP"};
+    character_definition.run_bidi_language = std::string{"he-IL"};
+    character_definition.run_rtl = true;
+    CHECK(doc.ensure_character_style("AccentStrong", character_definition));
+
+    auto table_definition = featherdoc::table_style_definition{};
+    table_definition.name = "Report Table";
+    table_definition.based_on = std::string{"TableGrid"};
+    table_definition.is_quick_format = true;
+    CHECK(doc.ensure_table_style("ReportTable", table_definition));
+
+    const auto styles = doc.list_styles();
+
+    const auto *body_text = find_style_summary(styles, "BodyText");
+    REQUIRE(body_text != nullptr);
+    CHECK_EQ(body_text->kind, featherdoc::style_kind::paragraph);
+    CHECK_EQ(body_text->name, "Body Text");
+    CHECK(body_text->is_custom);
+    CHECK(body_text->is_quick_format);
+    REQUIRE(body_text->based_on.has_value());
+    CHECK_EQ(*body_text->based_on, "Normal");
+
+    const auto *accent_strong = find_style_summary(styles, "AccentStrong");
+    REQUIRE(accent_strong != nullptr);
+    CHECK_EQ(accent_strong->kind, featherdoc::style_kind::character);
+    CHECK_EQ(accent_strong->name, "Accent Strong");
+    CHECK(accent_strong->is_custom);
+    CHECK(accent_strong->is_quick_format);
+
+    const auto *report_table = find_style_summary(styles, "ReportTable");
+    REQUIRE(report_table != nullptr);
+    CHECK_EQ(report_table->kind, featherdoc::style_kind::table);
+    CHECK_EQ(report_table->name, "Report Table");
+    CHECK(report_table->is_custom);
+    CHECK(report_table->is_quick_format);
+
+    const auto body_font = doc.style_run_font_family("BodyText");
+    REQUIRE(body_font.has_value());
+    CHECK_EQ(*body_font, "Segoe UI");
+    const auto body_east_asia_font = doc.style_run_east_asia_font_family("BodyText");
+    REQUIRE(body_east_asia_font.has_value());
+    CHECK_EQ(*body_east_asia_font, "Microsoft YaHei");
+    const auto body_language = doc.style_run_language("BodyText");
+    REQUIRE(body_language.has_value());
+    CHECK_EQ(*body_language, "en-US");
+    const auto body_east_asia_language = doc.style_run_east_asia_language("BodyText");
+    REQUIRE(body_east_asia_language.has_value());
+    CHECK_EQ(*body_east_asia_language, "zh-CN");
+    const auto body_bidi_language = doc.style_run_bidi_language("BodyText");
+    REQUIRE(body_bidi_language.has_value());
+    CHECK_EQ(*body_bidi_language, "ar-SA");
+    const auto body_rtl = doc.style_run_rtl("BodyText");
+    REQUIRE(body_rtl.has_value());
+    CHECK_FALSE(*body_rtl);
+    const auto body_bidi = doc.style_paragraph_bidi("BodyText");
+    REQUIRE(body_bidi.has_value());
+    CHECK_FALSE(*body_bidi);
+
+    const auto accent_font = doc.style_run_font_family("AccentStrong");
+    REQUIRE(accent_font.has_value());
+    CHECK_EQ(*accent_font, "Aptos");
+    const auto accent_rtl = doc.style_run_rtl("AccentStrong");
+    REQUIRE(accent_rtl.has_value());
+    CHECK(*accent_rtl);
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(doc.set_paragraph_style(paragraph, "BodyText"));
+    auto run = paragraph.add_run("styled body text");
+    REQUIRE(run.has_next());
+    CHECK(doc.set_run_style(run, "AccentStrong"));
+
+    auto table = doc.append_table(1, 1);
+    REQUIRE(table.has_next());
+    CHECK(table.set_style_id("ReportTable"));
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"BodyText\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"AccentStrong\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"ReportTable\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:outlineLvl w:val=\"2\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_body = reopened.find_style("BodyText");
+    REQUIRE(reopened_body.has_value());
+    CHECK_EQ(reopened_body->name, "Body Text");
+    const auto reopened_body_font = reopened.style_run_font_family("BodyText");
+    REQUIRE(reopened_body_font.has_value());
+    CHECK_EQ(*reopened_body_font, "Segoe UI");
+    const auto reopened_accent_rtl = reopened.style_run_rtl("AccentStrong");
+    REQUIRE(reopened_accent_rtl.has_value());
+    CHECK(*reopened_accent_rtl);
+
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    REQUIRE(reopened_table.style_id().has_value());
+    CHECK_EQ(*reopened_table.style_id(), "ReportTable");
+
+    fs::remove(target);
+}
+
+TEST_CASE("ensure style definition APIs update existing styles and preserve unrelated markup") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "ensure_existing_style_definitions.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+)";
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>seed</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+</Relationships>
+)";
+    const std::string styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:styleId="ExistingPara">
+    <w:name w:val="Old Paragraph"/>
+    <w:uiPriority w:val="30"/>
+    <w:qFormat/>
+    <w:pPr><w:keepNext/></w:pPr>
+    <w:rPr><w:b/></w:rPr>
+  </w:style>
+  <w:style w:type="character" w:styleId="ExistingChar">
+    <w:name w:val="Old Character"/>
+    <w:rPr><w:i/></w:rPr>
+  </w:style>
+  <w:style w:type="table" w:styleId="ExistingTable">
+    <w:name w:val="Old Table"/>
+    <w:semiHidden/>
+    <w:tblPr>
+      <w:tblBorders>
+        <w:top w:val="single" w:sz="8" w:space="0" w:color="auto"/>
+      </w:tblBorders>
+    </w:tblPr>
+  </w:style>
+</w:styles>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/styles.xml", styles_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto paragraph_definition = featherdoc::paragraph_style_definition{};
+    paragraph_definition.name = "Body Paragraph";
+    paragraph_definition.based_on = std::string{"Normal"};
+    paragraph_definition.next_style = std::string{"ExistingPara"};
+    paragraph_definition.is_custom = true;
+    paragraph_definition.is_quick_format = false;
+    paragraph_definition.is_unhide_when_used = true;
+    paragraph_definition.run_font_family = std::string{"Calibri"};
+    paragraph_definition.run_language = std::string{"en-US"};
+    paragraph_definition.paragraph_bidi = true;
+    paragraph_definition.outline_level = 3U;
+    CHECK(doc.ensure_paragraph_style("ExistingPara", paragraph_definition));
+
+    auto character_definition = featherdoc::character_style_definition{};
+    character_definition.name = "Accent Character";
+    character_definition.based_on = std::string{"DefaultParagraphFont"};
+    character_definition.is_custom = true;
+    character_definition.is_quick_format = true;
+    character_definition.is_semi_hidden = true;
+    character_definition.run_language = std::string{"fr-FR"};
+    character_definition.run_rtl = false;
+    CHECK(doc.ensure_character_style("ExistingChar", character_definition));
+
+    auto table_definition = featherdoc::table_style_definition{};
+    table_definition.name = "Report Table";
+    table_definition.based_on = std::string{"TableGrid"};
+    table_definition.is_custom = true;
+    table_definition.is_quick_format = true;
+    table_definition.is_semi_hidden = false;
+    table_definition.is_unhide_when_used = true;
+    CHECK(doc.ensure_table_style("ExistingTable", table_definition));
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(saved_styles_xml.c_str()));
+    const auto styles_root = xml_document.child("w:styles");
+
+    const auto paragraph_style = find_style_xml_node(styles_root, "ExistingPara");
+    REQUIRE(paragraph_style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{paragraph_style.child("w:name").attribute("w:val").value()},
+             "Body Paragraph");
+    CHECK_EQ(std::string_view{paragraph_style.child("w:basedOn").attribute("w:val").value()},
+             "Normal");
+    CHECK_EQ(std::string_view{paragraph_style.child("w:next").attribute("w:val").value()},
+             "ExistingPara");
+    CHECK_EQ(std::string_view{paragraph_style.child("w:uiPriority").attribute("w:val").value()},
+             "30");
+    CHECK_EQ(paragraph_style.child("w:qFormat"), pugi::xml_node{});
+    CHECK(paragraph_style.child("w:unhideWhenUsed") != pugi::xml_node{});
+    CHECK(paragraph_style.child("w:pPr").child("w:keepNext") != pugi::xml_node{});
+    CHECK(paragraph_style.child("w:pPr").child("w:outlineLvl") != pugi::xml_node{});
+    CHECK_EQ(std::string_view{paragraph_style.child("w:pPr")
+                                  .child("w:outlineLvl")
+                                  .attribute("w:val")
+                                  .value()},
+             "3");
+    CHECK(paragraph_style.child("w:pPr").child("w:bidi") != pugi::xml_node{});
+    CHECK(paragraph_style.child("w:rPr").child("w:b") != pugi::xml_node{});
+    CHECK(paragraph_style.child("w:rPr").child("w:rFonts") != pugi::xml_node{});
+    CHECK(paragraph_style.child("w:rPr").child("w:lang") != pugi::xml_node{});
+
+    const auto character_style = find_style_xml_node(styles_root, "ExistingChar");
+    REQUIRE(character_style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{character_style.child("w:name").attribute("w:val").value()},
+             "Accent Character");
+    CHECK_EQ(std::string_view{character_style.child("w:basedOn").attribute("w:val").value()},
+             "DefaultParagraphFont");
+    CHECK(character_style.child("w:semiHidden") != pugi::xml_node{});
+    CHECK(character_style.child("w:qFormat") != pugi::xml_node{});
+    CHECK(character_style.child("w:rPr").child("w:i") != pugi::xml_node{});
+    CHECK(character_style.child("w:rPr").child("w:lang") != pugi::xml_node{});
+    CHECK(character_style.child("w:rPr").child("w:rtl") != pugi::xml_node{});
+    CHECK_EQ(std::string_view{character_style.child("w:rPr")
+                                  .child("w:lang")
+                                  .attribute("w:val")
+                                  .value()},
+             "fr-FR");
+    CHECK_EQ(std::string_view{character_style.child("w:rPr")
+                                  .child("w:rtl")
+                                  .attribute("w:val")
+                                  .value()},
+             "0");
+
+    const auto table_style = find_style_xml_node(styles_root, "ExistingTable");
+    REQUIRE(table_style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{table_style.child("w:name").attribute("w:val").value()},
+             "Report Table");
+    CHECK_EQ(std::string_view{table_style.child("w:basedOn").attribute("w:val").value()},
+             "TableGrid");
+    CHECK_EQ(table_style.child("w:semiHidden"), pugi::xml_node{});
+    CHECK(table_style.child("w:qFormat") != pugi::xml_node{});
+    CHECK(table_style.child("w:unhideWhenUsed") != pugi::xml_node{});
+    CHECK(table_style.child("w:tblPr").child("w:tblBorders") != pugi::xml_node{});
+    CHECK(table_style.child("w:tblPr").child("w:tblBorders").child("w:top") !=
+          pugi::xml_node{});
+
+    fs::remove(target);
+}
+
+TEST_CASE("ensure style definition APIs validate definitions and reject type mismatches") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "ensure_style_definitions_validation.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph_definition = featherdoc::paragraph_style_definition{};
+    paragraph_definition.name = "Body";
+    CHECK_FALSE(doc.ensure_paragraph_style("", paragraph_definition));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    paragraph_definition.name.clear();
+    CHECK_FALSE(doc.ensure_paragraph_style("BodyText", paragraph_definition));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    paragraph_definition.name = "Body";
+    paragraph_definition.run_font_family = std::string{};
+    CHECK_FALSE(doc.ensure_paragraph_style("BodyText", paragraph_definition));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    paragraph_definition.run_font_family = std::string{"Segoe UI"};
+    paragraph_definition.outline_level = 9U;
+    CHECK_FALSE(doc.ensure_paragraph_style("BodyText", paragraph_definition));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    auto table_definition = featherdoc::table_style_definition{};
+    table_definition.name = "Wrong Type";
+    CHECK_FALSE(doc.ensure_table_style("Heading1", table_definition));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+}
+
+TEST_CASE("get_section_page_setup reads explicit section settings") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "section_page_setup_read.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:sectPr>
+          <w:pgSz w:w="12240" w:h="15840"/>
+          <w:pgMar w:top="1440" w:right="1800" w:bottom="1440" w:left="1800" w:header="720" w:footer="720"/>
+          <w:pgNumType w:start="5"/>
+        </w:sectPr>
+      </w:pPr>
+      <w:r><w:t>section one</w:t></w:r>
+    </w:p>
+    <w:p><w:r><w:t>section two</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>
+      <w:pgMar w:top="720" w:right="1440" w:bottom="1080" w:left="1440" w:header="360" w:footer="540"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+    CHECK_EQ(doc.section_count(), 2);
+
+    const auto section0 = doc.get_section_page_setup(0);
+    REQUIRE(section0.has_value());
+    CHECK_EQ(section0->orientation, featherdoc::page_orientation::portrait);
+    CHECK_EQ(section0->width_twips, 12240U);
+    CHECK_EQ(section0->height_twips, 15840U);
+    CHECK_EQ(section0->margins.top_twips, 1440U);
+    CHECK_EQ(section0->margins.bottom_twips, 1440U);
+    CHECK_EQ(section0->margins.left_twips, 1800U);
+    CHECK_EQ(section0->margins.right_twips, 1800U);
+    CHECK_EQ(section0->margins.header_twips, 720U);
+    CHECK_EQ(section0->margins.footer_twips, 720U);
+    REQUIRE(section0->page_number_start.has_value());
+    CHECK_EQ(*section0->page_number_start, 5U);
+
+    const auto section1 = doc.get_section_page_setup(1);
+    REQUIRE(section1.has_value());
+    CHECK_EQ(section1->orientation, featherdoc::page_orientation::landscape);
+    CHECK_EQ(section1->width_twips, 15840U);
+    CHECK_EQ(section1->height_twips, 12240U);
+    CHECK_EQ(section1->margins.top_twips, 720U);
+    CHECK_EQ(section1->margins.bottom_twips, 1080U);
+    CHECK_EQ(section1->margins.left_twips, 1440U);
+    CHECK_EQ(section1->margins.right_twips, 1440U);
+    CHECK_EQ(section1->margins.header_twips, 360U);
+    CHECK_EQ(section1->margins.footer_twips, 540U);
+    CHECK_FALSE(section1->page_number_start.has_value());
+
+    fs::remove(target);
+}
+
+TEST_CASE("get_section_page_setup returns nullopt when setup is implicit") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "section_page_setup_implicit.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    const auto page_setup = doc.get_section_page_setup(0);
+    CHECK_FALSE(page_setup.has_value());
+    CHECK_FALSE(static_cast<bool>(doc.last_error().code));
+
+    fs::remove(target);
+}
+
+TEST_CASE("get_section_page_setup reports document state errors") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "section_page_setup_errors.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.get_section_page_setup(0).has_value());
+    CHECK_EQ(doc.last_error().code, featherdoc::document_errc::document_not_open);
+
+    CHECK_FALSE(doc.create_empty());
+    CHECK_FALSE(doc.get_section_page_setup(1).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+}
+
+TEST_CASE("set_section_page_setup creates a final section setup and round-trips") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "section_page_setup_write_final.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    featherdoc::section_page_setup setup{};
+    setup.orientation = featherdoc::page_orientation::landscape;
+    setup.width_twips = 15840U;
+    setup.height_twips = 12240U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 1080U;
+    setup.margins.left_twips = 1440U;
+    setup.margins.right_twips = 1440U;
+    setup.margins.header_twips = 360U;
+    setup.margins.footer_twips = 540U;
+    setup.page_number_start = 7U;
+
+    CHECK(doc.set_section_page_setup(0, setup));
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("<w:sectPr"), std::string::npos);
+    CHECK_NE(saved_document_xml.find("w:orient=\"landscape\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("w:start=\"7\""), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    const auto reopened_setup = reopened.get_section_page_setup(0);
+    REQUIRE(reopened_setup.has_value());
+    CHECK_EQ(reopened_setup->orientation, featherdoc::page_orientation::landscape);
+    CHECK_EQ(reopened_setup->width_twips, 15840U);
+    CHECK_EQ(reopened_setup->height_twips, 12240U);
+    CHECK_EQ(reopened_setup->margins.top_twips, 720U);
+    CHECK_EQ(reopened_setup->margins.bottom_twips, 1080U);
+    CHECK_EQ(reopened_setup->margins.left_twips, 1440U);
+    CHECK_EQ(reopened_setup->margins.right_twips, 1440U);
+    CHECK_EQ(reopened_setup->margins.header_twips, 360U);
+    CHECK_EQ(reopened_setup->margins.footer_twips, 540U);
+    REQUIRE(reopened_setup->page_number_start.has_value());
+    CHECK_EQ(*reopened_setup->page_number_start, 7U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("set_section_page_setup updates paragraph and body section properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "section_page_setup_write_multi.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:sectPr>
+          <w:type w:val="nextPage"/>
+          <w:pgSz w:w="11906" w:h="16838" w:code="9"/>
+          <w:pgMar w:top="1500" w:right="1700" w:bottom="1500" w:left="1700" w:header="700" w:footer="700" w:gutter="200"/>
+          <w:pgNumType w:fmt="decimal" w:start="3"/>
+        </w:sectPr>
+      </w:pPr>
+      <w:r><w:t>section one</w:t></w:r>
+    </w:p>
+    <w:p><w:r><w:t>section two</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:pgSz w:w="12240" w:h="15840" w:code="7" w:orient="landscape"/>
+      <w:pgMar w:top="1000" w:right="1100" w:bottom="1200" w:left="1300" w:header="400" w:footer="500" w:gutter="100"/>
+      <w:pgNumType w:fmt="decimal" w:start="12"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+    CHECK_EQ(doc.section_count(), 2);
+
+    featherdoc::section_page_setup first_setup{};
+    first_setup.orientation = featherdoc::page_orientation::portrait;
+    first_setup.width_twips = 12240U;
+    first_setup.height_twips = 15840U;
+    first_setup.margins.top_twips = 1440U;
+    first_setup.margins.bottom_twips = 1440U;
+    first_setup.margins.left_twips = 1800U;
+    first_setup.margins.right_twips = 1800U;
+    first_setup.margins.header_twips = 720U;
+    first_setup.margins.footer_twips = 720U;
+    first_setup.page_number_start = std::nullopt;
+
+    featherdoc::section_page_setup second_setup{};
+    second_setup.orientation = featherdoc::page_orientation::landscape;
+    second_setup.width_twips = 15840U;
+    second_setup.height_twips = 12240U;
+    second_setup.margins.top_twips = 720U;
+    second_setup.margins.bottom_twips = 1080U;
+    second_setup.margins.left_twips = 1440U;
+    second_setup.margins.right_twips = 1440U;
+    second_setup.margins.header_twips = 360U;
+    second_setup.margins.footer_twips = 540U;
+    second_setup.page_number_start = 1U;
+
+    CHECK(doc.set_section_page_setup(0, first_setup));
+    CHECK(doc.set_section_page_setup(1, second_setup));
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_buffer(saved_document_xml.data(), saved_document_xml.size()));
+    const auto body = saved_document.child("w:document").child("w:body");
+    const auto section0_properties = body.child("w:p").child("w:pPr").child("w:sectPr");
+    const auto section1_properties = body.child("w:sectPr");
+    REQUIRE(section0_properties != pugi::xml_node{});
+    REQUIRE(section1_properties != pugi::xml_node{});
+
+    CHECK_EQ(std::string_view{section0_properties.child("w:type").attribute("w:val").value()},
+             "nextPage");
+    CHECK_EQ(std::string_view{section0_properties.child("w:pgSz").attribute("w:code").value()},
+             "9");
+    CHECK_EQ(section0_properties.child("w:pgSz").attribute("w:orient"), pugi::xml_attribute{});
+    CHECK_EQ(std::string_view{section0_properties.child("w:pgMar").attribute("w:gutter").value()},
+             "200");
+    CHECK_EQ(std::string_view{section0_properties.child("w:pgNumType").attribute("w:fmt").value()},
+             "decimal");
+    CHECK_EQ(section0_properties.child("w:pgNumType").attribute("w:start"),
+             pugi::xml_attribute{});
+
+    CHECK_EQ(std::string_view{section1_properties.child("w:pgSz").attribute("w:code").value()},
+             "7");
+    CHECK_EQ(std::string_view{section1_properties.child("w:pgSz").attribute("w:orient").value()},
+             "landscape");
+    CHECK_EQ(std::string_view{section1_properties.child("w:pgMar").attribute("w:gutter").value()},
+             "100");
+    CHECK_EQ(std::string_view{section1_properties.child("w:pgNumType").attribute("w:fmt").value()},
+             "decimal");
+    CHECK_EQ(std::string_view{section1_properties.child("w:pgNumType").attribute("w:start").value()},
+             "1");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_first = reopened.get_section_page_setup(0);
+    REQUIRE(reopened_first.has_value());
+    CHECK_EQ(reopened_first->orientation, featherdoc::page_orientation::portrait);
+    CHECK_EQ(reopened_first->width_twips, 12240U);
+    CHECK_EQ(reopened_first->height_twips, 15840U);
+    CHECK_EQ(reopened_first->margins.left_twips, 1800U);
+    CHECK_FALSE(reopened_first->page_number_start.has_value());
+
+    const auto reopened_second = reopened.get_section_page_setup(1);
+    REQUIRE(reopened_second.has_value());
+    CHECK_EQ(reopened_second->orientation, featherdoc::page_orientation::landscape);
+    CHECK_EQ(reopened_second->width_twips, 15840U);
+    CHECK_EQ(reopened_second->height_twips, 12240U);
+    CHECK_EQ(reopened_second->margins.top_twips, 720U);
+    REQUIRE(reopened_second->page_number_start.has_value());
+    CHECK_EQ(*reopened_second->page_number_start, 1U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("set_section_page_setup validates document state and dimensions") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "section_page_setup_write_errors.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+
+    featherdoc::section_page_setup setup{};
+    setup.width_twips = 12240U;
+    setup.height_twips = 15840U;
+    setup.margins.top_twips = 1440U;
+    setup.margins.bottom_twips = 1440U;
+    setup.margins.left_twips = 1800U;
+    setup.margins.right_twips = 1800U;
+    setup.margins.header_twips = 720U;
+    setup.margins.footer_twips = 720U;
+
+    CHECK_FALSE(doc.set_section_page_setup(0, setup));
+    CHECK_EQ(doc.last_error().code, featherdoc::document_errc::document_not_open);
+
+    CHECK_FALSE(doc.create_empty());
+    setup.width_twips = 0U;
+    CHECK_FALSE(doc.set_section_page_setup(0, setup));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    setup.width_twips = 12240U;
+    CHECK_FALSE(doc.set_section_page_setup(1, setup));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+}
+
+TEST_CASE("get_section_page_setup reports unsupported explicit page orientation") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "section_page_setup_invalid_orientation.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>section one</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:pgSz w:w="12240" w:h="15840" w:orient="sideways"/>
+      <w:pgMar w:top="1440" w:right="1800" w:bottom="1440" w:left="1800" w:header="720" w:footer="720"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_FALSE(doc.get_section_page_setup(0).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().detail, "unsupported section page orientation: sideways");
+    CHECK_EQ(doc.last_error().entry_name, test_document_xml_entry);
+
+    fs::remove(target);
+}
+
+TEST_CASE("get_section_page_setup reports malformed page number start attributes") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "section_page_setup_invalid_page_number_start.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>section one</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:pgSz w:w="12240" w:h="15840"/>
+      <w:pgMar w:top="1440" w:right="1800" w:bottom="1440" w:left="1800" w:header="720" w:footer="720"/>
+      <w:pgNumType w:start="abc"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_FALSE(doc.get_section_page_setup(0).has_value());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().detail,
+             "invalid section page setup attribute w:pgNumType/w:start "
+             "(expected unsigned integer)");
+    CHECK_EQ(doc.last_error().entry_name, test_document_xml_entry);
+
+    fs::remove(target);
+}
+
+TEST_CASE("validate_template rejects empty slot bookmark names") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_validate_empty_slot_name.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    const auto result = doc.validate_template(
+        {{"", featherdoc::template_slot_kind::text, true}});
+
+    CHECK(result.missing_required.empty());
+    CHECK(result.duplicate_bookmarks.empty());
+    CHECK(result.malformed_placeholders.empty());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().detail, "template slot bookmark name must not be empty");
+    CHECK_EQ(doc.last_error().entry_name, test_document_xml_entry);
 
     fs::remove(target);
 }

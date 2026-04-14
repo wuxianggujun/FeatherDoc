@@ -224,24 +224,28 @@ function Get-OverallVisualVerdict {
         return "pending_manual_review"
     }
 
-    if ($Reviews | Where-Object { $_.verdict -eq "fail" }) {
+    $failedReviews = @($Reviews | Where-Object { $_.verdict -eq "fail" })
+    if ($failedReviews.Count -gt 0) {
         return "fail"
     }
 
-    if ($Reviews | Where-Object {
+    $pendingReviews = @($Reviews | Where-Object {
             $_.verdict -eq "undecided" -or
             $_.verdict -eq "pending_manual_review" -or
             $_.status -eq "pending_review" -or
             $_.status -eq "missing"
-        }) {
+        })
+    if ($pendingReviews.Count -gt 0) {
         return "pending_manual_review"
     }
 
-    if (($Reviews | Where-Object { $_.verdict -eq "pass" }).Count -eq $Reviews.Count) {
+    $passedReviews = @($Reviews | Where-Object { $_.verdict -eq "pass" })
+    if ($passedReviews.Count -eq $Reviews.Count) {
         return "pass"
     }
 
-    if ($Reviews | Where-Object { $_.verdict -eq "undetermined" }) {
+    $undeterminedReviews = @($Reviews | Where-Object { $_.verdict -eq "undetermined" })
+    if ($undeterminedReviews.Count -gt 0) {
         return "undetermined"
     }
 
@@ -255,16 +259,31 @@ function New-GateFinalReviewContent {
         [object[]]$Reviews
     )
 
-    $smokeStatusLine = if ((Get-OptionalPropertyValue -Object $GateSummary.smoke -Name "status") -eq "completed") {
-        "- Smoke flow: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $GateSummary.smoke -Name 'docx_path')))"
+    $smokeFlow = Get-OptionalPropertyObject -Object $GateSummary -Name "smoke"
+    $fixedGridFlow = Get-OptionalPropertyObject -Object $GateSummary -Name "fixed_grid"
+    $sectionPageSetupFlow = Get-OptionalPropertyObject -Object $GateSummary -Name "section_page_setup"
+    $pageNumberFieldsFlow = Get-OptionalPropertyObject -Object $GateSummary -Name "page_number_fields"
+
+    $smokeStatusLine = if ((Get-OptionalPropertyValue -Object $smokeFlow -Name "status") -eq "completed") {
+        "- Smoke flow: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $smokeFlow -Name 'docx_path')))"
     } else {
         "- Smoke flow: skipped"
     }
 
-    $fixedGridStatusLine = if ((Get-OptionalPropertyValue -Object $GateSummary.fixed_grid -Name "status") -eq "completed") {
-        "- Fixed-grid flow: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $GateSummary.fixed_grid -Name 'summary_json')))"
+    $fixedGridStatusLine = if ((Get-OptionalPropertyValue -Object $fixedGridFlow -Name "status") -eq "completed") {
+        "- Fixed-grid flow: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $fixedGridFlow -Name 'summary_json')))"
     } else {
         "- Fixed-grid flow: skipped"
+    }
+    $sectionPageSetupStatusLine = if ((Get-OptionalPropertyValue -Object $sectionPageSetupFlow -Name "status") -eq "completed") {
+        "- Section page setup flow: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $sectionPageSetupFlow -Name 'summary_json')))"
+    } else {
+        "- Section page setup flow: skipped"
+    }
+    $pageNumberFieldsStatusLine = if ((Get-OptionalPropertyValue -Object $pageNumberFieldsFlow -Name "status") -eq "completed") {
+        "- Page number fields flow: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $pageNumberFieldsFlow -Name 'summary_json')))"
+    } else {
+        "- Page number fields flow: skipped"
     }
 
     $readmeGallery = Get-OptionalPropertyObject -Object $GateSummary -Name "readme_gallery"
@@ -280,8 +299,12 @@ function New-GateFinalReviewContent {
 
     $documentTask = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks") -Name "document"
     $fixedGridTask = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks") -Name "fixed_grid"
+    $sectionPageSetupTask = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks") -Name "section_page_setup"
+    $pageNumberFieldsTask = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks") -Name "page_number_fields"
     $documentReview = $Reviews | Where-Object { $_.label -eq "document" } | Select-Object -First 1
     $fixedGridReview = $Reviews | Where-Object { $_.label -eq "fixed_grid" } | Select-Object -First 1
+    $sectionPageSetupReview = $Reviews | Where-Object { $_.label -eq "section_page_setup" } | Select-Object -First 1
+    $pageNumberFieldsReview = $Reviews | Where-Object { $_.label -eq "page_number_fields" } | Select-Object -First 1
 
     $documentTaskSummary = if ($null -ne $documentTask) {
         @(
@@ -306,11 +329,33 @@ function New-GateFinalReviewContent {
     } else {
         "- Fixed-grid review task: not available"
     }
+    $sectionPageSetupTaskSummary = if ($null -ne $sectionPageSetupTask) {
+        @(
+            "- Section page setup task id: $(Get-OptionalPropertyValue -Object $sectionPageSetupTask -Name 'task_id')"
+            "- Section page setup task dir: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $sectionPageSetupTask -Name 'task_dir'))"
+            "- Section page setup verdict: $($sectionPageSetupReview.verdict)"
+            "- Section page setup review result: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $sectionPageSetupReview.review_result_path)"
+            "- Section page setup final review: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $sectionPageSetupReview.final_review_path)"
+        ) -join [Environment]::NewLine
+    } else {
+        "- Section page setup review task: not available"
+    }
+    $pageNumberFieldsTaskSummary = if ($null -ne $pageNumberFieldsTask) {
+        @(
+            "- Page number fields task id: $(Get-OptionalPropertyValue -Object $pageNumberFieldsTask -Name 'task_id')"
+            "- Page number fields task dir: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $pageNumberFieldsTask -Name 'task_dir'))"
+            "- Page number fields verdict: $($pageNumberFieldsReview.verdict)"
+            "- Page number fields review result: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $pageNumberFieldsReview.review_result_path)"
+            "- Page number fields final review: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $pageNumberFieldsReview.final_review_path)"
+        ) -join [Environment]::NewLine
+    } else {
+        "- Page number fields review task: not available"
+    }
 
     $nextSteps = switch (Get-OptionalPropertyValue -Object $GateSummary -Name "visual_verdict") {
         "pass" {
             @(
-                "1. Screenshot-backed document and fixed-grid reviews are signed off as pass."
+                "1. Screenshot-backed document, fixed-grid, section page setup, and page number fields reviews are signed off as pass."
                 "2. If any evidence is regenerated later, rerun this sync script before shipping."
             ) -join [Environment]::NewLine
         }
@@ -328,7 +373,7 @@ function New-GateFinalReviewContent {
         }
         default {
             @(
-                "1. Finish both screenshot-backed task reviews."
+                "1. Finish all screenshot-backed task reviews."
                 "2. Rerun sync_visual_review_verdict.ps1 to promote the final verdict."
             ) -join [Environment]::NewLine
         }
@@ -348,12 +393,16 @@ function New-GateFinalReviewContent {
 
 $smokeStatusLine
 $fixedGridStatusLine
+$sectionPageSetupStatusLine
+$pageNumberFieldsStatusLine
 $readmeGalleryStatusLine
 
 ## Review tasks
 
 $documentTaskSummary
 $fixedGridTaskSummary
+$sectionPageSetupTaskSummary
+$pageNumberFieldsTaskSummary
 
 ## Next steps
 
@@ -455,12 +504,20 @@ $gateSummary = Get-Content -Raw -LiteralPath $resolvedGateSummaryPath | ConvertF
 $reviewTasks = Get-OptionalPropertyObject -Object $gateSummary -Name "review_tasks"
 $documentTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "document"
 $fixedGridTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "fixed_grid"
+$sectionPageSetupTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "section_page_setup"
+$pageNumberFieldsTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "page_number_fields"
 $reviews = @()
 if ($null -ne $documentTask) {
     $reviews += Read-TaskReview -Label "document" -TaskInfo $documentTask
 }
 if ($null -ne $fixedGridTask) {
     $reviews += Read-TaskReview -Label "fixed_grid" -TaskInfo $fixedGridTask
+}
+if ($null -ne $sectionPageSetupTask) {
+    $reviews += Read-TaskReview -Label "section_page_setup" -TaskInfo $sectionPageSetupTask
+}
+if ($null -ne $pageNumberFieldsTask) {
+    $reviews += Read-TaskReview -Label "page_number_fields" -TaskInfo $pageNumberFieldsTask
 }
 if ($reviews.Count -eq 0) {
     throw "Gate summary does not contain review-task metadata. Re-run the gate without -SkipReviewTasks."
@@ -475,6 +532,8 @@ $manualReviewSummary = [pscustomobject]@{
     tasks = [pscustomobject]@{
         document = $reviews | Where-Object { $_.label -eq "document" } | Select-Object -First 1
         fixed_grid = $reviews | Where-Object { $_.label -eq "fixed_grid" } | Select-Object -First 1
+        section_page_setup = $reviews | Where-Object { $_.label -eq "section_page_setup" } | Select-Object -First 1
+        page_number_fields = $reviews | Where-Object { $_.label -eq "page_number_fields" } | Select-Object -First 1
     }
 }
 
@@ -497,11 +556,19 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
 
     $documentReview = $reviews | Where-Object { $_.label -eq "document" } | Select-Object -First 1
     $fixedGridReview = $reviews | Where-Object { $_.label -eq "fixed_grid" } | Select-Object -First 1
+    $sectionPageSetupReview = $reviews | Where-Object { $_.label -eq "section_page_setup" } | Select-Object -First 1
+    $pageNumberFieldsReview = $reviews | Where-Object { $_.label -eq "page_number_fields" } | Select-Object -First 1
     if ($null -ne $documentReview) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "document_verdict" -Value $documentReview.verdict
     }
     if ($null -ne $fixedGridReview) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "fixed_grid_verdict" -Value $fixedGridReview.verdict
+    }
+    if ($null -ne $sectionPageSetupReview) {
+        Set-PropertyValue -Object $summary.steps.visual_gate -Name "section_page_setup_verdict" -Value $sectionPageSetupReview.verdict
+    }
+    if ($null -ne $pageNumberFieldsReview) {
+        Set-PropertyValue -Object $summary.steps.visual_gate -Name "page_number_fields_verdict" -Value $pageNumberFieldsReview.verdict
     }
 
     ($summary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $resolvedReleaseSummaryPath -Encoding UTF8
