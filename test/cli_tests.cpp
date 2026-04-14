@@ -2148,6 +2148,94 @@ TEST_CASE("cli inspect-images supports single image text output for header parts
     remove_if_exists(output);
 }
 
+TEST_CASE("cli inspect-images filters images by relationship id and image entry name") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_images_filter_source.docx";
+    const fs::path output = working_directory / "cli_images_filter.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    create_cli_image_fixture(source);
+
+    featherdoc::Document doc(source);
+    REQUIRE_FALSE(doc.open());
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    const auto images = body_template.drawing_images();
+    REQUIRE_EQ(images.size(), 2U);
+    const auto &anchored_image = images[1];
+
+    CHECK_EQ(run_cli({"inspect-images",
+                      source.string(),
+                      "--relationship-id",
+                      anchored_image.relationship_id,
+                      "--image-entry-name",
+                      anchored_image.entry_name,
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"filters\":{\"relationship_id\":\"" +
+                           anchored_image.relationship_id +
+                           "\",\"image_entry_name\":\"" + anchored_image.entry_name +
+                           "\"}"),
+             std::string::npos);
+    CHECK_NE(json.find("\"count\":1"), std::string::npos);
+    CHECK_NE(json.find("\"index\":" + std::to_string(anchored_image.index)),
+             std::string::npos);
+    CHECK_NE(json.find("\"placement\":\"anchored\""), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli inspect-images reports filtered single image misses") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_images_filter_miss_source.docx";
+    const fs::path output = working_directory / "cli_images_filter_miss.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    create_cli_image_fixture(source);
+
+    featherdoc::Document doc(source);
+    REQUIRE_FALSE(doc.open());
+    auto header_template = doc.section_header_template(0);
+    REQUIRE(static_cast<bool>(header_template));
+    const auto header_images = header_template.drawing_images();
+    REQUIRE_EQ(header_images.size(), 1U);
+    const auto entry_name = std::string(header_template.entry_name());
+
+    CHECK_EQ(run_cli({"inspect-images",
+                      source.string(),
+                      "--part",
+                      "header",
+                      "--index",
+                      "0",
+                      "--image",
+                      std::to_string(header_images[0].index),
+                      "--relationship-id",
+                      "missing-rid",
+                      "--json"},
+                     output),
+             1);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"inspect-images\""), std::string::npos);
+    CHECK_NE(json.find("\"stage\":\"inspect\""), std::string::npos);
+    CHECK_NE(json.find("\"message\":\"result out of range\""), std::string::npos);
+    CHECK_NE(json.find("\"detail\":\"drawing image index 0 was not found in " +
+                           entry_name + " for relationship_id 'missing-rid'\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"entry\":\"" + entry_name + "\""), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+}
+
 TEST_CASE("cli inspect-images reports json parse errors") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_images_parse_source.docx";

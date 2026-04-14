@@ -60,6 +60,10 @@ performance.
 - Added `featherdoc_cli inspect-images` so body, header, footer, and
   section-scoped template parts can expose inline versus anchored drawing
   metadata from the CLI, with JSON/text output and regression coverage.
+- Extended `featherdoc_cli inspect-images` with `--relationship-id` and
+  `--image-entry-name` filters so image inspection can target a stable drawing
+  relationship or resolved media package path before emitting list/single-image
+  output.
 
 ### Fixed
 

@@ -325,6 +325,7 @@ featherdoc_cli set-section-page-setup input.docx 1 --orientation landscape --wid
 featherdoc_cli inspect-bookmarks input.docx
 featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
 featherdoc_cli inspect-images input.docx
+featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
@@ -963,10 +964,13 @@ for (const auto& image : drawings) {
 
 The CLI exposes the same metadata through `featherdoc_cli inspect-images`
 using the same body/header/footer/section-part target selection shape as
-`inspect-bookmarks`. For example:
+`inspect-bookmarks`. It also supports filtering by image relationship id and
+resolved media entry path before you inspect a full list or a single image. For
+example:
 
 ```bash
 featherdoc_cli inspect-images report.docx
+featherdoc_cli inspect-images report.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --json
 ```
 

@@ -253,6 +253,7 @@ featherdoc_cli set-section-page-setup input.docx 1 --orientation landscape --wid
 featherdoc_cli inspect-bookmarks input.docx
 featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
 featherdoc_cli inspect-images input.docx
+featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
@@ -611,10 +612,12 @@ featherdoc_cli inspect-bookmarks report.docx --part header --index 0 --bookmark 
 如果你要检查现有图片布局而不是书签元数据，现在也可以直接用
 `inspect-images`。它会列出 body / header / footer / 分节页眉页脚部件里的
 `drawing_images()` 结果，并且对锚定图片额外带出 `floating_options`
-解析后的定位、环绕、裁剪信息：
+解析后的定位、环绕、裁剪信息。现在还可以先按图片的 `relationship_id`
+和解析后的媒体包内路径筛选，再看整份列表或某一张图：
 
 ```bash
 featherdoc_cli inspect-images report.docx
+featherdoc_cli inspect-images report.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --json
 ```
 
