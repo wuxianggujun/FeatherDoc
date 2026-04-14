@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
     }
 
     auto intro = paragraph.insert_paragraph_after(
-        "Expected render: orange floating image near the upper-right.");
+        "Expected render: cropped orange floating image near the upper-right.");
     if (!intro.has_next()) {
         std::cerr << "failed to insert intro paragraph\n";
         return 1;
@@ -175,6 +175,7 @@ int main(int argc, char **argv) {
     floating_options.wrap_distance_right_px = 12U;
     floating_options.wrap_distance_top_px = 8U;
     floating_options.wrap_distance_bottom_px = 8U;
+    floating_options.crop = featherdoc::floating_image_crop{90U, 0U, 140U, 0U};
 
     if (!doc.append_floating_image(floating_image_path, 144U, 48U,
                                    floating_options)) {

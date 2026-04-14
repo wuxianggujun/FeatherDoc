@@ -904,9 +904,11 @@ Use `append_floating_image(path, options)` or
 anchored `wp:anchor` image with explicit margin/page-relative offsets.
 `floating_image_options` currently lets you pick horizontal/vertical reference
 frames, pixel offsets, whether the image sits behind text, whether overlap is
-allowed, and the floating wrap mode plus wrap distances. The same API works on
-`Document` and `TemplatePart`. Use `wrap_mode` when you want `wrapNone`,
-square wrapping, or top/bottom-only flow around the anchored drawing.
+allowed, the floating wrap mode plus wrap distances, and an optional
+per-edge crop expressed in per-mille units. The same API works on `Document`
+and `TemplatePart`. Use `wrap_mode` when you want `wrapNone`, square wrapping,
+or top/bottom-only flow around the anchored drawing. Use `crop` when you want
+FeatherDoc to emit `a:srcRect` trimming on the anchored picture fill.
 
 ```cpp
 featherdoc::floating_image_options options;
@@ -919,6 +921,7 @@ options.vertical_offset_px = 24;
 options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
 options.wrap_distance_left_px = 12;
 options.wrap_distance_right_px = 12;
+options.crop = featherdoc::floating_image_crop{80, 0, 120, 0};
 
 doc.append_floating_image("badge.png", 144, 48, options);
 
@@ -1789,7 +1792,8 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   is available through `replace_bookmark_with_floating_image(...)` across
   body, header, and footer `TemplatePart` handles. Basic wrapping control is
   now exposed through `floating_image_options::wrap_mode` plus per-edge wrap
-  distances, while image cropping is still not exposed as a high-level API.
+  distances, and anchored image cropping is exposed through
+  `floating_image_options::crop`.
 
 ## Source Layout
 

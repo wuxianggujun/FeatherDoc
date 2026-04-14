@@ -447,6 +447,38 @@ void append_wrap_mode_node(
 
     drawing_container.append_child("wp:wrapNone");
 }
+
+auto is_valid_floating_crop(
+    const featherdoc::floating_image_crop &crop) -> bool {
+    constexpr std::uint32_t max_crop_per_mille = 1000U;
+    if (crop.left_per_mille > max_crop_per_mille ||
+        crop.top_per_mille > max_crop_per_mille ||
+        crop.right_per_mille > max_crop_per_mille ||
+        crop.bottom_per_mille > max_crop_per_mille) {
+        return false;
+    }
+
+    const auto horizontal_crop =
+        static_cast<std::uint64_t>(crop.left_per_mille) + crop.right_per_mille;
+    const auto vertical_crop =
+        static_cast<std::uint64_t>(crop.top_per_mille) + crop.bottom_per_mille;
+    return horizontal_crop < max_crop_per_mille &&
+           vertical_crop < max_crop_per_mille;
+}
+
+void append_crop_node(
+    pugi::xml_node blip_fill,
+    const featherdoc::floating_image_crop &crop) {
+    auto src_rect = blip_fill.append_child("a:srcRect");
+    ensure_attribute_value(src_rect, "l",
+                           std::to_string(crop.left_per_mille * 100U));
+    ensure_attribute_value(src_rect, "t",
+                           std::to_string(crop.top_per_mille * 100U));
+    ensure_attribute_value(src_rect, "r",
+                           std::to_string(crop.right_per_mille * 100U));
+    ensure_attribute_value(src_rect, "b",
+                           std::to_string(crop.bottom_per_mille * 100U));
+}
 } // namespace
 
 namespace featherdoc {
@@ -1511,6 +1543,15 @@ bool Document::append_drawing_image_part(
         return false;
     }
 
+    if (floating_options.has_value() && floating_options->crop.has_value() &&
+        !is_valid_floating_crop(*floating_options->crop)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "floating image crop must stay within 0..1000 per-mille "
+                       "per edge and keep a visible image area");
+        return false;
+    }
+
     if (const auto error = this->ensure_content_types_loaded()) {
         return false;
     }
@@ -1787,6 +1828,9 @@ bool Document::append_drawing_image_part(
     auto blip_fill = picture.append_child("pic:blipFill");
     auto blip = blip_fill.append_child("a:blip");
     ensure_attribute_value(blip, "r:embed", relationship_id);
+    if (floating_options.has_value() && floating_options->crop.has_value()) {
+        append_crop_node(blip_fill, *floating_options->crop);
+    }
     auto stretch = blip_fill.append_child("a:stretch");
     stretch.append_child("a:fillRect");
 

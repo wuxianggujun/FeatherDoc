@@ -434,6 +434,13 @@ enum class floating_image_wrap_mode : std::uint8_t {
     top_bottom,
 };
 
+struct floating_image_crop {
+    std::uint32_t left_per_mille{0};
+    std::uint32_t top_per_mille{0};
+    std::uint32_t right_per_mille{0};
+    std::uint32_t bottom_per_mille{0};
+};
+
 struct floating_image_options {
     featherdoc::floating_image_horizontal_reference horizontal_reference{
         featherdoc::floating_image_horizontal_reference::column};
@@ -449,6 +456,7 @@ struct floating_image_options {
     std::uint32_t wrap_distance_right_px{0};
     std::uint32_t wrap_distance_top_px{0};
     std::uint32_t wrap_distance_bottom_px{0};
+    std::optional<featherdoc::floating_image_crop> crop;
 };
 
 struct drawing_image_info {

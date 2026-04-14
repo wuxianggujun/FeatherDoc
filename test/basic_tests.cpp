@@ -4113,6 +4113,7 @@ TEST_CASE("body template part can append floating images and preserve them acros
     options.wrap_mode = featherdoc::floating_image_wrap_mode::top_bottom;
     options.wrap_distance_top_px = 4U;
     options.wrap_distance_bottom_px = 9U;
+    options.crop = featherdoc::floating_image_crop{25U, 50U, 75U, 100U};
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.create_empty());
@@ -4147,6 +4148,8 @@ TEST_CASE("body template part can append floating images and preserve them acros
     CHECK_NE(saved_document_xml.find("distT=\"38100\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("distB=\"85725\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("<wp:wrapTopAndBottom"), std::string::npos);
+    CHECK_NE(saved_document_xml.find("<a:srcRect l=\"2500\" t=\"5000\" r=\"7500\" b=\"10000\""),
+             std::string::npos);
 
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
@@ -4280,6 +4283,7 @@ TEST_CASE("header template part can append floating images") {
     options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
     options.wrap_distance_left_px = 5U;
     options.wrap_distance_right_px = 7U;
+    options.crop = featherdoc::floating_image_crop{10U, 20U, 30U, 40U};
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.create_empty());
@@ -4311,6 +4315,8 @@ TEST_CASE("header template part can append floating images") {
     CHECK_NE(saved_header_xml.find("distL=\"47625\""), std::string::npos);
     CHECK_NE(saved_header_xml.find("distR=\"66675\""), std::string::npos);
     CHECK_NE(saved_header_xml.find("<wp:wrapSquare wrapText=\"bothSides\""),
+             std::string::npos);
+    CHECK_NE(saved_header_xml.find("<a:srcRect l=\"1000\" t=\"2000\" r=\"3000\" b=\"4000\""),
              std::string::npos);
 
     const auto saved_header_relationships =
@@ -7210,6 +7216,7 @@ TEST_CASE("replace_bookmark_with_floating_image swaps a standalone bookmark para
     options.wrap_mode = featherdoc::floating_image_wrap_mode::top_bottom;
     options.wrap_distance_top_px = 6U;
     options.wrap_distance_bottom_px = 10U;
+    options.crop = featherdoc::floating_image_crop{40U, 0U, 20U, 60U};
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.open());
@@ -7235,6 +7242,8 @@ TEST_CASE("replace_bookmark_with_floating_image swaps a standalone bookmark para
     CHECK_NE(saved_document_xml.find("distT=\"57150\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("distB=\"95250\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("<wp:wrapTopAndBottom"), std::string::npos);
+    CHECK_NE(saved_document_xml.find("<a:srcRect l=\"4000\" t=\"0\" r=\"2000\" b=\"6000\""),
+             std::string::npos);
     CHECK_EQ(saved_document_xml.find("w:name=\"logo\""), std::string::npos);
 
     featherdoc::Document reopened(target);
@@ -13924,6 +13933,7 @@ TEST_CASE("append_floating_image writes anchored media parts and preserves them 
     options.wrap_distance_right_px = 10U;
     options.wrap_distance_top_px = 6U;
     options.wrap_distance_bottom_px = 12U;
+    options.crop = featherdoc::floating_image_crop{15U, 25U, 35U, 45U};
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.create_empty());
@@ -13958,6 +13968,8 @@ TEST_CASE("append_floating_image writes anchored media parts and preserves them 
     CHECK_NE(saved_document_xml.find("distR=\"95250\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("<wp:wrapSquare wrapText=\"bothSides\""),
              std::string::npos);
+    CHECK_NE(saved_document_xml.find("<a:srcRect l=\"1500\" t=\"2500\" r=\"3500\" b=\"4500\""),
+             std::string::npos);
     CHECK_NE(saved_document_xml.find("cx=\"190500\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("cy=\"95250\""), std::string::npos);
 
@@ -13973,6 +13985,29 @@ TEST_CASE("append_floating_image writes anchored media parts and preserves them 
     CHECK_EQ(reopened.inline_images().size(), 0U);
     CHECK(reopened.paragraphs().add_run("reopened edit").has_next());
     CHECK_FALSE(reopened.save());
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
+TEST_CASE("append_floating_image rejects crop values that remove the visible image area") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "append_floating_image_invalid_crop.docx";
+    const fs::path image_path = fs::current_path() / "floating_invalid_crop.png";
+    fs::remove(target);
+    fs::remove(image_path);
+
+    write_binary_file(image_path, tiny_png_data());
+
+    featherdoc::floating_image_options options;
+    options.crop = featherdoc::floating_image_crop{600U, 0U, 400U, 0U};
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+    CHECK_FALSE(doc.append_floating_image(image_path, 20U, 10U, options));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_NE(doc.last_error().detail.find("crop"), std::string::npos);
 
     fs::remove(target);
     fs::remove(image_path);

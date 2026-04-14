@@ -48,6 +48,11 @@ performance.
   `wrap_mode` plus per-edge wrap distances for square and top/bottom text
   flow around anchored drawings written through `Document`,
   `TemplatePart`, and bookmark-replacement helpers.
+- Extended `floating_image_options` with optional per-edge
+  `floating_image_crop` values so anchored images can write `a:srcRect`
+  trimming through `Document`, `TemplatePart`, and bookmark-replacement
+  helpers, with validation that rejects crop values that would remove the
+  visible image area.
 
 ### Fixed
 
