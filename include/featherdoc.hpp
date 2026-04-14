@@ -528,6 +528,7 @@ struct style_usage_hit {
     featherdoc::style_usage_hit_kind kind{featherdoc::style_usage_hit_kind::paragraph};
     std::string entry_name;
     std::size_t ordinal{0};
+    std::optional<std::size_t> section_index;
     std::vector<featherdoc::style_usage_hit_reference> references{};
 };
 

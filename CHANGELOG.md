@@ -41,6 +41,9 @@ performance.
   breakdowns, and per-hit `references` metadata that reports which sections
   reuse a shared header/footer part via `default` / `first` / `even`
   relationships.
+- Extended style-usage hit reporting so body matches now carry their owning
+  `section_index`, while header/footer hits continue to expose shared-part
+  section linkage through `references` metadata.
 
 ### Fixed
 

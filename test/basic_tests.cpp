@@ -15456,7 +15456,10 @@ TEST_CASE("find_style_usage scans paragraph run and table references from the ma
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
     <w:p>
-      <w:pPr><w:pStyle w:val="CustomBody"/></w:pPr>
+      <w:pPr>
+        <w:pStyle w:val="CustomBody"/>
+        <w:sectPr/>
+      </w:pPr>
       <w:r><w:rPr><w:rStyle w:val="Strong"/></w:rPr><w:t>alpha</w:t></w:r>
     </w:p>
     <w:p>
@@ -15471,6 +15474,7 @@ TEST_CASE("find_style_usage scans paragraph run and table references from the ma
       </w:tblPr>
       <w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr>
     </w:tbl>
+    <w:sectPr/>
   </w:body>
 </w:document>
 )";
@@ -15531,11 +15535,15 @@ TEST_CASE("find_style_usage scans paragraph run and table references from the ma
     CHECK_EQ(paragraph_usage->hits[0].kind, featherdoc::style_usage_hit_kind::paragraph);
     CHECK_EQ(paragraph_usage->hits[0].entry_name, "word/document.xml");
     CHECK_EQ(paragraph_usage->hits[0].ordinal, 1U);
+    REQUIRE(paragraph_usage->hits[0].section_index.has_value());
+    CHECK_EQ(*paragraph_usage->hits[0].section_index, 0U);
     CHECK(paragraph_usage->hits[0].references.empty());
     CHECK_EQ(paragraph_usage->hits[1].part, featherdoc::style_usage_part_kind::body);
     CHECK_EQ(paragraph_usage->hits[1].kind, featherdoc::style_usage_hit_kind::paragraph);
     CHECK_EQ(paragraph_usage->hits[1].entry_name, "word/document.xml");
     CHECK_EQ(paragraph_usage->hits[1].ordinal, 2U);
+    REQUIRE(paragraph_usage->hits[1].section_index.has_value());
+    CHECK_EQ(*paragraph_usage->hits[1].section_index, 1U);
     CHECK(paragraph_usage->hits[1].references.empty());
 
     const auto run_usage = doc.find_style_usage("Strong");
@@ -15553,11 +15561,15 @@ TEST_CASE("find_style_usage scans paragraph run and table references from the ma
     CHECK_EQ(run_usage->hits[0].kind, featherdoc::style_usage_hit_kind::run);
     CHECK_EQ(run_usage->hits[0].entry_name, "word/document.xml");
     CHECK_EQ(run_usage->hits[0].ordinal, 1U);
+    REQUIRE(run_usage->hits[0].section_index.has_value());
+    CHECK_EQ(*run_usage->hits[0].section_index, 0U);
     CHECK(run_usage->hits[0].references.empty());
     CHECK_EQ(run_usage->hits[1].part, featherdoc::style_usage_part_kind::body);
     CHECK_EQ(run_usage->hits[1].kind, featherdoc::style_usage_hit_kind::run);
     CHECK_EQ(run_usage->hits[1].entry_name, "word/document.xml");
     CHECK_EQ(run_usage->hits[1].ordinal, 2U);
+    REQUIRE(run_usage->hits[1].section_index.has_value());
+    CHECK_EQ(*run_usage->hits[1].section_index, 1U);
     CHECK(run_usage->hits[1].references.empty());
 
     const auto table_usage = doc.find_style_usage("ReportTable");
@@ -15575,6 +15587,8 @@ TEST_CASE("find_style_usage scans paragraph run and table references from the ma
     CHECK_EQ(table_usage->hits[0].kind, featherdoc::style_usage_hit_kind::table);
     CHECK_EQ(table_usage->hits[0].entry_name, "word/document.xml");
     CHECK_EQ(table_usage->hits[0].ordinal, 1U);
+    REQUIRE(table_usage->hits[0].section_index.has_value());
+    CHECK_EQ(*table_usage->hits[0].section_index, 1U);
     CHECK(table_usage->hits[0].references.empty());
 
     const auto unused_usage = doc.find_style_usage("Normal");
@@ -15734,6 +15748,7 @@ TEST_CASE("find_style_usage also scans header and footer parts") {
     CHECK_EQ(paragraph_usage->hits[0].kind, featherdoc::style_usage_hit_kind::paragraph);
     CHECK_EQ(paragraph_usage->hits[0].entry_name, "word/header1.xml");
     CHECK_EQ(paragraph_usage->hits[0].ordinal, 1U);
+    CHECK_FALSE(paragraph_usage->hits[0].section_index.has_value());
     REQUIRE_EQ(paragraph_usage->hits[0].references.size(), 2U);
     CHECK_EQ(paragraph_usage->hits[0].references[0].section_index, 0U);
     CHECK_EQ(paragraph_usage->hits[0].references[0].reference_kind,
@@ -15758,6 +15773,7 @@ TEST_CASE("find_style_usage also scans header and footer parts") {
     CHECK_EQ(run_usage->hits[0].kind, featherdoc::style_usage_hit_kind::run);
     CHECK_EQ(run_usage->hits[0].entry_name, "word/footer1.xml");
     CHECK_EQ(run_usage->hits[0].ordinal, 1U);
+    CHECK_FALSE(run_usage->hits[0].section_index.has_value());
     REQUIRE_EQ(run_usage->hits[0].references.size(), 2U);
     CHECK_EQ(run_usage->hits[0].references[0].section_index, 0U);
     CHECK_EQ(run_usage->hits[0].references[0].reference_kind,
@@ -15783,6 +15799,7 @@ TEST_CASE("find_style_usage also scans header and footer parts") {
     CHECK_EQ(table_usage->hits[0].kind, featherdoc::style_usage_hit_kind::table);
     CHECK_EQ(table_usage->hits[0].entry_name, "word/header1.xml");
     CHECK_EQ(table_usage->hits[0].ordinal, 1U);
+    CHECK_FALSE(table_usage->hits[0].section_index.has_value());
     REQUIRE_EQ(table_usage->hits[0].references.size(), 2U);
     CHECK_EQ(table_usage->hits[0].references[0].section_index, 0U);
     CHECK_EQ(table_usage->hits[0].references[0].reference_kind,
@@ -15794,6 +15811,7 @@ TEST_CASE("find_style_usage also scans header and footer parts") {
     CHECK_EQ(table_usage->hits[1].kind, featherdoc::style_usage_hit_kind::table);
     CHECK_EQ(table_usage->hits[1].entry_name, "word/footer1.xml");
     CHECK_EQ(table_usage->hits[1].ordinal, 1U);
+    CHECK_FALSE(table_usage->hits[1].section_index.has_value());
     REQUIRE_EQ(table_usage->hits[1].references.size(), 2U);
     CHECK_EQ(table_usage->hits[1].references[0].section_index, 0U);
     CHECK_EQ(table_usage->hits[1].references[0].reference_kind,

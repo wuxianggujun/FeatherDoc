@@ -419,9 +419,11 @@ JSON 输出里会附带具体的 `instance` 摘要，文本输出也会显示 ov
 JSON 和文本输出都会同时给出总计，以及 `body`、`header`、`footer`
 三段聚合明细。
 此外还会给出 `hits` 清单，用来标明每次命中来自哪个 part，以及它在该 part
-里的文档顺序编号。
-如果命中来自页眉或页脚，`hits[*].references` 还会继续列出它被哪些
-`section_index` 以 `default` / `first` / `even` 方式引用，便于识别共享 part。
+里的文档顺序编号。正文命中现在也会直接在 `hits[*].section_index`
+里给出所属 section，便于把主文档里的命中回溯到具体节。
+如果命中来自页眉或页脚，`hits[*].section_index` 会保持为空，
+`hits[*].references` 则继续列出它被哪些 `section_index` 以
+`default` / `first` / `even` 方式引用，便于识别共享 part。
 
 ```cpp
 const auto styles = doc.list_styles();

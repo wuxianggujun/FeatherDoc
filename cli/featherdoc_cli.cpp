@@ -2067,6 +2067,12 @@ void write_json_style_usage_hit(std::ostream &stream, const featherdoc::style_us
     write_json_string(stream, style_usage_part_kind_name(hit.part));
     stream << ",\"entry_name\":";
     write_json_string(stream, hit.entry_name);
+    stream << ",\"section_index\":";
+    if (hit.section_index.has_value()) {
+        stream << *hit.section_index;
+    } else {
+        stream << "null";
+    }
     stream << ",\"ordinal\":" << hit.ordinal << ",\"kind\":";
     write_json_string(stream, style_usage_hit_kind_name(hit.kind));
     stream << ",\"references\":[";
@@ -2440,6 +2446,13 @@ void inspect_style(const featherdoc::style_summary &style,
             std::cout << "usage_hit[" << index << "]: part="
                       << style_usage_part_kind_name(hit.part)
                       << " entry_name=" << hit.entry_name << " ordinal=" << hit.ordinal
+                      << " section_index=";
+            if (hit.section_index.has_value()) {
+                std::cout << *hit.section_index;
+            } else {
+                std::cout << '-';
+            }
+            std::cout
                       << " kind=" << style_usage_hit_kind_name(hit.kind)
                       << " references=" << hit.references.size();
             for (std::size_t reference_index = 0; reference_index < hit.references.size();

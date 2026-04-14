@@ -1123,11 +1123,11 @@ TEST_CASE("cli inspect-styles reports style usage for a single style") {
             "\"footer\":{\"paragraph_count\":0,\"run_count\":0,\"table_count\":0,"
             "\"total_count\":0},\"hits\":["
             "{\"part\":\"body\",\"entry_name\":\"word/document.xml\","
-            "\"ordinal\":1,\"kind\":\"paragraph\",\"references\":[]},"
+            "\"section_index\":0,\"ordinal\":1,\"kind\":\"paragraph\",\"references\":[]},"
             "{\"part\":\"body\",\"entry_name\":\"word/document.xml\","
-            "\"ordinal\":2,\"kind\":\"paragraph\",\"references\":[]},"
+            "\"section_index\":0,\"ordinal\":2,\"kind\":\"paragraph\",\"references\":[]},"
             "{\"part\":\"header\",\"entry_name\":\"word/header1.xml\","
-            "\"ordinal\":1,\"kind\":\"paragraph\",\"references\":["
+            "\"section_index\":null,\"ordinal\":1,\"kind\":\"paragraph\",\"references\":["
             "{\"section_index\":0,\"reference_kind\":\"default\"}]}]}}\n"});
 
     CHECK_EQ(run_cli({"inspect-styles", source.string(), "--style", "Strong",
@@ -1147,13 +1147,13 @@ TEST_CASE("cli inspect-styles reports style usage for a single style") {
     CHECK_NE(usage_text.find("usage_footer_total: 1"), std::string::npos);
     CHECK_NE(usage_text.find("usage_hits: 3"), std::string::npos);
     CHECK_NE(usage_text.find(
-                 "usage_hit[0]: part=body entry_name=word/document.xml ordinal=1 kind=run references=0"),
+                 "usage_hit[0]: part=body entry_name=word/document.xml ordinal=1 section_index=0 kind=run references=0"),
              std::string::npos);
     CHECK_NE(usage_text.find(
-                 "usage_hit[1]: part=body entry_name=word/document.xml ordinal=2 kind=run references=0"),
+                 "usage_hit[1]: part=body entry_name=word/document.xml ordinal=2 section_index=0 kind=run references=0"),
              std::string::npos);
     CHECK_NE(usage_text.find(
-                 "usage_hit[2]: part=footer entry_name=word/footer1.xml ordinal=1 kind=run references=1 ref[0]=section:0,kind:default"),
+                 "usage_hit[2]: part=footer entry_name=word/footer1.xml ordinal=1 section_index=- kind=run references=1 ref[0]=section:0,kind:default"),
              std::string::npos);
 
     CHECK_EQ(run_cli({"inspect-styles", source.string(), "--style", "ReportTable",
@@ -1173,10 +1173,10 @@ TEST_CASE("cli inspect-styles reports style usage for a single style") {
     CHECK_NE(table_text.find("usage_footer_total: 0"), std::string::npos);
     CHECK_NE(table_text.find("usage_hits: 2"), std::string::npos);
     CHECK_NE(table_text.find(
-                 "usage_hit[0]: part=body entry_name=word/document.xml ordinal=1 kind=table references=0"),
+                 "usage_hit[0]: part=body entry_name=word/document.xml ordinal=1 section_index=0 kind=table references=0"),
              std::string::npos);
     CHECK_NE(table_text.find(
-                 "usage_hit[1]: part=header entry_name=word/header1.xml ordinal=1 kind=table references=1 ref[0]=section:0,kind:default"),
+                 "usage_hit[1]: part=header entry_name=word/header1.xml ordinal=1 section_index=- kind=table references=1 ref[0]=section:0,kind:default"),
              std::string::npos);
 
     remove_if_exists(source);

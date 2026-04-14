@@ -928,9 +928,12 @@ many paragraphs, runs, and tables across ``word/document.xml``, headers, and
 footers reference that style. JSON and text output both include the aggregated
 totals plus separate ``body``, ``header``, and ``footer`` breakdowns.
 The usage payload also includes a ``hits`` list so you can see which part each
-match came from and its document-order ordinal within that part. Header/footer
-hits also expose a ``references`` array so shared parts report every
-``section_index`` plus its ``default`` / ``first`` / ``even`` reference kind.
+match came from and its document-order ordinal within that part. Body hits now
+also expose ``section_index`` directly so each main-document match can be
+mapped back to its owning section. Header/footer hits keep ``section_index``
+empty and instead expose a ``references`` array so shared parts report every
+referencing ``section_index`` plus its ``default`` / ``first`` / ``even``
+reference kind.
 
 Use ``ensure_paragraph_style(...)``, ``ensure_character_style(...)``, and
 ``ensure_table_style(...)`` when you want to create or refresh a custom style
