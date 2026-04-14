@@ -53,6 +53,13 @@ performance.
   trimming through `Document`, `TemplatePart`, and bookmark-replacement
   helpers, with validation that rejects crop values that would remove the
   visible image area.
+- Extended `drawing_image_info` so `drawing_images()` now reads back anchored
+  `floating_options` metadata, including reference targets, offsets, wrap
+  distances, overlap flags, and crop percentages from existing `wp:anchor`
+  drawings.
+- Added `featherdoc_cli inspect-images` so body, header, footer, and
+  section-scoped template parts can expose inline versus anchored drawing
+  metadata from the CLI, with JSON/text output and regression coverage.
 
 ### Fixed
 

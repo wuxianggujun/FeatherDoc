@@ -4163,6 +4163,24 @@ TEST_CASE("body template part can append floating images and preserve them acros
     CHECK_EQ(drawing_images[0].content_type, "image/png");
     CHECK_EQ(drawing_images[0].width_px, 20U);
     CHECK_EQ(drawing_images[0].height_px, 10U);
+    REQUIRE(drawing_images[0].floating_options.has_value());
+    CHECK_EQ(drawing_images[0].floating_options->horizontal_reference,
+             featherdoc::floating_image_horizontal_reference::page);
+    CHECK_EQ(drawing_images[0].floating_options->horizontal_offset_px, 24);
+    CHECK_EQ(drawing_images[0].floating_options->vertical_reference,
+             featherdoc::floating_image_vertical_reference::margin);
+    CHECK_EQ(drawing_images[0].floating_options->vertical_offset_px, -8);
+    CHECK(drawing_images[0].floating_options->behind_text);
+    CHECK_FALSE(drawing_images[0].floating_options->allow_overlap);
+    CHECK_EQ(drawing_images[0].floating_options->wrap_mode,
+             featherdoc::floating_image_wrap_mode::top_bottom);
+    CHECK_EQ(drawing_images[0].floating_options->wrap_distance_top_px, 4U);
+    CHECK_EQ(drawing_images[0].floating_options->wrap_distance_bottom_px, 9U);
+    REQUIRE(drawing_images[0].floating_options->crop.has_value());
+    CHECK_EQ(drawing_images[0].floating_options->crop->left_per_mille, 25U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->top_per_mille, 50U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->right_per_mille, 75U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->bottom_per_mille, 100U);
     CHECK_EQ(body_template.inline_images().size(), 0U);
 
     auto paragraph = body_template.paragraphs();
@@ -4340,6 +4358,16 @@ TEST_CASE("header template part can append floating images") {
     CHECK_EQ(drawing_images[0].content_type, "image/png");
     CHECK_EQ(drawing_images[0].width_px, 30U);
     CHECK_EQ(drawing_images[0].height_px, 15U);
+    REQUIRE(drawing_images[0].floating_options.has_value());
+    CHECK_EQ(drawing_images[0].floating_options->wrap_mode,
+             featherdoc::floating_image_wrap_mode::square);
+    CHECK_EQ(drawing_images[0].floating_options->wrap_distance_left_px, 5U);
+    CHECK_EQ(drawing_images[0].floating_options->wrap_distance_right_px, 7U);
+    REQUIRE(drawing_images[0].floating_options->crop.has_value());
+    CHECK_EQ(drawing_images[0].floating_options->crop->left_per_mille, 10U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->top_per_mille, 20U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->right_per_mille, 30U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->bottom_per_mille, 40U);
     CHECK_EQ(header_template.inline_images().size(), 0U);
 
     CHECK(reopened_again.header_paragraphs().add_run(" reopened edit").has_next());
@@ -7255,6 +7283,14 @@ TEST_CASE("replace_bookmark_with_floating_image swaps a standalone bookmark para
              featherdoc::drawing_image_placement::anchored_object);
     CHECK_EQ(drawing_images[0].width_px, 20U);
     CHECK_EQ(drawing_images[0].height_px, 10U);
+    REQUIRE(drawing_images[0].floating_options.has_value());
+    CHECK_EQ(drawing_images[0].floating_options->wrap_mode,
+             featherdoc::floating_image_wrap_mode::top_bottom);
+    REQUIRE(drawing_images[0].floating_options->crop.has_value());
+    CHECK_EQ(drawing_images[0].floating_options->crop->left_per_mille, 40U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->top_per_mille, 0U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->right_per_mille, 20U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->bottom_per_mille, 60U);
 
     fs::remove(target);
     fs::remove(image_path);
@@ -13982,6 +14018,26 @@ TEST_CASE("append_floating_image writes anchored media parts and preserves them 
     CHECK_EQ(drawing_images[0].content_type, "image/png");
     CHECK_EQ(drawing_images[0].width_px, 20U);
     CHECK_EQ(drawing_images[0].height_px, 10U);
+    REQUIRE(drawing_images[0].floating_options.has_value());
+    CHECK_EQ(drawing_images[0].floating_options->horizontal_reference,
+             featherdoc::floating_image_horizontal_reference::page);
+    CHECK_EQ(drawing_images[0].floating_options->horizontal_offset_px, 24);
+    CHECK_EQ(drawing_images[0].floating_options->vertical_reference,
+             featherdoc::floating_image_vertical_reference::margin);
+    CHECK_EQ(drawing_images[0].floating_options->vertical_offset_px, -8);
+    CHECK(drawing_images[0].floating_options->behind_text);
+    CHECK_FALSE(drawing_images[0].floating_options->allow_overlap);
+    CHECK_EQ(drawing_images[0].floating_options->wrap_mode,
+             featherdoc::floating_image_wrap_mode::square);
+    CHECK_EQ(drawing_images[0].floating_options->wrap_distance_left_px, 8U);
+    CHECK_EQ(drawing_images[0].floating_options->wrap_distance_right_px, 10U);
+    CHECK_EQ(drawing_images[0].floating_options->wrap_distance_top_px, 6U);
+    CHECK_EQ(drawing_images[0].floating_options->wrap_distance_bottom_px, 12U);
+    REQUIRE(drawing_images[0].floating_options->crop.has_value());
+    CHECK_EQ(drawing_images[0].floating_options->crop->left_per_mille, 15U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->top_per_mille, 25U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->right_per_mille, 35U);
+    CHECK_EQ(drawing_images[0].floating_options->crop->bottom_per_mille, 45U);
     CHECK_EQ(reopened.inline_images().size(), 0U);
     CHECK(reopened.paragraphs().add_run("reopened edit").has_next());
     CHECK_FALSE(reopened.save());

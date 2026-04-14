@@ -103,6 +103,17 @@ struct inspect_bookmarks_options {
     bool json_output = false;
 };
 
+struct inspect_images_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::size_t> image_index;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
 struct inspected_part_reference {
     std::size_t section_index = 0;
     std::string kind;
@@ -182,6 +193,10 @@ void print_usage(std::ostream &stream) {
            " [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--bookmark <name>] [--json]\n"
+        << "  featherdoc_cli inspect-images <input.docx>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--image <index>] [--json]\n"
         << "  featherdoc_cli insert-section <input.docx> <section-index>"
            " [--no-inherit] [--output <path>] [--json]\n"
         << "  featherdoc_cli remove-section <input.docx> <section-index>"
@@ -1194,6 +1209,124 @@ auto parse_inspect_bookmarks_options(
                                             "inspection", error_message);
 }
 
+auto parse_inspect_images_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    inspect_images_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--image") {
+            if (options.image_index.has_value()) {
+                error_message = "duplicate --image option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --image";
+                return false;
+            }
+
+            std::size_t image_index = 0U;
+            if (!parse_index(arguments[index + 1U], image_index)) {
+                error_message = "invalid image index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.image_index = image_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "inspection", error_message);
+}
+
 auto parse_template_slot_kind(std::string_view text,
                               featherdoc::template_slot_kind &kind) -> bool {
     if (text == "text") {
@@ -1609,6 +1742,64 @@ auto bookmark_kind_name(featherdoc::bookmark_kind kind) -> const char * {
     }
 
     return "mixed";
+}
+
+auto drawing_image_placement_name(featherdoc::drawing_image_placement placement)
+    -> const char * {
+    switch (placement) {
+    case featherdoc::drawing_image_placement::inline_object:
+        return "inline";
+    case featherdoc::drawing_image_placement::anchored_object:
+        return "anchored";
+    }
+
+    return "inline";
+}
+
+auto floating_image_horizontal_reference_name(
+    featherdoc::floating_image_horizontal_reference reference) -> const char * {
+    switch (reference) {
+    case featherdoc::floating_image_horizontal_reference::page:
+        return "page";
+    case featherdoc::floating_image_horizontal_reference::margin:
+        return "margin";
+    case featherdoc::floating_image_horizontal_reference::column:
+        return "column";
+    case featherdoc::floating_image_horizontal_reference::character:
+        return "character";
+    }
+
+    return "column";
+}
+
+auto floating_image_vertical_reference_name(
+    featherdoc::floating_image_vertical_reference reference) -> const char * {
+    switch (reference) {
+    case featherdoc::floating_image_vertical_reference::page:
+        return "page";
+    case featherdoc::floating_image_vertical_reference::margin:
+        return "margin";
+    case featherdoc::floating_image_vertical_reference::paragraph:
+        return "paragraph";
+    case featherdoc::floating_image_vertical_reference::line:
+        return "line";
+    }
+
+    return "paragraph";
+}
+
+auto floating_image_wrap_mode_name(featherdoc::floating_image_wrap_mode mode)
+    -> const char * {
+    switch (mode) {
+    case featherdoc::floating_image_wrap_mode::none:
+        return "none";
+    case featherdoc::floating_image_wrap_mode::square:
+        return "square";
+    case featherdoc::floating_image_wrap_mode::top_bottom:
+        return "top_bottom";
+    }
+
+    return "none";
 }
 
 auto template_field_name(std::string_view command) -> const char * {
@@ -2276,6 +2467,66 @@ void write_json_bookmark_summary(std::ostream &stream,
     stream << ",\"is_duplicate\":" << json_bool(bookmark.is_duplicate()) << '}';
 }
 
+void write_json_floating_image_crop(
+    std::ostream &stream, const featherdoc::floating_image_crop &crop) {
+    stream << "{\"left_per_mille\":" << crop.left_per_mille
+           << ",\"top_per_mille\":" << crop.top_per_mille
+           << ",\"right_per_mille\":" << crop.right_per_mille
+           << ",\"bottom_per_mille\":" << crop.bottom_per_mille << '}';
+}
+
+void write_json_floating_image_options(
+    std::ostream &stream, const featherdoc::floating_image_options &options) {
+    stream << "{\"horizontal_reference\":";
+    write_json_string(stream,
+                      floating_image_horizontal_reference_name(
+                          options.horizontal_reference));
+    stream << ",\"horizontal_offset_px\":" << options.horizontal_offset_px
+           << ",\"vertical_reference\":";
+    write_json_string(stream,
+                      floating_image_vertical_reference_name(
+                          options.vertical_reference));
+    stream << ",\"vertical_offset_px\":" << options.vertical_offset_px
+           << ",\"behind_text\":" << json_bool(options.behind_text)
+           << ",\"allow_overlap\":" << json_bool(options.allow_overlap)
+           << ",\"wrap_mode\":";
+    write_json_string(stream, floating_image_wrap_mode_name(options.wrap_mode));
+    stream << ",\"wrap_distance_left_px\":" << options.wrap_distance_left_px
+           << ",\"wrap_distance_right_px\":" << options.wrap_distance_right_px
+           << ",\"wrap_distance_top_px\":" << options.wrap_distance_top_px
+           << ",\"wrap_distance_bottom_px\":" << options.wrap_distance_bottom_px
+           << ",\"crop\":";
+    if (options.crop.has_value()) {
+        write_json_floating_image_crop(stream, *options.crop);
+    } else {
+        stream << "null";
+    }
+    stream << '}';
+}
+
+void write_json_drawing_image_summary(
+    std::ostream &stream, const featherdoc::drawing_image_info &image) {
+    stream << "{\"index\":" << image.index << ",\"placement\":";
+    write_json_string(stream, drawing_image_placement_name(image.placement));
+    stream << ",\"relationship_id\":";
+    write_json_string(stream, image.relationship_id);
+    stream << ",\"entry_name\":";
+    write_json_string(stream, image.entry_name);
+    stream << ",\"display_name\":";
+    write_json_string(stream, image.display_name);
+    stream << ",\"content_type\":";
+    write_json_string(stream, image.content_type);
+    stream << ",\"width_px\":" << image.width_px
+           << ",\"height_px\":" << image.height_px
+           << ",\"floating_options\":";
+    if (image.floating_options.has_value()) {
+        write_json_floating_image_options(stream, *image.floating_options);
+    } else {
+        stream << "null";
+    }
+    stream << '}';
+}
+
 void print_style_summary(std::ostream &stream,
                          const featherdoc::style_summary &style) {
     stream << "id=" << style.style_id << " name=" << style.name
@@ -2302,6 +2553,47 @@ void print_bookmark_summary(std::ostream &stream,
            << " occurrences=" << bookmark.occurrence_count
            << " kind=" << bookmark_kind_name(bookmark.kind)
            << " duplicate=" << yes_no(bookmark.is_duplicate());
+}
+
+void print_drawing_image_summary(std::ostream &stream,
+                                 const featherdoc::drawing_image_info &image) {
+    stream << "index=" << image.index
+           << " placement=" << drawing_image_placement_name(image.placement)
+           << " relationship_id=" << image.relationship_id
+           << " entry_name=" << image.entry_name
+           << " display_name=" << image.display_name
+           << " content_type=" << image.content_type
+           << " width_px=" << image.width_px
+           << " height_px=" << image.height_px;
+    if (!image.floating_options.has_value()) {
+        stream << " floating=no";
+        return;
+    }
+
+    const auto &options = *image.floating_options;
+    stream << " floating=yes"
+           << " horizontal_reference="
+           << floating_image_horizontal_reference_name(
+                  options.horizontal_reference)
+           << " horizontal_offset_px=" << options.horizontal_offset_px
+           << " vertical_reference="
+           << floating_image_vertical_reference_name(options.vertical_reference)
+           << " vertical_offset_px=" << options.vertical_offset_px
+           << " behind_text=" << yes_no(options.behind_text)
+           << " allow_overlap=" << yes_no(options.allow_overlap)
+           << " wrap_mode=" << floating_image_wrap_mode_name(options.wrap_mode)
+           << " wrap_distance_left_px=" << options.wrap_distance_left_px
+           << " wrap_distance_right_px=" << options.wrap_distance_right_px
+           << " wrap_distance_top_px=" << options.wrap_distance_top_px
+           << " wrap_distance_bottom_px=" << options.wrap_distance_bottom_px;
+    if (options.crop.has_value()) {
+        stream << " crop=(" << options.crop->left_per_mille << ','
+               << options.crop->top_per_mille << ','
+               << options.crop->right_per_mille << ','
+               << options.crop->bottom_per_mille << ')';
+    } else {
+        stream << " crop=none";
+    }
 }
 
 void print_section_page_setup_summary(
@@ -2637,6 +2929,143 @@ void inspect_bookmark(const selected_template_part &selected,
     std::cout << "occurrence_count: " << bookmark.occurrence_count << '\n';
     std::cout << "kind: " << bookmark_kind_name(bookmark.kind) << '\n';
     std::cout << "duplicate: " << yes_no(bookmark.is_duplicate()) << '\n';
+}
+
+void inspect_images(const selected_template_part &selected,
+                    const std::vector<featherdoc::drawing_image_info> &images,
+                    bool json_output) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    if (json_output) {
+        std::cout << "{\"part\":";
+        write_json_string(std::cout, validation_part_name(selected.family));
+        if (selected.part_index.has_value()) {
+            std::cout << ",\"part_index\":" << *selected.part_index;
+        }
+        if (selected.section_index.has_value()) {
+            std::cout << ",\"section\":" << *selected.section_index;
+        }
+        if (selected.reference_kind.has_value()) {
+            std::cout << ",\"kind\":";
+            write_json_string(std::cout,
+                              featherdoc::to_xml_reference_type(*selected.reference_kind));
+        }
+        std::cout << ",\"entry_name\":";
+        write_json_string(std::cout, entry_name);
+        std::cout << ",\"count\":" << images.size() << ",\"images\":[";
+        for (std::size_t index = 0; index < images.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_drawing_image_summary(std::cout, images[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "images: " << images.size() << '\n';
+    for (std::size_t index = 0; index < images.size(); ++index) {
+        std::cout << "image[" << index << "]: ";
+        print_drawing_image_summary(std::cout, images[index]);
+        std::cout << '\n';
+    }
+}
+
+void inspect_image(const selected_template_part &selected,
+                   const featherdoc::drawing_image_info &image,
+                   bool json_output) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    if (json_output) {
+        std::cout << "{\"part\":";
+        write_json_string(std::cout, validation_part_name(selected.family));
+        if (selected.part_index.has_value()) {
+            std::cout << ",\"part_index\":" << *selected.part_index;
+        }
+        if (selected.section_index.has_value()) {
+            std::cout << ",\"section\":" << *selected.section_index;
+        }
+        if (selected.reference_kind.has_value()) {
+            std::cout << ",\"kind\":";
+            write_json_string(std::cout,
+                              featherdoc::to_xml_reference_type(*selected.reference_kind));
+        }
+        std::cout << ",\"entry_name\":";
+        write_json_string(std::cout, entry_name);
+        std::cout << ",\"image\":";
+        write_json_drawing_image_summary(std::cout, image);
+        std::cout << "}\n";
+        return;
+    }
+
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "image_index: " << image.index << '\n';
+    std::cout << "placement: " << drawing_image_placement_name(image.placement)
+              << '\n';
+    std::cout << "relationship_id: " << image.relationship_id << '\n';
+    std::cout << "image_entry_name: " << image.entry_name << '\n';
+    std::cout << "display_name: " << image.display_name << '\n';
+    std::cout << "content_type: " << image.content_type << '\n';
+    std::cout << "width_px: " << image.width_px << '\n';
+    std::cout << "height_px: " << image.height_px << '\n';
+    std::cout << "floating: " << yes_no(image.floating_options.has_value()) << '\n';
+    if (!image.floating_options.has_value()) {
+        return;
+    }
+
+    const auto &options = *image.floating_options;
+    std::cout << "horizontal_reference: "
+              << floating_image_horizontal_reference_name(
+                     options.horizontal_reference)
+              << '\n';
+    std::cout << "horizontal_offset_px: " << options.horizontal_offset_px << '\n';
+    std::cout << "vertical_reference: "
+              << floating_image_vertical_reference_name(options.vertical_reference)
+              << '\n';
+    std::cout << "vertical_offset_px: " << options.vertical_offset_px << '\n';
+    std::cout << "behind_text: " << yes_no(options.behind_text) << '\n';
+    std::cout << "allow_overlap: " << yes_no(options.allow_overlap) << '\n';
+    std::cout << "wrap_mode: " << floating_image_wrap_mode_name(options.wrap_mode)
+              << '\n';
+    std::cout << "wrap_distance_left_px: " << options.wrap_distance_left_px << '\n';
+    std::cout << "wrap_distance_right_px: " << options.wrap_distance_right_px
+              << '\n';
+    std::cout << "wrap_distance_top_px: " << options.wrap_distance_top_px << '\n';
+    std::cout << "wrap_distance_bottom_px: " << options.wrap_distance_bottom_px
+              << '\n';
+    if (!options.crop.has_value()) {
+        std::cout << "crop: none\n";
+        return;
+    }
+
+    std::cout << "crop_left_per_mille: " << options.crop->left_per_mille << '\n';
+    std::cout << "crop_top_per_mille: " << options.crop->top_per_mille << '\n';
+    std::cout << "crop_right_per_mille: " << options.crop->right_per_mille << '\n';
+    std::cout << "crop_bottom_per_mille: " << options.crop->bottom_per_mille
+              << '\n';
 }
 
 auto inspect_page_setup(featherdoc::Document &doc, std::size_t section_index,
@@ -3814,6 +4243,66 @@ int main(int argc, char **argv) {
         }
 
         inspect_bookmarks(selected, bookmarks, options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-images") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command, "inspect-images expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        inspect_images_options options;
+        std::string error_message;
+        if (!parse_inspect_images_options(arguments, 2U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "inspect", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto images = selected.part.drawing_images();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.image_index.has_value()) {
+            if (*options.image_index >= images.size()) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::result_out_of_range);
+                error_info.detail = "drawing image index " +
+                                    std::to_string(*options.image_index) +
+                                    " was not found in " +
+                                    std::string(selected.part.entry_name());
+                error_info.entry_name = std::string(selected.part.entry_name());
+                report_operation_failure(command, "inspect", "drawing image not found",
+                                         error_info, options.json_output);
+                return 1;
+            }
+
+            inspect_image(selected, images[*options.image_index],
+                          options.json_output);
+            return 0;
+        }
+
+        inspect_images(selected, images, options.json_output);
         return 0;
     }
 

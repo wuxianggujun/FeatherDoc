@@ -468,6 +468,7 @@ struct drawing_image_info {
     std::string content_type;
     std::uint32_t width_px{};
     std::uint32_t height_px{};
+    std::optional<featherdoc::floating_image_options> floating_options;
 };
 
 struct numbering_level_definition {

@@ -234,6 +234,8 @@ section-aware header/footer operations.
     featherdoc_cli set-section-page-setup input.docx 1 --orientation landscape --width 15840 --height 12240 --margin-top 720 --output rotated.docx --json
     featherdoc_cli inspect-bookmarks input.docx
     featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
+    featherdoc_cli inspect-images input.docx
+    featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
     featherdoc_cli inspect-header-parts input.docx --json
     featherdoc_cli inspect-footer-parts input.docx
     featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -759,7 +761,9 @@ pixel size derived from ``wp:extent``.
 current part, including both ``wp:inline`` and ``wp:anchor`` objects. Each
 ``drawing_image_info`` carries the same metadata plus a
 ``drawing_image_placement`` value that tells you whether the object is inline
-or anchored.
+or anchored. Anchored objects also expose optional ``floating_options`` with
+parsed reference targets, pixel offsets, wrap mode, wrap distances, overlap
+flags, and optional crop percentages read back from the current XML.
 
 ``extract_drawing_image(index, path)`` copies any existing drawing-backed
 image out of the ``.docx``. ``replace_drawing_image(index, path)`` swaps one
@@ -777,6 +781,15 @@ relationship still references it.
             doc.remove_drawing_image(image.index);
         }
     }
+
+The CLI exposes the same metadata through ``featherdoc_cli inspect-images``
+using the same body/header/footer/section-part selection shape as
+``inspect-bookmarks``:
+
+.. code-block:: sh
+
+    featherdoc_cli inspect-images report.docx
+    featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --json
 
 ``extract_inline_image(index, path)`` copies one existing inline body image out
 of the ``.docx``. ``replace_inline_image(index, path)`` swaps one body image

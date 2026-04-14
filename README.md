@@ -324,6 +324,8 @@ featherdoc_cli inspect-page-setup input.docx --section 1 --json
 featherdoc_cli set-section-page-setup input.docx 1 --orientation landscape --width 15840 --height 12240 --margin-top 720 --output rotated.docx --json
 featherdoc_cli inspect-bookmarks input.docx
 featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
+featherdoc_cli inspect-images input.docx
+featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -938,7 +940,10 @@ Use `drawing_images()` when you need the full picture list from an existing
 document part, including both `wp:inline` and `wp:anchor` drawings. Each
 returned `drawing_image_info` includes the same metadata plus a
 `drawing_image_placement` value so you can distinguish inline and anchored
-objects.
+objects. Anchored drawings now also carry optional `floating_options` metadata
+with parsed horizontal/vertical reference targets, pixel offsets, wrap mode,
+wrap distances, overlap flags, and optional crop percentages read back from
+the current XML.
 
 Use `extract_drawing_image(index, path)` to copy any existing drawing-backed
 image out of the `.docx`, and `replace_drawing_image(index, path)` to swap one
@@ -954,6 +959,15 @@ for (const auto& image : drawings) {
         doc.remove_drawing_image(image.index);
     }
 }
+```
+
+The CLI exposes the same metadata through `featherdoc_cli inspect-images`
+using the same body/header/footer/section-part target selection shape as
+`inspect-bookmarks`. For example:
+
+```bash
+featherdoc_cli inspect-images report.docx
+featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --json
 ```
 
 Use `extract_inline_image(index, path)` to copy one existing inline body image
