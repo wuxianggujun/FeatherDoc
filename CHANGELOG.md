@@ -10,6 +10,10 @@ performance.
 
 ### Added
 
+- Added `featherdoc_cli append-image` so CLI workflows can append new inline or
+  floating images into body/header/footer/section-scoped template parts, with
+  explicit scaling, floating layout flags, missing-part materialization, and
+  regression coverage for inline and anchored image insertion.
 - Added explicit per-section page setup read/write support through
   `Document::get_section_page_setup(...)` and
   `Document::set_section_page_setup(...)`, including round-trip coverage for

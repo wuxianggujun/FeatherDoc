@@ -121,6 +121,22 @@ struct replace_image_options : inspect_images_options {
     std::optional<path_type> output_path;
 };
 
+struct append_image_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<path_type> output_path;
+    std::optional<std::uint32_t> width_px;
+    std::optional<std::uint32_t> height_px;
+    featherdoc::floating_image_options floating_options;
+    bool floating = false;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
 struct inspected_part_reference {
     std::size_t section_index = 0;
     std::string kind;
@@ -212,6 +228,21 @@ void print_usage(std::ostream &stream) {
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--relationship-id <id>]"
            " [--image-entry-name <path>] [--image <index>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli append-image <input.docx> <image-path>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--width <px>] [--height <px>]"
+           " [--floating] [--horizontal-reference page|margin|column|character]"
+           " [--horizontal-offset <px>]"
+           " [--vertical-reference page|margin|paragraph|line]"
+           " [--vertical-offset <px>] [--behind-text true|false]"
+           " [--allow-overlap true|false]"
+           " [--wrap-mode none|square|top-bottom]"
+           " [--wrap-distance-left <px>] [--wrap-distance-right <px>]"
+           " [--wrap-distance-top <px>] [--wrap-distance-bottom <px>]"
+           " [--crop-left <per-mille>] [--crop-top <per-mille>]"
+           " [--crop-right <per-mille>] [--crop-bottom <per-mille>]"
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli insert-section <input.docx> <section-index>"
            " [--no-inherit] [--output <path>] [--json]\n"
@@ -306,6 +337,26 @@ auto parse_uint32(std::string_view text, std::uint32_t &value) -> bool {
     return result.ec == std::errc{} && result.ptr == end;
 }
 
+auto parse_int32(std::string_view text, std::int32_t &value) -> bool {
+    const auto *begin = text.data();
+    const auto *end = begin + text.size();
+    const auto result = std::from_chars(begin, end, value);
+    return result.ec == std::errc{} && result.ptr == end;
+}
+
+auto parse_bool(std::string_view text, bool &value) -> bool {
+    if (text == "true" || text == "yes" || text == "1") {
+        value = true;
+        return true;
+    }
+    if (text == "false" || text == "no" || text == "0") {
+        value = false;
+        return true;
+    }
+
+    return false;
+}
+
 auto parse_page_orientation(std::string_view text,
                             featherdoc::page_orientation &orientation) -> bool {
     if (text == "portrait") {
@@ -345,6 +396,71 @@ auto parse_reference_kind(std::string_view text,
     }
     if (text == "even") {
         reference_kind = featherdoc::section_reference_kind::even_page;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_floating_image_horizontal_reference(
+    std::string_view text,
+    featherdoc::floating_image_horizontal_reference &reference) -> bool {
+    if (text == "page") {
+        reference = featherdoc::floating_image_horizontal_reference::page;
+        return true;
+    }
+    if (text == "margin") {
+        reference = featherdoc::floating_image_horizontal_reference::margin;
+        return true;
+    }
+    if (text == "column") {
+        reference = featherdoc::floating_image_horizontal_reference::column;
+        return true;
+    }
+    if (text == "character") {
+        reference = featherdoc::floating_image_horizontal_reference::character;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_floating_image_vertical_reference(
+    std::string_view text,
+    featherdoc::floating_image_vertical_reference &reference) -> bool {
+    if (text == "page") {
+        reference = featherdoc::floating_image_vertical_reference::page;
+        return true;
+    }
+    if (text == "margin") {
+        reference = featherdoc::floating_image_vertical_reference::margin;
+        return true;
+    }
+    if (text == "paragraph") {
+        reference = featherdoc::floating_image_vertical_reference::paragraph;
+        return true;
+    }
+    if (text == "line") {
+        reference = featherdoc::floating_image_vertical_reference::line;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_floating_image_wrap_mode(std::string_view text,
+                                    featherdoc::floating_image_wrap_mode &mode)
+    -> bool {
+    if (text == "none") {
+        mode = featherdoc::floating_image_wrap_mode::none;
+        return true;
+    }
+    if (text == "square") {
+        mode = featherdoc::floating_image_wrap_mode::square;
+        return true;
+    }
+    if (text == "top_bottom" || text == "top-bottom") {
+        mode = featherdoc::floating_image_wrap_mode::top_bottom;
         return true;
     }
 
@@ -1561,6 +1677,509 @@ auto parse_replace_image_options(const std::vector<std::string_view> &arguments,
             "replace-image requires --image <index>, --relationship-id <id>, or "
             "--image-entry-name <path>";
         return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_append_image_options(const std::vector<std::string_view> &arguments,
+                                std::size_t start_index,
+                                append_image_options &options,
+                                std::string &error_message) -> bool {
+    std::optional<std::uint32_t> crop_left_per_mille;
+    std::optional<std::uint32_t> crop_top_per_mille;
+    std::optional<std::uint32_t> crop_right_per_mille;
+    std::optional<std::uint32_t> crop_bottom_per_mille;
+    bool floating_flag_seen = false;
+
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (options.has_part) {
+                error_message = "duplicate --part option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_part = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--width") {
+            if (options.width_px.has_value()) {
+                error_message = "duplicate --width option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --width";
+                return false;
+            }
+
+            std::uint32_t width_px = 0U;
+            if (!parse_uint32(arguments[index + 1U], width_px)) {
+                error_message = "invalid width: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.width_px = width_px;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--height") {
+            if (options.height_px.has_value()) {
+                error_message = "duplicate --height option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --height";
+                return false;
+            }
+
+            std::uint32_t height_px = 0U;
+            if (!parse_uint32(arguments[index + 1U], height_px)) {
+                error_message = "invalid height: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.height_px = height_px;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--floating") {
+            if (floating_flag_seen) {
+                error_message = "duplicate --floating option";
+                return false;
+            }
+
+            options.floating = true;
+            floating_flag_seen = true;
+            continue;
+        }
+
+        if (argument == "--horizontal-reference") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --horizontal-reference";
+                return false;
+            }
+
+            if (!parse_floating_image_horizontal_reference(
+                    arguments[index + 1U],
+                    options.floating_options.horizontal_reference)) {
+                error_message = "invalid horizontal reference: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--horizontal-offset") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --horizontal-offset";
+                return false;
+            }
+
+            std::int32_t horizontal_offset_px = 0;
+            if (!parse_int32(arguments[index + 1U], horizontal_offset_px)) {
+                error_message = "invalid horizontal offset: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating_options.horizontal_offset_px = horizontal_offset_px;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--vertical-reference") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --vertical-reference";
+                return false;
+            }
+
+            if (!parse_floating_image_vertical_reference(
+                    arguments[index + 1U],
+                    options.floating_options.vertical_reference)) {
+                error_message = "invalid vertical reference: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--vertical-offset") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --vertical-offset";
+                return false;
+            }
+
+            std::int32_t vertical_offset_px = 0;
+            if (!parse_int32(arguments[index + 1U], vertical_offset_px)) {
+                error_message = "invalid vertical offset: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating_options.vertical_offset_px = vertical_offset_px;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--behind-text") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --behind-text";
+                return false;
+            }
+
+            bool behind_text = false;
+            if (!parse_bool(arguments[index + 1U], behind_text)) {
+                error_message = "invalid behind-text value: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating_options.behind_text = behind_text;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--allow-overlap") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --allow-overlap";
+                return false;
+            }
+
+            bool allow_overlap = false;
+            if (!parse_bool(arguments[index + 1U], allow_overlap)) {
+                error_message = "invalid allow-overlap value: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating_options.allow_overlap = allow_overlap;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--wrap-mode") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --wrap-mode";
+                return false;
+            }
+
+            if (!parse_floating_image_wrap_mode(arguments[index + 1U],
+                                                options.floating_options.wrap_mode)) {
+                error_message = "invalid wrap mode: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--wrap-distance-left") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --wrap-distance-left";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message = "invalid wrap distance left: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating_options.wrap_distance_left_px = value;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--wrap-distance-right") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --wrap-distance-right";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message = "invalid wrap distance right: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating_options.wrap_distance_right_px = value;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--wrap-distance-top") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --wrap-distance-top";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message = "invalid wrap distance top: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating_options.wrap_distance_top_px = value;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--wrap-distance-bottom") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --wrap-distance-bottom";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message = "invalid wrap distance bottom: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating_options.wrap_distance_bottom_px = value;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--crop-left") {
+            if (crop_left_per_mille.has_value()) {
+                error_message = "duplicate --crop-left option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --crop-left";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message = "invalid crop left: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            crop_left_per_mille = value;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--crop-top") {
+            if (crop_top_per_mille.has_value()) {
+                error_message = "duplicate --crop-top option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --crop-top";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message = "invalid crop top: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            crop_top_per_mille = value;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--crop-right") {
+            if (crop_right_per_mille.has_value()) {
+                error_message = "duplicate --crop-right option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --crop-right";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message = "invalid crop right: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            crop_right_per_mille = value;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--crop-bottom") {
+            if (crop_bottom_per_mille.has_value()) {
+                error_message = "duplicate --crop-bottom option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --crop-bottom";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message = "invalid crop bottom: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            crop_bottom_per_mille = value;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.width_px.has_value() != options.height_px.has_value()) {
+        error_message =
+            "append-image requires both --width <px> and --height <px> when scaling";
+        return false;
+    }
+
+    const bool has_any_crop = crop_left_per_mille.has_value() ||
+                              crop_top_per_mille.has_value() ||
+                              crop_right_per_mille.has_value() ||
+                              crop_bottom_per_mille.has_value();
+    const bool has_all_crop = crop_left_per_mille.has_value() &&
+                              crop_top_per_mille.has_value() &&
+                              crop_right_per_mille.has_value() &&
+                              crop_bottom_per_mille.has_value();
+    if (has_any_crop && !has_all_crop) {
+        error_message =
+            "append-image requires --crop-left/--crop-top/--crop-right/--crop-bottom together";
+        return false;
+    }
+
+    if (has_all_crop) {
+        options.floating_options.crop = featherdoc::floating_image_crop{
+            *crop_left_per_mille, *crop_top_per_mille,
+            *crop_right_per_mille, *crop_bottom_per_mille};
     }
 
     return validate_template_part_selection(options.part, options.part_index,
@@ -3534,6 +4153,36 @@ void print_replace_image_result(const selected_template_part &selected,
     std::cout << '\n';
 }
 
+void print_append_image_result(const selected_template_part &selected,
+                               const featherdoc::drawing_image_info &image,
+                               const path_type &image_path,
+                               const std::optional<path_type> &output_path) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "image_path: " << image_path.string() << '\n';
+    std::cout << "floating: " << yes_no(image.floating_options.has_value()) << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "image: ";
+    print_drawing_image_summary(std::cout, image);
+    std::cout << '\n';
+}
+
 auto inspect_page_setup(featherdoc::Document &doc, std::size_t section_index,
                         std::string_view command, bool json_output) -> bool {
     const auto page_setup = doc.get_section_page_setup(section_index);
@@ -4896,6 +5545,128 @@ int main(int argc, char **argv) {
         } else {
             print_replace_image_result(selected, *updated_image_it, replacement_path,
                                        options.output_path, options.json_output);
+        }
+
+        return 0;
+    }
+
+    if (command == "append-image") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(command,
+                              "append-image expects an input path and an image path",
+                              json_output);
+            return 2;
+        }
+
+        append_image_options options;
+        std::string error_message;
+        if (!parse_append_image_options(arguments, 3U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto existing_images = selected.part.drawing_images();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto image_path = path_type(std::string(arguments[2]));
+        bool success = false;
+        if (options.floating) {
+            if (options.width_px.has_value()) {
+                success = selected.part.append_floating_image(
+                    image_path, *options.width_px, *options.height_px,
+                    options.floating_options);
+            } else {
+                success = selected.part.append_floating_image(image_path,
+                                                              options.floating_options);
+            }
+        } else if (options.width_px.has_value()) {
+            success = selected.part.append_image(image_path, *options.width_px,
+                                                 *options.height_px);
+        } else {
+            success = selected.part.append_image(image_path);
+        }
+
+        if (!success) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto updated_images = selected.part.drawing_images();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "mutate", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        if (updated_images.size() <= existing_images.size()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::result_out_of_range);
+            error_info.detail =
+                "appended drawing image was not found in " +
+                std::string(selected.part.entry_name());
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "appended drawing image not found", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        const auto &appended_image = updated_images.back();
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &appended_image, &image_path](std::ostream &stream) {
+                    stream << ",\"part\":";
+                    write_json_string(stream, validation_part_name(selected.family));
+                    if (selected.part_index.has_value()) {
+                        stream << ",\"part_index\":" << *selected.part_index;
+                    }
+                    if (selected.section_index.has_value()) {
+                        stream << ",\"section\":" << *selected.section_index;
+                    }
+                    if (selected.reference_kind.has_value()) {
+                        stream << ",\"kind\":";
+                        write_json_string(
+                            stream,
+                            featherdoc::to_xml_reference_type(*selected.reference_kind));
+                    }
+                    stream << ",\"entry_name\":";
+                    write_json_string(stream, std::string(selected.part.entry_name()));
+                    stream << ",\"image_path\":";
+                    write_json_string(stream, image_path.string());
+                    stream << ",\"floating\":"
+                           << json_bool(appended_image.floating_options.has_value());
+                    stream << ",\"image\":";
+                    write_json_drawing_image_summary(stream, appended_image);
+                });
+        } else {
+            print_append_image_result(selected, appended_image, image_path,
+                                      options.output_path);
         }
 
         return 0;

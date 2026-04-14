@@ -328,6 +328,7 @@ featherdoc_cli inspect-images input.docx
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
 featherdoc_cli replace-image input.docx replacement.gif --relationship-id rId5 --output updated.docx --json
+featherdoc_cli append-image input.docx badge.png --width 96 --height 48 --output with-image.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -982,6 +983,18 @@ selection flags plus the replacement file path:
 ```bash
 featherdoc_cli replace-image report.docx replacement.gif --image 1 --output updated.docx --json
 featherdoc_cli replace-image report.docx replacement.gif --part header --index 0 --image-entry-name word/media/image1.png
+```
+
+To append a brand-new image paragraph into the body, a header/footer part, or a
+section-scoped header/footer reference, use `featherdoc_cli append-image`. By
+default it appends an inline image; add `--floating` (or any floating-only
+layout flag) when you want an anchored `wp:anchor` image instead. `--width` and
+`--height` apply explicit scaling, while omitting them keeps the source image's
+intrinsic size:
+
+```bash
+featherdoc_cli append-image report.docx logo.png --width 96 --height 48 --output with-logo.docx --json
+featherdoc_cli append-image report.docx badge.png --part section-header --section 0 --floating --horizontal-reference page --horizontal-offset 40 --vertical-reference margin --vertical-offset 12 --wrap-mode square --output header-badge.docx
 ```
 
 Use `extract_inline_image(index, path)` to copy one existing inline body image

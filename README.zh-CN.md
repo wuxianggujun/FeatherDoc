@@ -256,6 +256,7 @@ featherdoc_cli inspect-images input.docx
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
 featherdoc_cli replace-image input.docx replacement.gif --relationship-id rId5 --output updated.docx --json
+featherdoc_cli append-image input.docx badge.png --width 96 --height 48 --output with-image.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -629,6 +630,16 @@ featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --js
 ```bash
 featherdoc_cli replace-image report.docx replacement.gif --image 1 --output updated.docx --json
 featherdoc_cli replace-image report.docx replacement.gif --part header --index 0 --image-entry-name word/media/image1.png
+```
+
+如果你要往 body、header/footer，或者分节页眉页脚引用里直接追加一张全新的图片，
+可以用 `featherdoc_cli append-image`。默认会追加 inline 图片；如果带上
+`--floating`，或者直接给浮动布局参数，它就会改成 anchored `wp:anchor`
+图片。`--width` 和 `--height` 用来显式缩放；省略时则保留源图片的原始像素尺寸：
+
+```bash
+featherdoc_cli append-image report.docx logo.png --width 96 --height 48 --output with-logo.docx --json
+featherdoc_cli append-image report.docx badge.png --part section-header --section 0 --floating --horizontal-reference page --horizontal-offset 40 --vertical-reference margin --vertical-offset 12 --wrap-mode square --output header-badge.docx
 ```
 
 ## 模板预检
