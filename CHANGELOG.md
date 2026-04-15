@@ -8,6 +8,17 @@ performance.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-04-15
+
+### Added
+
+- Added `featherdoc_cli ensure-paragraph-style`,
+  `featherdoc_cli ensure-character-style`, and
+  `featherdoc_cli ensure-table-style` so CLI workflows can create or update
+  paragraph, character, and table style definitions with style catalog flags,
+  style inheritance, and optional run-language / font / bidi metadata without
+  dropping to the C++ API.
+
 ## [1.7.0] - 2026-04-15
 
 ### Added
