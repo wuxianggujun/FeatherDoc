@@ -8,6 +8,8 @@ performance.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-04-15
+
 ### Added
 
 - Added `featherdoc_cli ensure-paragraph-style`,
