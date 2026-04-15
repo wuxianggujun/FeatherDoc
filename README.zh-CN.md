@@ -255,7 +255,9 @@ featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark h
 featherdoc_cli inspect-images input.docx
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
 featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
+featherdoc_cli extract-image input.docx exported.png --relationship-id rId5 --json
 featherdoc_cli replace-image input.docx replacement.gif --relationship-id rId5 --output updated.docx --json
+featherdoc_cli remove-image input.docx --relationship-id rId5 --output pruned.docx --json
 featherdoc_cli append-image input.docx badge.png --width 96 --height 48 --output with-image.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
@@ -623,6 +625,15 @@ featherdoc_cli inspect-images report.docx --relationship-id rId5 --image-entry-n
 featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --json
 ```
 
+如果你只是想把现有 drawing 图片导出来，而不修改 `.docx` 本身，可以用
+`featherdoc_cli extract-image`。它复用同一套部件和图片选择参数，再额外接一个
+导出文件路径：
+
+```bash
+featherdoc_cli extract-image report.docx exported.png --image 1 --json
+featherdoc_cli extract-image report.docx exported.png --part header --index 0 --image-entry-name word/media/image1.png
+```
+
 如果你要直接替换现有 drawing 图片，同时保留原来的尺寸和 inline/anchor
 布局，也可以用 `featherdoc_cli replace-image`。它复用同一套部件和图片选择参数，
 再额外接一个替换图片路径：
@@ -630,6 +641,15 @@ featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --js
 ```bash
 featherdoc_cli replace-image report.docx replacement.gif --image 1 --output updated.docx --json
 featherdoc_cli replace-image report.docx replacement.gif --part header --index 0 --image-entry-name word/media/image1.png
+```
+
+如果你要从目标部件里直接删除一张现有 drawing 图片，可以用
+`featherdoc_cli remove-image`。它也复用同一套图片选择参数，并支持可选的
+`--output` 输出路径：
+
+```bash
+featherdoc_cli remove-image report.docx --image 1 --output pruned.docx --json
+featherdoc_cli remove-image report.docx --part header --index 0 --relationship-id rId5
 ```
 
 如果你要往 body、header/footer，或者分节页眉页脚引用里直接追加一张全新的图片，

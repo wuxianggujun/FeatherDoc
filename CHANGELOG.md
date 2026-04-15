@@ -10,6 +10,12 @@ performance.
 
 ### Added
 
+- Added `featherdoc_cli extract-image` and `featherdoc_cli remove-image` so
+  CLI workflows can export or delete existing drawing-backed images from
+  body/header/footer/section-scoped template parts using the same
+  `--image` / `--relationship-id` / `--image-entry-name` selection semantics
+  as `inspect-images`, with regression coverage and ignored CLI-generated
+  `.png` test artifacts.
 - Added `featherdoc_cli append-image` so CLI workflows can append new inline or
   floating images into body/header/footer/section-scoped template parts, with
   explicit scaling, floating layout flags, missing-part materialization, and

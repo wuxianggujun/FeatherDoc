@@ -121,6 +121,12 @@ struct replace_image_options : inspect_images_options {
     std::optional<path_type> output_path;
 };
 
+struct extract_image_options : inspect_images_options {};
+
+struct remove_image_options : inspect_images_options {
+    std::optional<path_type> output_path;
+};
+
 struct append_image_options {
     validation_part_family part = validation_part_family::body;
     std::optional<std::size_t> part_index;
@@ -223,7 +229,18 @@ void print_usage(std::ostream &stream) {
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--relationship-id <id>]"
            " [--image-entry-name <path>] [--image <index>] [--json]\n"
+        << "  featherdoc_cli extract-image <input.docx> <output-path>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--relationship-id <id>]"
+           " [--image-entry-name <path>] [--image <index>] [--json]\n"
         << "  featherdoc_cli replace-image <input.docx> <image-path>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--relationship-id <id>]"
+           " [--image-entry-name <path>] [--image <index>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli remove-image <input.docx>"
            " [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--relationship-id <id>]"
@@ -1675,6 +1692,357 @@ auto parse_replace_image_options(const std::vector<std::string_view> &arguments,
     if (!options.image_index.has_value() && !has_inspect_image_filters(options)) {
         error_message =
             "replace-image requires --image <index>, --relationship-id <id>, or "
+            "--image-entry-name <path>";
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_extract_image_options(const std::vector<std::string_view> &arguments,
+                                 std::size_t start_index,
+                                 extract_image_options &options,
+                                 std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--image") {
+            if (options.image_index.has_value()) {
+                error_message = "duplicate --image option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --image";
+                return false;
+            }
+
+            std::size_t image_index = 0U;
+            if (!parse_index(arguments[index + 1U], image_index)) {
+                error_message = "invalid image index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.image_index = image_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--relationship-id") {
+            if (options.relationship_id.has_value()) {
+                error_message = "duplicate --relationship-id option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --relationship-id";
+                return false;
+            }
+
+            const auto value = std::string(arguments[index + 1U]);
+            if (value.empty()) {
+                error_message = "--relationship-id must not be empty";
+                return false;
+            }
+
+            options.relationship_id = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--image-entry-name") {
+            if (options.image_entry_name.has_value()) {
+                error_message = "duplicate --image-entry-name option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --image-entry-name";
+                return false;
+            }
+
+            const auto value = std::string(arguments[index + 1U]);
+            if (value.empty()) {
+                error_message = "--image-entry-name must not be empty";
+                return false;
+            }
+
+            options.image_entry_name = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.image_index.has_value() && !has_inspect_image_filters(options)) {
+        error_message =
+            "extract-image requires --image <index>, --relationship-id <id>, or "
+            "--image-entry-name <path>";
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "inspection", error_message);
+}
+
+auto parse_remove_image_options(const std::vector<std::string_view> &arguments,
+                                std::size_t start_index,
+                                remove_image_options &options,
+                                std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--image") {
+            if (options.image_index.has_value()) {
+                error_message = "duplicate --image option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --image";
+                return false;
+            }
+
+            std::size_t image_index = 0U;
+            if (!parse_index(arguments[index + 1U], image_index)) {
+                error_message = "invalid image index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.image_index = image_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--relationship-id") {
+            if (options.relationship_id.has_value()) {
+                error_message = "duplicate --relationship-id option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --relationship-id";
+                return false;
+            }
+
+            const auto value = std::string(arguments[index + 1U]);
+            if (value.empty()) {
+                error_message = "--relationship-id must not be empty";
+                return false;
+            }
+
+            options.relationship_id = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--image-entry-name") {
+            if (options.image_entry_name.has_value()) {
+                error_message = "duplicate --image-entry-name option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --image-entry-name";
+                return false;
+            }
+
+            const auto value = std::string(arguments[index + 1U]);
+            if (value.empty()) {
+                error_message = "--image-entry-name must not be empty";
+                return false;
+            }
+
+            options.image_entry_name = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.image_index.has_value() && !has_inspect_image_filters(options)) {
+        error_message =
+            "remove-image requires --image <index>, --relationship-id <id>, or "
             "--image-entry-name <path>";
         return false;
     }
@@ -4183,6 +4551,56 @@ void print_append_image_result(const selected_template_part &selected,
     std::cout << '\n';
 }
 
+void print_extract_image_result(const selected_template_part &selected,
+                                const featherdoc::drawing_image_info &image,
+                                const path_type &output_path) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "output_path: " << output_path.string() << '\n';
+    std::cout << "image: ";
+    print_drawing_image_summary(std::cout, image);
+    std::cout << '\n';
+}
+
+void print_remove_image_result(const selected_template_part &selected,
+                               const featherdoc::drawing_image_info &image,
+                               const std::optional<path_type> &output_path) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "removed_image: ";
+    print_drawing_image_summary(std::cout, image);
+    std::cout << '\n';
+}
+
 auto inspect_page_setup(featherdoc::Document &doc, std::size_t section_index,
                         std::string_view command, bool json_output) -> bool {
     const auto page_setup = doc.get_section_page_setup(section_index);
@@ -5431,6 +5849,93 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    if (command == "extract-image") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(command,
+                              "extract-image expects an input path and an output path",
+                              json_output);
+            return 2;
+        }
+
+        extract_image_options options;
+        std::string error_message;
+        if (!parse_extract_image_options(arguments, 3U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "inspect", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto images = selected.part.drawing_images();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        featherdoc::drawing_image_info target_image{};
+        featherdoc::document_error_info selection_error{};
+        if (!resolve_selected_drawing_image(images, options,
+                                            selected.part.entry_name(), target_image,
+                                            selection_error)) {
+            report_operation_failure(command, "input", "drawing image not found",
+                                     selection_error, options.json_output);
+            return 1;
+        }
+
+        const auto output_path = path_type(std::string(arguments[2]));
+        if (!selected.part.extract_drawing_image(target_image.index, output_path)) {
+            report_document_error(command, "extract", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.json_output) {
+            std::cout << "{\"command\":";
+            write_json_string(std::cout, command);
+            std::cout << ",\"ok\":true"
+                      << ",\"part\":";
+            write_json_string(std::cout, validation_part_name(selected.family));
+            if (selected.part_index.has_value()) {
+                std::cout << ",\"part_index\":" << *selected.part_index;
+            }
+            if (selected.section_index.has_value()) {
+                std::cout << ",\"section\":" << *selected.section_index;
+            }
+            if (selected.reference_kind.has_value()) {
+                std::cout << ",\"kind\":";
+                write_json_string(
+                    std::cout,
+                    featherdoc::to_xml_reference_type(*selected.reference_kind));
+            }
+            std::cout << ",\"entry_name\":";
+            write_json_string(std::cout, std::string(selected.part.entry_name()));
+            std::cout << ",\"output_path\":";
+            write_json_string(std::cout, output_path.string());
+            write_json_inspect_image_filters(std::cout, options);
+            std::cout << ",\"image\":";
+            write_json_drawing_image_summary(std::cout, target_image);
+            std::cout << "}\n";
+        } else {
+            print_extract_image_result(selected, target_image, output_path);
+        }
+
+        return 0;
+    }
+
     if (command == "replace-image") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 3U) {
@@ -5545,6 +6050,94 @@ int main(int argc, char **argv) {
         } else {
             print_replace_image_result(selected, *updated_image_it, replacement_path,
                                        options.output_path, options.json_output);
+        }
+
+        return 0;
+    }
+
+    if (command == "remove-image") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command,
+                              "remove-image expects an input path and image selectors",
+                              json_output);
+            return 2;
+        }
+
+        remove_image_options options;
+        std::string error_message;
+        if (!parse_remove_image_options(arguments, 2U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto images = selected.part.drawing_images();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        featherdoc::drawing_image_info target_image{};
+        featherdoc::document_error_info selection_error{};
+        if (!resolve_selected_drawing_image(images, options,
+                                            selected.part.entry_name(), target_image,
+                                            selection_error)) {
+            report_operation_failure(command, "input", "drawing image not found",
+                                     selection_error, options.json_output);
+            return 1;
+        }
+
+        if (!selected.part.remove_drawing_image(target_image.index)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &target_image, &options](std::ostream &stream) {
+                    stream << ",\"part\":";
+                    write_json_string(stream, validation_part_name(selected.family));
+                    if (selected.part_index.has_value()) {
+                        stream << ",\"part_index\":" << *selected.part_index;
+                    }
+                    if (selected.section_index.has_value()) {
+                        stream << ",\"section\":" << *selected.section_index;
+                    }
+                    if (selected.reference_kind.has_value()) {
+                        stream << ",\"kind\":";
+                        write_json_string(
+                            stream,
+                            featherdoc::to_xml_reference_type(*selected.reference_kind));
+                    }
+                    stream << ",\"entry_name\":";
+                    write_json_string(stream, std::string(selected.part.entry_name()));
+                    write_json_inspect_image_filters(stream, options);
+                    stream << ",\"image\":";
+                    write_json_drawing_image_summary(stream, target_image);
+                });
+        } else {
+            print_remove_image_result(selected, target_image, options.output_path);
         }
 
         return 0;

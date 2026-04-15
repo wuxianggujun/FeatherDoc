@@ -117,6 +117,13 @@ auto read_text_file(const fs::path &path) -> std::string {
                        std::istreambuf_iterator<char>());
 }
 
+auto read_binary_file(const fs::path &path) -> std::string {
+    std::ifstream stream(path, std::ios::binary);
+    REQUIRE(stream.good());
+    return std::string(std::istreambuf_iterator<char>(stream),
+                       std::istreambuf_iterator<char>());
+}
+
 void write_binary_file(const fs::path &path, const std::string &data) {
     std::ofstream stream(path, std::ios::binary);
     REQUIRE(stream.good());
@@ -2315,6 +2322,71 @@ TEST_CASE("cli inspect-images reports json parse errors") {
     remove_if_exists(output);
 }
 
+TEST_CASE("cli extract-image exports a filtered anchored body image") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_extract_image_source.docx";
+    const fs::path extracted = working_directory / "cli_extract_image.png";
+    const fs::path output = working_directory / "cli_extract_image.json";
+
+    remove_if_exists(source);
+    remove_if_exists(extracted);
+    remove_if_exists(output);
+
+    create_cli_image_fixture(source);
+
+    featherdoc::Document doc(source);
+    REQUIRE_FALSE(doc.open());
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    const auto images = body_template.drawing_images();
+    REQUIRE_EQ(images.size(), 2U);
+    const auto &anchored_image = images[1];
+
+    CHECK_EQ(run_cli({"extract-image",
+                      source.string(),
+                      extracted.string(),
+                      "--relationship-id",
+                      anchored_image.relationship_id,
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"extract-image\""), std::string::npos);
+    CHECK_NE(json.find("\"part\":\"body\""), std::string::npos);
+    CHECK_NE(json.find("\"output_path\":" + json_quote(extracted.string())),
+             std::string::npos);
+    CHECK_NE(json.find("\"filters\":{\"relationship_id\":\"" +
+                           anchored_image.relationship_id + "\"}"),
+             std::string::npos);
+    CHECK_NE(json.find("\"placement\":\"anchored\""), std::string::npos);
+    CHECK_NE(json.find("\"content_type\":\"image/png\""), std::string::npos);
+    CHECK_EQ(read_binary_file(extracted), tiny_png_data());
+
+    remove_if_exists(source);
+    remove_if_exists(extracted);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli extract-image requires an explicit image selector") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path output = working_directory / "cli_extract_image_parse.json";
+
+    remove_if_exists(output);
+
+    CHECK_EQ(run_cli({"extract-image", "missing.docx", "exported.png", "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"extract-image\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"extract-image requires --image "
+            "<index>, --relationship-id <id>, or --image-entry-name <path>\"}\n"});
+
+    remove_if_exists(output);
+}
+
 TEST_CASE("cli replace-image replaces a filtered anchored body image") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_replace_image_source.docx";
@@ -2394,6 +2466,77 @@ TEST_CASE("cli replace-image requires an explicit image selector") {
         std::string{
             "{\"command\":\"replace-image\",\"ok\":false,"
             "\"stage\":\"parse\",\"message\":\"replace-image requires --image "
+            "<index>, --relationship-id <id>, or --image-entry-name <path>\"}\n"});
+
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli remove-image removes a filtered anchored body image") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_remove_image_source.docx";
+    const fs::path updated = working_directory / "cli_remove_image_updated.docx";
+    const fs::path output = working_directory / "cli_remove_image.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_image_fixture(source);
+
+    featherdoc::Document doc(source);
+    REQUIRE_FALSE(doc.open());
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    const auto images = body_template.drawing_images();
+    REQUIRE_EQ(images.size(), 2U);
+    const auto &anchored_image = images[1];
+
+    CHECK_EQ(run_cli({"remove-image",
+                      source.string(),
+                      "--relationship-id",
+                      anchored_image.relationship_id,
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"remove-image\""), std::string::npos);
+    CHECK_NE(json.find("\"part\":\"body\""), std::string::npos);
+    CHECK_NE(json.find("\"filters\":{\"relationship_id\":\"" +
+                           anchored_image.relationship_id + "\"}"),
+             std::string::npos);
+    CHECK_NE(json.find("\"placement\":\"anchored\""), std::string::npos);
+    CHECK_NE(json.find("\"content_type\":\"image/png\""), std::string::npos);
+
+    featherdoc::Document reopened(updated);
+    CHECK_FALSE(reopened.open());
+    auto updated_body_template = reopened.body_template();
+    REQUIRE(static_cast<bool>(updated_body_template));
+    const auto updated_images = updated_body_template.drawing_images();
+    REQUIRE_EQ(updated_images.size(), 1U);
+    CHECK_EQ(updated_images[0].placement,
+             featherdoc::drawing_image_placement::inline_object);
+    CHECK_EQ(updated_images[0].content_type, "image/png");
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli remove-image requires an explicit image selector") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path output = working_directory / "cli_remove_image_parse.json";
+
+    remove_if_exists(output);
+
+    CHECK_EQ(run_cli({"remove-image", "missing.docx", "--json"}, output), 2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"remove-image\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"remove-image requires --image "
             "<index>, --relationship-id <id>, or --image-entry-name <path>\"}\n"});
 
     remove_if_exists(output);

@@ -237,7 +237,9 @@ section-aware header/footer operations.
     featherdoc_cli inspect-images input.docx
     featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
     featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
+    featherdoc_cli extract-image input.docx exported.png --relationship-id rId5 --json
     featherdoc_cli replace-image input.docx replacement.gif --relationship-id rId5 --output updated.docx --json
+    featherdoc_cli remove-image input.docx --relationship-id rId5 --output pruned.docx --json
     featherdoc_cli append-image input.docx badge.png --width 96 --height 48 --output with-image.docx --json
     featherdoc_cli inspect-header-parts input.docx --json
     featherdoc_cli inspect-footer-parts input.docx
@@ -796,6 +798,15 @@ or resolved media entry path before inspecting the whole list or one image:
     featherdoc_cli inspect-images report.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
     featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --json
 
+To export one existing drawing-backed image without mutating the ``.docx``,
+use ``featherdoc_cli extract-image`` with the same selectors plus the
+destination file path:
+
+.. code-block:: sh
+
+    featherdoc_cli extract-image report.docx exported.png --image 1 --json
+    featherdoc_cli extract-image report.docx exported.png --part header --index 0 --image-entry-name word/media/image1.png
+
 To replace one existing drawing-backed image while preserving the current size
 and inline/anchor placement XML, use ``featherdoc_cli replace-image`` with the
 same part/image selectors plus the new image path:
@@ -804,6 +815,15 @@ same part/image selectors plus the new image path:
 
     featherdoc_cli replace-image report.docx replacement.gif --image 1 --output updated.docx --json
     featherdoc_cli replace-image report.docx replacement.gif --part header --index 0 --image-entry-name word/media/image1.png
+
+To delete one existing drawing-backed image from the selected part, use
+``featherdoc_cli remove-image`` with the same selectors plus an optional
+``--output`` path:
+
+.. code-block:: sh
+
+    featherdoc_cli remove-image report.docx --image 1 --output pruned.docx --json
+    featherdoc_cli remove-image report.docx --part header --index 0 --relationship-id rId5
 
 To append a new image paragraph into the body, a header/footer part, or a
 section-scoped header/footer reference, use ``featherdoc_cli append-image``.
