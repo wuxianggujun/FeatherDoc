@@ -84,6 +84,41 @@ function Get-DisplayPath {
     return Get-RepoRelativePath -RepoRoot $RepoRoot -Path $Path
 }
 
+function Get-VisualTaskDir {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryTaskDir = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_task_dir" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryTaskDir)) {
+        return $summaryTaskDir
+    }
+
+    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
+    $taskInfo = Get-OptionalPropertyObject -Object $reviewTasks -Name $TaskKey
+    return Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
+}
+
+function Get-VisualTaskVerdict {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryVerdict = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_verdict" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryVerdict)) {
+        return $summaryVerdict
+    }
+
+    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
+    $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
+    $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
+    return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$RepoRoot,
@@ -141,14 +176,16 @@ if ([string]::IsNullOrWhiteSpace($reviewerChecklistPath)) {
     $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 }
 
+$visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
 $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
-$gateSummaryPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "summary_json"
-$gateFinalReviewPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "final_review"
+$gateSummaryPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "summary_json"
+$gateFinalReviewPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "final_review"
 
 $visualVerdict = ""
 $readmeGalleryStatus = ""
 $readmeGalleryAssetsDir = ""
+$gateSummary = $null
 if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -LiteralPath $gateSummaryPath)) {
     $gateSummary = Get-Content -Raw $gateSummaryPath | ConvertFrom-Json
     $visualVerdict = Get-OptionalPropertyValue -Object $gateSummary -Name "visual_verdict"
@@ -156,6 +193,10 @@ if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -Literal
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
     $readmeGalleryAssetsDir = Get-OptionalPropertyValue -Object $readmeGallery -Name "assets_dir"
 }
+$sectionPageSetupTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 
 $installLeaf = ""
 if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
@@ -206,6 +247,8 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Generated at: $(Get-Date -Format s)")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
 [void]$lines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
+[void]$lines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
+[void]$lines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Summary JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
 [void]$lines.Add("")
@@ -226,6 +269,8 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$lines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$lines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")
+[void]$lines.Add("- Section page setup review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
+[void]$lines.Add("- Page number fields review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
 [void]$lines.Add("")
 [void]$lines.Add("## Installed Package Entry Points")
 [void]$lines.Add("")

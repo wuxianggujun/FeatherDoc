@@ -140,6 +140,20 @@ auto parse_u64_attribute_value(const char *text) -> std::optional<std::uint64_t>
     return static_cast<std::uint64_t>(value);
 }
 
+auto parse_i64_attribute_value(const char *text) -> std::optional<std::int64_t> {
+    if (text == nullptr || *text == '\0') {
+        return std::nullopt;
+    }
+
+    char *end = nullptr;
+    const auto value = std::strtoll(text, &end, 10);
+    if (end == text || *end != '\0') {
+        return std::nullopt;
+    }
+
+    return static_cast<std::int64_t>(value);
+}
+
 auto to_lower_ascii(std::string text) -> std::string {
     std::transform(text.begin(), text.end(), text.begin(), [](unsigned char value) {
         return static_cast<char>(std::tolower(value));
@@ -180,6 +194,16 @@ auto emu_to_pixels(std::uint64_t emu) -> std::uint32_t {
                                 std::numeric_limits<std::uint32_t>::max()));
 }
 
+auto signed_emu_to_pixels(std::int64_t emu) -> std::int32_t {
+    constexpr std::int64_t emu_per_pixel = 9525;
+    const auto absolute_emu = emu < 0 ? -emu : emu;
+    const auto rounded_pixels = (absolute_emu + (emu_per_pixel / 2)) / emu_per_pixel;
+    const auto signed_pixels = emu < 0 ? -rounded_pixels : rounded_pixels;
+    return static_cast<std::int32_t>(std::clamp<std::int64_t>(
+        signed_pixels, std::numeric_limits<std::int32_t>::min(),
+        std::numeric_limits<std::int32_t>::max()));
+}
+
 enum class zip_entry_binary_read_status {
     missing = 0,
     read_failed,
@@ -218,9 +242,148 @@ struct drawing_image_reference_state final {
     std::string display_name;
     std::uint32_t width_px{};
     std::uint32_t height_px{};
+    std::optional<featherdoc::floating_image_options> floating_options;
     pugi::xml_node drawing_container;
     pugi::xml_node drawing_object;
 };
+
+auto parse_horizontal_reference(
+    std::string_view text,
+    featherdoc::floating_image_horizontal_reference &reference) -> bool {
+    if (text == "page") {
+        reference = featherdoc::floating_image_horizontal_reference::page;
+        return true;
+    }
+    if (text == "margin") {
+        reference = featherdoc::floating_image_horizontal_reference::margin;
+        return true;
+    }
+    if (text == "column") {
+        reference = featherdoc::floating_image_horizontal_reference::column;
+        return true;
+    }
+    if (text == "character") {
+        reference = featherdoc::floating_image_horizontal_reference::character;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_vertical_reference(
+    std::string_view text,
+    featherdoc::floating_image_vertical_reference &reference) -> bool {
+    if (text == "page") {
+        reference = featherdoc::floating_image_vertical_reference::page;
+        return true;
+    }
+    if (text == "margin") {
+        reference = featherdoc::floating_image_vertical_reference::margin;
+        return true;
+    }
+    if (text == "paragraph") {
+        reference = featherdoc::floating_image_vertical_reference::paragraph;
+        return true;
+    }
+    if (text == "line") {
+        reference = featherdoc::floating_image_vertical_reference::line;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_wrap_mode(pugi::xml_node drawing_node)
+    -> featherdoc::floating_image_wrap_mode {
+    if (drawing_node.child("wp:wrapSquare") != pugi::xml_node{}) {
+        return featherdoc::floating_image_wrap_mode::square;
+    }
+    if (drawing_node.child("wp:wrapTopAndBottom") != pugi::xml_node{}) {
+        return featherdoc::floating_image_wrap_mode::top_bottom;
+    }
+
+    return featherdoc::floating_image_wrap_mode::none;
+}
+
+auto parse_crop_per_mille_attribute(const char *text) -> std::uint32_t {
+    const auto parsed = parse_u32_attribute_value(text);
+    if (!parsed.has_value()) {
+        return 0U;
+    }
+
+    return std::min<std::uint32_t>((*parsed + 50U) / 100U, 1000U);
+}
+
+auto parse_floating_crop(pugi::xml_node drawing_node)
+    -> std::optional<featherdoc::floating_image_crop> {
+    const auto src_rect =
+        drawing_node.child("a:graphic")
+            .child("a:graphicData")
+            .child("pic:pic")
+            .child("pic:blipFill")
+            .child("a:srcRect");
+    if (src_rect == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    return featherdoc::floating_image_crop{
+        parse_crop_per_mille_attribute(src_rect.attribute("l").value()),
+        parse_crop_per_mille_attribute(src_rect.attribute("t").value()),
+        parse_crop_per_mille_attribute(src_rect.attribute("r").value()),
+        parse_crop_per_mille_attribute(src_rect.attribute("b").value()),
+    };
+}
+
+auto parse_floating_options(pugi::xml_node drawing_node)
+    -> std::optional<featherdoc::floating_image_options> {
+    if (drawing_node == pugi::xml_node{} ||
+        std::string_view{drawing_node.name()} != "wp:anchor") {
+        return std::nullopt;
+    }
+
+    featherdoc::floating_image_options options;
+    options.behind_text =
+        std::string_view{drawing_node.attribute("behindDoc").value()} == "1";
+    options.allow_overlap =
+        std::string_view{drawing_node.attribute("allowOverlap").value()} != "0";
+    options.wrap_mode = parse_wrap_mode(drawing_node);
+
+    if (const auto distance =
+            parse_u64_attribute_value(drawing_node.attribute("distL").value())) {
+        options.wrap_distance_left_px = emu_to_pixels(*distance);
+    }
+    if (const auto distance =
+            parse_u64_attribute_value(drawing_node.attribute("distR").value())) {
+        options.wrap_distance_right_px = emu_to_pixels(*distance);
+    }
+    if (const auto distance =
+            parse_u64_attribute_value(drawing_node.attribute("distT").value())) {
+        options.wrap_distance_top_px = emu_to_pixels(*distance);
+    }
+    if (const auto distance =
+            parse_u64_attribute_value(drawing_node.attribute("distB").value())) {
+        options.wrap_distance_bottom_px = emu_to_pixels(*distance);
+    }
+
+    const auto position_horizontal = drawing_node.child("wp:positionH");
+    parse_horizontal_reference(position_horizontal.attribute("relativeFrom").value(),
+                               options.horizontal_reference);
+    if (const auto horizontal_offset = parse_i64_attribute_value(
+            position_horizontal.child("wp:posOffset").child_value())) {
+        options.horizontal_offset_px = signed_emu_to_pixels(*horizontal_offset);
+    }
+
+    const auto position_vertical = drawing_node.child("wp:positionV");
+    parse_vertical_reference(position_vertical.attribute("relativeFrom").value(),
+                             options.vertical_reference);
+    if (const auto vertical_offset = parse_i64_attribute_value(
+            position_vertical.child("wp:posOffset").child_value())) {
+        options.vertical_offset_px = signed_emu_to_pixels(*vertical_offset);
+    }
+
+    options.crop = parse_floating_crop(drawing_node);
+    return options;
+}
 
 void collect_drawing_image_reference(
     pugi::xml_node drawing_container, pugi::xml_node drawing_node,
@@ -283,8 +446,8 @@ void collect_drawing_image_reference(
     references.push_back(
         {references.size(), placement, std::string{relationship_id}, target_entry,
          std::move(display_name), width_emu.has_value() ? emu_to_pixels(*width_emu) : 0U,
-         height_emu.has_value() ? emu_to_pixels(*height_emu) : 0U, drawing_container,
-         drawing_node});
+         height_emu.has_value() ? emu_to_pixels(*height_emu) : 0U,
+         parse_floating_options(drawing_node), drawing_container, drawing_node});
 }
 
 void collect_drawing_image_references(pugi::xml_node node, pugi::xml_node relationships_root,
@@ -427,6 +590,58 @@ auto to_xml_reference(
 
     return "paragraph";
 }
+
+void append_wrap_mode_node(
+    pugi::xml_node drawing_container,
+    featherdoc::floating_image_wrap_mode wrap_mode) {
+    switch (wrap_mode) {
+    case featherdoc::floating_image_wrap_mode::none:
+        drawing_container.append_child("wp:wrapNone");
+        return;
+    case featherdoc::floating_image_wrap_mode::square: {
+        auto wrap_square = drawing_container.append_child("wp:wrapSquare");
+        ensure_attribute_value(wrap_square, "wrapText", "bothSides");
+        return;
+    }
+    case featherdoc::floating_image_wrap_mode::top_bottom:
+        drawing_container.append_child("wp:wrapTopAndBottom");
+        return;
+    }
+
+    drawing_container.append_child("wp:wrapNone");
+}
+
+auto is_valid_floating_crop(
+    const featherdoc::floating_image_crop &crop) -> bool {
+    constexpr std::uint32_t max_crop_per_mille = 1000U;
+    if (crop.left_per_mille > max_crop_per_mille ||
+        crop.top_per_mille > max_crop_per_mille ||
+        crop.right_per_mille > max_crop_per_mille ||
+        crop.bottom_per_mille > max_crop_per_mille) {
+        return false;
+    }
+
+    const auto horizontal_crop =
+        static_cast<std::uint64_t>(crop.left_per_mille) + crop.right_per_mille;
+    const auto vertical_crop =
+        static_cast<std::uint64_t>(crop.top_per_mille) + crop.bottom_per_mille;
+    return horizontal_crop < max_crop_per_mille &&
+           vertical_crop < max_crop_per_mille;
+}
+
+void append_crop_node(
+    pugi::xml_node blip_fill,
+    const featherdoc::floating_image_crop &crop) {
+    auto src_rect = blip_fill.append_child("a:srcRect");
+    ensure_attribute_value(src_rect, "l",
+                           std::to_string(crop.left_per_mille * 100U));
+    ensure_attribute_value(src_rect, "t",
+                           std::to_string(crop.top_per_mille * 100U));
+    ensure_attribute_value(src_rect, "r",
+                           std::to_string(crop.right_per_mille * 100U));
+    ensure_attribute_value(src_rect, "b",
+                           std::to_string(crop.bottom_per_mille * 100U));
+}
 } // namespace
 
 namespace featherdoc {
@@ -517,7 +732,8 @@ std::vector<drawing_image_info> Document::drawing_images_in_part(
                           reference.display_name,
                           std::move(content_type),
                           reference.width_px,
-                          reference.height_px});
+                          reference.height_px,
+                          reference.floating_options});
     }
 
     this->last_error_info.clear();
@@ -1491,6 +1707,15 @@ bool Document::append_drawing_image_part(
         return false;
     }
 
+    if (floating_options.has_value() && floating_options->crop.has_value() &&
+        !is_valid_floating_crop(*floating_options->crop)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "floating image crop must stay within 0..1000 per-mille "
+                       "per edge and keep a visible image area");
+        return false;
+    }
+
     if (const auto error = this->ensure_content_types_loaded()) {
         return false;
     }
@@ -1672,10 +1897,29 @@ bool Document::append_drawing_image_part(
     ensure_attribute_value(drawing, "xmlns:wp", wordprocessing_drawing_namespace_uri);
     ensure_attribute_value(drawing, "xmlns:a", drawingml_main_namespace_uri);
     ensure_attribute_value(drawing, "xmlns:pic", drawingml_picture_namespace_uri);
-    ensure_attribute_value(drawing_container, "distT", "0");
-    ensure_attribute_value(drawing_container, "distB", "0");
-    ensure_attribute_value(drawing_container, "distL", "0");
-    ensure_attribute_value(drawing_container, "distR", "0");
+    std::string wrap_distance_top_text{"0"};
+    std::string wrap_distance_bottom_text{"0"};
+    std::string wrap_distance_left_text{"0"};
+    std::string wrap_distance_right_text{"0"};
+
+    if (floating_options.has_value()) {
+        wrap_distance_top_text = std::to_string(
+            featherdoc::detail::pixels_to_emu(
+                floating_options->wrap_distance_top_px));
+        wrap_distance_bottom_text = std::to_string(
+            featherdoc::detail::pixels_to_emu(
+                floating_options->wrap_distance_bottom_px));
+        wrap_distance_left_text = std::to_string(
+            featherdoc::detail::pixels_to_emu(
+                floating_options->wrap_distance_left_px));
+        wrap_distance_right_text = std::to_string(
+            featherdoc::detail::pixels_to_emu(
+                floating_options->wrap_distance_right_px));
+    }
+    ensure_attribute_value(drawing_container, "distT", wrap_distance_top_text);
+    ensure_attribute_value(drawing_container, "distB", wrap_distance_bottom_text);
+    ensure_attribute_value(drawing_container, "distL", wrap_distance_left_text);
+    ensure_attribute_value(drawing_container, "distR", wrap_distance_right_text);
 
     if (floating_options.has_value()) {
         ensure_attribute_value(drawing_container, "simplePos", "0");
@@ -1723,7 +1967,7 @@ bool Document::append_drawing_image_part(
     ensure_attribute_value(effect_extent, "b", "0");
 
     if (floating_options.has_value()) {
-        drawing_container.append_child("wp:wrapNone");
+        append_wrap_mode_node(drawing_container, floating_options->wrap_mode);
     }
 
     auto doc_properties = drawing_container.append_child("wp:docPr");
@@ -1748,6 +1992,9 @@ bool Document::append_drawing_image_part(
     auto blip_fill = picture.append_child("pic:blipFill");
     auto blip = blip_fill.append_child("a:blip");
     ensure_attribute_value(blip, "r:embed", relationship_id);
+    if (floating_options.has_value() && floating_options->crop.has_value()) {
+        append_crop_node(blip_fill, *floating_options->crop);
+    }
     auto stretch = blip_fill.append_child("a:stretch");
     stretch.append_child("a:fillRect");
 

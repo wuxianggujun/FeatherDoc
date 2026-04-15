@@ -17,6 +17,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    project_identity_zh
    release_policy_zh
    release_history_backfill_playbook_zh
+   v1_7_roadmap_zh
    project_audit_zh
    upstream_issue_triage_zh
    licensing_zh
@@ -119,6 +120,12 @@ To reproduce the same screenshots locally on Windows with a real
         -PrepareReviewTask `
         -ReviewMode review-only
 
+    # Section page setup sample plus CLI rewrite bundle
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_section_page_setup_regression.ps1
+
+    # PAGE / NUMPAGES visual regression bundle
+    powershell -ExecutionPolicy Bypass -File .\scripts\run_page_number_fields_regression.ps1
+
     # One-shot local gate for both flows
     powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1
 
@@ -216,6 +223,24 @@ section-aware header/footer operations.
 
     featherdoc_cli inspect-sections input.docx
     featherdoc_cli inspect-sections input.docx --json
+    featherdoc_cli inspect-styles input.docx
+    featherdoc_cli inspect-styles input.docx --style Strong --json
+    featherdoc_cli inspect-styles input.docx --style Strong --usage
+    featherdoc_cli inspect-numbering input.docx
+    featherdoc_cli inspect-numbering input.docx --instance 1
+    featherdoc_cli inspect-numbering input.docx --definition 1 --json
+    featherdoc_cli inspect-page-setup input.docx
+    featherdoc_cli inspect-page-setup input.docx --section 1 --json
+    featherdoc_cli set-section-page-setup input.docx 1 --orientation landscape --width 15840 --height 12240 --margin-top 720 --output rotated.docx --json
+    featherdoc_cli inspect-bookmarks input.docx
+    featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
+    featherdoc_cli inspect-images input.docx
+    featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
+    featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
+    featherdoc_cli extract-image input.docx exported.png --relationship-id rId5 --json
+    featherdoc_cli replace-image input.docx replacement.gif --relationship-id rId5 --output updated.docx --json
+    featherdoc_cli remove-image input.docx --relationship-id rId5 --output pruned.docx --json
+    featherdoc_cli append-image input.docx badge.png --width 96 --height 48 --output with-image.docx --json
     featherdoc_cli inspect-header-parts input.docx --json
     featherdoc_cli inspect-footer-parts input.docx
     featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -232,6 +257,11 @@ section-aware header/footer operations.
     featherdoc_cli show-section-footer input.docx 2 --json
     featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
     featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
+    featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
+    featherdoc_cli append-total-pages-field input.docx --part section-footer --section 1 --kind first --output total-pages.docx --json
+    featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
+    featherdoc_cli validate-template input.docx --part header --index 0 --slot header_title:text --slot header_rows:table_rows --json
+    featherdoc_cli validate-template input.docx --part section-footer --section 1 --kind first --slot footer_company:text --slot footer_note:block:optional
 
 ``inspect-sections`` reports section counts together with per-section
 ``default`` / ``first`` / ``even`` header and footer attachment flags. The
@@ -241,6 +271,39 @@ data in a machine-readable object. The mutating commands also accept
 ``--json`` and emit ``command``, ``ok``, ``in_place``, ``sections``,
 ``headers``, and ``footers`` together with command-specific fields such as
 ``section``, ``source``, ``target``, ``part``, and ``kind``.
+``inspect-styles`` exposes the current style catalog through
+``Document::list_styles()`` and ``Document::find_style(...)``. With no extra
+flags it prints every loaded style summary in document order. Pass
+``--style <style-id>`` when you only want one style record, and ``--json``
+when you need the same fields in a machine-readable object. The output
+includes ``style_id``, ``name``, ``based_on``, ``kind``, ``type``, and the
+default/custom/hidden/quick-format flags.
+``inspect-page-setup`` exposes explicit per-section page geometry through
+``Document::get_section_page_setup(section_index)``. With no extra flags it
+prints every section together with a ``present=yes|no`` marker. Use
+``--section <index>`` when you only want one record, and ``--json`` when you
+need ``orientation``, ``width_twips``, ``height_twips``, margin twips, and
+the optional ``page_number_start`` in a machine-readable object. Sections
+without an explicit ``w:sectPr`` / ``w:pgSz`` / ``w:pgMar`` report
+``present=false``.
+``set-section-page-setup`` updates the explicit page geometry for one
+section. Pass any subset of ``--orientation``, ``--width``, ``--height``,
+margin flags, and ``--page-number-start`` / ``--clear-page-number-start`` to
+change only the fields you need. When the target section already has an
+explicit page setup, omitted fields are preserved. When the final section is
+still implicit, provide the full geometry once and FeatherDoc materializes the
+editable ``w:sectPr`` / ``w:pgSz`` / ``w:pgMar`` nodes automatically. Use
+``--output <path>`` to keep the source file untouched, and ``--json`` to emit
+the resolved page setup after the write.
+``inspect-bookmarks`` exposes the current bookmark catalog through
+``Document::list_bookmarks()``, ``Document::find_bookmark(...)``, and the
+same methods on ``TemplatePart``. With no extra flags it prints every
+bookmark summary for the resolved part. Use ``--bookmark <name>`` when you
+only want one record, and combine ``--part``, ``--index``, ``--section``,
+and ``--kind`` when you need to inspect headers, footers, or
+section-scoped parts. The output includes ``bookmark_name``,
+``occurrence_count``, inferred ``kind``, ``is_duplicate``, and the resolved
+``entry_name``.
 ``inspect-header-parts`` / ``inspect-footer-parts`` list loaded part indexes in
 the same order consumed by ``assign-section-*`` and ``remove-*-part``. Their
 output includes each part's relationship id, package entry path, section
@@ -259,6 +322,30 @@ paragraphs one line per paragraph. ``set-section-header`` /
 it is missing. ``show-section-header`` / ``show-section-footer`` also accept
 ``--json`` and emit ``part``, ``section``, ``kind``, ``present``, and
 ``paragraphs`` fields for scriptable inspection.
+``append-page-number-field`` / ``append-total-pages-field`` append Word
+``PAGE`` and ``NUMPAGES`` simple fields through
+``TemplatePart::append_page_number_field()`` and
+``TemplatePart::append_total_pages_field()``. They use the same target
+selection shape as ``inspect-bookmarks`` and ``validate-template``. Use
+``--part`` with ``body``, ``header``, ``footer``, ``section-header``, or
+``section-footer``; use ``--index`` for loaded header/footer parts; and use
+``--section`` plus optional ``--kind default|first|even`` for section-scoped
+parts. When the requested
+header/footer part does not exist yet, FeatherDoc materializes the writable
+part automatically before appending the field. Use ``--json`` to capture the
+resolved ``part``, ``part_index``, ``section``, ``kind``, ``entry_name``, and
+appended ``field``.
+``validate-template`` exposes the same read-only slot-schema validation as
+``Document::validate_template(...)`` and
+``TemplatePart::validate_template(...)``. Use
+``--part body|header|footer|section-header|section-footer`` to choose the
+target, ``--index`` for header/footer part indexes, ``--section`` plus the
+optional ``--kind default|first|even`` for section-scoped parts, and one or
+more ``--slot <bookmark>:<kind>[:required|optional]`` rules to describe the
+expected placeholders. The command always reports ``passed``,
+``missing_required``, ``duplicate_bookmarks``, and
+``malformed_placeholders``; ``--json`` also includes the resolved
+``entry_name``.
 
 Package Metadata
 ----------------
@@ -643,10 +730,13 @@ body/header/footer part wrapper. The current image support is limited to
 ``append_floating_image(path, width_px, height_px, options)`` create anchored
 ``wp:anchor`` images with explicit page/margin-relative offsets.
 ``floating_image_options`` currently lets you pick horizontal/vertical
-reference frames, pixel offsets, whether the image sits behind text, and
-whether overlap is allowed. The same API works on ``Document`` and
-``TemplatePart``. The generated floating drawing currently uses ``wrapNone``,
-so Word does not reflow surrounding text for you.
+reference frames, pixel offsets, whether the image sits behind text, whether
+overlap is allowed, the floating wrap mode plus wrap distances, and an
+optional per-edge crop expressed in per-mille units. The same API works on
+``Document`` and ``TemplatePart``. Use ``wrap_mode`` when you want
+``wrapNone``, square wrapping, or top/bottom-only flow around the anchored
+drawing. Use ``crop`` when you want FeatherDoc to emit ``a:srcRect`` trimming
+on the anchored picture fill.
 
 .. code-block:: cpp
 
@@ -657,6 +747,10 @@ so Word does not reflow surrounding text for you.
     options.vertical_reference =
         featherdoc::floating_image_vertical_reference::margin;
     options.vertical_offset_px = 24;
+    options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
+    options.wrap_distance_left_px = 12;
+    options.wrap_distance_right_px = 12;
+    options.crop = featherdoc::floating_image_crop{80, 0, 120, 0};
 
     doc.append_floating_image("badge.png", 144, 48, options);
 
@@ -672,7 +766,9 @@ pixel size derived from ``wp:extent``.
 current part, including both ``wp:inline`` and ``wp:anchor`` objects. Each
 ``drawing_image_info`` carries the same metadata plus a
 ``drawing_image_placement`` value that tells you whether the object is inline
-or anchored.
+or anchored. Anchored objects also expose optional ``floating_options`` with
+parsed reference targets, pixel offsets, wrap mode, wrap distances, overlap
+flags, and optional crop percentages read back from the current XML.
 
 ``extract_drawing_image(index, path)`` copies any existing drawing-backed
 image out of the ``.docx``. ``replace_drawing_image(index, path)`` swaps one
@@ -690,6 +786,56 @@ relationship still references it.
             doc.remove_drawing_image(image.index);
         }
     }
+
+The CLI exposes the same metadata through ``featherdoc_cli inspect-images``
+using the same body/header/footer/section-part selection shape as
+``inspect-bookmarks``. You can also narrow the result set by relationship id
+or resolved media entry path before inspecting the whole list or one image:
+
+.. code-block:: sh
+
+    featherdoc_cli inspect-images report.docx
+    featherdoc_cli inspect-images report.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
+    featherdoc_cli inspect-images report.docx --part header --index 0 --image 0 --json
+
+To export one existing drawing-backed image without mutating the ``.docx``,
+use ``featherdoc_cli extract-image`` with the same selectors plus the
+destination file path:
+
+.. code-block:: sh
+
+    featherdoc_cli extract-image report.docx exported.png --image 1 --json
+    featherdoc_cli extract-image report.docx exported.png --part header --index 0 --image-entry-name word/media/image1.png
+
+To replace one existing drawing-backed image while preserving the current size
+and inline/anchor placement XML, use ``featherdoc_cli replace-image`` with the
+same part/image selectors plus the new image path:
+
+.. code-block:: sh
+
+    featherdoc_cli replace-image report.docx replacement.gif --image 1 --output updated.docx --json
+    featherdoc_cli replace-image report.docx replacement.gif --part header --index 0 --image-entry-name word/media/image1.png
+
+To delete one existing drawing-backed image from the selected part, use
+``featherdoc_cli remove-image`` with the same selectors plus an optional
+``--output`` path:
+
+.. code-block:: sh
+
+    featherdoc_cli remove-image report.docx --image 1 --output pruned.docx --json
+    featherdoc_cli remove-image report.docx --part header --index 0 --relationship-id rId5
+
+To append a new image paragraph into the body, a header/footer part, or a
+section-scoped header/footer reference, use ``featherdoc_cli append-image``.
+The default output is an inline drawing; add ``--floating`` (or any floating
+layout option) when you want an anchored ``wp:anchor`` image instead. Use
+``--width`` plus ``--height`` for explicit scaling, or omit them to keep the
+source image's intrinsic size:
+
+.. code-block:: sh
+
+    featherdoc_cli append-image report.docx logo.png --width 96 --height 48 --output with-logo.docx --json
+    featherdoc_cli append-image report.docx badge.png --part section-header --section 0 --floating --horizontal-reference page --horizontal-offset 40 --vertical-reference margin --vertical-offset 12 --wrap-mode square --output header-badge.docx
 
 ``extract_inline_image(index, path)`` copies one existing inline body image out
 of the ``.docx``. ``replace_inline_image(index, path)`` swaps one body image
@@ -746,14 +892,82 @@ For a runnable list-restart example, build
 starts a second decimal list from ``1.``, and keeps the restarted sequence
 consistent in Word's rendered output.
 
+When you need an explicit custom numbering definition instead of the managed
+bullet or decimal presets, use ``ensure_numbering_definition(...)`` to create
+or refresh a named abstract numbering definition, then attach it with
+``set_paragraph_numbering(...)``.
+
+.. code-block:: cpp
+
+    featherdoc::numbering_definition outline{};
+    outline.name = "LegalOutline";
+    outline.levels = {
+        {featherdoc::list_kind::decimal, 3U, 0U, "%1."},
+        {featherdoc::list_kind::decimal, 1U, 1U, "%1.%2."},
+    };
+
+    const auto numbering_id = doc.ensure_numbering_definition(outline);
+    if (numbering_id.has_value()) {
+        auto paragraph = doc.paragraphs();
+        doc.set_paragraph_numbering(paragraph, *numbering_id);
+    }
+
+If you want paragraphs to inherit numbering through a paragraph style instead
+of writing ``w:numPr`` on each paragraph, attach the numbering definition to
+the style once with ``set_paragraph_style_numbering(...)``.
+
+.. code-block:: cpp
+
+    doc.ensure_paragraph_style("LegalHeading", body_style);
+
+    const auto numbering_id = doc.ensure_numbering_definition(outline);
+    if (numbering_id.has_value()) {
+        doc.set_paragraph_style_numbering("LegalHeading", *numbering_id, 1U);
+    }
+
+Use ``list_numbering_definitions()`` when you need the current numbering
+catalog as ``numbering_definition_summary`` records, or
+``find_numbering_definition(definition_id)`` when you want one definition's
+levels and attached instance ids. Use ``find_numbering_instance(instance_id)``
+to resolve a specific ``numId`` back to its definition and override summary.
+
+.. code-block:: cpp
+
+    const auto numbering = doc.list_numbering_definitions();
+    const auto outline_summary = numbering_id.has_value()
+                                     ? doc.find_numbering_definition(*numbering_id)
+                                     : std::nullopt;
+    const auto first_instance =
+        outline_summary.has_value() && !outline_summary->instance_ids.empty()
+            ? doc.find_numbering_instance(outline_summary->instance_ids.front())
+            : std::nullopt;
+
+The CLI exposes the same metadata through ``inspect-numbering``:
+
+.. code-block:: sh
+
+    featherdoc_cli inspect-numbering report.docx
+    featherdoc_cli inspect-numbering report.docx --instance 1
+    featherdoc_cli inspect-numbering report.docx --definition 1 --json
+
 ``set_paragraph_style(paragraph, style_id)`` and ``set_run_style(run,
 style_id)`` attach paragraph/run style references. When the source document
 does not already contain ``word/styles.xml``, FeatherDoc creates a minimal
 styles part automatically. The generated catalog currently includes
-``Normal``, ``Heading1``, ``Heading2``, ``Quote``, ``Emphasis``, and
-``Strong``.
+``Normal``, ``Heading1``, ``Heading2``, ``Quote``,
+``DefaultParagraphFont``, ``Emphasis``, ``Strong``, ``TableNormal``, and
+``TableGrid``. Use ``list_styles()`` when you want the current catalog as
+``style_summary`` records, or ``find_style(style_id)`` when you need one
+style's kind, display name, ``basedOn``, and common visibility or quick-format
+flags before attaching or editing style references. When a paragraph style
+already carries numbering metadata, ``style_summary::numbering`` also includes
+the resolved definition fields and the concrete numbering ``instance``
+summary.
 
 .. code-block:: cpp
+
+    const auto styles = doc.list_styles();
+    const auto heading = doc.find_style("Heading1");
 
     auto paragraph = doc.paragraphs();
     doc.set_paragraph_style(paragraph, "Heading1");
@@ -763,6 +977,45 @@ styles part automatically. The generated catalog currently includes
 
     doc.clear_run_style(styled_run);
     doc.clear_paragraph_style(paragraph);
+
+The CLI exposes the same metadata through ``inspect-styles``:
+
+.. code-block:: sh
+
+    featherdoc_cli inspect-styles report.docx
+    featherdoc_cli inspect-styles report.docx --style BodyText --json
+    featherdoc_cli inspect-styles report.docx --style BodyText --usage
+
+When a paragraph style carries ``w:numPr``, ``inspect-styles`` also resolves the
+referenced numbering instance so JSON output includes the concrete
+``instance`` summary and text output reports the override count.
+When you add ``--usage`` to a single-style inspection, the CLI also reports how
+many paragraphs, runs, and tables across ``word/document.xml``, headers, and
+footers reference that style. JSON and text output both include the aggregated
+totals plus separate ``body``, ``header``, and ``footer`` breakdowns.
+The usage payload also includes a ``hits`` list so you can see which part each
+match came from and its document-order ordinal within that part. Body hits now
+also expose ``section_index`` directly so each main-document match can be
+mapped back to its owning section. Header/footer hits keep ``section_index``
+empty and instead expose a ``references`` array so shared parts report every
+referencing ``section_index`` plus its ``default`` / ``first`` / ``even``
+reference kind.
+
+Use ``ensure_paragraph_style(...)``, ``ensure_character_style(...)``, and
+``ensure_table_style(...)`` when you want to create or refresh a custom style
+definition declaratively without replacing unrelated XML already stored on the
+style node.
+
+.. code-block:: cpp
+
+    featherdoc::paragraph_style_definition body_style{};
+    body_style.name = "Body Text";
+    body_style.based_on = std::string{"Normal"};
+    body_style.run_font_family = std::string{"Segoe UI"};
+    body_style.run_language = std::string{"en-US"};
+    body_style.is_quick_format = true;
+
+    doc.ensure_paragraph_style("BodyText", body_style);
 
 Formatting
 ----------
@@ -847,6 +1100,71 @@ matching bookmark range, and reports which requested fields were missing.
         }
     }
 
+``list_bookmarks()`` and ``find_bookmark(...)`` provide a read-only summary of
+the currently loaded bookmark placeholders before you start filling or
+rewriting them. Each ``bookmark_summary`` reports the bookmark name,
+occurrence count, and inferred shape (``text``, ``block``, ``table_rows``,
+``block_range``, ``mixed``, or ``malformed``).
+
+.. code-block:: cpp
+
+    const auto bookmarks = doc.list_bookmarks();
+    const auto line_items = doc.find_bookmark("line_items");
+
+    if (line_items.has_value() &&
+        line_items->kind == featherdoc::bookmark_kind::table_rows) {
+        std::cout << "line_items is a table-row placeholder" << std::endl;
+    }
+
+The CLI exposes the same metadata through ``featherdoc_cli inspect-bookmarks``:
+
+.. code-block:: sh
+
+    featherdoc_cli inspect-bookmarks invoice.docx
+    featherdoc_cli inspect-bookmarks report.docx --part header --index 0 --bookmark header_rows --json
+
+``validate_template(...)`` provides a read-only schema pass for body templates
+before you start filling bookmarks. It reports missing required slots,
+duplicate bookmark names, and placeholder shapes that do not match the
+requested slot kind.
+
+.. code-block:: cpp
+
+    const auto validation = doc.validate_template({
+        {"customer_name", featherdoc::template_slot_kind::text, true},
+        {"line_item_row", featherdoc::template_slot_kind::table_rows, true},
+        {"signature_block", featherdoc::template_slot_kind::block, false},
+    });
+
+    if (!validation) {
+        for (const auto& missing : validation.missing_required) {
+            std::cerr << "missing required slot: " << missing << std::endl;
+        }
+        for (const auto& duplicate : validation.duplicate_bookmarks) {
+            std::cerr << "duplicate bookmark: " << duplicate << std::endl;
+        }
+        for (const auto& malformed : validation.malformed_placeholders) {
+            std::cerr << "malformed placeholder: " << malformed << std::endl;
+        }
+    }
+
+For a runnable sample, build ``featherdoc_sample_template_validation`` from
+``samples/sample_template_validation.cpp``. It writes both a valid and an
+invalid template plus Markdown/JSON validation reports under
+``output/template-validation-visual``.
+
+The CLI exposes the same body-template check through
+``featherdoc_cli validate-template``:
+
+.. code-block:: sh
+
+    featherdoc_cli validate-template invoice.docx \
+      --part body \
+      --slot customer_name:text \
+      --slot line_item_row:table_rows \
+      --slot signature_block:block:optional \
+      --json
+
 ``replace_bookmark_with_paragraphs(...)`` replaces a bookmark that occupies
 its own paragraph with zero or more plain-text paragraphs. Passing an empty
 list removes the placeholder paragraph.
@@ -922,7 +1240,7 @@ the source image size; the second overload applies explicit scaling.
 ``replace_bookmark_with_floating_image(...)`` performs the same block-level
 bookmark replacement, but emits an anchored image paragraph instead. The
 floating placement uses the same ``floating_image_options`` struct as
-``append_floating_image(...)``.
+``append_floating_image(...)``, including wrap mode and wrap-distance control.
 
 .. code-block:: cpp
 
@@ -942,6 +1260,7 @@ an already loaded body/header/footer part. A valid handle exposes
 ``entry_name()``, ``paragraphs()``, ``append_paragraph(...)``, ``tables()``,
 ``append_table(...)``,
 ``replace_bookmark_text(...)``, ``fill_bookmarks(...)``,
+``validate_template(...)``,
 ``replace_bookmark_with_paragraphs(...)``, ``remove_bookmark_block(...)``,
 ``replace_bookmark_with_table_rows(...)``, and
 ``replace_bookmark_with_table(...)``, ``replace_bookmark_with_image(...)``,
@@ -953,6 +1272,25 @@ an already loaded body/header/footer part. A valid handle exposes
 ``set_bookmark_block_visibility(...)``, and
 ``apply_bookmark_block_visibility(...)``. Missing section-specific references
 return an empty handle instead of creating a new part implicitly.
+
+This also means header/footer and section-scoped template parts can be
+preflighted with the same slot schema rules used by
+``Document::validate_template(...)``. For a runnable example, build
+``featherdoc_sample_part_template_validation`` from
+``samples/sample_part_template_validation.cpp``. It writes one document with a
+valid header schema and an intentionally invalid footer schema under
+``output/part-template-validation-visual``.
+
+The same flow is also available from the CLI:
+
+.. code-block:: sh
+
+    featherdoc_cli validate-template report.docx \
+      --part section-footer \
+      --section 0 \
+      --slot footer_company:text \
+      --slot footer_summary:block \
+      --json
 
 .. code-block:: cpp
 
@@ -1064,6 +1402,56 @@ header/footer reference attached to a specific section.
             std::cout << header.runs().get_text() << std::endl;
         }
     }
+
+``get_section_page_setup(section_index)`` reads the explicit page geometry
+attached to a section. The returned ``section_page_setup`` contains the
+resolved ``orientation``, ``width_twips``, ``height_twips``,
+``margins``, and an optional ``page_number_start``. If the target section
+does not expose an explicit ``w:sectPr`` / ``w:pgSz`` / ``w:pgMar``, the API
+returns ``std::nullopt``.
+
+.. code-block:: cpp
+
+    for (std::size_t i = 0; i < doc.section_count(); ++i) {
+        const auto page_setup = doc.get_section_page_setup(i);
+        if (!page_setup.has_value()) {
+            continue;
+        }
+
+        std::cout << i << ": "
+                  << (page_setup->orientation ==
+                              featherdoc::page_orientation::landscape
+                          ? "landscape"
+                          : "portrait")
+                  << " " << page_setup->width_twips << "x"
+                  << page_setup->height_twips << std::endl;
+    }
+
+``set_section_page_setup(section_index, setup)`` updates the explicit page
+geometry for a section. FeatherDoc rewrites ``w:pgSz``, ``w:pgMar``, and
+``w:pgNumType/@w:start`` while preserving unrelated attributes such as paper
+codes, gutter values, or numbering formats. If the final section is still using
+an implicit body-level layout, the API materializes an editable ``w:sectPr``
+node automatically.
+
+.. code-block:: cpp
+
+    featherdoc::section_page_setup setup{};
+    setup.orientation = featherdoc::page_orientation::landscape;
+    setup.width_twips = 15840U;
+    setup.height_twips = 12240U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 1080U;
+    setup.margins.left_twips = 1440U;
+    setup.margins.right_twips = 1440U;
+    setup.margins.header_twips = 360U;
+    setup.margins.footer_twips = 540U;
+    setup.page_number_start = 1U;
+
+    doc.set_section_page_setup(1, setup);
+
+See ``samples/sample_section_page_setup.cpp`` for a complete two-section sample
+that keeps the opening page portrait and rotates the appendix to landscape.
 
 ``ensure_section_header_paragraphs(section_index, kind)`` and
 ``ensure_section_footer_paragraphs(section_index, kind)`` create and attach a
@@ -1276,16 +1664,21 @@ Current Limitations
   the page, pointed at existing table style ids, given basic table-level
   default cell margins and cell shading/margins, assigned row heights,
   controlled for page splitting, assigned cell vertical alignment and text
-  direction, marked to repeat header rows, and retuned through ``tblLook``
-  style-routing flags, but there is still no high-level API for custom table
-  style definitions or floating table positioning.
+  direction, marked to repeat header rows, retuned through ``tblLook``
+  style-routing flags, and given minimal custom table style definitions, but
+  there is still no high-level API for advanced table-style property editing or
+  floating table positioning.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
-  restart managed list sequences, but there is still no high-level API for
-  custom numbering definitions or paragraph style-based numbering.
-- Paragraph and run style references can now be attached and cleared, and a
-  minimal ``word/styles.xml`` is created automatically when needed, but there
-  is still no high-level API for custom style definition editing, style
-  catalog inspection, or inheritance-aware style management.
+  restart managed list sequences, and custom numbering definitions can now be
+  created through ``ensure_numbering_definition(...)`` /
+  ``set_paragraph_numbering(...)``, and paragraph styles can now be linked to a
+  numbering definition through ``set_paragraph_style_numbering(...)``, but
+  there is still no higher-level numbering-style abstraction.
+- Paragraph and run style references can now be attached and cleared, style
+  catalogs can be inspected through ``list_styles()`` / ``find_style()``, and
+  minimal paragraph/character/table style definitions can be created through
+  ``ensure_*_style(...)``, but there is still no inheritance-aware style
+  refactoring or style-linked numbering API.
 - Bookmark-based template filling now works across body, header, and footer
   parts through ``fill_bookmarks(...)``, the standalone replacement helpers,
   and ``TemplatePart`` handles returned by ``body_template()``,
@@ -1304,8 +1697,10 @@ Current Limitations
   ``append_floating_image(...)``, and bookmark-based floating image
   replacement is available through
   ``replace_bookmark_with_floating_image(...)`` across body, header, and
-  footer ``TemplatePart`` handles. Advanced wrapping and cropping control are
-  still not exposed as high-level APIs.
+  footer ``TemplatePart`` handles. Basic wrapping control is now exposed
+  through ``floating_image_options::wrap_mode`` plus per-edge wrap distances,
+  and anchored image cropping is exposed through
+  ``floating_image_options::crop``.
 
 Source Layout
 -------------

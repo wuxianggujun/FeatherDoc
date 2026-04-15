@@ -8,6 +8,83 @@ performance.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-04-15
+
+### Added
+
+- Added `featherdoc_cli replace-bookmark-image` and
+  `featherdoc_cli replace-bookmark-floating-image` so CLI workflows can replace
+  standalone bookmark placeholder paragraphs inside body/header/footer/
+  section-scoped template parts with inline or anchored drawing images,
+  including scaling, floating layout flags, and regression coverage.
+- Added `featherdoc_cli extract-image` and `featherdoc_cli remove-image` so
+  CLI workflows can export or delete existing drawing-backed images from
+  body/header/footer/section-scoped template parts using the same
+  `--image` / `--relationship-id` / `--image-entry-name` selection semantics
+  as `inspect-images`, with regression coverage and ignored CLI-generated
+  `.png` test artifacts.
+- Added `featherdoc_cli append-image` so CLI workflows can append new inline or
+  floating images into body/header/footer/section-scoped template parts, with
+  explicit scaling, floating layout flags, missing-part materialization, and
+  regression coverage for inline and anchored image insertion.
+- Added explicit per-section page setup read/write support through
+  `Document::get_section_page_setup(...)` and
+  `Document::set_section_page_setup(...)`, including round-trip coverage for
+  implicit final sections, section-local `w:pgSz` / `w:pgMar` updates, and
+  optional `page_number_start` handling.
+- Added `featherdoc_sample_section_page_setup`, `featherdoc_cli
+  inspect-page-setup`, and `featherdoc_cli set-section-page-setup`, together
+  with CLI regression coverage for partial updates and implicit-final-section
+  materialization.
+- Added `TemplatePart::append_page_number_field()` and
+  `TemplatePart::append_total_pages_field()`, the
+  `featherdoc_sample_page_number_fields` sample, and matching
+  `featherdoc_cli append-page-number-field` /
+  `featherdoc_cli append-total-pages-field` commands so page-number fields can
+  be appended to body, header, footer, and section-scoped template parts with
+  regression coverage.
+- Added `scripts/run_section_page_setup_regression.ps1` and the
+  `section_page_setup_regression_bundle` PowerShell test so the repository now
+  has a one-shot bundle for the API sample, the CLI rewrite flow, machine-
+  readable page-setup inspection JSON, and optional Word-rendered evidence.
+- Added `scripts/run_page_number_fields_regression.ps1` and the
+  `page_number_fields_regression_bundle` PowerShell test so the repository now
+  has a screenshot-backed review bundle for API-written and CLI-appended
+  `PAGE` / `NUMPAGES` fields, together with per-case `field_summary.json`
+  artifacts.
+- Added richer style inspection coverage through `Document::find_style(...)`,
+  `Document::find_style_usage(...)`, and `featherdoc_cli inspect-styles`,
+  including style-linked numbering summaries, body/header/footer usage
+  breakdowns, and per-hit `references` metadata that reports which sections
+  reuse a shared header/footer part via `default` / `first` / `even`
+  relationships.
+- Extended style-usage hit reporting so body matches now carry their owning
+  `section_index`, while header/footer hits continue to expose shared-part
+  section linkage through `references` metadata.
+- Extended floating image placement so `floating_image_options` now supports
+  `wrap_mode` plus per-edge wrap distances for square and top/bottom text
+  flow around anchored drawings written through `Document`,
+  `TemplatePart`, and bookmark-replacement helpers.
+- Extended `floating_image_options` with optional per-edge
+  `floating_image_crop` values so anchored images can write `a:srcRect`
+  trimming through `Document`, `TemplatePart`, and bookmark-replacement
+  helpers, with validation that rejects crop values that would remove the
+  visible image area.
+- Extended `drawing_image_info` so `drawing_images()` now reads back anchored
+  `floating_options` metadata, including reference targets, offsets, wrap
+  distances, overlap flags, and crop percentages from existing `wp:anchor`
+  drawings.
+- Added `featherdoc_cli inspect-images` so body, header, footer, and
+  section-scoped template parts can expose inline versus anchored drawing
+  metadata from the CLI, with JSON/text output and regression coverage.
+- Extended `featherdoc_cli inspect-images` with `--relationship-id` and
+  `--image-entry-name` filters so image inspection can target a stable drawing
+  relationship or resolved media package path before emitting list/single-image
+  output.
+- Added `featherdoc_cli replace-image` so existing body/header/footer/
+  section-scoped drawing images can be replaced from the CLI while preserving
+  their current size and inline versus anchored placement metadata.
+
 ### Fixed
 
 - Added `scripts/assert_release_material_safety.ps1`, wired it into

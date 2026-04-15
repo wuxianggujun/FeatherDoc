@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(
     FeatherDoc
-    VERSION 1.6.4
+    VERSION 1.7.0
     DESCRIPTION "Modern C++ .docx library focused on explicit diagnostics, MSVC support, and clean API behavior"
     LANGUAGES C CXX
 )
@@ -280,6 +280,36 @@ if(BUILD_SAMPLES)
     target_link_libraries(featherdoc_sample_restart_paragraph_list
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_restart_paragraph_list)
+
+    add_executable(featherdoc_sample_style_linked_numbering
+        samples/sample_style_linked_numbering.cpp)
+    target_link_libraries(featherdoc_sample_style_linked_numbering
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_style_linked_numbering)
+
+    add_executable(featherdoc_sample_section_page_setup
+        samples/sample_section_page_setup.cpp)
+    target_link_libraries(featherdoc_sample_section_page_setup
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_section_page_setup)
+
+    add_executable(featherdoc_sample_page_number_fields
+        samples/sample_page_number_fields.cpp)
+    target_link_libraries(featherdoc_sample_page_number_fields
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_page_number_fields)
+
+    add_executable(featherdoc_sample_template_validation
+        samples/sample_template_validation.cpp)
+    target_link_libraries(featherdoc_sample_template_validation
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_template_validation)
+
+    add_executable(featherdoc_sample_part_template_validation
+        samples/sample_part_template_validation.cpp)
+    target_link_libraries(featherdoc_sample_part_template_validation
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_part_template_validation)
 
     add_executable(featherdoc_sample_insert_table_row
         samples/sample_insert_table_row.cpp)

@@ -14,7 +14,7 @@
 
 1. 目标是检查 `{{DOC_NAME}}` 的最终肉眼可见效果，而不是只看 XML、结构树、单元测试或程序返回值。
 2. 只允许使用脚本产出的 PDF/PNG 证据做结论，不要再直接打开 Word 查看最终效果。
-3. 必须先执行上面的渲染命令，并确认脚本成功生成 PDF、分页 PNG、联系图和报告骨架。
+3. 如果任务包里已经有 `{{REPORT_DIR}}\summary.json`、`{{REPORT_DIR}}\review_checklist.md`、`{{EVIDENCE_DIR}}\contact_sheet.png` 和 `{{EVIDENCE_DIR}}\pages\*.png`，优先复用这些现成证据；只有在证据缺失、明显过期或与当前文档不一致时，才执行上面的渲染命令。
 4. 若脚本执行失败、Word 导出失败、PDF 缺失、分页 PNG 缺失，或证据不完整，结论只能是“无法判定”，不能输出“通过”。
 5. 只允许做视觉检查和问题定位，不要修改文档。
 6. 必须把截图依据和结论回写到 `{{REPORT_DIR}}`。
@@ -22,8 +22,8 @@
 执行顺序：
 
 1. 验证 `{{DOCX_PATH}}` 存在，并在输出中明确写出绝对路径。
-2. 执行渲染命令：`powershell -ExecutionPolicy Bypass -File "{{WORKSPACE}}\scripts\run_word_visual_smoke.ps1" -InputDocx "{{DOCX_PATH}}" -OutputDir "{{TASK_DIR}}"`。
-3. 验证以下产物已经生成：
+2. 先检查任务包里是否已经存在以下产物；若缺失、明显过期或不对应当前文档，再执行渲染命令：`powershell -ExecutionPolicy Bypass -File "{{WORKSPACE}}\scripts\run_word_visual_smoke.ps1" -InputDocx "{{DOCX_PATH}}" -OutputDir "{{TASK_DIR}}"`。
+3. 验证以下产物已经生成且可读：
    - `{{REPORT_DIR}}\summary.json`
    - `{{REPORT_DIR}}\review_checklist.md`
    - `{{REPORT_DIR}}\review_result.json`

@@ -10,6 +10,7 @@
 #define FEATHERDOC_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <initializer_list>
 #include <memory>
@@ -329,6 +330,75 @@ struct bookmark_block_visibility_result {
     }
 };
 
+enum class template_slot_kind : std::uint8_t {
+    text = 0U,
+    table_rows,
+    table,
+    image,
+    floating_image,
+    block,
+};
+
+struct template_slot_requirement {
+    std::string bookmark_name;
+    featherdoc::template_slot_kind kind{featherdoc::template_slot_kind::text};
+    bool required{true};
+};
+
+struct template_validation_result {
+    std::vector<std::string> missing_required;
+    std::vector<std::string> duplicate_bookmarks;
+    std::vector<std::string> malformed_placeholders;
+
+    explicit operator bool() const noexcept {
+        return this->missing_required.empty() &&
+               this->duplicate_bookmarks.empty() &&
+               this->malformed_placeholders.empty();
+    }
+};
+
+enum class page_orientation : std::uint8_t {
+    portrait = 0U,
+    landscape,
+};
+
+struct page_margins {
+    std::uint32_t top_twips{};
+    std::uint32_t bottom_twips{};
+    std::uint32_t left_twips{};
+    std::uint32_t right_twips{};
+    std::uint32_t header_twips{};
+    std::uint32_t footer_twips{};
+};
+
+struct section_page_setup {
+    featherdoc::page_orientation orientation{
+        featherdoc::page_orientation::portrait};
+    std::uint32_t width_twips{};
+    std::uint32_t height_twips{};
+    featherdoc::page_margins margins{};
+    std::optional<std::uint32_t> page_number_start;
+};
+
+enum class bookmark_kind : std::uint8_t {
+    text = 0U,
+    block,
+    table_rows,
+    block_range,
+    malformed,
+    mixed,
+};
+
+struct bookmark_summary {
+    std::string bookmark_name;
+    std::size_t occurrence_count{};
+    featherdoc::bookmark_kind kind{featherdoc::bookmark_kind::text};
+
+    [[nodiscard]] bool is_duplicate() const noexcept {
+        return this->occurrence_count > 1U;
+    }
+};
+
 struct inline_image_info {
     std::size_t index{};
     std::string relationship_id;
@@ -358,6 +428,19 @@ enum class floating_image_vertical_reference : std::uint8_t {
     line,
 };
 
+enum class floating_image_wrap_mode : std::uint8_t {
+    none = 0U,
+    square,
+    top_bottom,
+};
+
+struct floating_image_crop {
+    std::uint32_t left_per_mille{0};
+    std::uint32_t top_per_mille{0};
+    std::uint32_t right_per_mille{0};
+    std::uint32_t bottom_per_mille{0};
+};
+
 struct floating_image_options {
     featherdoc::floating_image_horizontal_reference horizontal_reference{
         featherdoc::floating_image_horizontal_reference::column};
@@ -367,6 +450,13 @@ struct floating_image_options {
     std::int32_t vertical_offset_px{0};
     bool behind_text{false};
     bool allow_overlap{true};
+    featherdoc::floating_image_wrap_mode wrap_mode{
+        featherdoc::floating_image_wrap_mode::none};
+    std::uint32_t wrap_distance_left_px{0};
+    std::uint32_t wrap_distance_right_px{0};
+    std::uint32_t wrap_distance_top_px{0};
+    std::uint32_t wrap_distance_bottom_px{0};
+    std::optional<featherdoc::floating_image_crop> crop;
 };
 
 struct drawing_image_info {
@@ -378,6 +468,160 @@ struct drawing_image_info {
     std::string content_type;
     std::uint32_t width_px{};
     std::uint32_t height_px{};
+    std::optional<featherdoc::floating_image_options> floating_options;
+};
+
+struct numbering_level_definition {
+    featherdoc::list_kind kind{};
+    std::uint32_t start{1U};
+    std::uint32_t level{0U};
+    std::string text_pattern;
+};
+
+struct numbering_definition {
+    std::string name;
+    std::vector<featherdoc::numbering_level_definition> levels;
+};
+
+struct numbering_level_override_summary {
+    std::uint32_t level{};
+    std::optional<std::uint32_t> start_override;
+    std::optional<featherdoc::numbering_level_definition> level_definition;
+};
+
+struct numbering_instance_summary {
+    std::uint32_t instance_id{};
+    std::vector<featherdoc::numbering_level_override_summary> level_overrides;
+};
+
+enum class style_kind : std::uint8_t {
+    paragraph = 0U,
+    character,
+    table,
+    numbering,
+    unknown,
+};
+
+struct style_summary {
+    struct numbering_summary {
+        std::optional<std::uint32_t> num_id;
+        std::optional<std::uint32_t> level;
+        std::optional<std::uint32_t> definition_id;
+        std::optional<std::string> definition_name;
+        std::optional<featherdoc::numbering_instance_summary> instance;
+    };
+
+    std::string style_id;
+    std::string name;
+    std::optional<std::string> based_on;
+    featherdoc::style_kind kind{featherdoc::style_kind::unknown};
+    std::string type_name;
+    std::optional<numbering_summary> numbering;
+    bool is_default{false};
+    bool is_custom{false};
+    bool is_semi_hidden{false};
+    bool is_unhide_when_used{false};
+    bool is_quick_format{false};
+};
+
+struct style_usage_breakdown {
+    std::size_t paragraph_count{0};
+    std::size_t run_count{0};
+    std::size_t table_count{0};
+
+    [[nodiscard]] std::size_t total_count() const {
+        return paragraph_count + run_count + table_count;
+    }
+};
+
+enum class style_usage_part_kind { body, header, footer };
+
+enum class style_usage_hit_kind { paragraph, run, table };
+
+struct style_usage_hit_reference {
+    std::size_t section_index{0};
+    featherdoc::section_reference_kind reference_kind{
+        featherdoc::section_reference_kind::default_reference};
+};
+
+struct style_usage_hit {
+    featherdoc::style_usage_part_kind part{featherdoc::style_usage_part_kind::body};
+    featherdoc::style_usage_hit_kind kind{featherdoc::style_usage_hit_kind::paragraph};
+    std::string entry_name;
+    std::size_t ordinal{0};
+    std::optional<std::size_t> section_index;
+    std::vector<featherdoc::style_usage_hit_reference> references{};
+};
+
+struct style_usage_summary {
+    std::string style_id;
+    std::size_t paragraph_count{0};
+    std::size_t run_count{0};
+    std::size_t table_count{0};
+    featherdoc::style_usage_breakdown body{};
+    featherdoc::style_usage_breakdown header{};
+    featherdoc::style_usage_breakdown footer{};
+    std::vector<featherdoc::style_usage_hit> hits{};
+
+    [[nodiscard]] std::size_t total_count() const {
+        return paragraph_count + run_count + table_count;
+    }
+};
+
+struct paragraph_style_definition {
+    std::string name;
+    std::optional<std::string> based_on;
+    std::optional<std::string> next_style;
+    bool is_custom{true};
+    bool is_semi_hidden{false};
+    bool is_unhide_when_used{false};
+    bool is_quick_format{false};
+    std::optional<std::string> run_font_family;
+    std::optional<std::string> run_east_asia_font_family;
+    std::optional<std::string> run_language;
+    std::optional<std::string> run_east_asia_language;
+    std::optional<std::string> run_bidi_language;
+    std::optional<bool> run_rtl;
+    std::optional<bool> paragraph_bidi;
+    std::optional<std::uint32_t> outline_level;
+};
+
+struct character_style_definition {
+    std::string name;
+    std::optional<std::string> based_on;
+    bool is_custom{true};
+    bool is_semi_hidden{false};
+    bool is_unhide_when_used{false};
+    bool is_quick_format{false};
+    std::optional<std::string> run_font_family;
+    std::optional<std::string> run_east_asia_font_family;
+    std::optional<std::string> run_language;
+    std::optional<std::string> run_east_asia_language;
+    std::optional<std::string> run_bidi_language;
+    std::optional<bool> run_rtl;
+};
+
+struct table_style_definition {
+    std::string name;
+    std::optional<std::string> based_on;
+    bool is_custom{true};
+    bool is_semi_hidden{false};
+    bool is_unhide_when_used{false};
+    bool is_quick_format{false};
+};
+
+struct numbering_definition_summary {
+    std::uint32_t definition_id{};
+    std::string name;
+    std::vector<featherdoc::numbering_level_definition> levels;
+    std::vector<std::uint32_t> instance_ids;
+    std::vector<featherdoc::numbering_instance_summary> instances;
+};
+
+struct numbering_instance_lookup_summary {
+    std::uint32_t definition_id{};
+    std::string definition_name;
+    featherdoc::numbering_instance_summary instance;
 };
 
 class TemplatePart {
@@ -413,6 +657,8 @@ class TemplatePart {
         const std::filesystem::path &image_path, std::uint32_t width_px,
         std::uint32_t height_px,
         featherdoc::floating_image_options options = {});
+    [[nodiscard]] bool append_page_number_field();
+    [[nodiscard]] bool append_total_pages_field();
 
     [[nodiscard]] std::size_t replace_bookmark_text(const std::string &bookmark_name,
                                                     const std::string &replacement);
@@ -422,6 +668,13 @@ class TemplatePart {
         std::span<const bookmark_text_binding> bindings);
     [[nodiscard]] bookmark_fill_result fill_bookmarks(
         std::initializer_list<bookmark_text_binding> bindings);
+    [[nodiscard]] std::vector<bookmark_summary> list_bookmarks() const;
+    [[nodiscard]] std::optional<bookmark_summary> find_bookmark(
+        std::string_view bookmark_name) const;
+    [[nodiscard]] template_validation_result validate_template(
+        std::span<const template_slot_requirement> requirements) const;
+    [[nodiscard]] template_validation_result validate_template(
+        std::initializer_list<template_slot_requirement> requirements) const;
     [[nodiscard]] std::size_t replace_bookmark_with_paragraphs(
         std::string_view bookmark_name, const std::vector<std::string> &paragraphs);
     [[nodiscard]] std::size_t replace_bookmark_with_table_rows(
@@ -657,6 +910,10 @@ class Document {
     [[nodiscard]] std::size_t section_count() const noexcept;
     [[nodiscard]] std::size_t header_count() const noexcept;
     [[nodiscard]] std::size_t footer_count() const noexcept;
+    [[nodiscard]] std::optional<section_page_setup> get_section_page_setup(
+        std::size_t section_index) const;
+    [[nodiscard]] bool set_section_page_setup(std::size_t section_index,
+                                              const section_page_setup &setup);
     [[nodiscard]] TemplatePart body_template();
     [[nodiscard]] TemplatePart header_template(std::size_t index = 0U);
     [[nodiscard]] TemplatePart footer_template(std::size_t index = 0U);
@@ -726,6 +983,13 @@ class Document {
         std::span<const bookmark_text_binding> bindings);
     [[nodiscard]] bookmark_fill_result fill_bookmarks(
         std::initializer_list<bookmark_text_binding> bindings);
+    [[nodiscard]] std::vector<bookmark_summary> list_bookmarks() const;
+    [[nodiscard]] std::optional<bookmark_summary> find_bookmark(
+        std::string_view bookmark_name) const;
+    [[nodiscard]] template_validation_result validate_template(
+        std::span<const template_slot_requirement> requirements) const;
+    [[nodiscard]] template_validation_result validate_template(
+        std::initializer_list<template_slot_requirement> requirements) const;
     [[nodiscard]] std::size_t replace_bookmark_with_paragraphs(
         std::string_view bookmark_name, const std::vector<std::string> &paragraphs);
     [[nodiscard]] std::size_t replace_bookmark_with_table_rows(
@@ -757,6 +1021,17 @@ class Document {
     [[nodiscard]] bool restart_paragraph_list(
         Paragraph paragraph, featherdoc::list_kind kind, std::uint32_t level = 0U);
     [[nodiscard]] bool clear_paragraph_list(Paragraph paragraph);
+    [[nodiscard]] std::vector<featherdoc::numbering_definition_summary>
+    list_numbering_definitions();
+    [[nodiscard]] std::optional<featherdoc::numbering_definition_summary>
+    find_numbering_definition(std::uint32_t definition_id);
+    [[nodiscard]] std::optional<featherdoc::numbering_instance_lookup_summary>
+    find_numbering_instance(std::uint32_t instance_id);
+    [[nodiscard]] std::optional<std::uint32_t> ensure_numbering_definition(
+        const featherdoc::numbering_definition &definition);
+    [[nodiscard]] bool set_paragraph_numbering(Paragraph paragraph,
+                                               std::uint32_t numbering_definition_id,
+                                               std::uint32_t level = 0U);
     [[nodiscard]] std::optional<std::string> default_run_font_family();
     [[nodiscard]] std::optional<std::string> default_run_east_asia_font_family();
     [[nodiscard]] std::optional<std::string> default_run_language();
@@ -775,6 +1050,20 @@ class Document {
     [[nodiscard]] bool clear_default_run_language();
     [[nodiscard]] bool clear_default_run_rtl();
     [[nodiscard]] bool clear_default_paragraph_bidi();
+    [[nodiscard]] std::vector<featherdoc::style_summary> list_styles();
+    [[nodiscard]] std::optional<featherdoc::style_summary> find_style(
+        std::string_view style_id);
+    [[nodiscard]] std::optional<featherdoc::style_usage_summary> find_style_usage(
+        std::string_view style_id);
+    [[nodiscard]] bool ensure_paragraph_style(
+        std::string_view style_id,
+        const featherdoc::paragraph_style_definition &definition);
+    [[nodiscard]] bool ensure_character_style(
+        std::string_view style_id,
+        const featherdoc::character_style_definition &definition);
+    [[nodiscard]] bool ensure_table_style(
+        std::string_view style_id,
+        const featherdoc::table_style_definition &definition);
     [[nodiscard]] std::optional<std::string> style_run_font_family(std::string_view style_id);
     [[nodiscard]] std::optional<std::string> style_run_east_asia_font_family(
         std::string_view style_id);
@@ -803,6 +1092,10 @@ class Document {
     [[nodiscard]] bool clear_style_run_language(std::string_view style_id);
     [[nodiscard]] bool clear_style_run_rtl(std::string_view style_id);
     [[nodiscard]] bool clear_style_paragraph_bidi(std::string_view style_id);
+    [[nodiscard]] bool set_paragraph_style_numbering(
+        std::string_view style_id, std::uint32_t numbering_definition_id,
+        std::uint32_t level = 0U);
+    [[nodiscard]] bool clear_paragraph_style_numbering(std::string_view style_id);
     [[nodiscard]] bool set_paragraph_style(Paragraph paragraph, std::string_view style_id);
     [[nodiscard]] bool clear_paragraph_style(Paragraph paragraph);
     [[nodiscard]] bool set_run_style(Run run, std::string_view style_id);

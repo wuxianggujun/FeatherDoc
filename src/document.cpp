@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cstdlib>
 #include <filesystem>
 #include <string>
@@ -207,6 +208,34 @@ auto set_last_error(featherdoc::document_error_info &error_info,
     -> std::error_code {
     return set_last_error(error_info, featherdoc::make_error_code(code),
                           std::move(detail), std::move(entry_name), xml_offset);
+}
+
+enum class xml_uint_attribute_status {
+    ok,
+    missing,
+    invalid,
+};
+
+auto parse_xml_uint32_attribute(pugi::xml_node node, const char *attribute_name,
+                                std::uint32_t &value) -> xml_uint_attribute_status {
+    const auto attribute = node.attribute(attribute_name);
+    if (attribute == pugi::xml_attribute{}) {
+        return xml_uint_attribute_status::missing;
+    }
+
+    const auto text = std::string_view{attribute.value()};
+    if (text.empty()) {
+        return xml_uint_attribute_status::invalid;
+    }
+
+    const auto *begin = text.data();
+    const auto *end = begin + text.size();
+    const auto result = std::from_chars(begin, end, value);
+    if (result.ec != std::errc{} || result.ptr != end) {
+        return xml_uint_attribute_status::invalid;
+    }
+
+    return xml_uint_attribute_status::ok;
 }
 
 enum class zip_entry_read_status {
@@ -479,6 +508,109 @@ auto ensure_section_title_page_node(pugi::xml_node section_properties) -> pugi::
     }
     value_attribute.set_value("1");
     return title_page;
+}
+
+auto append_section_property_node(pugi::xml_node section_properties, const char *child_name)
+    -> pugi::xml_node {
+    const auto child_name_view = std::string_view{child_name};
+    auto insertion_anchor = pugi::xml_node{};
+
+    auto should_insert_before = [child_name_view](std::string_view existing_name) {
+        if (child_name_view == "w:pgSz") {
+            return existing_name == "w:pgMar" || existing_name == "w:paperSrc" ||
+                   existing_name == "w:pgBorders" ||
+                   existing_name == "w:lnNumType" ||
+                   existing_name == "w:pgNumType" || existing_name == "w:cols" ||
+                   existing_name == "w:formProt" || existing_name == "w:vAlign" ||
+                   existing_name == "w:noEndnote" || existing_name == "w:titlePg" ||
+                   existing_name == "w:textDirection" || existing_name == "w:bidi" ||
+                   existing_name == "w:rtlGutter" ||
+                   existing_name == "w:docGrid" ||
+                   existing_name == "w:printerSettings" ||
+                   existing_name == "w:sectPrChange";
+        }
+
+        if (child_name_view == "w:pgMar") {
+            return existing_name == "w:paperSrc" ||
+                   existing_name == "w:pgBorders" ||
+                   existing_name == "w:lnNumType" ||
+                   existing_name == "w:pgNumType" || existing_name == "w:cols" ||
+                   existing_name == "w:formProt" || existing_name == "w:vAlign" ||
+                   existing_name == "w:noEndnote" || existing_name == "w:titlePg" ||
+                   existing_name == "w:textDirection" || existing_name == "w:bidi" ||
+                   existing_name == "w:rtlGutter" ||
+                   existing_name == "w:docGrid" ||
+                   existing_name == "w:printerSettings" ||
+                   existing_name == "w:sectPrChange";
+        }
+
+        if (child_name_view == "w:pgNumType") {
+            return existing_name == "w:cols" || existing_name == "w:formProt" ||
+                   existing_name == "w:vAlign" || existing_name == "w:noEndnote" ||
+                   existing_name == "w:titlePg" ||
+                   existing_name == "w:textDirection" || existing_name == "w:bidi" ||
+                   existing_name == "w:rtlGutter" ||
+                   existing_name == "w:docGrid" ||
+                   existing_name == "w:printerSettings" ||
+                   existing_name == "w:sectPrChange";
+        }
+
+        return false;
+    };
+
+    for (auto child = section_properties.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (should_insert_before(std::string_view{child.name()})) {
+            insertion_anchor = child;
+            break;
+        }
+    }
+
+    return insertion_anchor == pugi::xml_node{}
+               ? section_properties.append_child(child_name)
+               : section_properties.insert_child_before(child_name, insertion_anchor);
+}
+
+auto ensure_section_property_node(pugi::xml_node section_properties, const char *child_name)
+    -> pugi::xml_node {
+    auto child = section_properties.child(child_name);
+    if (child != pugi::xml_node{}) {
+        return child;
+    }
+
+    return append_section_property_node(section_properties, child_name);
+}
+
+auto ensure_xml_uint32_attribute(pugi::xml_node node, const char *attribute_name,
+                                 std::uint32_t value) -> bool {
+    if (node == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto attribute = node.attribute(attribute_name);
+    if (attribute == pugi::xml_attribute{}) {
+        attribute = node.append_attribute(attribute_name);
+    }
+    if (attribute == pugi::xml_attribute{}) {
+        return false;
+    }
+
+    const auto text = std::to_string(value);
+    return attribute.set_value(text.c_str());
+}
+
+void remove_empty_node(pugi::xml_node node) {
+    if (node == pugi::xml_node{}) {
+        return;
+    }
+
+    if (node.first_child() != pugi::xml_node{} || node_has_attributes(node)) {
+        return;
+    }
+
+    if (auto parent = node.parent(); parent != pugi::xml_node{}) {
+        parent.remove_child(node);
+    }
 }
 
 auto section_break_paragraph_for(pugi::xml_node section_properties) -> pugi::xml_node {
@@ -2133,6 +2265,220 @@ std::size_t Document::header_count() const noexcept { return this->header_parts.
 
 std::size_t Document::footer_count() const noexcept { return this->footer_parts.size(); }
 
+std::optional<section_page_setup> Document::get_section_page_setup(
+    std::size_t section_index) const {
+    this->last_error_info.clear();
+
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting section page setup");
+        return std::nullopt;
+    }
+
+    const auto body = this->document.child("w:document").child("w:body");
+    if (body == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "document.xml does not contain the expected w:document/w:body structure",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    if (section_index >= this->section_count()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "section index is out of range for page setup inspection",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto section_properties = this->section_properties(section_index);
+    if (section_properties == pugi::xml_node{}) {
+        this->last_error_info.clear();
+        return std::nullopt;
+    }
+
+    const auto page_size = section_properties.child("w:pgSz");
+    const auto page_margins = section_properties.child("w:pgMar");
+    if (page_size == pugi::xml_node{} || page_margins == pugi::xml_node{}) {
+        this->last_error_info.clear();
+        return std::nullopt;
+    }
+
+    auto require_uint32_attribute =
+        [this](pugi::xml_node node, const char *attribute_name, std::uint32_t &value)
+        -> bool {
+        const auto status = parse_xml_uint32_attribute(node, attribute_name, value);
+        if (status == xml_uint_attribute_status::ok) {
+            return true;
+        }
+
+        std::string detail = "invalid section page setup attribute ";
+        detail += node.name();
+        detail += '/';
+        detail += attribute_name;
+        if (status == xml_uint_attribute_status::missing) {
+            detail += " (missing)";
+        } else {
+            detail += " (expected unsigned integer)";
+        }
+
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       std::move(detail), std::string{document_xml_entry});
+        return false;
+    };
+
+    featherdoc::section_page_setup result;
+    if (!require_uint32_attribute(page_size, "w:w", result.width_twips) ||
+        !require_uint32_attribute(page_size, "w:h", result.height_twips) ||
+        !require_uint32_attribute(page_margins, "w:top", result.margins.top_twips) ||
+        !require_uint32_attribute(page_margins, "w:bottom",
+                                  result.margins.bottom_twips) ||
+        !require_uint32_attribute(page_margins, "w:left", result.margins.left_twips) ||
+        !require_uint32_attribute(page_margins, "w:right",
+                                  result.margins.right_twips) ||
+        !require_uint32_attribute(page_margins, "w:header",
+                                  result.margins.header_twips) ||
+        !require_uint32_attribute(page_margins, "w:footer",
+                                  result.margins.footer_twips)) {
+        return std::nullopt;
+    }
+
+    const auto orientation =
+        std::string_view{page_size.attribute("w:orient").value()};
+    if (orientation.empty() || orientation == "portrait") {
+        result.orientation = featherdoc::page_orientation::portrait;
+    } else if (orientation == "landscape") {
+        result.orientation = featherdoc::page_orientation::landscape;
+    } else {
+        std::string detail = "unsupported section page orientation: ";
+        detail += orientation;
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       std::move(detail), std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto page_numbering = section_properties.child("w:pgNumType");
+    if (page_numbering != pugi::xml_node{}) {
+        std::uint32_t page_number_start = 0U;
+        switch (parse_xml_uint32_attribute(page_numbering, "w:start",
+                                           page_number_start)) {
+        case xml_uint_attribute_status::ok:
+            result.page_number_start = page_number_start;
+            break;
+        case xml_uint_attribute_status::missing:
+            break;
+        case xml_uint_attribute_status::invalid:
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "invalid section page setup attribute w:pgNumType/w:start "
+                           "(expected unsigned integer)",
+                           std::string{document_xml_entry});
+            return std::nullopt;
+        }
+    }
+
+    this->last_error_info.clear();
+    return result;
+}
+
+bool Document::set_section_page_setup(std::size_t section_index,
+                                      const section_page_setup &setup) {
+    this->last_error_info.clear();
+
+    if (setup.width_twips == 0U || setup.height_twips == 0U) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "section page width and height must be greater than zero",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    auto section_properties = this->ensure_section_properties(section_index);
+    if (section_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto page_size = ensure_section_property_node(section_properties, "w:pgSz");
+    if (page_size == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:pgSz for section page setup",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    auto page_margins = ensure_section_property_node(section_properties, "w:pgMar");
+    if (page_margins == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:pgMar for section page setup",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    if (!ensure_xml_uint32_attribute(page_size, "w:w", setup.width_twips) ||
+        !ensure_xml_uint32_attribute(page_size, "w:h", setup.height_twips) ||
+        !ensure_xml_uint32_attribute(page_margins, "w:top", setup.margins.top_twips) ||
+        !ensure_xml_uint32_attribute(page_margins, "w:bottom",
+                                     setup.margins.bottom_twips) ||
+        !ensure_xml_uint32_attribute(page_margins, "w:left",
+                                     setup.margins.left_twips) ||
+        !ensure_xml_uint32_attribute(page_margins, "w:right",
+                                     setup.margins.right_twips) ||
+        !ensure_xml_uint32_attribute(page_margins, "w:header",
+                                     setup.margins.header_twips) ||
+        !ensure_xml_uint32_attribute(page_margins, "w:footer",
+                                     setup.margins.footer_twips)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to write section page setup attributes",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    if (setup.orientation == featherdoc::page_orientation::landscape) {
+        auto orientation_attribute = page_size.attribute("w:orient");
+        if (orientation_attribute == pugi::xml_attribute{}) {
+            orientation_attribute = page_size.append_attribute("w:orient");
+        }
+        if (orientation_attribute == pugi::xml_attribute{} ||
+            !orientation_attribute.set_value("landscape")) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to write w:pgSz/w:orient for section page setup",
+                           std::string{document_xml_entry});
+            return false;
+        }
+    } else {
+        page_size.remove_attribute("w:orient");
+    }
+
+    auto page_numbering = section_properties.child("w:pgNumType");
+    if (setup.page_number_start.has_value()) {
+        if (page_numbering == pugi::xml_node{}) {
+            page_numbering = ensure_section_property_node(section_properties, "w:pgNumType");
+        }
+        if (page_numbering == pugi::xml_node{} ||
+            !ensure_xml_uint32_attribute(page_numbering, "w:start",
+                                         *setup.page_number_start)) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to write w:pgNumType/w:start for section page setup",
+                           std::string{document_xml_entry});
+            return false;
+        }
+    } else if (page_numbering != pugi::xml_node{}) {
+        page_numbering.remove_attribute("w:start");
+        remove_empty_node(page_numbering);
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
 pugi::xml_node Document::section_properties(std::size_t section_index) const {
     const auto body = this->document.child("w:document").child("w:body");
     if (body == pugi::xml_node{}) {
@@ -2167,7 +2513,7 @@ pugi::xml_node Document::section_properties(std::size_t section_index) const {
 pugi::xml_node Document::ensure_section_properties(std::size_t section_index) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before editing header/footer parts");
+                       "call open() or create_empty() before editing section properties");
         return {};
     }
 
@@ -2183,7 +2529,7 @@ pugi::xml_node Document::ensure_section_properties(std::size_t section_index) {
     const auto count = this->section_count();
     if (section_index >= count) {
         set_last_error(this->last_error_info, std::make_error_code(std::errc::invalid_argument),
-                       "section index is out of range for header/footer editing",
+                       "section index is out of range for section editing",
                        std::string{document_xml_entry});
         return {};
     }
@@ -2209,7 +2555,7 @@ pugi::xml_node Document::ensure_section_properties(std::size_t section_index) {
     if (section_properties == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
-                       "failed to create w:sectPr for header/footer references",
+                       "failed to create w:sectPr for section editing",
                        std::string{document_xml_entry});
         return {};
     }

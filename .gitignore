@@ -47,6 +47,13 @@ tmp/
 *.tmp.doc
 *.tmp.docx
 table_visual_smoke.docx
+cli_*.docx
+cli_*.gif
+cli_*.png
+cli_*.json
+cli_*.txt
+cli_*_fixture_image.png
+vc140.pdb
 
 # vim swap files
 **/*.swp

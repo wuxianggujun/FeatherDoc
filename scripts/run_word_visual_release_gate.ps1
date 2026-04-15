@@ -4,8 +4,9 @@ Runs the local Word visual release gate for FeatherDoc.
 
 .DESCRIPTION
 Executes the standard smoke flow, the fixed-grid merge/unmerge regression
-bundle, packages screenshot-backed review tasks, and can optionally refresh
-the repository README gallery assets from the generated evidence.
+bundle, the section page setup regression bundle, the page number fields
+regression bundle, packages screenshot-backed review tasks, and can optionally
+refresh the repository README gallery assets from the generated evidence.
 
 .PARAMETER RefreshReadmeAssets
 Copies the latest visual smoke and fixed-grid evidence into
@@ -18,6 +19,8 @@ Target repository directory for the refreshed README gallery PNG files.
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
     -SmokeBuildDir build-msvc-nmake `
     -FixedGridBuildDir build-msvc-nmake `
+    -SectionPageSetupBuildDir build-msvc-nmake `
+    -PageNumberFieldsBuildDir build-msvc-nmake `
     -SkipBuild `
     -GateOutputDir output/word-visual-release-gate
 
@@ -25,6 +28,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
     -SmokeBuildDir build-msvc-nmake `
     -FixedGridBuildDir build-msvc-nmake `
+    -SectionPageSetupBuildDir build-msvc-nmake `
+    -PageNumberFieldsBuildDir build-msvc-nmake `
     -SkipBuild `
     -GateOutputDir output/word-visual-release-gate `
     -TaskOutputRoot output/word-visual-smoke/tasks-release-gate `
@@ -34,10 +39,14 @@ param(
     [string]$GateOutputDir = "output/word-visual-release-gate",
     [string]$SmokeBuildDir = "build-word-visual-smoke-nmake",
     [string]$FixedGridBuildDir = "build-fixed-grid-regression-nmake",
+    [string]$SectionPageSetupBuildDir = "build-section-page-setup-regression-nmake",
+    [string]$PageNumberFieldsBuildDir = "build-page-number-fields-regression-nmake",
     [int]$Dpi = 144,
     [switch]$SkipBuild,
     [switch]$SkipSmoke,
     [switch]$SkipFixedGrid,
+    [switch]$SkipSectionPageSetup,
+    [switch]$SkipPageNumberFields,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -255,10 +264,46 @@ function Parse-PrepareTaskOutput {
     return $taskInfo
 }
 
+function Get-TaskSummaryBlock {
+    param(
+        [string]$Label,
+        $TaskInfo
+    )
+
+    if ($null -eq $TaskInfo) {
+        return "- $Label review task: not requested"
+    }
+
+    return @(
+        "- $Label task id: $($TaskInfo.task_id)"
+        "- $Label task dir: $($TaskInfo.task_dir)"
+        "- $Label prompt: $($TaskInfo.prompt_path)"
+        "- $Label latest pointer: $($TaskInfo.latest_source_kind_task_pointer_path)"
+    ) -join [Environment]::NewLine
+}
+
+function Get-FlowStatusLine {
+    param(
+        [string]$Label,
+        $FlowInfo,
+        [string]$PathField
+    )
+
+    if ($null -eq $FlowInfo) {
+        return "- $Label flow: not requested"
+    }
+
+    if ($FlowInfo.status -eq "completed") {
+        return "- $Label flow: completed ($($FlowInfo.$PathField))"
+    }
+
+    return "- $Label flow: $($FlowInfo.status)"
+}
+
 $repoRoot = Resolve-RepoRoot
 
-if ($SkipSmoke -and $SkipFixedGrid) {
-    throw "At least one of smoke or fixed-grid flows must remain enabled."
+if ($SkipSmoke -and $SkipFixedGrid -and $SkipSectionPageSetup -and $SkipPageNumberFields) {
+    throw "At least one of smoke, fixed-grid, section-page-setup, or page-number-fields flows must remain enabled."
 }
 
 $resolvedGateOutputDir = Resolve-FullPath -RepoRoot $repoRoot -InputPath $GateOutputDir
@@ -266,6 +311,8 @@ $resolvedTaskOutputRoot = Resolve-FullPath -RepoRoot $repoRoot -InputPath $TaskO
 $resolvedReadmeAssetsDir = Resolve-FullPath -RepoRoot $repoRoot -InputPath $ReadmeAssetsDir
 $resolvedSmokeOutputDir = Join-Path $resolvedGateOutputDir "smoke"
 $resolvedFixedGridOutputDir = Join-Path $resolvedGateOutputDir "fixed-grid"
+$resolvedSectionPageSetupOutputDir = Join-Path $resolvedGateOutputDir "section-page-setup"
+$resolvedPageNumberFieldsOutputDir = Join-Path $resolvedGateOutputDir "page-number-fields"
 $reportDir = Join-Path $resolvedGateOutputDir "report"
 $gateSummaryPath = Join-Path $reportDir "gate_summary.json"
 $gateFinalReviewPath = Join-Path $reportDir "gate_final_review.md"
@@ -278,11 +325,17 @@ $smokeOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedSmokeOutputDir -Label "Smoke output directory"
 $fixedGridOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedFixedGridOutputDir -Label "Fixed-grid output directory"
+$sectionPageSetupOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedSectionPageSetupOutputDir -Label "Section page setup output directory"
+$pageNumberFieldsOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedPageNumberFieldsOutputDir -Label "Page number fields output directory"
 $taskOutputRootForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedTaskOutputRoot -Label "Task output root"
 
 $smokeScript = Join-Path $repoRoot "scripts\run_word_visual_smoke.ps1"
 $fixedGridScript = Join-Path $repoRoot "scripts\run_fixed_grid_merge_unmerge_regression.ps1"
+$sectionPageSetupScript = Join-Path $repoRoot "scripts\run_section_page_setup_regression.ps1"
+$pageNumberFieldsScript = Join-Path $repoRoot "scripts\run_page_number_fields_regression.ps1"
 $prepareTaskScript = Join-Path $repoRoot "scripts\prepare_word_review_task.ps1"
 $refreshReadmeAssetsScript = Join-Path $repoRoot "scripts\refresh_readme_visual_assets.ps1"
 
@@ -301,9 +354,13 @@ $gateSummary = [ordered]@{
     }
     smoke = $null
     fixed_grid = $null
+    section_page_setup = $null
+    page_number_fields = $null
     review_tasks = [ordered]@{
         document = $null
         fixed_grid = $null
+        section_page_setup = $null
+        page_number_fields = $null
     }
 }
 
@@ -470,6 +527,172 @@ if (-not $SkipFixedGrid) {
     }
 }
 
+if (-not $SkipSectionPageSetup) {
+    Write-Step "Running section page setup regression flow"
+
+    $sectionPageSetupArgs = @(
+        "-BuildDir"
+        $SectionPageSetupBuildDir
+        "-OutputDir"
+        $sectionPageSetupOutputDirForChild
+        "-Dpi"
+        $Dpi.ToString()
+    )
+    if ($SkipBuild) {
+        $sectionPageSetupArgs += "-SkipBuild"
+    }
+    if ($KeepWordOpen) {
+        $sectionPageSetupArgs += "-KeepWordOpen"
+    }
+    if ($VisibleWord) {
+        $sectionPageSetupArgs += "-VisibleWord"
+    }
+
+    Invoke-ChildPowerShell -ScriptPath $sectionPageSetupScript `
+        -Arguments $sectionPageSetupArgs `
+        -FailureMessage "Section page setup regression gate step failed." | Out-Null
+
+    $sectionPageSetupSummaryPath = Join-Path $resolvedSectionPageSetupOutputDir "summary.json"
+    $sectionPageSetupReviewManifestPath = Join-Path $resolvedSectionPageSetupOutputDir "review_manifest.json"
+    $sectionPageSetupChecklistPath = Join-Path $resolvedSectionPageSetupOutputDir "review_checklist.md"
+    $sectionPageSetupFinalReviewPath = Join-Path $resolvedSectionPageSetupOutputDir "final_review.md"
+    $sectionPageSetupAggregateContactSheetPath = Join-Path $resolvedSectionPageSetupOutputDir `
+        "aggregate-evidence\contact_sheet.png"
+    $sectionPageSetupAggregateContactSheetsDir = Join-Path $resolvedSectionPageSetupOutputDir `
+        "aggregate-evidence\contact-sheets"
+
+    Assert-PathExists -Path $sectionPageSetupSummaryPath -Label "section page setup summary JSON"
+    Assert-PathExists -Path $sectionPageSetupReviewManifestPath -Label "section page setup review manifest"
+    Assert-PathExists -Path $sectionPageSetupChecklistPath -Label "section page setup review checklist"
+    Assert-PathExists -Path $sectionPageSetupFinalReviewPath -Label "section page setup final review"
+    Assert-PathExists -Path $sectionPageSetupAggregateContactSheetPath `
+        -Label "section page setup aggregate contact sheet"
+    Assert-PathExists -Path $sectionPageSetupAggregateContactSheetsDir `
+        -Label "section page setup aggregate contact-sheets directory"
+
+    $gateSummary.section_page_setup = [ordered]@{
+        status = "completed"
+        output_dir = $resolvedSectionPageSetupOutputDir
+        summary_json = $sectionPageSetupSummaryPath
+        review_manifest = $sectionPageSetupReviewManifestPath
+        review_checklist = $sectionPageSetupChecklistPath
+        final_review = $sectionPageSetupFinalReviewPath
+        aggregate_contact_sheet = $sectionPageSetupAggregateContactSheetPath
+        aggregate_contact_sheets_dir = $sectionPageSetupAggregateContactSheetsDir
+    }
+
+    if (-not $SkipReviewTasks) {
+        Write-Step "Preparing section page setup bundle review task"
+
+        $prepareTaskArgs = @(
+            "-SectionPageSetupRegressionRoot"
+            $resolvedSectionPageSetupOutputDir
+            "-Mode"
+            $ReviewMode
+            "-TaskOutputRoot"
+            $taskOutputRootForChild
+        )
+        if ($OpenTaskDirs) {
+            $prepareTaskArgs += "-OpenTaskDir"
+        }
+
+        $sectionPageSetupTaskOutput = Invoke-ChildPowerShell -ScriptPath $prepareTaskScript `
+            -Arguments $prepareTaskArgs `
+            -FailureMessage "Section page setup review task preparation failed."
+        $sectionPageSetupTaskInfo = Parse-PrepareTaskOutput -Lines $sectionPageSetupTaskOutput
+
+        $gateSummary.review_tasks.section_page_setup = $sectionPageSetupTaskInfo
+        $gateSummary.section_page_setup.task = $sectionPageSetupTaskInfo
+    }
+} else {
+    $gateSummary.section_page_setup = [ordered]@{
+        status = "skipped"
+    }
+}
+
+if (-not $SkipPageNumberFields) {
+    Write-Step "Running page number fields regression flow"
+
+    $pageNumberFieldsArgs = @(
+        "-BuildDir"
+        $PageNumberFieldsBuildDir
+        "-OutputDir"
+        $pageNumberFieldsOutputDirForChild
+        "-Dpi"
+        $Dpi.ToString()
+    )
+    if ($SkipBuild) {
+        $pageNumberFieldsArgs += "-SkipBuild"
+    }
+    if ($KeepWordOpen) {
+        $pageNumberFieldsArgs += "-KeepWordOpen"
+    }
+    if ($VisibleWord) {
+        $pageNumberFieldsArgs += "-VisibleWord"
+    }
+
+    Invoke-ChildPowerShell -ScriptPath $pageNumberFieldsScript `
+        -Arguments $pageNumberFieldsArgs `
+        -FailureMessage "Page number fields regression gate step failed." | Out-Null
+
+    $pageNumberFieldsSummaryPath = Join-Path $resolvedPageNumberFieldsOutputDir "summary.json"
+    $pageNumberFieldsReviewManifestPath = Join-Path $resolvedPageNumberFieldsOutputDir "review_manifest.json"
+    $pageNumberFieldsChecklistPath = Join-Path $resolvedPageNumberFieldsOutputDir "review_checklist.md"
+    $pageNumberFieldsFinalReviewPath = Join-Path $resolvedPageNumberFieldsOutputDir "final_review.md"
+    $pageNumberFieldsAggregateContactSheetPath = Join-Path $resolvedPageNumberFieldsOutputDir `
+        "aggregate-evidence\contact_sheet.png"
+    $pageNumberFieldsAggregateContactSheetsDir = Join-Path $resolvedPageNumberFieldsOutputDir `
+        "aggregate-evidence\contact-sheets"
+
+    Assert-PathExists -Path $pageNumberFieldsSummaryPath -Label "page number fields summary JSON"
+    Assert-PathExists -Path $pageNumberFieldsReviewManifestPath -Label "page number fields review manifest"
+    Assert-PathExists -Path $pageNumberFieldsChecklistPath -Label "page number fields review checklist"
+    Assert-PathExists -Path $pageNumberFieldsFinalReviewPath -Label "page number fields final review"
+    Assert-PathExists -Path $pageNumberFieldsAggregateContactSheetPath `
+        -Label "page number fields aggregate contact sheet"
+    Assert-PathExists -Path $pageNumberFieldsAggregateContactSheetsDir `
+        -Label "page number fields aggregate contact-sheets directory"
+
+    $gateSummary.page_number_fields = [ordered]@{
+        status = "completed"
+        output_dir = $resolvedPageNumberFieldsOutputDir
+        summary_json = $pageNumberFieldsSummaryPath
+        review_manifest = $pageNumberFieldsReviewManifestPath
+        review_checklist = $pageNumberFieldsChecklistPath
+        final_review = $pageNumberFieldsFinalReviewPath
+        aggregate_contact_sheet = $pageNumberFieldsAggregateContactSheetPath
+        aggregate_contact_sheets_dir = $pageNumberFieldsAggregateContactSheetsDir
+    }
+
+    if (-not $SkipReviewTasks) {
+        Write-Step "Preparing page number fields bundle review task"
+
+        $prepareTaskArgs = @(
+            "-PageNumberFieldsRegressionRoot"
+            $resolvedPageNumberFieldsOutputDir
+            "-Mode"
+            $ReviewMode
+            "-TaskOutputRoot"
+            $taskOutputRootForChild
+        )
+        if ($OpenTaskDirs) {
+            $prepareTaskArgs += "-OpenTaskDir"
+        }
+
+        $pageNumberFieldsTaskOutput = Invoke-ChildPowerShell -ScriptPath $prepareTaskScript `
+            -Arguments $prepareTaskArgs `
+            -FailureMessage "Page number fields review task preparation failed."
+        $pageNumberFieldsTaskInfo = Parse-PrepareTaskOutput -Lines $pageNumberFieldsTaskOutput
+
+        $gateSummary.review_tasks.page_number_fields = $pageNumberFieldsTaskInfo
+        $gateSummary.page_number_fields.task = $pageNumberFieldsTaskInfo
+    }
+} else {
+    $gateSummary.page_number_fields = [ordered]@{
+        status = "skipped"
+    }
+}
+
 if ($RefreshReadmeAssets) {
     Write-Step "Refreshing repository README gallery assets"
     Invoke-ChildPowerShell -ScriptPath $refreshReadmeAssetsScript `
@@ -524,39 +747,15 @@ $gateSummary.notes = @(
 
 ($gateSummary | ConvertTo-Json -Depth 8) | Set-Content -Path $gateSummaryPath -Encoding UTF8
 
-$documentTaskSummary = if ($gateSummary.review_tasks.document) {
-    @(
-        "- Document task id: $($gateSummary.review_tasks.document.task_id)"
-        "- Document task dir: $($gateSummary.review_tasks.document.task_dir)"
-        "- Document prompt: $($gateSummary.review_tasks.document.prompt_path)"
-        "- Document latest pointer: $($gateSummary.review_tasks.document.latest_source_kind_task_pointer_path)"
-    ) -join [Environment]::NewLine
-} else {
-    "- Document review task: not requested"
-}
+$documentTaskSummary = Get-TaskSummaryBlock -Label "Document" -TaskInfo $gateSummary.review_tasks.document
+$fixedGridTaskSummary = Get-TaskSummaryBlock -Label "Fixed-grid" -TaskInfo $gateSummary.review_tasks.fixed_grid
+$sectionPageSetupTaskSummary = Get-TaskSummaryBlock -Label "Section page setup" -TaskInfo $gateSummary.review_tasks.section_page_setup
+$pageNumberFieldsTaskSummary = Get-TaskSummaryBlock -Label "Page number fields" -TaskInfo $gateSummary.review_tasks.page_number_fields
 
-$fixedGridTaskSummary = if ($gateSummary.review_tasks.fixed_grid) {
-    @(
-        "- Fixed-grid task id: $($gateSummary.review_tasks.fixed_grid.task_id)"
-        "- Fixed-grid task dir: $($gateSummary.review_tasks.fixed_grid.task_dir)"
-        "- Fixed-grid prompt: $($gateSummary.review_tasks.fixed_grid.prompt_path)"
-        "- Fixed-grid latest pointer: $($gateSummary.review_tasks.fixed_grid.latest_source_kind_task_pointer_path)"
-    ) -join [Environment]::NewLine
-} else {
-    "- Fixed-grid review task: not requested"
-}
-
-$smokeStatusLine = if ($gateSummary.smoke.status -eq "completed") {
-    "- Smoke flow: completed ($($gateSummary.smoke.docx_path))"
-} else {
-    "- Smoke flow: skipped"
-}
-
-$fixedGridStatusLine = if ($gateSummary.fixed_grid.status -eq "completed") {
-    "- Fixed-grid flow: completed ($($gateSummary.fixed_grid.summary_json))"
-} else {
-    "- Fixed-grid flow: skipped"
-}
+$smokeStatusLine = Get-FlowStatusLine -Label "Smoke" -FlowInfo $gateSummary.smoke -PathField "docx_path"
+$fixedGridStatusLine = Get-FlowStatusLine -Label "Fixed-grid" -FlowInfo $gateSummary.fixed_grid -PathField "summary_json"
+$sectionPageSetupStatusLine = Get-FlowStatusLine -Label "Section page setup" -FlowInfo $gateSummary.section_page_setup -PathField "summary_json"
+$pageNumberFieldsStatusLine = Get-FlowStatusLine -Label "Page number fields" -FlowInfo $gateSummary.page_number_fields -PathField "summary_json"
 
 $readmeGalleryStatusLine = if ($gateSummary.readme_gallery.status -eq "completed") {
     "- README gallery refresh: completed ($($gateSummary.readme_gallery.assets_dir))"
@@ -573,7 +772,9 @@ $nextSteps = if ($SkipReviewTasks) {
     @(
         '1. Review the document task via open_latest_word_review_task.ps1 -SourceKind document -PrintPrompt.'
         '2. Review the fixed-grid task via open_latest_fixed_grid_review_task.ps1 -PrintPrompt.'
-        '3. Write screenshot-backed verdicts into each task''s report/ directory.'
+        '3. Review the section page setup task via open_latest_section_page_setup_review_task.ps1 -PrintPrompt.'
+        '4. Review the page number fields task via open_latest_page_number_fields_review_task.ps1 -PrintPrompt.'
+        '5. Write screenshot-backed verdicts into each task''s report/ directory.'
     ) -join [Environment]::NewLine
 }
 
@@ -591,12 +792,16 @@ $gateFinalReview = @"
 
 $smokeStatusLine
 $fixedGridStatusLine
+$sectionPageSetupStatusLine
+$pageNumberFieldsStatusLine
 $readmeGalleryStatusLine
 
 ## Review tasks
 
 $documentTaskSummary
 $fixedGridTaskSummary
+$sectionPageSetupTaskSummary
+$pageNumberFieldsTaskSummary
 
 ## Next steps
 
@@ -612,6 +817,12 @@ if ($gateSummary.review_tasks.document) {
 }
 if ($gateSummary.review_tasks.fixed_grid) {
     Write-Host "Fixed-grid task: $($gateSummary.review_tasks.fixed_grid.task_dir)"
+}
+if ($gateSummary.review_tasks.section_page_setup) {
+    Write-Host "Section page setup task: $($gateSummary.review_tasks.section_page_setup.task_dir)"
+}
+if ($gateSummary.review_tasks.page_number_fields) {
+    Write-Host "Page number fields task: $($gateSummary.review_tasks.page_number_fields.task_dir)"
 }
 if ($gateSummary.readme_gallery.status -eq "completed") {
     Write-Host "README gallery assets: $($gateSummary.readme_gallery.assets_dir)"
