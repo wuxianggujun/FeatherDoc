@@ -1712,6 +1712,265 @@ TEST_CASE("cli inspect-numbering filters a single numbering instance") {
     remove_if_exists(missing_output);
 }
 
+TEST_CASE("cli ensure-paragraph-style creates a paragraph style with optional metadata") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_ensure_paragraph_style_source.docx";
+    const fs::path updated = working_directory / "cli_ensure_paragraph_style_updated.docx";
+    const fs::path output = working_directory / "cli_ensure_paragraph_style_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"ensure-paragraph-style",
+                      source.string(),
+                      "LegalBody",
+                      "--name",
+                      "Legal Body",
+                      "--based-on",
+                      "Normal",
+                      "--next-style",
+                      "LegalBody",
+                      "--custom",
+                      "true",
+                      "--semi-hidden",
+                      "false",
+                      "--unhide-when-used",
+                      "true",
+                      "--quick-format",
+                      "true",
+                      "--run-font-family",
+                      "Segoe UI",
+                      "--run-east-asia-font-family",
+                      "Microsoft YaHei",
+                      "--run-language",
+                      "en-US",
+                      "--run-east-asia-language",
+                      "zh-CN",
+                      "--run-bidi-language",
+                      "ar-SA",
+                      "--run-rtl",
+                      "true",
+                      "--paragraph-bidi",
+                      "true",
+                      "--outline-level",
+                      "2",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"ensure-paragraph-style\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"style\":{\"style_id\":\"LegalBody\",\"name\":\"Legal Body\","
+            "\"based_on\":\"Normal\",\"kind\":\"paragraph\",\"type\":\"paragraph\","
+            "\"numbering\":null,\"is_default\":false,\"is_custom\":true,"
+            "\"is_semi_hidden\":false,\"is_unhide_when_used\":true,"
+            "\"is_quick_format\":true}}\n"});
+
+    const auto styles_xml = read_docx_entry(updated, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(styles_xml.c_str()));
+    const auto style =
+        find_style_xml_node(styles_document.child("w:styles"), "LegalBody");
+    REQUIRE(style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{style.attribute("w:type").value()}, "paragraph");
+    CHECK_EQ(std::string_view{style.child("w:name").attribute("w:val").value()},
+             "Legal Body");
+    CHECK_EQ(std::string_view{style.child("w:basedOn").attribute("w:val").value()},
+             "Normal");
+    CHECK_EQ(std::string_view{style.child("w:next").attribute("w:val").value()},
+             "LegalBody");
+    CHECK(style.child("w:qFormat") != pugi::xml_node{});
+    CHECK(style.child("w:semiHidden") == pugi::xml_node{});
+    CHECK(style.child("w:unhideWhenUsed") != pugi::xml_node{});
+    const auto paragraph_properties = style.child("w:pPr");
+    REQUIRE(paragraph_properties != pugi::xml_node{});
+    CHECK(paragraph_properties.child("w:bidi") != pugi::xml_node{});
+    CHECK_EQ(std::string_view{paragraph_properties.child("w:outlineLvl")
+                                  .attribute("w:val")
+                                  .value()},
+             "2");
+    const auto run_properties = style.child("w:rPr");
+    REQUIRE(run_properties != pugi::xml_node{});
+    const auto fonts = run_properties.child("w:rFonts");
+    REQUIRE(fonts != pugi::xml_node{});
+    CHECK_EQ(std::string_view{fonts.attribute("w:ascii").value()}, "Segoe UI");
+    CHECK_EQ(std::string_view{fonts.attribute("w:eastAsia").value()},
+             "Microsoft YaHei");
+    const auto language = run_properties.child("w:lang");
+    REQUIRE(language != pugi::xml_node{});
+    CHECK_EQ(std::string_view{language.attribute("w:val").value()}, "en-US");
+    CHECK_EQ(std::string_view{language.attribute("w:eastAsia").value()}, "zh-CN");
+    CHECK_EQ(std::string_view{language.attribute("w:bidi").value()}, "ar-SA");
+    CHECK(run_properties.child("w:rtl") != pugi::xml_node{});
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli ensure-character-style creates a character style with run metadata") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_ensure_character_style_source.docx";
+    const fs::path updated = working_directory / "cli_ensure_character_style_updated.docx";
+    const fs::path output = working_directory / "cli_ensure_character_style_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"ensure-character-style",
+                      source.string(),
+                      "AccentStrong",
+                      "--name",
+                      "Accent Strong",
+                      "--based-on",
+                      "DefaultParagraphFont",
+                      "--semi-hidden",
+                      "true",
+                      "--quick-format",
+                      "true",
+                      "--run-font-family",
+                      "Segoe UI",
+                      "--run-language",
+                      "fr-FR",
+                      "--run-rtl",
+                      "false",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto styles_xml = read_docx_entry(updated, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(styles_xml.c_str()));
+    const auto style =
+        find_style_xml_node(styles_document.child("w:styles"), "AccentStrong");
+    REQUIRE(style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{style.attribute("w:type").value()}, "character");
+    CHECK_EQ(std::string_view{style.child("w:name").attribute("w:val").value()},
+             "Accent Strong");
+    CHECK_EQ(std::string_view{style.child("w:basedOn").attribute("w:val").value()},
+             "DefaultParagraphFont");
+    CHECK(style.child("w:semiHidden") != pugi::xml_node{});
+    CHECK(style.child("w:qFormat") != pugi::xml_node{});
+    const auto run_properties = style.child("w:rPr");
+    REQUIRE(run_properties != pugi::xml_node{});
+    CHECK_EQ(std::string_view{run_properties.child("w:rFonts")
+                                  .attribute("w:ascii")
+                                  .value()},
+             "Segoe UI");
+    CHECK_EQ(std::string_view{run_properties.child("w:lang")
+                                  .attribute("w:val")
+                                  .value()},
+             "fr-FR");
+    CHECK_EQ(std::string_view{run_properties.child("w:rtl")
+                                  .attribute("w:val")
+                                  .value()},
+             "0");
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli ensure-table-style creates a table style with catalog flags") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_ensure_table_style_source.docx";
+    const fs::path updated = working_directory / "cli_ensure_table_style_updated.docx";
+    const fs::path output = working_directory / "cli_ensure_table_style_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"ensure-table-style",
+                      source.string(),
+                      "ReportTable",
+                      "--name",
+                      "Report Table",
+                      "--based-on",
+                      "TableGrid",
+                      "--unhide-when-used",
+                      "true",
+                      "--quick-format",
+                      "true",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"ensure-table-style\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"style\":{\"style_id\":\"ReportTable\",\"name\":\"Report Table\","
+            "\"based_on\":\"TableGrid\",\"kind\":\"table\",\"type\":\"table\","
+            "\"numbering\":null,\"is_default\":false,\"is_custom\":true,"
+            "\"is_semi_hidden\":false,\"is_unhide_when_used\":true,"
+            "\"is_quick_format\":true}}\n"});
+
+    const auto styles_xml = read_docx_entry(updated, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(styles_xml.c_str()));
+    const auto style =
+        find_style_xml_node(styles_document.child("w:styles"), "ReportTable");
+    REQUIRE(style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{style.attribute("w:type").value()}, "table");
+    CHECK_EQ(std::string_view{style.child("w:name").attribute("w:val").value()},
+             "Report Table");
+    CHECK_EQ(std::string_view{style.child("w:basedOn").attribute("w:val").value()},
+             "TableGrid");
+    CHECK(style.child("w:qFormat") != pugi::xml_node{});
+    CHECK(style.child("w:semiHidden") == pugi::xml_node{});
+    CHECK(style.child("w:unhideWhenUsed") != pugi::xml_node{});
+    CHECK(style.child("w:tblPr") == pugi::xml_node{});
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli ensure-paragraph-style reports json parse errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_ensure_paragraph_style_parse_source.docx";
+    const fs::path output =
+        working_directory / "cli_ensure_paragraph_style_parse_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"ensure-paragraph-style",
+                      source.string(),
+                      "BodyText",
+                      "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"ensure-paragraph-style\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"missing required --name <name>\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+}
+
 TEST_CASE("cli set-paragraph-style-numbering links a custom numbering definition to a style") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_style_numbering_source.docx";

@@ -1,4 +1,3 @@
-#include <charconv>
 #include <featherdoc.hpp>
 
 #include <algorithm>
@@ -6,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -46,6 +46,24 @@ struct set_paragraph_style_numbering_options {
 };
 
 struct clear_paragraph_style_numbering_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct ensure_paragraph_style_options {
+    featherdoc::paragraph_style_definition definition;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct ensure_character_style_options {
+    featherdoc::character_style_definition definition;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct ensure_table_style_options {
+    featherdoc::table_style_definition definition;
     std::optional<path_type> output_path;
     bool json_output = false;
 };
@@ -187,12 +205,26 @@ struct selected_template_part {
     std::optional<featherdoc::section_reference_kind> reference_kind;
 };
 
+template <typename ExtraWriter>
+void write_json_mutation_result(std::string_view command, featherdoc::Document &doc,
+                                const std::optional<path_type> &output_path,
+                                ExtraWriter &&write_extra);
+
+void write_json_mutation_result(std::string_view command, featherdoc::Document &doc,
+                                const std::optional<path_type> &output_path);
+
 auto has_inspect_image_filters(const inspect_images_options &options) -> bool;
 
 enum class zip_entry_read_status {
     missing,
     read_failed,
     ok,
+};
+
+enum class option_parse_result {
+    not_matched,
+    matched,
+    error,
 };
 
 void print_usage(std::ostream &stream) {
@@ -204,6 +236,26 @@ void print_usage(std::ostream &stream) {
            " [--style <style-id>] [--usage] [--json]\n"
         << "  featherdoc_cli inspect-numbering <input.docx>"
            " [--definition <id>] [--instance <num-id>] [--json]\n"
+        << "  featherdoc_cli ensure-paragraph-style <input.docx> <style-id>"
+           " --name <name> [--based-on <style-id>] [--next-style <style-id>]"
+           " [--custom true|false] [--semi-hidden true|false]"
+           " [--unhide-when-used true|false] [--quick-format true|false]"
+           " [--run-font-family <name>] [--run-east-asia-font-family <name>]"
+           " [--run-language <tag>] [--run-east-asia-language <tag>]"
+           " [--run-bidi-language <tag>] [--run-rtl true|false]"
+           " [--paragraph-bidi true|false] [--outline-level <0-8>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli ensure-character-style <input.docx> <style-id>"
+           " --name <name> [--based-on <style-id>] [--custom true|false]"
+           " [--semi-hidden true|false] [--unhide-when-used true|false]"
+           " [--quick-format true|false] [--run-font-family <name>]"
+           " [--run-east-asia-font-family <name>] [--run-language <tag>]"
+           " [--run-east-asia-language <tag>] [--run-bidi-language <tag>]"
+           " [--run-rtl true|false] [--output <path>] [--json]\n"
+        << "  featherdoc_cli ensure-table-style <input.docx> <style-id>"
+           " --name <name> [--based-on <style-id>] [--custom true|false]"
+           " [--semi-hidden true|false] [--unhide-when-used true|false]"
+           " [--quick-format true|false] [--output <path>] [--json]\n"
         << "  featherdoc_cli set-paragraph-style-numbering <input.docx> <style-id>"
            " --definition-name <name>"
            " --numbering-level <level>:<kind>:<start>:<text-pattern>"
@@ -361,25 +413,82 @@ auto has_json_flag(const std::vector<std::string_view> &arguments) -> bool {
     return false;
 }
 
+template <typename UInt>
+auto parse_unsigned_integer(std::string_view text, UInt &value) -> bool {
+    if (text.empty()) {
+        return false;
+    }
+
+    UInt result = 0;
+    for (const auto ch : text) {
+        if (ch < '0' || ch > '9') {
+            return false;
+        }
+
+        const auto digit = static_cast<UInt>(ch - '0');
+        if (result > (std::numeric_limits<UInt>::max() - digit) / 10) {
+            return false;
+        }
+        result = static_cast<UInt>(result * 10 + digit);
+    }
+
+    value = result;
+    return true;
+}
+
 auto parse_index(std::string_view text, std::size_t &value) -> bool {
-    const auto *begin = text.data();
-    const auto *end = begin + text.size();
-    const auto result = std::from_chars(begin, end, value);
-    return result.ec == std::errc{} && result.ptr == end;
+    return parse_unsigned_integer(text, value);
 }
 
 auto parse_uint32(std::string_view text, std::uint32_t &value) -> bool {
-    const auto *begin = text.data();
-    const auto *end = begin + text.size();
-    const auto result = std::from_chars(begin, end, value);
-    return result.ec == std::errc{} && result.ptr == end;
+    return parse_unsigned_integer(text, value);
 }
 
 auto parse_int32(std::string_view text, std::int32_t &value) -> bool {
-    const auto *begin = text.data();
-    const auto *end = begin + text.size();
-    const auto result = std::from_chars(begin, end, value);
-    return result.ec == std::errc{} && result.ptr == end;
+    if (text.empty()) {
+        return false;
+    }
+
+    auto digits = text;
+    bool negative = false;
+    if (digits.front() == '+' || digits.front() == '-') {
+        negative = digits.front() == '-';
+        digits.remove_prefix(1);
+    }
+    if (digits.empty()) {
+        return false;
+    }
+
+    std::uint64_t magnitude = 0;
+    for (const auto ch : digits) {
+        if (ch < '0' || ch > '9') {
+            return false;
+        }
+
+        const auto digit = static_cast<std::uint64_t>(ch - '0');
+        constexpr auto positive_limit =
+            static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max());
+        constexpr auto negative_limit = positive_limit + 1;
+        const auto limit = negative ? negative_limit : positive_limit;
+        if (magnitude > (limit - digit) / 10) {
+            return false;
+        }
+        magnitude = magnitude * 10 + digit;
+    }
+
+    if (negative) {
+        if (magnitude == static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max()) +
+                             1ULL) {
+            value = std::numeric_limits<std::int32_t>::min();
+            return true;
+        }
+
+        value = -static_cast<std::int32_t>(magnitude);
+        return true;
+    }
+
+    value = static_cast<std::int32_t>(magnitude);
+    return true;
 }
 
 auto parse_bool(std::string_view text, bool &value) -> bool {
@@ -1119,6 +1228,400 @@ auto parse_clear_paragraph_style_numbering_options(
         }
 
         error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+template <typename Definition>
+auto parse_style_catalog_option(const std::vector<std::string_view> &arguments,
+                                std::size_t &index, Definition &definition,
+                                std::string &error_message)
+    -> option_parse_result {
+    const auto argument = arguments[index];
+    if (argument == "--name") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --name";
+            return option_parse_result::error;
+        }
+
+        definition.name = std::string(arguments[index + 1U]);
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--based-on") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --based-on";
+            return option_parse_result::error;
+        }
+
+        definition.based_on = std::string(arguments[index + 1U]);
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--custom") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --custom";
+            return option_parse_result::error;
+        }
+
+        bool value = false;
+        if (!parse_bool(arguments[index + 1U], value)) {
+            error_message = "invalid --custom value: " +
+                            std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        definition.is_custom = value;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--semi-hidden") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --semi-hidden";
+            return option_parse_result::error;
+        }
+
+        bool value = false;
+        if (!parse_bool(arguments[index + 1U], value)) {
+            error_message = "invalid --semi-hidden value: " +
+                            std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        definition.is_semi_hidden = value;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--unhide-when-used") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --unhide-when-used";
+            return option_parse_result::error;
+        }
+
+        bool value = false;
+        if (!parse_bool(arguments[index + 1U], value)) {
+            error_message = "invalid --unhide-when-used value: " +
+                            std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        definition.is_unhide_when_used = value;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--quick-format") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --quick-format";
+            return option_parse_result::error;
+        }
+
+        bool value = false;
+        if (!parse_bool(arguments[index + 1U], value)) {
+            error_message = "invalid --quick-format value: " +
+                            std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        definition.is_quick_format = value;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    return option_parse_result::not_matched;
+}
+
+template <typename Definition>
+auto parse_run_style_option(const std::vector<std::string_view> &arguments,
+                            std::size_t &index, Definition &definition,
+                            std::string &error_message) -> option_parse_result {
+    const auto argument = arguments[index];
+    if (argument == "--run-font-family") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --run-font-family";
+            return option_parse_result::error;
+        }
+
+        definition.run_font_family = std::string(arguments[index + 1U]);
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--run-east-asia-font-family") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --run-east-asia-font-family";
+            return option_parse_result::error;
+        }
+
+        definition.run_east_asia_font_family =
+            std::string(arguments[index + 1U]);
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--run-language") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --run-language";
+            return option_parse_result::error;
+        }
+
+        definition.run_language = std::string(arguments[index + 1U]);
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--run-east-asia-language") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --run-east-asia-language";
+            return option_parse_result::error;
+        }
+
+        definition.run_east_asia_language =
+            std::string(arguments[index + 1U]);
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--run-bidi-language") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --run-bidi-language";
+            return option_parse_result::error;
+        }
+
+        definition.run_bidi_language = std::string(arguments[index + 1U]);
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--run-rtl") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --run-rtl";
+            return option_parse_result::error;
+        }
+
+        bool value = false;
+        if (!parse_bool(arguments[index + 1U], value)) {
+            error_message = "invalid --run-rtl value: " +
+                            std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        definition.run_rtl = value;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    return option_parse_result::not_matched;
+}
+
+auto parse_ensure_paragraph_style_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    ensure_paragraph_style_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        if (const auto result = parse_style_catalog_option(arguments, index,
+                                                           options.definition,
+                                                           error_message);
+            result != option_parse_result::not_matched) {
+            if (result == option_parse_result::error) {
+                return false;
+            }
+            continue;
+        }
+
+        if (const auto result = parse_run_style_option(arguments, index,
+                                                       options.definition,
+                                                       error_message);
+            result != option_parse_result::not_matched) {
+            if (result == option_parse_result::error) {
+                return false;
+            }
+            continue;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--next-style") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --next-style";
+                return false;
+            }
+
+            options.definition.next_style = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--paragraph-bidi") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --paragraph-bidi";
+                return false;
+            }
+
+            bool value = false;
+            if (!parse_bool(arguments[index + 1U], value)) {
+                error_message = "invalid --paragraph-bidi value: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.definition.paragraph_bidi = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--outline-level") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --outline-level";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message = "invalid outline level: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.definition.outline_level = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.definition.name.empty()) {
+        error_message = "missing required --name <name>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_ensure_character_style_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    ensure_character_style_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        if (const auto result = parse_style_catalog_option(arguments, index,
+                                                           options.definition,
+                                                           error_message);
+            result != option_parse_result::not_matched) {
+            if (result == option_parse_result::error) {
+                return false;
+            }
+            continue;
+        }
+
+        if (const auto result = parse_run_style_option(arguments, index,
+                                                       options.definition,
+                                                       error_message);
+            result != option_parse_result::not_matched) {
+            if (result == option_parse_result::error) {
+                return false;
+            }
+            continue;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.definition.name.empty()) {
+        error_message = "missing required --name <name>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_ensure_table_style_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    ensure_table_style_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        if (const auto result = parse_style_catalog_option(arguments, index,
+                                                           options.definition,
+                                                           error_message);
+            result != option_parse_result::not_matched) {
+            if (result == option_parse_result::error) {
+                return false;
+            }
+            continue;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.definition.name.empty()) {
+        error_message = "missing required --name <name>";
         return false;
     }
 
@@ -4188,6 +4691,22 @@ void inspect_style(const featherdoc::style_summary &style,
     }
 }
 
+void print_style_mutation_result(std::string_view command, featherdoc::Document &doc,
+                                 const std::optional<path_type> &output_path,
+                                 const featherdoc::style_summary &style,
+                                 bool json_output) {
+    if (json_output) {
+        write_json_mutation_result(command, doc, output_path,
+                                   [&style](std::ostream &stream) {
+                                       stream << ",\"style\":";
+                                       write_json_style_summary(stream, style);
+                                   });
+        return;
+    }
+
+    inspect_style(style, std::nullopt, false);
+}
+
 void inspect_numbering(const std::vector<featherdoc::numbering_definition_summary> &definitions,
                        bool json_output) {
     if (json_output) {
@@ -5790,6 +6309,141 @@ int main(int argc, char **argv) {
                                        });
         }
 
+        return 0;
+    }
+
+    if (command == "ensure-paragraph-style") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command, "ensure-paragraph-style expects an input path and a style id",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = arguments[2];
+        ensure_paragraph_style_options options;
+        std::string error_message;
+        if (!parse_ensure_paragraph_style_options(arguments, 3U, options,
+                                                  error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.ensure_paragraph_style(style_id, options.definition)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        const auto style = doc.find_style(style_id);
+        if (!style.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        print_style_mutation_result(command, doc, options.output_path, *style,
+                                    options.json_output);
+        return 0;
+    }
+
+    if (command == "ensure-character-style") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command, "ensure-character-style expects an input path and a style id",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = arguments[2];
+        ensure_character_style_options options;
+        std::string error_message;
+        if (!parse_ensure_character_style_options(arguments, 3U, options,
+                                                  error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.ensure_character_style(style_id, options.definition)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        const auto style = doc.find_style(style_id);
+        if (!style.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        print_style_mutation_result(command, doc, options.output_path, *style,
+                                    options.json_output);
+        return 0;
+    }
+
+    if (command == "ensure-table-style") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(command,
+                              "ensure-table-style expects an input path and a style id",
+                              json_output);
+            return 2;
+        }
+
+        const auto style_id = arguments[2];
+        ensure_table_style_options options;
+        std::string error_message;
+        if (!parse_ensure_table_style_options(arguments, 3U, options,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.ensure_table_style(style_id, options.definition)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        const auto style = doc.find_style(style_id);
+        if (!style.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        print_style_mutation_result(command, doc, options.output_path, *style,
+                                    options.json_output);
         return 0;
     }
 
