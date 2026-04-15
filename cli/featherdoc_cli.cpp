@@ -224,6 +224,27 @@ void print_usage(std::ostream &stream) {
            " [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--bookmark <name>] [--json]\n"
+        << "  featherdoc_cli replace-bookmark-image <input.docx> <bookmark-name>"
+           " <image-path> [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--width <px>] [--height <px>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli replace-bookmark-floating-image <input.docx>"
+           " <bookmark-name> <image-path>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--width <px>] [--height <px>]"
+           " [--horizontal-reference page|margin|column|character]"
+           " [--horizontal-offset <px>]"
+           " [--vertical-reference page|margin|paragraph|line]"
+           " [--vertical-offset <px>] [--behind-text true|false]"
+           " [--allow-overlap true|false]"
+           " [--wrap-mode none|square|top-bottom]"
+           " [--wrap-distance-left <px>] [--wrap-distance-right <px>]"
+           " [--wrap-distance-top <px>] [--wrap-distance-bottom <px>]"
+           " [--crop-left <per-mille>] [--crop-top <per-mille>]"
+           " [--crop-right <per-mille>] [--crop-bottom <per-mille>]"
+           " [--output <path>] [--json]\n"
         << "  featherdoc_cli inspect-images <input.docx>"
            " [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
@@ -2555,6 +2576,35 @@ auto parse_append_image_options(const std::vector<std::string_view> &arguments,
                                             "mutation", error_message);
 }
 
+void rewrite_error_command_name(std::string &error_message,
+                                std::string_view from,
+                                std::string_view to) {
+    std::size_t position = 0U;
+    while ((position = error_message.find(from, position)) != std::string::npos) {
+        error_message.replace(position, from.size(), to);
+        position += to.size();
+    }
+}
+
+auto parse_bookmark_image_command_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    std::string_view command_name, bool allow_floating_layout,
+    append_image_options &options, std::string &error_message) -> bool {
+    if (!parse_append_image_options(arguments, start_index, options, error_message)) {
+        rewrite_error_command_name(error_message, "append-image", command_name);
+        return false;
+    }
+
+    if (!allow_floating_layout && options.floating) {
+        error_message = std::string(command_name) +
+                        " does not accept floating layout options; use "
+                        "replace-bookmark-floating-image";
+        return false;
+    }
+
+    return true;
+}
+
 auto parse_template_slot_kind(std::string_view text,
                               featherdoc::template_slot_kind &kind) -> bool {
     if (text == "text") {
@@ -4551,6 +4601,113 @@ void print_append_image_result(const selected_template_part &selected,
     std::cout << '\n';
 }
 
+auto is_same_drawing_image_identity(const featherdoc::drawing_image_info &lhs,
+                                    const featherdoc::drawing_image_info &rhs)
+    -> bool {
+    return lhs.relationship_id == rhs.relationship_id &&
+           lhs.entry_name == rhs.entry_name;
+}
+
+auto collect_new_drawing_images(
+    const std::vector<featherdoc::drawing_image_info> &before_images,
+    const std::vector<featherdoc::drawing_image_info> &after_images)
+    -> std::vector<featherdoc::drawing_image_info> {
+    std::vector<bool> matched_before(before_images.size(), false);
+    std::vector<featherdoc::drawing_image_info> inserted_images;
+    inserted_images.reserve(after_images.size());
+
+    for (const auto &image : after_images) {
+        auto matched_it =
+            std::find_if(before_images.begin(), before_images.end(),
+                         [&before_images, &matched_before,
+                          &image](const featherdoc::drawing_image_info &candidate) {
+                             const auto candidate_index = static_cast<std::size_t>(
+                                 &candidate - before_images.data());
+                             return !matched_before[candidate_index] &&
+                                    is_same_drawing_image_identity(candidate, image);
+                         });
+        if (matched_it == before_images.end()) {
+            inserted_images.push_back(image);
+            continue;
+        }
+
+        matched_before[static_cast<std::size_t>(matched_it - before_images.begin())] =
+            true;
+    }
+
+    return inserted_images;
+}
+
+void write_json_bookmark_image_result(
+    std::ostream &stream, const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark, const path_type &image_path,
+    const std::vector<featherdoc::drawing_image_info> &inserted_images) {
+    stream << ",\"part\":";
+    write_json_string(stream, validation_part_name(selected.family));
+    if (selected.part_index.has_value()) {
+        stream << ",\"part_index\":" << *selected.part_index;
+    }
+    if (selected.section_index.has_value()) {
+        stream << ",\"section\":" << *selected.section_index;
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, std::string(selected.part.entry_name()));
+    stream << ",\"bookmark\":";
+    write_json_bookmark_summary(stream, bookmark);
+    stream << ",\"image_path\":";
+    write_json_string(stream, image_path.string());
+    stream << ",\"replaced\":" << inserted_images.size() << ",\"images\":[";
+    for (std::size_t index = 0; index < inserted_images.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_drawing_image_summary(stream, inserted_images[index]);
+    }
+    stream << ']';
+}
+
+void print_bookmark_image_result(
+    const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark, const path_type &image_path,
+    const std::optional<path_type> &output_path,
+    const std::vector<featherdoc::drawing_image_info> &inserted_images) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "bookmark_name: " << bookmark.bookmark_name << '\n';
+    std::cout << "bookmark_kind: " << bookmark_kind_name(bookmark.kind) << '\n';
+    std::cout << "bookmark_occurrence_count: " << bookmark.occurrence_count << '\n';
+    std::cout << "bookmark_duplicate: " << yes_no(bookmark.is_duplicate()) << '\n';
+    std::cout << "image_path: " << image_path.string() << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "replaced: " << inserted_images.size() << '\n';
+    for (std::size_t index = 0; index < inserted_images.size(); ++index) {
+        std::cout << "image[" << index << "]: ";
+        print_drawing_image_summary(std::cout, inserted_images[index]);
+        std::cout << '\n';
+    }
+}
+
 void print_extract_image_result(const selected_template_part &selected,
                                 const featherdoc::drawing_image_info &image,
                                 const path_type &output_path) {
@@ -5776,6 +5933,235 @@ int main(int argc, char **argv) {
         }
 
         inspect_bookmarks(selected, bookmarks, options.json_output);
+        return 0;
+    }
+
+    if (command == "replace-bookmark-image") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "replace-bookmark-image expects an input path, bookmark name, and image path",
+                json_output);
+            return 2;
+        }
+
+        const auto bookmark_name = std::string(arguments[2]);
+        if (bookmark_name.empty()) {
+            print_parse_error(command, "bookmark name must not be empty",
+                              json_output);
+            return 2;
+        }
+
+        append_image_options options;
+        std::string error_message;
+        if (!parse_bookmark_image_command_options(arguments, 4U, command, false,
+                                                  options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto bookmark = selected.part.find_bookmark(bookmark_name);
+        if (!bookmark.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+        const auto bookmark_summary = *bookmark;
+
+        const auto existing_images = selected.part.drawing_images();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto image_path = path_type(std::string(arguments[3]));
+        std::size_t replaced = 0U;
+        if (options.width_px.has_value()) {
+            replaced = selected.part.replace_bookmark_with_image(
+                bookmark_name, image_path, *options.width_px, *options.height_px);
+        } else {
+            replaced = selected.part.replace_bookmark_with_image(bookmark_name,
+                                                                 image_path);
+        }
+        if (replaced == 0U) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto updated_images = selected.part.drawing_images();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "mutate", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto inserted_images =
+            collect_new_drawing_images(existing_images, updated_images);
+        if (inserted_images.size() != replaced) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::result_out_of_range);
+            error_info.detail =
+                "expected " + std::to_string(replaced) +
+                " replaced drawing image(s) in " +
+                std::string(selected.part.entry_name()) + ", found " +
+                std::to_string(inserted_images.size());
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "replaced drawing images not found",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &bookmark_summary, &image_path,
+                 &inserted_images](std::ostream &stream) {
+                    write_json_bookmark_image_result(
+                        stream, selected, bookmark_summary, image_path,
+                        inserted_images);
+                });
+        } else {
+            print_bookmark_image_result(selected, bookmark_summary, image_path,
+                                        options.output_path, inserted_images);
+        }
+
+        return 0;
+    }
+
+    if (command == "replace-bookmark-floating-image") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "replace-bookmark-floating-image expects an input path, bookmark name, and image path",
+                json_output);
+            return 2;
+        }
+
+        const auto bookmark_name = std::string(arguments[2]);
+        if (bookmark_name.empty()) {
+            print_parse_error(command, "bookmark name must not be empty",
+                              json_output);
+            return 2;
+        }
+
+        append_image_options options;
+        std::string error_message;
+        if (!parse_bookmark_image_command_options(arguments, 4U, command, true,
+                                                  options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto bookmark = selected.part.find_bookmark(bookmark_name);
+        if (!bookmark.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+        const auto bookmark_summary = *bookmark;
+
+        const auto existing_images = selected.part.drawing_images();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto image_path = path_type(std::string(arguments[3]));
+        std::size_t replaced = 0U;
+        if (options.width_px.has_value()) {
+            replaced = selected.part.replace_bookmark_with_floating_image(
+                bookmark_name, image_path, *options.width_px, *options.height_px,
+                options.floating_options);
+        } else {
+            replaced = selected.part.replace_bookmark_with_floating_image(
+                bookmark_name, image_path, options.floating_options);
+        }
+        if (replaced == 0U) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto updated_images = selected.part.drawing_images();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "mutate", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto inserted_images =
+            collect_new_drawing_images(existing_images, updated_images);
+        if (inserted_images.size() != replaced) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::result_out_of_range);
+            error_info.detail =
+                "expected " + std::to_string(replaced) +
+                " replaced drawing image(s) in " +
+                std::string(selected.part.entry_name()) + ", found " +
+                std::to_string(inserted_images.size());
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "replaced drawing images not found",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &bookmark_summary, &image_path,
+                 &inserted_images](std::ostream &stream) {
+                    write_json_bookmark_image_result(
+                        stream, selected, bookmark_summary, image_path,
+                        inserted_images);
+                });
+        } else {
+            print_bookmark_image_result(selected, bookmark_summary, image_path,
+                                        options.output_path, inserted_images);
+        }
+
         return 0;
     }
 

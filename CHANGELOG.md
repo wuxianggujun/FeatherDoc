@@ -10,6 +10,11 @@ performance.
 
 ### Added
 
+- Added `featherdoc_cli replace-bookmark-image` and
+  `featherdoc_cli replace-bookmark-floating-image` so CLI workflows can replace
+  standalone bookmark placeholder paragraphs inside body/header/footer/
+  section-scoped template parts with inline or anchored drawing images,
+  including scaling, floating layout flags, and regression coverage.
 - Added `featherdoc_cli extract-image` and `featherdoc_cli remove-image` so
   CLI workflows can export or delete existing drawing-backed images from
   body/header/footer/section-scoped template parts using the same
