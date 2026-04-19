@@ -69,6 +69,10 @@ performance.
   header/footer multiline replacement, `replace-bookmark-paragraphs`
   single-page and cross-page expansion, and `remove-bookmark-block`
   placeholder removal across body/header/footer template parts.
+- Added Word-backed visual regression coverage for
+  `set-bookmark-block-visibility` and `apply-bookmark-block-visibility`,
+  including keep/remove body block mutations with real Word-rendered
+  before/after evidence.
 - Added `featherdoc_cli replace-bookmark-table` and
   `replace-bookmark-table-rows` so CLI workflows can replace standalone
   bookmark placeholder paragraphs with generated tables or expand

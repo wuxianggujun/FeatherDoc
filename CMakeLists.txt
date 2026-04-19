@@ -184,6 +184,12 @@ if(BUILD_SAMPLES)
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_template_bookmark_multiline_visual)
 
+    add_executable(featherdoc_sample_bookmark_block_visibility_visual
+        samples/sample_bookmark_block_visibility_visual.cpp)
+    target_link_libraries(featherdoc_sample_bookmark_block_visibility_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_bookmark_block_visibility_visual)
+
     add_executable(featherdoc_sample_template_bookmark_paragraphs_pagination_visual
         samples/sample_template_bookmark_paragraphs_pagination_visual.cpp)
     target_link_libraries(featherdoc_sample_template_bookmark_paragraphs_pagination_visual
