@@ -1,6 +1,7 @@
 #include <featherdoc.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -10,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -37,6 +39,120 @@ struct inspect_numbering_options {
     bool json_output = false;
 };
 
+struct inspect_paragraphs_options {
+    std::optional<std::size_t> paragraph_index;
+    bool json_output = false;
+};
+
+struct inspect_tables_options {
+    std::optional<std::size_t> table_index;
+    bool json_output = false;
+};
+
+struct inspect_table_cells_options {
+    std::optional<std::size_t> row_index;
+    std::optional<std::size_t> cell_index;
+    bool json_output = false;
+};
+
+struct inspect_table_rows_options {
+    std::optional<std::size_t> row_index;
+    bool json_output = false;
+};
+
+struct table_cell_text_options {
+    std::optional<path_type> output_path;
+    std::optional<std::string> text;
+    std::optional<path_type> text_file;
+    bool json_output = false;
+};
+
+enum class table_merge_direction {
+    right,
+    down,
+};
+
+struct merge_table_cells_options {
+    table_merge_direction direction = table_merge_direction::right;
+    bool has_direction = false;
+    std::size_t count = 1U;
+    bool has_count = false;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct unmerge_table_cells_options {
+    table_merge_direction direction = table_merge_direction::right;
+    bool has_direction = false;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct table_cell_style_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct append_table_row_options {
+    std::optional<std::size_t> cell_count;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct table_cell_border_options {
+    std::optional<featherdoc::border_style> style;
+    std::optional<std::uint32_t> size_eighth_points;
+    std::optional<std::string> color;
+    std::optional<std::uint32_t> space_points;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct inspect_runs_options {
+    std::optional<std::size_t> run_index;
+    bool json_output = false;
+};
+
+struct set_paragraph_style_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct clear_paragraph_style_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct set_run_style_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct clear_run_style_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct set_run_font_family_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct clear_run_font_family_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct set_run_language_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct clear_run_language_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
 struct set_paragraph_style_numbering_options {
     std::optional<std::string> definition_name;
     std::vector<featherdoc::numbering_level_definition> levels;
@@ -46,6 +162,33 @@ struct set_paragraph_style_numbering_options {
 };
 
 struct clear_paragraph_style_numbering_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct ensure_numbering_definition_options {
+    std::optional<std::string> definition_name;
+    std::vector<featherdoc::numbering_level_definition> levels;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct set_paragraph_numbering_options {
+    std::optional<std::uint32_t> definition_id;
+    std::optional<std::uint32_t> level;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct paragraph_list_options {
+    featherdoc::list_kind kind = featherdoc::list_kind::bullet;
+    bool has_kind = false;
+    std::optional<std::uint32_t> level;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct clear_paragraph_list_options {
     std::optional<path_type> output_path;
     bool json_output = false;
 };
@@ -111,6 +254,138 @@ enum class validation_part_family {
     section_footer,
 };
 
+struct template_inspect_paragraphs_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::size_t> paragraph_index;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct template_inspect_runs_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::size_t> run_index;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct template_inspect_tables_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::size_t> table_index;
+    std::optional<std::string> bookmark_name;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct template_inspect_table_cells_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::size_t> row_index;
+    std::optional<std::size_t> cell_index;
+    std::optional<std::string> bookmark_name;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct template_inspect_table_rows_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::size_t> row_index;
+    featherdoc::template_table_selector selector;
+    bool has_header_row_index = false;
+    bool has_occurrence = false;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct template_table_cell_text_options : table_cell_text_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::string> bookmark_name;
+    bool has_part = false;
+    bool has_kind = false;
+};
+
+struct template_table_cell_mutation_options : table_cell_style_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::string> bookmark_name;
+    bool has_part = false;
+    bool has_kind = false;
+};
+
+struct template_append_table_row_options : append_table_row_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::string> bookmark_name;
+    bool has_part = false;
+    bool has_kind = false;
+};
+
+struct template_table_row_mutation_options : table_cell_style_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::string> bookmark_name;
+    bool has_part = false;
+    bool has_kind = false;
+};
+
+struct template_merge_table_cells_options : merge_table_cells_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::string> bookmark_name;
+    bool has_part = false;
+    bool has_kind = false;
+};
+
+struct template_unmerge_table_cells_options : unmerge_table_cells_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::string> bookmark_name;
+    bool has_part = false;
+    bool has_kind = false;
+};
+
 struct inspect_bookmarks_options {
     validation_part_family part = validation_part_family::body;
     std::optional<std::size_t> part_index;
@@ -161,6 +436,170 @@ struct append_image_options {
     bool json_output = false;
 };
 
+struct replace_bookmark_paragraphs_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::vector<std::string> paragraphs;
+    std::optional<path_type> output_path;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct bookmark_table_replacement_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::vector<std::vector<std::string>> rows;
+    std::optional<path_type> output_path;
+    bool empty_rows = false;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct template_table_row_texts_options : bookmark_table_replacement_options {
+    std::optional<std::string> bookmark_name;
+};
+
+enum class template_table_json_patch_mode {
+    rows,
+    block,
+};
+
+struct template_table_json_patch {
+    template_table_json_patch_mode mode = template_table_json_patch_mode::rows;
+    std::size_t start_row_index = 0U;
+    std::size_t start_cell_index = 0U;
+    std::vector<std::vector<std::string>> rows;
+};
+
+struct template_table_json_patch_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    featherdoc::template_table_selector selector;
+    std::optional<path_type> patch_file;
+    std::optional<path_type> output_path;
+    bool has_header_row_index = false;
+    bool has_occurrence = false;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct template_table_json_batch_operation {
+    std::optional<validation_part_family> part;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    std::optional<featherdoc::section_reference_kind> reference_kind;
+    featherdoc::template_table_selector selector;
+    template_table_json_patch patch;
+};
+
+struct template_table_json_batch_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<path_type> patch_file;
+    std::optional<path_type> output_path;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct parsed_template_table_selector_target {
+    featherdoc::template_table_selector selector;
+    std::size_t options_start_index = 0U;
+    bool has_header_row_index = false;
+    bool has_occurrence = false;
+};
+
+struct parsed_template_table_selector_row_target
+    : parsed_template_table_selector_target {
+    std::size_t row_index = 0U;
+};
+
+struct parsed_template_table_selector_cell_target
+    : parsed_template_table_selector_row_target {
+    std::size_t cell_index = 0U;
+};
+
+struct remove_bookmark_block_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<path_type> output_path;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct replace_bookmark_text_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::string text;
+    std::optional<path_type> output_path;
+    bool has_part = false;
+    bool has_kind = false;
+    bool has_text = false;
+    bool json_output = false;
+};
+
+struct fill_bookmarks_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::vector<featherdoc::bookmark_text_binding> bindings;
+    std::optional<path_type> output_path;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct set_bookmark_block_visibility_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<path_type> output_path;
+    bool visible = true;
+    bool has_visible = false;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
+struct apply_bookmark_block_visibility_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::vector<featherdoc::bookmark_block_visibility_binding> bindings;
+    std::optional<path_type> output_path;
+    bool has_part = false;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
 struct inspected_part_reference {
     std::size_t section_index = 0;
     std::string kind;
@@ -171,6 +610,35 @@ struct inspected_part_entry {
     std::string entry_name;
     std::vector<inspected_part_reference> references;
     std::vector<std::string> paragraphs;
+};
+
+struct inspected_body_paragraph {
+    std::size_t index = 0;
+    std::size_t section_index = 0;
+    std::optional<std::string> style_id;
+    std::optional<std::uint32_t> numbering_id;
+    std::optional<std::uint32_t> numbering_level;
+    bool has_section_break = false;
+    std::string text;
+};
+
+struct inspected_body_run {
+    std::size_t index = 0;
+    std::optional<std::string> style_id;
+    std::optional<std::string> font_family;
+    std::optional<std::string> east_asia_font_family;
+    std::optional<std::string> language;
+    std::string text;
+};
+
+struct table_row_inspection_summary {
+    std::size_t row_index = 0U;
+    std::size_t cell_count = 0U;
+    std::optional<std::uint32_t> height_twips;
+    std::optional<featherdoc::row_height_rule> height_rule;
+    bool cant_split = false;
+    bool repeats_header = false;
+    std::vector<std::string> cell_texts;
 };
 
 struct validate_template_options {
@@ -205,6 +673,14 @@ struct selected_template_part {
     std::optional<featherdoc::section_reference_kind> reference_kind;
 };
 
+struct applied_template_table_json_batch_operation {
+    std::size_t operation_index = 0U;
+    selected_template_part selected;
+    std::size_t table_index = 0U;
+    featherdoc::template_table_selector selector;
+    template_table_json_patch patch;
+};
+
 template <typename ExtraWriter>
 void write_json_mutation_result(std::string_view command, featherdoc::Document &doc,
                                 const std::optional<path_type> &output_path,
@@ -212,6 +688,17 @@ void write_json_mutation_result(std::string_view command, featherdoc::Document &
 
 void write_json_mutation_result(std::string_view command, featherdoc::Document &doc,
                                 const std::optional<path_type> &output_path);
+void write_json_string(std::ostream &stream, std::string_view text);
+auto report_operation_failure(std::string_view command, std::string_view stage,
+                              std::string_view message,
+                              const featherdoc::document_error_info &error_info,
+                              bool json_output) -> bool;
+auto report_document_error(std::string_view command, std::string_view stage,
+                           const featherdoc::document_error_info &error_info,
+                           bool json_output) -> bool;
+void annotate_template_table_json_batch_error(
+    std::optional<std::size_t> operation_index,
+    featherdoc::document_error_info &error_info);
 
 auto has_inspect_image_filters(const inspect_images_options &options) -> bool;
 
@@ -236,6 +723,255 @@ void print_usage(std::ostream &stream) {
            " [--style <style-id>] [--usage] [--json]\n"
         << "  featherdoc_cli inspect-numbering <input.docx>"
            " [--definition <id>] [--instance <num-id>] [--json]\n"
+        << "  featherdoc_cli inspect-paragraphs <input.docx>"
+           " [--paragraph <index>] [--json]\n"
+        << "  featherdoc_cli inspect-tables <input.docx>"
+           " [--table <index>] [--json]\n"
+        << "  featherdoc_cli inspect-table-cells <input.docx> <table-index>"
+           " [--row <index>] [--cell <index>] [--json]\n"
+        << "  featherdoc_cli inspect-table-rows <input.docx> <table-index>"
+           " [--row <index>] [--json]\n"
+        << "  featherdoc_cli inspect-template-paragraphs <input.docx>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--paragraph <index>] [--json]\n"
+        << "  featherdoc_cli append-table-row <input.docx> <table-index>"
+           " [--cell-count <n>] [--output <path>] [--json]\n"
+        << "  featherdoc_cli insert-table-row-before <input.docx> <table-index>"
+           " <row-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli insert-table-row-after <input.docx> <table-index>"
+           " <row-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli remove-table-row <input.docx> <table-index>"
+           " <row-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-table-cell-text <input.docx> <table-index>"
+           " <row-index> <cell-index> (--text <text> | --text-file <path>)"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli merge-table-cells <input.docx> <table-index>"
+           " <row-index> <cell-index> --direction <right|down>"
+           " [--count <n>] [--output <path>] [--json]\n"
+        << "  featherdoc_cli unmerge-table-cells <input.docx> <table-index>"
+           " <row-index> <cell-index> --direction <right|down>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-table-cell-fill <input.docx> <table-index>"
+           " <row-index> <cell-index> <hex-color> [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-table-cell-fill <input.docx> <table-index>"
+           " <row-index> <cell-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-table-cell-vertical-alignment <input.docx>"
+           " <table-index> <row-index> <cell-index> <top|center|bottom|both>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-table-cell-vertical-alignment <input.docx>"
+           " <table-index> <row-index> <cell-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-table-cell-text-direction <input.docx>"
+           " <table-index> <row-index> <cell-index>"
+           " <left_to_right_top_to_bottom|top_to_bottom_right_to_left|bottom_to_top_left_to_right|left_to_right_top_to_bottom_rotated|top_to_bottom_right_to_left_rotated|top_to_bottom_left_to_right_rotated>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-table-cell-text-direction <input.docx>"
+           " <table-index> <row-index> <cell-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-table-cell-width <input.docx> <table-index>"
+           " <row-index> <cell-index> <width-twips>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-table-cell-width <input.docx> <table-index>"
+           " <row-index> <cell-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-table-cell-margin <input.docx> <table-index>"
+           " <row-index> <cell-index> <top|left|bottom|right> <margin-twips>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-table-cell-margin <input.docx> <table-index>"
+           " <row-index> <cell-index> <top|left|bottom|right>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-table-cell-border <input.docx> <table-index>"
+           " <row-index> <cell-index> <top|left|bottom|right>"
+           " --style <none|single|double_line|dashed|dotted|thick>"
+           " [--size <n>] [--color <value>] [--space <n>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-table-cell-border <input.docx> <table-index>"
+           " <row-index> <cell-index> <top|left|bottom|right>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-table-row-height <input.docx> <table-index>"
+           " <row-index> <height-twips> <automatic|at_least|exact>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-table-row-height <input.docx> <table-index>"
+           " <row-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-table-row-cant-split <input.docx>"
+           " <table-index> <row-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-table-row-cant-split <input.docx>"
+           " <table-index> <row-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-table-row-repeat-header <input.docx>"
+           " <table-index> <row-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-table-row-repeat-header <input.docx>"
+           " <table-index> <row-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli inspect-runs <input.docx> <paragraph-index>"
+           " [--run <index>] [--json]\n"
+        << "  featherdoc_cli inspect-template-runs <input.docx> <paragraph-index>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--run <index>] [--json]\n"
+        << "  featherdoc_cli inspect-template-tables <input.docx>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--table <index>|--bookmark <name>] [--json]\n"
+        << "  featherdoc_cli inspect-template-table-rows <input.docx>"
+           " [<table-index>|--bookmark <name>|--after-text <text>|"
+           " --header-cell <text> ...]"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " [--row <index>] [--json]\n"
+        << "  featherdoc_cli inspect-template-table-cells <input.docx>"
+           " [<table-index>|--bookmark <name>|--after-text <text>|"
+           " --header-cell <text> ...]"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " [--row <index>] [--cell <index>] [--json]\n"
+        << "  featherdoc_cli set-template-table-cell-text <input.docx>"
+           " (<table-index> <row-index> <cell-index>|"
+           " --bookmark <name> <row-index> <cell-index>|"
+           " [--after-text <text>|--header-cell <text> ...]"
+           " <row-index> <cell-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " (--text <text> | --text-file <path>)"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-template-table-row-texts <input.docx>"
+           " (<table-index> <start-row-index>|"
+           " --bookmark <name> <start-row-index>|"
+           " [--after-text <text>|--header-cell <text> ...]"
+           " <start-row-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " (--row <text> [--cell <text> ...])+"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-template-table-cell-block-texts <input.docx>"
+           " (<table-index> <start-row-index> <start-cell-index>|"
+           " --bookmark <name> <start-row-index> <start-cell-index>|"
+           " [--after-text <text>|--header-cell <text> ...]"
+           " <start-row-index> <start-cell-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " (--row <text> [--cell <text> ...])+"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-template-table-from-json <input.docx>"
+           " [<table-index>|--bookmark <name>|--after-text <text>|"
+           " --header-cell <text> ...]"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " --patch-file <path> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-template-tables-from-json <input.docx>"
+           " --patch-file <path>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli insert-template-table-column-before <input.docx>"
+           " (<table-index> <row-index> <cell-index>|"
+           " --bookmark <name> <row-index> <cell-index>|"
+           " [--after-text <text>|--header-cell <text> ...]"
+           " <row-index> <cell-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli insert-template-table-column-after <input.docx>"
+           " (<table-index> <row-index> <cell-index>|"
+           " --bookmark <name> <row-index> <cell-index>|"
+           " [--after-text <text>|--header-cell <text> ...]"
+           " <row-index> <cell-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli remove-template-table-column <input.docx>"
+           " (<table-index> <row-index> <cell-index>|"
+           " --bookmark <name> <row-index> <cell-index>|"
+           " [--after-text <text>|--header-cell <text> ...]"
+           " <row-index> <cell-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli append-template-table-row <input.docx>"
+           " (<table-index>|--bookmark <name>|"
+           " --after-text <text>|--header-cell <text> ...)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " [--cell-count <n>] [--output <path>] [--json]\n"
+        << "  featherdoc_cli insert-template-table-row-before <input.docx>"
+           " (<table-index> <row-index>|--bookmark <name> <row-index>|"
+           " [--after-text <text>|--header-cell <text> ...] <row-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli insert-template-table-row-after <input.docx>"
+           " (<table-index> <row-index>|--bookmark <name> <row-index>|"
+           " [--after-text <text>|--header-cell <text> ...] <row-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli remove-template-table-row <input.docx>"
+           " (<table-index> <row-index>|--bookmark <name> <row-index>|"
+           " [--after-text <text>|--header-cell <text> ...] <row-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli merge-template-table-cells <input.docx>"
+           " (<table-index> <row-index> <cell-index>|"
+           " --bookmark <name> <row-index> <cell-index>|"
+           " [--after-text <text>|--header-cell <text> ...]"
+           " <row-index> <cell-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " --direction <right|down> [--count <n>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli unmerge-template-table-cells <input.docx>"
+           " (<table-index> <row-index> <cell-index>|"
+           " --bookmark <name> <row-index> <cell-index>|"
+           " [--after-text <text>|--header-cell <text> ...]"
+           " <row-index> <cell-index>)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " [--header-row <index>] [--occurrence <index>]"
+           " --direction <right|down> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-paragraph-style <input.docx> <paragraph-index>"
+           " <style-id> [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-paragraph-style <input.docx> <paragraph-index>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-run-style <input.docx> <paragraph-index>"
+           " <run-index> <style-id> [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-run-style <input.docx> <paragraph-index>"
+           " <run-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-run-font-family <input.docx> <paragraph-index>"
+           " <run-index> <font-family> [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-run-font-family <input.docx> <paragraph-index>"
+           " <run-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-run-language <input.docx> <paragraph-index>"
+           " <run-index> <language> [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-run-language <input.docx> <paragraph-index>"
+           " <run-index> [--output <path>] [--json]\n"
         << "  featherdoc_cli ensure-paragraph-style <input.docx> <style-id>"
            " --name <name> [--based-on <style-id>] [--next-style <style-id>]"
            " [--custom true|false] [--semi-hidden true|false]"
@@ -263,6 +999,21 @@ void print_usage(std::ostream &stream) {
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli clear-paragraph-style-numbering <input.docx> <style-id>"
            " [--output <path>] [--json]\n"
+        << "  featherdoc_cli ensure-numbering-definition <input.docx>"
+           " --definition-name <name>"
+           " --numbering-level <level>:<kind>:<start>:<text-pattern>"
+           " [--numbering-level ...] [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-paragraph-numbering <input.docx> <paragraph-index>"
+           " --definition <id> [--level <level>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-paragraph-list <input.docx> <paragraph-index>"
+           " --kind bullet|decimal [--level <level>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli restart-paragraph-list <input.docx> <paragraph-index>"
+           " --kind bullet|decimal [--level <level>]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-paragraph-list <input.docx> <paragraph-index>"
+           " [--output <path>] [--json]\n"
         << "  featherdoc_cli inspect-page-setup <input.docx>"
            " [--section <section-index>] [--json]\n"
         << "  featherdoc_cli set-section-page-setup <input.docx> <section-index>"
@@ -276,6 +1027,45 @@ void print_usage(std::ostream &stream) {
            " [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--bookmark <name>] [--json]\n"
+        << "  featherdoc_cli replace-bookmark-text <input.docx>"
+           " <bookmark-name> --text <text>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--output <path>] [--json]\n"
+        << "  featherdoc_cli fill-bookmarks <input.docx>"
+           " (--set <bookmark-name> <text>)+"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--output <path>] [--json]\n"
+        << "  featherdoc_cli replace-bookmark-paragraphs <input.docx>"
+           " <bookmark-name> --paragraph <text> [--paragraph <text> ...]"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--output <path>] [--json]\n"
+        << "  featherdoc_cli replace-bookmark-table <input.docx>"
+           " <bookmark-name> (--row <text> [--cell <text> ...])+"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--output <path>] [--json]\n"
+        << "  featherdoc_cli replace-bookmark-table-rows <input.docx>"
+           " <bookmark-name> ((--row <text> [--cell <text> ...])+ | --empty)"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--output <path>] [--json]\n"
+        << "  featherdoc_cli remove-bookmark-block <input.docx> <bookmark-name>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-bookmark-block-visibility <input.docx>"
+           " <bookmark-name> --visible true|false"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--output <path>] [--json]\n"
+        << "  featherdoc_cli apply-bookmark-block-visibility <input.docx>"
+           " (--show <bookmark-name> | --hide <bookmark-name>)+"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--output <path>] [--json]\n"
         << "  featherdoc_cli replace-bookmark-image <input.docx> <bookmark-name>"
            " <image-path> [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
@@ -1234,6 +2024,276 @@ auto parse_clear_paragraph_style_numbering_options(
     return true;
 }
 
+auto parse_ensure_numbering_definition_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    ensure_numbering_definition_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--definition-name") {
+            if (options.definition_name.has_value()) {
+                error_message = "duplicate --definition-name option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --definition-name";
+                return false;
+            }
+
+            options.definition_name = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--numbering-level") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --numbering-level";
+                return false;
+            }
+
+            featherdoc::numbering_level_definition definition;
+            if (!parse_numbering_level_definition(arguments[index + 1U], definition,
+                                                  error_message)) {
+                return false;
+            }
+
+            options.levels.push_back(std::move(definition));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.definition_name.has_value()) {
+        error_message = "missing --definition-name <name>";
+        return false;
+    }
+    if (options.levels.empty()) {
+        error_message =
+            "expected at least one --numbering-level "
+            "<level>:<kind>:<start>:<text-pattern>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_set_paragraph_numbering_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    set_paragraph_numbering_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--definition") {
+            if (options.definition_id.has_value()) {
+                error_message = "duplicate --definition option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --definition";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message =
+                    "invalid numbering definition id: " +
+                    std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.definition_id = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--level") {
+            if (options.level.has_value()) {
+                error_message = "duplicate --level option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --level";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message =
+                    "invalid numbering level: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.level = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.definition_id.has_value()) {
+        error_message = "missing --definition <id>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_paragraph_list_options(const std::vector<std::string_view> &arguments,
+                                  std::size_t start_index,
+                                  paragraph_list_options &options,
+                                  std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--kind") {
+            if (options.has_kind) {
+                error_message = "duplicate --kind option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_list_kind(arguments[index + 1U], options.kind)) {
+                error_message = "invalid list kind: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--level") {
+            if (options.level.has_value()) {
+                error_message = "duplicate --level option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --level";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message = "invalid list level: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.level = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.has_kind) {
+        error_message = "missing --kind <bullet|decimal>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_clear_paragraph_list_options(const std::vector<std::string_view> &arguments,
+                                        std::size_t start_index,
+                                        clear_paragraph_list_options &options,
+                                        std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
 template <typename Definition>
 auto parse_style_catalog_option(const std::vector<std::string_view> &arguments,
                                 std::size_t &index, Definition &definition,
@@ -1709,6 +2769,94 @@ auto validate_template_part_selection(validation_part_family part,
     return true;
 }
 
+auto parse_template_part_selection_option(
+    const std::vector<std::string_view> &arguments, std::size_t &index,
+    validation_part_family &part, std::optional<std::size_t> &part_index,
+    std::optional<std::size_t> &section_index,
+    featherdoc::section_reference_kind &reference_kind, bool &has_part,
+    bool &has_kind, std::string &error_message) -> option_parse_result {
+    const auto argument = arguments[index];
+    if (argument == "--part") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --part";
+            return option_parse_result::error;
+        }
+
+        if (!parse_validation_part(arguments[index + 1U], part)) {
+            error_message =
+                "invalid template part: " + std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        has_part = true;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--index") {
+        if (part_index.has_value()) {
+            error_message = "duplicate --index option";
+            return option_parse_result::error;
+        }
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --index";
+            return option_parse_result::error;
+        }
+
+        std::size_t parsed_part_index = 0U;
+        if (!parse_index(arguments[index + 1U], parsed_part_index)) {
+            error_message =
+                "invalid part index: " + std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        part_index = parsed_part_index;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--section") {
+        if (section_index.has_value()) {
+            error_message = "duplicate --section option";
+            return option_parse_result::error;
+        }
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --section";
+            return option_parse_result::error;
+        }
+
+        std::size_t parsed_section_index = 0U;
+        if (!parse_index(arguments[index + 1U], parsed_section_index)) {
+            error_message =
+                "invalid section index: " + std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        section_index = parsed_section_index;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--kind") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --kind";
+            return option_parse_result::error;
+        }
+
+        if (!parse_reference_kind(arguments[index + 1U], reference_kind)) {
+            error_message =
+                "invalid reference kind: " + std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        has_kind = true;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    return option_parse_result::not_matched;
+}
+
 auto parse_inspect_numbering_options(const std::vector<std::string_view> &arguments,
                                      std::size_t start_index,
                                      inspect_numbering_options &options,
@@ -1755,6 +2903,2458 @@ auto parse_inspect_numbering_options(const std::vector<std::string_view> &argume
             }
 
             options.instance_id = instance_id;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_inspect_paragraphs_options(const std::vector<std::string_view> &arguments,
+                                      std::size_t start_index,
+                                      inspect_paragraphs_options &options,
+                                      std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--paragraph") {
+            if (options.paragraph_index.has_value()) {
+                error_message = "duplicate --paragraph option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --paragraph";
+                return false;
+            }
+
+            std::size_t paragraph_index = 0U;
+            if (!parse_index(arguments[index + 1U], paragraph_index)) {
+                error_message =
+                    "invalid paragraph index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.paragraph_index = paragraph_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_inspect_tables_options(const std::vector<std::string_view> &arguments,
+                                  std::size_t start_index,
+                                  inspect_tables_options &options,
+                                  std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--table") {
+            if (options.table_index.has_value()) {
+                error_message = "duplicate --table option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --table";
+                return false;
+            }
+
+            std::size_t table_index = 0U;
+            if (!parse_index(arguments[index + 1U], table_index)) {
+                error_message =
+                    "invalid table index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.table_index = table_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_inspect_table_cells_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    inspect_table_cells_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--row") {
+            if (options.row_index.has_value()) {
+                error_message = "duplicate --row option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --row";
+                return false;
+            }
+
+            std::size_t row_index = 0U;
+            if (!parse_index(arguments[index + 1U], row_index)) {
+                error_message =
+                    "invalid row index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.row_index = row_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--cell") {
+            if (options.cell_index.has_value()) {
+                error_message = "duplicate --cell option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --cell";
+                return false;
+            }
+
+            std::size_t cell_index = 0U;
+            if (!parse_index(arguments[index + 1U], cell_index)) {
+                error_message =
+                    "invalid cell index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.cell_index = cell_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.cell_index.has_value() && !options.row_index.has_value()) {
+        error_message = "--cell requires --row";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_inspect_table_rows_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    inspect_table_rows_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--row") {
+            if (options.row_index.has_value()) {
+                error_message = "duplicate --row option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --row";
+                return false;
+            }
+
+            std::size_t row_index = 0U;
+            if (!parse_index(arguments[index + 1U], row_index)) {
+                error_message =
+                    "invalid row index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.row_index = row_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_template_inspect_paragraphs_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_inspect_paragraphs_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--paragraph") {
+            if (options.paragraph_index.has_value()) {
+                error_message = "duplicate --paragraph option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --paragraph";
+                return false;
+            }
+
+            std::size_t paragraph_index = 0U;
+            if (!parse_index(arguments[index + 1U], paragraph_index)) {
+                error_message =
+                    "invalid paragraph index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.paragraph_index = paragraph_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "inspection", error_message);
+}
+
+auto parse_template_table_bookmark_option(
+    const std::vector<std::string_view> &arguments, std::size_t &index,
+    std::optional<std::string> &bookmark_name, std::string &error_message)
+    -> option_parse_result {
+    const auto argument = arguments[index];
+    if (argument != "--bookmark") {
+        return option_parse_result::not_matched;
+    }
+
+    if (bookmark_name.has_value()) {
+        error_message = "duplicate --bookmark option";
+        return option_parse_result::error;
+    }
+    if (index + 1U >= arguments.size()) {
+        error_message = "missing value after --bookmark";
+        return option_parse_result::error;
+    }
+
+    const auto parsed_bookmark_name = std::string(arguments[index + 1U]);
+    if (parsed_bookmark_name.empty()) {
+        error_message = "bookmark name must not be empty";
+        return option_parse_result::error;
+    }
+
+    bookmark_name = parsed_bookmark_name;
+    ++index;
+    return option_parse_result::matched;
+}
+
+auto template_table_selector_uses_text_matching(
+    const featherdoc::template_table_selector &selector) -> bool {
+    return selector.after_paragraph_text.has_value() ||
+           !selector.header_cell_texts.empty();
+}
+
+auto validate_template_table_selector(
+    const std::optional<std::size_t> &table_index,
+    const std::optional<std::string> &bookmark_name, bool allow_none,
+    std::string &error_message) -> bool {
+    if (table_index.has_value() && bookmark_name.has_value()) {
+        error_message = "cannot combine a table index with --bookmark";
+        return false;
+    }
+
+    if (!allow_none && !table_index.has_value() && !bookmark_name.has_value()) {
+        error_message = "expected a table index or --bookmark <name>";
+        return false;
+    }
+
+    return true;
+}
+
+auto validate_template_table_selector(
+    const featherdoc::template_table_selector &selector, bool allow_none,
+    bool has_header_row_index, bool has_occurrence,
+    std::string &error_message) -> bool {
+    const auto uses_direct_target =
+        selector.table_index.has_value() || selector.bookmark_name.has_value();
+    const auto uses_text_target =
+        template_table_selector_uses_text_matching(selector);
+
+    if (selector.table_index.has_value() && selector.bookmark_name.has_value()) {
+        error_message = "cannot combine a table index with --bookmark";
+        return false;
+    }
+
+    if (selector.bookmark_name.has_value() && selector.bookmark_name->empty()) {
+        error_message = "bookmark name must not be empty";
+        return false;
+    }
+
+    if (selector.after_paragraph_text.has_value() &&
+        selector.after_paragraph_text->empty()) {
+        error_message = "--after-text must not be empty";
+        return false;
+    }
+
+    if (uses_direct_target && uses_text_target) {
+        error_message = "cannot combine a table index or --bookmark with "
+                        "--after-text or --header-cell";
+        return false;
+    }
+
+    if (!allow_none && !uses_direct_target && !uses_text_target) {
+        error_message = "expected a table index, --bookmark <name>, "
+                        "--after-text <text>, or --header-cell <text>";
+        return false;
+    }
+
+    if (has_header_row_index && selector.header_cell_texts.empty()) {
+        error_message = "--header-row requires at least one --header-cell";
+        return false;
+    }
+
+    if (has_occurrence && !uses_text_target) {
+        error_message = "--occurrence requires --after-text or --header-cell";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_template_table_selector_option(
+    const std::vector<std::string_view> &arguments, std::size_t &index,
+    featherdoc::template_table_selector &selector, bool &has_header_row_index,
+    bool &has_occurrence, std::string &error_message) -> option_parse_result {
+    const auto argument = arguments[index];
+    if (argument == "--bookmark") {
+        return parse_template_table_bookmark_option(arguments, index,
+                                                    selector.bookmark_name,
+                                                    error_message);
+    }
+
+    if (argument == "--after-text") {
+        if (selector.after_paragraph_text.has_value()) {
+            error_message = "duplicate --after-text option";
+            return option_parse_result::error;
+        }
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --after-text";
+            return option_parse_result::error;
+        }
+
+        selector.after_paragraph_text = std::string(arguments[index + 1U]);
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--header-cell") {
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --header-cell";
+            return option_parse_result::error;
+        }
+
+        selector.header_cell_texts.emplace_back(arguments[index + 1U]);
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--header-row") {
+        if (has_header_row_index) {
+            error_message = "duplicate --header-row option";
+            return option_parse_result::error;
+        }
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --header-row";
+            return option_parse_result::error;
+        }
+
+        std::size_t parsed_header_row_index = 0U;
+        if (!parse_index(arguments[index + 1U], parsed_header_row_index)) {
+            error_message =
+                "invalid header row index: " + std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        selector.header_row_index = parsed_header_row_index;
+        has_header_row_index = true;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    if (argument == "--occurrence") {
+        if (has_occurrence) {
+            error_message = "duplicate --occurrence option";
+            return option_parse_result::error;
+        }
+        if (index + 1U >= arguments.size()) {
+            error_message = "missing value after --occurrence";
+            return option_parse_result::error;
+        }
+
+        std::size_t parsed_occurrence = 0U;
+        if (!parse_index(arguments[index + 1U], parsed_occurrence)) {
+            error_message =
+                "invalid occurrence index: " + std::string(arguments[index + 1U]);
+            return option_parse_result::error;
+        }
+
+        selector.occurrence = parsed_occurrence;
+        has_occurrence = true;
+        ++index;
+        return option_parse_result::matched;
+    }
+
+    return option_parse_result::not_matched;
+}
+
+auto parse_template_table_selector_target_arguments(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    parsed_template_table_selector_target &target, bool allow_empty_target,
+    std::string &error_message) -> bool {
+    if (start_index >= arguments.size()) {
+        error_message = "expected a table index, --bookmark <name>, "
+                        "--after-text <text>, or --header-cell <text>";
+        return false;
+    }
+
+    if (arguments[start_index].size() < 2U ||
+        arguments[start_index].substr(0U, 2U) != "--") {
+        std::size_t parsed_table_index = 0U;
+        if (!parse_index(arguments[start_index], parsed_table_index)) {
+            error_message =
+                "invalid table index: " + std::string(arguments[start_index]);
+            return false;
+        }
+
+        target.selector.table_index = parsed_table_index;
+        target.options_start_index = start_index + 1U;
+        return true;
+    }
+
+    std::size_t index = start_index;
+    bool matched_selector_option = false;
+    while (index < arguments.size()) {
+        const auto current_index = index;
+        const auto selector_parse_result = parse_template_table_selector_option(
+            arguments, index, target.selector, target.has_header_row_index,
+            target.has_occurrence, error_message);
+        if (selector_parse_result == option_parse_result::matched) {
+            matched_selector_option = true;
+            ++index;
+            continue;
+        }
+        if (selector_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        index = current_index;
+        break;
+    }
+
+    if (!matched_selector_option && !allow_empty_target) {
+        error_message = "expected a table index, --bookmark <name>, "
+                        "--after-text <text>, or --header-cell <text>";
+        return false;
+    }
+
+    target.options_start_index = index;
+    return true;
+}
+
+auto parse_template_table_selector_row_target_arguments(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    parsed_template_table_selector_row_target &target,
+    std::string &error_message) -> bool {
+    if (start_index >= arguments.size()) {
+        error_message =
+            "expected either <table-index> <row-index>, --bookmark <name> "
+            "<row-index>, or a text-based table selector followed by "
+            "<row-index>";
+        return false;
+    }
+
+    if (arguments[start_index].size() < 2U ||
+        arguments[start_index].substr(0U, 2U) != "--") {
+        std::size_t parsed_table_index = 0U;
+        if (!parse_index(arguments[start_index], parsed_table_index)) {
+            error_message =
+                "invalid table index: " + std::string(arguments[start_index]);
+            return false;
+        }
+        if (start_index + 1U >= arguments.size()) {
+            error_message = "expected a table index and a row index";
+            return false;
+        }
+        if (!parse_index(arguments[start_index + 1U], target.row_index)) {
+            error_message =
+                "invalid row index: " + std::string(arguments[start_index + 1U]);
+            return false;
+        }
+
+        target.selector.table_index = parsed_table_index;
+        target.options_start_index = start_index + 2U;
+        return true;
+    }
+
+    if (!parse_template_table_selector_target_arguments(arguments, start_index,
+                                                        target, false,
+                                                        error_message)) {
+        return false;
+    }
+    if (target.options_start_index >= arguments.size() ||
+        (arguments[target.options_start_index].size() >= 2U &&
+         arguments[target.options_start_index].substr(0U, 2U) == "--")) {
+        error_message = "missing row index after table selector";
+        return false;
+    }
+    if (!parse_index(arguments[target.options_start_index], target.row_index)) {
+        error_message = "invalid row index: " +
+                        std::string(arguments[target.options_start_index]);
+        return false;
+    }
+
+    ++target.options_start_index;
+    return true;
+}
+
+auto parse_template_table_selector_cell_target_arguments(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    parsed_template_table_selector_cell_target &target,
+    std::string &error_message) -> bool {
+    if (start_index >= arguments.size()) {
+        error_message =
+            "expected either <table-index> <row-index> <cell-index>, "
+            "--bookmark <name> <row-index> <cell-index>, or a text-based "
+            "table selector followed by <row-index> <cell-index>";
+        return false;
+    }
+
+    if (arguments[start_index].size() < 2U ||
+        arguments[start_index].substr(0U, 2U) != "--") {
+        std::size_t parsed_table_index = 0U;
+        if (!parse_index(arguments[start_index], parsed_table_index)) {
+            error_message =
+                "invalid table index: " + std::string(arguments[start_index]);
+            return false;
+        }
+        if (start_index + 2U >= arguments.size()) {
+            error_message =
+                "expected a table index, a row index, and a cell index";
+            return false;
+        }
+        if (!parse_index(arguments[start_index + 1U], target.row_index)) {
+            error_message =
+                "invalid row index: " + std::string(arguments[start_index + 1U]);
+            return false;
+        }
+        if (!parse_index(arguments[start_index + 2U], target.cell_index)) {
+            error_message =
+                "invalid cell index: " + std::string(arguments[start_index + 2U]);
+            return false;
+        }
+
+        target.selector.table_index = parsed_table_index;
+        target.options_start_index = start_index + 3U;
+        return true;
+    }
+
+    if (!parse_template_table_selector_target_arguments(arguments, start_index,
+                                                        target, false,
+                                                        error_message)) {
+        return false;
+    }
+    if (target.options_start_index >= arguments.size() ||
+        (arguments[target.options_start_index].size() >= 2U &&
+         arguments[target.options_start_index].substr(0U, 2U) == "--")) {
+        error_message = "missing row index after table selector";
+        return false;
+    }
+    if (!parse_index(arguments[target.options_start_index], target.row_index)) {
+        error_message = "invalid row index: " +
+                        std::string(arguments[target.options_start_index]);
+        return false;
+    }
+
+    ++target.options_start_index;
+    if (target.options_start_index >= arguments.size() ||
+        (arguments[target.options_start_index].size() >= 2U &&
+         arguments[target.options_start_index].substr(0U, 2U) == "--")) {
+        error_message = "missing cell index after table selector";
+        return false;
+    }
+    if (!parse_index(arguments[target.options_start_index], target.cell_index)) {
+        error_message = "invalid cell index: " +
+                        std::string(arguments[target.options_start_index]);
+        return false;
+    }
+
+    ++target.options_start_index;
+    return true;
+}
+
+auto parse_template_table_target_arguments(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    std::optional<std::size_t> &table_index,
+    std::optional<std::string> &bookmark_name, std::size_t &options_start_index,
+    std::string &error_message) -> bool {
+    if (start_index >= arguments.size()) {
+        error_message = "expected either <table-index> or --bookmark <name>";
+        return false;
+    }
+
+    if (arguments[start_index] == "--bookmark") {
+        if (start_index + 1U >= arguments.size()) {
+            error_message = "expected --bookmark <name>";
+            return false;
+        }
+
+        const auto parsed_bookmark_name = std::string(arguments[start_index + 1U]);
+        if (parsed_bookmark_name.empty()) {
+            error_message = "bookmark name must not be empty";
+            return false;
+        }
+
+        bookmark_name = std::move(parsed_bookmark_name);
+        options_start_index = start_index + 2U;
+        return true;
+    }
+
+    if (arguments[start_index].size() >= 2U &&
+        arguments[start_index].substr(0U, 2U) == "--") {
+        options_start_index = start_index;
+        return true;
+    }
+
+    std::size_t parsed_table_index = 0U;
+    if (!parse_index(arguments[start_index], parsed_table_index)) {
+        error_message = "invalid table index: " + std::string(arguments[start_index]);
+        return false;
+    }
+
+    table_index = parsed_table_index;
+    options_start_index = start_index + 1U;
+    return true;
+}
+
+auto parse_template_table_row_target_arguments(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    std::optional<std::size_t> &table_index, std::optional<std::string> &bookmark_name,
+    std::size_t &row_index, std::size_t &options_start_index, std::string &error_message)
+    -> bool {
+    if (start_index >= arguments.size()) {
+        error_message =
+            "expected either <table-index> <row-index> or --bookmark <name> <row-index>";
+        return false;
+    }
+
+    if (arguments[start_index] == "--bookmark") {
+        if (start_index + 2U >= arguments.size()) {
+            error_message =
+                "expected --bookmark <name> <row-index>";
+            return false;
+        }
+
+        const auto parsed_bookmark_name = std::string(arguments[start_index + 1U]);
+        if (parsed_bookmark_name.empty()) {
+            error_message = "bookmark name must not be empty";
+            return false;
+        }
+
+        if (!parse_index(arguments[start_index + 2U], row_index)) {
+            error_message =
+                "invalid row index: " + std::string(arguments[start_index + 2U]);
+            return false;
+        }
+
+        bookmark_name = std::move(parsed_bookmark_name);
+        options_start_index = start_index + 3U;
+        return true;
+    }
+
+    if (start_index + 1U >= arguments.size()) {
+        error_message = "expected a table index and a row index";
+        return false;
+    }
+
+    std::size_t parsed_table_index = 0U;
+    if (!parse_index(arguments[start_index], parsed_table_index)) {
+        error_message = "invalid table index: " + std::string(arguments[start_index]);
+        return false;
+    }
+
+    if (!parse_index(arguments[start_index + 1U], row_index)) {
+        error_message =
+            "invalid row index: " + std::string(arguments[start_index + 1U]);
+        return false;
+    }
+
+    table_index = parsed_table_index;
+    options_start_index = start_index + 2U;
+    return true;
+}
+
+auto parse_template_table_cell_target_arguments(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    std::optional<std::size_t> &table_index, std::optional<std::string> &bookmark_name,
+    std::size_t &row_index, std::size_t &cell_index, std::size_t &options_start_index,
+    std::string &error_message) -> bool {
+    if (start_index >= arguments.size()) {
+        error_message = "expected either <table-index> <row-index> <cell-index> or "
+                        "--bookmark <name> <row-index> <cell-index>";
+        return false;
+    }
+
+    if (arguments[start_index] == "--bookmark") {
+        if (start_index + 3U >= arguments.size()) {
+            error_message =
+                "expected --bookmark <name> <row-index> <cell-index>";
+            return false;
+        }
+
+        const auto parsed_bookmark_name = std::string(arguments[start_index + 1U]);
+        if (parsed_bookmark_name.empty()) {
+            error_message = "bookmark name must not be empty";
+            return false;
+        }
+
+        if (!parse_index(arguments[start_index + 2U], row_index)) {
+            error_message =
+                "invalid row index: " + std::string(arguments[start_index + 2U]);
+            return false;
+        }
+
+        if (!parse_index(arguments[start_index + 3U], cell_index)) {
+            error_message =
+                "invalid cell index: " + std::string(arguments[start_index + 3U]);
+            return false;
+        }
+
+        bookmark_name = std::move(parsed_bookmark_name);
+        options_start_index = start_index + 4U;
+        return true;
+    }
+
+    if (start_index + 2U >= arguments.size()) {
+        error_message = "expected a table index, a row index, and a cell index";
+        return false;
+    }
+
+    std::size_t parsed_table_index = 0U;
+    if (!parse_index(arguments[start_index], parsed_table_index)) {
+        error_message = "invalid table index: " + std::string(arguments[start_index]);
+        return false;
+    }
+
+    if (!parse_index(arguments[start_index + 1U], row_index)) {
+        error_message =
+            "invalid row index: " + std::string(arguments[start_index + 1U]);
+        return false;
+    }
+
+    if (!parse_index(arguments[start_index + 2U], cell_index)) {
+        error_message =
+            "invalid cell index: " + std::string(arguments[start_index + 2U]);
+        return false;
+    }
+
+    table_index = parsed_table_index;
+    options_start_index = start_index + 3U;
+    return true;
+}
+
+auto parse_template_inspect_tables_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_inspect_tables_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--table") {
+            if (options.table_index.has_value()) {
+                error_message = "duplicate --table option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --table";
+                return false;
+            }
+
+            std::size_t table_index = 0U;
+            if (!parse_index(arguments[index + 1U], table_index)) {
+                error_message =
+                    "invalid table index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.table_index = table_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto bookmark_parse_result = parse_template_table_bookmark_option(
+            arguments, index, options.bookmark_name, error_message);
+        if (bookmark_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (bookmark_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!validate_template_table_selector(std::nullopt, options.bookmark_name,
+                                          true, error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "inspection", error_message);
+}
+
+auto parse_template_inspect_table_cells_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_inspect_table_cells_options &options,
+    std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--row") {
+            if (options.row_index.has_value()) {
+                error_message = "duplicate --row option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --row";
+                return false;
+            }
+
+            std::size_t row_index = 0U;
+            if (!parse_index(arguments[index + 1U], row_index)) {
+                error_message =
+                    "invalid row index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.row_index = row_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--cell") {
+            if (options.cell_index.has_value()) {
+                error_message = "duplicate --cell option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --cell";
+                return false;
+            }
+
+            std::size_t cell_index = 0U;
+            if (!parse_index(arguments[index + 1U], cell_index)) {
+                error_message =
+                    "invalid cell index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.cell_index = cell_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto bookmark_parse_result = parse_template_table_bookmark_option(
+            arguments, index, options.bookmark_name, error_message);
+        if (bookmark_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (bookmark_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.cell_index.has_value() && !options.row_index.has_value()) {
+        error_message = "--cell requires --row";
+        return false;
+    }
+
+    if (!validate_template_table_selector(std::nullopt, options.bookmark_name,
+                                          true, error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "inspection", error_message);
+}
+
+auto parse_template_inspect_table_rows_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_inspect_table_rows_options &options,
+    std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--row") {
+            if (options.row_index.has_value()) {
+                error_message = "duplicate --row option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --row";
+                return false;
+            }
+
+            std::size_t row_index = 0U;
+            if (!parse_index(arguments[index + 1U], row_index)) {
+                error_message =
+                    "invalid row index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.row_index = row_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto selector_parse_result = parse_template_table_selector_option(
+            arguments, index, options.selector, options.has_header_row_index,
+            options.has_occurrence, error_message);
+        if (selector_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (selector_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!validate_template_table_selector(options.selector, true,
+                                          options.has_header_row_index,
+                                          options.has_occurrence,
+                                          error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "inspection", error_message);
+}
+
+auto parse_template_inspect_runs_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_inspect_runs_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--run") {
+            if (options.run_index.has_value()) {
+                error_message = "duplicate --run option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --run";
+                return false;
+            }
+
+            std::size_t run_index = 0U;
+            if (!parse_index(arguments[index + 1U], run_index)) {
+                error_message =
+                    "invalid run index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.run_index = run_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "inspection", error_message);
+}
+
+auto parse_table_cell_text_options(const std::vector<std::string_view> &arguments,
+                                   std::size_t start_index,
+                                   table_cell_text_options &options,
+                                   std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        if (argument == "--text") {
+            if (options.text.has_value() || options.text_file.has_value()) {
+                error_message = "text source was already specified";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --text";
+                return false;
+            }
+
+            options.text = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--text-file") {
+            if (options.text.has_value() || options.text_file.has_value()) {
+                error_message = "text source was already specified";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --text-file";
+                return false;
+            }
+
+            options.text_file = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.text.has_value() && !options.text_file.has_value()) {
+        error_message = "expected --text <text> or --text-file <path>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_template_table_cell_text_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_table_cell_text_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto bookmark_parse_result = parse_template_table_bookmark_option(
+            arguments, index, options.bookmark_name, error_message);
+        if (bookmark_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (bookmark_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        if (argument == "--text") {
+            if (options.text.has_value() || options.text_file.has_value()) {
+                error_message = "text source was already specified";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --text";
+                return false;
+            }
+
+            options.text = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--text-file") {
+            if (options.text.has_value() || options.text_file.has_value()) {
+                error_message = "text source was already specified";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --text-file";
+                return false;
+            }
+
+            options.text_file = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.text.has_value() && !options.text_file.has_value()) {
+        error_message = "expected --text <text> or --text-file <path>";
+        return false;
+    }
+
+    if (!validate_template_table_selector(std::nullopt, options.bookmark_name,
+                                          true, error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_template_table_cell_mutation_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_table_cell_mutation_options &options,
+    std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto bookmark_parse_result = parse_template_table_bookmark_option(
+            arguments, index, options.bookmark_name, error_message);
+        if (bookmark_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (bookmark_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!validate_template_table_selector(std::nullopt, options.bookmark_name,
+                                          true, error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_template_table_row_mutation_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_table_row_mutation_options &options,
+    std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto bookmark_parse_result = parse_template_table_bookmark_option(
+            arguments, index, options.bookmark_name, error_message);
+        if (bookmark_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (bookmark_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!validate_template_table_selector(std::nullopt, options.bookmark_name,
+                                          true, error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_template_append_table_row_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_append_table_row_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--cell-count") {
+            if (options.cell_count.has_value()) {
+                error_message = "duplicate --cell-count option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --cell-count";
+                return false;
+            }
+
+            std::size_t cell_count = 0U;
+            if (!parse_index(arguments[index + 1U], cell_count)) {
+                error_message =
+                    "invalid cell count: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+            if (cell_count == 0U) {
+                error_message = "cell count must be greater than 0";
+                return false;
+            }
+
+            options.cell_count = cell_count;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto bookmark_parse_result = parse_template_table_bookmark_option(
+            arguments, index, options.bookmark_name, error_message);
+        if (bookmark_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (bookmark_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!validate_template_table_selector(std::nullopt, options.bookmark_name,
+                                          true, error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_table_merge_direction(std::string_view text,
+                                 table_merge_direction &direction) -> bool;
+auto table_merge_direction_name(table_merge_direction direction) -> const char *;
+
+auto parse_template_merge_table_cells_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_merge_table_cells_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--direction") {
+            if (options.has_direction) {
+                error_message = "duplicate --direction option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --direction";
+                return false;
+            }
+
+            if (!parse_table_merge_direction(arguments[index + 1U], options.direction)) {
+                error_message = "invalid merge direction: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_direction = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--count") {
+            if (options.has_count) {
+                error_message = "duplicate --count option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --count";
+                return false;
+            }
+
+            std::size_t count = 0U;
+            if (!parse_index(arguments[index + 1U], count)) {
+                error_message =
+                    "invalid merge count: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+            if (count == 0U) {
+                error_message = "merge count must be greater than zero";
+                return false;
+            }
+
+            options.count = count;
+            options.has_count = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto bookmark_parse_result = parse_template_table_bookmark_option(
+            arguments, index, options.bookmark_name, error_message);
+        if (bookmark_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (bookmark_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.has_direction) {
+        error_message = "missing required --direction <right|down>";
+        return false;
+    }
+
+    if (!validate_template_table_selector(std::nullopt, options.bookmark_name,
+                                          true, error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_template_unmerge_table_cells_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_unmerge_table_cells_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--direction") {
+            if (options.has_direction) {
+                error_message = "duplicate --direction option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --direction";
+                return false;
+            }
+
+            if (!parse_table_merge_direction(arguments[index + 1U], options.direction)) {
+                error_message = "invalid merge direction: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_direction = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto bookmark_parse_result = parse_template_table_bookmark_option(
+            arguments, index, options.bookmark_name, error_message);
+        if (bookmark_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (bookmark_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.has_direction) {
+        error_message = "missing required --direction <right|down>";
+        return false;
+    }
+
+    if (!validate_template_table_selector(std::nullopt, options.bookmark_name,
+                                          true, error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_table_merge_direction(std::string_view text,
+                                 table_merge_direction &direction) -> bool {
+    if (text == "right") {
+        direction = table_merge_direction::right;
+        return true;
+    }
+    if (text == "down") {
+        direction = table_merge_direction::down;
+        return true;
+    }
+
+    return false;
+}
+
+auto table_merge_direction_name(table_merge_direction direction) -> const char * {
+    switch (direction) {
+    case table_merge_direction::right:
+        return "right";
+    case table_merge_direction::down:
+        return "down";
+    }
+
+    return "unknown";
+}
+
+auto parse_merge_table_cells_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    merge_table_cells_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--direction") {
+            if (options.has_direction) {
+                error_message = "duplicate --direction option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --direction";
+                return false;
+            }
+
+            if (!parse_table_merge_direction(arguments[index + 1U], options.direction)) {
+                error_message = "invalid merge direction: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_direction = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--count") {
+            if (options.has_count) {
+                error_message = "duplicate --count option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --count";
+                return false;
+            }
+
+            std::size_t count = 0U;
+            if (!parse_index(arguments[index + 1U], count)) {
+                error_message =
+                    "invalid merge count: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+            if (count == 0U) {
+                error_message = "merge count must be greater than zero";
+                return false;
+            }
+
+            options.count = count;
+            options.has_count = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.has_direction) {
+        error_message = "missing required --direction <right|down>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_unmerge_table_cells_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    unmerge_table_cells_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--direction") {
+            if (options.has_direction) {
+                error_message = "duplicate --direction option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --direction";
+                return false;
+            }
+
+            if (!parse_table_merge_direction(arguments[index + 1U], options.direction)) {
+                error_message = "invalid merge direction: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_direction = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.has_direction) {
+        error_message = "missing required --direction <right|down>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_table_cell_style_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    table_cell_style_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_append_table_row_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    append_table_row_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--cell-count") {
+            if (options.cell_count.has_value()) {
+                error_message = "duplicate --cell-count option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --cell-count";
+                return false;
+            }
+
+            std::size_t cell_count = 0U;
+            if (!parse_index(arguments[index + 1U], cell_count)) {
+                error_message =
+                    "invalid cell count: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+            if (cell_count == 0U) {
+                error_message = "cell count must be greater than 0";
+                return false;
+            }
+
+            options.cell_count = cell_count;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_cell_margin_edge_text(std::string_view text,
+                                 featherdoc::cell_margin_edge &edge) -> bool {
+    if (text == "top") {
+        edge = featherdoc::cell_margin_edge::top;
+        return true;
+    }
+    if (text == "left") {
+        edge = featherdoc::cell_margin_edge::left;
+        return true;
+    }
+    if (text == "bottom") {
+        edge = featherdoc::cell_margin_edge::bottom;
+        return true;
+    }
+    if (text == "right") {
+        edge = featherdoc::cell_margin_edge::right;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_cell_border_edge_text(std::string_view text,
+                                 featherdoc::cell_border_edge &edge) -> bool {
+    if (text == "top") {
+        edge = featherdoc::cell_border_edge::top;
+        return true;
+    }
+    if (text == "left") {
+        edge = featherdoc::cell_border_edge::left;
+        return true;
+    }
+    if (text == "bottom") {
+        edge = featherdoc::cell_border_edge::bottom;
+        return true;
+    }
+    if (text == "right") {
+        edge = featherdoc::cell_border_edge::right;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_border_style_text(std::string_view text,
+                             featherdoc::border_style &style) -> bool {
+    if (text == "none") {
+        style = featherdoc::border_style::none;
+        return true;
+    }
+    if (text == "single") {
+        style = featherdoc::border_style::single;
+        return true;
+    }
+    if (text == "double_line") {
+        style = featherdoc::border_style::double_line;
+        return true;
+    }
+    if (text == "dashed") {
+        style = featherdoc::border_style::dashed;
+        return true;
+    }
+    if (text == "dotted") {
+        style = featherdoc::border_style::dotted;
+        return true;
+    }
+    if (text == "thick") {
+        style = featherdoc::border_style::thick;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_row_height_rule_text(std::string_view text,
+                                featherdoc::row_height_rule &height_rule)
+    -> bool {
+    if (text == "automatic") {
+        height_rule = featherdoc::row_height_rule::automatic;
+        return true;
+    }
+    if (text == "at_least") {
+        height_rule = featherdoc::row_height_rule::at_least;
+        return true;
+    }
+    if (text == "exact") {
+        height_rule = featherdoc::row_height_rule::exact;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_table_cell_border_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    table_cell_border_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--style") {
+            if (options.style.has_value()) {
+                error_message = "duplicate --style option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --style";
+                return false;
+            }
+
+            featherdoc::border_style style = featherdoc::border_style::single;
+            if (!parse_border_style_text(arguments[index + 1U], style)) {
+                error_message =
+                    "invalid border style: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.style = style;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--size") {
+            if (options.size_eighth_points.has_value()) {
+                error_message = "duplicate --size option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --size";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message =
+                    "invalid border size: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.size_eighth_points = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--color") {
+            if (options.color.has_value()) {
+                error_message = "duplicate --color option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --color";
+                return false;
+            }
+
+            options.color = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--space") {
+            if (options.space_points.has_value()) {
+                error_message = "duplicate --space option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --space";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message =
+                    "invalid border space: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.space_points = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_cell_vertical_alignment_text(
+    std::string_view text, featherdoc::cell_vertical_alignment &alignment) -> bool {
+    if (text == "top") {
+        alignment = featherdoc::cell_vertical_alignment::top;
+        return true;
+    }
+    if (text == "center") {
+        alignment = featherdoc::cell_vertical_alignment::center;
+        return true;
+    }
+    if (text == "bottom") {
+        alignment = featherdoc::cell_vertical_alignment::bottom;
+        return true;
+    }
+    if (text == "both") {
+        alignment = featherdoc::cell_vertical_alignment::both;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_cell_text_direction_text(std::string_view text,
+                                    featherdoc::cell_text_direction &direction)
+    -> bool {
+    if (text == "left_to_right_top_to_bottom") {
+        direction = featherdoc::cell_text_direction::left_to_right_top_to_bottom;
+        return true;
+    }
+    if (text == "top_to_bottom_right_to_left") {
+        direction = featherdoc::cell_text_direction::top_to_bottom_right_to_left;
+        return true;
+    }
+    if (text == "bottom_to_top_left_to_right") {
+        direction = featherdoc::cell_text_direction::bottom_to_top_left_to_right;
+        return true;
+    }
+    if (text == "left_to_right_top_to_bottom_rotated") {
+        direction =
+            featherdoc::cell_text_direction::left_to_right_top_to_bottom_rotated;
+        return true;
+    }
+    if (text == "top_to_bottom_right_to_left_rotated") {
+        direction =
+            featherdoc::cell_text_direction::top_to_bottom_right_to_left_rotated;
+        return true;
+    }
+    if (text == "top_to_bottom_left_to_right_rotated") {
+        direction =
+            featherdoc::cell_text_direction::top_to_bottom_left_to_right_rotated;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_inspect_runs_options(const std::vector<std::string_view> &arguments,
+                                std::size_t start_index,
+                                inspect_runs_options &options,
+                                std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--run") {
+            if (options.run_index.has_value()) {
+                error_message = "duplicate --run option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --run";
+                return false;
+            }
+
+            std::size_t run_index = 0U;
+            if (!parse_index(arguments[index + 1U], run_index)) {
+                error_message =
+                    "invalid run index: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.run_index = run_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_set_paragraph_style_options(const std::vector<std::string_view> &arguments,
+                                       std::size_t start_index,
+                                       set_paragraph_style_options &options,
+                                       std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_clear_paragraph_style_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    clear_paragraph_style_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_set_run_style_options(const std::vector<std::string_view> &arguments,
+                                 std::size_t start_index,
+                                 set_run_style_options &options,
+                                 std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_clear_run_style_options(const std::vector<std::string_view> &arguments,
+                                   std::size_t start_index,
+                                   clear_run_style_options &options,
+                                   std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_set_run_font_family_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    set_run_font_family_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_clear_run_font_family_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    clear_run_font_family_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_set_run_language_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    set_run_language_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_clear_run_language_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    clear_run_language_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
             ++index;
             continue;
         }
@@ -3437,6 +7037,1232 @@ auto parse_append_field_options(const std::vector<std::string_view> &arguments,
                                             "mutation", error_message);
 }
 
+auto parse_replace_bookmark_paragraphs_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    replace_bookmark_paragraphs_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (options.has_part) {
+                error_message = "duplicate --part option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_part = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--paragraph") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --paragraph";
+                return false;
+            }
+
+            options.paragraphs.emplace_back(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.paragraphs.empty()) {
+        error_message = "expected at least one --paragraph <text>";
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_bookmark_table_replacement_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    bookmark_table_replacement_options &options, bool allow_empty_rows,
+    std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (options.has_part) {
+                error_message = "duplicate --part option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_part = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--row") {
+            if (options.empty_rows) {
+                error_message = "--row cannot be combined with --empty";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --row";
+                return false;
+            }
+
+            options.rows.push_back({std::string(arguments[index + 1U])});
+            ++index;
+            continue;
+        }
+
+        if (argument == "--cell") {
+            if (options.empty_rows) {
+                error_message = "--cell cannot be combined with --empty";
+                return false;
+            }
+            if (options.rows.empty()) {
+                error_message = "--cell requires --row";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --cell";
+                return false;
+            }
+
+            options.rows.back().push_back(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--empty") {
+            if (!allow_empty_rows) {
+                error_message = "unknown option: --empty";
+                return false;
+            }
+            if (options.empty_rows) {
+                error_message = "duplicate --empty option";
+                return false;
+            }
+            if (!options.rows.empty()) {
+                error_message = "--empty cannot be combined with --row/--cell";
+                return false;
+            }
+
+            options.empty_rows = true;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.empty_rows && options.rows.empty()) {
+        error_message = allow_empty_rows
+                            ? "expected (--row <text> [--cell <text> ...])+ or --empty"
+                            : "expected at least one --row <text>";
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_template_table_row_texts_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_table_row_texts_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--row") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --row";
+                return false;
+            }
+
+            options.rows.push_back({std::string(arguments[index + 1U])});
+            ++index;
+            continue;
+        }
+
+        if (argument == "--cell") {
+            if (options.rows.empty()) {
+                error_message = "--cell requires --row";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --cell";
+                return false;
+            }
+
+            options.rows.back().push_back(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto bookmark_parse_result = parse_template_table_bookmark_option(
+            arguments, index, options.bookmark_name, error_message);
+        if (bookmark_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (bookmark_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.rows.empty()) {
+        error_message = "expected at least one --row <text>";
+        return false;
+    }
+
+    if (!validate_template_table_selector(std::nullopt, options.bookmark_name,
+                                          true, error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_template_table_json_patch_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_table_json_patch_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--patch-file") {
+            if (options.patch_file.has_value()) {
+                error_message = "duplicate --patch-file option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --patch-file";
+                return false;
+            }
+
+            options.patch_file = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        const auto selector_parse_result = parse_template_table_selector_option(
+            arguments, index, options.selector, options.has_header_row_index,
+            options.has_occurrence, error_message);
+        if (selector_parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (selector_parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.patch_file.has_value()) {
+        error_message = "missing --patch-file <path>";
+        return false;
+    }
+
+    if (!validate_template_table_selector(options.selector, true,
+                                          options.has_header_row_index,
+                                          options.has_occurrence,
+                                          error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_template_table_json_batch_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    template_table_json_batch_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto parse_result = parse_template_part_selection_option(
+            arguments, index, options.part, options.part_index,
+            options.section_index, options.reference_kind, options.has_part,
+            options.has_kind, error_message);
+        if (parse_result == option_parse_result::matched) {
+            continue;
+        }
+        if (parse_result == option_parse_result::error) {
+            return false;
+        }
+
+        const auto argument = arguments[index];
+        if (argument == "--patch-file") {
+            if (options.patch_file.has_value()) {
+                error_message = "duplicate --patch-file option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --patch-file";
+                return false;
+            }
+
+            options.patch_file = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.patch_file.has_value()) {
+        error_message = "missing --patch-file <path>";
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_remove_bookmark_block_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    remove_bookmark_block_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (options.has_part) {
+                error_message = "duplicate --part option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_part = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_replace_bookmark_text_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    replace_bookmark_text_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (options.has_part) {
+                error_message = "duplicate --part option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_part = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--text") {
+            if (options.has_text) {
+                error_message = "duplicate --text option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --text";
+                return false;
+            }
+
+            options.text = std::string(arguments[index + 1U]);
+            options.has_text = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.has_text) {
+        error_message = "expected --text <text>";
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_fill_bookmarks_options(const std::vector<std::string_view> &arguments,
+                                  std::size_t start_index,
+                                  fill_bookmarks_options &options,
+                                  std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (options.has_part) {
+                error_message = "duplicate --part option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_part = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--set") {
+            if (index + 2U >= arguments.size()) {
+                error_message = "missing value after --set";
+                return false;
+            }
+
+            const auto bookmark_name = std::string(arguments[index + 1U]);
+            if (bookmark_name.empty()) {
+                error_message = "bookmark name must not be empty";
+                return false;
+            }
+
+            options.bindings.push_back(
+                {bookmark_name, std::string(arguments[index + 2U])});
+            index += 2U;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.bindings.empty()) {
+        error_message = "expected at least one --set <bookmark-name> <text>";
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_set_bookmark_block_visibility_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    set_bookmark_block_visibility_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (options.has_part) {
+                error_message = "duplicate --part option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_part = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--visible") {
+            if (options.has_visible) {
+                error_message = "duplicate --visible option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --visible";
+                return false;
+            }
+
+            bool visible = false;
+            if (!parse_bool(arguments[index + 1U], visible)) {
+                error_message = "invalid visibility value: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.visible = visible;
+            options.has_visible = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.has_visible) {
+        error_message = "expected --visible true|false";
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
+auto parse_apply_bookmark_block_visibility_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    apply_bookmark_block_visibility_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (options.has_part) {
+                error_message = "duplicate --part option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_part = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--show" || argument == "--hide") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after " + std::string(argument);
+                return false;
+            }
+
+            const auto bookmark_name = std::string(arguments[index + 1U]);
+            if (bookmark_name.empty()) {
+                error_message = "bookmark name must not be empty";
+                return false;
+            }
+
+            options.bindings.push_back(
+                {bookmark_name, argument == "--show"});
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.bindings.empty()) {
+        error_message =
+            "expected at least one --show <bookmark-name> or --hide <bookmark-name>";
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
+}
+
 auto has_section_header(featherdoc::Document &doc, std::size_t section_index,
                         featherdoc::section_reference_kind reference_kind)
     -> bool {
@@ -3476,6 +8302,42 @@ auto validation_part_name(validation_part_family family) -> const char * {
     }
 
     return "body";
+}
+
+void write_json_selected_template_part(std::ostream &stream,
+                                       const selected_template_part &selected) {
+    stream << "\"part\":";
+    write_json_string(stream, validation_part_name(selected.family));
+    if (selected.part_index.has_value()) {
+        stream << ",\"part_index\":" << *selected.part_index;
+    }
+    if (selected.section_index.has_value()) {
+        stream << ",\"section\":" << *selected.section_index;
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, std::string(selected.part.entry_name()));
+}
+
+void print_selected_template_part(std::ostream &stream,
+                                  const selected_template_part &selected) {
+    stream << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        stream << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        stream << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << "kind: "
+               << featherdoc::to_xml_reference_type(*selected.reference_kind)
+               << '\n';
+    }
+    stream << "entry_name: " << selected.part.entry_name() << '\n';
 }
 
 auto style_kind_name(featherdoc::style_kind kind) -> const char * {
@@ -3615,6 +8477,499 @@ auto collect_part_lines(featherdoc::Paragraph paragraph) -> std::vector<std::str
         lines.push_back(collect_paragraph_text(paragraph));
     }
     return lines;
+}
+
+auto resolve_body_paragraph(featherdoc::Document &doc, std::size_t paragraph_index,
+                            featherdoc::Paragraph &paragraph,
+                            std::string_view command, bool json_output) -> bool {
+    paragraph = doc.paragraphs();
+    for (std::size_t current_index = 0;
+         current_index < paragraph_index && paragraph.has_next();
+         ++current_index) {
+        paragraph.next();
+    }
+
+    if (paragraph.has_next()) {
+        return true;
+    }
+
+    featherdoc::document_error_info error_info{};
+    error_info.code = std::make_error_code(std::errc::invalid_argument);
+    error_info.detail =
+        "paragraph index '" + std::to_string(paragraph_index) + "' is out of range";
+    error_info.entry_name = "word/document.xml";
+    return report_operation_failure(command, "mutate",
+                                    "paragraph index is out of range", error_info,
+                                    json_output);
+}
+
+auto resolve_body_run(featherdoc::Document &doc, std::size_t paragraph_index,
+                      std::size_t run_index, featherdoc::Run &run,
+                      std::string_view command, bool json_output) -> bool {
+    featherdoc::Paragraph paragraph;
+    if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
+                                json_output)) {
+        return false;
+    }
+
+    run = paragraph.runs();
+    for (std::size_t current_index = 0;
+         current_index < run_index && run.has_next();
+         ++current_index) {
+        run.next();
+    }
+
+    if (run.has_next()) {
+        return true;
+    }
+
+    featherdoc::document_error_info error_info{};
+    error_info.code = std::make_error_code(std::errc::invalid_argument);
+    error_info.detail = "run index '" + std::to_string(run_index) +
+                        "' is out of range for paragraph index '" +
+                        std::to_string(paragraph_index) + "'";
+    error_info.entry_name = "word/document.xml";
+    return report_operation_failure(command, "mutate",
+                                    "run index is out of range", error_info,
+                                    json_output);
+}
+
+auto resolve_body_table(featherdoc::Document &doc, std::size_t table_index,
+                        featherdoc::Table &table, std::string_view command,
+                        bool json_output,
+                        std::string_view stage = "mutate") -> bool {
+    table = doc.tables();
+    for (std::size_t current_index = 0;
+         current_index < table_index && table.has_next();
+         ++current_index) {
+        table.next();
+    }
+
+    if (!table.has_next()) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail =
+            "table index '" + std::to_string(table_index) + "' is out of range";
+        error_info.entry_name = "word/document.xml";
+        return report_operation_failure(command, stage,
+                                        "table index is out of range", error_info,
+                                        json_output);
+    }
+
+    return true;
+}
+
+auto resolve_body_table_row(featherdoc::Document &doc, std::size_t table_index,
+                            std::size_t row_index, featherdoc::TableRow &row,
+                            std::string_view command, bool json_output,
+                            std::string_view stage = "mutate") -> bool {
+    featherdoc::Table table;
+    if (!resolve_body_table(doc, table_index, table, command, json_output,
+                            stage)) {
+        return false;
+    }
+
+    row = table.rows();
+    for (std::size_t current_index = 0;
+         current_index < row_index && row.has_next();
+         ++current_index) {
+        row.next();
+    }
+
+    if (!row.has_next()) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail =
+            "row index '" + std::to_string(row_index) +
+            "' is out of range for table index '" + std::to_string(table_index) +
+            "'";
+        error_info.entry_name = "word/document.xml";
+        return report_operation_failure(command, stage,
+                                        "row index is out of range", error_info,
+                                        json_output);
+    }
+
+    return true;
+}
+
+auto resolve_template_table(selected_template_part &selected,
+                            std::size_t table_index, featherdoc::Table &table,
+                            std::string_view command, bool json_output,
+                            std::string_view stage = "inspect") -> bool {
+    table = selected.part.tables();
+    for (std::size_t current_index = 0;
+         current_index < table_index && table.has_next();
+         ++current_index) {
+        table.next();
+    }
+
+    if (!table.has_next()) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail =
+            "table index '" + std::to_string(table_index) + "' is out of range";
+        error_info.entry_name = std::string(selected.part.entry_name());
+        return report_operation_failure(command, stage,
+                                        "table index is out of range", error_info,
+                                        json_output);
+    }
+
+    return true;
+}
+
+auto resolve_template_table_index(featherdoc::Document &doc,
+                                  selected_template_part &selected,
+                                  const std::optional<std::size_t> &table_index,
+                                  const std::optional<std::string> &bookmark_name,
+                                  std::size_t &resolved_table_index,
+                                  std::string_view command, bool json_output,
+                                  std::string_view stage = "inspect") -> bool {
+    if (table_index.has_value()) {
+        resolved_table_index = *table_index;
+        return true;
+    }
+
+    if (!bookmark_name.has_value()) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail = "either a table index or --bookmark <name> is required";
+        error_info.entry_name = std::string(selected.part.entry_name());
+        return report_operation_failure(command, stage,
+                                        "template table target was not specified",
+                                        error_info, json_output);
+    }
+
+    const auto resolved = selected.part.find_table_index_by_bookmark(*bookmark_name);
+    if (!resolved.has_value()) {
+        return report_document_error(command, stage, doc.last_error(), json_output);
+    }
+
+    resolved_table_index = *resolved;
+    return true;
+}
+
+auto resolve_template_table_index(
+    featherdoc::Document &doc, selected_template_part &selected,
+    const featherdoc::template_table_selector &selector,
+    std::size_t &resolved_table_index, std::string_view command,
+    bool json_output, std::string_view stage = "inspect") -> bool {
+    const auto resolved = selected.part.find_table_index(selector);
+    if (!resolved.has_value()) {
+        return report_document_error(command, stage, doc.last_error(), json_output);
+    }
+
+    resolved_table_index = *resolved;
+    return true;
+}
+
+auto resolve_template_table_index_for_batch(
+    featherdoc::Document &doc, selected_template_part &selected,
+    const std::optional<std::size_t> &table_index,
+    const std::optional<std::string> &bookmark_name,
+    std::size_t &resolved_table_index, std::size_t operation_index,
+    std::string_view command, bool json_output,
+    std::string_view stage = "mutate") -> bool {
+    if (table_index.has_value()) {
+        resolved_table_index = *table_index;
+        return true;
+    }
+
+    if (!bookmark_name.has_value()) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail = "either a table index or --bookmark <name> is required";
+        error_info.entry_name = std::string(selected.part.entry_name());
+        annotate_template_table_json_batch_error(operation_index, error_info);
+        return report_operation_failure(
+            command, stage, "template table target was not specified", error_info,
+            json_output);
+    }
+
+    const auto resolved = selected.part.find_table_index_by_bookmark(*bookmark_name);
+    if (!resolved.has_value()) {
+        auto error_info = doc.last_error();
+        annotate_template_table_json_batch_error(operation_index, error_info);
+        return report_document_error(command, stage, error_info, json_output);
+    }
+
+    resolved_table_index = *resolved;
+    return true;
+}
+
+auto resolve_template_table_index_for_batch(
+    featherdoc::Document &doc, selected_template_part &selected,
+    const featherdoc::template_table_selector &selector,
+    std::size_t &resolved_table_index, std::size_t operation_index,
+    std::string_view command, bool json_output,
+    std::string_view stage = "mutate") -> bool {
+    const auto resolved = selected.part.find_table_index(selector);
+    if (!resolved.has_value()) {
+        auto error_info = doc.last_error();
+        annotate_template_table_json_batch_error(operation_index, error_info);
+        return report_document_error(command, stage, error_info, json_output);
+    }
+
+    resolved_table_index = *resolved;
+    return true;
+}
+
+auto resolve_template_table_for_batch(
+    selected_template_part &selected, std::size_t table_index,
+    featherdoc::Table &table, std::size_t operation_index,
+    std::string_view command, bool json_output,
+    std::string_view stage = "mutate") -> bool {
+    table = selected.part.tables();
+    for (std::size_t current_index = 0;
+         current_index < table_index && table.has_next();
+         ++current_index) {
+        table.next();
+    }
+
+    if (!table.has_next()) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail =
+            "table index '" + std::to_string(table_index) + "' is out of range";
+        error_info.entry_name = std::string(selected.part.entry_name());
+        annotate_template_table_json_batch_error(operation_index, error_info);
+        return report_operation_failure(command, stage,
+                                        "table index is out of range", error_info,
+                                        json_output);
+    }
+
+    return true;
+}
+
+auto resolve_template_table_row(selected_template_part &selected,
+                                std::size_t table_index, std::size_t row_index,
+                                featherdoc::TableRow &row,
+                                std::string_view command, bool json_output,
+                                std::string_view stage = "inspect") -> bool {
+    featherdoc::Table table;
+    if (!resolve_template_table(selected, table_index, table, command,
+                                json_output, stage)) {
+        return false;
+    }
+
+    row = table.rows();
+    for (std::size_t current_index = 0;
+         current_index < row_index && row.has_next();
+         ++current_index) {
+        row.next();
+    }
+
+    if (!row.has_next()) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail =
+            "row index '" + std::to_string(row_index) +
+            "' is out of range for table index '" + std::to_string(table_index) +
+            "'";
+        error_info.entry_name = std::string(selected.part.entry_name());
+        return report_operation_failure(command, stage,
+                                        "row index is out of range", error_info,
+                                        json_output);
+    }
+
+    return true;
+}
+
+auto resolve_body_table_cell(featherdoc::Document &doc, std::size_t table_index,
+                             std::size_t row_index, std::size_t cell_index,
+                             featherdoc::TableCell &cell,
+                             std::string_view command, bool json_output) -> bool {
+    featherdoc::TableRow row;
+    if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                json_output)) {
+        return false;
+    }
+
+    cell = row.cells();
+    for (std::size_t current_index = 0;
+         current_index < cell_index && cell.has_next();
+         ++current_index) {
+        cell.next();
+    }
+
+    if (cell.has_next()) {
+        return true;
+    }
+
+    featherdoc::document_error_info error_info{};
+    error_info.code = std::make_error_code(std::errc::invalid_argument);
+    error_info.detail =
+        "cell index '" + std::to_string(cell_index) +
+        "' is out of range for row index '" + std::to_string(row_index) +
+        "' in table index '" + std::to_string(table_index) + "'";
+    error_info.entry_name = "word/document.xml";
+    return report_operation_failure(command, "mutate",
+                                    "cell index is out of range", error_info,
+                                    json_output);
+}
+
+auto resolve_template_table_cell(selected_template_part &selected,
+                                 std::size_t table_index,
+                                 std::size_t row_index,
+                                 std::size_t cell_index,
+                                 featherdoc::TableCell &cell,
+                                 std::string_view command, bool json_output,
+                                 std::string_view stage = "mutate") -> bool {
+    featherdoc::TableRow row;
+    if (!resolve_template_table_row(selected, table_index, row_index, row, command,
+                                    json_output, stage)) {
+        return false;
+    }
+
+    cell = row.cells();
+    for (std::size_t current_index = 0;
+         current_index < cell_index && cell.has_next();
+         ++current_index) {
+        cell.next();
+    }
+
+    if (cell.has_next()) {
+        return true;
+    }
+
+    featherdoc::document_error_info error_info{};
+    error_info.code = std::make_error_code(std::errc::invalid_argument);
+    error_info.detail =
+        "cell index '" + std::to_string(cell_index) +
+        "' is out of range for row index '" + std::to_string(row_index) +
+        "' in table index '" + std::to_string(table_index) + "'";
+    error_info.entry_name = std::string(selected.part.entry_name());
+    return report_operation_failure(command, stage,
+                                    "cell index is out of range", error_info,
+                                    json_output);
+}
+
+auto load_template_table_summary(featherdoc::Document &doc,
+                                 selected_template_part &selected,
+                                 std::size_t table_index,
+                                 featherdoc::table_inspection_summary &table,
+                                 std::string_view command, bool json_output,
+                                 std::string_view stage = "mutate") -> bool {
+    const auto inspected_table = selected.part.inspect_table(table_index);
+    if (const auto &error_info = doc.last_error(); error_info.code) {
+        report_document_error(command, stage, error_info, json_output);
+        return false;
+    }
+
+    if (inspected_table.has_value()) {
+        table = *inspected_table;
+        return true;
+    }
+
+    featherdoc::document_error_info error_info{};
+    error_info.code = std::make_error_code(std::errc::invalid_argument);
+    error_info.detail =
+        "table index '" + std::to_string(table_index) + "' is out of range";
+    error_info.entry_name = std::string(selected.part.entry_name());
+    return report_operation_failure(command, stage,
+                                    "table index is out of range", error_info,
+                                    json_output);
+}
+
+auto load_template_table_cell_summary(
+    featherdoc::Document &doc, selected_template_part &selected,
+    std::size_t table_index, std::size_t row_index, std::size_t cell_index,
+    featherdoc::table_cell_inspection_summary &cell, std::string_view command,
+    bool json_output, std::string_view stage = "mutate") -> bool {
+    featherdoc::table_inspection_summary table{};
+    if (!load_template_table_summary(doc, selected, table_index, table, command,
+                                     json_output, stage)) {
+        return false;
+    }
+
+    const auto inspected_cell =
+        selected.part.inspect_table_cell(table_index, row_index, cell_index);
+    if (const auto &error_info = doc.last_error(); error_info.code) {
+        report_document_error(command, stage, error_info, json_output);
+        return false;
+    }
+
+    if (inspected_cell.has_value()) {
+        cell = *inspected_cell;
+        return true;
+    }
+
+    featherdoc::document_error_info error_info{};
+    error_info.code = std::make_error_code(std::errc::invalid_argument);
+    if (row_index >= table.row_count) {
+        error_info.detail =
+            "row index '" + std::to_string(row_index) +
+            "' is out of range for table index '" + std::to_string(table_index) +
+            "'";
+        error_info.entry_name = std::string(selected.part.entry_name());
+        return report_operation_failure(command, stage,
+                                        "row index is out of range", error_info,
+                                        json_output);
+    }
+
+    error_info.detail =
+        "cell index '" + std::to_string(cell_index) +
+        "' is out of range for row index '" + std::to_string(row_index) +
+        "' in table index '" + std::to_string(table_index) + "'";
+    error_info.entry_name = std::string(selected.part.entry_name());
+    return report_operation_failure(command, stage,
+                                    "cell index is out of range", error_info,
+                                    json_output);
+}
+
+auto load_template_table_cells_summary(
+    featherdoc::Document &doc, selected_template_part &selected,
+    std::size_t table_index,
+    std::vector<featherdoc::table_cell_inspection_summary> &cells,
+    std::string_view command, bool json_output,
+    std::string_view stage = "mutate") -> bool {
+    featherdoc::table_inspection_summary table{};
+    if (!load_template_table_summary(doc, selected, table_index, table, command,
+                                     json_output, stage)) {
+        return false;
+    }
+
+    cells = selected.part.inspect_table_cells(table_index);
+    if (const auto &error_info = doc.last_error(); error_info.code) {
+        report_document_error(command, stage, error_info, json_output);
+        return false;
+    }
+
+    return true;
+}
+
+auto insertion_boundary_intersects_horizontal_merge(
+    const std::vector<featherdoc::table_cell_inspection_summary> &cells,
+    std::size_t boundary_column_index) -> bool {
+    for (const auto &cell : cells) {
+        if (cell.column_span <= 1U) {
+            continue;
+        }
+
+        const auto cell_end_column = cell.column_index + cell.column_span;
+        if (cell.column_index < boundary_column_index &&
+            boundary_column_index < cell_end_column) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+auto column_intersects_horizontal_merge(
+    const std::vector<featherdoc::table_cell_inspection_summary> &cells,
+    std::size_t column_index) -> bool {
+    for (const auto &cell : cells) {
+        if (cell.column_span <= 1U) {
+            continue;
+        }
+
+        const auto cell_end_column = cell.column_index + cell.column_span;
+        if (cell.column_index <= column_index && column_index < cell_end_column) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 auto section_part_paragraphs(featherdoc::Document &doc, section_part_family family,
@@ -3791,6 +9146,286 @@ auto load_inspected_part_entries(const path_type &input_path, featherdoc::Docume
     return true;
 }
 
+void append_xml_paragraph_text(std::string &text, pugi::xml_node node) {
+    for (auto child = node.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        const auto name = std::string_view{child.name()};
+        if (name == "w:t" || name == "w:delText") {
+            text += child.text().get();
+            continue;
+        }
+
+        if (name == "w:tab") {
+            text.push_back('\t');
+            continue;
+        }
+
+        if (name == "w:br" || name == "w:cr") {
+            text.push_back('\n');
+            continue;
+        }
+
+        append_xml_paragraph_text(text, child);
+    }
+}
+
+auto collect_xml_paragraph_text(pugi::xml_node paragraph) -> std::string {
+    std::string text;
+    append_xml_paragraph_text(text, paragraph);
+    return text;
+}
+
+auto read_optional_xml_attribute(pugi::xml_node node,
+                                 const char *attribute_name)
+    -> std::optional<std::string> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto value = std::string_view{node.attribute(attribute_name).value()};
+    if (value.empty()) {
+        return std::nullopt;
+    }
+
+    return std::string(value);
+}
+
+auto read_optional_run_font_family(pugi::xml_node run_fonts)
+    -> std::optional<std::string> {
+    if (const auto ascii = read_optional_xml_attribute(run_fonts, "w:ascii");
+        ascii.has_value()) {
+        return ascii;
+    }
+
+    if (const auto hansi = read_optional_xml_attribute(run_fonts, "w:hAnsi");
+        hansi.has_value()) {
+        return hansi;
+    }
+
+    return read_optional_xml_attribute(run_fonts, "w:cs");
+}
+
+auto format_paragraph_text(std::string_view text) -> std::string {
+    if (text.empty()) {
+        return "<empty>";
+    }
+
+    std::string formatted;
+    formatted.reserve(text.size());
+    for (const auto character : text) {
+        switch (character) {
+        case '\n':
+            formatted += "\\n";
+            break;
+        case '\r':
+            formatted += "\\r";
+            break;
+        case '\t':
+            formatted += "\\t";
+            break;
+        default:
+            formatted.push_back(character);
+            break;
+        }
+    }
+    return formatted;
+}
+
+auto load_body_paragraph_summaries(const path_type &input_path,
+                                   std::vector<inspected_body_paragraph> &paragraphs,
+                                   std::string &error_message) -> bool {
+    paragraphs.clear();
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(input_path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
+                                       &zip_error);
+    if (archive == nullptr) {
+        error_message = "failed to open source archive '" + input_path.string() + "'";
+        return false;
+    }
+
+    auto close_archive = [&]() { zip_close(archive); };
+
+    std::string document_xml_text;
+    const auto document_status =
+        read_zip_entry_text(archive, "word/document.xml", document_xml_text);
+    if (document_status != zip_entry_read_status::ok) {
+        close_archive();
+        error_message = "failed to read XML entry from archive 'word/document.xml'";
+        return false;
+    }
+
+    pugi::xml_document document_xml;
+    const auto document_parse_result =
+        document_xml.load_buffer(document_xml_text.data(), document_xml_text.size());
+    if (!document_parse_result) {
+        close_archive();
+        error_message = "failed to parse XML entry 'word/document.xml'";
+        return false;
+    }
+
+    close_archive();
+
+    const auto body = document_xml.child("w:document").child("w:body");
+    if (body == pugi::xml_node{}) {
+        error_message =
+            "document.xml does not contain the expected w:document/w:body structure";
+        return false;
+    }
+
+    std::size_t section_index = 0U;
+    std::size_t paragraph_index = 0U;
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::string_view{child.name()} != "w:p") {
+            continue;
+        }
+
+        inspected_body_paragraph paragraph_summary;
+        paragraph_summary.index = paragraph_index;
+        paragraph_summary.section_index = section_index;
+
+        const auto properties = child.child("w:pPr");
+        if (const auto style = properties.child("w:pStyle"); style != pugi::xml_node{}) {
+            const auto style_id = std::string_view{style.attribute("w:val").value()};
+            if (!style_id.empty()) {
+                paragraph_summary.style_id = std::string(style_id);
+            }
+        }
+
+        if (const auto numbering = properties.child("w:numPr");
+            numbering != pugi::xml_node{}) {
+            const auto numbering_level_text =
+                std::string_view{numbering.child("w:ilvl").attribute("w:val").value()};
+            if (!numbering_level_text.empty()) {
+                std::uint32_t numbering_level = 0U;
+                if (!parse_uint32(numbering_level_text, numbering_level)) {
+                    error_message = "invalid numbering level on paragraph index " +
+                                    std::to_string(paragraph_index) +
+                                    " in word/document.xml";
+                    return false;
+                }
+                paragraph_summary.numbering_level = numbering_level;
+            }
+
+            const auto numbering_id_text =
+                std::string_view{numbering.child("w:numId").attribute("w:val").value()};
+            if (!numbering_id_text.empty()) {
+                std::uint32_t numbering_id = 0U;
+                if (!parse_uint32(numbering_id_text, numbering_id)) {
+                    error_message = "invalid numbering instance id on paragraph index " +
+                                    std::to_string(paragraph_index) +
+                                    " in word/document.xml";
+                    return false;
+                }
+                paragraph_summary.numbering_id = numbering_id;
+            }
+        }
+
+        paragraph_summary.has_section_break =
+            properties.child("w:sectPr") != pugi::xml_node{};
+        paragraph_summary.text = collect_xml_paragraph_text(child);
+        paragraphs.push_back(std::move(paragraph_summary));
+
+        if (paragraphs.back().has_section_break) {
+            ++section_index;
+        }
+        ++paragraph_index;
+    }
+
+    return true;
+}
+
+auto find_body_paragraph_node(pugi::xml_node body, std::size_t paragraph_index)
+    -> pugi::xml_node {
+    std::size_t current_index = 0U;
+    for (auto paragraph = body.child("w:p"); paragraph != pugi::xml_node{};
+         paragraph = paragraph.next_sibling("w:p")) {
+        if (current_index == paragraph_index) {
+            return paragraph;
+        }
+        ++current_index;
+    }
+
+    return {};
+}
+
+auto load_body_run_summaries(const path_type &input_path, std::size_t paragraph_index,
+                             std::vector<inspected_body_run> &runs,
+                             bool &paragraph_found,
+                             std::string &error_message) -> bool {
+    runs.clear();
+    paragraph_found = false;
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(input_path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
+                                       &zip_error);
+    if (archive == nullptr) {
+        error_message = "failed to open source archive '" + input_path.string() + "'";
+        return false;
+    }
+
+    auto close_archive = [&]() { zip_close(archive); };
+
+    std::string document_xml_text;
+    const auto document_status =
+        read_zip_entry_text(archive, "word/document.xml", document_xml_text);
+    if (document_status != zip_entry_read_status::ok) {
+        close_archive();
+        error_message = "failed to read XML entry from archive 'word/document.xml'";
+        return false;
+    }
+
+    pugi::xml_document document_xml;
+    const auto document_parse_result =
+        document_xml.load_buffer(document_xml_text.data(), document_xml_text.size());
+    if (!document_parse_result) {
+        close_archive();
+        error_message = "failed to parse XML entry 'word/document.xml'";
+        return false;
+    }
+
+    close_archive();
+
+    const auto body = document_xml.child("w:document").child("w:body");
+    if (body == pugi::xml_node{}) {
+        error_message =
+            "document.xml does not contain the expected w:document/w:body structure";
+        return false;
+    }
+
+    const auto paragraph = find_body_paragraph_node(body, paragraph_index);
+    if (paragraph == pugi::xml_node{}) {
+        return true;
+    }
+
+    paragraph_found = true;
+    std::size_t current_run_index = 0U;
+    for (auto run = paragraph.child("w:r"); run != pugi::xml_node{};
+         run = run.next_sibling("w:r")) {
+        inspected_body_run run_summary;
+        run_summary.index = current_run_index;
+        const auto run_properties = run.child("w:rPr");
+        const auto run_fonts = run_properties.child("w:rFonts");
+
+        run_summary.style_id =
+            read_optional_xml_attribute(run_properties.child("w:rStyle"), "w:val");
+        run_summary.font_family = read_optional_run_font_family(run_fonts);
+        run_summary.east_asia_font_family =
+            read_optional_xml_attribute(run_fonts, "w:eastAsia");
+        run_summary.language =
+            read_optional_xml_attribute(run_properties.child("w:lang"), "w:val");
+
+        run_summary.text = collect_xml_paragraph_text(run);
+        runs.push_back(std::move(run_summary));
+        ++current_run_index;
+    }
+
+    return true;
+}
+
 auto json_escape(std::string_view text) -> std::string {
     std::string escaped;
     escaped.reserve(text.size());
@@ -3899,6 +9534,16 @@ void write_json_optional_u32(std::ostream &stream,
                              const std::optional<std::uint32_t> &value) {
     if (value.has_value()) {
         stream << *value;
+        return;
+    }
+
+    stream << "null";
+}
+
+void write_json_optional_bool(std::ostream &stream,
+                              const std::optional<bool> &value) {
+    if (value.has_value()) {
+        stream << json_bool(*value);
         return;
     }
 
@@ -4182,6 +9827,268 @@ void write_json_numbering_definition_summary(
             stream << ',';
         }
         write_json_numbering_instance_summary(stream, definition.instances[index]);
+    }
+    stream << "]}";
+}
+
+void write_json_body_paragraph_summary(std::ostream &stream,
+                                       const inspected_body_paragraph &paragraph) {
+    stream << "{\"index\":" << paragraph.index
+           << ",\"section_index\":" << paragraph.section_index
+           << ",\"style_id\":";
+    write_json_optional_string(stream, paragraph.style_id);
+    stream << ",\"numbering\":";
+    if (paragraph.numbering_id.has_value() || paragraph.numbering_level.has_value()) {
+        stream << "{\"num_id\":";
+        write_json_optional_u32(stream, paragraph.numbering_id);
+        stream << ",\"level\":";
+        write_json_optional_u32(stream, paragraph.numbering_level);
+        stream << '}';
+    } else {
+        stream << "null";
+    }
+    stream << ",\"section_break\":" << json_bool(paragraph.has_section_break)
+           << ",\"text\":";
+    write_json_string(stream, paragraph.text);
+    stream << '}';
+}
+
+void write_json_body_run_summary(std::ostream &stream,
+                                 const inspected_body_run &run) {
+    stream << "{\"index\":" << run.index << ",\"style_id\":";
+    write_json_optional_string(stream, run.style_id);
+    stream << ",\"font_family\":";
+    write_json_optional_string(stream, run.font_family);
+    stream << ",\"east_asia_font_family\":";
+    write_json_optional_string(stream, run.east_asia_font_family);
+    stream << ",\"language\":";
+    write_json_optional_string(stream, run.language);
+    stream << ",\"text\":";
+    write_json_string(stream, run.text);
+    stream << '}';
+}
+
+void write_json_template_paragraph_numbering_summary(
+    std::ostream &stream,
+    const featherdoc::paragraph_inspection_summary::numbering_summary &numbering) {
+    stream << "{\"num_id\":";
+    write_json_optional_u32(stream, numbering.num_id);
+    stream << ",\"level\":";
+    write_json_optional_u32(stream, numbering.level);
+    stream << ",\"definition_id\":";
+    write_json_optional_u32(stream, numbering.definition_id);
+    stream << ",\"definition_name\":";
+    write_json_optional_string(stream, numbering.definition_name);
+    stream << '}';
+}
+
+void write_json_template_paragraph_summary(
+    std::ostream &stream, const featherdoc::paragraph_inspection_summary &paragraph) {
+    stream << "{\"index\":" << paragraph.index << ",\"style_id\":";
+    write_json_optional_string(stream, paragraph.style_id);
+    stream << ",\"bidi\":";
+    write_json_optional_bool(stream, paragraph.bidi);
+    stream << ",\"numbering\":";
+    if (paragraph.numbering.has_value()) {
+        write_json_template_paragraph_numbering_summary(stream,
+                                                        *paragraph.numbering);
+    } else {
+        stream << "null";
+    }
+    stream << ",\"run_count\":" << paragraph.run_count << ",\"text\":";
+    write_json_string(stream, paragraph.text);
+    stream << '}';
+}
+
+void write_json_template_run_summary(
+    std::ostream &stream, const featherdoc::run_inspection_summary &run) {
+    stream << "{\"index\":" << run.index << ",\"style_id\":";
+    write_json_optional_string(stream, run.style_id);
+    stream << ",\"font_family\":";
+    write_json_optional_string(stream, run.font_family);
+    stream << ",\"east_asia_font_family\":";
+    write_json_optional_string(stream, run.east_asia_font_family);
+    stream << ",\"language\":";
+    write_json_optional_string(stream, run.language);
+    stream << ",\"east_asia_language\":";
+    write_json_optional_string(stream, run.east_asia_language);
+    stream << ",\"bidi_language\":";
+    write_json_optional_string(stream, run.bidi_language);
+    stream << ",\"rtl\":";
+    write_json_optional_bool(stream, run.rtl);
+    stream << ",\"text\":";
+    write_json_string(stream, run.text);
+    stream << '}';
+}
+
+auto cell_vertical_alignment_name(
+    featherdoc::cell_vertical_alignment alignment) noexcept -> std::string_view {
+    switch (alignment) {
+    case featherdoc::cell_vertical_alignment::top:
+        return "top";
+    case featherdoc::cell_vertical_alignment::center:
+        return "center";
+    case featherdoc::cell_vertical_alignment::bottom:
+        return "bottom";
+    case featherdoc::cell_vertical_alignment::both:
+        return "both";
+    }
+
+    return "top";
+}
+
+auto cell_margin_edge_name(featherdoc::cell_margin_edge edge) noexcept
+    -> std::string_view {
+    switch (edge) {
+    case featherdoc::cell_margin_edge::top:
+        return "top";
+    case featherdoc::cell_margin_edge::left:
+        return "left";
+    case featherdoc::cell_margin_edge::bottom:
+        return "bottom";
+    case featherdoc::cell_margin_edge::right:
+        return "right";
+    }
+
+    return "top";
+}
+
+auto cell_border_edge_name(featherdoc::cell_border_edge edge) noexcept
+    -> std::string_view {
+    switch (edge) {
+    case featherdoc::cell_border_edge::top:
+        return "top";
+    case featherdoc::cell_border_edge::left:
+        return "left";
+    case featherdoc::cell_border_edge::bottom:
+        return "bottom";
+    case featherdoc::cell_border_edge::right:
+        return "right";
+    }
+
+    return "top";
+}
+
+auto border_style_name(featherdoc::border_style style) noexcept
+    -> std::string_view {
+    switch (style) {
+    case featherdoc::border_style::none:
+        return "none";
+    case featherdoc::border_style::single:
+        return "single";
+    case featherdoc::border_style::double_line:
+        return "double_line";
+    case featherdoc::border_style::dashed:
+        return "dashed";
+    case featherdoc::border_style::dotted:
+        return "dotted";
+    case featherdoc::border_style::thick:
+        return "thick";
+    }
+
+    return "single";
+}
+
+auto row_height_rule_name(featherdoc::row_height_rule height_rule) noexcept
+    -> std::string_view {
+    switch (height_rule) {
+    case featherdoc::row_height_rule::automatic:
+        return "automatic";
+    case featherdoc::row_height_rule::at_least:
+        return "at_least";
+    case featherdoc::row_height_rule::exact:
+        return "exact";
+    }
+
+    return "automatic";
+}
+
+auto cell_text_direction_name(featherdoc::cell_text_direction direction) noexcept
+    -> std::string_view {
+    switch (direction) {
+    case featherdoc::cell_text_direction::left_to_right_top_to_bottom:
+        return "left_to_right_top_to_bottom";
+    case featherdoc::cell_text_direction::top_to_bottom_right_to_left:
+        return "top_to_bottom_right_to_left";
+    case featherdoc::cell_text_direction::bottom_to_top_left_to_right:
+        return "bottom_to_top_left_to_right";
+    case featherdoc::cell_text_direction::left_to_right_top_to_bottom_rotated:
+        return "left_to_right_top_to_bottom_rotated";
+    case featherdoc::cell_text_direction::top_to_bottom_right_to_left_rotated:
+        return "top_to_bottom_right_to_left_rotated";
+    case featherdoc::cell_text_direction::top_to_bottom_left_to_right_rotated:
+        return "top_to_bottom_left_to_right_rotated";
+    }
+
+    return "left_to_right_top_to_bottom";
+}
+
+void write_json_table_summary(std::ostream &stream,
+                              const featherdoc::table_inspection_summary &table) {
+    stream << "{\"index\":" << table.index << ",\"style_id\":";
+    write_json_optional_string(stream, table.style_id);
+    stream << ",\"width_twips\":";
+    write_json_optional_u32(stream, table.width_twips);
+    stream << ",\"row_count\":" << table.row_count
+           << ",\"column_count\":" << table.column_count
+           << ",\"column_widths\":[";
+    for (std::size_t index = 0; index < table.column_widths.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_optional_u32(stream, table.column_widths[index]);
+    }
+    stream << "],\"text\":";
+    write_json_string(stream, table.text);
+    stream << '}';
+}
+
+void write_json_table_cell_summary(
+    std::ostream &stream, const featherdoc::table_cell_inspection_summary &cell) {
+    stream << "{\"row_index\":" << cell.row_index
+           << ",\"cell_index\":" << cell.cell_index
+           << ",\"column_index\":" << cell.column_index
+           << ",\"column_span\":" << cell.column_span
+           << ",\"paragraph_count\":" << cell.paragraph_count
+           << ",\"width_twips\":";
+    write_json_optional_u32(stream, cell.width_twips);
+    stream << ",\"vertical_alignment\":";
+    if (cell.vertical_alignment.has_value()) {
+        write_json_string(stream,
+                          cell_vertical_alignment_name(*cell.vertical_alignment));
+    } else {
+        stream << "null";
+    }
+    stream << ",\"text_direction\":";
+    if (cell.text_direction.has_value()) {
+        write_json_string(stream, cell_text_direction_name(*cell.text_direction));
+    } else {
+        stream << "null";
+    }
+    stream << ",\"text\":";
+    write_json_string(stream, cell.text);
+    stream << '}';
+}
+
+void write_json_table_row_summary(std::ostream &stream,
+                                  const table_row_inspection_summary &row) {
+    stream << "{\"row_index\":" << row.row_index
+           << ",\"cell_count\":" << row.cell_count << ",\"height_twips\":";
+    write_json_optional_u32(stream, row.height_twips);
+    stream << ",\"height_rule\":";
+    if (row.height_rule.has_value()) {
+        write_json_string(stream, row_height_rule_name(*row.height_rule));
+    } else {
+        stream << "null";
+    }
+    stream << ",\"cant_split\":" << json_bool(row.cant_split)
+           << ",\"repeats_header\":" << json_bool(row.repeats_header)
+           << ",\"cell_texts\":[";
+    for (std::size_t index = 0; index < row.cell_texts.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_string(stream, row.cell_texts[index]);
     }
     stream << "]}";
 }
@@ -4781,6 +10688,1009 @@ void inspect_numbering(const featherdoc::numbering_instance_lookup_summary &inst
     print_numbering_instance_summary(std::cout, instance_lookup.instance);
 }
 
+void print_body_paragraph_numbering(std::ostream &stream,
+                                    const inspected_body_paragraph &paragraph) {
+    if (!paragraph.numbering_id.has_value() &&
+        !paragraph.numbering_level.has_value()) {
+        stream << "none";
+        return;
+    }
+
+    stream << "num_id=";
+    if (paragraph.numbering_id.has_value()) {
+        stream << *paragraph.numbering_id;
+    } else {
+        stream << "unknown";
+    }
+
+    stream << " level=";
+    if (paragraph.numbering_level.has_value()) {
+        stream << *paragraph.numbering_level;
+    } else {
+        stream << "unknown";
+    }
+}
+
+void print_body_paragraph_summary(std::ostream &stream,
+                                  const inspected_body_paragraph &paragraph) {
+    stream << "paragraph[" << paragraph.index
+           << "]: section_index=" << paragraph.section_index
+           << " style_id=";
+    if (paragraph.style_id.has_value()) {
+        stream << *paragraph.style_id;
+    } else {
+        stream << "none";
+    }
+
+    stream << " numbering=";
+    print_body_paragraph_numbering(stream, paragraph);
+    stream << " section_break="
+           << (paragraph.has_section_break ? "yes" : "no")
+           << " text=" << format_paragraph_text(paragraph.text);
+}
+
+void print_body_run_summary(std::ostream &stream, const inspected_body_run &run) {
+    stream << "run[" << run.index << "]: style_id=";
+    if (run.style_id.has_value()) {
+        stream << *run.style_id;
+    } else {
+        stream << "none";
+    }
+    stream << " font_family=";
+    if (run.font_family.has_value()) {
+        stream << *run.font_family;
+    } else {
+        stream << "none";
+    }
+    stream << " east_asia_font_family=";
+    if (run.east_asia_font_family.has_value()) {
+        stream << *run.east_asia_font_family;
+    } else {
+        stream << "none";
+    }
+    stream << " language=";
+    if (run.language.has_value()) {
+        stream << *run.language;
+    } else {
+        stream << "none";
+    }
+    stream << " text=" << format_paragraph_text(run.text);
+}
+
+void print_template_paragraph_numbering(
+    std::ostream &stream, const featherdoc::paragraph_inspection_summary &paragraph) {
+    if (!paragraph.numbering.has_value()) {
+        stream << "none";
+        return;
+    }
+
+    stream << "num_id=";
+    if (paragraph.numbering->num_id.has_value()) {
+        stream << *paragraph.numbering->num_id;
+    } else {
+        stream << "none";
+    }
+    stream << " level=";
+    if (paragraph.numbering->level.has_value()) {
+        stream << *paragraph.numbering->level;
+    } else {
+        stream << "none";
+    }
+    stream << " definition_id=";
+    if (paragraph.numbering->definition_id.has_value()) {
+        stream << *paragraph.numbering->definition_id;
+    } else {
+        stream << "none";
+    }
+    stream << " definition_name=";
+    if (paragraph.numbering->definition_name.has_value()) {
+        stream << *paragraph.numbering->definition_name;
+    } else {
+        stream << "none";
+    }
+}
+
+void print_template_paragraph_summary(
+    std::ostream &stream, const featherdoc::paragraph_inspection_summary &paragraph) {
+    stream << "paragraph[" << paragraph.index << "]: style_id=";
+    if (paragraph.style_id.has_value()) {
+        stream << *paragraph.style_id;
+    } else {
+        stream << "none";
+    }
+    stream << " bidi=";
+    if (paragraph.bidi.has_value()) {
+        stream << yes_no(*paragraph.bidi);
+    } else {
+        stream << "none";
+    }
+    stream << " numbering=";
+    print_template_paragraph_numbering(stream, paragraph);
+    stream << " runs=" << paragraph.run_count
+           << " text=" << format_paragraph_text(paragraph.text);
+}
+
+void print_template_run_summary(std::ostream &stream,
+                                const featherdoc::run_inspection_summary &run) {
+    stream << "run[" << run.index << "]: style_id=";
+    if (run.style_id.has_value()) {
+        stream << *run.style_id;
+    } else {
+        stream << "none";
+    }
+    stream << " font_family=";
+    if (run.font_family.has_value()) {
+        stream << *run.font_family;
+    } else {
+        stream << "none";
+    }
+    stream << " east_asia_font_family=";
+    if (run.east_asia_font_family.has_value()) {
+        stream << *run.east_asia_font_family;
+    } else {
+        stream << "none";
+    }
+    stream << " language=";
+    if (run.language.has_value()) {
+        stream << *run.language;
+    } else {
+        stream << "none";
+    }
+    stream << " east_asia_language=";
+    if (run.east_asia_language.has_value()) {
+        stream << *run.east_asia_language;
+    } else {
+        stream << "none";
+    }
+    stream << " bidi_language=";
+    if (run.bidi_language.has_value()) {
+        stream << *run.bidi_language;
+    } else {
+        stream << "none";
+    }
+    stream << " rtl=";
+    if (run.rtl.has_value()) {
+        stream << yes_no(*run.rtl);
+    } else {
+        stream << "none";
+    }
+    stream << " text=" << format_paragraph_text(run.text);
+}
+
+void print_table_summary(std::ostream &stream,
+                         const featherdoc::table_inspection_summary &table) {
+    stream << "table[" << table.index << "]: style_id=";
+    if (table.style_id.has_value()) {
+        stream << *table.style_id;
+    } else {
+        stream << "none";
+    }
+    stream << " width_twips=";
+    if (table.width_twips.has_value()) {
+        stream << *table.width_twips;
+    } else {
+        stream << "none";
+    }
+    stream << " rows=" << table.row_count
+           << " columns=" << table.column_count
+           << " column_widths=[";
+    for (std::size_t index = 0; index < table.column_widths.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        if (table.column_widths[index].has_value()) {
+            stream << *table.column_widths[index];
+        } else {
+            stream << "none";
+        }
+    }
+    stream << "] text=" << format_paragraph_text(table.text);
+}
+
+void print_table_cell_summary(
+    std::ostream &stream, const featherdoc::table_cell_inspection_summary &cell) {
+    stream << "cell[row=" << cell.row_index << ", cell=" << cell.cell_index
+           << "]: column=" << cell.column_index
+           << " span=" << cell.column_span
+           << " paragraphs=" << cell.paragraph_count
+           << " width_twips=";
+    if (cell.width_twips.has_value()) {
+        stream << *cell.width_twips;
+    } else {
+        stream << "none";
+    }
+    stream << " vertical_alignment=";
+    if (cell.vertical_alignment.has_value()) {
+        stream << cell_vertical_alignment_name(*cell.vertical_alignment);
+    } else {
+        stream << "none";
+    }
+    stream << " text_direction=";
+    if (cell.text_direction.has_value()) {
+        stream << cell_text_direction_name(*cell.text_direction);
+    } else {
+        stream << "none";
+    }
+    stream << " text=" << format_paragraph_text(cell.text);
+}
+
+auto make_table_row_summary(featherdoc::TableRow &row, std::size_t row_index)
+    -> table_row_inspection_summary {
+    table_row_inspection_summary summary;
+    summary.row_index = row_index;
+    summary.height_twips = row.height_twips();
+    summary.height_rule = row.height_rule();
+    summary.cant_split = row.cant_split();
+    summary.repeats_header = row.repeats_header();
+
+    auto cell = row.cells();
+    while (cell.has_next()) {
+        summary.cell_texts.push_back(cell.get_text());
+        ++summary.cell_count;
+        cell.next();
+    }
+
+    return summary;
+}
+
+auto collect_table_row_summaries(featherdoc::Table &table)
+    -> std::vector<table_row_inspection_summary> {
+    std::vector<table_row_inspection_summary> summaries;
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row.has_next(); ++row_index) {
+        summaries.push_back(make_table_row_summary(row, row_index));
+        row.next();
+    }
+
+    return summaries;
+}
+
+auto format_template_table_json_batch_operation_label(std::size_t operation_index)
+    -> std::string {
+    return "operation[" + std::to_string(operation_index) + "]";
+}
+
+void annotate_template_table_json_batch_error(
+    std::optional<std::size_t> operation_index,
+    featherdoc::document_error_info &error_info) {
+    if (!operation_index.has_value()) {
+        return;
+    }
+
+    const auto label =
+        format_template_table_json_batch_operation_label(*operation_index);
+    if (error_info.detail.empty()) {
+        error_info.detail = label;
+    } else {
+        error_info.detail = label + ": " + error_info.detail;
+    }
+}
+
+auto prefix_template_table_json_batch_message(
+    std::optional<std::size_t> operation_index, std::string_view message)
+    -> std::string {
+    if (!operation_index.has_value()) {
+        return std::string(message);
+    }
+
+    return format_template_table_json_batch_operation_label(*operation_index) +
+           ": " + std::string(message);
+}
+
+auto apply_template_table_json_patch(
+    std::string_view command, featherdoc::Table &table,
+    const selected_template_part &selected, std::size_t resolved_table_index,
+    const template_table_json_patch &patch, bool json_output,
+    std::optional<std::size_t> operation_index = std::nullopt) -> bool {
+    const auto row_summaries = collect_table_row_summaries(table);
+    if (patch.start_row_index >= row_summaries.size()) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail =
+            "row index '" + std::to_string(patch.start_row_index) +
+            "' is out of range for table index '" +
+            std::to_string(resolved_table_index) + "'";
+        error_info.entry_name = std::string(selected.part.entry_name());
+        annotate_template_table_json_batch_error(operation_index, error_info);
+        report_operation_failure(command, "mutate", "row index is out of range",
+                                 error_info, json_output);
+        return false;
+    }
+
+    if (patch.rows.size() > row_summaries.size() - patch.start_row_index) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail =
+            "row range starting at row index '" +
+            std::to_string(patch.start_row_index) + "' with count '" +
+            std::to_string(patch.rows.size()) + "' exceeds table index '" +
+            std::to_string(resolved_table_index) + "' row count '" +
+            std::to_string(row_summaries.size()) + "'";
+        error_info.entry_name = std::string(selected.part.entry_name());
+        annotate_template_table_json_batch_error(operation_index, error_info);
+        report_operation_failure(command, "mutate",
+                                 "row range exceeds table bounds", error_info,
+                                 json_output);
+        return false;
+    }
+
+    if (patch.mode == template_table_json_patch_mode::rows) {
+        for (std::size_t offset = 0U; offset < patch.rows.size(); ++offset) {
+            const auto target_row_index = patch.start_row_index + offset;
+            const auto replacement_cell_count = patch.rows[offset].size();
+            const auto target_cell_count =
+                row_summaries[target_row_index].cell_count;
+            if (replacement_cell_count != target_cell_count) {
+                featherdoc::document_error_info error_info{};
+                error_info.code = std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "replacement row at offset '" + std::to_string(offset) +
+                    "' contains '" + std::to_string(replacement_cell_count) +
+                    "' cells but target row index '" +
+                    std::to_string(target_row_index) + "' contains '" +
+                    std::to_string(target_cell_count) + "' cells";
+                error_info.entry_name = std::string(selected.part.entry_name());
+                annotate_template_table_json_batch_error(operation_index,
+                                                         error_info);
+                report_operation_failure(
+                    command, "mutate",
+                    "replacement row cell count does not match target row",
+                    error_info, json_output);
+                return false;
+            }
+        }
+
+        if (!table.set_rows_texts(patch.start_row_index, patch.rows)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail =
+                "failed to set text for the requested table row range";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            annotate_template_table_json_batch_error(operation_index, error_info);
+            report_operation_failure(command, "mutate",
+                                     "failed to set template table row texts",
+                                     error_info, json_output);
+            return false;
+        }
+
+        return true;
+    }
+
+    for (std::size_t offset = 0U; offset < patch.rows.size(); ++offset) {
+        const auto target_row_index = patch.start_row_index + offset;
+        const auto replacement_cell_count = patch.rows[offset].size();
+        const auto target_cell_count = row_summaries[target_row_index].cell_count;
+        if (patch.start_cell_index >= target_cell_count ||
+            replacement_cell_count >
+                target_cell_count - patch.start_cell_index) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "replacement row at offset '" + std::to_string(offset) +
+                "' starting at cell index '" +
+                std::to_string(patch.start_cell_index) + "' with count '" +
+                std::to_string(replacement_cell_count) +
+                "' exceeds target row index '" +
+                std::to_string(target_row_index) + "' cell count '" +
+                std::to_string(target_cell_count) + "'";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            annotate_template_table_json_batch_error(operation_index, error_info);
+            report_operation_failure(command, "mutate",
+                                     "cell block exceeds target row bounds",
+                                     error_info, json_output);
+            return false;
+        }
+    }
+
+    if (!table.set_cell_block_texts(patch.start_row_index, patch.start_cell_index,
+                                    patch.rows)) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::io_error);
+        error_info.detail =
+            "failed to set text for the requested table cell block";
+        error_info.entry_name = std::string(selected.part.entry_name());
+        annotate_template_table_json_batch_error(operation_index, error_info);
+        report_operation_failure(command, "mutate",
+                                 "failed to set template table cell block texts",
+                                 error_info, json_output);
+        return false;
+    }
+
+    return true;
+}
+
+void print_table_row_summary(std::ostream &stream,
+                             const table_row_inspection_summary &row) {
+    stream << "row[" << row.row_index << "]: cells=" << row.cell_count
+           << " height_twips=";
+    if (row.height_twips.has_value()) {
+        stream << *row.height_twips;
+    } else {
+        stream << "none";
+    }
+    stream << " height_rule=";
+    if (row.height_rule.has_value()) {
+        stream << row_height_rule_name(*row.height_rule);
+    } else {
+        stream << "none";
+    }
+    stream << " cant_split=" << yes_no(row.cant_split)
+           << " repeats_header=" << yes_no(row.repeats_header)
+           << " cell_texts=[";
+    for (std::size_t index = 0; index < row.cell_texts.size(); ++index) {
+        if (index != 0U) {
+            stream << ", ";
+        }
+        stream << format_paragraph_text(row.cell_texts[index]);
+    }
+    stream << ']';
+}
+
+void inspect_paragraphs(const std::vector<inspected_body_paragraph> &paragraphs,
+                        bool json_output) {
+    if (json_output) {
+        std::cout << "{\"count\":" << paragraphs.size() << ",\"paragraphs\":[";
+        for (std::size_t index = 0; index < paragraphs.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_body_paragraph_summary(std::cout, paragraphs[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "paragraphs: " << paragraphs.size() << '\n';
+    for (const auto &paragraph : paragraphs) {
+        print_body_paragraph_summary(std::cout, paragraph);
+        std::cout << '\n';
+    }
+}
+
+void inspect_paragraph(const inspected_body_paragraph &paragraph, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"paragraph\":";
+        write_json_body_paragraph_summary(std::cout, paragraph);
+        std::cout << "}\n";
+        return;
+    }
+
+    std::cout << "index: " << paragraph.index << '\n'
+              << "section_index: " << paragraph.section_index << '\n'
+              << "style_id: ";
+    if (paragraph.style_id.has_value()) {
+        std::cout << *paragraph.style_id;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "numbering: ";
+    print_body_paragraph_numbering(std::cout, paragraph);
+    std::cout << '\n'
+              << "section_break: "
+              << (paragraph.has_section_break ? "yes" : "no") << '\n'
+              << "text: " << format_paragraph_text(paragraph.text) << '\n';
+}
+
+void inspect_runs(std::size_t paragraph_index,
+                  const std::vector<inspected_body_run> &runs, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"paragraph_index\":" << paragraph_index
+                  << ",\"count\":" << runs.size() << ",\"runs\":[";
+        for (std::size_t index = 0; index < runs.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_body_run_summary(std::cout, runs[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "paragraph_index: " << paragraph_index << '\n'
+              << "runs: " << runs.size() << '\n';
+    for (const auto &run : runs) {
+        print_body_run_summary(std::cout, run);
+        std::cout << '\n';
+    }
+}
+
+void inspect_run(std::size_t paragraph_index, const inspected_body_run &run,
+                 bool json_output) {
+    if (json_output) {
+        std::cout << "{\"paragraph_index\":" << paragraph_index << ",\"run\":";
+        write_json_body_run_summary(std::cout, run);
+        std::cout << "}\n";
+        return;
+    }
+
+    std::cout << "paragraph_index: " << paragraph_index << '\n'
+              << "index: " << run.index << '\n'
+              << "style_id: ";
+    if (run.style_id.has_value()) {
+        std::cout << *run.style_id;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "font_family: ";
+    if (run.font_family.has_value()) {
+        std::cout << *run.font_family;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "east_asia_font_family: ";
+    if (run.east_asia_font_family.has_value()) {
+        std::cout << *run.east_asia_font_family;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "language: ";
+    if (run.language.has_value()) {
+        std::cout << *run.language;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "text: " << format_paragraph_text(run.text) << '\n';
+}
+
+void inspect_tables(const std::vector<featherdoc::table_inspection_summary> &tables,
+                    bool json_output) {
+    if (json_output) {
+        std::cout << "{\"count\":" << tables.size() << ",\"tables\":[";
+        for (std::size_t index = 0; index < tables.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_table_summary(std::cout, tables[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "tables: " << tables.size() << '\n';
+    for (const auto &table : tables) {
+        print_table_summary(std::cout, table);
+        std::cout << '\n';
+    }
+}
+
+void inspect_table(const featherdoc::table_inspection_summary &table, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"table\":";
+        write_json_table_summary(std::cout, table);
+        std::cout << "}\n";
+        return;
+    }
+
+    std::cout << "index: " << table.index << '\n'
+              << "style_id: ";
+    if (table.style_id.has_value()) {
+        std::cout << *table.style_id;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "width_twips: ";
+    if (table.width_twips.has_value()) {
+        std::cout << *table.width_twips;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "row_count: " << table.row_count << '\n'
+              << "column_count: " << table.column_count << '\n'
+              << "column_widths: [";
+    for (std::size_t index = 0; index < table.column_widths.size(); ++index) {
+        if (index != 0U) {
+            std::cout << ',';
+        }
+        if (table.column_widths[index].has_value()) {
+            std::cout << *table.column_widths[index];
+        } else {
+            std::cout << "none";
+        }
+    }
+    std::cout << "]\n"
+              << "text: " << format_paragraph_text(table.text) << '\n';
+}
+
+void inspect_table_cells(
+    std::size_t table_index, std::optional<std::size_t> row_index,
+    const std::vector<featherdoc::table_cell_inspection_summary> &cells,
+    bool json_output) {
+    if (json_output) {
+        std::cout << "{\"table_index\":" << table_index;
+        if (row_index.has_value()) {
+            std::cout << ",\"row_index\":" << *row_index;
+        }
+        std::cout << ",\"count\":" << cells.size() << ",\"cells\":[";
+        for (std::size_t index = 0; index < cells.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_table_cell_summary(std::cout, cells[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "table_index: " << table_index << '\n';
+    if (row_index.has_value()) {
+        std::cout << "row_index: " << *row_index << '\n';
+    }
+    std::cout << "cells: " << cells.size() << '\n';
+    for (const auto &cell : cells) {
+        print_table_cell_summary(std::cout, cell);
+        std::cout << '\n';
+    }
+}
+
+void inspect_table_cell(std::size_t table_index,
+                        const featherdoc::table_cell_inspection_summary &cell,
+                        bool json_output) {
+    if (json_output) {
+        std::cout << "{\"table_index\":" << table_index << ",\"cell\":";
+        write_json_table_cell_summary(std::cout, cell);
+        std::cout << "}\n";
+        return;
+    }
+
+    std::cout << "table_index: " << table_index << '\n'
+              << "row_index: " << cell.row_index << '\n'
+              << "cell_index: " << cell.cell_index << '\n'
+              << "column_index: " << cell.column_index << '\n'
+              << "column_span: " << cell.column_span << '\n'
+              << "paragraph_count: " << cell.paragraph_count << '\n'
+              << "width_twips: ";
+    if (cell.width_twips.has_value()) {
+        std::cout << *cell.width_twips;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "vertical_alignment: ";
+    if (cell.vertical_alignment.has_value()) {
+        std::cout << cell_vertical_alignment_name(*cell.vertical_alignment);
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "text_direction: ";
+    if (cell.text_direction.has_value()) {
+        std::cout << cell_text_direction_name(*cell.text_direction);
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "text: " << format_paragraph_text(cell.text) << '\n';
+}
+
+void inspect_table_rows(std::size_t table_index,
+                        const std::vector<table_row_inspection_summary> &rows,
+                        bool json_output) {
+    if (json_output) {
+        std::cout << "{\"table_index\":" << table_index
+                  << ",\"count\":" << rows.size() << ",\"rows\":[";
+        for (std::size_t index = 0; index < rows.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_table_row_summary(std::cout, rows[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "table_index: " << table_index << '\n'
+              << "rows: " << rows.size() << '\n';
+    for (const auto &row : rows) {
+        print_table_row_summary(std::cout, row);
+        std::cout << '\n';
+    }
+}
+
+void inspect_table_row(std::size_t table_index,
+                       const table_row_inspection_summary &row,
+                       bool json_output) {
+    if (json_output) {
+        std::cout << "{\"table_index\":" << table_index << ",\"row\":";
+        write_json_table_row_summary(std::cout, row);
+        std::cout << "}\n";
+        return;
+    }
+
+    std::cout << "table_index: " << table_index << '\n'
+              << "row_index: " << row.row_index << '\n'
+              << "cell_count: " << row.cell_count << '\n'
+              << "height_twips: ";
+    if (row.height_twips.has_value()) {
+        std::cout << *row.height_twips;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "height_rule: ";
+    if (row.height_rule.has_value()) {
+        std::cout << row_height_rule_name(*row.height_rule);
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "cant_split: " << yes_no(row.cant_split) << '\n'
+              << "repeats_header: " << yes_no(row.repeats_header) << '\n'
+              << "cell_texts: [";
+    for (std::size_t index = 0; index < row.cell_texts.size(); ++index) {
+        if (index != 0U) {
+            std::cout << ", ";
+        }
+        std::cout << format_paragraph_text(row.cell_texts[index]);
+    }
+    std::cout << "]\n";
+}
+
+void inspect_template_paragraphs(
+    const selected_template_part &selected,
+    const std::vector<featherdoc::paragraph_inspection_summary> &paragraphs,
+    bool json_output) {
+    if (json_output) {
+        std::cout << '{';
+        write_json_selected_template_part(std::cout, selected);
+        std::cout << ",\"count\":" << paragraphs.size() << ",\"paragraphs\":[";
+        for (std::size_t index = 0; index < paragraphs.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_template_paragraph_summary(std::cout, paragraphs[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    print_selected_template_part(std::cout, selected);
+    std::cout << "paragraphs: " << paragraphs.size() << '\n';
+    for (const auto &paragraph : paragraphs) {
+        print_template_paragraph_summary(std::cout, paragraph);
+        std::cout << '\n';
+    }
+}
+
+void inspect_template_paragraph(
+    const selected_template_part &selected,
+    const featherdoc::paragraph_inspection_summary &paragraph, bool json_output) {
+    if (json_output) {
+        std::cout << '{';
+        write_json_selected_template_part(std::cout, selected);
+        std::cout << ",\"paragraph\":";
+        write_json_template_paragraph_summary(std::cout, paragraph);
+        std::cout << "}\n";
+        return;
+    }
+
+    print_selected_template_part(std::cout, selected);
+    std::cout << "index: " << paragraph.index << '\n'
+              << "style_id: ";
+    if (paragraph.style_id.has_value()) {
+        std::cout << *paragraph.style_id;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "bidi: ";
+    if (paragraph.bidi.has_value()) {
+        std::cout << yes_no(*paragraph.bidi);
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "numbering: ";
+    print_template_paragraph_numbering(std::cout, paragraph);
+    std::cout << '\n' << "run_count: " << paragraph.run_count << '\n'
+              << "text: " << format_paragraph_text(paragraph.text) << '\n';
+}
+
+void inspect_template_runs(
+    const selected_template_part &selected, std::size_t paragraph_index,
+    const std::vector<featherdoc::run_inspection_summary> &runs,
+    bool json_output) {
+    if (json_output) {
+        std::cout << '{';
+        write_json_selected_template_part(std::cout, selected);
+        std::cout << ",\"paragraph_index\":" << paragraph_index
+                  << ",\"count\":" << runs.size() << ",\"runs\":[";
+        for (std::size_t index = 0; index < runs.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_template_run_summary(std::cout, runs[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    print_selected_template_part(std::cout, selected);
+    std::cout << "paragraph_index: " << paragraph_index << '\n'
+              << "runs: " << runs.size() << '\n';
+    for (const auto &run : runs) {
+        print_template_run_summary(std::cout, run);
+        std::cout << '\n';
+    }
+}
+
+void inspect_template_run(const selected_template_part &selected,
+                          std::size_t paragraph_index,
+                          const featherdoc::run_inspection_summary &run,
+                          bool json_output) {
+    if (json_output) {
+        std::cout << '{';
+        write_json_selected_template_part(std::cout, selected);
+        std::cout << ",\"paragraph_index\":" << paragraph_index << ",\"run\":";
+        write_json_template_run_summary(std::cout, run);
+        std::cout << "}\n";
+        return;
+    }
+
+    print_selected_template_part(std::cout, selected);
+    std::cout << "paragraph_index: " << paragraph_index << '\n'
+              << "index: " << run.index << '\n'
+              << "style_id: ";
+    if (run.style_id.has_value()) {
+        std::cout << *run.style_id;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "font_family: ";
+    if (run.font_family.has_value()) {
+        std::cout << *run.font_family;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "east_asia_font_family: ";
+    if (run.east_asia_font_family.has_value()) {
+        std::cout << *run.east_asia_font_family;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "language: ";
+    if (run.language.has_value()) {
+        std::cout << *run.language;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "east_asia_language: ";
+    if (run.east_asia_language.has_value()) {
+        std::cout << *run.east_asia_language;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "bidi_language: ";
+    if (run.bidi_language.has_value()) {
+        std::cout << *run.bidi_language;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "rtl: ";
+    if (run.rtl.has_value()) {
+        std::cout << yes_no(*run.rtl);
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "text: " << format_paragraph_text(run.text) << '\n';
+}
+
+void inspect_template_tables(
+    const selected_template_part &selected,
+    const std::vector<featherdoc::table_inspection_summary> &tables,
+    bool json_output) {
+    if (json_output) {
+        std::cout << '{';
+        write_json_selected_template_part(std::cout, selected);
+        std::cout << ",\"count\":" << tables.size() << ",\"tables\":[";
+        for (std::size_t index = 0; index < tables.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_table_summary(std::cout, tables[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    print_selected_template_part(std::cout, selected);
+    std::cout << "tables: " << tables.size() << '\n';
+    for (const auto &table : tables) {
+        print_table_summary(std::cout, table);
+        std::cout << '\n';
+    }
+}
+
+void inspect_template_table(const selected_template_part &selected,
+                            const featherdoc::table_inspection_summary &table,
+                            bool json_output) {
+    if (json_output) {
+        std::cout << '{';
+        write_json_selected_template_part(std::cout, selected);
+        std::cout << ",\"table\":";
+        write_json_table_summary(std::cout, table);
+        std::cout << "}\n";
+        return;
+    }
+
+    print_selected_template_part(std::cout, selected);
+    inspect_table(table, false);
+}
+
+void inspect_template_table_cells(
+    const selected_template_part &selected, std::size_t table_index,
+    std::optional<std::size_t> row_index,
+    const std::vector<featherdoc::table_cell_inspection_summary> &cells,
+    bool json_output) {
+    if (json_output) {
+        std::cout << '{';
+        write_json_selected_template_part(std::cout, selected);
+        std::cout << ",\"table_index\":" << table_index;
+        if (row_index.has_value()) {
+            std::cout << ",\"row_index\":" << *row_index;
+        }
+        std::cout << ",\"count\":" << cells.size() << ",\"cells\":[";
+        for (std::size_t index = 0; index < cells.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_table_cell_summary(std::cout, cells[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    print_selected_template_part(std::cout, selected);
+    inspect_table_cells(table_index, row_index, cells, false);
+}
+
+void inspect_template_table_cell(
+    const selected_template_part &selected, std::size_t table_index,
+    const featherdoc::table_cell_inspection_summary &cell, bool json_output) {
+    if (json_output) {
+        std::cout << '{';
+        write_json_selected_template_part(std::cout, selected);
+        std::cout << ",\"table_index\":" << table_index << ",\"cell\":";
+        write_json_table_cell_summary(std::cout, cell);
+        std::cout << "}\n";
+        return;
+    }
+
+    print_selected_template_part(std::cout, selected);
+    inspect_table_cell(table_index, cell, false);
+}
+
+void inspect_template_table_rows(
+    const selected_template_part &selected, std::size_t table_index,
+    const std::vector<table_row_inspection_summary> &rows, bool json_output) {
+    if (json_output) {
+        std::cout << '{';
+        write_json_selected_template_part(std::cout, selected);
+        std::cout << ",\"table_index\":" << table_index
+                  << ",\"count\":" << rows.size() << ",\"rows\":[";
+        for (std::size_t index = 0; index < rows.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_table_row_summary(std::cout, rows[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    print_selected_template_part(std::cout, selected);
+    inspect_table_rows(table_index, rows, false);
+}
+
+void inspect_template_table_row(const selected_template_part &selected,
+                                std::size_t table_index,
+                                const table_row_inspection_summary &row,
+                                bool json_output) {
+    if (json_output) {
+        std::cout << '{';
+        write_json_selected_template_part(std::cout, selected);
+        std::cout << ",\"table_index\":" << table_index << ",\"row\":";
+        write_json_table_row_summary(std::cout, row);
+        std::cout << "}\n";
+        return;
+    }
+
+    print_selected_template_part(std::cout, selected);
+    inspect_table_row(table_index, row, false);
+}
+
 void inspect_bookmarks(const selected_template_part &selected,
                        const std::vector<featherdoc::bookmark_summary> &bookmarks,
                        bool json_output) {
@@ -5223,6 +12133,788 @@ void print_bookmark_image_result(
     for (std::size_t index = 0; index < inserted_images.size(); ++index) {
         std::cout << "image[" << index << "]: ";
         print_drawing_image_summary(std::cout, inserted_images[index]);
+        std::cout << '\n';
+    }
+}
+
+void write_json_bookmark_paragraphs_result(
+    std::ostream &stream, const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark,
+    const std::vector<std::string> &paragraphs, std::size_t replaced) {
+    stream << ",\"part\":";
+    write_json_string(stream, validation_part_name(selected.family));
+    if (selected.part_index.has_value()) {
+        stream << ",\"part_index\":" << *selected.part_index;
+    }
+    if (selected.section_index.has_value()) {
+        stream << ",\"section\":" << *selected.section_index;
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, std::string(selected.part.entry_name()));
+    stream << ",\"bookmark\":";
+    write_json_bookmark_summary(stream, bookmark);
+    stream << ",\"replaced\":" << replaced
+           << ",\"paragraph_count\":" << paragraphs.size()
+           << ",\"paragraphs\":[";
+    for (std::size_t index = 0; index < paragraphs.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_string(stream, paragraphs[index]);
+    }
+    stream << ']';
+}
+
+void print_bookmark_paragraphs_result(
+    const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark,
+    const std::vector<std::string> &paragraphs,
+    const std::optional<path_type> &output_path, std::size_t replaced) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "bookmark_name: " << bookmark.bookmark_name << '\n';
+    std::cout << "bookmark_kind: " << bookmark_kind_name(bookmark.kind) << '\n';
+    std::cout << "bookmark_occurrence_count: " << bookmark.occurrence_count << '\n';
+    std::cout << "bookmark_duplicate: " << yes_no(bookmark.is_duplicate()) << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "replaced: " << replaced << '\n';
+    std::cout << "paragraph_count: " << paragraphs.size() << '\n';
+    for (std::size_t index = 0; index < paragraphs.size(); ++index) {
+        std::cout << "paragraph[" << index << "]: " << paragraphs[index] << '\n';
+    }
+}
+
+void write_json_bookmark_table_result(
+    std::ostream &stream, const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark,
+    const std::vector<std::vector<std::string>> &rows, std::size_t replaced) {
+    stream << ",\"part\":";
+    write_json_string(stream, validation_part_name(selected.family));
+    if (selected.part_index.has_value()) {
+        stream << ",\"part_index\":" << *selected.part_index;
+    }
+    if (selected.section_index.has_value()) {
+        stream << ",\"section\":" << *selected.section_index;
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, std::string(selected.part.entry_name()));
+    stream << ",\"bookmark\":";
+    write_json_bookmark_summary(stream, bookmark);
+    stream << ",\"replaced\":" << replaced << ",\"row_count\":" << rows.size()
+           << ",\"rows\":[";
+    for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
+        if (row_index != 0U) {
+            stream << ',';
+        }
+        stream << '[';
+        for (std::size_t cell_index = 0; cell_index < rows[row_index].size();
+             ++cell_index) {
+            if (cell_index != 0U) {
+                stream << ',';
+            }
+            write_json_string(stream, rows[row_index][cell_index]);
+        }
+        stream << ']';
+    }
+    stream << ']';
+}
+
+void print_bookmark_table_result(
+    const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark,
+    const std::vector<std::vector<std::string>> &rows,
+    const std::optional<path_type> &output_path, std::size_t replaced) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "bookmark_name: " << bookmark.bookmark_name << '\n';
+    std::cout << "bookmark_kind: " << bookmark_kind_name(bookmark.kind) << '\n';
+    std::cout << "bookmark_occurrence_count: " << bookmark.occurrence_count << '\n';
+    std::cout << "bookmark_duplicate: " << yes_no(bookmark.is_duplicate()) << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "replaced: " << replaced << '\n';
+    std::cout << "row_count: " << rows.size() << '\n';
+    for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
+        std::cout << "row[" << row_index << "]: ";
+        for (std::size_t cell_index = 0; cell_index < rows[row_index].size();
+             ++cell_index) {
+            if (cell_index != 0U) {
+                std::cout << '\t';
+            }
+            std::cout << rows[row_index][cell_index];
+        }
+        std::cout << '\n';
+    }
+}
+
+void write_json_row_texts_matrix(
+    std::ostream &stream, const std::vector<std::vector<std::string>> &rows) {
+    stream << '[';
+    for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
+        if (row_index != 0U) {
+            stream << ',';
+        }
+        stream << '[';
+        for (std::size_t cell_index = 0; cell_index < rows[row_index].size();
+             ++cell_index) {
+            if (cell_index != 0U) {
+                stream << ',';
+            }
+            write_json_string(stream, rows[row_index][cell_index]);
+        }
+        stream << ']';
+    }
+    stream << ']';
+}
+
+void write_json_template_table_row_texts_result(
+    std::ostream &stream, const selected_template_part &selected,
+    std::size_t table_index, std::size_t start_row_index,
+    const std::vector<std::vector<std::string>> &rows,
+    const std::optional<std::string> &bookmark_name) {
+    stream << ',';
+    write_json_selected_template_part(stream, selected);
+    if (bookmark_name.has_value()) {
+        stream << ",\"bookmark_name\":";
+        write_json_string(stream, *bookmark_name);
+    }
+    stream << ",\"table_index\":" << table_index
+           << ",\"start_row_index\":" << start_row_index
+           << ",\"row_count\":" << rows.size() << ",\"rows\":";
+    write_json_row_texts_matrix(stream, rows);
+}
+
+void print_template_table_row_texts_result(
+    const selected_template_part &selected, std::size_t table_index,
+    std::size_t start_row_index, const std::vector<std::vector<std::string>> &rows,
+    const std::optional<std::string> &bookmark_name,
+    const std::optional<path_type> &output_path) {
+    print_selected_template_part(std::cout, selected);
+    if (bookmark_name.has_value()) {
+        std::cout << "bookmark_name: " << *bookmark_name << '\n';
+    }
+    std::cout << "table_index: " << table_index << '\n'
+              << "start_row_index: " << start_row_index << '\n'
+              << "row_count: " << rows.size() << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    for (std::size_t offset = 0U; offset < rows.size(); ++offset) {
+        std::cout << "row[" << (start_row_index + offset) << "]: ";
+        for (std::size_t cell_index = 0; cell_index < rows[offset].size();
+             ++cell_index) {
+            if (cell_index != 0U) {
+                std::cout << '\t';
+            }
+            std::cout << rows[offset][cell_index];
+        }
+        std::cout << '\n';
+    }
+}
+
+void write_json_template_table_cell_block_texts_result(
+    std::ostream &stream, const selected_template_part &selected,
+    std::size_t table_index, std::size_t start_row_index,
+    std::size_t start_cell_index, const std::vector<std::vector<std::string>> &rows,
+    const std::optional<std::string> &bookmark_name) {
+    stream << ',';
+    write_json_selected_template_part(stream, selected);
+    if (bookmark_name.has_value()) {
+        stream << ",\"bookmark_name\":";
+        write_json_string(stream, *bookmark_name);
+    }
+    stream << ",\"table_index\":" << table_index
+           << ",\"start_row_index\":" << start_row_index
+           << ",\"start_cell_index\":" << start_cell_index
+           << ",\"row_count\":" << rows.size() << ",\"rows\":";
+    write_json_row_texts_matrix(stream, rows);
+}
+
+void print_template_table_cell_block_texts_result(
+    const selected_template_part &selected, std::size_t table_index,
+    std::size_t start_row_index, std::size_t start_cell_index,
+    const std::vector<std::vector<std::string>> &rows,
+    const std::optional<std::string> &bookmark_name,
+    const std::optional<path_type> &output_path) {
+    print_selected_template_part(std::cout, selected);
+    if (bookmark_name.has_value()) {
+        std::cout << "bookmark_name: " << *bookmark_name << '\n';
+    }
+    std::cout << "table_index: " << table_index << '\n'
+              << "start_row_index: " << start_row_index << '\n'
+              << "start_cell_index: " << start_cell_index << '\n'
+              << "row_count: " << rows.size() << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    for (std::size_t offset = 0U; offset < rows.size(); ++offset) {
+        std::cout << "row[" << (start_row_index + offset)
+                  << "] from cell[" << start_cell_index << "]: ";
+        for (std::size_t cell_offset = 0U; cell_offset < rows[offset].size();
+             ++cell_offset) {
+            if (cell_offset != 0U) {
+                std::cout << '\t';
+            }
+            std::cout << rows[offset][cell_offset];
+        }
+        std::cout << '\n';
+    }
+}
+
+auto template_table_json_patch_mode_name(template_table_json_patch_mode mode)
+    -> std::string_view {
+    switch (mode) {
+    case template_table_json_patch_mode::rows:
+        return "rows";
+    case template_table_json_patch_mode::block:
+        return "block";
+    }
+
+    return "rows";
+}
+
+void write_json_template_table_selector_fields(
+    std::ostream &stream, const featherdoc::template_table_selector &selector) {
+    if (selector.bookmark_name.has_value()) {
+        stream << ",\"bookmark_name\":";
+        write_json_string(stream, *selector.bookmark_name);
+    }
+    if (selector.after_paragraph_text.has_value()) {
+        stream << ",\"after_text\":";
+        write_json_string(stream, *selector.after_paragraph_text);
+    }
+    if (!selector.header_cell_texts.empty()) {
+        stream << ",\"header_cells\":";
+        write_json_strings(stream, selector.header_cell_texts);
+        stream << ",\"header_row_index\":" << selector.header_row_index;
+    }
+    if (template_table_selector_uses_text_matching(selector)) {
+        stream << ",\"occurrence\":" << selector.occurrence;
+    }
+}
+
+void print_template_table_selector_fields(
+    std::ostream &stream, const featherdoc::template_table_selector &selector) {
+    if (selector.bookmark_name.has_value()) {
+        stream << "bookmark_name: " << *selector.bookmark_name << '\n';
+    }
+    if (selector.after_paragraph_text.has_value()) {
+        stream << "after_text: " << *selector.after_paragraph_text << '\n';
+    }
+    if (!selector.header_cell_texts.empty()) {
+        stream << "header_row_index: " << selector.header_row_index << '\n'
+               << "header_cells: ";
+        for (std::size_t index = 0U; index < selector.header_cell_texts.size();
+             ++index) {
+            if (index != 0U) {
+                stream << '\t';
+            }
+            stream << selector.header_cell_texts[index];
+        }
+        stream << '\n';
+    }
+    if (template_table_selector_uses_text_matching(selector)) {
+        stream << "occurrence: " << selector.occurrence << '\n';
+    }
+}
+
+void write_json_template_table_from_json_result(
+    std::ostream &stream, const selected_template_part &selected,
+    std::size_t table_index, const template_table_json_patch &patch,
+    const featherdoc::template_table_selector &selector) {
+    stream << ',';
+    write_json_selected_template_part(stream, selected);
+    write_json_template_table_selector_fields(stream, selector);
+    stream << ",\"mode\":";
+    write_json_string(
+        stream, std::string(template_table_json_patch_mode_name(patch.mode)));
+    stream << ",\"table_index\":" << table_index
+           << ",\"start_row_index\":" << patch.start_row_index;
+    if (patch.mode == template_table_json_patch_mode::block) {
+        stream << ",\"start_cell_index\":" << patch.start_cell_index;
+    }
+    stream << ",\"row_count\":" << patch.rows.size() << ",\"rows\":";
+    write_json_row_texts_matrix(stream, patch.rows);
+}
+
+void print_template_table_from_json_result(
+    const selected_template_part &selected, std::size_t table_index,
+    const template_table_json_patch &patch,
+    const featherdoc::template_table_selector &selector,
+    const std::optional<path_type> &output_path) {
+    print_selected_template_part(std::cout, selected);
+    print_template_table_selector_fields(std::cout, selector);
+    std::cout << "mode: " << template_table_json_patch_mode_name(patch.mode)
+              << '\n'
+              << "table_index: " << table_index << '\n'
+              << "start_row_index: " << patch.start_row_index << '\n';
+    if (patch.mode == template_table_json_patch_mode::block) {
+        std::cout << "start_cell_index: " << patch.start_cell_index << '\n';
+    }
+    std::cout << "row_count: " << patch.rows.size() << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+
+    for (std::size_t offset = 0U; offset < patch.rows.size(); ++offset) {
+        if (patch.mode == template_table_json_patch_mode::block) {
+            std::cout << "row[" << (patch.start_row_index + offset)
+                      << "] from cell[" << patch.start_cell_index << "]: ";
+        } else {
+            std::cout << "row[" << (patch.start_row_index + offset) << "]: ";
+        }
+        for (std::size_t cell_index = 0U; cell_index < patch.rows[offset].size();
+             ++cell_index) {
+            if (cell_index != 0U) {
+                std::cout << '\t';
+            }
+            std::cout << patch.rows[offset][cell_index];
+        }
+        std::cout << '\n';
+    }
+}
+
+void write_json_template_tables_from_json_result(
+    std::ostream &stream,
+    const std::vector<applied_template_table_json_batch_operation> &operations) {
+    stream << ",\"operation_count\":" << operations.size() << ",\"operations\":[";
+    for (std::size_t index = 0U; index < operations.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+
+        const auto &operation = operations[index];
+        stream << "{\"operation_index\":" << operation.operation_index;
+        write_json_template_table_from_json_result(
+            stream, operation.selected, operation.table_index, operation.patch,
+            operation.selector);
+        stream << '}';
+    }
+    stream << ']';
+}
+
+void print_template_tables_from_json_result(
+    const std::vector<applied_template_table_json_batch_operation> &operations,
+    const std::optional<path_type> &output_path) {
+    std::cout << "operation_count: " << operations.size() << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+
+    for (std::size_t index = 0U; index < operations.size(); ++index) {
+        if (index != 0U) {
+            std::cout << '\n';
+        }
+
+        std::cout << "operation_index: " << operations[index].operation_index
+                  << '\n';
+        print_template_table_from_json_result(
+            operations[index].selected, operations[index].table_index,
+            operations[index].patch, operations[index].selector,
+            std::nullopt);
+    }
+}
+
+void write_json_bookmark_block_removal_result(
+    std::ostream &stream, const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark, std::size_t removed) {
+    stream << ",\"part\":";
+    write_json_string(stream, validation_part_name(selected.family));
+    if (selected.part_index.has_value()) {
+        stream << ",\"part_index\":" << *selected.part_index;
+    }
+    if (selected.section_index.has_value()) {
+        stream << ",\"section\":" << *selected.section_index;
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, std::string(selected.part.entry_name()));
+    stream << ",\"bookmark\":";
+    write_json_bookmark_summary(stream, bookmark);
+    stream << ",\"removed\":" << removed;
+}
+
+void print_bookmark_block_removal_result(
+    const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark,
+    const std::optional<path_type> &output_path, std::size_t removed) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "bookmark_name: " << bookmark.bookmark_name << '\n';
+    std::cout << "bookmark_kind: " << bookmark_kind_name(bookmark.kind) << '\n';
+    std::cout << "bookmark_occurrence_count: " << bookmark.occurrence_count << '\n';
+    std::cout << "bookmark_duplicate: " << yes_no(bookmark.is_duplicate()) << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "removed: " << removed << '\n';
+}
+
+void write_json_bookmark_text_result(
+    std::ostream &stream, const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark, std::string_view text,
+    std::size_t replaced) {
+    stream << ",\"part\":";
+    write_json_string(stream, validation_part_name(selected.family));
+    if (selected.part_index.has_value()) {
+        stream << ",\"part_index\":" << *selected.part_index;
+    }
+    if (selected.section_index.has_value()) {
+        stream << ",\"section\":" << *selected.section_index;
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, std::string(selected.part.entry_name()));
+    stream << ",\"bookmark\":";
+    write_json_bookmark_summary(stream, bookmark);
+    stream << ",\"replaced\":" << replaced << ",\"text\":";
+    write_json_string(stream, text);
+}
+
+void print_bookmark_text_result(const selected_template_part &selected,
+                                const featherdoc::bookmark_summary &bookmark,
+                                std::string_view text,
+                                const std::optional<path_type> &output_path,
+                                std::size_t replaced) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "bookmark_name: " << bookmark.bookmark_name << '\n';
+    std::cout << "bookmark_kind: " << bookmark_kind_name(bookmark.kind) << '\n';
+    std::cout << "bookmark_occurrence_count: " << bookmark.occurrence_count << '\n';
+    std::cout << "bookmark_duplicate: " << yes_no(bookmark.is_duplicate()) << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "replaced: " << replaced << '\n';
+    std::cout << "text: " << text << '\n';
+}
+
+void write_json_bookmark_text_bindings(
+    std::ostream &stream,
+    const std::vector<featherdoc::bookmark_text_binding> &bindings) {
+    stream << '[';
+    for (std::size_t index = 0; index < bindings.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        stream << "{\"bookmark_name\":";
+        write_json_string(stream, bindings[index].bookmark_name);
+        stream << ",\"text\":";
+        write_json_string(stream, bindings[index].text);
+        stream << '}';
+    }
+    stream << ']';
+}
+
+void write_json_bookmark_fill_result(
+    std::ostream &stream, const selected_template_part &selected,
+    const std::vector<featherdoc::bookmark_text_binding> &bindings,
+    const featherdoc::bookmark_fill_result &result) {
+    stream << ",\"part\":";
+    write_json_string(stream, validation_part_name(selected.family));
+    if (selected.part_index.has_value()) {
+        stream << ",\"part_index\":" << *selected.part_index;
+    }
+    if (selected.section_index.has_value()) {
+        stream << ",\"section\":" << *selected.section_index;
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, std::string(selected.part.entry_name()));
+    stream << ",\"complete\":" << json_bool(static_cast<bool>(result))
+           << ",\"requested\":" << result.requested
+           << ",\"matched\":" << result.matched
+           << ",\"replaced\":" << result.replaced
+           << ",\"bindings\":";
+    write_json_bookmark_text_bindings(stream, bindings);
+    stream << ",\"missing_bookmarks\":";
+    write_json_strings(stream, result.missing_bookmarks);
+}
+
+void print_bookmark_fill_result(
+    const selected_template_part &selected,
+    const std::vector<featherdoc::bookmark_text_binding> &bindings,
+    const std::optional<path_type> &output_path,
+    const featherdoc::bookmark_fill_result &result) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "complete: " << yes_no(static_cast<bool>(result)) << '\n';
+    std::cout << "requested: " << result.requested << '\n';
+    std::cout << "matched: " << result.matched << '\n';
+    std::cout << "replaced: " << result.replaced << '\n';
+    for (std::size_t index = 0; index < bindings.size(); ++index) {
+        std::cout << "binding[" << index << "]: "
+                  << bindings[index].bookmark_name << " => "
+                  << bindings[index].text << '\n';
+    }
+    std::cout << "missing_bookmarks: ";
+    if (result.missing_bookmarks.empty()) {
+        std::cout << "none\n";
+    } else {
+        for (std::size_t index = 0; index < result.missing_bookmarks.size();
+             ++index) {
+            if (index != 0U) {
+                std::cout << ", ";
+            }
+            std::cout << result.missing_bookmarks[index];
+        }
+        std::cout << '\n';
+    }
+}
+
+void write_json_bookmark_block_visibility_result(
+    std::ostream &stream, const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark, bool visible,
+    std::size_t changed) {
+    stream << ",\"part\":";
+    write_json_string(stream, validation_part_name(selected.family));
+    if (selected.part_index.has_value()) {
+        stream << ",\"part_index\":" << *selected.part_index;
+    }
+    if (selected.section_index.has_value()) {
+        stream << ",\"section\":" << *selected.section_index;
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, std::string(selected.part.entry_name()));
+    stream << ",\"bookmark\":";
+    write_json_bookmark_summary(stream, bookmark);
+    stream << ",\"visible\":" << json_bool(visible)
+           << ",\"changed\":" << changed;
+}
+
+void print_bookmark_block_visibility_result(
+    const selected_template_part &selected,
+    const featherdoc::bookmark_summary &bookmark,
+    const std::optional<path_type> &output_path, bool visible,
+    std::size_t changed) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "bookmark_name: " << bookmark.bookmark_name << '\n';
+    std::cout << "bookmark_kind: " << bookmark_kind_name(bookmark.kind) << '\n';
+    std::cout << "bookmark_occurrence_count: " << bookmark.occurrence_count << '\n';
+    std::cout << "bookmark_duplicate: " << yes_no(bookmark.is_duplicate()) << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "visible: " << yes_no(visible) << '\n';
+    std::cout << "changed: " << changed << '\n';
+}
+
+void write_json_bookmark_block_visibility_bindings(
+    std::ostream &stream,
+    const std::vector<featherdoc::bookmark_block_visibility_binding> &bindings) {
+    stream << '[';
+    for (std::size_t index = 0; index < bindings.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        stream << "{\"bookmark_name\":";
+        write_json_string(stream, bindings[index].bookmark_name);
+        stream << ",\"visible\":" << json_bool(bindings[index].visible) << '}';
+    }
+    stream << ']';
+}
+
+void write_json_applied_bookmark_block_visibility_result(
+    std::ostream &stream, const selected_template_part &selected,
+    const std::vector<featherdoc::bookmark_block_visibility_binding> &bindings,
+    const featherdoc::bookmark_block_visibility_result &result) {
+    stream << ",\"part\":";
+    write_json_string(stream, validation_part_name(selected.family));
+    if (selected.part_index.has_value()) {
+        stream << ",\"part_index\":" << *selected.part_index;
+    }
+    if (selected.section_index.has_value()) {
+        stream << ",\"section\":" << *selected.section_index;
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, std::string(selected.part.entry_name()));
+    stream << ",\"complete\":" << json_bool(static_cast<bool>(result))
+           << ",\"requested\":" << result.requested
+           << ",\"matched\":" << result.matched
+           << ",\"kept\":" << result.kept
+           << ",\"removed\":" << result.removed
+           << ",\"bindings\":";
+    write_json_bookmark_block_visibility_bindings(stream, bindings);
+    stream << ",\"missing_bookmarks\":";
+    write_json_strings(stream, result.missing_bookmarks);
+}
+
+void print_applied_bookmark_block_visibility_result(
+    const selected_template_part &selected,
+    const std::vector<featherdoc::bookmark_block_visibility_binding> &bindings,
+    const std::optional<path_type> &output_path,
+    const featherdoc::bookmark_block_visibility_result &result) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "complete: " << yes_no(static_cast<bool>(result)) << '\n';
+    std::cout << "requested: " << result.requested << '\n';
+    std::cout << "matched: " << result.matched << '\n';
+    std::cout << "kept: " << result.kept << '\n';
+    std::cout << "removed: " << result.removed << '\n';
+    for (std::size_t index = 0; index < bindings.size(); ++index) {
+        std::cout << "binding[" << index << "]: "
+                  << bindings[index].bookmark_name << " => "
+                  << (bindings[index].visible ? "visible" : "hidden") << '\n';
+    }
+    std::cout << "missing_bookmarks: ";
+    if (result.missing_bookmarks.empty()) {
+        std::cout << "none\n";
+    } else {
+        for (std::size_t index = 0; index < result.missing_bookmarks.size();
+             ++index) {
+            if (index != 0U) {
+                std::cout << ", ";
+            }
+            std::cout << result.missing_bookmarks[index];
+        }
         std::cout << '\n';
     }
 }
@@ -5680,6 +13372,1636 @@ auto read_text_source(const section_text_options &options, std::string &text,
     return true;
 }
 
+auto read_text_source(const table_cell_text_options &options, std::string &text,
+                      std::string &error_message) -> bool {
+    if (options.text.has_value()) {
+        text = *options.text;
+        return true;
+    }
+
+    if (!options.text_file.has_value()) {
+        error_message = "expected --text <text> or --text-file <path>";
+        return false;
+    }
+
+    std::ifstream stream(*options.text_file, std::ios::binary);
+    if (!stream.good()) {
+        error_message =
+            "failed to read text file: " + options.text_file->string();
+        return false;
+    }
+
+    text.assign(std::istreambuf_iterator<char>(stream),
+                std::istreambuf_iterator<char>());
+    return true;
+}
+
+void skip_json_patch_whitespace(std::string_view text, std::size_t &index) {
+    while (index < text.size() &&
+           std::isspace(static_cast<unsigned char>(text[index])) != 0) {
+        ++index;
+    }
+}
+
+auto report_json_patch_error(std::size_t offset, std::string_view detail,
+                             std::string &error_message) -> bool {
+    error_message = "invalid JSON patch at byte offset '" +
+                    std::to_string(offset) + "': " + std::string(detail);
+    return false;
+}
+
+auto append_utf8_code_point(std::string &text, std::uint32_t code_point,
+                            std::string &error_message) -> bool {
+    if (code_point > 0x10FFFFU ||
+        (code_point >= 0xD800U && code_point <= 0xDFFFU)) {
+        error_message = "invalid Unicode escape sequence in JSON patch";
+        return false;
+    }
+
+    if (code_point <= 0x7FU) {
+        text.push_back(static_cast<char>(code_point));
+    } else if (code_point <= 0x7FFU) {
+        text.push_back(static_cast<char>(0xC0U | (code_point >> 6U)));
+        text.push_back(static_cast<char>(0x80U | (code_point & 0x3FU)));
+    } else if (code_point <= 0xFFFFU) {
+        text.push_back(static_cast<char>(0xE0U | (code_point >> 12U)));
+        text.push_back(
+            static_cast<char>(0x80U | ((code_point >> 6U) & 0x3FU)));
+        text.push_back(static_cast<char>(0x80U | (code_point & 0x3FU)));
+    } else {
+        text.push_back(static_cast<char>(0xF0U | (code_point >> 18U)));
+        text.push_back(
+            static_cast<char>(0x80U | ((code_point >> 12U) & 0x3FU)));
+        text.push_back(
+            static_cast<char>(0x80U | ((code_point >> 6U) & 0x3FU)));
+        text.push_back(static_cast<char>(0x80U | (code_point & 0x3FU)));
+    }
+
+    return true;
+}
+
+auto parse_json_patch_hex_digit(char digit, std::uint32_t &value) -> bool {
+    if (digit >= '0' && digit <= '9') {
+        value = static_cast<std::uint32_t>(digit - '0');
+        return true;
+    }
+    if (digit >= 'a' && digit <= 'f') {
+        value = static_cast<std::uint32_t>(10 + (digit - 'a'));
+        return true;
+    }
+    if (digit >= 'A' && digit <= 'F') {
+        value = static_cast<std::uint32_t>(10 + (digit - 'A'));
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_json_patch_code_unit(std::string_view text, std::size_t &index,
+                                std::uint32_t &code_unit,
+                                std::string &error_message) -> bool {
+    if (index + 4U > text.size()) {
+        return report_json_patch_error(index,
+                                       "expected four hexadecimal digits after "
+                                       "Unicode escape",
+                                       error_message);
+    }
+
+    code_unit = 0U;
+    for (std::size_t offset = 0U; offset < 4U; ++offset) {
+        std::uint32_t hex_digit = 0U;
+        if (!parse_json_patch_hex_digit(text[index + offset], hex_digit)) {
+            return report_json_patch_error(index + offset,
+                                           "invalid hexadecimal digit in "
+                                           "Unicode escape",
+                                           error_message);
+        }
+
+        code_unit = static_cast<std::uint32_t>((code_unit << 4U) | hex_digit);
+    }
+
+    index += 4U;
+    return true;
+}
+
+auto parse_json_patch_string(std::string_view text, std::size_t &index,
+                             std::string &value, std::string &error_message)
+    -> bool {
+    if (index >= text.size() || text[index] != '"') {
+        return report_json_patch_error(index, "expected string", error_message);
+    }
+
+    value.clear();
+    ++index;
+    while (index < text.size()) {
+        const auto ch = static_cast<unsigned char>(text[index]);
+        if (ch == '"') {
+            ++index;
+            return true;
+        }
+        if (ch < 0x20U) {
+            return report_json_patch_error(index,
+                                           "unescaped control character in "
+                                           "string literal",
+                                           error_message);
+        }
+        if (ch != '\\') {
+            value.push_back(static_cast<char>(ch));
+            ++index;
+            continue;
+        }
+
+        ++index;
+        if (index >= text.size()) {
+            return report_json_patch_error(index,
+                                           "unterminated escape sequence",
+                                           error_message);
+        }
+
+        switch (text[index]) {
+        case '"':
+            value.push_back('"');
+            ++index;
+            break;
+        case '\\':
+            value.push_back('\\');
+            ++index;
+            break;
+        case '/':
+            value.push_back('/');
+            ++index;
+            break;
+        case 'b':
+            value.push_back('\b');
+            ++index;
+            break;
+        case 'f':
+            value.push_back('\f');
+            ++index;
+            break;
+        case 'n':
+            value.push_back('\n');
+            ++index;
+            break;
+        case 'r':
+            value.push_back('\r');
+            ++index;
+            break;
+        case 't':
+            value.push_back('\t');
+            ++index;
+            break;
+        case 'u': {
+            ++index;
+            std::uint32_t code_unit = 0U;
+            if (!parse_json_patch_code_unit(text, index, code_unit,
+                                            error_message)) {
+                return false;
+            }
+
+            std::uint32_t code_point = code_unit;
+            if (code_unit >= 0xD800U && code_unit <= 0xDBFFU) {
+                if (index + 2U > text.size() || text[index] != '\\' ||
+                    text[index + 1U] != 'u') {
+                    return report_json_patch_error(
+                        index,
+                        "expected low surrogate after high surrogate",
+                        error_message);
+                }
+
+                index += 2U;
+                std::uint32_t low_surrogate = 0U;
+                if (!parse_json_patch_code_unit(text, index, low_surrogate,
+                                                error_message)) {
+                    return false;
+                }
+                if (low_surrogate < 0xDC00U || low_surrogate > 0xDFFFU) {
+                    return report_json_patch_error(
+                        index - 4U,
+                        "expected low surrogate after high surrogate",
+                        error_message);
+                }
+
+                code_point =
+                    0x10000U + (((code_unit - 0xD800U) << 10U) |
+                                (low_surrogate - 0xDC00U));
+            } else if (code_unit >= 0xDC00U && code_unit <= 0xDFFFU) {
+                return report_json_patch_error(index - 4U,
+                                               "unexpected low surrogate",
+                                               error_message);
+            }
+
+            if (!append_utf8_code_point(value, code_point, error_message)) {
+                return false;
+            }
+            break;
+        }
+        default:
+            return report_json_patch_error(index, "unsupported escape sequence",
+                                           error_message);
+        }
+    }
+
+    return report_json_patch_error(index, "unterminated string literal",
+                                   error_message);
+}
+
+auto parse_json_patch_number(std::string_view text, std::size_t &index,
+                             std::string &value, std::string &error_message)
+    -> bool {
+    if (index >= text.size()) {
+        return report_json_patch_error(index, "expected number", error_message);
+    }
+
+    const auto start_index = index;
+    if (text[index] == '-') {
+        ++index;
+    }
+    if (index >= text.size()) {
+        return report_json_patch_error(start_index, "expected number digits",
+                                       error_message);
+    }
+
+    if (text[index] == '0') {
+        ++index;
+    } else if (text[index] >= '1' && text[index] <= '9') {
+        ++index;
+        while (index < text.size() && text[index] >= '0' && text[index] <= '9') {
+            ++index;
+        }
+    } else {
+        return report_json_patch_error(start_index, "expected number digits",
+                                       error_message);
+    }
+
+    if (index < text.size() && text[index] == '.') {
+        ++index;
+        if (index >= text.size() || text[index] < '0' || text[index] > '9') {
+            return report_json_patch_error(index,
+                                           "expected digits after decimal point",
+                                           error_message);
+        }
+        while (index < text.size() && text[index] >= '0' && text[index] <= '9') {
+            ++index;
+        }
+    }
+
+    if (index < text.size() && (text[index] == 'e' || text[index] == 'E')) {
+        ++index;
+        if (index < text.size() && (text[index] == '+' || text[index] == '-')) {
+            ++index;
+        }
+        if (index >= text.size() || text[index] < '0' || text[index] > '9') {
+            return report_json_patch_error(index,
+                                           "expected exponent digits",
+                                           error_message);
+        }
+        while (index < text.size() && text[index] >= '0' && text[index] <= '9') {
+            ++index;
+        }
+    }
+
+    value = std::string(text.substr(start_index, index - start_index));
+    return true;
+}
+
+auto skip_json_patch_value(std::string_view text, std::size_t &index,
+                           std::string &error_message) -> bool;
+
+auto skip_json_patch_array(std::string_view text, std::size_t &index,
+                           std::string &error_message) -> bool {
+    if (index >= text.size() || text[index] != '[') {
+        return report_json_patch_error(index, "expected array", error_message);
+    }
+
+    ++index;
+    skip_json_patch_whitespace(text, index);
+    if (index < text.size() && text[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < text.size()) {
+        if (!skip_json_patch_value(text, index, error_message)) {
+            return false;
+        }
+
+        skip_json_patch_whitespace(text, index);
+        if (index >= text.size()) {
+            break;
+        }
+        if (text[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(text, index);
+            continue;
+        }
+        if (text[index] == ']') {
+            ++index;
+            return true;
+        }
+        return report_json_patch_error(index,
+                                       "expected ',' or ']' after array item",
+                                       error_message);
+    }
+
+    return report_json_patch_error(index, "unterminated array", error_message);
+}
+
+auto skip_json_patch_object(std::string_view text, std::size_t &index,
+                            std::string &error_message) -> bool {
+    if (index >= text.size() || text[index] != '{') {
+        return report_json_patch_error(index, "expected object", error_message);
+    }
+
+    ++index;
+    skip_json_patch_whitespace(text, index);
+    if (index < text.size() && text[index] == '}') {
+        ++index;
+        return true;
+    }
+
+    while (index < text.size()) {
+        std::string key;
+        if (!parse_json_patch_string(text, index, key, error_message)) {
+            return false;
+        }
+
+        skip_json_patch_whitespace(text, index);
+        if (index >= text.size() || text[index] != ':') {
+            return report_json_patch_error(index,
+                                           "expected ':' after object member",
+                                           error_message);
+        }
+
+        ++index;
+        if (!skip_json_patch_value(text, index, error_message)) {
+            return false;
+        }
+
+        skip_json_patch_whitespace(text, index);
+        if (index >= text.size()) {
+            break;
+        }
+        if (text[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(text, index);
+            continue;
+        }
+        if (text[index] == '}') {
+            ++index;
+            return true;
+        }
+        return report_json_patch_error(
+            index, "expected ',' or '}' after object member", error_message);
+    }
+
+    return report_json_patch_error(index, "unterminated object", error_message);
+}
+
+auto skip_json_patch_value(std::string_view text, std::size_t &index,
+                           std::string &error_message) -> bool {
+    skip_json_patch_whitespace(text, index);
+    if (index >= text.size()) {
+        return report_json_patch_error(index, "expected JSON value",
+                                       error_message);
+    }
+
+    if (text[index] == '"') {
+        std::string ignored;
+        return parse_json_patch_string(text, index, ignored, error_message);
+    }
+    if (text[index] == '{') {
+        return skip_json_patch_object(text, index, error_message);
+    }
+    if (text[index] == '[') {
+        return skip_json_patch_array(text, index, error_message);
+    }
+    if (text[index] == 't') {
+        if (text.substr(index, 4U) != "true") {
+            return report_json_patch_error(index, "expected 'true'",
+                                           error_message);
+        }
+        index += 4U;
+        return true;
+    }
+    if (text[index] == 'f') {
+        if (text.substr(index, 5U) != "false") {
+            return report_json_patch_error(index, "expected 'false'",
+                                           error_message);
+        }
+        index += 5U;
+        return true;
+    }
+    if (text[index] == 'n') {
+        if (text.substr(index, 4U) != "null") {
+            return report_json_patch_error(index, "expected 'null'",
+                                           error_message);
+        }
+        index += 4U;
+        return true;
+    }
+    if (text[index] == '-' || (text[index] >= '0' && text[index] <= '9')) {
+        std::string ignored;
+        return parse_json_patch_number(text, index, ignored, error_message);
+    }
+
+    return report_json_patch_error(index, "unexpected JSON token",
+                                   error_message);
+}
+
+auto parse_json_patch_cell_text(std::string_view text, std::size_t &index,
+                                std::string &cell_text,
+                                std::string &error_message) -> bool {
+    skip_json_patch_whitespace(text, index);
+    if (index >= text.size()) {
+        return report_json_patch_error(index, "expected cell value",
+                                       error_message);
+    }
+
+    if (text[index] == '"') {
+        return parse_json_patch_string(text, index, cell_text, error_message);
+    }
+    if (text[index] == 't') {
+        if (text.substr(index, 4U) != "true") {
+            return report_json_patch_error(index, "expected 'true'",
+                                           error_message);
+        }
+        cell_text = "true";
+        index += 4U;
+        return true;
+    }
+    if (text[index] == 'f') {
+        if (text.substr(index, 5U) != "false") {
+            return report_json_patch_error(index, "expected 'false'",
+                                           error_message);
+        }
+        cell_text = "false";
+        index += 5U;
+        return true;
+    }
+    if (text[index] == 'n') {
+        if (text.substr(index, 4U) != "null") {
+            return report_json_patch_error(index, "expected 'null'",
+                                           error_message);
+        }
+        cell_text.clear();
+        index += 4U;
+        return true;
+    }
+    if (text[index] == '-' || (text[index] >= '0' && text[index] <= '9')) {
+        return parse_json_patch_number(text, index, cell_text, error_message);
+    }
+
+    return report_json_patch_error(index,
+                                   "table cell values must be strings, numbers, "
+                                   "booleans, or null",
+                                   error_message);
+}
+
+auto parse_json_patch_index_value(std::string_view text, std::size_t &index,
+                                  std::size_t &value,
+                                  std::string_view member_name,
+                                  std::string &error_message) -> bool {
+    std::string token;
+    skip_json_patch_whitespace(text, index);
+    if (index >= text.size()) {
+        return report_json_patch_error(index, "expected integer value",
+                                       error_message);
+    }
+
+    if (text[index] == '"') {
+        if (!parse_json_patch_string(text, index, token, error_message)) {
+            return false;
+        }
+    } else if (text[index] == '-' || (text[index] >= '0' && text[index] <= '9')) {
+        if (!parse_json_patch_number(text, index, token, error_message)) {
+            return false;
+        }
+    } else {
+        return report_json_patch_error(index, "expected integer value",
+                                       error_message);
+    }
+
+    if (!parse_index(token, value)) {
+        error_message = "JSON patch member '" + std::string(member_name) +
+                        "' must be an unsigned integer";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_json_patch_rows_matrix(std::string_view text, std::size_t &index,
+                                  std::vector<std::vector<std::string>> &rows,
+                                  std::string &error_message) -> bool {
+    skip_json_patch_whitespace(text, index);
+    if (index >= text.size() || text[index] != '[') {
+        return report_json_patch_error(index, "expected rows array",
+                                       error_message);
+    }
+
+    rows.clear();
+    ++index;
+    skip_json_patch_whitespace(text, index);
+    if (index < text.size() && text[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < text.size()) {
+        if (text[index] != '[') {
+            return report_json_patch_error(index,
+                                           "expected row array inside rows",
+                                           error_message);
+        }
+
+        ++index;
+        std::vector<std::string> row;
+        skip_json_patch_whitespace(text, index);
+        if (index < text.size() && text[index] == ']') {
+            ++index;
+            rows.push_back(row);
+        } else {
+            while (index < text.size()) {
+                std::string cell_text;
+                if (!parse_json_patch_cell_text(text, index, cell_text,
+                                                error_message)) {
+                    return false;
+                }
+                row.push_back(std::move(cell_text));
+
+                skip_json_patch_whitespace(text, index);
+                if (index >= text.size()) {
+                    break;
+                }
+                if (text[index] == ',') {
+                    ++index;
+                    skip_json_patch_whitespace(text, index);
+                    continue;
+                }
+                if (text[index] == ']') {
+                    ++index;
+                    rows.push_back(std::move(row));
+                    break;
+                }
+                return report_json_patch_error(
+                    index, "expected ',' or ']' inside row array",
+                    error_message);
+            }
+        }
+
+        skip_json_patch_whitespace(text, index);
+        if (index >= text.size()) {
+            break;
+        }
+        if (text[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(text, index);
+            continue;
+        }
+        if (text[index] == ']') {
+            ++index;
+            return true;
+        }
+        return report_json_patch_error(index,
+                                       "expected ',' or ']' after row array",
+                                       error_message);
+    }
+
+    return report_json_patch_error(index, "unterminated rows array",
+                                   error_message);
+}
+
+auto parse_json_patch_text_array(std::string_view text, std::size_t &index,
+                                 std::vector<std::string> &values,
+                                 std::string_view member_name,
+                                 std::string &error_message) -> bool {
+    skip_json_patch_whitespace(text, index);
+    if (index >= text.size() || text[index] != '[') {
+        return report_json_patch_error(index,
+                                       "expected " + std::string(member_name) +
+                                           " array",
+                                       error_message);
+    }
+
+    values.clear();
+    ++index;
+    skip_json_patch_whitespace(text, index);
+    if (index < text.size() && text[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < text.size()) {
+        std::string value;
+        if (!parse_json_patch_cell_text(text, index, value, error_message)) {
+            return false;
+        }
+        values.push_back(std::move(value));
+
+        skip_json_patch_whitespace(text, index);
+        if (index >= text.size()) {
+            break;
+        }
+        if (text[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(text, index);
+            continue;
+        }
+        if (text[index] == ']') {
+            ++index;
+            return true;
+        }
+        return report_json_patch_error(index,
+                                       "expected ',' or ']' after " +
+                                           std::string(member_name) + " item",
+                                       error_message);
+    }
+
+    return report_json_patch_error(index,
+                                   "unterminated " +
+                                       std::string(member_name) + " array",
+                                   error_message);
+}
+
+auto resolve_json_patch_index_member(std::optional<std::size_t> primary_value,
+                                     std::optional<std::size_t> alias_value,
+                                     std::string_view primary_name,
+                                     std::string_view alias_name,
+                                     std::optional<std::size_t> &resolved_value,
+                                     std::string &error_message) -> bool {
+    if (primary_value.has_value() && alias_value.has_value() &&
+        *primary_value != *alias_value) {
+        error_message = "JSON patch members '" + std::string(primary_name) +
+                        "' and '" + std::string(alias_name) +
+                        "' must match when both are present";
+        return false;
+    }
+
+    if (primary_value.has_value()) {
+        resolved_value = primary_value;
+    } else {
+        resolved_value = alias_value;
+    }
+
+    return true;
+}
+
+auto resolve_json_patch_string_member(
+    const std::optional<std::string> &primary_value,
+    const std::optional<std::string> &alias_value,
+    std::string_view primary_name, std::string_view alias_name,
+    std::optional<std::string> &resolved_value,
+    std::string &error_message) -> bool {
+    if (primary_value.has_value() && alias_value.has_value() &&
+        *primary_value != *alias_value) {
+        error_message = "JSON patch members '" + std::string(primary_name) +
+                        "' and '" + std::string(alias_name) +
+                        "' must match when both are present";
+        return false;
+    }
+
+    if (primary_value.has_value()) {
+        resolved_value = primary_value;
+    } else {
+        resolved_value = alias_value;
+    }
+
+    return true;
+}
+
+auto parse_json_patch_part_value(std::string_view text, std::size_t &index,
+                                 validation_part_family &part,
+                                 std::string &error_message) -> bool {
+    skip_json_patch_whitespace(text, index);
+    std::string token;
+    if (!parse_json_patch_string(text, index, token, error_message)) {
+        return false;
+    }
+
+    if (!parse_validation_part(token, part)) {
+        error_message =
+            "JSON patch member 'part' must be 'body', 'header', 'footer', "
+            "'section-header', or 'section-footer'";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_json_patch_reference_kind_value(
+    std::string_view text, std::size_t &index,
+    featherdoc::section_reference_kind &reference_kind,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(text, index);
+    std::string token;
+    if (!parse_json_patch_string(text, index, token, error_message)) {
+        return false;
+    }
+
+    if (!parse_reference_kind(token, reference_kind)) {
+        error_message =
+            "JSON patch member 'kind' must be 'default', 'first', or 'even'";
+        return false;
+    }
+
+    return true;
+}
+
+auto read_template_table_json_content(const path_type &patch_path,
+                                      std::string &content, std::size_t &index,
+                                      std::string &error_message) -> bool {
+    std::ifstream stream(patch_path, std::ios::binary);
+    if (!stream.good()) {
+        error_message =
+            "failed to read JSON patch file: " + patch_path.string();
+        return false;
+    }
+
+    content.assign(std::istreambuf_iterator<char>(stream),
+                   std::istreambuf_iterator<char>());
+    index = 0U;
+    if (content.size() >= 3U &&
+        static_cast<unsigned char>(content[0]) == 0xEFU &&
+        static_cast<unsigned char>(content[1]) == 0xBBU &&
+        static_cast<unsigned char>(content[2]) == 0xBFU) {
+        index = 3U;
+    }
+
+    return true;
+}
+
+auto read_template_table_json_patch(const path_type &patch_path,
+                                    template_table_json_patch &patch,
+                                    std::string &error_message) -> bool {
+    std::string content;
+    std::size_t index = 0U;
+    if (!read_template_table_json_content(patch_path, content, index,
+                                          error_message)) {
+        return false;
+    }
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_patch_error(index,
+                                       "JSON patch root must be an object",
+                                       error_message);
+    }
+
+    std::optional<std::string> mode_value;
+    std::optional<std::size_t> start_row_value;
+    std::optional<std::size_t> start_row_index_value;
+    std::optional<std::size_t> start_cell_value;
+    std::optional<std::size_t> start_cell_index_value;
+    std::vector<std::vector<std::string>> rows;
+    bool saw_rows = false;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_patch_error(
+                    index, "expected ':' after object member", error_message);
+            }
+
+            ++index;
+            if (member_name == "mode") {
+                if (mode_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'mode' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                mode_value.emplace();
+                if (!parse_json_patch_string(content, index, *mode_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "start_row") {
+                if (start_row_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'start_row' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "start_row",
+                                                  error_message)) {
+                    return false;
+                }
+                start_row_value = parsed_index;
+            } else if (member_name == "start_row_index") {
+                if (start_row_index_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'start_row_index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "start_row_index",
+                                                  error_message)) {
+                    return false;
+                }
+                start_row_index_value = parsed_index;
+            } else if (member_name == "start_cell") {
+                if (start_cell_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'start_cell' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "start_cell",
+                                                  error_message)) {
+                    return false;
+                }
+                start_cell_value = parsed_index;
+            } else if (member_name == "start_cell_index") {
+                if (start_cell_index_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'start_cell_index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "start_cell_index",
+                                                  error_message)) {
+                    return false;
+                }
+                start_cell_index_value = parsed_index;
+            } else if (member_name == "rows") {
+                if (saw_rows) {
+                    error_message =
+                        "JSON patch member 'rows' must not be duplicated";
+                    return false;
+                }
+                if (!parse_json_patch_rows_matrix(content, index, rows,
+                                                  error_message)) {
+                    return false;
+                }
+                saw_rows = true;
+            } else if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_patch_error(index,
+                                           "expected ',' or '}' after object "
+                                           "member",
+                                           error_message);
+        }
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index != content.size()) {
+        return report_json_patch_error(index,
+                                       "unexpected trailing content after JSON "
+                                       "patch object",
+                                       error_message);
+    }
+
+    std::optional<std::size_t> resolved_start_row_index;
+    if (!resolve_json_patch_index_member(start_row_value, start_row_index_value,
+                                         "start_row", "start_row_index",
+                                         resolved_start_row_index,
+                                         error_message)) {
+        return false;
+    }
+    if (!resolved_start_row_index.has_value()) {
+        error_message =
+            "JSON patch must contain 'start_row' or 'start_row_index'";
+        return false;
+    }
+
+    std::optional<std::size_t> resolved_start_cell_index;
+    if (!resolve_json_patch_index_member(start_cell_value, start_cell_index_value,
+                                         "start_cell", "start_cell_index",
+                                         resolved_start_cell_index,
+                                         error_message)) {
+        return false;
+    }
+
+    if (!saw_rows) {
+        error_message = "JSON patch must contain a 'rows' array";
+        return false;
+    }
+    if (rows.empty()) {
+        error_message =
+            "JSON patch member 'rows' must contain at least one row";
+        return false;
+    }
+    for (std::size_t row_offset = 0U; row_offset < rows.size(); ++row_offset) {
+        if (rows[row_offset].empty()) {
+            error_message = "JSON patch row at offset '" +
+                            std::to_string(row_offset) +
+                            "' must contain at least one cell";
+            return false;
+        }
+    }
+
+    if (mode_value.has_value()) {
+        if (*mode_value == "rows") {
+            patch.mode = template_table_json_patch_mode::rows;
+        } else if (*mode_value == "block") {
+            patch.mode = template_table_json_patch_mode::block;
+        } else {
+            error_message = "JSON patch member 'mode' must be 'rows' or 'block'";
+            return false;
+        }
+    } else if (resolved_start_cell_index.has_value()) {
+        patch.mode = template_table_json_patch_mode::block;
+    } else {
+        patch.mode = template_table_json_patch_mode::rows;
+    }
+
+    if (patch.mode == template_table_json_patch_mode::block) {
+        if (!resolved_start_cell_index.has_value()) {
+            error_message =
+                "JSON block patch must contain 'start_cell' or 'start_cell_index'";
+            return false;
+        }
+        patch.start_cell_index = *resolved_start_cell_index;
+    } else if (resolved_start_cell_index.has_value()) {
+        error_message =
+            "JSON rows patch must not contain 'start_cell' or 'start_cell_index'";
+        return false;
+    }
+
+    patch.start_row_index = *resolved_start_row_index;
+    patch.rows = std::move(rows);
+    return true;
+}
+
+auto parse_template_table_json_batch_operation(
+    std::string_view content, std::size_t &index,
+    template_table_json_batch_operation &operation,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_patch_error(index, "expected operation object",
+                                       error_message);
+    }
+
+    std::optional<std::string> bookmark_value;
+    std::optional<std::string> bookmark_name_value;
+    std::optional<std::size_t> table_index_value;
+    std::optional<std::string> after_text_value;
+    std::optional<std::string> after_paragraph_text_value;
+    std::vector<std::string> header_cells_value;
+    std::vector<std::string> header_cell_texts_value;
+    bool saw_header_cells = false;
+    bool saw_header_cell_texts = false;
+    std::optional<std::size_t> header_row_value;
+    std::optional<std::size_t> header_row_index_value;
+    std::optional<std::size_t> occurrence_value;
+    std::optional<validation_part_family> part_value;
+    std::optional<std::size_t> index_value;
+    std::optional<std::size_t> part_index_value;
+    std::optional<std::size_t> section_value;
+    std::optional<std::size_t> section_index_value;
+    std::optional<featherdoc::section_reference_kind> reference_kind_value;
+    std::optional<std::string> mode_value;
+    std::optional<std::size_t> start_row_value;
+    std::optional<std::size_t> start_row_index_value;
+    std::optional<std::size_t> start_cell_value;
+    std::optional<std::size_t> start_cell_index_value;
+    std::vector<std::vector<std::string>> rows;
+    bool saw_rows = false;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_patch_error(
+                    index, "expected ':' after object member", error_message);
+            }
+
+            ++index;
+            if (member_name == "bookmark") {
+                if (bookmark_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'bookmark' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                bookmark_value.emplace();
+                if (!parse_json_patch_string(content, index, *bookmark_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "bookmark_name") {
+                if (bookmark_name_value.has_value()) {
+                    error_message = "JSON patch member 'bookmark_name' must not "
+                                    "be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                bookmark_name_value.emplace();
+                if (!parse_json_patch_string(content, index,
+                                             *bookmark_name_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "table_index") {
+                if (table_index_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'table_index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "table_index",
+                                                  error_message)) {
+                    return false;
+                }
+                table_index_value = parsed_index;
+            } else if (member_name == "after_text") {
+                if (after_text_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'after_text' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                after_text_value.emplace();
+                if (!parse_json_patch_string(content, index, *after_text_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "after_paragraph_text") {
+                if (after_paragraph_text_value.has_value()) {
+                    error_message = "JSON patch member 'after_paragraph_text' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                after_paragraph_text_value.emplace();
+                if (!parse_json_patch_string(content, index,
+                                             *after_paragraph_text_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "header_cells") {
+                if (saw_header_cells) {
+                    error_message = "JSON patch member 'header_cells' must not "
+                                    "be duplicated";
+                    return false;
+                }
+                if (!parse_json_patch_text_array(content, index, header_cells_value,
+                                                 "header_cells",
+                                                 error_message)) {
+                    return false;
+                }
+                saw_header_cells = true;
+            } else if (member_name == "header_cell_texts") {
+                if (saw_header_cell_texts) {
+                    error_message = "JSON patch member 'header_cell_texts' must "
+                                    "not be duplicated";
+                    return false;
+                }
+                if (!parse_json_patch_text_array(content, index,
+                                                 header_cell_texts_value,
+                                                 "header_cell_texts",
+                                                 error_message)) {
+                    return false;
+                }
+                saw_header_cell_texts = true;
+            } else if (member_name == "header_row") {
+                if (header_row_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'header_row' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "header_row",
+                                                  error_message)) {
+                    return false;
+                }
+                header_row_value = parsed_index;
+            } else if (member_name == "header_row_index") {
+                if (header_row_index_value.has_value()) {
+                    error_message = "JSON patch member 'header_row_index' must "
+                                    "not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "header_row_index",
+                                                  error_message)) {
+                    return false;
+                }
+                header_row_index_value = parsed_index;
+            } else if (member_name == "occurrence") {
+                if (occurrence_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'occurrence' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "occurrence",
+                                                  error_message)) {
+                    return false;
+                }
+                occurrence_value = parsed_index;
+            } else if (member_name == "part") {
+                if (part_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'part' must not be duplicated";
+                    return false;
+                }
+                validation_part_family parsed_part = validation_part_family::body;
+                if (!parse_json_patch_part_value(content, index, parsed_part,
+                                                 error_message)) {
+                    return false;
+                }
+                part_value = parsed_part;
+            } else if (member_name == "index") {
+                if (index_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "index", error_message)) {
+                    return false;
+                }
+                index_value = parsed_index;
+            } else if (member_name == "part_index") {
+                if (part_index_value.has_value()) {
+                    error_message = "JSON patch member 'part_index' must not be "
+                                    "duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "part_index",
+                                                  error_message)) {
+                    return false;
+                }
+                part_index_value = parsed_index;
+            } else if (member_name == "section") {
+                if (section_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "section", error_message)) {
+                    return false;
+                }
+                section_value = parsed_index;
+            } else if (member_name == "section_index") {
+                if (section_index_value.has_value()) {
+                    error_message = "JSON patch member 'section_index' must not "
+                                    "be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "section_index",
+                                                  error_message)) {
+                    return false;
+                }
+                section_index_value = parsed_index;
+            } else if (member_name == "kind") {
+                if (reference_kind_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'kind' must not be duplicated";
+                    return false;
+                }
+                featherdoc::section_reference_kind parsed_reference_kind =
+                    featherdoc::section_reference_kind::default_reference;
+                if (!parse_json_patch_reference_kind_value(
+                        content, index, parsed_reference_kind, error_message)) {
+                    return false;
+                }
+                reference_kind_value = parsed_reference_kind;
+            } else if (member_name == "mode") {
+                if (mode_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'mode' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                mode_value.emplace();
+                if (!parse_json_patch_string(content, index, *mode_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "start_row") {
+                if (start_row_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'start_row' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "start_row",
+                                                  error_message)) {
+                    return false;
+                }
+                start_row_value = parsed_index;
+            } else if (member_name == "start_row_index") {
+                if (start_row_index_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'start_row_index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "start_row_index",
+                                                  error_message)) {
+                    return false;
+                }
+                start_row_index_value = parsed_index;
+            } else if (member_name == "start_cell") {
+                if (start_cell_value.has_value()) {
+                    error_message =
+                        "JSON patch member 'start_cell' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "start_cell",
+                                                  error_message)) {
+                    return false;
+                }
+                start_cell_value = parsed_index;
+            } else if (member_name == "start_cell_index") {
+                if (start_cell_index_value.has_value()) {
+                    error_message = "JSON patch member 'start_cell_index' must "
+                                    "not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "start_cell_index",
+                                                  error_message)) {
+                    return false;
+                }
+                start_cell_index_value = parsed_index;
+            } else if (member_name == "rows") {
+                if (saw_rows) {
+                    error_message =
+                        "JSON patch member 'rows' must not be duplicated";
+                    return false;
+                }
+                if (!parse_json_patch_rows_matrix(content, index, rows,
+                                                  error_message)) {
+                    return false;
+                }
+                saw_rows = true;
+            } else if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_patch_error(index,
+                                           "expected ',' or '}' after object "
+                                           "member",
+                                           error_message);
+        }
+    }
+
+    std::optional<std::string> resolved_bookmark_name;
+    if (!resolve_json_patch_string_member(bookmark_value, bookmark_name_value,
+                                          "bookmark", "bookmark_name",
+                                          resolved_bookmark_name,
+                                          error_message)) {
+        return false;
+    }
+
+    std::optional<std::string> resolved_after_text;
+    if (!resolve_json_patch_string_member(after_text_value,
+                                          after_paragraph_text_value,
+                                          "after_text", "after_paragraph_text",
+                                          resolved_after_text,
+                                          error_message)) {
+        return false;
+    }
+
+    std::vector<std::string> resolved_header_cells;
+    if (saw_header_cells && saw_header_cell_texts &&
+        header_cells_value != header_cell_texts_value) {
+        error_message = "JSON patch members 'header_cells' and "
+                        "'header_cell_texts' must match when both are present";
+        return false;
+    }
+    if (saw_header_cells) {
+        resolved_header_cells = std::move(header_cells_value);
+    } else if (saw_header_cell_texts) {
+        resolved_header_cells = std::move(header_cell_texts_value);
+    }
+
+    std::optional<std::size_t> resolved_header_row_index;
+    if (!resolve_json_patch_index_member(header_row_value, header_row_index_value,
+                                         "header_row", "header_row_index",
+                                         resolved_header_row_index,
+                                         error_message)) {
+        return false;
+    }
+
+    featherdoc::template_table_selector selector{};
+    selector.table_index = table_index_value;
+    selector.bookmark_name = std::move(resolved_bookmark_name);
+    selector.after_paragraph_text = std::move(resolved_after_text);
+    selector.header_cell_texts = std::move(resolved_header_cells);
+    if (resolved_header_row_index.has_value()) {
+        selector.header_row_index = *resolved_header_row_index;
+    }
+    if (occurrence_value.has_value()) {
+        selector.occurrence = *occurrence_value;
+    }
+
+    if (!validate_template_table_selector(selector, false,
+                                          resolved_header_row_index.has_value(),
+                                          occurrence_value.has_value(),
+                                          error_message)) {
+        return false;
+    }
+
+    std::optional<std::size_t> resolved_part_index;
+    if (!resolve_json_patch_index_member(index_value, part_index_value, "index",
+                                         "part_index", resolved_part_index,
+                                         error_message)) {
+        return false;
+    }
+
+    std::optional<std::size_t> resolved_section_index;
+    if (!resolve_json_patch_index_member(section_value, section_index_value,
+                                         "section", "section_index",
+                                         resolved_section_index,
+                                         error_message)) {
+        return false;
+    }
+
+    std::optional<std::size_t> resolved_start_row_index;
+    if (!resolve_json_patch_index_member(start_row_value, start_row_index_value,
+                                         "start_row", "start_row_index",
+                                         resolved_start_row_index,
+                                         error_message)) {
+        return false;
+    }
+    if (!resolved_start_row_index.has_value()) {
+        error_message =
+            "JSON patch must contain 'start_row' or 'start_row_index'";
+        return false;
+    }
+
+    std::optional<std::size_t> resolved_start_cell_index;
+    if (!resolve_json_patch_index_member(start_cell_value, start_cell_index_value,
+                                         "start_cell", "start_cell_index",
+                                         resolved_start_cell_index,
+                                         error_message)) {
+        return false;
+    }
+
+    if (!saw_rows) {
+        error_message = "JSON patch must contain a 'rows' array";
+        return false;
+    }
+    if (rows.empty()) {
+        error_message =
+            "JSON patch member 'rows' must contain at least one row";
+        return false;
+    }
+    for (std::size_t row_offset = 0U; row_offset < rows.size(); ++row_offset) {
+        if (rows[row_offset].empty()) {
+            error_message = "JSON patch row at offset '" +
+                            std::to_string(row_offset) +
+                            "' must contain at least one cell";
+            return false;
+        }
+    }
+
+    if (mode_value.has_value()) {
+        if (*mode_value == "rows") {
+            operation.patch.mode = template_table_json_patch_mode::rows;
+        } else if (*mode_value == "block") {
+            operation.patch.mode = template_table_json_patch_mode::block;
+        } else {
+            error_message = "JSON patch member 'mode' must be 'rows' or 'block'";
+            return false;
+        }
+    } else if (resolved_start_cell_index.has_value()) {
+        operation.patch.mode = template_table_json_patch_mode::block;
+    } else {
+        operation.patch.mode = template_table_json_patch_mode::rows;
+    }
+
+    if (operation.patch.mode == template_table_json_patch_mode::block) {
+        if (!resolved_start_cell_index.has_value()) {
+            error_message =
+                "JSON block patch must contain 'start_cell' or 'start_cell_index'";
+            return false;
+        }
+        operation.patch.start_cell_index = *resolved_start_cell_index;
+    } else if (resolved_start_cell_index.has_value()) {
+        error_message =
+            "JSON rows patch must not contain 'start_cell' or 'start_cell_index'";
+        return false;
+    }
+
+    operation.selector = std::move(selector);
+    operation.part = part_value;
+    operation.part_index = resolved_part_index;
+    operation.section_index = resolved_section_index;
+    operation.reference_kind = reference_kind_value;
+    operation.patch.start_row_index = *resolved_start_row_index;
+    operation.patch.rows = std::move(rows);
+    return true;
+}
+
+auto parse_template_table_json_batch_operations_array(
+    std::string_view content, std::size_t &index,
+    std::vector<template_table_json_batch_operation> &operations,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_patch_error(index, "expected operations array",
+                                       error_message);
+    }
+
+    operations.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        template_table_json_batch_operation operation;
+        if (!parse_template_table_json_batch_operation(content, index, operation,
+                                                       error_message)) {
+            error_message = prefix_template_table_json_batch_message(
+                operations.size(), error_message);
+            return false;
+        }
+        operations.push_back(std::move(operation));
+
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size()) {
+            break;
+        }
+        if (content[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(content, index);
+            continue;
+        }
+        if (content[index] == ']') {
+            ++index;
+            return true;
+        }
+        return report_json_patch_error(index,
+                                       "expected ',' or ']' after operation",
+                                       error_message);
+    }
+
+    return report_json_patch_error(index, "unterminated operations array",
+                                   error_message);
+}
+
+auto read_template_table_json_batch(
+    const path_type &patch_path,
+    std::vector<template_table_json_batch_operation> &operations,
+    std::string &error_message) -> bool {
+    std::string content;
+    std::size_t index = 0U;
+    if (!read_template_table_json_content(patch_path, content, index,
+                                          error_message)) {
+        return false;
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_patch_error(index,
+                                       "JSON patch root must be an object",
+                                       error_message);
+    }
+
+    bool saw_operations = false;
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_patch_error(
+                    index, "expected ':' after object member", error_message);
+            }
+
+            ++index;
+            if (member_name == "operations") {
+                if (saw_operations) {
+                    error_message =
+                        "JSON patch member 'operations' must not be duplicated";
+                    return false;
+                }
+                if (!parse_template_table_json_batch_operations_array(
+                        content, index, operations, error_message)) {
+                    return false;
+                }
+                saw_operations = true;
+            } else if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_patch_error(index,
+                                           "expected ',' or '}' after object "
+                                           "member",
+                                           error_message);
+        }
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index != content.size()) {
+        return report_json_patch_error(index,
+                                       "unexpected trailing content after JSON "
+                                       "patch object",
+                                       error_message);
+    }
+
+    if (!saw_operations) {
+        error_message = "JSON patch must contain an 'operations' array";
+        return false;
+    }
+    if (operations.empty()) {
+        error_message =
+            "JSON patch member 'operations' must contain at least one operation";
+        return false;
+    }
+
+    return true;
+}
+
 auto save_document(featherdoc::Document &doc,
                    const std::optional<path_type> &output_path,
                    std::string_view command = {}, bool json_output = false) -> bool {
@@ -5701,6 +15023,33 @@ auto open_document(const path_type &input_path, featherdoc::Document &doc,
     }
 
     return true;
+}
+
+auto resolve_template_table_json_batch_operation_selection(
+    const template_table_json_batch_options &options,
+    const template_table_json_batch_operation &operation,
+    validation_part_family &part, std::optional<std::size_t> &part_index,
+    std::optional<std::size_t> &section_index,
+    featherdoc::section_reference_kind &reference_kind, bool &has_kind,
+    featherdoc::template_table_selector &selector, std::string &error_message)
+    -> bool {
+    part = operation.part.value_or(options.part);
+    part_index =
+        operation.part_index.has_value() ? operation.part_index : options.part_index;
+    section_index = operation.section_index.has_value()
+                        ? operation.section_index
+                        : options.section_index;
+    reference_kind = operation.reference_kind.value_or(options.reference_kind);
+    has_kind = operation.reference_kind.has_value() || options.has_kind;
+    selector = operation.selector;
+
+    if (!validate_template_table_selector(selector, false, false, false,
+                                          error_message)) {
+        return false;
+    }
+
+    return validate_template_part_selection(part, part_index, section_index,
+                                            has_kind, "mutation", error_message);
 }
 
 auto show_section_text(featherdoc::Document &doc, section_part_family family,
@@ -6196,6 +15545,5426 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    if (command == "inspect-paragraphs") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command, "inspect-paragraphs expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        inspect_paragraphs_options options;
+        std::string error_message;
+        if (!parse_inspect_paragraphs_options(arguments, 2U, options,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        const auto input_path = path_type(std::string(arguments[1]));
+        if (!open_document(input_path, doc, command, options.json_output)) {
+            return 1;
+        }
+
+        std::vector<inspected_body_paragraph> paragraphs;
+        if (!load_body_paragraph_summaries(input_path, paragraphs, error_message)) {
+            if (options.json_output) {
+                write_json_command_error(std::cerr, command, "inspect",
+                                         error_message);
+            } else {
+                std::cerr << error_message << '\n';
+            }
+            return 1;
+        }
+
+        if (options.paragraph_index.has_value()) {
+            if (*options.paragraph_index >= paragraphs.size()) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "paragraph index '" +
+                    std::to_string(*options.paragraph_index) +
+                    "' is out of range";
+                error_info.entry_name = "word/document.xml";
+                report_operation_failure(command, "inspect",
+                                         "paragraph index is out of range",
+                                         error_info, options.json_output);
+                return 1;
+            }
+
+            inspect_paragraph(paragraphs[*options.paragraph_index],
+                              options.json_output);
+            return 0;
+        }
+
+        inspect_paragraphs(paragraphs, options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-tables") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command, "inspect-tables expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        inspect_tables_options options;
+        std::string error_message;
+        if (!parse_inspect_tables_options(arguments, 2U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        const auto input_path = path_type(std::string(arguments[1]));
+        if (!open_document(input_path, doc, command, options.json_output)) {
+            return 1;
+        }
+
+        const auto tables = doc.inspect_tables();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.table_index.has_value()) {
+            if (*options.table_index >= tables.size()) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "table index '" + std::to_string(*options.table_index) +
+                    "' is out of range";
+                error_info.entry_name = "word/document.xml";
+                report_operation_failure(command, "inspect",
+                                         "table index is out of range",
+                                         error_info, options.json_output);
+                return 1;
+            }
+
+            inspect_table(tables[*options.table_index], options.json_output);
+            return 0;
+        }
+
+        inspect_tables(tables, options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-table-rows") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "inspect-table-rows expects an input path and a table index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        inspect_table_rows_options options;
+        std::string error_message;
+        if (!parse_inspect_table_rows_options(arguments, 3U, options,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output, "inspect")) {
+            return 1;
+        }
+
+        if (options.row_index.has_value()) {
+            featherdoc::TableRow row;
+            if (!resolve_body_table_row(doc, table_index, *options.row_index, row,
+                                        command, options.json_output,
+                                        "inspect")) {
+                return 1;
+            }
+
+            inspect_table_row(table_index,
+                              make_table_row_summary(row, *options.row_index),
+                              options.json_output);
+            return 0;
+        }
+
+        inspect_table_rows(table_index, collect_table_row_summaries(table),
+                           options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-table-cells") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "inspect-table-cells expects an input path and a table index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        inspect_table_cells_options options;
+        std::string error_message;
+        if (!parse_inspect_table_cells_options(arguments, 3U, options,
+                                               error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        const auto input_path = path_type(std::string(arguments[1]));
+        if (!open_document(input_path, doc, command, options.json_output)) {
+            return 1;
+        }
+
+        const auto table = doc.inspect_table(table_index);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+        if (!table.has_value()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "table index '" + std::to_string(table_index) +
+                "' is out of range";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "inspect",
+                                     "table index is out of range", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (options.row_index.has_value() && options.cell_index.has_value()) {
+            const auto cell =
+                doc.inspect_table_cell(table_index, *options.row_index,
+                                       *options.cell_index);
+            if (const auto &error_info = doc.last_error(); error_info.code) {
+                report_document_error(command, "inspect", error_info,
+                                      options.json_output);
+                return 1;
+            }
+            if (!cell.has_value()) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::invalid_argument);
+                if (*options.row_index >= table->row_count) {
+                    error_info.detail =
+                        "row index '" + std::to_string(*options.row_index) +
+                        "' is out of range for table index '" +
+                        std::to_string(table_index) + "'";
+                } else {
+                    error_info.detail =
+                        "cell index '" + std::to_string(*options.cell_index) +
+                        "' is out of range for row index '" +
+                        std::to_string(*options.row_index) +
+                        "' in table index '" + std::to_string(table_index) + "'";
+                }
+                error_info.entry_name = "word/document.xml";
+                report_operation_failure(command, "inspect",
+                                         "table cell selector is out of range",
+                                         error_info, options.json_output);
+                return 1;
+            }
+
+            inspect_table_cell(table_index, *cell, options.json_output);
+            return 0;
+        }
+
+        auto cells = doc.inspect_table_cells(table_index);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.row_index.has_value()) {
+            std::vector<featherdoc::table_cell_inspection_summary> row_cells;
+            for (const auto &cell : cells) {
+                if (cell.row_index == *options.row_index) {
+                    row_cells.push_back(cell);
+                }
+            }
+
+            if (row_cells.empty() && *options.row_index >= table->row_count) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "row index '" + std::to_string(*options.row_index) +
+                    "' is out of range for table index '" +
+                    std::to_string(table_index) + "'";
+                error_info.entry_name = "word/document.xml";
+                report_operation_failure(command, "inspect",
+                                         "row index is out of range",
+                                         error_info, options.json_output);
+                return 1;
+            }
+
+            inspect_table_cells(table_index, options.row_index, row_cells,
+                                options.json_output);
+            return 0;
+        }
+
+        inspect_table_cells(table_index, std::nullopt, cells, options.json_output);
+        return 0;
+    }
+
+    if (command == "set-table-cell-text") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "set-table-cell-text expects an input path, a table index, "
+                "a row index, and a cell index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_text_options options;
+        std::string error_message;
+        if (!parse_table_cell_text_options(arguments, 5U, options,
+                                           error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        std::string replacement_text;
+        if (!read_text_source(options, replacement_text, error_message)) {
+            if (options.json_output) {
+                write_json_command_error(std::cerr, command, "input",
+                                         error_message);
+            } else {
+                std::cerr << error_message << '\n';
+            }
+            return 1;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.set_text(replacement_text)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail =
+                "failed to set text for the requested table cell";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table cell text", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "merge-table-cells") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "merge-table-cells expects an input path, a table index, "
+                "a row index, and a cell index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        merge_table_cells_options options;
+        std::string error_message;
+        if (!parse_merge_table_cells_options(arguments, 5U, options,
+                                             error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        const auto success =
+            options.direction == table_merge_direction::right
+                ? cell.merge_right(options.count)
+                : cell.merge_down(options.count);
+        if (!success) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cell at table index '" + std::to_string(table_index) +
+                "', row index '" + std::to_string(row_index) +
+                "', and cell index '" + std::to_string(cell_index) +
+                "' could not be merged towards '" +
+                std::string(table_merge_direction_name(options.direction)) +
+                "' with count '" + std::to_string(options.count) + "'";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to merge table cells", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index, &options](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"direction\":";
+                    write_json_string(stream,
+                                      table_merge_direction_name(options.direction));
+                    stream << ",\"count\":" << options.count;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "unmerge-table-cells") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "unmerge-table-cells expects an input path, a table index, "
+                "a row index, and a cell index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        unmerge_table_cells_options options;
+        std::string error_message;
+        if (!parse_unmerge_table_cells_options(arguments, 5U, options,
+                                               error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        const auto success =
+            options.direction == table_merge_direction::right
+                ? cell.unmerge_right()
+                : cell.unmerge_down();
+        if (!success) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cell at table index '" + std::to_string(table_index) +
+                "', row index '" + std::to_string(row_index) +
+                "', and cell index '" + std::to_string(cell_index) +
+                "' could not be unmerged towards '" +
+                std::string(table_merge_direction_name(options.direction)) + "'";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to unmerge table cells", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index, &options](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"direction\":";
+                    write_json_string(stream,
+                                      table_merge_direction_name(options.direction));
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-cell-fill") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 6U) {
+            print_parse_error(
+                command,
+                "set-table-cell-fill expects an input path, a table index, a row index, a cell index, and a fill color",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        const auto fill_color = arguments[5];
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 6U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.set_fill_color(fill_color)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = fill_color.empty()
+                                    ? "table cell fill color must not be empty"
+                                    : "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table cell fill color",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index, fill_color](
+                    std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"fill_color\":";
+                    write_json_string(stream, fill_color);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-cell-fill") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "clear-table-cell-fill expects an input path, a table index, a row index, and a cell index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.clear_fill_color()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table cell fill color",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-cell-vertical-alignment") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 6U) {
+            print_parse_error(
+                command,
+                "set-table-cell-vertical-alignment expects an input path, a table index, a row index, a cell index, and an alignment",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::cell_vertical_alignment alignment =
+            featherdoc::cell_vertical_alignment::top;
+        if (!parse_cell_vertical_alignment_text(arguments[5], alignment)) {
+            print_parse_error(command,
+                              "invalid vertical alignment: " +
+                                  std::string(arguments[5]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 6U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.set_vertical_alignment(alignment)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table cell vertical alignment",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index, alignment](
+                    std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"vertical_alignment\":";
+                    write_json_string(stream,
+                                      cell_vertical_alignment_name(alignment));
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-cell-vertical-alignment") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "clear-table-cell-vertical-alignment expects an input path, a table index, a row index, and a cell index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.clear_vertical_alignment()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table cell vertical alignment",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-cell-text-direction") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 6U) {
+            print_parse_error(
+                command,
+                "set-table-cell-text-direction expects an input path, a table index, a row index, a cell index, and a direction",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::cell_text_direction direction =
+            featherdoc::cell_text_direction::left_to_right_top_to_bottom;
+        if (!parse_cell_text_direction_text(arguments[5], direction)) {
+            print_parse_error(command,
+                              "invalid text direction: " +
+                                  std::string(arguments[5]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 6U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.set_text_direction(direction)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table cell text direction",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index, direction](
+                    std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"text_direction\":";
+                    write_json_string(stream, cell_text_direction_name(direction));
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-cell-text-direction") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "clear-table-cell-text-direction expects an input path, a table index, a row index, and a cell index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.clear_text_direction()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table cell text direction",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-cell-width") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 6U) {
+            print_parse_error(
+                command,
+                "set-table-cell-width expects an input path, a table index, a row index, a cell index, and a width in twips",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t width_twips = 0U;
+        if (!parse_uint32(arguments[5], width_twips)) {
+            print_parse_error(command,
+                              "invalid width twips: " +
+                                  std::string(arguments[5]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 6U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.set_width_twips(width_twips)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table cell width",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index, width_twips](
+                    std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"width_twips\":" << width_twips;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-cell-width") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "clear-table-cell-width expects an input path, a table index, a row index, and a cell index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.clear_width()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table cell width",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-cell-margin") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 7U) {
+            print_parse_error(
+                command,
+                "set-table-cell-margin expects an input path, a table index, a row index, a cell index, a margin edge, and a margin in twips",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::cell_margin_edge edge = featherdoc::cell_margin_edge::top;
+        if (!parse_cell_margin_edge_text(arguments[5], edge)) {
+            print_parse_error(command,
+                              "invalid margin edge: " +
+                                  std::string(arguments[5]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t margin_twips = 0U;
+        if (!parse_uint32(arguments[6], margin_twips)) {
+            print_parse_error(command,
+                              "invalid margin twips: " +
+                                  std::string(arguments[6]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 7U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.set_margin_twips(edge, margin_twips)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table cell margin",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index, edge, margin_twips](
+                    std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"edge\":";
+                    write_json_string(stream, cell_margin_edge_name(edge));
+                    stream << ",\"margin_twips\":" << margin_twips;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-cell-margin") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 6U) {
+            print_parse_error(
+                command,
+                "clear-table-cell-margin expects an input path, a table index, a row index, a cell index, and a margin edge",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::cell_margin_edge edge = featherdoc::cell_margin_edge::top;
+        if (!parse_cell_margin_edge_text(arguments[5], edge)) {
+            print_parse_error(command,
+                              "invalid margin edge: " +
+                                  std::string(arguments[5]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 6U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.clear_margin(edge)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table cell margin",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index, edge](
+                    std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"edge\":";
+                    write_json_string(stream, cell_margin_edge_name(edge));
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-cell-border") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 6U) {
+            print_parse_error(
+                command,
+                "set-table-cell-border expects an input path, a table index, a row index, a cell index, and a border edge",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::cell_border_edge edge = featherdoc::cell_border_edge::top;
+        if (!parse_cell_border_edge_text(arguments[5], edge)) {
+            print_parse_error(command,
+                              "invalid border edge: " +
+                                  std::string(arguments[5]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_border_options options;
+        std::string error_message;
+        if (!parse_table_cell_border_options(arguments, 6U, options,
+                                             error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!options.style.has_value()) {
+            print_parse_error(command, "missing --style option", json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::border_definition border{};
+        border.style = *options.style;
+        if (options.size_eighth_points.has_value()) {
+            border.size_eighth_points = *options.size_eighth_points;
+        }
+        if (options.color.has_value()) {
+            border.color = *options.color;
+        }
+        if (options.space_points.has_value()) {
+            border.space_points = *options.space_points;
+        }
+
+        if (!cell.set_border(edge, border)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table cell border",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index, edge, border](
+                    std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"edge\":";
+                    write_json_string(stream, cell_border_edge_name(edge));
+                    stream << ",\"style\":";
+                    write_json_string(stream, border_style_name(border.style));
+                    stream << ",\"size_eighth_points\":"
+                           << border.size_eighth_points
+                           << ",\"color\":";
+                    write_json_string(stream, border.color);
+                    stream << ",\"space_points\":" << border.space_points;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-cell-border") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 6U) {
+            print_parse_error(
+                command,
+                "clear-table-cell-border expects an input path, a table index, a row index, a cell index, and a border edge",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::cell_border_edge edge = featherdoc::cell_border_edge::top;
+        if (!parse_cell_border_edge_text(arguments[5], edge)) {
+            print_parse_error(command,
+                              "invalid border edge: " +
+                                  std::string(arguments[5]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 6U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.clear_border(edge)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table cell handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table cell border",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index, edge](
+                    std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"edge\":";
+                    write_json_string(stream, cell_border_edge_name(edge));
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "append-table-row") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "append-table-row expects an input path and a table index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        append_table_row_options options;
+        std::string error_message;
+        if (!parse_append_table_row_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto inspected_table = doc.inspect_table(table_index);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "mutate", error_info,
+                                  options.json_output);
+            return 1;
+        }
+        if (!inspected_table.has_value()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "table index '" + std::to_string(table_index) + "' is out of range";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "table index is out of range", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        const auto cell_count =
+            options.cell_count.value_or(inspected_table->column_count);
+        if (cell_count == 0U) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "table row must contain at least one cell";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to append table row", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        auto row = table.append_row(cell_count);
+        if (!row.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to append table row", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        const auto row_index = inspected_table->row_count;
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_count](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_count\":" << cell_count;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-table-row-before") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "insert-table-row-before expects an input path, a table index, and a row index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        auto inserted_row = row.insert_row_before();
+        if (!inserted_row.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot insert a row adjacent to row index '" +
+                std::to_string(row_index) + "' in table index '" +
+                std::to_string(table_index) +
+                "' because the row participates in a vertical merge";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table row", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"inserted_row_index\":" << row_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-table-row-after") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "insert-table-row-after expects an input path, a table index, and a row index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        auto inserted_row = row.insert_row_after();
+        if (!inserted_row.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot insert a row adjacent to row index '" +
+                std::to_string(row_index) + "' in table index '" +
+                std::to_string(table_index) +
+                "' because the row participates in a vertical merge";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table row", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"inserted_row_index\":" << (row_index + 1U);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "remove-table-row") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "remove-table-row expects an input path, a table index, and a row index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        if (!row.remove()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot remove the last row from table index '" +
+                std::to_string(table_index) + "'";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to remove table row", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-row-height") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 6U) {
+            print_parse_error(
+                command,
+                "set-table-row-height expects an input path, a table index, a row index, a height in twips, and a height rule",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t height_twips = 0U;
+        if (!parse_uint32(arguments[4], height_twips)) {
+            print_parse_error(command,
+                              "invalid height twips: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::row_height_rule height_rule =
+            featherdoc::row_height_rule::automatic;
+        if (!parse_row_height_rule_text(arguments[5], height_rule)) {
+            print_parse_error(command,
+                              "invalid row height rule: " +
+                                  std::string(arguments[5]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 6U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        if (!row.set_height_twips(height_twips, height_rule)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table row handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table row height",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, height_twips, height_rule](
+                    std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"height_twips\":" << height_twips
+                           << ",\"height_rule\":";
+                    write_json_string(stream, row_height_rule_name(height_rule));
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-row-height") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "clear-table-row-height expects an input path, a table index, and a row index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        if (!row.clear_height()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table row handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table row height",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-row-cant-split") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-table-row-cant-split expects an input path, a table index, and a row index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        if (!row.set_cant_split()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table row handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table row cant-split",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cant_split\":true";
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-row-cant-split") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "clear-table-row-cant-split expects an input path, a table index, and a row index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        if (!row.clear_cant_split()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table row handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table row cant-split",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-row-repeat-header") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-table-row-repeat-header expects an input path, a table index, and a row index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        if (!row.set_repeats_header()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table row handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table row repeat-header",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"repeats_header\":true";
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-row-repeat-header") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "clear-table-row-repeat-header expects an input path, a table index, and a row index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_body_table_row(doc, table_index, row_index, row, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        if (!row.clear_repeats_header()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table row handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table row repeat-header",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "inspect-runs") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "inspect-runs expects an input path and a paragraph index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t paragraph_index = 0U;
+        if (!parse_index(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        inspect_runs_options options;
+        std::string error_message;
+        if (!parse_inspect_runs_options(arguments, 3U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        const auto input_path = path_type(std::string(arguments[1]));
+        if (!open_document(input_path, doc, command, options.json_output)) {
+            return 1;
+        }
+
+        std::vector<inspected_body_run> runs;
+        bool paragraph_found = false;
+        if (!load_body_run_summaries(input_path, paragraph_index, runs,
+                                     paragraph_found, error_message)) {
+            if (options.json_output) {
+                write_json_command_error(std::cerr, command, "inspect",
+                                         error_message);
+            } else {
+                std::cerr << error_message << '\n';
+            }
+            return 1;
+        }
+
+        if (!paragraph_found) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "paragraph index '" + std::to_string(paragraph_index) +
+                "' is out of range";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "inspect",
+                                     "paragraph index is out of range",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (options.run_index.has_value()) {
+            if (*options.run_index >= runs.size()) {
+                featherdoc::document_error_info error_info{};
+                error_info.code = std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "run index '" + std::to_string(*options.run_index) +
+                    "' is out of range for paragraph index '" +
+                    std::to_string(paragraph_index) + "'";
+                error_info.entry_name = "word/document.xml";
+                report_operation_failure(command, "inspect",
+                                         "run index is out of range",
+                                         error_info, options.json_output);
+                return 1;
+            }
+
+            inspect_run(paragraph_index, runs[*options.run_index],
+                        options.json_output);
+            return 0;
+        }
+
+        inspect_runs(paragraph_index, runs, options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-template-paragraphs") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(
+                command, "inspect-template-paragraphs expects an input path",
+                json_output);
+            return 2;
+        }
+
+        template_inspect_paragraphs_options options;
+        std::string error_message;
+        if (!parse_template_inspect_paragraphs_options(arguments, 2U, options,
+                                                       error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "inspect", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        if (options.paragraph_index.has_value()) {
+            const auto paragraph =
+                selected.part.inspect_paragraph(*options.paragraph_index);
+            if (!paragraph.has_value()) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "paragraph index '" +
+                    std::to_string(*options.paragraph_index) +
+                    "' is out of range";
+                error_info.entry_name = std::string(selected.part.entry_name());
+                report_operation_failure(command, "inspect",
+                                         "paragraph index is out of range",
+                                         error_info, options.json_output);
+                return 1;
+            }
+
+            inspect_template_paragraph(selected, *paragraph, options.json_output);
+            return 0;
+        }
+
+        const auto paragraphs = selected.part.inspect_paragraphs();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        inspect_template_paragraphs(selected, paragraphs, options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-template-runs") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "inspect-template-runs expects an input path and a paragraph index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t paragraph_index = 0U;
+        if (!parse_index(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        template_inspect_runs_options options;
+        std::string error_message;
+        if (!parse_template_inspect_runs_options(arguments, 3U, options,
+                                                 error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "inspect", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto paragraph = selected.part.inspect_paragraph(paragraph_index);
+        if (!paragraph.has_value()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "paragraph index '" + std::to_string(paragraph_index) +
+                "' is out of range";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "inspect",
+                                     "paragraph index is out of range",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (options.run_index.has_value()) {
+            const auto run =
+                selected.part.inspect_paragraph_run(paragraph_index,
+                                                    *options.run_index);
+            if (!run.has_value()) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "run index '" + std::to_string(*options.run_index) +
+                    "' is out of range for paragraph index '" +
+                    std::to_string(paragraph_index) + "'";
+                error_info.entry_name = std::string(selected.part.entry_name());
+                report_operation_failure(command, "inspect",
+                                         "run index is out of range", error_info,
+                                         options.json_output);
+                return 1;
+            }
+
+            inspect_template_run(selected, paragraph_index, *run,
+                                 options.json_output);
+            return 0;
+        }
+
+        const auto runs = selected.part.inspect_paragraph_runs(paragraph_index);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        inspect_template_runs(selected, paragraph_index, runs,
+                              options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-template-tables") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command, "inspect-template-tables expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        template_inspect_tables_options options;
+        std::string error_message;
+        if (!parse_template_inspect_tables_options(arguments, 2U, options,
+                                                   error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "inspect", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        if (options.table_index.has_value() || options.bookmark_name.has_value()) {
+            std::size_t table_index = 0U;
+            if (!resolve_template_table_index(doc, selected, options.table_index,
+                                              options.bookmark_name, table_index,
+                                              command, options.json_output,
+                                              "inspect")) {
+                return 1;
+            }
+
+            const auto table = selected.part.inspect_table(table_index);
+            if (!table.has_value()) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "table index '" + std::to_string(table_index) +
+                    "' is out of range";
+                error_info.entry_name = std::string(selected.part.entry_name());
+                report_operation_failure(command, "inspect",
+                                         "table index is out of range", error_info,
+                                         options.json_output);
+                return 1;
+            }
+
+            inspect_template_table(selected, *table, options.json_output);
+            return 0;
+        }
+
+        const auto tables = selected.part.inspect_tables();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        inspect_template_tables(selected, tables, options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-template-table-rows") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "inspect-template-table-rows expects an input path plus a "
+                "table selector",
+                json_output);
+            return 2;
+        }
+
+        std::optional<std::size_t> table_index;
+        std::size_t options_start_index = 2U;
+        if (arguments[2].size() < 2U || arguments[2].substr(0U, 2U) != "--") {
+            std::size_t parsed_table_index = 0U;
+            if (!parse_index(arguments[2], parsed_table_index)) {
+                print_parse_error(command,
+                                  "invalid table index: " +
+                                      std::string(arguments[2]),
+                                  json_output);
+                return 2;
+            }
+            table_index = parsed_table_index;
+            options_start_index = 3U;
+        }
+
+        template_inspect_table_rows_options options;
+        std::string error_message;
+        if (!parse_template_inspect_table_rows_options(arguments, options_start_index,
+                                                       options, error_message)) {
+            print_parse_error(command,
+                              error_message, json_output);
+            return 2;
+        }
+        if (table_index.has_value()) {
+            options.selector.table_index = table_index;
+        }
+        if (!validate_template_table_selector(options.selector, false,
+                                              options.has_header_row_index,
+                                              options.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "inspect", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, options.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "inspect")) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_template_table(selected, resolved_table_index, table, command,
+                                    options.json_output, "inspect")) {
+            return 1;
+        }
+
+        if (options.row_index.has_value()) {
+            featherdoc::TableRow row;
+            if (!resolve_template_table_row(selected, resolved_table_index,
+                                            *options.row_index, row, command,
+                                            options.json_output, "inspect")) {
+                return 1;
+            }
+
+            inspect_template_table_row(
+                selected, resolved_table_index,
+                make_table_row_summary(row, *options.row_index),
+                options.json_output);
+            return 0;
+        }
+
+        inspect_template_table_rows(selected, resolved_table_index,
+                                    collect_table_row_summaries(table),
+                                    options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-template-table-cells") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "inspect-template-table-cells expects an input path plus a "
+                "table selector",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_target target;
+        template_inspect_table_cells_options options;
+        std::string error_message;
+        if (!parse_template_table_selector_target_arguments(arguments, 2U, target,
+                                                            true,
+                                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_inspect_table_cells_options(arguments,
+                                                        target.options_start_index,
+                                                        options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "inspect", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "inspect")) {
+            return 1;
+        }
+
+        const auto table = selected.part.inspect_table(resolved_table_index);
+        if (!table.has_value()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "table index '" + std::to_string(resolved_table_index) +
+                "' is out of range";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "inspect",
+                                     "table index is out of range", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (options.cell_index.has_value()) {
+            const auto cell = selected.part.inspect_table_cell(
+                resolved_table_index, *options.row_index, *options.cell_index);
+            if (!cell.has_value()) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::invalid_argument);
+                if (*options.row_index >= table->row_count) {
+                    error_info.detail =
+                        "row index '" + std::to_string(*options.row_index) +
+                        "' is out of range for table index '" +
+                        std::to_string(resolved_table_index) + "'";
+                } else {
+                    error_info.detail =
+                        "cell index '" + std::to_string(*options.cell_index) +
+                        "' is out of range for row index '" +
+                        std::to_string(*options.row_index) +
+                        "' in table index '" + std::to_string(resolved_table_index) + "'";
+                }
+                error_info.entry_name = std::string(selected.part.entry_name());
+                report_operation_failure(command, "inspect",
+                                         "table cell selector is out of range",
+                                         error_info, options.json_output);
+                return 1;
+            }
+
+            inspect_template_table_cell(selected, resolved_table_index, *cell,
+                                        options.json_output);
+            return 0;
+        }
+
+        const auto cells = selected.part.inspect_table_cells(resolved_table_index);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.row_index.has_value()) {
+            std::vector<featherdoc::table_cell_inspection_summary> row_cells;
+            for (const auto &cell : cells) {
+                if (cell.row_index == *options.row_index) {
+                    row_cells.push_back(cell);
+                }
+            }
+
+            if (row_cells.empty() && *options.row_index >= table->row_count) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "row index '" + std::to_string(*options.row_index) +
+                    "' is out of range for table index '" +
+                    std::to_string(resolved_table_index) + "'";
+                error_info.entry_name = std::string(selected.part.entry_name());
+                report_operation_failure(command, "inspect",
+                                         "row index is out of range", error_info,
+                                         options.json_output);
+                return 1;
+            }
+
+            inspect_template_table_cells(selected, resolved_table_index,
+                                         options.row_index, row_cells,
+                                         options.json_output);
+            return 0;
+        }
+
+        inspect_template_table_cells(selected, resolved_table_index, std::nullopt,
+                                     cells, options.json_output);
+        return 0;
+    }
+
+    if (command == "set-template-table-cell-text") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "set-template-table-cell-text expects an input path plus either "
+                "<table-index> <row-index> <cell-index>, "
+                "--bookmark <name> <row-index> <cell-index>, or a "
+                "text-based table selector followed by <row-index> "
+                "<cell-index>",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_cell_target target;
+        std::string error_message;
+        if (!parse_template_table_selector_cell_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_table_cell_text_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_table_cell_text_options(arguments,
+                                                    target.options_start_index,
+                                                    options,
+                                                    error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        std::string replacement_text;
+        if (!read_text_source(options, replacement_text, error_message)) {
+            if (options.json_output) {
+                write_json_command_error(std::cerr, command, "input",
+                                         error_message);
+            } else {
+                std::cerr << error_message << '\n';
+            }
+            return 1;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_template_table_cell(selected, resolved_table_index,
+                                         target.row_index, target.cell_index,
+                                         cell, command,
+                                         options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.set_text(replacement_text)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail =
+                "failed to set text for the requested table cell";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to set table cell text", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target](
+                    std::ostream &stream) {
+                    stream << ',';
+                    write_json_selected_template_part(stream, selected);
+                    stream << ",\"table_index\":" << resolved_table_index
+                           << ",\"row_index\":" << target.row_index
+                           << ",\"cell_index\":" << target.cell_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-template-table-row-texts") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-template-table-row-texts expects an input path plus either "
+                "<table-index> <start-row-index>, --bookmark <name> "
+                "<start-row-index>, or a text-based table selector "
+                "followed by <start-row-index>",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_row_target target;
+        std::string error_message;
+        if (!parse_template_table_selector_row_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_table_row_texts_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_table_row_texts_options(arguments,
+                                                    target.options_start_index,
+                                                    options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_template_table(selected, resolved_table_index, table, command,
+                                    options.json_output, "mutate")) {
+            return 1;
+        }
+
+        const auto row_summaries = collect_table_row_summaries(table);
+        if (target.row_index >= row_summaries.size()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "row index '" + std::to_string(target.row_index) +
+                "' is out of range for table index '" +
+                std::to_string(resolved_table_index) + "'";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "row index is out of range", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (options.rows.size() > row_summaries.size() - target.row_index) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "row range starting at row index '" +
+                std::to_string(target.row_index) + "' with count '" +
+                std::to_string(options.rows.size()) + "' exceeds table index '" +
+                std::to_string(resolved_table_index) + "' row count '" +
+                std::to_string(row_summaries.size()) + "'";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "row range exceeds table bounds", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        for (std::size_t offset = 0U; offset < options.rows.size(); ++offset) {
+            const auto target_row_index = target.row_index + offset;
+            const auto replacement_cell_count = options.rows[offset].size();
+            const auto target_cell_count =
+                row_summaries[target_row_index].cell_count;
+            if (replacement_cell_count != target_cell_count) {
+                featherdoc::document_error_info error_info{};
+                error_info.code = std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "replacement row at offset '" + std::to_string(offset) +
+                    "' contains '" + std::to_string(replacement_cell_count) +
+                    "' cells but target row index '" +
+                    std::to_string(target_row_index) + "' contains '" +
+                    std::to_string(target_cell_count) + "' cells";
+                error_info.entry_name = std::string(selected.part.entry_name());
+                report_operation_failure(
+                    command, "mutate",
+                    "replacement row cell count does not match target row",
+                    error_info, options.json_output);
+                return 1;
+            }
+        }
+
+        if (!table.set_rows_texts(target.row_index, options.rows)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail =
+                "failed to set text for the requested table row range";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to set template table row texts",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target, &options](
+                    std::ostream &stream) {
+                    write_json_template_table_row_texts_result(
+                        stream, selected, resolved_table_index,
+                        target.row_index,
+                        options.rows, options.bookmark_name);
+                });
+        } else {
+            print_template_table_row_texts_result(
+                selected, resolved_table_index, target.row_index,
+                options.rows,
+                options.bookmark_name, options.output_path);
+        }
+
+        return 0;
+    }
+
+    if (command == "set-template-table-cell-block-texts") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "set-template-table-cell-block-texts expects an input path plus "
+                "either <table-index> <start-row-index> <start-cell-index>, "
+                "--bookmark <name> <start-row-index> <start-cell-index>, or "
+                "a text-based table selector followed by "
+                "<start-row-index> <start-cell-index>",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_cell_target target;
+        std::string error_message;
+        if (!parse_template_table_selector_cell_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_table_row_texts_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_table_row_texts_options(arguments,
+                                                    target.options_start_index,
+                                                    options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_template_table(selected, resolved_table_index, table, command,
+                                    options.json_output, "mutate")) {
+            return 1;
+        }
+
+        const auto row_summaries = collect_table_row_summaries(table);
+        if (target.row_index >= row_summaries.size()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "row index '" + std::to_string(target.row_index) +
+                "' is out of range for table index '" +
+                std::to_string(resolved_table_index) + "'";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "row index is out of range", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (options.rows.size() > row_summaries.size() - target.row_index) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "row range starting at row index '" +
+                std::to_string(target.row_index) + "' with count '" +
+                std::to_string(options.rows.size()) + "' exceeds table index '" +
+                std::to_string(resolved_table_index) + "' row count '" +
+                std::to_string(row_summaries.size()) + "'";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "row range exceeds table bounds", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        for (std::size_t offset = 0U; offset < options.rows.size(); ++offset) {
+            const auto target_row_index = target.row_index + offset;
+            const auto replacement_cell_count = options.rows[offset].size();
+            const auto target_cell_count = row_summaries[target_row_index].cell_count;
+            if (target.cell_index >= target_cell_count ||
+                replacement_cell_count > target_cell_count - target.cell_index) {
+                featherdoc::document_error_info error_info{};
+                error_info.code = std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "replacement row at offset '" + std::to_string(offset) +
+                    "' starting at cell index '" +
+                    std::to_string(target.cell_index) + "' with count '" +
+                    std::to_string(replacement_cell_count) +
+                    "' exceeds target row index '" +
+                    std::to_string(target_row_index) + "' cell count '" +
+                    std::to_string(target_cell_count) + "'";
+                error_info.entry_name = std::string(selected.part.entry_name());
+                report_operation_failure(command, "mutate",
+                                         "cell block exceeds target row bounds",
+                                         error_info, options.json_output);
+                return 1;
+            }
+        }
+
+        if (!table.set_cell_block_texts(target.row_index, target.cell_index,
+                                        options.rows)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail =
+                "failed to set text for the requested table cell block";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to set template table cell block texts",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target,
+                 &options](std::ostream &stream) {
+                    write_json_template_table_cell_block_texts_result(
+                        stream, selected, resolved_table_index, target.row_index,
+                        target.cell_index, options.rows, options.bookmark_name);
+                });
+        } else {
+            print_template_table_cell_block_texts_result(
+                selected, resolved_table_index, target.row_index,
+                target.cell_index, options.rows, options.bookmark_name,
+                options.output_path);
+        }
+
+        return 0;
+    }
+
+    if (command == "set-template-table-from-json") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-template-table-from-json expects an input path plus "
+                "a table selector, followed by "
+                "--patch-file <path>",
+                json_output);
+            return 2;
+        }
+
+        std::optional<std::size_t> table_index;
+        std::optional<std::string> bookmark_name;
+        std::size_t options_start_index = 0U;
+        std::string error_message;
+        if (!parse_template_table_target_arguments(arguments, 2U, table_index,
+                                                   bookmark_name,
+                                                   options_start_index,
+                                                   error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_table_json_patch_options options;
+        if (!parse_template_table_json_patch_options(arguments, options_start_index,
+                                                     options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (bookmark_name.has_value()) {
+            if (options.selector.bookmark_name.has_value()) {
+                print_parse_error(command, "duplicate --bookmark option",
+                                  options.json_output);
+                return 2;
+            }
+            options.selector.bookmark_name = bookmark_name;
+        }
+        if (table_index.has_value()) {
+            options.selector.table_index = table_index;
+        }
+        if (!validate_template_table_selector(options.selector, false,
+                                              options.has_header_row_index,
+                                              options.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        template_table_json_patch patch;
+        if (!read_template_table_json_patch(*options.patch_file, patch,
+                                            error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, options.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_template_table(selected, resolved_table_index, table, command,
+                                    options.json_output, "mutate")) {
+            return 1;
+        }
+
+        if (!apply_template_table_json_patch(
+                command, table, selected, resolved_table_index, patch,
+                options.json_output)) {
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &patch, &options](
+                    std::ostream &stream) {
+                    write_json_template_table_from_json_result(
+                        stream, selected, resolved_table_index, patch,
+                        options.selector);
+                });
+        } else {
+            print_template_table_from_json_result(
+                selected, resolved_table_index, patch, options.selector,
+                options.output_path);
+        }
+
+        return 0;
+    }
+
+    if (command == "set-template-tables-from-json") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-template-tables-from-json expects an input path plus "
+                "--patch-file <path>",
+                json_output);
+            return 2;
+        }
+
+        template_table_json_batch_options options;
+        std::string error_message;
+        if (!parse_template_table_json_batch_options(arguments, 2U, options,
+                                                     error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        std::vector<template_table_json_batch_operation> operations;
+        if (!read_template_table_json_batch(*options.patch_file, operations,
+                                            error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        std::vector<applied_template_table_json_batch_operation> applied_operations;
+        applied_operations.reserve(operations.size());
+        for (std::size_t operation_index = 0U; operation_index < operations.size();
+             ++operation_index) {
+            const auto &operation = operations[operation_index];
+
+            validation_part_family part = validation_part_family::body;
+            std::optional<std::size_t> part_index;
+            std::optional<std::size_t> section_index;
+            featherdoc::section_reference_kind reference_kind =
+                featherdoc::section_reference_kind::default_reference;
+            bool has_kind = false;
+            featherdoc::template_table_selector selector;
+            if (!resolve_template_table_json_batch_operation_selection(
+                    options, operation, part, part_index, section_index,
+                    reference_kind, has_kind, selector,
+                    error_message)) {
+                print_parse_error(
+                    command,
+                    prefix_template_table_json_batch_message(operation_index,
+                                                             error_message),
+                    options.json_output);
+                return 2;
+            }
+
+            selected_template_part selected;
+            if (!select_mutable_template_part(doc, part, part_index, section_index,
+                                              reference_kind, selected,
+                                              error_message)) {
+                auto error_info = doc.last_error();
+                annotate_template_table_json_batch_error(operation_index,
+                                                         error_info);
+                report_operation_failure(
+                    command, "mutate",
+                    prefix_template_table_json_batch_message(operation_index,
+                                                             error_message),
+                    error_info, options.json_output);
+                return 1;
+            }
+
+            std::size_t resolved_table_index = 0U;
+            if (!resolve_template_table_index_for_batch(
+                    doc, selected, selector,
+                    resolved_table_index, operation_index, command,
+                    options.json_output, "mutate")) {
+                return 1;
+            }
+
+            featherdoc::Table table;
+            if (!resolve_template_table_for_batch(
+                    selected, resolved_table_index, table, operation_index,
+                    command, options.json_output, "mutate")) {
+                return 1;
+            }
+
+            if (!apply_template_table_json_patch(
+                    command, table, selected, resolved_table_index,
+                    operation.patch, options.json_output, operation_index)) {
+                return 1;
+            }
+
+            applied_template_table_json_batch_operation applied{};
+            applied.operation_index = operation_index;
+            applied.selected = selected;
+            applied.table_index = resolved_table_index;
+            applied.selector = selector;
+            applied.patch = operation.patch;
+            applied_operations.push_back(std::move(applied));
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&applied_operations](std::ostream &stream) {
+                    write_json_template_tables_from_json_result(
+                        stream, applied_operations);
+                });
+        } else {
+            print_template_tables_from_json_result(applied_operations,
+                                                   options.output_path);
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-template-table-column-before") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "insert-template-table-column-before expects an input path plus "
+                "either <table-index> <row-index> <cell-index>, "
+                "--bookmark <name> <row-index> <cell-index>, or a "
+                "text-based table selector followed by <row-index> "
+                "<cell-index>",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_cell_target target;
+        std::string error_message;
+        if (!parse_template_table_selector_cell_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_table_cell_mutation_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_table_cell_mutation_options(arguments,
+                                                        target.options_start_index,
+                                                        options,
+                                                        error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::table_cell_inspection_summary inspected_cell{};
+        if (!load_template_table_cell_summary(doc, selected, resolved_table_index,
+                                              target.row_index,
+                                              target.cell_index,
+                                              inspected_cell, command,
+                                              options.json_output)) {
+            return 1;
+        }
+
+        std::vector<featherdoc::table_cell_inspection_summary> inspected_cells;
+        if (!load_template_table_cells_summary(doc, selected, resolved_table_index,
+                                               inspected_cells, command,
+                                               options.json_output)) {
+            return 1;
+        }
+
+        const auto inserted_column_index = inspected_cell.column_index;
+        if (insertion_boundary_intersects_horizontal_merge(inspected_cells,
+                                                           inserted_column_index)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot insert a column before cell index '" +
+                std::to_string(target.cell_index) + "' at row index '" +
+                std::to_string(target.row_index) + "' in table index '" +
+                std::to_string(resolved_table_index) +
+                "' because the insertion boundary intersects a horizontal merge span";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_template_table_cell(selected, resolved_table_index,
+                                         target.row_index, target.cell_index,
+                                         cell, command,
+                                         options.json_output)) {
+            return 1;
+        }
+
+        auto inserted_cell = cell.insert_cell_before();
+        if (!inserted_cell.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "failed to create a cloned column before the requested cell";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target,
+                 inserted_column_index](std::ostream &stream) {
+                    stream << ',';
+                    write_json_selected_template_part(stream, selected);
+                    stream << ",\"table_index\":" << resolved_table_index
+                           << ",\"row_index\":" << target.row_index
+                           << ",\"cell_index\":" << target.cell_index
+                           << ",\"inserted_cell_index\":"
+                           << target.cell_index
+                           << ",\"inserted_column_index\":"
+                           << inserted_column_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-template-table-column-after") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "insert-template-table-column-after expects an input path plus "
+                "either <table-index> <row-index> <cell-index>, "
+                "--bookmark <name> <row-index> <cell-index>, or a "
+                "text-based table selector followed by <row-index> "
+                "<cell-index>",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_cell_target target;
+        std::string error_message;
+        if (!parse_template_table_selector_cell_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_table_cell_mutation_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_table_cell_mutation_options(arguments,
+                                                        target.options_start_index,
+                                                        options,
+                                                        error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::table_cell_inspection_summary inspected_cell{};
+        if (!load_template_table_cell_summary(doc, selected, resolved_table_index,
+                                              target.row_index,
+                                              target.cell_index,
+                                              inspected_cell, command,
+                                              options.json_output)) {
+            return 1;
+        }
+
+        std::vector<featherdoc::table_cell_inspection_summary> inspected_cells;
+        if (!load_template_table_cells_summary(doc, selected, resolved_table_index,
+                                               inspected_cells, command,
+                                               options.json_output)) {
+            return 1;
+        }
+
+        const auto inserted_column_index =
+            inspected_cell.column_index + inspected_cell.column_span;
+        if (insertion_boundary_intersects_horizontal_merge(inspected_cells,
+                                                           inserted_column_index)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot insert a column after cell index '" +
+                std::to_string(target.cell_index) + "' at row index '" +
+                std::to_string(target.row_index) + "' in table index '" +
+                std::to_string(resolved_table_index) +
+                "' because the insertion boundary intersects a horizontal merge span";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_template_table_cell(selected, resolved_table_index,
+                                         target.row_index, target.cell_index,
+                                         cell, command,
+                                         options.json_output)) {
+            return 1;
+        }
+
+        auto inserted_cell = cell.insert_cell_after();
+        if (!inserted_cell.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "failed to create a cloned column after the requested cell";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target,
+                 inserted_column_index](std::ostream &stream) {
+                    stream << ',';
+                    write_json_selected_template_part(stream, selected);
+                    stream << ",\"table_index\":" << resolved_table_index
+                           << ",\"row_index\":" << target.row_index
+                           << ",\"cell_index\":" << target.cell_index
+                           << ",\"inserted_cell_index\":"
+                           << (target.cell_index + 1U)
+                           << ",\"inserted_column_index\":"
+                           << inserted_column_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "remove-template-table-column") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "remove-template-table-column expects an input path plus either "
+                "<table-index> <row-index> <cell-index>, "
+                "--bookmark <name> <row-index> <cell-index>, or a "
+                "text-based table selector followed by <row-index> "
+                "<cell-index>",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_cell_target target;
+        std::string error_message;
+        if (!parse_template_table_selector_cell_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_table_cell_mutation_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_table_cell_mutation_options(arguments,
+                                                        target.options_start_index,
+                                                        options,
+                                                        error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::table_inspection_summary inspected_table{};
+        if (!load_template_table_summary(doc, selected, resolved_table_index,
+                                         inspected_table, command,
+                                         options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::table_cell_inspection_summary inspected_cell{};
+        if (!load_template_table_cell_summary(doc, selected, resolved_table_index,
+                                              target.row_index,
+                                              target.cell_index,
+                                              inspected_cell, command,
+                                              options.json_output)) {
+            return 1;
+        }
+
+        const auto removed_column_index = inspected_cell.column_index;
+        if (inspected_table.column_count <= 1U) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot remove the last column from table index '" +
+                std::to_string(resolved_table_index) + "'";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to remove table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        std::vector<featherdoc::table_cell_inspection_summary> inspected_cells;
+        if (!load_template_table_cells_summary(doc, selected, resolved_table_index,
+                                               inspected_cells, command,
+                                               options.json_output)) {
+            return 1;
+        }
+
+        if (column_intersects_horizontal_merge(inspected_cells,
+                                               removed_column_index)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot remove column index '" +
+                std::to_string(removed_column_index) + "' from table index '" +
+                std::to_string(resolved_table_index) +
+                "' because it intersects a horizontal merge span";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to remove table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_template_table_cell(selected, resolved_table_index,
+                                         target.row_index, target.cell_index,
+                                         cell, command,
+                                         options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.remove()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "failed to remove the requested column from the template table";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to remove table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target,
+                 removed_column_index](std::ostream &stream) {
+                    stream << ',';
+                    write_json_selected_template_part(stream, selected);
+                    stream << ",\"table_index\":" << resolved_table_index
+                           << ",\"row_index\":" << target.row_index
+                           << ",\"cell_index\":" << target.cell_index
+                           << ",\"column_index\":" << removed_column_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "append-template-table-row") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "append-template-table-row expects an input path plus either a "
+                "table index, --bookmark <name>, or a text-based table "
+                "selector",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_target target;
+        template_append_table_row_options options;
+        std::string error_message;
+        if (!parse_template_table_selector_target_arguments(arguments, 2U, target,
+                                                            true,
+                                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_append_table_row_options(arguments,
+                                                     target.options_start_index,
+                                                     options,
+                                                     error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        const auto inspected_table = selected.part.inspect_table(resolved_table_index);
+        if (!inspected_table.has_value()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "table index '" + std::to_string(resolved_table_index) +
+                "' is out of range";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "table index is out of range", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_template_table(selected, resolved_table_index, table, command,
+                                    options.json_output, "mutate")) {
+            return 1;
+        }
+
+        const auto cell_count =
+            options.cell_count.value_or(inspected_table->column_count);
+        if (cell_count == 0U) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "table row must contain at least one cell";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to append table row", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        auto row = table.append_row(cell_count);
+        if (!row.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to append table row", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        const auto row_index = inspected_table->row_count;
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, row_index, cell_count](
+                    std::ostream &stream) {
+                    stream << ',';
+                    write_json_selected_template_part(stream, selected);
+                    stream << ",\"table_index\":" << resolved_table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_count\":" << cell_count;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-template-table-row-before") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "insert-template-table-row-before expects an input path plus "
+                "either <table-index> <row-index>, --bookmark <name> "
+                "<row-index>, or a text-based table selector followed "
+                "by <row-index>",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_row_target target;
+        std::string error_message;
+        if (!parse_template_table_selector_row_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_table_row_mutation_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_table_row_mutation_options(arguments,
+                                                       target.options_start_index,
+                                                       options,
+                                                       error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_template_table_row(selected, resolved_table_index,
+                                        target.row_index, row,
+                                        command, options.json_output, "mutate")) {
+            return 1;
+        }
+
+        auto inserted_row = row.insert_row_before();
+        if (!inserted_row.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot insert a row adjacent to row index '" +
+                std::to_string(target.row_index) + "' in table index '" +
+                std::to_string(resolved_table_index) +
+                "' because the row participates in a vertical merge";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table row", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target](
+                    std::ostream &stream) {
+                    stream << ',';
+                    write_json_selected_template_part(stream, selected);
+                    stream << ",\"table_index\":" << resolved_table_index
+                           << ",\"row_index\":" << target.row_index
+                           << ",\"inserted_row_index\":"
+                           << target.row_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-template-table-row-after") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "insert-template-table-row-after expects an input path plus "
+                "either <table-index> <row-index>, --bookmark <name> "
+                "<row-index>, or a text-based table selector followed "
+                "by <row-index>",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_row_target target;
+        std::string error_message;
+        if (!parse_template_table_selector_row_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_table_row_mutation_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_table_row_mutation_options(arguments,
+                                                       target.options_start_index,
+                                                       options,
+                                                       error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_template_table_row(selected, resolved_table_index,
+                                        target.row_index,
+                                        row,
+                                        command, options.json_output, "mutate")) {
+            return 1;
+        }
+
+        auto inserted_row = row.insert_row_after();
+        if (!inserted_row.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot insert a row adjacent to row index '" +
+                std::to_string(target.row_index) + "' in table index '" +
+                std::to_string(resolved_table_index) +
+                "' because the row participates in a vertical merge";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table row", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target](
+                    std::ostream &stream) {
+                    stream << ',';
+                    write_json_selected_template_part(stream, selected);
+                    stream << ",\"table_index\":" << resolved_table_index
+                           << ",\"row_index\":" << target.row_index
+                           << ",\"inserted_row_index\":"
+                           << (target.row_index + 1U);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "remove-template-table-row") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "remove-template-table-row expects an input path plus either "
+                "<table-index> <row-index>, --bookmark <name> <row-index>, "
+                "or a text-based table selector followed by <row-index>",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_row_target target;
+        std::string error_message;
+        if (!parse_template_table_selector_row_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_table_row_mutation_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_table_row_mutation_options(arguments,
+                                                       target.options_start_index,
+                                                       options,
+                                                       error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::TableRow row;
+        if (!resolve_template_table_row(selected, resolved_table_index,
+                                        target.row_index,
+                                        row,
+                                        command, options.json_output, "mutate")) {
+            return 1;
+        }
+
+        if (!row.remove()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot remove the last row from table index '" +
+                std::to_string(resolved_table_index) + "'";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to remove table row", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target](
+                    std::ostream &stream) {
+                    stream << ',';
+                    write_json_selected_template_part(stream, selected);
+                    stream << ",\"table_index\":" << resolved_table_index
+                           << ",\"row_index\":" << target.row_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "merge-template-table-cells") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "merge-template-table-cells expects an input path plus either "
+                "<table-index> <row-index> <cell-index> or "
+                "--bookmark <name> <row-index> <cell-index>, or a "
+                "text-based table selector followed by <row-index> "
+                "<cell-index>",
+                json_output);
+            return 2;
+        }
+
+        parsed_template_table_selector_cell_target target;
+        std::string error_message;
+        if (!parse_template_table_selector_cell_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_merge_table_cells_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_merge_table_cells_options(arguments,
+                                                      target.options_start_index,
+                                                      options,
+                                                      error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_template_table_cell(selected, resolved_table_index,
+                                         target.row_index, target.cell_index,
+                                         cell, command,
+                                         options.json_output)) {
+            return 1;
+        }
+
+        const auto success =
+            options.direction == table_merge_direction::right
+                ? cell.merge_right(options.count)
+                : cell.merge_down(options.count);
+        if (!success) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cell at table index '" + std::to_string(resolved_table_index) +
+                "', row index '" + std::to_string(target.row_index) +
+                "', and cell index '" + std::to_string(target.cell_index) +
+                "' could not be merged towards '" +
+                std::string(table_merge_direction_name(options.direction)) +
+                "' with count '" + std::to_string(options.count) + "'";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to merge table cells", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target, &options](
+                    std::ostream &stream) {
+                    stream << ',';
+                    write_json_selected_template_part(stream, selected);
+                    stream << ",\"table_index\":" << resolved_table_index
+                           << ",\"row_index\":" << target.row_index
+                           << ",\"cell_index\":" << target.cell_index
+                           << ",\"direction\":";
+                    write_json_string(stream,
+                                      table_merge_direction_name(options.direction));
+                    stream << ",\"count\":" << options.count;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "unmerge-template-table-cells") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "unmerge-template-table-cells expects an input path plus either "
+                "<table-index> <row-index> <cell-index> or "
+                "--bookmark <name> <row-index> <cell-index>, or a "
+                "text-based table selector followed by <row-index> "
+                "<cell-index>",
+                json_output);
+            return 2;
+        }
+
+        std::string error_message;
+        parsed_template_table_selector_cell_target target;
+        if (!parse_template_table_selector_cell_target_arguments(
+                arguments, 2U, target, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        template_unmerge_table_cells_options options;
+        options.bookmark_name = target.selector.bookmark_name;
+        if (!parse_template_unmerge_table_cells_options(arguments,
+                                                        target.options_start_index,
+                                                        options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!target.selector.bookmark_name.has_value() &&
+            options.bookmark_name.has_value()) {
+            target.selector.bookmark_name = options.bookmark_name;
+        }
+        if (!validate_template_table_selector(target.selector, false,
+                                              target.has_header_row_index,
+                                              target.has_occurrence,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_mutable_template_part(doc, options.part, options.part_index,
+                                          options.section_index,
+                                          options.reference_kind, selected,
+                                          error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        std::size_t resolved_table_index = 0U;
+        if (!resolve_template_table_index(doc, selected, target.selector,
+                                          resolved_table_index, command,
+                                          options.json_output, "mutate")) {
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_template_table_cell(selected, resolved_table_index,
+                                         target.row_index, target.cell_index,
+                                         cell, command,
+                                         options.json_output)) {
+            return 1;
+        }
+
+        const auto success =
+            options.direction == table_merge_direction::right
+                ? cell.unmerge_right()
+                : cell.unmerge_down();
+        if (!success) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cell at table index '" + std::to_string(resolved_table_index) +
+                "', row index '" + std::to_string(target.row_index) +
+                "', and cell index '" + std::to_string(target.cell_index) +
+                "' could not be unmerged towards '" +
+                std::string(table_merge_direction_name(options.direction)) + "'";
+            error_info.entry_name = std::string(selected.part.entry_name());
+            report_operation_failure(command, "mutate",
+                                     "failed to unmerge table cells", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, resolved_table_index, &target, &options](
+                    std::ostream &stream) {
+                    stream << ',';
+                    write_json_selected_template_part(stream, selected);
+                    stream << ",\"table_index\":" << resolved_table_index
+                           << ",\"row_index\":" << target.row_index
+                           << ",\"cell_index\":" << target.cell_index
+                           << ",\"direction\":";
+                    write_json_string(stream,
+                                      table_merge_direction_name(options.direction));
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-paragraph-style") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-paragraph-style expects an input path, a paragraph index, and a style id",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        const auto style_id = arguments[3];
+        set_paragraph_style_options options;
+        std::string error_message;
+        if (!parse_set_paragraph_style_options(arguments, 4U, options,
+                                               error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Paragraph paragraph;
+        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.set_paragraph_style(paragraph, style_id)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index, style_id](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index
+                           << ",\"style_id\":";
+                    write_json_string(stream, style_id);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-paragraph-style") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "clear-paragraph-style expects an input path and a paragraph index",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        clear_paragraph_style_options options;
+        std::string error_message;
+        if (!parse_clear_paragraph_style_options(arguments, 3U, options,
+                                                 error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Paragraph paragraph;
+        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.clear_paragraph_style(paragraph)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-run-style") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "set-run-style expects an input path, a paragraph index, a run index, and a style id",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t run_index = 0U;
+        if (!parse_uint32(arguments[3], run_index)) {
+            print_parse_error(command,
+                              "invalid run index: " + std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        const auto style_id = arguments[4];
+        set_run_style_options options;
+        std::string error_message;
+        if (!parse_set_run_style_options(arguments, 5U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Run run;
+        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
+                              options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.set_run_style(run, style_id)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index, run_index, style_id](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index
+                           << ",\"run_index\":" << run_index << ",\"style_id\":";
+                    write_json_string(stream, style_id);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-run-style") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "clear-run-style expects an input path, a paragraph index, and a run index",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t run_index = 0U;
+        if (!parse_uint32(arguments[3], run_index)) {
+            print_parse_error(command,
+                              "invalid run index: " + std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        clear_run_style_options options;
+        std::string error_message;
+        if (!parse_clear_run_style_options(arguments, 4U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Run run;
+        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
+                              options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.clear_run_style(run)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index, run_index](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index
+                           << ",\"run_index\":" << run_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-run-font-family") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "set-run-font-family expects an input path, a paragraph index, a run index, and a font family",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t run_index = 0U;
+        if (!parse_uint32(arguments[3], run_index)) {
+            print_parse_error(command,
+                              "invalid run index: " + std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        const auto font_family = arguments[4];
+        set_run_font_family_options options;
+        std::string error_message;
+        if (!parse_set_run_font_family_options(arguments, 5U, options,
+                                               error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Run run;
+        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
+                              options.json_output)) {
+            return 1;
+        }
+
+        if (!run.set_font_family(font_family)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "run font family must not be empty";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "run font family must not be empty",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index, run_index, font_family](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index
+                           << ",\"run_index\":" << run_index
+                           << ",\"font_family\":";
+                    write_json_string(stream, font_family);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-run-font-family") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "clear-run-font-family expects an input path, a paragraph index, and a run index",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t run_index = 0U;
+        if (!parse_uint32(arguments[3], run_index)) {
+            print_parse_error(command,
+                              "invalid run index: " + std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        clear_run_font_family_options options;
+        std::string error_message;
+        if (!parse_clear_run_font_family_options(arguments, 4U, options,
+                                                 error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Run run;
+        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
+                              options.json_output)) {
+            return 1;
+        }
+
+        if (!run.clear_font_family()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target run handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "target run handle is not valid",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index, run_index](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index
+                           << ",\"run_index\":" << run_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-run-language") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "set-run-language expects an input path, a paragraph index, a run index, and a language",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t run_index = 0U;
+        if (!parse_uint32(arguments[3], run_index)) {
+            print_parse_error(command,
+                              "invalid run index: " + std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        const auto language = arguments[4];
+        set_run_language_options options;
+        std::string error_message;
+        if (!parse_set_run_language_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Run run;
+        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
+                              options.json_output)) {
+            return 1;
+        }
+
+        if (!run.set_language(language)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "run language must not be empty";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "run language must not be empty",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index, run_index, language](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index
+                           << ",\"run_index\":" << run_index
+                           << ",\"language\":";
+                    write_json_string(stream, language);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-run-language") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "clear-run-language expects an input path, a paragraph index, and a run index",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t run_index = 0U;
+        if (!parse_uint32(arguments[3], run_index)) {
+            print_parse_error(command,
+                              "invalid run index: " + std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        clear_run_language_options options;
+        std::string error_message;
+        if (!parse_clear_run_language_options(arguments, 4U, options,
+                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Run run;
+        if (!resolve_body_run(doc, paragraph_index, run_index, run, command,
+                              options.json_output)) {
+            return 1;
+        }
+
+        if (!run.clear_language()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target run handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "target run handle is not valid",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index, run_index](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index
+                           << ",\"run_index\":" << run_index;
+                });
+        }
+
+        return 0;
+    }
+
     if (command == "set-paragraph-style-numbering") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 3U) {
@@ -6307,6 +21076,311 @@ int main(int argc, char **argv) {
                                            stream << ",\"style_id\":";
                                            write_json_string(stream, style_id);
                                        });
+        }
+
+        return 0;
+    }
+
+    if (command == "ensure-numbering-definition") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command,
+                              "ensure-numbering-definition expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        ensure_numbering_definition_options options;
+        std::string error_message;
+        if (!parse_ensure_numbering_definition_options(arguments, 2U, options,
+                                                       error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::numbering_definition definition;
+        definition.name = *options.definition_name;
+        definition.levels = options.levels;
+
+        const auto numbering_id = doc.ensure_numbering_definition(definition);
+        if (!numbering_id.has_value()) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [numbering_id, &definition](std::ostream &stream) {
+                    stream << ",\"definition_id\":" << *numbering_id
+                           << ",\"definition_name\":";
+                    write_json_string(stream, definition.name);
+                    stream << ",\"definition_levels\":[";
+                    for (std::size_t index = 0; index < definition.levels.size();
+                         ++index) {
+                        if (index != 0U) {
+                            stream << ',';
+                        }
+                        write_json_numbering_level_definition(stream,
+                                                              definition.levels[index]);
+                    }
+                    stream << ']';
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-paragraph-numbering") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "set-paragraph-numbering expects an input path and a paragraph index",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        set_paragraph_numbering_options options;
+        std::string error_message;
+        if (!parse_set_paragraph_numbering_options(arguments, 3U, options,
+                                                   error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Paragraph paragraph;
+        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        const auto level = options.level.value_or(0U);
+        if (!doc.set_paragraph_numbering(paragraph, *options.definition_id, level)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index, level, &options](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index
+                           << ",\"definition_id\":" << *options.definition_id
+                           << ",\"level\":" << level;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-paragraph-list") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "set-paragraph-list expects an input path and a paragraph index",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        paragraph_list_options options;
+        std::string error_message;
+        if (!parse_paragraph_list_options(arguments, 3U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Paragraph paragraph;
+        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        const auto level = options.level.value_or(0U);
+        if (!doc.set_paragraph_list(paragraph, options.kind, level)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index, level, &options](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index
+                           << ",\"kind\":";
+                    write_json_string(stream, list_kind_name(options.kind));
+                    stream << ",\"level\":" << level;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "restart-paragraph-list") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "restart-paragraph-list expects an input path and a paragraph index",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        paragraph_list_options options;
+        std::string error_message;
+        if (!parse_paragraph_list_options(arguments, 3U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Paragraph paragraph;
+        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        const auto level = options.level.value_or(0U);
+        if (!doc.restart_paragraph_list(paragraph, options.kind, level)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index, level, &options](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index
+                           << ",\"kind\":";
+                    write_json_string(stream, list_kind_name(options.kind));
+                    stream << ",\"level\":" << level;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-paragraph-list") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "clear-paragraph-list expects an input path and a paragraph index",
+                json_output);
+            return 2;
+        }
+
+        std::uint32_t paragraph_index = 0U;
+        if (!parse_uint32(arguments[2], paragraph_index)) {
+            print_parse_error(command,
+                              "invalid paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        clear_paragraph_list_options options;
+        std::string error_message;
+        if (!parse_clear_paragraph_list_options(arguments, 3U, options,
+                                                error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Paragraph paragraph;
+        if (!resolve_body_paragraph(doc, paragraph_index, paragraph, command,
+                                    options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.clear_paragraph_list(paragraph)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [paragraph_index](std::ostream &stream) {
+                    stream << ",\"paragraph_index\":" << paragraph_index;
+                });
         }
 
         return 0;
@@ -6587,6 +21661,508 @@ int main(int argc, char **argv) {
         }
 
         inspect_bookmarks(selected, bookmarks, options.json_output);
+        return 0;
+    }
+
+    if (command == "replace-bookmark-paragraphs") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "replace-bookmark-paragraphs expects an input path and bookmark name",
+                json_output);
+            return 2;
+        }
+
+        const auto bookmark_name = std::string(arguments[2]);
+        if (bookmark_name.empty()) {
+            print_parse_error(command, "bookmark name must not be empty",
+                              json_output);
+            return 2;
+        }
+
+        replace_bookmark_paragraphs_options options;
+        std::string error_message;
+        if (!parse_replace_bookmark_paragraphs_options(arguments, 3U, options,
+                                                       error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto bookmark = selected.part.find_bookmark(bookmark_name);
+        if (!bookmark.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+        const auto bookmark_summary = *bookmark;
+
+        const auto replaced = selected.part.replace_bookmark_with_paragraphs(
+            bookmark_name, options.paragraphs);
+        if (replaced == 0U) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &bookmark_summary, replaced,
+                 &options](std::ostream &stream) {
+                    write_json_bookmark_paragraphs_result(
+                        stream, selected, bookmark_summary, options.paragraphs,
+                        replaced);
+                });
+        } else {
+            print_bookmark_paragraphs_result(selected, bookmark_summary,
+                                             options.paragraphs,
+                                             options.output_path, replaced);
+        }
+
+        return 0;
+    }
+
+    if (command == "replace-bookmark-table" ||
+        command == "replace-bookmark-table-rows") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                std::string(command) + " expects an input path and bookmark name",
+                json_output);
+            return 2;
+        }
+
+        const auto bookmark_name = std::string(arguments[2]);
+        if (bookmark_name.empty()) {
+            print_parse_error(command, "bookmark name must not be empty",
+                              json_output);
+            return 2;
+        }
+
+        bookmark_table_replacement_options options;
+        std::string error_message;
+        const bool allow_empty_rows = command == "replace-bookmark-table-rows";
+        if (!parse_bookmark_table_replacement_options(arguments, 3U, options,
+                                                     allow_empty_rows,
+                                                     error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto bookmark = selected.part.find_bookmark(bookmark_name);
+        if (!bookmark.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+        const auto bookmark_summary = *bookmark;
+
+        const auto replaced =
+            command == "replace-bookmark-table"
+                ? selected.part.replace_bookmark_with_table(bookmark_name,
+                                                            options.rows)
+                : selected.part.replace_bookmark_with_table_rows(bookmark_name,
+                                                                 options.rows);
+        if (replaced == 0U) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &bookmark_summary, &options,
+                 replaced](std::ostream &stream) {
+                    write_json_bookmark_table_result(
+                        stream, selected, bookmark_summary, options.rows,
+                        replaced);
+                });
+        } else {
+            print_bookmark_table_result(selected, bookmark_summary, options.rows,
+                                        options.output_path, replaced);
+        }
+
+        return 0;
+    }
+
+    if (command == "remove-bookmark-block") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "remove-bookmark-block expects an input path and bookmark name",
+                json_output);
+            return 2;
+        }
+
+        const auto bookmark_name = std::string(arguments[2]);
+        if (bookmark_name.empty()) {
+            print_parse_error(command, "bookmark name must not be empty",
+                              json_output);
+            return 2;
+        }
+
+        remove_bookmark_block_options options;
+        std::string error_message;
+        if (!parse_remove_bookmark_block_options(arguments, 3U, options,
+                                                 error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto bookmark = selected.part.find_bookmark(bookmark_name);
+        if (!bookmark.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+        const auto bookmark_summary = *bookmark;
+
+        const auto removed = selected.part.remove_bookmark_block(bookmark_name);
+        if (removed == 0U) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &bookmark_summary,
+                 removed](std::ostream &stream) {
+                    write_json_bookmark_block_removal_result(
+                        stream, selected, bookmark_summary, removed);
+                });
+        } else {
+            print_bookmark_block_removal_result(selected, bookmark_summary,
+                                                options.output_path, removed);
+        }
+
+        return 0;
+    }
+
+    if (command == "replace-bookmark-text") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "replace-bookmark-text expects an input path and bookmark name",
+                json_output);
+            return 2;
+        }
+
+        const auto bookmark_name = std::string(arguments[2]);
+        if (bookmark_name.empty()) {
+            print_parse_error(command, "bookmark name must not be empty",
+                              json_output);
+            return 2;
+        }
+
+        replace_bookmark_text_options options;
+        std::string error_message;
+        if (!parse_replace_bookmark_text_options(arguments, 3U, options,
+                                                 error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto bookmark = selected.part.find_bookmark(bookmark_name);
+        if (!bookmark.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+        const auto bookmark_summary = *bookmark;
+
+        const auto replaced =
+            selected.part.replace_bookmark_text(bookmark_name, options.text);
+        if (replaced == 0U) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &bookmark_summary, &options,
+                 replaced](std::ostream &stream) {
+                    write_json_bookmark_text_result(
+                        stream, selected, bookmark_summary, options.text,
+                        replaced);
+                });
+        } else {
+            print_bookmark_text_result(selected, bookmark_summary, options.text,
+                                       options.output_path, replaced);
+        }
+
+        return 0;
+    }
+
+    if (command == "fill-bookmarks") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command, "fill-bookmarks expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        fill_bookmarks_options options;
+        std::string error_message;
+        if (!parse_fill_bookmarks_options(arguments, 2U, options,
+                                          error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto result = selected.part.fill_bookmarks(options.bindings);
+        if (doc.last_error().code) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &options, &result](std::ostream &stream) {
+                    write_json_bookmark_fill_result(stream, selected,
+                                                    options.bindings, result);
+                });
+        } else {
+            print_bookmark_fill_result(selected, options.bindings,
+                                       options.output_path, result);
+        }
+
+        return 0;
+    }
+
+    if (command == "set-bookmark-block-visibility") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "set-bookmark-block-visibility expects an input path and bookmark name",
+                json_output);
+            return 2;
+        }
+
+        const auto bookmark_name = std::string(arguments[2]);
+        if (bookmark_name.empty()) {
+            print_parse_error(command, "bookmark name must not be empty",
+                              json_output);
+            return 2;
+        }
+
+        set_bookmark_block_visibility_options options;
+        std::string error_message;
+        if (!parse_set_bookmark_block_visibility_options(arguments, 3U, options,
+                                                         error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto bookmark = selected.part.find_bookmark(bookmark_name);
+        if (!bookmark.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+        const auto bookmark_summary = *bookmark;
+
+        const auto changed = selected.part.set_bookmark_block_visibility(
+            bookmark_name, options.visible);
+        if (changed == 0U) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &bookmark_summary, &options,
+                 changed](std::ostream &stream) {
+                    write_json_bookmark_block_visibility_result(
+                        stream, selected, bookmark_summary, options.visible,
+                        changed);
+                });
+        } else {
+            print_bookmark_block_visibility_result(
+                selected, bookmark_summary, options.output_path, options.visible,
+                changed);
+        }
+
+        return 0;
+    }
+
+    if (command == "apply-bookmark-block-visibility") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "apply-bookmark-block-visibility expects an input path and at least one visibility binding",
+                json_output);
+            return 2;
+        }
+
+        apply_bookmark_block_visibility_options options;
+        std::string error_message;
+        if (!parse_apply_bookmark_block_visibility_options(arguments, 2U, options,
+                                                           error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto result =
+            selected.part.apply_bookmark_block_visibility(options.bindings);
+        if (doc.last_error().code) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &options, &result](std::ostream &stream) {
+                    write_json_applied_bookmark_block_visibility_result(
+                        stream, selected, options.bindings, result);
+                });
+        } else {
+            print_applied_bookmark_block_visibility_result(
+                selected, options.bindings, options.output_path, result);
+        }
+
         return 0;
     }
 

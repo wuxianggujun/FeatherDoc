@@ -556,6 +556,45 @@ auto write_test_docx(const std::filesystem::path &path, const std::string &docum
 
 auto write_test_archive_entries(
     const std::filesystem::path &path,
+    const std::vector<std::pair<std::string, std::string>> &entries) -> void;
+
+auto write_test_docx_with_styles(const std::filesystem::path &path,
+                                 const std::string &document_xml,
+                                 const std::string &styles_xml) -> void {
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+)";
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+</Relationships>
+)";
+
+    write_test_archive_entries(
+        path,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/styles.xml", styles_xml},
+        });
+}
+
+auto write_test_archive_entries(
+    const std::filesystem::path &path,
     const std::vector<std::pair<std::string, std::string>> &entries) -> void {
     int zip_error = 0;
     zip_t *zip = zip_openwitherror(path.string().c_str(),
@@ -1536,6 +1575,30 @@ TEST_CASE("set_text preserves xml:space when leading or trailing spaces exist") 
     REQUIRE(plain_text_node != pugi::xml_node{});
     CHECK_FALSE(plain_text_node.attribute("xml:space"));
     CHECK_EQ(std::string{plain_text_node.text().get()}, "plain text");
+
+    CHECK(run.set_text("first line\nsecond line"));
+    CHECK_FALSE(reopened.save());
+
+    const auto multiline_xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document multiline_xml_document;
+    REQUIRE(multiline_xml_document.load_string(multiline_xml_text.c_str()));
+
+    const auto multiline_run =
+        multiline_xml_document.child("w:document").child("w:body").child("w:p").child("w:r");
+    REQUIRE(multiline_run != pugi::xml_node{});
+    CHECK_EQ(std::string{multiline_run.child("w:t").text().get()}, "first line");
+    const auto line_break = multiline_run.child("w:br");
+    REQUIRE(line_break != pugi::xml_node{});
+    const auto trailing_text = line_break.next_sibling();
+    REQUIRE(trailing_text != pugi::xml_node{});
+    CHECK_EQ(std::string_view{trailing_text.name()}, "w:t");
+    CHECK_EQ(std::string{trailing_text.text().get()}, "second line");
+
+    featherdoc::Document multiline_reopened(target);
+    CHECK_FALSE(multiline_reopened.open());
+    auto multiline_run_handle = multiline_reopened.paragraphs().runs();
+    REQUIRE(multiline_run_handle.has_next());
+    CHECK_EQ(multiline_run_handle.get_text(), "first line\nsecond line");
 
     fs::remove(target);
 }
@@ -7582,6 +7645,8 @@ TEST_CASE("table cells can replace text while preserving cell properties") {
 
     CHECK(cell.set_text("updated"));
     CHECK_EQ(cell.get_text(), "updated");
+    CHECK(cell.set_text("top line\nbottom line"));
+    CHECK_EQ(cell.get_text(), "top line\nbottom line");
 
     REQUIRE(cell.fill_color().has_value());
     CHECK_EQ(*cell.fill_color(), "D9EAF7");
@@ -7604,13 +7669,17 @@ TEST_CASE("table cells can replace text while preserving cell properties") {
     CHECK_EQ(std::string_view{
                  cell_node.child("w:tcPr").child("w:shd").attribute("w:fill").value()},
              "D9EAF7");
+    const auto cell_run = cell_node.child("w:p").child("w:r");
+    REQUIRE(cell_run != pugi::xml_node{});
+    CHECK_EQ(std::string{cell_run.child("w:t").text().get()}, "top line");
+    REQUIRE(cell_run.child("w:br") != pugi::xml_node{});
 
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
 
     auto reopened_cell = reopened.tables().rows().cells();
     REQUIRE(reopened_cell.has_next());
-    CHECK_EQ(reopened_cell.get_text(), "updated");
+    CHECK_EQ(reopened_cell.get_text(), "top line\nbottom line");
     REQUIRE(reopened_cell.fill_color().has_value());
     CHECK_EQ(*reopened_cell.fill_color(), "D9EAF7");
     REQUIRE(reopened_cell.margin_twips(featherdoc::cell_margin_edge::left).has_value());
@@ -16510,6 +16579,1980 @@ TEST_CASE("style run language APIs edit styles.xml and preserve unrelated style 
     CHECK_FALSE(cleared.style_run_east_asia_language("Strong").has_value());
     CHECK_FALSE(cleared.style_run_bidi_language("Strong").has_value());
     CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("replace_bookmark_text preserves explicit line breaks inside bookmark ranges") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "bookmark_replace_multiline.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t>prefix</w:t></w:r>
+      <w:bookmarkStart w:id="0" w:name="bookmark"/>
+      <w:r><w:t>old value</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+      <w:r><w:t>suffix</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_EQ(doc.replace_bookmark_text("bookmark", "first line\nsecond line"), 1);
+    CHECK_EQ(collect_document_text(doc), "prefixfirst line\nsecond linesuffix\n");
+
+    CHECK_FALSE(doc.save());
+
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+
+    const auto paragraph =
+        xml_document.child("w:document").child("w:body").child("w:p");
+    const auto bookmark_start = paragraph.child("w:bookmarkStart");
+    REQUIRE(bookmark_start != pugi::xml_node{});
+    const auto replacement_run = bookmark_start.next_sibling("w:r");
+    REQUIRE(replacement_run != pugi::xml_node{});
+    CHECK_EQ(std::string{replacement_run.child("w:t").text().get()}, "first line");
+    REQUIRE(replacement_run.child("w:br") != pugi::xml_node{});
+    CHECK_EQ(std::string{replacement_run.last_child().text().get()}, "second line");
+    CHECK_NE(xml_text.find("w:bookmarkStart"), std::string::npos);
+    CHECK_NE(xml_text.find("w:bookmarkEnd"), std::string::npos);
+    CHECK_EQ(xml_text.find("old value"), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened),
+             "prefixfirst line\nsecond linesuffix\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("inspect paragraph runs returns run style and language metadata") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "inspect_paragraph_runs_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+
+    auto styled_run = paragraph.add_run("styled");
+    REQUIRE(styled_run.has_next());
+    CHECK(doc.set_run_style(styled_run, "Strong"));
+    CHECK(styled_run.set_font_family("Segoe UI"));
+    CHECK(styled_run.set_east_asia_font_family("Microsoft YaHei"));
+    CHECK(styled_run.set_language("en-US"));
+    CHECK(styled_run.set_east_asia_language("zh-CN"));
+    CHECK(styled_run.set_bidi_language("ar-SA"));
+    CHECK(styled_run.set_rtl());
+
+    auto plain_run = paragraph.add_run(" plain");
+    REQUIRE(plain_run.has_next());
+
+    auto second_paragraph = paragraph.insert_paragraph_after("second paragraph");
+    REQUIRE(second_paragraph.has_next());
+
+    const auto first_runs = doc.inspect_paragraph_runs(0);
+    REQUIRE(first_runs.size() == 2U);
+
+    CHECK_EQ(first_runs[0].index, 0U);
+    REQUIRE(first_runs[0].style_id.has_value());
+    CHECK_EQ(*first_runs[0].style_id, "Strong");
+    REQUIRE(first_runs[0].font_family.has_value());
+    CHECK_EQ(*first_runs[0].font_family, "Segoe UI");
+    REQUIRE(first_runs[0].east_asia_font_family.has_value());
+    CHECK_EQ(*first_runs[0].east_asia_font_family, "Microsoft YaHei");
+    REQUIRE(first_runs[0].language.has_value());
+    CHECK_EQ(*first_runs[0].language, "en-US");
+    REQUIRE(first_runs[0].east_asia_language.has_value());
+    CHECK_EQ(*first_runs[0].east_asia_language, "zh-CN");
+    REQUIRE(first_runs[0].bidi_language.has_value());
+    CHECK_EQ(*first_runs[0].bidi_language, "ar-SA");
+    REQUIRE(first_runs[0].rtl.has_value());
+    CHECK(*first_runs[0].rtl);
+    CHECK_EQ(first_runs[0].text, "styled");
+
+    CHECK_EQ(first_runs[1].index, 1U);
+    CHECK_FALSE(first_runs[1].style_id.has_value());
+    CHECK_FALSE(first_runs[1].font_family.has_value());
+    CHECK_FALSE(first_runs[1].language.has_value());
+    CHECK_FALSE(first_runs[1].rtl.has_value());
+    CHECK_EQ(first_runs[1].text, " plain");
+
+    const auto second_run = doc.inspect_paragraph_run(1U, 0U);
+    REQUIRE(second_run.has_value());
+    CHECK_EQ(second_run->index, 0U);
+    CHECK_EQ(second_run->text, "second paragraph");
+
+    CHECK(doc.inspect_paragraph_runs(9U).empty());
+    CHECK_FALSE(doc.inspect_paragraph_run(0U, 9U).has_value());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_runs = reopened.inspect_paragraph_runs(0U);
+    REQUIRE(reopened_runs.size() == 2U);
+    REQUIRE(reopened_runs[0].style_id.has_value());
+    CHECK_EQ(*reopened_runs[0].style_id, "Strong");
+    REQUIRE(reopened_runs[0].language.has_value());
+    CHECK_EQ(*reopened_runs[0].language, "en-US");
+    REQUIRE(reopened_runs[0].east_asia_language.has_value());
+    CHECK_EQ(*reopened_runs[0].east_asia_language, "zh-CN");
+    REQUIRE(reopened_runs[0].bidi_language.has_value());
+    CHECK_EQ(*reopened_runs[0].bidi_language, "ar-SA");
+    REQUIRE(reopened_runs[0].rtl.has_value());
+    CHECK(*reopened_runs[0].rtl);
+    CHECK_EQ(reopened_runs[1].text, " plain");
+
+    fs::remove(target);
+}
+
+TEST_CASE("inspect paragraphs returns style bidi numbering run count and text metadata") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "inspect_paragraphs_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto numbering_definition = featherdoc::numbering_definition{};
+    numbering_definition.name = "ParagraphInspectOutline";
+    numbering_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1."},
+    };
+
+    const auto numbering_id = doc.ensure_numbering_definition(numbering_definition);
+    REQUIRE(numbering_id.has_value());
+
+    auto first = doc.paragraphs();
+    REQUIRE(first.has_next());
+    CHECK(doc.set_paragraph_style(first, "Heading1"));
+    CHECK(first.set_bidi());
+    REQUIRE(first.add_run("alpha").has_next());
+    REQUIRE(first.add_run(" beta").has_next());
+
+    auto second = first.insert_paragraph_after("item");
+    REQUIRE(second.has_next());
+    CHECK(doc.set_paragraph_numbering(second, *numbering_id));
+
+    auto third = second.insert_paragraph_after("plain");
+    REQUIRE(third.has_next());
+
+    const auto paragraphs = doc.inspect_paragraphs();
+    REQUIRE(paragraphs.size() == 3U);
+
+    CHECK_EQ(paragraphs[0].index, 0U);
+    REQUIRE(paragraphs[0].style_id.has_value());
+    CHECK_EQ(*paragraphs[0].style_id, "Heading1");
+    REQUIRE(paragraphs[0].bidi.has_value());
+    CHECK(*paragraphs[0].bidi);
+    CHECK_FALSE(paragraphs[0].numbering.has_value());
+    CHECK_EQ(paragraphs[0].run_count, 2U);
+    CHECK_EQ(paragraphs[0].text, "alpha beta");
+
+    CHECK_EQ(paragraphs[1].index, 1U);
+    CHECK_FALSE(paragraphs[1].style_id.has_value());
+    CHECK_FALSE(paragraphs[1].bidi.has_value());
+    REQUIRE(paragraphs[1].numbering.has_value());
+    REQUIRE(paragraphs[1].numbering->num_id.has_value());
+    CHECK_EQ(paragraphs[1].numbering->level, std::optional<std::uint32_t>{0U});
+    REQUIRE(paragraphs[1].numbering->definition_id.has_value());
+    CHECK_EQ(*paragraphs[1].numbering->definition_id, *numbering_id);
+    REQUIRE(paragraphs[1].numbering->definition_name.has_value());
+    CHECK_EQ(*paragraphs[1].numbering->definition_name, "ParagraphInspectOutline");
+    CHECK_EQ(paragraphs[1].run_count, 1U);
+    CHECK_EQ(paragraphs[1].text, "item");
+
+    CHECK_EQ(paragraphs[2].index, 2U);
+    CHECK_FALSE(paragraphs[2].style_id.has_value());
+    CHECK_FALSE(paragraphs[2].bidi.has_value());
+    CHECK_FALSE(paragraphs[2].numbering.has_value());
+    CHECK_EQ(paragraphs[2].run_count, 1U);
+    CHECK_EQ(paragraphs[2].text, "plain");
+
+    const auto inspected_second = doc.inspect_paragraph(1U);
+    REQUIRE(inspected_second.has_value());
+    CHECK_EQ(inspected_second->text, "item");
+    REQUIRE(inspected_second->numbering.has_value());
+    REQUIRE(inspected_second->numbering->definition_id.has_value());
+    CHECK_EQ(*inspected_second->numbering->definition_id, *numbering_id);
+    CHECK_FALSE(doc.inspect_paragraph(9U).has_value());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_paragraphs = reopened.inspect_paragraphs();
+    REQUIRE(reopened_paragraphs.size() == 3U);
+    REQUIRE(reopened_paragraphs[0].style_id.has_value());
+    CHECK_EQ(*reopened_paragraphs[0].style_id, "Heading1");
+    REQUIRE(reopened_paragraphs[1].numbering.has_value());
+    REQUIRE(reopened_paragraphs[1].numbering->definition_name.has_value());
+    CHECK_EQ(*reopened_paragraphs[1].numbering->definition_name,
+             "ParagraphInspectOutline");
+    CHECK_EQ(reopened_paragraphs[2].text, "plain");
+
+    fs::remove(target);
+}
+
+TEST_CASE("inspect tables returns style width grid and text metadata") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "inspect_tables_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(2, 2);
+    CHECK(table.set_width_twips(7200U));
+    CHECK(table.set_style_id("TableGrid"));
+    CHECK(table.set_column_width_twips(0U, 1800U));
+    CHECK(table.set_column_width_twips(1U, 5400U));
+
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("r0c0"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("r0c1"));
+
+    row.next();
+    REQUIRE(row.has_next());
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("r1c0"));
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("r1c1"));
+
+    auto second_table = doc.append_table(1, 1);
+    REQUIRE(second_table.has_next());
+    auto second_row = second_table.rows();
+    REQUIRE(second_row.has_next());
+    auto second_cell = second_row.cells();
+    REQUIRE(second_cell.has_next());
+    CHECK(second_cell.set_text("tail"));
+
+    const auto tables = doc.inspect_tables();
+    REQUIRE(tables.size() == 2U);
+
+    CHECK_EQ(tables[0].index, 0U);
+    REQUIRE(tables[0].style_id.has_value());
+    CHECK_EQ(*tables[0].style_id, "TableGrid");
+    REQUIRE(tables[0].width_twips.has_value());
+    CHECK_EQ(*tables[0].width_twips, 7200U);
+    CHECK_EQ(tables[0].row_count, 2U);
+    CHECK_EQ(tables[0].column_count, 2U);
+    REQUIRE(tables[0].column_widths.size() == 2U);
+    REQUIRE(tables[0].column_widths[0].has_value());
+    CHECK_EQ(*tables[0].column_widths[0], 1800U);
+    REQUIRE(tables[0].column_widths[1].has_value());
+    CHECK_EQ(*tables[0].column_widths[1], 5400U);
+    CHECK_EQ(tables[0].text, "r0c0\tr0c1\nr1c0\tr1c1");
+
+    CHECK_EQ(tables[1].index, 1U);
+    CHECK_FALSE(tables[1].style_id.has_value());
+    CHECK_FALSE(tables[1].width_twips.has_value());
+    CHECK_EQ(tables[1].row_count, 1U);
+    CHECK_EQ(tables[1].column_count, 1U);
+    REQUIRE(tables[1].column_widths.size() == 1U);
+    CHECK_EQ(tables[1].text, "tail");
+
+    const auto inspected_table = doc.inspect_table(1U);
+    REQUIRE(inspected_table.has_value());
+    CHECK_EQ(inspected_table->text, "tail");
+    CHECK_FALSE(doc.inspect_table(9U).has_value());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_tables = reopened.inspect_tables();
+    REQUIRE(reopened_tables.size() == 2U);
+    REQUIRE(reopened_tables[0].style_id.has_value());
+    CHECK_EQ(*reopened_tables[0].style_id, "TableGrid");
+    REQUIRE(reopened_tables[0].width_twips.has_value());
+    CHECK_EQ(*reopened_tables[0].width_twips, 7200U);
+    REQUIRE(reopened_tables[0].column_widths.size() == 2U);
+    REQUIRE(reopened_tables[0].column_widths[0].has_value());
+    CHECK_EQ(*reopened_tables[0].column_widths[0], 1800U);
+    REQUIRE(reopened_tables[0].column_widths[1].has_value());
+    CHECK_EQ(*reopened_tables[0].column_widths[1], 5400U);
+    CHECK_EQ(reopened_tables[0].text, "r0c0\tr0c1\nr1c0\tr1c1");
+    CHECK_EQ(reopened_tables[1].column_widths, tables[1].column_widths);
+    CHECK_EQ(reopened_tables[1].text, "tail");
+
+    fs::remove(target);
+}
+
+TEST_CASE("inspect table cells returns width span layout and text metadata") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "inspect_table_cells_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto table = doc.append_table(2, 3);
+    CHECK(table.set_column_width_twips(0U, 1200U));
+    CHECK(table.set_column_width_twips(1U, 2200U));
+    CHECK(table.set_column_width_twips(2U, 3200U));
+
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("merged-top"));
+    CHECK(cell.merge_right());
+    CHECK(cell.set_vertical_alignment(featherdoc::cell_vertical_alignment::center));
+    CHECK(cell.set_text_direction(
+        featherdoc::cell_text_direction::top_to_bottom_right_to_left));
+
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("top-right"));
+
+    row.next();
+    REQUIRE(row.has_next());
+    cell = row.cells();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("bottom-left"));
+
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_width_twips(2222U));
+    CHECK(cell.set_text("bottom-middle"));
+
+    cell.next();
+    REQUIRE(cell.has_next());
+    CHECK(cell.set_text("line1"));
+    auto paragraph = cell.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto inserted_paragraph = paragraph.insert_paragraph_after("line2");
+    REQUIRE(inserted_paragraph.has_next());
+
+    const auto cells = doc.inspect_table_cells(0U);
+    REQUIRE(cells.size() == 5U);
+
+    CHECK_EQ(cells[0].row_index, 0U);
+    CHECK_EQ(cells[0].cell_index, 0U);
+    CHECK_EQ(cells[0].column_index, 0U);
+    CHECK_EQ(cells[0].column_span, 2U);
+    CHECK_EQ(cells[0].paragraph_count, 1U);
+    REQUIRE(cells[0].vertical_alignment.has_value());
+    CHECK_EQ(*cells[0].vertical_alignment, featherdoc::cell_vertical_alignment::center);
+    REQUIRE(cells[0].text_direction.has_value());
+    CHECK_EQ(*cells[0].text_direction,
+             featherdoc::cell_text_direction::top_to_bottom_right_to_left);
+    CHECK_EQ(cells[0].text, "merged-top");
+
+    CHECK_EQ(cells[1].row_index, 0U);
+    CHECK_EQ(cells[1].cell_index, 1U);
+    CHECK_EQ(cells[1].column_index, 2U);
+    CHECK_EQ(cells[1].column_span, 1U);
+    CHECK_EQ(cells[1].text, "top-right");
+
+    CHECK_EQ(cells[2].row_index, 1U);
+    CHECK_EQ(cells[2].cell_index, 0U);
+    CHECK_EQ(cells[2].column_index, 0U);
+    CHECK_EQ(cells[2].text, "bottom-left");
+
+    CHECK_EQ(cells[3].row_index, 1U);
+    CHECK_EQ(cells[3].cell_index, 1U);
+    CHECK_EQ(cells[3].column_index, 1U);
+    REQUIRE(cells[3].width_twips.has_value());
+    CHECK_EQ(*cells[3].width_twips, 2222U);
+    CHECK_EQ(cells[3].text, "bottom-middle");
+
+    CHECK_EQ(cells[4].row_index, 1U);
+    CHECK_EQ(cells[4].cell_index, 2U);
+    CHECK_EQ(cells[4].column_index, 2U);
+    CHECK_EQ(cells[4].column_span, 1U);
+    CHECK_EQ(cells[4].paragraph_count, 2U);
+    CHECK_EQ(cells[4].text, "line1\nline2");
+
+    const auto inspected_cell = doc.inspect_table_cell(0U, 1U, 2U);
+    REQUIRE(inspected_cell.has_value());
+    CHECK_EQ(inspected_cell->text, "line1\nline2");
+    CHECK(doc.inspect_table_cells(9U).empty());
+    CHECK_FALSE(doc.inspect_table_cell(0U, 9U, 0U).has_value());
+    CHECK_FALSE(doc.inspect_table_cell(0U, 0U, 9U).has_value());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_cells = reopened.inspect_table_cells(0U);
+    REQUIRE(reopened_cells.size() == 5U);
+    REQUIRE(reopened_cells[0].vertical_alignment.has_value());
+    CHECK_EQ(*reopened_cells[0].vertical_alignment,
+             featherdoc::cell_vertical_alignment::center);
+    REQUIRE(reopened_cells[0].text_direction.has_value());
+    CHECK_EQ(*reopened_cells[0].text_direction,
+             featherdoc::cell_text_direction::top_to_bottom_right_to_left);
+    REQUIRE(reopened_cells[3].width_twips.has_value());
+    CHECK_EQ(*reopened_cells[3].width_twips, 2222U);
+    CHECK_EQ(reopened_cells[4].paragraph_count, 2U);
+    CHECK_EQ(reopened_cells[4].text, "line1\nline2");
+
+    fs::remove(target);
+}
+
+TEST_CASE("template part inspection returns body header and footer metadata") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_part_inspection_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto numbering_definition = featherdoc::numbering_definition{};
+    numbering_definition.name = "TemplatePartInspectOutline";
+    numbering_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1."},
+    };
+
+    const auto numbering_id = doc.ensure_numbering_definition(numbering_definition);
+    REQUIRE(numbering_id.has_value());
+
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    auto body_paragraph = body_template.paragraphs();
+    REQUIRE(body_paragraph.has_next());
+    CHECK(doc.set_paragraph_style(body_paragraph, "Heading1"));
+    CHECK(body_paragraph.set_bidi());
+    REQUIRE(body_paragraph.add_run("Body heading").has_next());
+
+    auto numbered_body_paragraph = body_paragraph.insert_paragraph_after("Body item");
+    REQUIRE(numbered_body_paragraph.has_next());
+    CHECK(doc.set_paragraph_numbering(numbered_body_paragraph, *numbering_id));
+
+    auto &header_paragraph = doc.ensure_section_header_paragraphs(0U);
+    REQUIRE(header_paragraph.has_next());
+    CHECK(header_paragraph.set_text("Header intro"));
+
+    auto header_template = doc.section_header_template(0U);
+    REQUIRE(static_cast<bool>(header_template));
+    auto header_table = header_template.append_table(2U, 2U);
+    REQUIRE(header_table.has_next());
+    CHECK(header_table.set_style_id("TableGrid"));
+    CHECK(header_table.set_column_width_twips(0U, 1800U));
+    CHECK(header_table.set_column_width_twips(1U, 3600U));
+
+    auto header_row = header_table.rows();
+    REQUIRE(header_row.has_next());
+    auto header_cell = header_row.cells();
+    REQUIRE(header_cell.has_next());
+    CHECK(header_cell.set_text("h00"));
+    header_cell.next();
+    REQUIRE(header_cell.has_next());
+    CHECK(header_cell.set_text("h01"));
+
+    header_row.next();
+    REQUIRE(header_row.has_next());
+    header_cell = header_row.cells();
+    REQUIRE(header_cell.has_next());
+    CHECK(header_cell.set_text("h10"));
+    header_cell.next();
+    REQUIRE(header_cell.has_next());
+    CHECK(header_cell.set_width_twips(2222U));
+    CHECK(header_cell.set_text("h11"));
+
+    auto &footer_paragraph = doc.ensure_section_footer_paragraphs(0U);
+    REQUIRE(footer_paragraph.has_next());
+    CHECK(footer_paragraph.set_text("Footer intro"));
+
+    auto footer_template = doc.section_footer_template(0U);
+    REQUIRE(static_cast<bool>(footer_template));
+    auto footer_inspected_paragraph = footer_template.append_paragraph();
+    REQUIRE(footer_inspected_paragraph.has_next());
+    auto footer_styled_run = footer_inspected_paragraph.add_run("Footer styled");
+    REQUIRE(footer_styled_run.has_next());
+    CHECK(doc.set_run_style(footer_styled_run, "Strong"));
+    CHECK(footer_styled_run.set_font_family("Segoe UI"));
+    CHECK(footer_styled_run.set_language("en-US"));
+    auto footer_plain_run = footer_inspected_paragraph.add_run(" tail");
+    REQUIRE(footer_plain_run.has_next());
+
+    const auto body_paragraphs = body_template.inspect_paragraphs();
+    REQUIRE(body_paragraphs.size() == 2U);
+    CHECK_EQ(body_paragraphs[0].index, 0U);
+    REQUIRE(body_paragraphs[0].style_id.has_value());
+    CHECK_EQ(*body_paragraphs[0].style_id, "Heading1");
+    REQUIRE(body_paragraphs[0].bidi.has_value());
+    CHECK(*body_paragraphs[0].bidi);
+    CHECK_EQ(body_paragraphs[0].run_count, 1U);
+    CHECK_EQ(body_paragraphs[0].text, "Body heading");
+    REQUIRE(body_paragraphs[1].numbering.has_value());
+    REQUIRE(body_paragraphs[1].numbering->definition_id.has_value());
+    CHECK_EQ(*body_paragraphs[1].numbering->definition_id, *numbering_id);
+    REQUIRE(body_paragraphs[1].numbering->definition_name.has_value());
+    CHECK_EQ(*body_paragraphs[1].numbering->definition_name,
+             "TemplatePartInspectOutline");
+    CHECK_EQ(body_paragraphs[1].text, "Body item");
+    CHECK_FALSE(body_template.inspect_paragraph(9U).has_value());
+    CHECK(body_template.inspect_paragraph_runs(9U).empty());
+
+    const auto header_tables = header_template.inspect_tables();
+    REQUIRE(header_tables.size() == 1U);
+    CHECK_EQ(header_tables[0].index, 0U);
+    REQUIRE(header_tables[0].style_id.has_value());
+    CHECK_EQ(*header_tables[0].style_id, "TableGrid");
+    CHECK_EQ(header_tables[0].row_count, 2U);
+    CHECK_EQ(header_tables[0].column_count, 2U);
+    REQUIRE(header_tables[0].column_widths.size() == 2U);
+    REQUIRE(header_tables[0].column_widths[0].has_value());
+    CHECK_EQ(*header_tables[0].column_widths[0], 1800U);
+    CHECK_EQ(header_tables[0].text, "h00\th01\nh10\th11");
+
+    const auto header_cells = header_template.inspect_table_cells(0U);
+    REQUIRE(header_cells.size() == 4U);
+    CHECK_EQ(header_cells[3].row_index, 1U);
+    CHECK_EQ(header_cells[3].cell_index, 1U);
+    REQUIRE(header_cells[3].width_twips.has_value());
+    CHECK_EQ(*header_cells[3].width_twips, 2222U);
+    CHECK_EQ(header_cells[3].text, "h11");
+    REQUIRE(header_template.inspect_table_cell(0U, 1U, 1U).has_value());
+    CHECK_FALSE(header_template.inspect_table(9U).has_value());
+    CHECK(header_template.inspect_table_cells(9U).empty());
+
+    const auto footer_runs = footer_template.inspect_paragraph_runs(1U);
+    REQUIRE(footer_runs.size() == 2U);
+    CHECK_EQ(footer_runs[0].index, 0U);
+    REQUIRE(footer_runs[0].style_id.has_value());
+    CHECK_EQ(*footer_runs[0].style_id, "Strong");
+    REQUIRE(footer_runs[0].font_family.has_value());
+    CHECK_EQ(*footer_runs[0].font_family, "Segoe UI");
+    REQUIRE(footer_runs[0].language.has_value());
+    CHECK_EQ(*footer_runs[0].language, "en-US");
+    CHECK_EQ(footer_runs[0].text, "Footer styled");
+    CHECK_EQ(footer_runs[1].text, " tail");
+    REQUIRE(footer_template.inspect_paragraph_run(1U, 0U).has_value());
+    CHECK_FALSE(footer_template.inspect_paragraph_run(1U, 9U).has_value());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_body = reopened.body_template();
+    REQUIRE(static_cast<bool>(reopened_body));
+    const auto reopened_body_paragraphs = reopened_body.inspect_paragraphs();
+    REQUIRE(reopened_body_paragraphs.size() == 2U);
+    REQUIRE(reopened_body_paragraphs[0].style_id.has_value());
+    CHECK_EQ(*reopened_body_paragraphs[0].style_id, "Heading1");
+    REQUIRE(reopened_body_paragraphs[1].numbering.has_value());
+    REQUIRE(reopened_body_paragraphs[1].numbering->definition_name.has_value());
+    CHECK_EQ(*reopened_body_paragraphs[1].numbering->definition_name,
+             "TemplatePartInspectOutline");
+
+    auto reopened_header = reopened.section_header_template(0U);
+    REQUIRE(static_cast<bool>(reopened_header));
+    const auto reopened_header_tables = reopened_header.inspect_tables();
+    REQUIRE(reopened_header_tables.size() == 1U);
+    CHECK_EQ(reopened_header_tables[0].text, "h00\th01\nh10\th11");
+    const auto reopened_header_cells = reopened_header.inspect_table_cells(0U);
+    REQUIRE(reopened_header_cells.size() == 4U);
+    REQUIRE(reopened_header_cells[3].width_twips.has_value());
+    CHECK_EQ(*reopened_header_cells[3].width_twips, 2222U);
+
+    auto reopened_footer = reopened.section_footer_template(0U);
+    REQUIRE(static_cast<bool>(reopened_footer));
+    const auto reopened_footer_runs = reopened_footer.inspect_paragraph_runs(1U);
+    REQUIRE(reopened_footer_runs.size() == 2U);
+    REQUIRE(reopened_footer_runs[0].style_id.has_value());
+    CHECK_EQ(*reopened_footer_runs[0].style_id, "Strong");
+    REQUIRE(reopened_footer_runs[0].language.has_value());
+    CHECK_EQ(*reopened_footer_runs[0].language, "en-US");
+    CHECK_EQ(reopened_footer_runs[1].text, " tail");
+
+    fs::remove(target);
+}
+
+TEST_CASE("template parts can resolve and mutate a table directly from a bookmark") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "template_part_find_table_by_bookmark.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>keep-00</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>keep-01</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="target_before_table"/>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:tbl>
+      <w:tblGrid>
+        <w:gridCol w:w="2400"/>
+        <w:gridCol w:w="2400"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>target-00</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>target-01</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>target-10</w:t></w:r></w:p></w:tc>
+        <w:tc>
+          <w:p>
+            <w:bookmarkStart w:id="1" w:name="target_inside_table"/>
+            <w:r><w:t>target-11</w:t></w:r>
+            <w:bookmarkEnd w:id="1"/>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+
+    const auto before_index =
+        body_template.find_table_index_by_bookmark("target_before_table");
+    REQUIRE(before_index.has_value());
+    CHECK_EQ(*before_index, 1U);
+
+    const auto inside_index =
+        body_template.find_table_index_by_bookmark("target_inside_table");
+    REQUIRE(inside_index.has_value());
+    CHECK_EQ(*inside_index, 1U);
+
+    auto bookmarked_table =
+        body_template.find_table_by_bookmark("target_before_table");
+    REQUIRE(bookmarked_table.has_value());
+
+    auto same_table_from_inside =
+        body_template.find_table_by_bookmark("target_inside_table");
+    REQUIRE(same_table_from_inside.has_value());
+    auto appended_row = same_table_from_inside->append_row(2U);
+    REQUIRE(appended_row.has_next());
+
+    auto target_row = bookmarked_table->rows();
+    REQUIRE(target_row.has_next());
+    target_row.next();
+    REQUIRE(target_row.has_next());
+
+    auto target_cell = target_row.cells();
+    REQUIRE(target_cell.has_next());
+    target_cell.next();
+    REQUIRE(target_cell.has_next());
+    CHECK(target_cell.set_text("target-11-updated"));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_body = reopened.body_template();
+    REQUIRE(static_cast<bool>(reopened_body));
+
+    const auto keep_table = reopened_body.inspect_table(0U);
+    REQUIRE(keep_table.has_value());
+    CHECK_EQ(keep_table->text, "keep-00\tkeep-01");
+
+    const auto target_table = reopened_body.inspect_table(1U);
+    REQUIRE(target_table.has_value());
+    CHECK_EQ(target_table->row_count, 3U);
+    CHECK_EQ(target_table->column_count, 2U);
+    CHECK_NE(target_table->text.find("target-11-updated"), std::string::npos);
+
+    CHECK_FALSE(reopened_body.find_table_by_bookmark("missing_table").has_value());
+
+    fs::remove(target);
+}
+
+TEST_CASE("table handles can update bookmark-targeted rows and cells by index") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "table_indexed_edit_from_bookmark.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="page3_target_table"/>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>row0-col0</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>row0-col1</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>row1-col0</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>row1-col1</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+
+    auto table = body_template.find_table_by_bookmark("page3_target_table");
+    REQUIRE(table.has_value());
+
+    auto first_row = table->find_row(0U);
+    REQUIRE(first_row.has_value());
+    auto second_cell = first_row->find_cell(1U);
+    REQUIRE(second_cell.has_value());
+    CHECK_EQ(second_cell->get_text(), "row0-col1");
+
+    CHECK(table->set_cell_text(0U, 1U, "header-updated"));
+    CHECK(table->set_row_texts(1U, {"body-updated-0", "body-updated-1"}));
+
+    auto second_row = table->find_row(1U);
+    REQUIRE(second_row.has_value());
+    CHECK(second_row->set_texts({"body-rewritten-0", "body-rewritten-1"}));
+
+    CHECK_FALSE(table->find_row(9U).has_value());
+    CHECK_FALSE(table->find_cell(0U, 9U).has_value());
+    CHECK_FALSE(table->find_cell(9U, 0U).has_value());
+    CHECK_FALSE(table->set_cell_text(9U, 0U, "out-of-range"));
+    CHECK_FALSE(table->set_row_texts(0U, {"too", "many", "cells"}));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_body = reopened.body_template();
+    REQUIRE(static_cast<bool>(reopened_body));
+    const auto summary = reopened_body.inspect_table(0U);
+    REQUIRE(summary.has_value());
+    CHECK_EQ(summary->row_count, 2U);
+    CHECK_EQ(summary->column_count, 2U);
+    CHECK_EQ(summary->text,
+             "row0-col0\theader-updated\nbody-rewritten-0\tbody-rewritten-1");
+
+    fs::remove(target);
+}
+
+TEST_CASE("table handles can batch-update bookmark-targeted row ranges and cell blocks") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "table_batch_edit_from_bookmark.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="page3_target_table"/>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>r0c0</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>r0c1</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>r0c2</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>r1c0</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>r1c1</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>r1c2</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>r2c0</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>r2c1</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>r2c2</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    auto body_template = doc.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+
+    auto table = body_template.find_table_by_bookmark("page3_target_table");
+    REQUIRE(table.has_value());
+
+    CHECK(table->set_rows_texts(
+        1U, {{"row1-a", "row1-b", "row1-c"}, {"row2-a", "row2-b", "row2-c"}}));
+    CHECK(table->set_cell_block_texts(
+        0U, 1U, {{"block-00", "block-01"}, {"block-10", "block-11"}}));
+
+    CHECK(table->set_rows_texts(0U, {}));
+    CHECK(table->set_cell_block_texts(0U, 0U, {}));
+
+    CHECK_FALSE(table->set_rows_texts(
+        2U, {{"overflow-row-a", "overflow-row-b", "overflow-row-c"},
+             {"past-end-a", "past-end-b", "past-end-c"}}));
+    CHECK_FALSE(table->set_rows_texts(0U, {{"too-short"}}));
+    CHECK_FALSE(table->set_cell_block_texts(0U, 2U, {{"overflow-a", "overflow-b"}}));
+    CHECK_FALSE(table->set_cell_block_texts(9U, 0U, {{"missing-row"}}));
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_body = reopened.body_template();
+    REQUIRE(static_cast<bool>(reopened_body));
+    const auto summary = reopened_body.inspect_table(0U);
+    REQUIRE(summary.has_value());
+    CHECK_EQ(summary->row_count, 3U);
+    CHECK_EQ(summary->column_count, 3U);
+    CHECK_EQ(summary->text,
+             "r0c0\tblock-00\tblock-01\nrow1-a\tblock-10\tblock-11\nrow2-a\trow2-b\trow2-c");
+
+    fs::remove(target);
+}
+
+TEST_CASE("inspect sections returns header footer layout flags and entry names") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "inspect_sections_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto &section0_default_header = doc.ensure_section_header_paragraphs(0U);
+    REQUIRE(section0_default_header.has_next());
+    CHECK(section0_default_header.set_text("section 0 default header"));
+
+    auto &section0_even_header = doc.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    REQUIRE(section0_even_header.has_next());
+    CHECK(section0_even_header.set_text("section 0 even header"));
+
+    auto &section0_first_footer = doc.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    REQUIRE(section0_first_footer.has_next());
+    CHECK(section0_first_footer.set_text("section 0 first footer"));
+
+    CHECK(doc.append_section(false));
+
+    auto &section1_default_header = doc.ensure_section_header_paragraphs(1U);
+    REQUIRE(section1_default_header.has_next());
+    CHECK(section1_default_header.set_text("section 1 default header"));
+
+    auto &section1_default_footer = doc.ensure_section_footer_paragraphs(1U);
+    REQUIRE(section1_default_footer.has_next());
+    CHECK(section1_default_footer.set_text("section 1 default footer"));
+
+    CHECK(doc.append_section(false));
+
+    const auto sections = doc.inspect_sections();
+    CHECK_EQ(sections.section_count, 3U);
+    CHECK_EQ(sections.header_count, 3U);
+    CHECK_EQ(sections.footer_count, 2U);
+    REQUIRE(sections.even_and_odd_headers_enabled.has_value());
+    CHECK(*sections.even_and_odd_headers_enabled);
+    REQUIRE(sections.sections.size() == 3U);
+
+    CHECK_EQ(sections.sections[0].index, 0U);
+    REQUIRE(sections.sections[0].even_and_odd_headers_enabled.has_value());
+    CHECK(*sections.sections[0].even_and_odd_headers_enabled);
+    CHECK(sections.sections[0].different_first_page_enabled);
+    CHECK(sections.sections[0].header.has_default);
+    CHECK_FALSE(sections.sections[0].header.has_first);
+    CHECK(sections.sections[0].header.has_even);
+    CHECK_FALSE(sections.sections[0].header.default_linked_to_previous);
+    CHECK_FALSE(sections.sections[0].header.even_linked_to_previous);
+    REQUIRE(sections.sections[0].header.default_entry_name.has_value());
+    CHECK_EQ(*sections.sections[0].header.default_entry_name, "word/header1.xml");
+    REQUIRE(sections.sections[0].header.even_entry_name.has_value());
+    CHECK_EQ(*sections.sections[0].header.even_entry_name, "word/header2.xml");
+    CHECK_FALSE(sections.sections[0].header.first_entry_name.has_value());
+    REQUIRE(sections.sections[0].header.resolved_default_entry_name.has_value());
+    CHECK_EQ(*sections.sections[0].header.resolved_default_entry_name, "word/header1.xml");
+    REQUIRE(sections.sections[0].header.resolved_default_section_index.has_value());
+    CHECK_EQ(*sections.sections[0].header.resolved_default_section_index, 0U);
+    REQUIRE(sections.sections[0].header.resolved_even_entry_name.has_value());
+    CHECK_EQ(*sections.sections[0].header.resolved_even_entry_name, "word/header2.xml");
+    REQUIRE(sections.sections[0].header.resolved_even_section_index.has_value());
+    CHECK_EQ(*sections.sections[0].header.resolved_even_section_index, 0U);
+    CHECK_FALSE(sections.sections[0].footer.has_default);
+    CHECK(sections.sections[0].footer.has_first);
+    CHECK_FALSE(sections.sections[0].footer.has_even);
+    CHECK_FALSE(sections.sections[0].footer.first_linked_to_previous);
+    REQUIRE(sections.sections[0].footer.first_entry_name.has_value());
+    CHECK_EQ(*sections.sections[0].footer.first_entry_name, "word/footer1.xml");
+    REQUIRE(sections.sections[0].footer.resolved_first_entry_name.has_value());
+    CHECK_EQ(*sections.sections[0].footer.resolved_first_entry_name, "word/footer1.xml");
+    REQUIRE(sections.sections[0].footer.resolved_first_section_index.has_value());
+    CHECK_EQ(*sections.sections[0].footer.resolved_first_section_index, 0U);
+
+    CHECK_EQ(sections.sections[1].index, 1U);
+    REQUIRE(sections.sections[1].even_and_odd_headers_enabled.has_value());
+    CHECK(*sections.sections[1].even_and_odd_headers_enabled);
+    CHECK_FALSE(sections.sections[1].different_first_page_enabled);
+    CHECK(sections.sections[1].header.has_default);
+    CHECK_FALSE(sections.sections[1].header.has_first);
+    CHECK_FALSE(sections.sections[1].header.has_even);
+    CHECK_FALSE(sections.sections[1].header.default_linked_to_previous);
+    CHECK(sections.sections[1].header.even_linked_to_previous);
+    REQUIRE(sections.sections[1].header.default_entry_name.has_value());
+    CHECK_EQ(*sections.sections[1].header.default_entry_name, "word/header3.xml");
+    REQUIRE(sections.sections[1].header.resolved_default_entry_name.has_value());
+    CHECK_EQ(*sections.sections[1].header.resolved_default_entry_name, "word/header3.xml");
+    REQUIRE(sections.sections[1].header.resolved_default_section_index.has_value());
+    CHECK_EQ(*sections.sections[1].header.resolved_default_section_index, 1U);
+    REQUIRE(sections.sections[1].header.resolved_even_entry_name.has_value());
+    CHECK_EQ(*sections.sections[1].header.resolved_even_entry_name, "word/header2.xml");
+    REQUIRE(sections.sections[1].header.resolved_even_section_index.has_value());
+    CHECK_EQ(*sections.sections[1].header.resolved_even_section_index, 0U);
+    CHECK(sections.sections[1].footer.has_default);
+    CHECK_FALSE(sections.sections[1].footer.has_first);
+    CHECK_FALSE(sections.sections[1].footer.has_even);
+    CHECK_FALSE(sections.sections[1].footer.default_linked_to_previous);
+    CHECK(sections.sections[1].footer.first_linked_to_previous);
+    REQUIRE(sections.sections[1].footer.default_entry_name.has_value());
+    CHECK_EQ(*sections.sections[1].footer.default_entry_name, "word/footer2.xml");
+    REQUIRE(sections.sections[1].footer.resolved_default_entry_name.has_value());
+    CHECK_EQ(*sections.sections[1].footer.resolved_default_entry_name, "word/footer2.xml");
+    REQUIRE(sections.sections[1].footer.resolved_default_section_index.has_value());
+    CHECK_EQ(*sections.sections[1].footer.resolved_default_section_index, 1U);
+    REQUIRE(sections.sections[1].footer.resolved_first_entry_name.has_value());
+    CHECK_EQ(*sections.sections[1].footer.resolved_first_entry_name, "word/footer1.xml");
+    REQUIRE(sections.sections[1].footer.resolved_first_section_index.has_value());
+    CHECK_EQ(*sections.sections[1].footer.resolved_first_section_index, 0U);
+
+    CHECK_EQ(sections.sections[2].index, 2U);
+    REQUIRE(sections.sections[2].even_and_odd_headers_enabled.has_value());
+    CHECK(*sections.sections[2].even_and_odd_headers_enabled);
+    CHECK_FALSE(sections.sections[2].different_first_page_enabled);
+    CHECK_FALSE(sections.sections[2].header.has_default);
+    CHECK_FALSE(sections.sections[2].header.has_first);
+    CHECK_FALSE(sections.sections[2].header.has_even);
+    CHECK(sections.sections[2].header.default_linked_to_previous);
+    CHECK(sections.sections[2].header.even_linked_to_previous);
+    CHECK_FALSE(sections.sections[2].footer.has_default);
+    CHECK_FALSE(sections.sections[2].footer.has_first);
+    CHECK_FALSE(sections.sections[2].footer.has_even);
+    CHECK(sections.sections[2].footer.default_linked_to_previous);
+    CHECK(sections.sections[2].footer.first_linked_to_previous);
+    CHECK_FALSE(sections.sections[2].header.default_entry_name.has_value());
+    CHECK_FALSE(sections.sections[2].header.first_entry_name.has_value());
+    CHECK_FALSE(sections.sections[2].header.even_entry_name.has_value());
+    CHECK_FALSE(sections.sections[2].footer.default_entry_name.has_value());
+    CHECK_FALSE(sections.sections[2].footer.first_entry_name.has_value());
+    CHECK_FALSE(sections.sections[2].footer.even_entry_name.has_value());
+    REQUIRE(sections.sections[2].header.resolved_default_entry_name.has_value());
+    CHECK_EQ(*sections.sections[2].header.resolved_default_entry_name, "word/header3.xml");
+    REQUIRE(sections.sections[2].header.resolved_default_section_index.has_value());
+    CHECK_EQ(*sections.sections[2].header.resolved_default_section_index, 1U);
+    REQUIRE(sections.sections[2].header.resolved_even_entry_name.has_value());
+    CHECK_EQ(*sections.sections[2].header.resolved_even_entry_name, "word/header2.xml");
+    REQUIRE(sections.sections[2].header.resolved_even_section_index.has_value());
+    CHECK_EQ(*sections.sections[2].header.resolved_even_section_index, 0U);
+    REQUIRE(sections.sections[2].footer.resolved_default_entry_name.has_value());
+    CHECK_EQ(*sections.sections[2].footer.resolved_default_entry_name, "word/footer2.xml");
+    REQUIRE(sections.sections[2].footer.resolved_default_section_index.has_value());
+    CHECK_EQ(*sections.sections[2].footer.resolved_default_section_index, 1U);
+    REQUIRE(sections.sections[2].footer.resolved_first_entry_name.has_value());
+    CHECK_EQ(*sections.sections[2].footer.resolved_first_entry_name, "word/footer1.xml");
+    REQUIRE(sections.sections[2].footer.resolved_first_section_index.has_value());
+    CHECK_EQ(*sections.sections[2].footer.resolved_first_section_index, 0U);
+
+    const auto inspected_section = doc.inspect_section(1U);
+    REQUIRE(inspected_section.has_value());
+    CHECK_EQ(inspected_section->index, 1U);
+    REQUIRE(inspected_section->even_and_odd_headers_enabled.has_value());
+    CHECK(*inspected_section->even_and_odd_headers_enabled);
+    CHECK_FALSE(inspected_section->different_first_page_enabled);
+    CHECK(inspected_section->header.has_default);
+    CHECK(inspected_section->footer.has_default);
+    REQUIRE(inspected_section->header.resolved_even_entry_name.has_value());
+    CHECK_EQ(*inspected_section->header.resolved_even_entry_name, "word/header2.xml");
+    REQUIRE(inspected_section->footer.resolved_first_entry_name.has_value());
+    CHECK_EQ(*inspected_section->footer.resolved_first_entry_name, "word/footer1.xml");
+    CHECK_FALSE(doc.inspect_section(9U).has_value());
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_sections = reopened.inspect_sections();
+    CHECK_EQ(reopened_sections.section_count, 3U);
+    CHECK_EQ(reopened_sections.header_count, 3U);
+    CHECK_EQ(reopened_sections.footer_count, 2U);
+    REQUIRE(reopened_sections.even_and_odd_headers_enabled.has_value());
+    CHECK(*reopened_sections.even_and_odd_headers_enabled);
+    REQUIRE(reopened_sections.sections.size() == 3U);
+    REQUIRE(reopened_sections.sections[0].even_and_odd_headers_enabled.has_value());
+    CHECK(*reopened_sections.sections[0].even_and_odd_headers_enabled);
+    CHECK(reopened_sections.sections[0].different_first_page_enabled);
+    REQUIRE(reopened_sections.sections[0].header.default_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[0].header.default_entry_name, "word/header1.xml");
+    REQUIRE(reopened_sections.sections[0].header.even_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[0].header.even_entry_name, "word/header2.xml");
+    REQUIRE(reopened_sections.sections[0].footer.first_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[0].footer.first_entry_name, "word/footer1.xml");
+    REQUIRE(reopened_sections.sections[1].header.resolved_even_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[1].header.resolved_even_entry_name,
+             "word/header2.xml");
+    REQUIRE(reopened_sections.sections[1].footer.resolved_first_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[1].footer.resolved_first_entry_name,
+             "word/footer1.xml");
+    REQUIRE(reopened_sections.sections[1].header.default_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[1].header.default_entry_name, "word/header3.xml");
+    REQUIRE(reopened_sections.sections[1].footer.default_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[1].footer.default_entry_name, "word/footer2.xml");
+    CHECK_FALSE(reopened_sections.sections[2].header.has_default);
+    CHECK_FALSE(reopened_sections.sections[2].footer.has_default);
+    REQUIRE(reopened_sections.sections[2].header.resolved_default_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[2].header.resolved_default_entry_name,
+             "word/header3.xml");
+    REQUIRE(reopened_sections.sections[2].header.resolved_even_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[2].header.resolved_even_entry_name,
+             "word/header2.xml");
+    REQUIRE(reopened_sections.sections[2].footer.resolved_default_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[2].footer.resolved_default_entry_name,
+             "word/footer2.xml");
+    REQUIRE(reopened_sections.sections[2].footer.resolved_first_entry_name.has_value());
+    CHECK_EQ(*reopened_sections.sections[2].footer.resolved_first_entry_name,
+             "word/footer1.xml");
+
+    fs::remove(target);
+}
+
+TEST_CASE("inspect sections reports even-and-odd header setting without settings part") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "inspect_sections_without_settings_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    const auto sections = doc.inspect_sections();
+    CHECK_EQ(sections.section_count, 1U);
+    CHECK_EQ(sections.header_count, 0U);
+    CHECK_EQ(sections.footer_count, 0U);
+    REQUIRE(sections.even_and_odd_headers_enabled.has_value());
+    CHECK_FALSE(*sections.even_and_odd_headers_enabled);
+    REQUIRE(sections.sections.size() == 1U);
+    REQUIRE(sections.sections[0].even_and_odd_headers_enabled.has_value());
+    CHECK_FALSE(*sections.sections[0].even_and_odd_headers_enabled);
+
+    const auto section = doc.inspect_section(0U);
+    REQUIRE(section.has_value());
+    REQUIRE(section->even_and_odd_headers_enabled.has_value());
+    CHECK_FALSE(*section->even_and_odd_headers_enabled);
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    const auto reopened_sections = reopened.inspect_sections();
+    CHECK_EQ(reopened_sections.section_count, 1U);
+    REQUIRE(reopened_sections.even_and_odd_headers_enabled.has_value());
+    CHECK_FALSE(*reopened_sections.even_and_odd_headers_enabled);
+    REQUIRE(reopened_sections.sections.size() == 1U);
+    REQUIRE(reopened_sections.sections[0].even_and_odd_headers_enabled.has_value());
+    CHECK_FALSE(*reopened_sections.sections[0].even_and_odd_headers_enabled);
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "granular run metadata clear APIs preserve unrelated font and language attributes") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "run_partial_metadata_clear_roundtrip.docx";
+    const std::string run_text = "mixed rtl smoke";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+
+    auto run = paragraph.add_run(run_text);
+    REQUIRE(run.has_next());
+
+    CHECK(run.set_font_family("Segoe UI"));
+    CHECK(run.set_east_asia_font_family("Microsoft YaHei"));
+    CHECK(run.set_language("en-US"));
+    CHECK(run.set_east_asia_language("zh-CN"));
+    CHECK(run.set_bidi_language("ar-SA"));
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_run = reopened.paragraphs().runs();
+    REQUIRE(reopened_run.has_next());
+    CHECK(reopened_run.clear_east_asia_font_family());
+    CHECK(reopened_run.clear_east_asia_language());
+    CHECK(reopened_run.clear_bidi_language());
+    CHECK_FALSE(reopened.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("w:ascii=\"Segoe UI\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("w:hAnsi=\"Segoe UI\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("w:cs=\"Segoe UI\""), std::string::npos);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml,
+                                         "w:eastAsia=\"Microsoft YaHei\""),
+             0);
+    CHECK_NE(saved_document_xml.find("w:val=\"en-US\""), std::string::npos);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "w:eastAsia=\"zh-CN\""), 0);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "w:bidi=\"ar-SA\""), 0);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    auto cleared_run = cleared.paragraphs().runs();
+    REQUIRE(cleared_run.has_next());
+
+    const auto font_family = cleared_run.font_family();
+    REQUIRE(font_family.has_value());
+    CHECK_EQ(*font_family, "Segoe UI");
+    CHECK_FALSE(cleared_run.east_asia_font_family().has_value());
+
+    const auto language = cleared_run.language();
+    REQUIRE(language.has_value());
+    CHECK_EQ(*language, "en-US");
+    CHECK_FALSE(cleared_run.east_asia_language().has_value());
+    CHECK_FALSE(cleared_run.bidi_language().has_value());
+    CHECK_EQ(cleared_run.get_text(), run_text);
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "granular default run metadata clear APIs preserve unrelated docDefaults attributes") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "default_run_partial_metadata_clear_roundtrip.docx";
+    const std::string run_text = "default metadata write";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK(doc.set_default_run_font_family("Segoe UI"));
+    CHECK(doc.set_default_run_east_asia_font_family("Microsoft YaHei"));
+    CHECK(doc.set_default_run_language("en-US"));
+    CHECK(doc.set_default_run_east_asia_language("zh-CN"));
+    CHECK(doc.set_default_run_bidi_language("ar-SA"));
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.add_run(run_text).has_next());
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK(reopened.clear_default_run_east_asia_font_family());
+    CHECK(reopened.clear_default_run_east_asia_language());
+    CHECK(reopened.clear_default_run_bidi_language());
+    CHECK_FALSE(reopened.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("w:ascii=\"Segoe UI\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:hAnsi=\"Segoe UI\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:cs=\"Segoe UI\""), std::string::npos);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml,
+                                         "w:eastAsia=\"Microsoft YaHei\""),
+             0);
+    CHECK_NE(saved_styles_xml.find("w:val=\"en-US\""), std::string::npos);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:eastAsia=\"zh-CN\""), 0);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:bidi=\"ar-SA\""), 0);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+
+    const auto default_font_family = cleared.default_run_font_family();
+    REQUIRE(default_font_family.has_value());
+    CHECK_EQ(*default_font_family, "Segoe UI");
+    CHECK_FALSE(cleared.default_run_east_asia_font_family().has_value());
+
+    const auto default_language = cleared.default_run_language();
+    REQUIRE(default_language.has_value());
+    CHECK_EQ(*default_language, "en-US");
+    CHECK_FALSE(cleared.default_run_east_asia_language().has_value());
+    CHECK_FALSE(cleared.default_run_bidi_language().has_value());
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "granular style run metadata clear APIs preserve unrelated style markup") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "style_run_partial_metadata_clear_roundtrip.docx";
+    const std::string run_text = "style partial clear";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK(doc.set_style_run_font_family("Strong", "Segoe UI"));
+    CHECK(doc.set_style_run_east_asia_font_family("Strong", "Microsoft YaHei"));
+    CHECK(doc.set_style_run_language("Strong", "en-US"));
+    CHECK(doc.set_style_run_east_asia_language("Strong", "zh-CN"));
+    CHECK(doc.set_style_run_bidi_language("Strong", "ar-SA"));
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run(run_text);
+    REQUIRE(run.has_next());
+    CHECK(doc.set_run_style(run, "Strong"));
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK(reopened.clear_style_run_east_asia_font_family("Strong"));
+    CHECK(reopened.clear_style_run_east_asia_language("Strong"));
+    CHECK(reopened.clear_style_run_bidi_language("Strong"));
+    CHECK_FALSE(reopened.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_NE(saved_styles_xml.find("w:ascii=\"Segoe UI\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:val=\"en-US\""), std::string::npos);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml,
+                                         "w:eastAsia=\"Microsoft YaHei\""),
+             0);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:eastAsia=\"zh-CN\""), 0);
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:bidi=\"ar-SA\""), 0);
+    CHECK_NE(saved_styles_xml.find("w:b"), std::string::npos);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+
+    const auto style_font_family = cleared.style_run_font_family("Strong");
+    REQUIRE(style_font_family.has_value());
+    CHECK_EQ(*style_font_family, "Segoe UI");
+    CHECK_FALSE(cleared.style_run_east_asia_font_family("Strong").has_value());
+
+    const auto style_language = cleared.style_run_language("Strong");
+    REQUIRE(style_language.has_value());
+    CHECK_EQ(*style_language, "en-US");
+    CHECK_FALSE(cleared.style_run_east_asia_language("Strong").has_value());
+    CHECK_FALSE(cleared.style_run_bidi_language("Strong").has_value());
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "primary run language clear preserves eastAsia and bidi language attributes") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "run_primary_language_clear_roundtrip.docx";
+    const std::string run_text = "primary language clear";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+
+    auto run = paragraph.add_run(run_text);
+    REQUIRE(run.has_next());
+
+    CHECK(run.set_language("en-US"));
+    CHECK(run.set_east_asia_language("zh-CN"));
+    CHECK(run.set_bidi_language("ar-SA"));
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_run = reopened.paragraphs().runs();
+    REQUIRE(reopened_run.has_next());
+    CHECK(reopened_run.clear_primary_language());
+    CHECK_FALSE(reopened.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document_xml, "w:val=\"en-US\""), 0);
+    CHECK_NE(saved_document_xml.find("w:eastAsia=\"zh-CN\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("w:bidi=\"ar-SA\""), std::string::npos);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+
+    auto cleared_run = cleared.paragraphs().runs();
+    REQUIRE(cleared_run.has_next());
+    CHECK_FALSE(cleared_run.language().has_value());
+
+    const auto east_asia_language = cleared_run.east_asia_language();
+    REQUIRE(east_asia_language.has_value());
+    CHECK_EQ(*east_asia_language, "zh-CN");
+
+    const auto bidi_language = cleared_run.bidi_language();
+    REQUIRE(bidi_language.has_value());
+    CHECK_EQ(*bidi_language, "ar-SA");
+    CHECK_EQ(cleared_run.get_text(), run_text);
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "primary default run language clear preserves eastAsia and bidi docDefaults attributes") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "default_run_primary_language_clear_roundtrip.docx";
+    const std::string run_text = "default primary language clear";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK(doc.set_default_run_language("en-US"));
+    CHECK(doc.set_default_run_east_asia_language("zh-CN"));
+    CHECK(doc.set_default_run_bidi_language("ar-SA"));
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.add_run(run_text).has_next());
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK(reopened.clear_default_run_primary_language());
+    CHECK_FALSE(reopened.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:val=\"en-US\""), 0);
+    CHECK_NE(saved_styles_xml.find("w:eastAsia=\"zh-CN\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:bidi=\"ar-SA\""), std::string::npos);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_FALSE(cleared.default_run_language().has_value());
+
+    const auto default_east_asia_language = cleared.default_run_east_asia_language();
+    REQUIRE(default_east_asia_language.has_value());
+    CHECK_EQ(*default_east_asia_language, "zh-CN");
+
+    const auto default_bidi_language = cleared.default_run_bidi_language();
+    REQUIRE(default_bidi_language.has_value());
+    CHECK_EQ(*default_bidi_language, "ar-SA");
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "primary style run language clear preserves eastAsia and bidi style markup") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "style_run_primary_language_clear_roundtrip.docx";
+    const std::string run_text = "style primary language clear";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK_FALSE(doc.clear_style_run_primary_language(""));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(doc.clear_style_run_primary_language("MissingStyle"));
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+
+    CHECK(doc.set_style_run_language("Strong", "en-US"));
+    CHECK(doc.set_style_run_east_asia_language("Strong", "zh-CN"));
+    CHECK(doc.set_style_run_bidi_language("Strong", "ar-SA"));
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run(run_text);
+    REQUIRE(run.has_next());
+    CHECK(doc.set_run_style(run, "Strong"));
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK(reopened.clear_style_run_primary_language("Strong"));
+    CHECK_FALSE(reopened.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_EQ(count_substring_occurrences(saved_styles_xml, "w:val=\"en-US\""), 0);
+    CHECK_NE(saved_styles_xml.find("w:eastAsia=\"zh-CN\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:bidi=\"ar-SA\""), std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:b"), std::string::npos);
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_FALSE(cleared.style_run_language("Strong").has_value());
+
+    const auto style_east_asia_language =
+        cleared.style_run_east_asia_language("Strong");
+    REQUIRE(style_east_asia_language.has_value());
+    CHECK_EQ(*style_east_asia_language, "zh-CN");
+
+    const auto style_bidi_language = cleared.style_run_bidi_language("Strong");
+    REQUIRE(style_bidi_language.has_value());
+    CHECK_EQ(*style_bidi_language, "ar-SA");
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("run rtl clear preserves unrelated run metadata") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "run_rtl_preserve_metadata_roundtrip.docx";
+    const std::string run_text = "rtl mixed metadata preserve";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+
+    auto run = paragraph.add_run(run_text);
+    REQUIRE(run.has_next());
+    CHECK(run.set_font_family("Segoe UI"));
+    CHECK(run.set_east_asia_font_family("Microsoft YaHei"));
+    CHECK(run.set_language("en-US"));
+    CHECK(run.set_east_asia_language("zh-CN"));
+    CHECK(run.set_bidi_language("ar-SA"));
+    CHECK(run.set_rtl());
+    CHECK_FALSE(doc.save());
+
+    auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document document_xml;
+    REQUIRE(document_xml.load_string(saved_document_xml.c_str()));
+    auto run_properties = document_xml.child("w:document")
+                              .child("w:body")
+                              .child("w:p")
+                              .child("w:r")
+                              .child("w:rPr");
+    REQUIRE(run_properties != pugi::xml_node{});
+    REQUIRE(run_properties.child("w:rFonts") != pugi::xml_node{});
+    REQUIRE(run_properties.child("w:lang") != pugi::xml_node{});
+    REQUIRE(run_properties.child("w:rtl") != pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_run = reopened.paragraphs().runs();
+    REQUIRE(reopened_run.has_next());
+    CHECK(reopened_run.clear_rtl());
+    CHECK_FALSE(reopened.save());
+
+    saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document cleared_document_xml;
+    REQUIRE(cleared_document_xml.load_string(saved_document_xml.c_str()));
+    run_properties = cleared_document_xml.child("w:document")
+                         .child("w:body")
+                         .child("w:p")
+                         .child("w:r")
+                         .child("w:rPr");
+    REQUIRE(run_properties != pugi::xml_node{});
+
+    const auto run_fonts = run_properties.child("w:rFonts");
+    REQUIRE(run_fonts != pugi::xml_node{});
+    CHECK_EQ(std::string_view{run_fonts.attribute("w:ascii").value()}, "Segoe UI");
+    CHECK_EQ(std::string_view{run_fonts.attribute("w:eastAsia").value()},
+             "Microsoft YaHei");
+
+    const auto run_language = run_properties.child("w:lang");
+    REQUIRE(run_language != pugi::xml_node{});
+    CHECK_EQ(std::string_view{run_language.attribute("w:val").value()}, "en-US");
+    CHECK_EQ(std::string_view{run_language.attribute("w:eastAsia").value()}, "zh-CN");
+    CHECK_EQ(std::string_view{run_language.attribute("w:bidi").value()}, "ar-SA");
+    CHECK(run_properties.child("w:rtl") == pugi::xml_node{});
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+
+    auto cleared_run = cleared.paragraphs().runs();
+    REQUIRE(cleared_run.has_next());
+    CHECK_FALSE(cleared_run.rtl().has_value());
+
+    const auto font_family = cleared_run.font_family();
+    REQUIRE(font_family.has_value());
+    CHECK_EQ(*font_family, "Segoe UI");
+
+    const auto east_asia_font_family = cleared_run.east_asia_font_family();
+    REQUIRE(east_asia_font_family.has_value());
+    CHECK_EQ(*east_asia_font_family, "Microsoft YaHei");
+
+    const auto language = cleared_run.language();
+    REQUIRE(language.has_value());
+    CHECK_EQ(*language, "en-US");
+
+    const auto east_asia_language = cleared_run.east_asia_language();
+    REQUIRE(east_asia_language.has_value());
+    CHECK_EQ(*east_asia_language, "zh-CN");
+
+    const auto bidi_language = cleared_run.bidi_language();
+    REQUIRE(bidi_language.has_value());
+    CHECK_EQ(*bidi_language, "ar-SA");
+    CHECK_EQ(cleared_run.get_text(), run_text);
+
+    fs::remove(target);
+}
+
+TEST_CASE("default run rtl clear preserves unrelated docDefaults metadata") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "default_run_rtl_preserve_metadata_roundtrip.docx";
+    const std::string run_text = "default rtl metadata preserve";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK(doc.set_default_run_font_family("Segoe UI"));
+    CHECK(doc.set_default_run_east_asia_font_family("Microsoft YaHei"));
+    CHECK(doc.set_default_run_language("en-US"));
+    CHECK(doc.set_default_run_east_asia_language("zh-CN"));
+    CHECK(doc.set_default_run_bidi_language("ar-SA"));
+    CHECK(doc.set_default_run_rtl());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.add_run(run_text).has_next());
+    CHECK_FALSE(doc.save());
+
+    auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(saved_styles_xml.c_str()));
+    auto run_properties = styles_document.child("w:styles")
+                              .child("w:docDefaults")
+                              .child("w:rPrDefault")
+                              .child("w:rPr");
+    REQUIRE(run_properties != pugi::xml_node{});
+    REQUIRE(run_properties.child("w:rFonts") != pugi::xml_node{});
+    REQUIRE(run_properties.child("w:lang") != pugi::xml_node{});
+    REQUIRE(run_properties.child("w:rtl") != pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK(reopened.clear_default_run_rtl());
+    CHECK_FALSE(reopened.save());
+
+    saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    pugi::xml_document cleared_styles_document;
+    REQUIRE(cleared_styles_document.load_string(saved_styles_xml.c_str()));
+    run_properties = cleared_styles_document.child("w:styles")
+                         .child("w:docDefaults")
+                         .child("w:rPrDefault")
+                         .child("w:rPr");
+    REQUIRE(run_properties != pugi::xml_node{});
+
+    const auto run_fonts = run_properties.child("w:rFonts");
+    REQUIRE(run_fonts != pugi::xml_node{});
+    CHECK_EQ(std::string_view{run_fonts.attribute("w:ascii").value()}, "Segoe UI");
+    CHECK_EQ(std::string_view{run_fonts.attribute("w:eastAsia").value()},
+             "Microsoft YaHei");
+
+    const auto run_language = run_properties.child("w:lang");
+    REQUIRE(run_language != pugi::xml_node{});
+    CHECK_EQ(std::string_view{run_language.attribute("w:val").value()}, "en-US");
+    CHECK_EQ(std::string_view{run_language.attribute("w:eastAsia").value()}, "zh-CN");
+    CHECK_EQ(std::string_view{run_language.attribute("w:bidi").value()}, "ar-SA");
+    CHECK(run_properties.child("w:rtl") == pugi::xml_node{});
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_FALSE(cleared.default_run_rtl().has_value());
+
+    const auto default_font_family = cleared.default_run_font_family();
+    REQUIRE(default_font_family.has_value());
+    CHECK_EQ(*default_font_family, "Segoe UI");
+
+    const auto default_east_asia_font_family = cleared.default_run_east_asia_font_family();
+    REQUIRE(default_east_asia_font_family.has_value());
+    CHECK_EQ(*default_east_asia_font_family, "Microsoft YaHei");
+
+    const auto default_language = cleared.default_run_language();
+    REQUIRE(default_language.has_value());
+    CHECK_EQ(*default_language, "en-US");
+
+    const auto default_east_asia_language = cleared.default_run_east_asia_language();
+    REQUIRE(default_east_asia_language.has_value());
+    CHECK_EQ(*default_east_asia_language, "zh-CN");
+
+    const auto default_bidi_language = cleared.default_run_bidi_language();
+    REQUIRE(default_bidi_language.has_value());
+    CHECK_EQ(*default_bidi_language, "ar-SA");
+    CHECK_EQ(collect_document_text(cleared), run_text + "\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("paragraph bidi clear preserves unrelated paragraph properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "paragraph_bidi_preserve_properties_roundtrip.docx";
+    const std::string paragraph_text = "paragraph bidi keeps style";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(doc.set_paragraph_style(paragraph, "Heading1"));
+    CHECK(paragraph.add_run(paragraph_text).has_next());
+    CHECK(paragraph.set_bidi(false));
+    CHECK_FALSE(doc.save());
+
+    auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document document_xml;
+    REQUIRE(document_xml.load_string(saved_document_xml.c_str()));
+    auto paragraph_properties =
+        document_xml.child("w:document").child("w:body").child("w:p").child("w:pPr");
+    REQUIRE(paragraph_properties != pugi::xml_node{});
+    REQUIRE(paragraph_properties.child("w:pStyle") != pugi::xml_node{});
+    REQUIRE(paragraph_properties.child("w:bidi") != pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+
+    auto reopened_paragraph = reopened.paragraphs();
+    REQUIRE(reopened_paragraph.has_next());
+    const auto bidi = reopened_paragraph.bidi();
+    REQUIRE(bidi.has_value());
+    CHECK_FALSE(*bidi);
+    CHECK(reopened_paragraph.clear_bidi());
+    CHECK_FALSE(reopened.save());
+
+    saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document cleared_document_xml;
+    REQUIRE(cleared_document_xml.load_string(saved_document_xml.c_str()));
+    paragraph_properties =
+        cleared_document_xml.child("w:document").child("w:body").child("w:p").child("w:pPr");
+    REQUIRE(paragraph_properties != pugi::xml_node{});
+
+    const auto paragraph_style = paragraph_properties.child("w:pStyle");
+    REQUIRE(paragraph_style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{paragraph_style.attribute("w:val").value()}, "Heading1");
+    CHECK(paragraph_properties.child("w:bidi") == pugi::xml_node{});
+
+    featherdoc::Document cleared(target);
+    CHECK_FALSE(cleared.open());
+    CHECK_EQ(collect_document_text(cleared), paragraph_text + "\n");
+
+    auto cleared_paragraph = cleared.paragraphs();
+    REQUIRE(cleared_paragraph.has_next());
+    CHECK_FALSE(cleared_paragraph.bidi().has_value());
+
+    fs::remove(target);
+}
+
+TEST_CASE("default paragraph bidi clear preserves unrelated docDefaults paragraph markup") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "default_paragraph_bidi_preserve_markup.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>seed</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    const std::string styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:pPrDefault>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+        <w:bidi w:val="1"/>
+      </w:pPr>
+    </w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont">
+    <w:name w:val="Default Paragraph Font"/>
+  </w:style>
+</w:styles>
+)";
+
+    write_test_docx_with_styles(target, document_xml, styles_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto default_bidi = doc.default_paragraph_bidi();
+    REQUIRE(default_bidi.has_value());
+    CHECK(*default_bidi);
+
+    CHECK(doc.clear_default_paragraph_bidi());
+    CHECK_FALSE(doc.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(saved_styles_xml.c_str()));
+    const auto paragraph_properties = styles_document.child("w:styles")
+                                        .child("w:docDefaults")
+                                        .child("w:pPrDefault")
+                                        .child("w:pPr");
+    REQUIRE(paragraph_properties != pugi::xml_node{});
+
+    const auto spacing = paragraph_properties.child("w:spacing");
+    REQUIRE(spacing != pugi::xml_node{});
+    CHECK_EQ(std::string_view{spacing.attribute("w:after").value()}, "120");
+    CHECK(paragraph_properties.child("w:bidi") == pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_FALSE(reopened.default_paragraph_bidi().has_value());
+    CHECK_EQ(collect_document_text(reopened), "seed\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("style run rtl clear preserves unrelated style run metadata") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "style_run_rtl_preserve_metadata.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r>
+        <w:rPr><w:rStyle w:val="AccentStrong"/></w:rPr>
+        <w:t>seed</w:t>
+      </w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    const std::string styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont">
+    <w:name w:val="Default Paragraph Font"/>
+  </w:style>
+  <w:style w:type="character" w:styleId="AccentStrong" w:customStyle="1">
+    <w:name w:val="Accent Strong"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:rPr>
+      <w:b/>
+      <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Segoe UI"
+                w:eastAsia="Microsoft YaHei"/>
+      <w:lang w:val="en-US" w:eastAsia="zh-CN" w:bidi="ar-SA"/>
+      <w:rtl w:val="1"/>
+    </w:rPr>
+  </w:style>
+</w:styles>
+)";
+
+    write_test_docx_with_styles(target, document_xml, styles_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto style_rtl = doc.style_run_rtl("AccentStrong");
+    REQUIRE(style_rtl.has_value());
+    CHECK(*style_rtl);
+
+    CHECK(doc.clear_style_run_rtl("AccentStrong"));
+    CHECK_FALSE(doc.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(saved_styles_xml.c_str()));
+    const auto style = find_style_xml_node(styles_document.child("w:styles"), "AccentStrong");
+    REQUIRE(style != pugi::xml_node{});
+    const auto run_properties = style.child("w:rPr");
+    REQUIRE(run_properties != pugi::xml_node{});
+    CHECK(run_properties.child("w:b") != pugi::xml_node{});
+
+    const auto run_fonts = run_properties.child("w:rFonts");
+    REQUIRE(run_fonts != pugi::xml_node{});
+    CHECK_EQ(std::string_view{run_fonts.attribute("w:ascii").value()}, "Segoe UI");
+    CHECK_EQ(std::string_view{run_fonts.attribute("w:eastAsia").value()},
+             "Microsoft YaHei");
+
+    const auto run_language = run_properties.child("w:lang");
+    REQUIRE(run_language != pugi::xml_node{});
+    CHECK_EQ(std::string_view{run_language.attribute("w:val").value()}, "en-US");
+    CHECK_EQ(std::string_view{run_language.attribute("w:eastAsia").value()}, "zh-CN");
+    CHECK_EQ(std::string_view{run_language.attribute("w:bidi").value()}, "ar-SA");
+    CHECK(run_properties.child("w:rtl") == pugi::xml_node{});
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_FALSE(reopened.style_run_rtl("AccentStrong").has_value());
+
+    const auto style_font = reopened.style_run_font_family("AccentStrong");
+    REQUIRE(style_font.has_value());
+    CHECK_EQ(*style_font, "Segoe UI");
+
+    const auto style_east_asia_font = reopened.style_run_east_asia_font_family("AccentStrong");
+    REQUIRE(style_east_asia_font.has_value());
+    CHECK_EQ(*style_east_asia_font, "Microsoft YaHei");
+
+    const auto style_language = reopened.style_run_language("AccentStrong");
+    REQUIRE(style_language.has_value());
+    CHECK_EQ(*style_language, "en-US");
+
+    const auto style_east_asia_language =
+        reopened.style_run_east_asia_language("AccentStrong");
+    REQUIRE(style_east_asia_language.has_value());
+    CHECK_EQ(*style_east_asia_language, "zh-CN");
+
+    const auto style_bidi_language = reopened.style_run_bidi_language("AccentStrong");
+    REQUIRE(style_bidi_language.has_value());
+    CHECK_EQ(*style_bidi_language, "ar-SA");
+
+    fs::remove(target);
+}
+
+TEST_CASE("style paragraph bidi clear preserves unrelated style paragraph and run markup") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "style_paragraph_bidi_preserve_markup.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr><w:pStyle w:val="CustomHeading"/></w:pPr>
+      <w:r><w:t>seed</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    const std::string styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont">
+    <w:name w:val="Default Paragraph Font"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="CustomHeading" w:customStyle="1">
+    <w:name w:val="Custom Heading"/>
+    <w:basedOn w:val="Normal"/>
+    <w:pPr>
+      <w:keepNext/>
+      <w:outlineLvl w:val="2"/>
+      <w:bidi w:val="1"/>
+    </w:pPr>
+    <w:rPr>
+      <w:b/>
+      <w:lang w:val="en-US"/>
+    </w:rPr>
+  </w:style>
+</w:styles>
+)";
+
+    write_test_docx_with_styles(target, document_xml, styles_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto style_bidi = doc.style_paragraph_bidi("CustomHeading");
+    REQUIRE(style_bidi.has_value());
+    CHECK(*style_bidi);
+
+    CHECK(doc.clear_style_paragraph_bidi("CustomHeading"));
+    CHECK_FALSE(doc.save());
+
+    const auto saved_styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(saved_styles_xml.c_str()));
+    const auto style = find_style_xml_node(styles_document.child("w:styles"), "CustomHeading");
+    REQUIRE(style != pugi::xml_node{});
+
+    const auto paragraph_properties = style.child("w:pPr");
+    REQUIRE(paragraph_properties != pugi::xml_node{});
+    CHECK(paragraph_properties.child("w:keepNext") != pugi::xml_node{});
+    const auto outline_level = paragraph_properties.child("w:outlineLvl");
+    REQUIRE(outline_level != pugi::xml_node{});
+    CHECK_EQ(std::string_view{outline_level.attribute("w:val").value()}, "2");
+    CHECK(paragraph_properties.child("w:bidi") == pugi::xml_node{});
+
+    const auto run_properties = style.child("w:rPr");
+    REQUIRE(run_properties != pugi::xml_node{});
+    CHECK(run_properties.child("w:b") != pugi::xml_node{});
+    const auto run_language = run_properties.child("w:lang");
+    REQUIRE(run_language != pugi::xml_node{});
+    CHECK_EQ(std::string_view{run_language.attribute("w:val").value()}, "en-US");
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_FALSE(reopened.style_paragraph_bidi("CustomHeading").has_value());
+    CHECK_EQ(collect_document_text(reopened), "seed\n");
 
     fs::remove(target);
 }

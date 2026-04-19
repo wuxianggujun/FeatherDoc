@@ -8,6 +8,206 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added `featherdoc_cli inspect-tables` and
+  `featherdoc_cli inspect-table-cells` so table and table-cell inspection
+  metadata can be queried from the CLI without writing a C++ integration.
+- Added `featherdoc_cli set-table-cell-text` so a specific body-table cell can
+  be rewritten from the CLI while preserving the existing cell container and
+  its layout metadata.
+- Added `featherdoc_cli merge-table-cells` so body-table cells can be merged to
+  the right or downward from the CLI with explicit direction and span control.
+- Added `featherdoc_cli unmerge-table-cells` so existing horizontal or vertical
+  body-table merges can be split from the CLI using the same directional
+  targeting model as merges.
+- Added `featherdoc_cli set-table-cell-fill` and
+  `clear-table-cell-fill` so body-table cell shading can be edited from the
+  CLI without dropping into raw XML.
+- Added `featherdoc_cli set-table-cell-vertical-alignment`,
+  `clear-table-cell-vertical-alignment`, `set-table-cell-text-direction`, and
+  `clear-table-cell-text-direction` so body-table cell layout metadata can be
+  edited from the CLI alongside text replacement and merge operations.
+- Added `featherdoc_cli set-table-cell-width`,
+  `clear-table-cell-width`, `set-table-cell-margin`,
+  `clear-table-cell-margin`, `set-table-cell-border`, and
+  `clear-table-cell-border` so body-table cell width, margin, and border
+  metadata can also be edited from the CLI without dropping into raw XML.
+- Added `featherdoc_cli set-table-row-height`,
+  `clear-table-row-height`, `set-table-row-cant-split`,
+  `clear-table-row-cant-split`, `set-table-row-repeat-header`, and
+  `clear-table-row-repeat-header` so body-table row height, page-splitting,
+  and repeating-header behavior can also be edited from the CLI.
+- Added `featherdoc_cli inspect-table-rows`, `append-table-row`,
+  `insert-table-row-before`, `insert-table-row-after`, and
+  `remove-table-row` so CLI workflows can inspect row-level table metadata and
+  grow or shrink body tables without dropping to the C++ API.
+- Added granular clear helpers for run/default/style eastAsia font and
+  eastAsia/bidi language metadata so callers can drop one override without
+  wiping unrelated run formatting.
+- Added `featherdoc_cli set-paragraph-list`,
+  `featherdoc_cli restart-paragraph-list`, and
+  `featherdoc_cli clear-paragraph-list` so CLI workflows can attach managed
+  bullet/decimal numbering to body paragraphs, restart list sequences at a
+  target paragraph, or remove paragraph list markers without dropping to the
+  C++ API.
+- Added `featherdoc_cli ensure-numbering-definition` and
+  `featherdoc_cli set-paragraph-numbering` so CLI workflows can create or
+  update custom numbering definitions and then apply those definitions to body
+  paragraphs by definition id, including explicit nesting levels, without
+  dropping to the C++ API.
+- Added `featherdoc_cli inspect-paragraphs` so CLI workflows can enumerate
+  body paragraph indices together with section ownership, paragraph style ids,
+  direct numbering metadata, and section-break markers before issuing
+  paragraph-targeted mutations.
+- Added `featherdoc_cli replace-bookmark-paragraphs` and
+  `remove-bookmark-block` so CLI workflows can replace or delete standalone
+  bookmark placeholder paragraphs in body/header/footer/section-scoped
+  template parts without dropping to the C++ API.
+- Added Word-backed visual regression coverage for bookmark/template paragraph
+  mutation flows, including multiline bookmark text replacement, section
+  header/footer multiline replacement, `replace-bookmark-paragraphs`
+  single-page and cross-page expansion, and `remove-bookmark-block`
+  placeholder removal across body/header/footer template parts.
+- Added `featherdoc_cli replace-bookmark-table` and
+  `replace-bookmark-table-rows` so CLI workflows can replace standalone
+  bookmark placeholder paragraphs with generated tables or expand
+  bookmark-backed template rows inside existing tables, including empty
+  replacement lists for removing template rows.
+- Added `featherdoc_cli set-bookmark-block-visibility` and
+  `apply-bookmark-block-visibility` so CLI workflows can keep or remove
+  bookmark-guarded template blocks in body/header/footer/section-scoped
+  template parts without dropping to the C++ API.
+- Added `featherdoc_cli replace-bookmark-text` and `fill-bookmarks` so CLI
+  workflows can rewrite one bookmark range or batch-fill multiple bookmark
+  text slots across body/header/footer/section-scoped template parts without
+  dropping to the C++ API.
+- Added `featherdoc_cli inspect-template-paragraphs`,
+  `inspect-template-runs`, `inspect-template-tables`, and
+  `inspect-template-table-cells` so CLI workflows can inspect paragraph/run/
+  table metadata inside body/header/footer/section-scoped template parts
+  before issuing bookmark or template mutations.
+- Added `featherdoc_cli inspect-template-table-rows` so template-part table
+  rows can also be inspected from the CLI with the same
+  `--part/--index/--section/--kind` target model as the rest of the template
+  inspection commands.
+- Added `featherdoc_cli set-template-table-cell-text` so table-cell text can
+  now be rewritten inside body/header/footer/section-scoped template parts
+  without changing the existing body-only `set-table-cell-text` command
+  semantics.
+- Added `featherdoc_cli set-template-table-row-texts` so a contiguous row
+  range inside a template-part table can be overwritten from either a
+  positional table index or `--bookmark <name>` with the existing
+  `--row/--cell` input shape.
+- Added `featherdoc_cli set-template-table-cell-block-texts` so a
+  bookmark-targeted template table can overwrite a rectangular cell block
+  from a starting row/cell position without dropping to the C++ API.
+- Added `featherdoc_cli append-template-table-row`,
+  `insert-template-table-row-before`,
+  `insert-template-table-row-after`, and `remove-template-table-row` so
+  template-part tables can now grow or shrink with the same
+  `--part/--index/--section/--kind` target model used by the rest of the
+  template CLI mutations.
+- Added `featherdoc_cli merge-template-table-cells` and
+  `unmerge-template-table-cells` so template-part tables can also merge or
+  split horizontal/vertical cell spans across `body`, `header`, `footer`,
+  `section-header`, and `section-footer` selections without dropping into the
+  C++ API.
+- Added bookmark-backed template-table selectors across the template-table CLI
+  surface plus `TemplatePart::find_table_index_by_bookmark(...)` and
+  `TemplatePart::find_table_by_bookmark(...)`, so table inspection and
+  mutation commands can target a named bookmark instead of a fragile
+  positional table index when you need to reach a specific page-local table.
+- Added indexed table editing helpers on `Table` / `TableRow`, including
+  `find_row(...)`, `find_cell(...)`, `set_cell_text(...)`, and
+  `set_row_texts(...)`, so bookmark-targeted tables can be updated directly in
+  C++ without hand-written iterator walks.
+- Added batch table editing helpers `set_rows_texts(...)` and
+  `set_cell_block_texts(...)`, so page-local tables can be updated from a
+  row range or rectangular data block in one call instead of per-cell loops.
+- Added `scripts/run_template_table_cli_visual_regression.ps1` so the new
+  template-table CLI row/cell commands can be verified through dedicated
+  `body`, `section-header`, and `section-footer` samples plus Word-rendered
+  before/after screenshot evidence, not just structural inspection or unit
+  tests.
+- Added `scripts/run_template_table_cli_bookmark_visual_regression.ps1` plus
+  a dedicated sample generator so bookmark-targeted
+  `set-template-table-row-texts` and
+  `set-template-table-cell-block-texts` flows now emit Word-rendered
+  before/after evidence for both a bookmark paragraph immediately before the
+  target table and a bookmark embedded inside the table itself.
+- Added `scripts/run_template_table_cli_direct_visual_regression.ps1` plus a
+  dedicated sample generator so the same template-table row/cell CLI flows can
+  also emit screenshot-backed baseline/mutated evidence for direct `header`,
+  direct `footer`, and `body` scenarios.
+- Added `scripts/run_template_table_cli_section_kind_visual_regression.ps1`
+  plus a dedicated sample generator so section-scoped template-table row/cell
+  CLI flows can also emit screenshot-backed baseline/mutated evidence for
+  `--kind default`, `--kind even`, and `--kind first`, including page-specific
+  Word screenshots beyond `page-01`.
+- Added `scripts/run_template_table_cli_section_kind_row_visual_regression.ps1`
+  plus a dedicated sample generator so section-scoped template-table row CLI
+  flows can also emit screenshot-backed baseline/mutated evidence for
+  `section-header --kind default` insert-row-before,
+  `section-header --kind even` append-row,
+  `section-footer --kind first` remove-row, and
+  `section-footer --kind default` insert-row-after, including page-specific
+  Word screenshots beyond `page-01`.
+- Added `scripts/run_template_table_cli_section_kind_column_visual_regression.ps1`
+  plus a dedicated sample generator so section-scoped template-table column
+  CLI flows can also emit screenshot-backed baseline/mutated evidence for
+  `section-header --kind default` insert-before,
+  `section-header --kind even` remove-column,
+  `section-footer --kind first` insert-after, and
+  `section-footer --kind default` remove-column, including page-specific Word
+  screenshots beyond `page-01`.
+- Added `scripts/run_template_table_cli_section_kind_merge_unmerge_visual_regression.ps1`
+  plus a dedicated sample generator so section-scoped template-table
+  merge/unmerge CLI flows can also emit screenshot-backed baseline/mutated
+  evidence for `section-header --kind default` merge-right,
+  `section-header --kind even` unmerge-right,
+  `section-footer --kind first` merge-down, and
+  `section-footer --kind default` unmerge-down, including page-specific Word
+  screenshots beyond `page-01`.
+- Added `scripts/run_template_table_cli_merge_unmerge_visual_regression.ps1`
+  plus a dedicated sample generator so template-table merge/unmerge CLI flows
+  can now emit screenshot-backed baseline/mutated evidence for
+  `section-header` merge-right, `section-footer` merge-down, and `body`
+  unmerge-right / unmerge-down scenarios.
+- Added `scripts/run_template_table_cli_column_visual_regression.ps1` plus a
+  dedicated sample generator so template-table column CLI flows can now emit
+  screenshot-backed baseline/mutated evidence for `section-header`
+  insert-before, `section-footer` insert-after, and `body` remove-column
+  scenarios.
+- Added `scripts/run_template_table_cli_direct_column_visual_regression.ps1`
+  plus a dedicated sample generator so the same template-table column CLI
+  flows can also emit screenshot-backed baseline/mutated evidence for direct
+  `header` insert-before, direct `footer` insert-after, and `body`
+  remove-column scenarios.
+- Added `scripts/run_template_table_cli_direct_merge_unmerge_visual_regression.ps1`
+  plus a dedicated sample generator so template-table merge/unmerge CLI
+  flows can also emit screenshot-backed baseline/mutated evidence for direct
+  `header` merge-right, direct `footer` unmerge-down, and `body`
+  merge-down scenarios.
+- Added `featherdoc_cli set-paragraph-style` and
+  `featherdoc_cli clear-paragraph-style` so CLI workflows can assign or remove
+  paragraph styles from specific body paragraphs by paragraph index without
+  dropping to the C++ API.
+- Added `featherdoc_cli set-run-style` and `featherdoc_cli clear-run-style` so
+  CLI workflows can assign or remove character styles from specific body runs
+  by paragraph index and run index without dropping to the C++ API.
+- Added `featherdoc_cli inspect-runs` so CLI workflows can enumerate run
+  indices, character style ids, direct run font/language tags, and text
+  content for a specific body paragraph before issuing run-targeted mutations.
+- Added `featherdoc_cli set-run-font-family` and
+  `featherdoc_cli clear-run-font-family` so CLI workflows can assign or remove
+  direct run font families on specific body runs by paragraph index and run
+  index without dropping to the C++ API.
+- Added `featherdoc_cli set-run-language` and
+  `featherdoc_cli clear-run-language` so CLI workflows can assign or remove
+  direct run language tags on specific body runs by paragraph index and run
+  index without dropping to the C++ API.
+
 ## [1.8.0] - 2026-04-15
 
 ### Added

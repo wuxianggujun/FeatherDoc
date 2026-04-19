@@ -33,6 +33,17 @@ auto count_named_children(pugi::xml_node parent, std::string_view child_name)
     return count;
 }
 
+auto string_matrix_from_initializer_list(
+    std::initializer_list<std::initializer_list<std::string>> rows)
+    -> std::vector<std::vector<std::string>> {
+    auto result = std::vector<std::vector<std::string>>{};
+    result.reserve(rows.size());
+    for (const auto &row : rows) {
+        result.emplace_back(row.begin(), row.end());
+    }
+    return result;
+}
+
 void ensure_attribute_value(pugi::xml_node node, const char *name, const char *value) {
     if (node == pugi::xml_node{}) {
         return;
@@ -2209,11 +2220,7 @@ std::string TableCell::get_text() const {
             text.push_back('\n');
         }
         first_paragraph = false;
-
-        for (auto run = paragraph_node.child("w:r"); run != pugi::xml_node{};
-             run = detail::next_named_sibling(run, "w:r")) {
-            text += run.child("w:t").text().get();
-        }
+        text += detail::collect_plain_text_from_xml(paragraph_node);
     }
 
     return text;
@@ -3122,6 +3129,48 @@ TableRow &TableRow::next() {
     return *this;
 }
 
+std::optional<TableCell> TableRow::find_cell(std::size_t cell_index) {
+    auto cell_handle = this->cells();
+    for (std::size_t current_index = 0U;
+         current_index < cell_index && cell_handle.has_next(); ++current_index) {
+        cell_handle.next();
+    }
+
+    if (!cell_handle.has_next()) {
+        return std::nullopt;
+    }
+
+    return cell_handle;
+}
+
+bool TableRow::set_texts(const std::vector<std::string> &texts) {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto cell_count = count_named_children(this->current, "w:tc");
+    if (texts.size() != cell_count) {
+        return false;
+    }
+
+    auto cell_handle = this->cells();
+    for (std::size_t index = 0U; index < texts.size(); ++index) {
+        if (!cell_handle.has_next() || !cell_handle.set_text(texts[index])) {
+            return false;
+        }
+
+        if (index + 1U < texts.size()) {
+            cell_handle.next();
+        }
+    }
+
+    return true;
+}
+
+bool TableRow::set_texts(std::initializer_list<std::string> texts) {
+    return this->set_texts(std::vector<std::string>{texts});
+}
+
 Table::Table() = default;
 
 Table::Table(pugi::xml_node parent, pugi::xml_node current) {
@@ -3153,6 +3202,166 @@ bool Table::has_next() const { return this->current != pugi::xml_node{}; }
 TableRow &Table::rows() {
     this->row.set_parent(this->current);
     return this->row;
+}
+
+std::optional<TableRow> Table::find_row(std::size_t row_index) {
+    auto row_handle = this->rows();
+    for (std::size_t current_index = 0U;
+         current_index < row_index && row_handle.has_next(); ++current_index) {
+        row_handle.next();
+    }
+
+    if (!row_handle.has_next()) {
+        return std::nullopt;
+    }
+
+    return row_handle;
+}
+
+std::optional<TableCell> Table::find_cell(std::size_t row_index, std::size_t cell_index) {
+    auto row_handle = this->find_row(row_index);
+    if (!row_handle.has_value()) {
+        return std::nullopt;
+    }
+
+    return row_handle->find_cell(cell_index);
+}
+
+bool Table::set_cell_text(std::size_t row_index, std::size_t cell_index,
+                          const std::string &text) {
+    auto cell_handle = this->find_cell(row_index, cell_index);
+    if (!cell_handle.has_value()) {
+        return false;
+    }
+
+    return cell_handle->set_text(text);
+}
+
+bool Table::set_row_texts(std::size_t row_index, const std::vector<std::string> &texts) {
+    auto row_handle = this->find_row(row_index);
+    if (!row_handle.has_value()) {
+        return false;
+    }
+
+    return row_handle->set_texts(texts);
+}
+
+bool Table::set_row_texts(std::size_t row_index, std::initializer_list<std::string> texts) {
+    return this->set_row_texts(row_index, std::vector<std::string>{texts});
+}
+
+bool Table::set_rows_texts(std::size_t start_row_index,
+                           const std::vector<std::vector<std::string>> &rows) {
+    if (rows.empty()) {
+        return true;
+    }
+
+    const auto count_row_cells = [](TableRow row_handle) -> std::size_t {
+        auto count = std::size_t{0U};
+        for (auto cell_handle = row_handle.cells(); cell_handle.has_next();
+             cell_handle.next()) {
+            ++count;
+        }
+        return count;
+    };
+
+    auto row_handles = std::vector<TableRow>{};
+    row_handles.reserve(rows.size());
+    for (std::size_t row_offset = 0U; row_offset < rows.size(); ++row_offset) {
+        auto row_handle = this->find_row(start_row_index + row_offset);
+        if (!row_handle.has_value()) {
+            return false;
+        }
+
+        if (count_row_cells(*row_handle) != rows[row_offset].size()) {
+            return false;
+        }
+
+        row_handles.push_back(*row_handle);
+    }
+
+    for (std::size_t row_offset = 0U; row_offset < rows.size(); ++row_offset) {
+        if (!row_handles[row_offset].set_texts(rows[row_offset])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Table::set_rows_texts(
+    std::size_t start_row_index,
+    std::initializer_list<std::initializer_list<std::string>> rows) {
+    return this->set_rows_texts(start_row_index,
+                                string_matrix_from_initializer_list(rows));
+}
+
+bool Table::set_cell_block_texts(
+    std::size_t start_row_index, std::size_t start_cell_index,
+    const std::vector<std::vector<std::string>> &rows) {
+    if (rows.empty()) {
+        return true;
+    }
+
+    const auto count_row_cells = [](TableRow row_handle) -> std::size_t {
+        auto count = std::size_t{0U};
+        for (auto cell_handle = row_handle.cells(); cell_handle.has_next();
+             cell_handle.next()) {
+            ++count;
+        }
+        return count;
+    };
+
+    auto row_handles = std::vector<TableRow>{};
+    row_handles.reserve(rows.size());
+    for (std::size_t row_offset = 0U; row_offset < rows.size(); ++row_offset) {
+        auto row_handle = this->find_row(start_row_index + row_offset);
+        if (!row_handle.has_value()) {
+            return false;
+        }
+
+        const auto row_cell_count = count_row_cells(*row_handle);
+        if (start_cell_index > row_cell_count ||
+            rows[row_offset].size() > row_cell_count - start_cell_index) {
+            return false;
+        }
+
+        row_handles.push_back(*row_handle);
+    }
+
+    for (std::size_t row_offset = 0U; row_offset < rows.size(); ++row_offset) {
+        if (rows[row_offset].empty()) {
+            continue;
+        }
+
+        auto cell_handle = row_handles[row_offset].find_cell(start_cell_index);
+        if (!cell_handle.has_value()) {
+            return false;
+        }
+
+        for (std::size_t cell_offset = 0U; cell_offset < rows[row_offset].size();
+             ++cell_offset) {
+            if (!cell_handle->set_text(rows[row_offset][cell_offset])) {
+                return false;
+            }
+
+            if (cell_offset + 1U < rows[row_offset].size()) {
+                cell_handle->next();
+                if (!cell_handle->has_next()) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+bool Table::set_cell_block_texts(
+    std::size_t start_row_index, std::size_t start_cell_index,
+    std::initializer_list<std::initializer_list<std::string>> rows) {
+    return this->set_cell_block_texts(start_row_index, start_cell_index,
+                                      string_matrix_from_initializer_list(rows));
 }
 
 std::optional<std::uint32_t> Table::width_twips() const {

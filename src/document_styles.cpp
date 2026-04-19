@@ -326,6 +326,140 @@ auto read_paragraph_bidi(pugi::xml_node paragraph_properties) -> std::optional<b
     return read_on_off_value(paragraph_properties.child("w:bidi"));
 }
 
+auto read_paragraph_style_id(pugi::xml_node paragraph_properties) -> std::optional<std::string> {
+    return read_language_attribute(paragraph_properties.child("w:pStyle"), "w:val");
+}
+
+auto parse_u32_attribute_value(const char *text) -> std::optional<std::uint32_t>;
+
+auto summarize_paragraph_numbering(pugi::xml_node paragraph_properties)
+    -> std::optional<featherdoc::paragraph_inspection_summary::numbering_summary> {
+    const auto numbering_properties = paragraph_properties.child("w:numPr");
+    if (numbering_properties == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    auto summary = featherdoc::paragraph_inspection_summary::numbering_summary{};
+    summary.level = parse_u32_attribute_value(
+        numbering_properties.child("w:ilvl").attribute("w:val").value());
+    summary.num_id = parse_u32_attribute_value(
+        numbering_properties.child("w:numId").attribute("w:val").value());
+    return summary;
+}
+
+auto summarize_paragraph_node(pugi::xml_node paragraph_node, std::size_t paragraph_index)
+    -> featherdoc::paragraph_inspection_summary {
+    auto summary = featherdoc::paragraph_inspection_summary{};
+    summary.index = paragraph_index;
+
+    const auto paragraph_properties = paragraph_node.child("w:pPr");
+    summary.style_id = read_paragraph_style_id(paragraph_properties);
+    summary.bidi = read_paragraph_bidi(paragraph_properties);
+    summary.numbering = summarize_paragraph_numbering(paragraph_properties);
+
+    auto paragraph_handle = featherdoc::Paragraph{paragraph_node.parent(), paragraph_node};
+    for (auto run = paragraph_handle.runs(); run.has_next(); run.next()) {
+        ++summary.run_count;
+        summary.text += run.get_text();
+    }
+
+    return summary;
+}
+
+auto summarize_table_handle(featherdoc::Table table_handle, std::size_t table_index)
+    -> featherdoc::table_inspection_summary {
+    auto summary = featherdoc::table_inspection_summary{};
+    summary.index = table_index;
+    summary.style_id = table_handle.style_id();
+    summary.width_twips = table_handle.width_twips();
+
+    bool first_row = true;
+    for (auto row = table_handle.rows(); row.has_next(); row.next()) {
+        ++summary.row_count;
+
+        std::size_t row_column_count = 0U;
+        bool first_cell = true;
+        for (auto cell = row.cells(); cell.has_next(); cell.next()) {
+            row_column_count += cell.column_span();
+
+            if (!first_row) {
+                if (first_cell) {
+                    summary.text.push_back('\n');
+                } else {
+                    summary.text.push_back('\t');
+                }
+            } else if (!first_cell) {
+                summary.text.push_back('\t');
+            }
+
+            summary.text += cell.get_text();
+            first_cell = false;
+        }
+
+        summary.column_count = std::max(summary.column_count, row_column_count);
+        first_row = false;
+    }
+
+    summary.column_widths.reserve(summary.column_count);
+    for (std::size_t column_index = 0U; column_index < summary.column_count; ++column_index) {
+        summary.column_widths.push_back(table_handle.column_width_twips(column_index));
+    }
+
+    return summary;
+}
+
+auto summarize_table_cell_handle(featherdoc::TableCell cell_handle, std::size_t row_index,
+                                 std::size_t cell_index, std::size_t column_index)
+    -> featherdoc::table_cell_inspection_summary {
+    auto summary = featherdoc::table_cell_inspection_summary{};
+    summary.row_index = row_index;
+    summary.cell_index = cell_index;
+    summary.column_index = column_index;
+    summary.column_span = cell_handle.column_span();
+    summary.width_twips = cell_handle.width_twips();
+    summary.vertical_alignment = cell_handle.vertical_alignment();
+    summary.text_direction = cell_handle.text_direction();
+    summary.text = cell_handle.get_text();
+
+    for (auto paragraph = cell_handle.paragraphs(); paragraph.has_next(); paragraph.next()) {
+        ++summary.paragraph_count;
+    }
+
+    return summary;
+}
+
+auto collect_table_cell_summaries(featherdoc::Table table_handle)
+    -> std::vector<featherdoc::table_cell_inspection_summary> {
+    auto summaries = std::vector<featherdoc::table_cell_inspection_summary>{};
+    auto row = table_handle.rows();
+    for (std::size_t row_index = 0U; row.has_next(); ++row_index, row.next()) {
+        std::size_t column_index = 0U;
+        auto cell = row.cells();
+        for (std::size_t cell_index = 0U; cell.has_next(); ++cell_index, cell.next()) {
+            auto summary = summarize_table_cell_handle(cell, row_index, cell_index, column_index);
+            column_index += summary.column_span;
+            summaries.push_back(std::move(summary));
+        }
+    }
+
+    return summaries;
+}
+
+auto summarize_run_handle(const featherdoc::Run &run_handle, std::size_t run_index)
+    -> featherdoc::run_inspection_summary {
+    auto summary = featherdoc::run_inspection_summary{};
+    summary.index = run_index;
+    summary.text = run_handle.get_text();
+    summary.style_id = run_handle.style_id();
+    summary.font_family = run_handle.font_family();
+    summary.east_asia_font_family = run_handle.east_asia_font_family();
+    summary.language = run_handle.language();
+    summary.east_asia_language = run_handle.east_asia_language();
+    summary.bidi_language = run_handle.bidi_language();
+    summary.rtl = run_handle.rtl();
+    return summary;
+}
+
 auto ensure_paragraph_properties_node(pugi::xml_node paragraph) -> pugi::xml_node {
     if (paragraph == pugi::xml_node{}) {
         return {};
@@ -996,6 +1130,22 @@ auto clear_font_family_attributes(pugi::xml_node run_properties) -> bool {
     return removed;
 }
 
+auto clear_font_family_attribute(pugi::xml_node run_properties,
+                                 const char *attribute_name) -> bool {
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto run_fonts = run_properties.child("w:rFonts");
+    if (run_fonts == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto removed = run_fonts.remove_attribute(attribute_name);
+    remove_empty_run_fonts_node(run_properties);
+    return removed;
+}
+
 auto clear_language_attributes(pugi::xml_node run_properties) -> bool {
     if (run_properties == pugi::xml_node{}) {
         return false;
@@ -1010,6 +1160,22 @@ auto clear_language_attributes(pugi::xml_node run_properties) -> bool {
     removed = run_language.remove_attribute("w:val") || removed;
     removed = run_language.remove_attribute("w:eastAsia") || removed;
     removed = run_language.remove_attribute("w:bidi") || removed;
+    remove_empty_run_language_node(run_properties);
+    return removed;
+}
+
+auto clear_language_attribute(pugi::xml_node run_properties,
+                              const char *attribute_name) -> bool {
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto run_language = run_properties.child("w:lang");
+    if (run_language == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto removed = run_language.remove_attribute(attribute_name);
     remove_empty_run_language_node(run_properties);
     return removed;
 }
@@ -2591,6 +2757,65 @@ bool Document::clear_default_run_font_family() {
     return true;
 }
 
+bool Document::clear_default_run_east_asia_font_family() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run fonts");
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_font_family_attribute(
+            styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"),
+            "w:eastAsia")) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_default_run_primary_language() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_language_attribute(
+            styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"),
+            "w:val")) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::clear_default_run_language() {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
@@ -2613,6 +2838,66 @@ bool Document::clear_default_run_language() {
 
     if (clear_language_attributes(
             styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"))) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_default_run_east_asia_language() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_language_attribute(
+            styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"),
+            "w:eastAsia")) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_default_run_bidi_language() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_language_attribute(
+            styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"),
+            "w:bidi")) {
         this->styles_dirty = true;
     }
 
@@ -3557,6 +3842,107 @@ bool Document::clear_style_run_font_family(std::string_view style_id) {
     return true;
 }
 
+bool Document::clear_style_run_east_asia_font_family(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run fonts");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run fonts",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (clear_font_family_attribute(run_properties, "w:eastAsia")) {
+        if (run_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(run_properties)) {
+            style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_primary_language(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (clear_language_attribute(run_properties, "w:val")) {
+        if (run_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(run_properties)) {
+            style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::clear_style_run_language(std::string_view style_id) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
@@ -3597,6 +3983,108 @@ bool Document::clear_style_run_language(std::string_view style_id) {
 
     auto run_properties = style.child("w:rPr");
     if (clear_language_attributes(run_properties)) {
+        if (run_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(run_properties)) {
+            style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_east_asia_language(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (clear_language_attribute(run_properties, "w:eastAsia")) {
+        if (run_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(run_properties)) {
+            style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_bidi_language(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (clear_language_attribute(run_properties, "w:bidi")) {
         if (run_properties.first_child() == pugi::xml_node{} &&
             !node_has_attributes(run_properties)) {
             style.remove_child(run_properties);
@@ -3874,6 +4362,219 @@ bool Document::clear_run_style(Run run_handle) {
 
     this->last_error_info.clear();
     return true;
+}
+
+std::vector<featherdoc::table_inspection_summary> Document::inspect_tables() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting tables",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    auto summaries = std::vector<featherdoc::table_inspection_summary>{};
+    auto table_handle = this->tables();
+    for (std::size_t table_index = 0U; table_handle.has_next();
+         ++table_index, table_handle.next()) {
+        summaries.push_back(summarize_table_handle(table_handle, table_index));
+    }
+
+    this->last_error_info.clear();
+    return summaries;
+}
+
+std::optional<featherdoc::table_inspection_summary>
+Document::inspect_table(std::size_t table_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting tables",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    auto table_handle = this->tables();
+    for (std::size_t current_index = 0U;
+         current_index < table_index && table_handle.has_next(); ++current_index) {
+        table_handle.next();
+    }
+
+    if (!table_handle.has_next()) {
+        this->last_error_info.clear();
+        return std::nullopt;
+    }
+
+    auto summary = summarize_table_handle(table_handle, table_index);
+    this->last_error_info.clear();
+    return summary;
+}
+
+std::vector<featherdoc::table_cell_inspection_summary>
+Document::inspect_table_cells(std::size_t table_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting table cells",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    auto table_handle = this->tables();
+    for (std::size_t current_index = 0U;
+         current_index < table_index && table_handle.has_next(); ++current_index) {
+        table_handle.next();
+    }
+
+    if (!table_handle.has_next()) {
+        this->last_error_info.clear();
+        return {};
+    }
+
+    auto summaries = collect_table_cell_summaries(table_handle);
+    this->last_error_info.clear();
+    return summaries;
+}
+
+std::optional<featherdoc::table_cell_inspection_summary>
+Document::inspect_table_cell(std::size_t table_index, std::size_t row_index,
+                             std::size_t cell_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting table cells",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto cells = this->inspect_table_cells(table_index);
+    for (const auto &cell : cells) {
+        if (cell.row_index == row_index && cell.cell_index == cell_index) {
+            this->last_error_info.clear();
+            return cell;
+        }
+    }
+
+    this->last_error_info.clear();
+    return std::nullopt;
+}
+
+std::vector<featherdoc::paragraph_inspection_summary> Document::inspect_paragraphs() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting paragraphs",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    auto summaries = std::vector<featherdoc::paragraph_inspection_summary>{};
+    auto paragraph_handle = this->paragraphs();
+    auto numbering_lookup_resolved = false;
+    auto numbering_lookup_ready = false;
+    for (std::size_t paragraph_index = 0U; paragraph_handle.has_next();
+         ++paragraph_index, paragraph_handle.next()) {
+        auto summary = summarize_paragraph_node(paragraph_handle.current, paragraph_index);
+        if (summary.numbering.has_value() && summary.numbering->num_id.has_value()) {
+            if (!numbering_lookup_resolved) {
+                numbering_lookup_ready =
+                    !this->ensure_numbering_loaded() &&
+                    this->numbering.child("w:numbering") != pugi::xml_node{};
+                numbering_lookup_resolved = true;
+            }
+
+            if (numbering_lookup_ready) {
+                const auto lookup = this->find_numbering_instance(*summary.numbering->num_id);
+                if (lookup.has_value()) {
+                    summary.numbering->definition_id = lookup->definition_id;
+                    if (!lookup->definition_name.empty()) {
+                        summary.numbering->definition_name = lookup->definition_name;
+                    }
+                }
+            }
+        }
+
+        summaries.push_back(std::move(summary));
+    }
+
+    this->last_error_info.clear();
+    return summaries;
+}
+
+std::optional<featherdoc::paragraph_inspection_summary>
+Document::inspect_paragraph(std::size_t paragraph_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting paragraphs",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    auto paragraph_handle = this->paragraphs();
+    for (std::size_t current_index = 0U;
+         current_index < paragraph_index && paragraph_handle.has_next(); ++current_index) {
+        paragraph_handle.next();
+    }
+
+    if (!paragraph_handle.has_next()) {
+        this->last_error_info.clear();
+        return std::nullopt;
+    }
+
+    auto summary = summarize_paragraph_node(paragraph_handle.current, paragraph_index);
+    if (summary.numbering.has_value() && summary.numbering->num_id.has_value()) {
+        const auto numbering_lookup_ready =
+            !this->ensure_numbering_loaded() &&
+            this->numbering.child("w:numbering") != pugi::xml_node{};
+        if (numbering_lookup_ready) {
+            const auto lookup = this->find_numbering_instance(*summary.numbering->num_id);
+            if (lookup.has_value()) {
+                summary.numbering->definition_id = lookup->definition_id;
+                if (!lookup->definition_name.empty()) {
+                    summary.numbering->definition_name = lookup->definition_name;
+                }
+            }
+        }
+    }
+
+    this->last_error_info.clear();
+    return summary;
+}
+
+std::vector<featherdoc::run_inspection_summary>
+Document::inspect_paragraph_runs(std::size_t paragraph_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting paragraph runs",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    auto paragraph_handle = this->paragraphs();
+    for (std::size_t current_index = 0U;
+         current_index < paragraph_index && paragraph_handle.has_next(); ++current_index) {
+        paragraph_handle.next();
+    }
+
+    if (!paragraph_handle.has_next()) {
+        this->last_error_info.clear();
+        return {};
+    }
+
+    auto summaries = std::vector<featherdoc::run_inspection_summary>{};
+    auto run = paragraph_handle.runs();
+    for (std::size_t run_index = 0U; run.has_next(); ++run_index, run.next()) {
+        summaries.push_back(summarize_run_handle(run, run_index));
+    }
+
+    this->last_error_info.clear();
+    return summaries;
+}
+
+std::optional<featherdoc::run_inspection_summary>
+Document::inspect_paragraph_run(std::size_t paragraph_index, std::size_t run_index) {
+    const auto runs = this->inspect_paragraph_runs(paragraph_index);
+    if (run_index >= runs.size()) {
+        this->last_error_info.clear();
+        return std::nullopt;
+    }
+
+    return runs[run_index];
 }
 
 } // namespace featherdoc

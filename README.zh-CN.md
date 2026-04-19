@@ -94,6 +94,19 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\sync_visual_review_verdict.ps1 `
 
 ## Word 可视化验证
 
+如果你想验证模板表格 CLI 在 `--bookmark` 路径下的真实页面效果，可运行：
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_bookmark_visual_regression.ps1
+```
+
+这个回归会生成一个仅包含正文的 baseline 文档，其中有一个保留表格，
+以及一个同时支持“表前书签”和“表内书签”定位的目标表格；随后分别通过
+`set-template-table-row-texts` 与
+`set-template-table-cell-block-texts` 的 `--bookmark` 形式做变更，再导出
+Word 渲染前后截图和 contact sheet，输出到
+`output/template-table-cli-bookmark-visual-regression/`。
+
 如果只想跑基础 Word 冒烟检查：
 
 ```powershell
@@ -209,11 +222,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\refresh_readme_visual_assets.
 
 ## CLI
 
-`featherdoc_cli` 当前主要覆盖分节感知的页眉 / 页脚检查与编辑流程。
+`featherdoc_cli` 当前已经覆盖分节、样式、编号、页面设置、书签、图片和模板
+部件等多类检查与编辑流程。
 
 ```bash
 featherdoc_cli inspect-sections input.docx
 featherdoc_cli inspect-sections input.docx --json
+featherdoc_cli inspect-styles input.docx --style Strong --json
+featherdoc_cli inspect-numbering input.docx --definition 1 --json
+featherdoc_cli inspect-page-setup input.docx --section 1 --json
+featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
+featherdoc_cli inspect-images input.docx --relationship-id rId5 --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -225,10 +244,14 @@ featherdoc_cli assign-section-footer input.docx 2 1 --output shared-footer.docx 
 featherdoc_cli remove-section-header input.docx 2 --kind even --output detached-header.docx
 featherdoc_cli remove-section-footer input.docx 1 --kind first --output detached-footer.docx
 featherdoc_cli remove-header-part input.docx 1 --output headers-pruned.docx
-featherdoc_cli remove-footer-part input.docx 1 --output footers-pruned.docx
+featherdoc_cli remove-footer-part input.docx 0 --output footers-pruned.docx
+featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
+featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
 ```
 
-更完整的命令列表和字段说明请看 [README.md](README.md) 里的 `CLI` 章节。
+上面的命令块是代表性示例，不是完整 CLI 清单。更完整的命令列表和字
+段说明请优先看 `docs/index.rst`；如果你同时需要仓库级背景说明，再配合
+[README.md](README.md) 一起看会更顺。
 
 ## 安装
 
@@ -316,6 +339,70 @@ int main() {
 
 更完整的 API、更多可运行 sample 和复杂表格 / 模板 / 图片流程，请参考
 [README.md](README.md) 和 `docs/index.rst`。
+
+## 按场景找 API
+
+如果你主要从中文 README 进入仓库，建议先按“你要解决什么问题”来找入口：
+
+- 新建、打开、保存、排错：`create_empty()`、`open()`、`save()`、`save_as()`、`path()`、`last_error()`
+- 编辑正文文本：`paragraphs()`、`runs()`、`set_text()`、段落 / run 的插入与删除
+- 处理表格与版式：`append_table()`、插行 / 插列、`merge_right()`、`merge_down()`、`unmerge_*()`、列宽 / fixed-grid / 布局模式相关 API
+- 做模板填充或书签校验：`list_bookmarks()`、`validate_template()`、`fill_bookmarks()`、`replace_bookmark_with_*()`、`body_template()` / `header_template()` / `footer_template()`
+- 处理图片和页码字段：`append_image()`、`append_floating_image()`、`replace_*image()`、`append_page_number_field()`、`append_total_pages_field()`
+- 处理分节、页眉页脚和页面设置：`inspect_sections()`、`get_section_page_setup()`、`set_section_page_setup()`、`ensure_*header*()`、`ensure_*footer*()`、`append_section()`、`insert_section()`、`move_section()`
+- 处理样式、编号和语言元数据：`list_styles()`、`find_style()`、`ensure_*style()`、`ensure_numbering_definition()`、`set_paragraph_style_numbering()`
+- 想做脚本化检查或一次性改写：优先看 CLI 的 `inspect-*`、`validate-template`、`append-page-number-field`、`set-section-page-setup`
+
+如果你需要更完整的参数说明、可运行 sample 对照和边界行为说明，继续看
+`docs/index.rst` 会更高效；它现在也补了按任务分组的 sample / CLI 导航。
+英文 README 适合作为仓库级总入口。
+
+## 按书签定位某一页的表格
+
+如果你的真实需求是“改文档里某一页的某张表”，不要依赖渲染后的页码去反推
+DOCX 结构位置。更稳的做法是：
+
+1. 在目标表**内部**或目标表**前一个独立段落**放一个书签
+2. CLI 用 `--bookmark <name>` 代替脆弱的 `<table-index>`
+3. C++ 里先拿 `TemplatePart`，再用 `find_table_by_bookmark(...)`
+   直接拿可编辑的 `Table`
+4. 拿到 `Table` 之后，优先用 `find_row(...)`、`find_cell(...)`、
+   `set_cell_text(...)`、`set_row_texts(...)` 这类按索引直达的入口，
+   或者直接用 `set_rows_texts(...)`、`set_cell_block_texts(...)`
+   一次性覆盖多行 / 一个矩形块，不需要再自己手写 `next()` 循环
+
+CLI 示例：
+
+```bash
+featherdoc_cli inspect-template-table-rows report.docx --bookmark page3_target_table --json
+featherdoc_cli set-template-table-cell-text report.docx --bookmark page3_target_table 1 2 --text "更新后的内容" --output report-updated.docx --json
+featherdoc_cli set-template-table-row-texts report-updated.docx --bookmark page3_target_table 3 --row "商品A" --cell "3" --cell "99.00" --row "商品B" --cell "1" --cell "18.00" --output report-updated.docx --json
+featherdoc_cli set-template-table-cell-block-texts report-updated.docx --bookmark page3_target_table 3 1 --row "华北" --cell "120" --row "华南" --cell "98" --output report-updated.docx --json
+featherdoc_cli append-template-table-row report-updated.docx --bookmark page3_target_table --output report-updated.docx --json
+```
+
+C++ 示例：
+
+```cpp
+featherdoc::Document doc("report.docx");
+doc.open();
+
+auto part = doc.body_template();
+auto table = part.find_table_by_bookmark("page3_target_table");
+if (!table.has_value()) {
+    throw std::runtime_error(doc.last_error().detail);
+}
+
+table->set_cell_text(1, 2, "更新后的内容");
+table->set_row_texts(2, {"商品A", "3", "99.00"});
+table->set_rows_texts(3, {{"商品B", "1", "18.00"}, {"商品C", "5", "7.50"}});
+
+doc.save_as("report-updated.docx");
+```
+
+如果目标表在页眉 / 页脚 / 分节页眉页脚里，就把 `body_template()` 换成
+`header_template()`、`footer_template()`、`section_header_template()` 或
+`section_footer_template()`。
 
 ## 当前能力范围
 

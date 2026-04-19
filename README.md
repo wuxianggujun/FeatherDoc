@@ -57,6 +57,177 @@ For the fixed-grid merge/unmerge sample quartet specifically, use:
 powershell -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_regression.ps1
 ```
 
+For a before/after Word-rendered check of the new template-table CLI row/cell
+commands, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_visual_regression.ps1
+```
+
+That regression now generates a dedicated baseline document covering `body`,
+`section-header`, and `section-footer` template tables, applies
+`set-template-table-cell-text`, `append-template-table-row`,
+`insert-template-table-row-after`, `insert-template-table-row-before`, and
+`remove-template-table-row` to each target table in turn, then captures
+Word-rendered baseline/mutated evidence plus per-case and aggregate
+before/after contact sheets under
+`output/template-table-cli-visual-regression/`.
+
+For a dedicated before/after Word-rendered check of the bookmark-targeted
+table workflow, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_bookmark_visual_regression.ps1
+```
+
+That regression generates a body-only baseline document with one retained
+table plus one target table addressed by both a bookmark paragraph immediately
+before it and a bookmark inside its first data cell. It applies
+`set-template-table-row-texts` and
+`set-template-table-cell-block-texts` through `--bookmark`, then writes
+Word-rendered baseline/mutated evidence plus per-case and aggregate
+before/after contact sheets under
+`output/template-table-cli-bookmark-visual-regression/`.
+
+For a before/after Word-rendered check of section-scoped template-table
+row/cell commands across `--kind default/even/first`, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_section_kind_visual_regression.ps1
+```
+
+That regression generates one shared baseline document covering
+`section-header --kind default`, `section-header --kind even`,
+`section-footer --kind first`, and `section-footer --kind default`, applies
+the same row/cell mutation chain to each target table, then captures the
+relevant Word-rendered `page-01` / `page-02` / `page-03` evidence instead of
+only the first page so the kind-specific rendering path is visible under
+`output/template-table-cli-section-kind-visual-regression/`.
+
+For a dedicated before/after Word-rendered check of template-table row
+commands across section-scoped `--kind default/even/first`, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_section_kind_row_visual_regression.ps1
+```
+
+That regression generates four dedicated baseline documents covering
+`section-header --kind default` insert-row-before,
+`section-header --kind even` append-row,
+`section-footer --kind first` remove-row, and
+`section-footer --kind default` insert-row-after, applies the matching
+row mutation plus `set-template-table-cell-text` where needed, then captures
+the relevant Word-rendered `page-01` / `page-02` / `page-03` evidence under
+`output/template-table-cli-section-kind-row-visual-regression/`.
+
+For a before/after Word-rendered check of template-table column commands across
+section-scoped `--kind default/even/first`, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_section_kind_column_visual_regression.ps1
+```
+
+That regression generates four dedicated baseline documents covering
+`section-header --kind default` insert-before,
+`section-header --kind even` remove-column,
+`section-footer --kind first` insert-after, and
+`section-footer --kind default` remove-column, applies the matching
+column mutation chain plus `set-template-table-cell-text` where needed, then
+captures the relevant Word-rendered `page-01` / `page-02` / `page-03`
+evidence under
+`output/template-table-cli-section-kind-column-visual-regression/`.
+
+For a before/after Word-rendered check of template-table merge/unmerge
+commands across section-scoped `--kind default/even/first`, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_section_kind_merge_unmerge_visual_regression.ps1
+```
+
+That regression generates four dedicated baseline documents covering
+`section-header --kind default` merge-right,
+`section-header --kind even` unmerge-right,
+`section-footer --kind first` merge-down, and
+`section-footer --kind default` unmerge-down, applies the matching
+merge/unmerge CLI mutation, verifies the underlying XML merge markers, then
+captures the relevant Word-rendered `page-01` / `page-02` / `page-03`
+evidence under
+`output/template-table-cli-section-kind-merge-unmerge-visual-regression/`.
+
+For a before/after Word-rendered check of the new template-table CLI
+merge/unmerge commands, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_merge_unmerge_visual_regression.ps1
+```
+
+That regression generates four dedicated baseline documents covering
+`section-header` horizontal merge, `section-footer` vertical merge, and
+`body` horizontal/vertical unmerge scenarios, applies
+`merge-template-table-cells` or `unmerge-template-table-cells`, then captures
+Word-rendered baseline/mutated evidence plus per-case and aggregate
+before/after contact sheets under
+`output/template-table-cli-merge-unmerge-visual-regression/`.
+
+For a before/after Word-rendered check of the template-table CLI row/cell
+commands on direct `header` / `footer` parts, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_direct_visual_regression.ps1
+```
+
+That regression generates one shared baseline document covering direct
+`header`, direct `footer`, and `body` target tables, applies
+`set-template-table-cell-text`, `append-template-table-row`,
+`insert-template-table-row-after`, `insert-template-table-row-before`, and
+`remove-template-table-row` through the direct-part selector model, then
+captures Word-rendered baseline/mutated evidence plus per-case and aggregate
+before/after contact sheets under
+`output/template-table-cli-direct-visual-regression/`.
+
+For a before/after Word-rendered check of the new template-table CLI column
+commands, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_column_visual_regression.ps1
+```
+
+That regression generates three dedicated baseline documents covering
+`section-header` insert-before, `section-footer` insert-after, and `body`
+remove-column scenarios, applies `insert-template-table-column-before`,
+`insert-template-table-column-after`, `remove-template-table-column`, and
+`set-template-table-cell-text` where needed, then captures Word-rendered
+baseline/mutated evidence plus per-case and aggregate before/after contact
+sheets under `output/template-table-cli-column-visual-regression/`.
+
+For a before/after Word-rendered check of the same template-table column
+commands on direct `header` / `footer` parts, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_direct_column_visual_regression.ps1
+```
+
+That regression generates three dedicated baseline documents covering direct
+`header` insert-before, direct `footer` insert-after, and `body`
+remove-column scenarios, applies the same CLI column mutations, then captures
+Word-rendered baseline/mutated evidence plus per-case and aggregate
+before/after contact sheets under
+`output/template-table-cli-direct-column-visual-regression/`.
+
+For a before/after Word-rendered check of template-table merge/unmerge commands
+on direct `header` / `footer` parts, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_direct_merge_unmerge_visual_regression.ps1
+```
+
+That regression generates three dedicated baseline documents covering direct
+`header` merge-right, direct `footer` unmerge-down, and `body` merge-down
+scenarios, applies `merge-template-table-cells` or
+`unmerge-template-table-cells`, then captures Word-rendered baseline/mutated
+evidence plus per-case and aggregate before/after contact sheets under
+`output/template-table-cli-direct-merge-unmerge-visual-regression/`.
+
 If you want the quartet regression to immediately emit an AI review task
 package after the Word screenshot bundle is ready, run:
 
@@ -279,11 +450,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync_visual_review_verdict.ps
 ## CLI
 
 `featherdoc_cli` is a small command-line wrapper around the current
-section-aware header/footer APIs.
+inspection and editing APIs for sections, styles, numbering, page setup,
+bookmarks, images, and template parts.
 
 ```bash
 featherdoc_cli inspect-sections input.docx
 featherdoc_cli inspect-sections input.docx --json
+featherdoc_cli inspect-styles input.docx --style Strong --json
+featherdoc_cli inspect-numbering input.docx --definition 1 --json
+featherdoc_cli inspect-page-setup input.docx --section 1 --json
+featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
+featherdoc_cli inspect-images input.docx --relationship-id rId5 --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -300,6 +477,8 @@ featherdoc_cli show-section-header input.docx 1 --kind even
 featherdoc_cli show-section-footer input.docx 2 --json
 featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
 featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
+featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
+featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
 ```
 
 `inspect-sections` prints the current section count together with per-section
@@ -331,6 +510,11 @@ requested section reference automatically when it does not exist yet.
 `show-section-header` / `show-section-footer` also accept `--json`, which emits
 `part`, `section`, `kind`, `present`, and `paragraphs` fields for scriptable
 inspection.
+
+The short block above is intentionally representative rather than exhaustive.
+For the full CLI surface, including template-table row/cell editing, style and
+numbering inspection, image inspection and replacement, page setup mutation,
+and page-number field insertion, see `docs/index.rst`.
 
 ## Install
 
@@ -486,6 +670,40 @@ int main() {
 is split into multiple runs, concatenate `run.get_text()` values inside a
 paragraph before printing. Text inside tables is traversed through
 `doc.tables() -> rows() -> cells() -> paragraphs()`.
+
+## Find APIs By Task
+
+If you mainly enter the project through the English README, start from the job
+you want to get done:
+
+- Create, open, save, or diagnose a document:
+  `create_empty()`, `open()`, `save()`, `save_as()`, `path()`, `last_error()`
+- Edit body text:
+  `paragraphs()`, `runs()`, `set_text()`, plus paragraph/run insertion and removal helpers
+- Work with tables and layout:
+  `append_table()`, row/column insertion, `merge_right()`, `merge_down()`,
+  `unmerge_*()`, fixed-grid width APIs, and layout-mode helpers
+- Fill templates or validate bookmarks:
+  `list_bookmarks()`, `validate_template()`, `fill_bookmarks()`,
+  `replace_bookmark_with_*()`, `body_template()`, `header_template()`,
+  `footer_template()`
+- Work with images and page-number fields:
+  `append_image()`, `append_floating_image()`, `replace_*image()`,
+  `append_page_number_field()`, `append_total_pages_field()`
+- Work with sections, headers/footers, and page setup:
+  `inspect_sections()`, `get_section_page_setup()`, `set_section_page_setup()`,
+  `ensure_*header*()`, `ensure_*footer*()`, `append_section()`,
+  `insert_section()`, `move_section()`
+- Work with styles, numbering, and language metadata:
+  `list_styles()`, `find_style()`, `ensure_*style()`,
+  `ensure_numbering_definition()`, `set_paragraph_style_numbering()`
+- Prefer the CLI for scriptable inspection or one-shot rewrites:
+  `inspect-*`, `validate-template`, `append-page-number-field`,
+  `set-section-page-setup`
+
+For fuller parameter details, runnable samples, and edge-case notes, continue
+into `docs/index.rst`; its `Task-Oriented API Map` and
+`Task-Oriented Sample And CLI Map` mirror the same entry points in more detail.
 
 Use `Paragraph::set_text(...)` when you want to replace one paragraph's body
 content in place while preserving paragraph-level properties such as style or
@@ -1378,6 +1596,108 @@ if (const auto error = doc.save()) {
 When one paragraph needs its own override, call `run.set_font_family(...)`,
 `run.set_east_asia_font_family(...)`, `run.set_language(...)`, and
 `run.set_east_asia_language(...)` on the returned `Run`.
+Use `run.clear_primary_language()`, `run.clear_east_asia_font_family()`,
+`run.clear_east_asia_language()`, and `run.clear_bidi_language()` when only
+one CJK/RTL override should be removed while preserving the rest of the run
+formatting. `run.clear_language()` still removes all `w:lang` attributes
+(`w:val`, `w:eastAsia`, and `w:bidi`) in one call.
+Use `doc.inspect_paragraph_runs(paragraph_index)` or
+`doc.inspect_paragraph_run(paragraph_index, run_index)` when you need a
+library-level summary of run style/font/language/RTL metadata without going
+through the CLI helpers.
+Use `doc.inspect_paragraphs()` or `doc.inspect_paragraph(paragraph_index)` when
+you need paragraph-level style/bidi/numbering/run-count metadata from the core
+library.
+Use `doc.inspect_tables()` or `doc.inspect_table(table_index)` when you need
+table-level style/width/grid/text metadata from the core library.
+Use `featherdoc_cli inspect-tables` when you need the same table inspection
+metadata from the command line.
+Use `doc.inspect_table_cells(table_index)` or
+`doc.inspect_table_cell(table_index, row_index, cell_index)` when you need
+cell-level width/span/layout/text metadata from the core library.
+Use `featherdoc_cli inspect-table-cells` when you need the same cell
+inspection metadata from the command line.
+Use `featherdoc_cli inspect-table-rows` when you need body-table row
+height/page-break/header-repeat/cell-text metadata from the command line.
+Use `featherdoc_cli set-table-cell-text` when you need to replace a specific
+table cell's plain text from the command line.
+Use `featherdoc_cli set-table-cell-fill` and
+`clear-table-cell-fill` when you need to add or remove a body-table cell
+background fill from the command line.
+Use `featherdoc_cli set-table-cell-vertical-alignment` and
+`clear-table-cell-vertical-alignment` when you need to edit body-table cell
+vertical alignment from the command line.
+Use `featherdoc_cli set-table-cell-text-direction` and
+`clear-table-cell-text-direction` when you need to edit body-table cell text
+direction from the command line.
+Use `featherdoc_cli set-table-cell-width` and
+`clear-table-cell-width` when you need to assign or remove an explicit
+body-table cell width from the command line.
+Use `featherdoc_cli set-table-cell-margin` and
+`clear-table-cell-margin` when you need to edit one edge of a body-table
+cell's internal margin from the command line.
+Use `featherdoc_cli set-table-cell-border` and
+`clear-table-cell-border` when you need to edit one edge of a body-table
+cell border from the command line.
+Use `featherdoc_cli set-table-row-height` and
+`clear-table-row-height` when you need to assign or remove an explicit
+body-table row height override from the command line.
+Use `featherdoc_cli set-table-row-cant-split` and
+`clear-table-row-cant-split` when you need to control whether a body-table
+row is allowed to split across pages from the command line.
+Use `featherdoc_cli set-table-row-repeat-header` and
+`clear-table-row-repeat-header` when you need to control whether a body-table
+row repeats as a header row from the command line.
+Use `featherdoc_cli append-table-row`, `insert-table-row-before`,
+`insert-table-row-after`, and `remove-table-row` when you need to append,
+insert, or remove body-table rows from the command line. When no explicit
+`--cell-count` is provided, appended rows default to the current table column
+count.
+Use `featherdoc_cli merge-table-cells` when you need to merge a specific body
+table cell to the right or downward from the command line.
+Use `featherdoc_cli unmerge-table-cells` when you need to split an existing
+horizontal or vertical body-table merge from the command line.
+Use `featherdoc_cli merge-template-table-cells` when you need to merge a
+specific table cell inside a template-part table selected through
+`--part/--index/--section/--kind`.
+Use `featherdoc_cli unmerge-template-table-cells` when you need to split an
+existing horizontal or vertical merge inside those template-part tables from
+the command line.
+Template-table inspection and mutation commands that accept a positional
+`<table-index>` also accept `--bookmark <name>` as an alternative selector.
+That bookmark can live inside the target table or immediately before it, which
+makes it the recommended way to anchor "the table on this page" in a DOCX
+workflow where rendered page numbers are not stable.
+For example, if `page3_target_table` is a bookmark placed inside the table you
+want to edit on a rendered page, you can drive the mutation without guessing a
+table index:
+
+```bash
+featherdoc_cli set-template-table-cell-text report.docx --bookmark page3_target_table 1 2 --text "Updated value" --output report-updated.docx --json
+featherdoc_cli set-template-table-row-texts report-updated.docx --bookmark page3_target_table 3 --row "Item A" --cell "3" --cell "99.00" --row "Item B" --cell "1" --cell "18.00" --output report-updated.docx --json
+featherdoc_cli set-template-table-cell-block-texts report-updated.docx --bookmark page3_target_table 3 1 --row "North" --cell "120" --row "South" --cell "98" --output report-updated.docx --json
+featherdoc_cli append-template-table-row report-updated.docx --bookmark page3_target_table --output report-updated.docx --json
+```
+
+The C++ API exposes the same workflow on `TemplatePart`: call
+`find_table_by_bookmark(...)` on `body_template()`, `header_template()`,
+`footer_template()`, `section_header_template()`, or
+`section_footer_template()` and mutate the returned `Table` handle directly.
+That `Table` handle now also supports direct indexed helpers such as
+`find_row(...)`, `find_cell(...)`, `set_cell_text(...)`, and
+`set_row_texts(...)`, plus batch helpers such as `set_rows_texts(...)` and
+`set_cell_block_texts(...)`, so page-local table edits no longer require
+manual `next()` loops in user code.
+Use `doc.inspect_sections()` or `doc.inspect_section(section_index)` when you
+need a section/header/footer summary of both the explicit default/first/even
+references stored on each section and the resolved linked-to-previous fallback
+chain, including the underlying `word/headerN.xml` / `word/footerN.xml` entry
+names, the source section index that currently supplies each slot, and the
+document-wide `w:evenAndOddHeaders` setting from `word/settings.xml` when it
+can be read.
+The same inspection summaries are also available on `TemplatePart` handles
+returned by `body_template()`, `header_template()`, `footer_template()`,
+`section_header_template()`, and `section_footer_template()`.
 For a runnable end-to-end version, build `featherdoc_sample_chinese` from
 `samples/sample_chinese.cpp` with `-DBUILD_SAMPLES=ON`.
 
@@ -1458,7 +1778,9 @@ living in a single large `.cpp` file:
 - `src/table.cpp`: table creation plus row/cell traversal and editing helpers
 - `src/xml_helpers.cpp` / `src/xml_helpers.hpp`: internal XML helper utilities shared by the modules
 - `src/constants.cpp`: exported constants and error-category plumbing
-- `cli/featherdoc_cli.cpp`: minimal section-layout inspection and editing utility
+- `cli/featherdoc_cli.cpp`: scriptable inspection and editing utility for
+  sections, styles, numbering, page setup, bookmarks, images, and template
+  parts
 
 This layout keeps archive I/O, XML navigation, and public API objects easier to
 reason about and extend independently.

@@ -214,10 +214,13 @@ pass it as ``-ReleaseCandidateSummaryJson`` together with
 ``-RefreshReleaseBundle`` to refresh ``START_HERE.md`` plus the release-facing
 notes without rerunning the full preflight.
 
+.. _featherdoc-cli:
+
 CLI
 ---
-``featherdoc_cli`` exposes a minimal command-line layer for the current
-section-aware header/footer operations.
+``featherdoc_cli`` exposes a compact command-line layer for the current
+inspection and editing workflows around sections, styles, numbering, page
+setup, bookmarks, images, and template parts.
 
 .. code-block:: sh
 
@@ -262,6 +265,11 @@ section-aware header/footer operations.
     featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
     featherdoc_cli validate-template input.docx --part header --index 0 --slot header_title:text --slot header_rows:table_rows --json
     featherdoc_cli validate-template input.docx --part section-footer --section 1 --kind first --slot footer_company:text --slot footer_note:block:optional
+
+The command block above is representative rather than exhaustive. Keep reading
+this page when you need the broader CLI surface, including table inspection and
+mutation commands, template-table row/cell edits, image extraction and
+replacement, or per-section page-setup rewrites.
 
 ``inspect-sections`` reports section counts together with per-section
 ``default`` / ``first`` / ``even`` header and footer attachment flags. The
@@ -335,6 +343,12 @@ header/footer part does not exist yet, FeatherDoc materializes the writable
 part automatically before appending the field. Use ``--json`` to capture the
 resolved ``part``, ``part_index``, ``section``, ``kind``, ``entry_name``, and
 appended ``field``.
+For a runnable field-insertion example, build
+``featherdoc_sample_page_number_fields`` from
+``samples/sample_page_number_fields.cpp``. It creates a new document,
+materializes writable section header/footer parts, appends ``PAGE`` /
+``NUMPAGES`` fields through ``TemplatePart`` handles, and saves the result for
+Word-side field refresh.
 ``validate-template`` exposes the same read-only slot-schema validation as
 ``Document::validate_template(...)`` and
 ``TemplatePart::validate_template(...)``. Use
@@ -400,6 +414,147 @@ How to start with FeatherDoc quickly
 is split into multiple runs, concatenate the run texts inside a paragraph before
 printing. Text stored inside tables is accessed through
 ``doc.tables() -> rows() -> cells() -> paragraphs()``.
+
+.. _featherdoc-api-map:
+
+.. rubric:: Task-Oriented API Map
+
+When you are skimming the public API surface, start from the entry point that
+matches the job at hand.
+
+If you mainly want runnable entry points instead of API-first navigation, jump
+to :ref:`Task-Oriented Sample And CLI Map <featherdoc-sample-cli-map>`.
+
+- Open, create, save, or diagnose a document:
+  ``Document(path)``, ``open()``, ``create_empty()``, ``save()``,
+  ``save_as()``, and ``last_error()``. See
+  :ref:`Creating New Documents And Language Defaults <featherdoc-doc-lifecycle>`.
+- Edit body text structure:
+  ``paragraphs()``, ``runs()``, ``set_text(...)``,
+  ``insert_paragraph_before(...)``, ``insert_paragraph_after(...)``,
+  ``insert_run_before(...)``, ``insert_run_after(...)``, and ``remove()``.
+  See :ref:`Text Editing <featherdoc-text-editing>`.
+- Build or mutate tables:
+  ``append_table(...)``, ``append_row(...)``, ``append_cell()``,
+  ``insert_row_before()``, ``insert_row_after()``, ``insert_cell_before()``,
+  ``insert_cell_after()``, ``merge_right(...)``, ``merge_down(...)``,
+  ``unmerge_right()``, ``unmerge_down()``, ``set_width_twips(...)``,
+  ``set_column_width_twips(...)``, and ``set_layout_mode(...)``. See
+  :ref:`Tables <featherdoc-tables>`.
+- Fill templates or inspect bookmarks:
+  ``list_bookmarks()``, ``find_bookmark(...)``, ``validate_template(...)``,
+  ``fill_bookmarks(...)``, ``replace_bookmark_with_*()``, and
+  ``TemplatePart`` handles such as ``body_template()`` or
+  ``section_header_template(...)``. See
+  :ref:`Bookmarks And Templates <featherdoc-bookmarks-templates>`.
+- Append or replace images and page fields:
+  ``append_image(...)``, ``append_floating_image(...)``,
+  ``replace_inline_image(...)``, ``replace_drawing_image(...)``,
+  ``replace_bookmark_with_image(...)``,
+  ``replace_bookmark_with_floating_image(...)``,
+  ``append_page_number_field()``, and ``append_total_pages_field()``. See
+  :ref:`Images <featherdoc-images>` and
+  :ref:`Headers, Footers, Sections, And Page Setup <featherdoc-sections-page-setup>`.
+- Work with styles, numbering, and language metadata:
+  ``list_styles()``, ``find_style(...)``, ``ensure_*style(...)``,
+  ``set_paragraph_style(...)``, ``set_run_style(...)``,
+  ``ensure_numbering_definition(...)``, ``set_paragraph_numbering(...)``,
+  ``set_paragraph_style_numbering(...)``, and the default run font/language
+  helpers. See :ref:`Lists And Styles <featherdoc-lists-styles>` and
+  :ref:`Creating New Documents And Language Defaults <featherdoc-doc-lifecycle>`.
+- Inspect or mutate sections, headers, footers, and page setup:
+  ``inspect_sections()``, ``get_section_page_setup(...)``,
+  ``set_section_page_setup(...)``, ``ensure_header_paragraphs()``,
+  ``ensure_footer_paragraphs()``,
+  ``ensure_section_header_paragraphs(...)``,
+  ``ensure_section_footer_paragraphs(...)``,
+  ``assign_section_header_paragraphs(...)``,
+  ``assign_section_footer_paragraphs(...)``, ``append_section()``,
+  ``insert_section()``, ``remove_section()``, and ``move_section()``. See
+  :ref:`Headers, Footers, Sections, And Page Setup <featherdoc-sections-page-setup>`.
+- Reach for the CLI when you need scriptable inspection or one-shot edits:
+  ``inspect-styles``, ``inspect-numbering``, ``inspect-page-setup``,
+  ``inspect-bookmarks``, ``inspect-images``, ``inspect-sections``,
+  ``set-section-page-setup``, ``append-page-number-field``, and
+  ``validate-template``. See :ref:`CLI <featherdoc-cli>`.
+
+The detailed walkthrough below follows roughly the same order, so this map is
+meant to reduce scrolling and document-hopping rather than replace the examples.
+
+.. _featherdoc-sample-cli-map:
+
+.. rubric:: Task-Oriented Sample And CLI Map
+
+When you want the fastest runnable starting point instead of the raw API names,
+use the same buckets to jump straight to samples or CLI commands.
+
+If you want the API-first version of the same categories, jump back to
+:ref:`Task-Oriented API Map <featherdoc-api-map>`.
+
+- Paragraph/run editing and reopen flows:
+  ``featherdoc_sample_edit_existing``,
+  ``featherdoc_sample_insert_paragraph_before``,
+  ``featherdoc_sample_insert_paragraph_like_existing``,
+  ``featherdoc_sample_insert_run_around_existing``, and
+  ``featherdoc_sample_insert_run_like_existing``. Prefer the library samples
+  here; the CLI currently focuses more on inspection and structural rewrites
+  than free-form paragraph text editing. See
+  :ref:`Text Editing <featherdoc-text-editing>`.
+- Tables, cell formatting, and row/column rewrites:
+  ``featherdoc_sample_insert_table_row``,
+  ``featherdoc_sample_insert_table_row_before``,
+  ``featherdoc_sample_insert_table_column``,
+  ``featherdoc_sample_unmerge_table_cells``,
+  ``featherdoc_sample_edit_existing_table_spacing``,
+  ``featherdoc_sample_edit_existing_table_column_widths``,
+  ``featherdoc_sample_edit_existing_table_style_look``, and
+  ``featherdoc_sample_template_table_cli_visual``. On the CLI side, start with
+  ``inspect-tables``, ``inspect-table-rows``, ``inspect-table-cells``,
+  ``set-table-cell-text``, ``append-table-row``, ``insert-table-row-before``,
+  ``insert-table-row-after``, ``remove-table-row``, ``merge-table-cells``,
+  ``unmerge-table-cells``, and the ``set-template-table-cell-text`` /
+  ``append-template-table-row`` family for template parts. See
+  :ref:`Tables <featherdoc-tables>`.
+- Images and drawing replacement:
+  ``featherdoc_sample_floating_images``,
+  ``featherdoc_sample_remove_images``, and
+  ``featherdoc_sample_edit_existing_part_append_images``. The matching CLI
+  entry points are ``inspect-images``, ``extract-image``, ``replace-image``,
+  ``remove-image``, and ``append-image``. See
+  :ref:`Images <featherdoc-images>`.
+- Styles, numbering, and language-aware defaults:
+  ``featherdoc_sample_restart_paragraph_list``,
+  ``featherdoc_sample_style_linked_numbering``, and
+  ``featherdoc_sample_chinese``. The matching CLI entry points are
+  ``inspect-numbering`` and ``inspect-styles``. See
+  :ref:`Lists And Styles <featherdoc-lists-styles>` and
+  :ref:`Creating New Documents And Language Defaults <featherdoc-doc-lifecycle>`.
+- Templates, bookmarks, and field insertion:
+  ``featherdoc_sample_template_validation``,
+  ``featherdoc_sample_part_template_validation``,
+  ``featherdoc_sample_remove_bookmark_block``,
+  ``featherdoc_sample_chinese_template``, and
+  ``featherdoc_sample_page_number_fields``. The matching CLI entry points are
+  ``inspect-bookmarks``, ``validate-template``,
+  ``append-page-number-field``, and ``append-total-pages-field``. See
+  :ref:`Bookmarks And Templates <featherdoc-bookmarks-templates>` and
+  :ref:`Headers, Footers, Sections, And Page Setup <featherdoc-sections-page-setup>`.
+- Sections, page setup, and header/footer layout:
+  ``featherdoc_sample_section_page_setup``,
+  ``featherdoc_sample_edit_existing_part_tables``, and
+  ``featherdoc_sample_edit_existing_part_images``. The matching CLI entry
+  points are ``inspect-sections``, ``inspect-header-parts``,
+  ``inspect-footer-parts``, ``set-section-page-setup``,
+  ``assign-section-header``, ``assign-section-footer``,
+  ``remove-section-header``, and ``remove-section-footer``. See
+  :ref:`Headers, Footers, Sections, And Page Setup <featherdoc-sections-page-setup>`.
+
+For exact command flags, selectors, and JSON payload shapes, keep
+:ref:`CLI <featherdoc-cli>` open next to the relevant detailed section below.
+
+.. _featherdoc-text-editing:
+
+.. rubric:: Text Editing
 
 ``Paragraph::set_text(...)`` replaces one paragraph's body content in place
 while preserving paragraph-level properties such as style or bidi settings.
@@ -468,6 +623,10 @@ anchor runs" example, build ``featherdoc_sample_insert_run_like_existing`` from
 For a focused "reopen and append new images to existing body/header/footer
 parts" example, build ``featherdoc_sample_edit_existing_part_append_images``
 from ``samples/sample_edit_existing_part_append_images.cpp``.
+
+.. _featherdoc-tables:
+
+.. rubric:: Tables
 
 ``append_table(row_count, column_count)`` creates a new body table
 programmatically. The returned ``Table`` can then grow through
@@ -711,6 +870,10 @@ For a runnable table-style-look edit example, build
 ``.docx``, updates ``tblLook`` on an existing table, and keeps the original
 table style reference in place.
 
+.. _featherdoc-images:
+
+.. rubric:: Images
+
 ``append_image(path)`` appends an inline image at the source image's intrinsic
 pixel size. Use ``append_image(path, width_px, height_px)`` when you want
 explicit scaling. These APIs are available on both ``Document`` and
@@ -865,6 +1028,10 @@ body drawings, or ``featherdoc_sample_remove_images`` from
 ``samples/sample_remove_images.cpp`` when you want a minimal existing-image
 removal workflow.
 
+.. _featherdoc-lists-styles:
+
+.. rubric:: Lists And Styles
+
 ``set_paragraph_list(paragraph, kind, level)`` attaches managed bullet or
 decimal numbering to a paragraph. Use
 ``restart_paragraph_list(paragraph, kind, level)`` when you want a fresh
@@ -891,6 +1058,12 @@ For a runnable list-restart example, build
 ``samples/sample_restart_paragraph_list.cpp``. It reopens a saved ``.docx``,
 starts a second decimal list from ``1.``, and keeps the restarted sequence
 consistent in Word's rendered output.
+For a runnable style-linked numbering example, build
+``featherdoc_sample_style_linked_numbering`` from
+``samples/sample_style_linked_numbering.cpp``. It creates custom heading/body
+styles, attaches one shared numbering definition to the heading styles, and
+shows how outline numbering can stay style-driven instead of writing
+``w:numPr`` on every paragraph.
 
 When you need an explicit custom numbering definition instead of the managed
 bullet or decimal presets, use ``ensure_numbering_definition(...)`` to create
@@ -1071,6 +1244,10 @@ changing ``Document::path()``.
         std::cerr << error.message() << std::endl;
         return 1;
     }
+
+.. _featherdoc-bookmarks-templates:
+
+.. rubric:: Bookmarks And Templates
 
 ``replace_bookmark_text(name, replacement)`` rewrites the content enclosed by a
 named bookmark range and returns the number of bookmark ranges replaced.
@@ -1363,6 +1540,10 @@ paragraphs; passing ``false`` removes the whole block including the markers.
         }
     }
 
+.. _featherdoc-sections-page-setup:
+
+.. rubric:: Headers, Footers, Sections, And Page Setup
+
 ``header_count()``, ``footer_count()``, ``header_paragraphs(index)``, and
 ``footer_paragraphs(index)`` expose paragraph-level access to existing
 header/footer parts.
@@ -1469,6 +1650,30 @@ required WordprocessingML switches automatically (``w:titlePg`` or
     auto first_footer = doc.ensure_section_footer_paragraphs(
         1, featherdoc::section_reference_kind::first_page);
     first_footer.add_run("First page footer");
+
+``body_template()``, ``header_template(index)``, ``footer_template(index)``,
+``section_header_template(section_index, kind)``, and
+``section_footer_template(section_index, kind)`` return writable
+``TemplatePart`` handles for already loaded parts. Use
+``append_page_number_field()`` and ``append_total_pages_field()`` on those
+handles when you need Word ``PAGE`` / ``NUMPAGES`` fields in body, header, or
+footer content. For section-scoped fields, materialize the target part first
+through ``ensure_section_header_paragraphs(...)`` or
+``ensure_section_footer_paragraphs(...)`` when it does not exist yet.
+
+.. code-block:: cpp
+
+    auto header_part = doc.ensure_section_header_paragraphs(0);
+    header_part.set_text("Page ");
+
+    auto header_template = doc.section_header_template(0);
+    if (header_template) {
+        header_template.append_page_number_field();
+    }
+
+For a runnable section/header/footer field example, build
+``featherdoc_sample_page_number_fields`` from
+``samples/sample_page_number_fields.cpp``.
 
 ``assign_section_header_paragraphs(section_index, header_index, kind)`` and
 ``assign_section_footer_paragraphs(section_index, footer_index, kind)`` rebind
@@ -1579,6 +1784,10 @@ after reordering.
 
     doc.move_section(2, 0);
 
+.. _featherdoc-doc-lifecycle:
+
+.. rubric:: Creating New Documents And Language Defaults
+
 ``create_empty()`` initializes a new in-memory document so callers can produce
 fresh ``.docx`` files without opening an existing template archive first.
 
@@ -1630,6 +1839,33 @@ fallback behavior.
 Call ``run.set_font_family(...)``, ``run.set_east_asia_font_family(...)``,
 ``run.set_language(...)``, and ``run.set_east_asia_language(...)`` on the
 returned ``Run`` when one paragraph needs a per-run override.
+Use ``run.clear_primary_language()``, ``run.clear_east_asia_font_family()``,
+``run.clear_east_asia_language()``, and ``run.clear_bidi_language()`` when
+only one CJK/RTL override should be removed while preserving the rest of the
+run formatting. ``run.clear_language()`` still removes all ``w:lang``
+attributes (``w:val``, ``w:eastAsia``, and ``w:bidi``) in one call.
+Use ``doc.inspect_paragraph_runs(paragraph_index)`` or
+``doc.inspect_paragraph_run(paragraph_index, run_index)`` when you need a
+library-level summary of run style/font/language/RTL metadata without going
+through the CLI helpers.
+Use ``doc.inspect_paragraphs()`` or ``doc.inspect_paragraph(paragraph_index)``
+when you need paragraph-level style/bidi/numbering/run-count metadata from the
+core library.
+Use ``doc.inspect_tables()`` or ``doc.inspect_table(table_index)`` when you
+need table-level style/width/grid/text metadata from the core library.
+Use ``doc.inspect_table_cells(table_index)`` or
+``doc.inspect_table_cell(table_index, row_index, cell_index)`` when you need
+cell-level width/span/layout/text metadata from the core library.
+Use ``doc.inspect_sections()`` or ``doc.inspect_section(section_index)`` when
+you need a section/header/footer summary of both the explicit default/first/even
+references stored on each section and the resolved linked-to-previous fallback
+chain, including the underlying ``word/headerN.xml`` / ``word/footerN.xml``
+entry names, the source section index that currently supplies each slot, and
+the document-wide ``w:evenAndOddHeaders`` setting from ``word/settings.xml``
+when it can be read.
+The same inspection summaries are also available on ``TemplatePart`` handles
+returned by ``body_template()``, ``header_template()``, ``footer_template()``,
+``section_header_template()``, and ``section_footer_template()``.
 For a runnable end-to-end version, build ``featherdoc_sample_chinese`` from
 ``samples/sample_chinese.cpp`` with ``-DBUILD_SAMPLES=ON``.
 
@@ -1718,7 +1954,9 @@ staying in one large translation unit:
 - ``src/table.cpp``: table creation plus row/cell traversal and editing helpers
 - ``src/xml_helpers.cpp`` / ``src/xml_helpers.hpp``: shared internal XML helper utilities
 - ``src/constants.cpp``: exported constants and error-category plumbing
-- ``cli/featherdoc_cli.cpp``: minimal section-layout inspection and editing utility
+- ``cli/featherdoc_cli.cpp``: scriptable inspection and editing utility for
+  sections, styles, numbering, page setup, bookmarks, images, and template
+  parts
 
 This keeps archive I/O, XML navigation, and public API behavior easier to
 extend independently.

@@ -178,6 +178,38 @@ void remove_empty_run_language_node(pugi::xml_node run_properties) {
     }
 }
 
+auto clear_run_font_attribute(pugi::xml_node run_properties,
+                              const char *attribute_name) -> bool {
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto run_fonts = run_properties.child("w:rFonts");
+    if (run_fonts == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto removed = run_fonts.remove_attribute(attribute_name);
+    remove_empty_run_fonts_node(run_properties);
+    return removed;
+}
+
+auto clear_run_language_attribute(pugi::xml_node run_properties,
+                                  const char *attribute_name) -> bool {
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto run_language = run_properties.child("w:lang");
+    if (run_language == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto removed = run_language.remove_attribute(attribute_name);
+    remove_empty_run_language_node(run_properties);
+    return removed;
+}
+
 auto insert_run_node(pugi::xml_node parent, pugi::xml_node insert_before) -> pugi::xml_node {
     if (parent == pugi::xml_node{}) {
         return {};
@@ -242,13 +274,7 @@ auto insert_formatted_run(pugi::xml_node parent, pugi::xml_node insert_before,
         run_properties.append_child("w:shadow").append_attribute("w:val").set_value("true");
     }
 
-    auto text_node = run.append_child("w:t");
-    if (text_node == pugi::xml_node{}) {
-        return {};
-    }
-
-    detail::update_xml_space_attribute(text_node, text);
-    if (!text_node.text().set(text)) {
+    if (!detail::set_plain_text_run_content(run, text)) {
         return {};
     }
 
@@ -311,22 +337,20 @@ void Run::set_parent(pugi::xml_node node) {
 
 void Run::set_current(pugi::xml_node node) { this->current = node; }
 
-std::string Run::get_text() const { return this->current.child("w:t").text().get(); }
+std::string Run::get_text() const { return detail::collect_plain_text_from_xml(this->current); }
 
 bool Run::set_text(const std::string &text) const { return this->set_text(text.c_str()); }
 
 bool Run::set_text(const char *text) const {
-    if (text == nullptr) {
+    if (this->current == pugi::xml_node{} || text == nullptr) {
         return false;
     }
 
-    auto text_node = this->current.child("w:t");
-    if (text_node == pugi::xml_node{}) {
-        return false;
-    }
+    return detail::set_plain_text_run_content(this->current, text);
+}
 
-    detail::update_xml_space_attribute(text_node, text);
-    return text_node.text().set(text);
+std::optional<std::string> Run::style_id() const {
+    return read_language_attribute(this->current.child("w:rPr").child("w:rStyle"), "w:val");
 }
 
 std::optional<std::string> Run::font_family() const {
@@ -501,6 +525,36 @@ bool Run::clear_font_family() const {
     return true;
 }
 
+bool Run::clear_east_asia_font_family() const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto run_properties = this->current.child("w:rPr");
+    if (run_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    clear_run_font_attribute(run_properties, "w:eastAsia");
+    detail::remove_empty_run_properties(this->current);
+    return true;
+}
+
+bool Run::clear_primary_language() const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto run_properties = this->current.child("w:rPr");
+    if (run_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    clear_run_language_attribute(run_properties, "w:val");
+    detail::remove_empty_run_properties(this->current);
+    return true;
+}
+
 bool Run::clear_language() const {
     if (this->current == pugi::xml_node{}) {
         return false;
@@ -519,6 +573,36 @@ bool Run::clear_language() const {
         remove_empty_run_language_node(run_properties);
     }
 
+    detail::remove_empty_run_properties(this->current);
+    return true;
+}
+
+bool Run::clear_east_asia_language() const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto run_properties = this->current.child("w:rPr");
+    if (run_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    clear_run_language_attribute(run_properties, "w:eastAsia");
+    detail::remove_empty_run_properties(this->current);
+    return true;
+}
+
+bool Run::clear_bidi_language() const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto run_properties = this->current.child("w:rPr");
+    if (run_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    clear_run_language_attribute(run_properties, "w:bidi");
     detail::remove_empty_run_properties(this->current);
     return true;
 }

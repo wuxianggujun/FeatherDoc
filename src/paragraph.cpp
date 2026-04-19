@@ -287,9 +287,9 @@ Run Paragraph::add_run(const char *text, featherdoc::formatting_flag f) {
         meta.append_child("w:shadow").append_attribute("w:val").set_value("true");
     }
 
-    pugi::xml_node new_run_text = new_run.append_child("w:t");
-    detail::update_xml_space_attribute(new_run_text, text);
-    new_run_text.text().set(text);
+    if (!detail::set_plain_text_run_content(new_run, text)) {
+        return Run{};
+    }
 
     return Run(this->current, new_run);
 }

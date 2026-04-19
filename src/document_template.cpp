@@ -2,8 +2,11 @@
 #include "image_helpers.hpp"
 #include "xml_helpers.hpp"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdlib>
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string>
@@ -12,6 +15,13 @@
 #include <vector>
 #include <unordered_set>
 #include <utility>
+
+namespace featherdoc {
+auto find_table_index_by_bookmark_in_part(
+    featherdoc::document_error_info &last_error_info,
+    pugi::xml_document &document, std::string_view entry_name,
+    std::string_view bookmark_name) -> std::optional<std::size_t>;
+}
 
 namespace {
 constexpr auto document_xml_entry = std::string_view{"word/document.xml"};
@@ -118,6 +128,205 @@ auto append_simple_field_run(pugi::xml_node paragraph, std::string_view instruct
     }
 
     return text.text().set("1");
+}
+
+auto read_optional_string_attribute(pugi::xml_node node, const char *attribute_name)
+    -> std::optional<std::string> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto attribute = node.attribute(attribute_name);
+    if (attribute == pugi::xml_attribute{} || attribute.value()[0] == '\0') {
+        return std::nullopt;
+    }
+
+    return std::string{attribute.value()};
+}
+
+auto read_on_off_value(pugi::xml_node node) -> std::optional<bool> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto attribute = node.attribute("w:val");
+    if (attribute == pugi::xml_attribute{} || attribute.value()[0] == '\0') {
+        return true;
+    }
+
+    const auto value = std::string_view{attribute.value()};
+    return value != "0" && value != "false" && value != "off";
+}
+
+auto read_part_paragraph_style_id(pugi::xml_node paragraph_properties)
+    -> std::optional<std::string> {
+    return read_optional_string_attribute(paragraph_properties.child("w:pStyle"), "w:val");
+}
+
+auto read_part_paragraph_bidi(pugi::xml_node paragraph_properties) -> std::optional<bool> {
+    return read_on_off_value(paragraph_properties.child("w:bidi"));
+}
+
+auto parse_u32_attribute_value(const char *text) -> std::optional<std::uint32_t> {
+    if (text == nullptr || *text == '\0') {
+        return std::nullopt;
+    }
+
+    char *end = nullptr;
+    const auto value = std::strtoul(text, &end, 10);
+    if (end == text || *end != '\0' ||
+        value > static_cast<unsigned long>(std::numeric_limits<std::uint32_t>::max())) {
+        return std::nullopt;
+    }
+
+    return static_cast<std::uint32_t>(value);
+}
+
+auto summarize_part_paragraph_numbering(pugi::xml_node paragraph_properties)
+    -> std::optional<featherdoc::paragraph_inspection_summary::numbering_summary> {
+    const auto numbering_properties = paragraph_properties.child("w:numPr");
+    if (numbering_properties == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    auto summary = featherdoc::paragraph_inspection_summary::numbering_summary{};
+    summary.level = parse_u32_attribute_value(
+        numbering_properties.child("w:ilvl").attribute("w:val").value());
+    summary.num_id = parse_u32_attribute_value(
+        numbering_properties.child("w:numId").attribute("w:val").value());
+    return summary;
+}
+
+auto enrich_part_paragraph_numbering(featherdoc::Document *owner,
+                                     featherdoc::paragraph_inspection_summary &summary) -> void {
+    if (owner == nullptr || !summary.numbering.has_value() ||
+        !summary.numbering->num_id.has_value()) {
+        return;
+    }
+
+    const auto lookup = owner->find_numbering_instance(*summary.numbering->num_id);
+    if (!lookup.has_value()) {
+        return;
+    }
+
+    summary.numbering->definition_id = lookup->definition_id;
+    if (!lookup->definition_name.empty()) {
+        summary.numbering->definition_name = lookup->definition_name;
+    }
+}
+
+auto summarize_part_paragraph_node(pugi::xml_node paragraph_node, std::size_t paragraph_index)
+    -> featherdoc::paragraph_inspection_summary {
+    auto summary = featherdoc::paragraph_inspection_summary{};
+    summary.index = paragraph_index;
+
+    const auto paragraph_properties = paragraph_node.child("w:pPr");
+    summary.style_id = read_part_paragraph_style_id(paragraph_properties);
+    summary.bidi = read_part_paragraph_bidi(paragraph_properties);
+    summary.numbering = summarize_part_paragraph_numbering(paragraph_properties);
+
+    auto paragraph_handle = featherdoc::Paragraph{paragraph_node.parent(), paragraph_node};
+    for (auto run = paragraph_handle.runs(); run.has_next(); run.next()) {
+        ++summary.run_count;
+        summary.text += run.get_text();
+    }
+
+    return summary;
+}
+
+auto summarize_part_run_handle(const featherdoc::Run &run_handle, std::size_t run_index)
+    -> featherdoc::run_inspection_summary {
+    auto summary = featherdoc::run_inspection_summary{};
+    summary.index = run_index;
+    summary.text = run_handle.get_text();
+    summary.style_id = run_handle.style_id();
+    summary.font_family = run_handle.font_family();
+    summary.east_asia_font_family = run_handle.east_asia_font_family();
+    summary.language = run_handle.language();
+    summary.east_asia_language = run_handle.east_asia_language();
+    summary.bidi_language = run_handle.bidi_language();
+    summary.rtl = run_handle.rtl();
+    return summary;
+}
+
+auto summarize_part_table_handle(featherdoc::Table table_handle, std::size_t table_index)
+    -> featherdoc::table_inspection_summary {
+    auto summary = featherdoc::table_inspection_summary{};
+    summary.index = table_index;
+    summary.style_id = table_handle.style_id();
+    summary.width_twips = table_handle.width_twips();
+
+    bool first_row = true;
+    for (auto row = table_handle.rows(); row.has_next(); row.next()) {
+        ++summary.row_count;
+
+        std::size_t row_column_count = 0U;
+        bool first_cell = true;
+        for (auto cell = row.cells(); cell.has_next(); cell.next()) {
+            row_column_count += cell.column_span();
+
+            if (!first_row) {
+                if (first_cell) {
+                    summary.text.push_back('\n');
+                } else {
+                    summary.text.push_back('\t');
+                }
+            } else if (!first_cell) {
+                summary.text.push_back('\t');
+            }
+
+            summary.text += cell.get_text();
+            first_cell = false;
+        }
+
+        summary.column_count = std::max(summary.column_count, row_column_count);
+        first_row = false;
+    }
+
+    summary.column_widths.reserve(summary.column_count);
+    for (std::size_t column_index = 0U; column_index < summary.column_count; ++column_index) {
+        summary.column_widths.push_back(table_handle.column_width_twips(column_index));
+    }
+
+    return summary;
+}
+
+auto summarize_part_table_cell_handle(featherdoc::TableCell cell_handle, std::size_t row_index,
+                                      std::size_t cell_index, std::size_t column_index)
+    -> featherdoc::table_cell_inspection_summary {
+    auto summary = featherdoc::table_cell_inspection_summary{};
+    summary.row_index = row_index;
+    summary.cell_index = cell_index;
+    summary.column_index = column_index;
+    summary.column_span = cell_handle.column_span();
+    summary.width_twips = cell_handle.width_twips();
+    summary.vertical_alignment = cell_handle.vertical_alignment();
+    summary.text_direction = cell_handle.text_direction();
+    summary.text = cell_handle.get_text();
+
+    for (auto paragraph = cell_handle.paragraphs(); paragraph.has_next(); paragraph.next()) {
+        ++summary.paragraph_count;
+    }
+
+    return summary;
+}
+
+auto collect_part_table_cell_summaries(featherdoc::Table table_handle)
+    -> std::vector<featherdoc::table_cell_inspection_summary> {
+    auto summaries = std::vector<featherdoc::table_cell_inspection_summary>{};
+    auto row = table_handle.rows();
+    for (std::size_t row_index = 0U; row.has_next(); ++row_index, row.next()) {
+        std::size_t column_index = 0U;
+        auto cell = row.cells();
+        for (std::size_t cell_index = 0U; cell.has_next(); ++cell_index, cell.next()) {
+            auto summary =
+                summarize_part_table_cell_handle(cell, row_index, cell_index, column_index);
+            column_index += summary.column_span;
+            summaries.push_back(std::move(summary));
+        }
+    }
+
+    return summaries;
 }
 
 struct block_bookmark_placeholder final {
@@ -235,6 +444,332 @@ auto next_node_in_document_order(pugi::xml_node node) -> pugi::xml_node {
     return {};
 }
 
+auto find_top_level_table_ancestor(pugi::xml_node node, pugi::xml_node container)
+    -> pugi::xml_node {
+    for (auto current = node; current != pugi::xml_node{} && current != container;
+         current = current.parent()) {
+        if (std::string_view{current.name()} == "w:tbl" && current.parent() == container) {
+            return current;
+        }
+    }
+
+    return {};
+}
+
+auto find_top_level_table_index(pugi::xml_node container, pugi::xml_node table_node)
+    -> std::optional<std::size_t> {
+    if (container == pugi::xml_node{} || table_node == pugi::xml_node{} ||
+        std::string_view{table_node.name()} != "w:tbl" || table_node.parent() != container) {
+        return std::nullopt;
+    }
+
+    std::size_t table_index = 0U;
+    for (auto child = container.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (child == table_node) {
+            return table_index;
+        }
+        if (std::string_view{child.name()} == "w:tbl") {
+            ++table_index;
+        }
+    }
+
+    return std::nullopt;
+}
+
+auto find_first_top_level_table_after_node(pugi::xml_node container, pugi::xml_node node,
+                                           pugi::xml_node stop_before = {})
+    -> pugi::xml_node {
+    for (auto current = next_node_in_document_order(node); current != pugi::xml_node{};
+         current = next_node_in_document_order(current)) {
+        if (current == stop_before) {
+            break;
+        }
+        if (std::string_view{current.name()} == "w:tbl" && current.parent() == container) {
+            return current;
+        }
+    }
+
+    return {};
+}
+
+auto selector_uses_text_matching(
+    const featherdoc::template_table_selector &selector) -> bool {
+    return selector.after_paragraph_text.has_value() ||
+           !selector.header_cell_texts.empty();
+}
+
+auto validate_template_table_selector(
+    featherdoc::document_error_info &last_error_info, std::string_view entry_name,
+    const featherdoc::template_table_selector &selector) -> bool {
+    const auto uses_direct_target =
+        selector.table_index.has_value() || selector.bookmark_name.has_value();
+    const auto uses_text_target = selector_uses_text_matching(selector);
+
+    if (selector.table_index.has_value() && selector.bookmark_name.has_value()) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table selector cannot combine table_index and "
+                       "bookmark_name",
+                       std::string{entry_name});
+        return false;
+    }
+
+    if (selector.bookmark_name.has_value() && selector.bookmark_name->empty()) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table selector bookmark_name must not be empty",
+                       std::string{entry_name});
+        return false;
+    }
+
+    if (selector.after_paragraph_text.has_value() &&
+        selector.after_paragraph_text->empty()) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table selector after_paragraph_text must not be "
+                       "empty",
+                       std::string{entry_name});
+        return false;
+    }
+
+    if (uses_direct_target && uses_text_target) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table selector cannot combine table_index or "
+                       "bookmark_name with after_paragraph_text or "
+                       "header_cell_texts",
+                       std::string{entry_name});
+        return false;
+    }
+
+    if (!uses_direct_target && !uses_text_target) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table selector must specify table_index, "
+                       "bookmark_name, after_paragraph_text, or "
+                       "header_cell_texts",
+                       std::string{entry_name});
+        return false;
+    }
+
+    if (selector.occurrence != 0U && !uses_text_target) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table selector occurrence requires "
+                       "after_paragraph_text or header_cell_texts",
+                       std::string{entry_name});
+        return false;
+    }
+
+    if (selector.header_row_index != 0U && selector.header_cell_texts.empty()) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table selector header_row_index requires "
+                       "header_cell_texts",
+                       std::string{entry_name});
+        return false;
+    }
+
+    return true;
+}
+
+auto find_top_level_table_by_index(pugi::xml_node container, std::size_t table_index)
+    -> pugi::xml_node {
+    std::size_t current_table_index = 0U;
+    for (auto child = container.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::string_view{child.name()} != "w:tbl") {
+            continue;
+        }
+        if (current_table_index == table_index) {
+            return child;
+        }
+        ++current_table_index;
+    }
+
+    return {};
+}
+
+auto push_unique_table_node(std::vector<pugi::xml_node> &matches,
+                            pugi::xml_node table_node) -> void {
+    if (table_node == pugi::xml_node{}) {
+        return;
+    }
+    if (std::find(matches.begin(), matches.end(), table_node) == matches.end()) {
+        matches.push_back(table_node);
+    }
+}
+
+auto top_level_paragraph_contains_text(pugi::xml_node paragraph_node,
+                                       std::string_view text) -> bool {
+    if (paragraph_node == pugi::xml_node{} ||
+        std::string_view{paragraph_node.name()} != "w:p" || text.empty()) {
+        return false;
+    }
+
+    return summarize_part_paragraph_node(paragraph_node, 0U).text.find(text) !=
+           std::string::npos;
+}
+
+auto table_row_cell_texts(pugi::xml_node container, pugi::xml_node table_node,
+                          std::size_t row_index)
+    -> std::optional<std::vector<std::string>> {
+    if (container == pugi::xml_node{} || table_node == pugi::xml_node{} ||
+        std::string_view{table_node.name()} != "w:tbl" ||
+        table_node.parent() != container) {
+        return std::nullopt;
+    }
+
+    auto table = featherdoc::Table{container, table_node};
+    auto row = table.rows();
+    for (std::size_t current_row_index = 0U; row.has_next();
+         ++current_row_index, row.next()) {
+        if (current_row_index != row_index) {
+            continue;
+        }
+
+        auto cell_texts = std::vector<std::string>{};
+        auto cell = row.cells();
+        while (cell.has_next()) {
+            cell_texts.push_back(cell.get_text());
+            cell.next();
+        }
+        return cell_texts;
+    }
+
+    return std::nullopt;
+}
+
+auto top_level_table_matches_selector_header(
+    pugi::xml_node container, pugi::xml_node table_node,
+    const featherdoc::template_table_selector &selector) -> bool {
+    if (selector.header_cell_texts.empty()) {
+        return true;
+    }
+
+    const auto header_cells =
+        table_row_cell_texts(container, table_node, selector.header_row_index);
+    return header_cells.has_value() &&
+           *header_cells == selector.header_cell_texts;
+}
+
+auto find_first_matching_top_level_table_after_node(
+    pugi::xml_node container, pugi::xml_node node,
+    const featherdoc::template_table_selector &selector) -> pugi::xml_node {
+    for (auto current = next_node_in_document_order(node); current != pugi::xml_node{};
+         current = next_node_in_document_order(current)) {
+        if (std::string_view{current.name()} == "w:tbl" &&
+            current.parent() == container &&
+            top_level_table_matches_selector_header(container, current, selector)) {
+            return current;
+        }
+    }
+
+    return {};
+}
+
+auto find_table_index_by_selector_in_part(
+    featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
+    std::string_view entry_name,
+    const featherdoc::template_table_selector &selector)
+    -> std::optional<std::size_t> {
+    if (!validate_template_table_selector(last_error_info, entry_name, selector)) {
+        return std::nullopt;
+    }
+
+    const auto container = template_part_block_container(document);
+    if (container == pugi::xml_node{}) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template part does not contain a supported block container",
+                       std::string{entry_name});
+        return std::nullopt;
+    }
+
+    if (selector.table_index.has_value()) {
+        if (find_top_level_table_by_index(container, *selector.table_index) ==
+            pugi::xml_node{}) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "table index '" +
+                               std::to_string(*selector.table_index) +
+                               "' is out of range in " + std::string{entry_name},
+                           std::string{entry_name});
+            return std::nullopt;
+        }
+
+        last_error_info.clear();
+        return selector.table_index;
+    }
+
+    if (selector.bookmark_name.has_value()) {
+        return featherdoc::find_table_index_by_bookmark_in_part(
+            last_error_info, document, entry_name, *selector.bookmark_name);
+    }
+
+    auto matches = std::vector<pugi::xml_node>{};
+    if (selector.after_paragraph_text.has_value()) {
+        for (auto child = container.first_child(); child != pugi::xml_node{};
+             child = child.next_sibling()) {
+            if (!top_level_paragraph_contains_text(child,
+                                                   *selector.after_paragraph_text)) {
+                continue;
+            }
+
+            const auto table =
+                selector.header_cell_texts.empty()
+                    ? find_first_top_level_table_after_node(container, child)
+                    : find_first_matching_top_level_table_after_node(container,
+                                                                     child,
+                                                                     selector);
+            push_unique_table_node(matches, table);
+        }
+    } else {
+        for (auto child = container.first_child(); child != pugi::xml_node{};
+             child = child.next_sibling()) {
+            if (std::string_view{child.name()} == "w:tbl" &&
+                top_level_table_matches_selector_header(container, child, selector)) {
+                matches.push_back(child);
+            }
+        }
+    }
+
+    if (matches.empty()) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table selector did not resolve to a table in " +
+                           std::string{entry_name},
+                       std::string{entry_name});
+        return std::nullopt;
+    }
+
+    if (selector.occurrence >= matches.size()) {
+        set_last_error(
+            last_error_info, std::make_error_code(std::errc::invalid_argument),
+            "template table selector occurrence '" +
+                std::to_string(selector.occurrence) + "' is out of range for " +
+                std::to_string(matches.size()) + " match(es) in " +
+                std::string{entry_name},
+            std::string{entry_name});
+        return std::nullopt;
+    }
+
+    const auto resolved_index =
+        find_top_level_table_index(container, matches[selector.occurrence]);
+    if (!resolved_index.has_value()) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table selector resolved an invalid table node in " +
+                           std::string{entry_name},
+                       std::string{entry_name});
+        return std::nullopt;
+    }
+
+    last_error_info.clear();
+    return resolved_index;
+}
+
 auto find_matching_bookmark_end_in_document_order(pugi::xml_node bookmark_start)
     -> pugi::xml_node {
     const auto bookmark_id = std::string_view{bookmark_start.attribute("w:id").value()};
@@ -277,16 +812,7 @@ auto replace_bookmark_range(pugi::xml_node bookmark_start, std::string_view repl
         if (replacement_run == pugi::xml_node{}) {
             return false;
         }
-
-        auto replacement_text = replacement_run.append_child("w:t");
-        if (replacement_text == pugi::xml_node{}) {
-            return false;
-        }
-
-        const std::string replacement_buffer{replacement};
-        featherdoc::detail::update_xml_space_attribute(replacement_text,
-                                                       replacement_buffer.c_str());
-        return replacement_text.text().set(replacement_buffer.c_str());
+        return featherdoc::detail::set_plain_text_run_content(replacement_run, replacement);
     }
 
     return true;
@@ -628,14 +1154,7 @@ auto rewrite_paragraph_plain_text(pugi::xml_node paragraph, std::string_view tex
         return false;
     }
 
-    auto text_node = run.append_child("w:t");
-    if (text_node == pugi::xml_node{}) {
-        return false;
-    }
-
-    const std::string text_buffer{text};
-    featherdoc::detail::update_xml_space_attribute(text_node, text_buffer.c_str());
-    return text_node.text().set(text_buffer.c_str());
+    return featherdoc::detail::set_plain_text_run_content(run, text);
 }
 
 auto rewrite_table_cell_plain_text(pugi::xml_node cell, std::string_view text) -> bool {
@@ -1509,6 +2028,295 @@ Table TemplatePart::append_table(std::size_t row_count, std::size_t column_count
     return created_table;
 }
 
+std::vector<featherdoc::table_inspection_summary> TemplatePart::inspect_tables() {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    auto summaries = std::vector<featherdoc::table_inspection_summary>{};
+    auto table_handle = this->tables();
+    for (std::size_t table_index = 0U; table_handle.has_next();
+         ++table_index, table_handle.next()) {
+        summaries.push_back(summarize_part_table_handle(table_handle, table_index));
+    }
+
+    this->last_error_info->clear();
+    return summaries;
+}
+
+std::optional<featherdoc::table_inspection_summary>
+TemplatePart::inspect_table(std::size_t table_index) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return std::nullopt;
+    }
+
+    auto table_handle = this->tables();
+    for (std::size_t current_index = 0U;
+         current_index < table_index && table_handle.has_next(); ++current_index) {
+        table_handle.next();
+    }
+
+    if (!table_handle.has_next()) {
+        this->last_error_info->clear();
+        return std::nullopt;
+    }
+
+    auto summary = summarize_part_table_handle(table_handle, table_index);
+    this->last_error_info->clear();
+    return summary;
+}
+
+std::vector<featherdoc::table_cell_inspection_summary>
+TemplatePart::inspect_table_cells(std::size_t table_index) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    auto table_handle = this->tables();
+    for (std::size_t current_index = 0U;
+         current_index < table_index && table_handle.has_next(); ++current_index) {
+        table_handle.next();
+    }
+
+    if (!table_handle.has_next()) {
+        this->last_error_info->clear();
+        return {};
+    }
+
+    auto summaries = collect_part_table_cell_summaries(table_handle);
+    this->last_error_info->clear();
+    return summaries;
+}
+
+std::optional<featherdoc::table_cell_inspection_summary>
+TemplatePart::inspect_table_cell(std::size_t table_index, std::size_t row_index,
+                                 std::size_t cell_index) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return std::nullopt;
+    }
+
+    const auto cells = this->inspect_table_cells(table_index);
+    for (const auto &cell : cells) {
+        if (cell.row_index == row_index && cell.cell_index == cell_index) {
+            this->last_error_info->clear();
+            return cell;
+        }
+    }
+
+    this->last_error_info->clear();
+    return std::nullopt;
+}
+
+auto find_table_index_by_bookmark_in_part(featherdoc::document_error_info &last_error_info,
+                                          pugi::xml_document &document,
+                                          std::string_view entry_name,
+                                          std::string_view bookmark_name)
+    -> std::optional<std::size_t> {
+    if (bookmark_name.empty()) {
+        set_last_error(
+            last_error_info, std::make_error_code(std::errc::invalid_argument),
+            "bookmark name must not be empty when resolving a table by bookmark",
+            std::string{entry_name});
+        return std::nullopt;
+    }
+
+    const auto container = template_part_block_container(document);
+    if (container == pugi::xml_node{}) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "template part does not contain a supported block container",
+                       std::string{entry_name});
+        return std::nullopt;
+    }
+
+    std::vector<pugi::xml_node> bookmark_starts;
+    collect_named_bookmark_starts(document, bookmark_name, bookmark_starts);
+    if (bookmark_starts.empty()) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "bookmark name '" + std::string{bookmark_name} +
+                           "' was not found in " + std::string{entry_name},
+                       std::string{entry_name});
+        return std::nullopt;
+    }
+
+    for (const auto bookmark_start : bookmark_starts) {
+        if (const auto table = find_top_level_table_ancestor(bookmark_start, container);
+            table != pugi::xml_node{}) {
+            if (const auto table_index = find_top_level_table_index(container, table)) {
+                last_error_info.clear();
+                return table_index;
+            }
+        }
+
+        const auto bookmark_end = find_matching_bookmark_end_in_document_order(bookmark_start);
+        if (bookmark_end != pugi::xml_node{}) {
+            if (const auto table =
+                    find_first_top_level_table_after_node(container, bookmark_start, bookmark_end);
+                table != pugi::xml_node{}) {
+                if (const auto table_index = find_top_level_table_index(container, table)) {
+                    last_error_info.clear();
+                    return table_index;
+                }
+            }
+
+            if (const auto table = find_top_level_table_ancestor(bookmark_end, container);
+                table != pugi::xml_node{}) {
+                if (const auto table_index = find_top_level_table_index(container, table)) {
+                    last_error_info.clear();
+                    return table_index;
+                }
+            }
+        }
+
+        const auto search_anchor =
+            bookmark_end != pugi::xml_node{} ? bookmark_end : bookmark_start;
+        if (const auto table =
+                find_first_top_level_table_after_node(container, search_anchor);
+            table != pugi::xml_node{}) {
+            if (const auto table_index = find_top_level_table_index(container, table)) {
+                last_error_info.clear();
+                return table_index;
+            }
+        }
+    }
+
+    set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                   "bookmark name '" + std::string{bookmark_name} +
+                       "' did not resolve to a table in " + std::string{entry_name},
+                   std::string{entry_name});
+    return std::nullopt;
+}
+
+std::vector<featherdoc::paragraph_inspection_summary> TemplatePart::inspect_paragraphs() {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    auto summaries = std::vector<featherdoc::paragraph_inspection_summary>{};
+    auto paragraph_handle = this->paragraphs();
+    for (std::size_t paragraph_index = 0U; paragraph_handle.has_next();
+         ++paragraph_index, paragraph_handle.next()) {
+        auto summary = summarize_part_paragraph_node(paragraph_handle.current, paragraph_index);
+        enrich_part_paragraph_numbering(this->owner, summary);
+        summaries.push_back(std::move(summary));
+    }
+
+    this->last_error_info->clear();
+    return summaries;
+}
+
+std::optional<featherdoc::paragraph_inspection_summary>
+TemplatePart::inspect_paragraph(std::size_t paragraph_index) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return std::nullopt;
+    }
+
+    auto paragraph_handle = this->paragraphs();
+    for (std::size_t current_index = 0U;
+         current_index < paragraph_index && paragraph_handle.has_next(); ++current_index) {
+        paragraph_handle.next();
+    }
+
+    if (!paragraph_handle.has_next()) {
+        this->last_error_info->clear();
+        return std::nullopt;
+    }
+
+    auto summary = summarize_part_paragraph_node(paragraph_handle.current, paragraph_index);
+    enrich_part_paragraph_numbering(this->owner, summary);
+    this->last_error_info->clear();
+    return summary;
+}
+
+std::vector<featherdoc::run_inspection_summary>
+TemplatePart::inspect_paragraph_runs(std::size_t paragraph_index) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    auto paragraph_handle = this->paragraphs();
+    for (std::size_t current_index = 0U;
+         current_index < paragraph_index && paragraph_handle.has_next(); ++current_index) {
+        paragraph_handle.next();
+    }
+
+    if (!paragraph_handle.has_next()) {
+        this->last_error_info->clear();
+        return {};
+    }
+
+    auto summaries = std::vector<featherdoc::run_inspection_summary>{};
+    auto run = paragraph_handle.runs();
+    for (std::size_t run_index = 0U; run.has_next(); ++run_index, run.next()) {
+        summaries.push_back(summarize_part_run_handle(run, run_index));
+    }
+
+    this->last_error_info->clear();
+    return summaries;
+}
+
+std::optional<featherdoc::run_inspection_summary>
+TemplatePart::inspect_paragraph_run(std::size_t paragraph_index, std::size_t run_index) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return std::nullopt;
+    }
+
+    const auto runs = this->inspect_paragraph_runs(paragraph_index);
+    if (run_index >= runs.size()) {
+        this->last_error_info->clear();
+        return std::nullopt;
+    }
+
+    return runs[run_index];
+}
+
 std::size_t TemplatePart::replace_bookmark_text(const std::string &bookmark_name,
                                                 const std::string &replacement) {
     if (this->xml_document == nullptr || this->last_error_info == nullptr) {
@@ -1596,6 +2404,100 @@ std::optional<featherdoc::bookmark_summary> TemplatePart::find_bookmark(
 
     return find_bookmark_in_part(*this->last_error_info, *this->xml_document,
                                  this->entry_name_storage, bookmark_name);
+}
+
+std::optional<std::size_t> TemplatePart::find_table_index_by_bookmark(
+    std::string_view bookmark_name) const {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return std::nullopt;
+    }
+
+    return find_table_index_by_bookmark_in_part(*this->last_error_info,
+                                                *this->xml_document,
+                                                this->entry_name_storage,
+                                                bookmark_name);
+}
+
+std::optional<std::size_t> TemplatePart::find_table_index(
+    const featherdoc::template_table_selector &selector) const {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return std::nullopt;
+    }
+
+    return find_table_index_by_selector_in_part(*this->last_error_info,
+                                                *this->xml_document,
+                                                this->entry_name_storage,
+                                                selector);
+}
+
+std::optional<featherdoc::Table> TemplatePart::find_table_by_bookmark(
+    std::string_view bookmark_name) {
+    const auto resolved_index = this->find_table_index_by_bookmark(bookmark_name);
+    if (!resolved_index.has_value()) {
+        return std::nullopt;
+    }
+
+    auto table_handle = this->tables();
+    for (std::size_t current_index = 0U;
+         current_index < *resolved_index && table_handle.has_next(); ++current_index) {
+        table_handle.next();
+    }
+
+    if (!table_handle.has_next()) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::state_not_recoverable),
+                           "bookmark-resolved table index '" +
+                               std::to_string(*resolved_index) +
+                               "' is no longer present in template part",
+                           this->entry_name_storage);
+        }
+        return std::nullopt;
+    }
+
+    this->last_error_info->clear();
+    return table_handle;
+}
+
+std::optional<featherdoc::Table> TemplatePart::find_table(
+    const featherdoc::template_table_selector &selector) {
+    const auto resolved_index = this->find_table_index(selector);
+    if (!resolved_index.has_value()) {
+        return std::nullopt;
+    }
+
+    auto table_handle = this->tables();
+    for (std::size_t current_index = 0U;
+         current_index < *resolved_index && table_handle.has_next(); ++current_index) {
+        table_handle.next();
+    }
+
+    if (!table_handle.has_next()) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::state_not_recoverable),
+                           "selector-resolved table index '" +
+                               std::to_string(*resolved_index) +
+                               "' is no longer present in template part",
+                           this->entry_name_storage);
+        }
+        return std::nullopt;
+    }
+
+    this->last_error_info->clear();
+    return table_handle;
 }
 
 template_validation_result TemplatePart::validate_template(
