@@ -78,6 +78,11 @@ performance.
   bookmark placeholder paragraphs with generated tables or expand
   bookmark-backed template rows inside existing tables, including empty
   replacement lists for removing template rows.
+- Added Word-backed visual regression coverage for
+  `replace-bookmark-table` and `replace-bookmark-table-rows`, including
+  standalone bookmark-to-table insertion plus populated and empty
+  bookmark-backed table-row replacement cases with real Word-rendered
+  before/after evidence.
 - Added `featherdoc_cli set-bookmark-block-visibility` and
   `apply-bookmark-block-visibility` so CLI workflows can keep or remove
   bookmark-guarded template blocks in body/header/footer/section-scoped
