@@ -91,6 +91,10 @@ performance.
   workflows can rewrite one bookmark range or batch-fill multiple bookmark
   text slots across body/header/footer/section-scoped template parts without
   dropping to the C++ API.
+- Added Word-backed visual regression coverage for
+  `replace-bookmark-image`, including inline body bookmark replacement with
+  structure assertions from `inspect-images` / `extract-image` plus real
+  Word-rendered before/after evidence.
 - Added `featherdoc_cli inspect-template-paragraphs`,
   `inspect-template-runs`, `inspect-template-tables`, and
   `inspect-template-table-cells` so CLI workflows can inspect paragraph/run/
