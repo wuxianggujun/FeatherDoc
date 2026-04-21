@@ -43,6 +43,10 @@ param(
     [string]$SectionPageSetupBuildDir = "build-section-page-setup-regression-nmake",
     [string]$PageNumberFieldsBuildDir = "build-page-number-fields-regression-nmake",
     [string]$BookmarkFloatingImageBuildDir = "build-msvc-nmake-bookmark-floating-image-visual",
+    [string]$BookmarkImageBuildDir = "build-msvc-nmake-list-visual",
+    [string]$BookmarkBlockVisibilityBuildDir = "build-codex-clang-compat",
+    [string]$TemplateBookmarkParagraphsBuildDir = "build-codex-clang-compat",
+    [string]$BookmarkTableReplacementBuildDir = "build-codex-clang-compat",
     [string]$FillBookmarksBuildDir = "build-fill-bookmarks-visual-nmake",
     [string]$AppendImageBuildDir = "build-append-image-visual-nmake",
     [string]$TableRowBuildDir = "build-table-row-visual-nmake",
@@ -54,6 +58,10 @@ param(
     [switch]$SkipSectionPageSetup,
     [switch]$SkipPageNumberFields,
     [switch]$SkipBookmarkFloatingImage,
+    [switch]$SkipBookmarkImage,
+    [switch]$SkipBookmarkBlockVisibility,
+    [switch]$SkipTemplateBookmarkParagraphs,
+    [switch]$SkipBookmarkTableReplacement,
     [switch]$SkipFillBookmarks,
     [switch]$SkipAppendImage,
     [switch]$SkipTableRow,
@@ -420,6 +428,10 @@ if (
     $SkipSectionPageSetup -and
     $SkipPageNumberFields -and
     $SkipBookmarkFloatingImage -and
+    $SkipBookmarkImage -and
+    $SkipBookmarkBlockVisibility -and
+    $SkipTemplateBookmarkParagraphs -and
+    $SkipBookmarkTableReplacement -and
     $SkipFillBookmarks -and
     $SkipAppendImage -and
     $SkipTableRow -and
@@ -436,6 +448,10 @@ $resolvedFixedGridOutputDir = Join-Path $resolvedGateOutputDir "fixed-grid"
 $resolvedSectionPageSetupOutputDir = Join-Path $resolvedGateOutputDir "section-page-setup"
 $resolvedPageNumberFieldsOutputDir = Join-Path $resolvedGateOutputDir "page-number-fields"
 $resolvedBookmarkFloatingImageOutputDir = Join-Path $resolvedGateOutputDir "bookmark-floating-image"
+$resolvedBookmarkImageOutputDir = Join-Path $resolvedGateOutputDir "bookmark-image"
+$resolvedBookmarkBlockVisibilityOutputDir = Join-Path $resolvedGateOutputDir "bookmark-block-visibility"
+$resolvedTemplateBookmarkParagraphsOutputDir = Join-Path $resolvedGateOutputDir "template-bookmark-paragraphs"
+$resolvedBookmarkTableReplacementOutputDir = Join-Path $resolvedGateOutputDir "bookmark-table-replacement"
 $resolvedFillBookmarksOutputDir = Join-Path $resolvedGateOutputDir "fill-bookmarks"
 $resolvedAppendImageOutputDir = Join-Path $resolvedGateOutputDir "append-image"
 $resolvedTableRowOutputDir = Join-Path $resolvedGateOutputDir "table-row"
@@ -458,6 +474,14 @@ $pageNumberFieldsOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRo
     -TargetPath $resolvedPageNumberFieldsOutputDir -Label "Page number fields output directory"
 $bookmarkFloatingImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedBookmarkFloatingImageOutputDir -Label "Bookmark floating image output directory"
+$bookmarkImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedBookmarkImageOutputDir -Label "Bookmark image output directory"
+$bookmarkBlockVisibilityOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedBookmarkBlockVisibilityOutputDir -Label "Bookmark block visibility output directory"
+$templateBookmarkParagraphsOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateBookmarkParagraphsOutputDir -Label "Template bookmark paragraphs output directory"
+$bookmarkTableReplacementOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedBookmarkTableReplacementOutputDir -Label "Bookmark table replacement output directory"
 $fillBookmarksOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedFillBookmarksOutputDir -Label "Fill bookmarks output directory"
 $appendImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
@@ -474,6 +498,10 @@ $fixedGridScript = Join-Path $repoRoot "scripts\run_fixed_grid_merge_unmerge_reg
 $sectionPageSetupScript = Join-Path $repoRoot "scripts\run_section_page_setup_visual_regression.ps1"
 $pageNumberFieldsScript = Join-Path $repoRoot "scripts\run_page_number_fields_visual_regression.ps1"
 $bookmarkFloatingImageScript = Join-Path $repoRoot "scripts\run_bookmark_floating_image_visual_regression.ps1"
+$bookmarkImageScript = Join-Path $repoRoot "scripts\run_bookmark_image_visual_regression.ps1"
+$bookmarkBlockVisibilityScript = Join-Path $repoRoot "scripts\run_bookmark_block_visibility_visual_regression.ps1"
+$templateBookmarkParagraphsScript = Join-Path $repoRoot "scripts\run_template_bookmark_paragraphs_visual_regression.ps1"
+$bookmarkTableReplacementScript = Join-Path $repoRoot "scripts\run_bookmark_table_replacement_visual_regression.ps1"
 $fillBookmarksScript = Join-Path $repoRoot "scripts\run_fill_bookmarks_visual_regression.ps1"
 $appendImageScript = Join-Path $repoRoot "scripts\run_append_image_visual_regression.ps1"
 $tableRowScript = Join-Path $repoRoot "scripts\run_table_row_visual_regression.ps1"
@@ -517,6 +545,42 @@ $curatedVisualFlowDescriptors = @(
         output_dir = $resolvedBookmarkFloatingImageOutputDir
         output_dir_for_child = $bookmarkFloatingImageOutputDirForChild
         script_path = $bookmarkFloatingImageScript
+    },
+    [ordered]@{
+        id = "bookmark-image"
+        label = "Bookmark image"
+        skip = $SkipBookmarkImage.IsPresent
+        build_dir = $BookmarkImageBuildDir
+        output_dir = $resolvedBookmarkImageOutputDir
+        output_dir_for_child = $bookmarkImageOutputDirForChild
+        script_path = $bookmarkImageScript
+    },
+    [ordered]@{
+        id = "bookmark-block-visibility"
+        label = "Bookmark block visibility"
+        skip = $SkipBookmarkBlockVisibility.IsPresent
+        build_dir = $BookmarkBlockVisibilityBuildDir
+        output_dir = $resolvedBookmarkBlockVisibilityOutputDir
+        output_dir_for_child = $bookmarkBlockVisibilityOutputDirForChild
+        script_path = $bookmarkBlockVisibilityScript
+    },
+    [ordered]@{
+        id = "template-bookmark-paragraphs"
+        label = "Template bookmark paragraphs"
+        skip = $SkipTemplateBookmarkParagraphs.IsPresent
+        build_dir = $TemplateBookmarkParagraphsBuildDir
+        output_dir = $resolvedTemplateBookmarkParagraphsOutputDir
+        output_dir_for_child = $templateBookmarkParagraphsOutputDirForChild
+        script_path = $templateBookmarkParagraphsScript
+    },
+    [ordered]@{
+        id = "bookmark-table-replacement"
+        label = "Bookmark table replacement"
+        skip = $SkipBookmarkTableReplacement.IsPresent
+        build_dir = $BookmarkTableReplacementBuildDir
+        output_dir = $resolvedBookmarkTableReplacementOutputDir
+        output_dir_for_child = $bookmarkTableReplacementOutputDirForChild
+        script_path = $bookmarkTableReplacementScript
     },
     [ordered]@{
         id = "fill-bookmarks"
