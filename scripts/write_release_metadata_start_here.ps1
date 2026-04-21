@@ -44,6 +44,38 @@ function Get-OptionalPropertyValue {
     return [string]$property.Value
 }
 
+function Get-OptionalPropertyObject {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $null
+    }
+
+    return $property.Value
+}
+
+function Get-OptionalPropertyArray {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $propertyValue = Get-OptionalPropertyObject -Object $Object -Name $Name
+    if ($null -eq $propertyValue) {
+        return @()
+    }
+
+    return @($propertyValue)
+}
+
 function Get-DisplayValue {
     param([string]$Value)
 
@@ -91,6 +123,104 @@ function Get-RepoRelativePath {
     return $resolvedPath
 }
 
+function Get-VisualTaskVerdict {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryVerdict = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_verdict" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryVerdict)) {
+        return $summaryVerdict
+    }
+
+    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
+    $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
+    $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
+    return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
+}
+
+function Get-CuratedVisualReviewEntries {
+    param(
+        $VisualGateSummary,
+        $GateSummary
+    )
+
+    $entryMap = @{}
+    $entryOrder = New-Object 'System.Collections.Generic.List[string]'
+    $fallbackIndex = 0
+
+    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
+    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
+    $manualTasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
+
+    $sources = @(
+        (Get-OptionalPropertyArray -Object $VisualGateSummary -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $reviewTasks -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $manualTasks -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $GateSummary -Name "curated_visual_regressions")
+    )
+
+    foreach ($sourceGroup in $sources) {
+        foreach ($source in $sourceGroup) {
+            $fallbackIndex += 1
+
+            $id = Get-OptionalPropertyValue -Object $source -Name "id"
+            $displayLabel = Get-OptionalPropertyValue -Object $source -Name "display_label"
+            $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
+                $displayLabel
+            } else {
+                Get-OptionalPropertyValue -Object $source -Name "label"
+            }
+            $key = if (-not [string]::IsNullOrWhiteSpace($id)) {
+                $id
+            } elseif (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
+                $label
+            } else {
+                "__curated_{0}" -f $fallbackIndex
+            }
+
+            if (-not $entryMap.ContainsKey($key)) {
+                $entryMap[$key] = [ordered]@{
+                    id = ""
+                    label = ""
+                    verdict = ""
+                }
+                [void]$entryOrder.Add($key)
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($id)) {
+                $entryMap[$key].id = $id
+            }
+            if (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
+                $entryMap[$key].label = $label
+            }
+
+            $verdict = Get-OptionalPropertyValue -Object $source -Name "verdict"
+            if (-not [string]::IsNullOrWhiteSpace($verdict)) {
+                $entryMap[$key].verdict = $verdict
+            }
+        }
+    }
+
+    $entries = @()
+    foreach ($key in $entryOrder) {
+        $entry = $entryMap[$key]
+        if ([string]::IsNullOrWhiteSpace($entry.label)) {
+            if (-not [string]::IsNullOrWhiteSpace($entry.id)) {
+                $entry.label = $entry.id
+            } else {
+                $entry.label = "Curated visual regression bundle"
+            }
+        }
+
+        $entries += [pscustomobject]$entry
+    }
+
+    return $entries
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryJson
 if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
@@ -111,6 +241,22 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
 $releaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
 $installDir = Get-OptionalPropertyValue -Object $summary -Name "install_dir"
+$visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
+$gateSummaryPath = Get-OptionalPropertyValue -Object $visualGateStep -Name "summary_json"
+$gateSummary = $null
+if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -LiteralPath $gateSummaryPath)) {
+    $gateSummary = Get-Content -Raw $gateSummaryPath | ConvertFrom-Json
+}
+$visualVerdict = Get-OptionalPropertyValue -Object $visualGateStep -Name "visual_verdict"
+if ([string]::IsNullOrWhiteSpace($visualVerdict)) {
+    $visualVerdict = Get-OptionalPropertyValue -Object $summary -Name "visual_verdict"
+}
+if ([string]::IsNullOrWhiteSpace($visualVerdict)) {
+    $visualVerdict = Get-OptionalPropertyValue -Object $gateSummary -Name "visual_verdict"
+}
+$sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
 $installDirLeaf = if ([string]::IsNullOrWhiteSpace($installDir)) {
     "build-msvc-install"
 } else {
@@ -178,6 +324,18 @@ if ($ArtifactRootLayout) {
     [void]$lines.Add('- `release_body.zh-CN.md`: `report/release_body.zh-CN.md`')
     [void]$lines.Add(('- Installed quickstart: `{0}`' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $quickstartLocalPath)))
     [void]$lines.Add(('- Installed release template: `{0}`' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $templateLocalPath)))
+}
+
+[void]$lines.Add("")
+[void]$lines.Add("## Verification Snapshot")
+[void]$lines.Add("")
+[void]$lines.Add("- Execution status: $($summary.execution_status)")
+[void]$lines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
+[void]$lines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
+[void]$lines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
+[void]$lines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
+foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
+    [void]$lines.Add("- $($curatedVisualReview.label) verdict: $(Get-DisplayValue -Value $curatedVisualReview.verdict)")
 }
 
 [void]$lines.Add("")

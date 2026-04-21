@@ -89,7 +89,8 @@ performance.
   newest task in their source group.
 - Extended `scripts/write_release_artifact_handoff.ps1`,
   `scripts/write_release_artifact_guide.ps1`, and
-  `scripts/write_release_reviewer_checklist.ps1` so generated release
+  `scripts/write_release_reviewer_checklist.ps1` plus
+  `scripts/write_release_metadata_start_here.ps1` so generated release
   artifacts now surface curated visual regression bundle verdicts, review-task
   paths, and bundle-specific `open_latest_word_review_task.ps1 -SourceKind
   <bundle-key>-visual-regression-bundle` entry points alongside the existing
