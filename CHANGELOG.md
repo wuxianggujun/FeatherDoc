@@ -57,6 +57,11 @@ performance.
   `insert-table-row-before`, `insert-table-row-after`, and
   `remove-table-row` so CLI workflows can inspect row-level table metadata and
   grow or shrink body tables without dropping to the C++ API.
+- Added Word-backed visual regression coverage for `append-table-row`,
+  `insert-table-row-before`, `insert-table-row-after`, and
+  `remove-table-row`, including body-table growth/shrink cases with
+  `inspect-table-rows` / `inspect-table-cells` assertions plus real
+  Word-rendered before/after evidence.
 - Added granular clear helpers for run/default/style eastAsia font and
   eastAsia/bidi language metadata so callers can drop one override without
   wiping unrelated run formatting.
@@ -123,6 +128,10 @@ performance.
   both inline body insertion and section-header floating insertion with
   `inspect-images`, `extract-image`, and `inspect-header-parts` assertions
   plus real Word-rendered before/after evidence.
+- Added Word-backed visual regression coverage for `replace-image` and
+  `remove-image`, including anchored body-image replacement/removal with
+  `inspect-images` / `extract-image` assertions plus real Word-rendered
+  before/after evidence that the remaining inline image stays in normal flow.
 - Added `featherdoc_cli inspect-template-paragraphs`,
   `inspect-template-runs`, `inspect-template-tables`, and
   `inspect-template-table-cells` so CLI workflows can inspect paragraph/run/
