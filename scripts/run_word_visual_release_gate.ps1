@@ -60,6 +60,10 @@ param(
     [string]$TableCellFillBuildDir = "build-table-cell-fill-visual-nmake",
     [string]$TableCellBorderBuildDir = "build-table-cell-border-visual-nmake",
     [string]$TableCellWidthBuildDir = "build-table-cell-width-visual-nmake",
+    [string]$TableCellMarginBuildDir = "build-table-cell-margin-visual-nmake",
+    [string]$TableCellVerticalAlignmentBuildDir = "build-table-cell-vertical-alignment-visual-nmake",
+    [string]$TableCellTextDirectionBuildDir = "build-table-cell-text-direction-visual-nmake",
+    [string]$TableCellMergeBuildDir = "build-table-cell-merge-visual-nmake",
     [string]$ReplaceRemoveImageBuildDir = "build-image-mutate-visual-nmake",
     [int]$Dpi = 144,
     [switch]$SkipBuild,
@@ -85,6 +89,10 @@ param(
     [switch]$SkipTableCellFill,
     [switch]$SkipTableCellBorder,
     [switch]$SkipTableCellWidth,
+    [switch]$SkipTableCellMargin,
+    [switch]$SkipTableCellVerticalAlignment,
+    [switch]$SkipTableCellTextDirection,
+    [switch]$SkipTableCellMerge,
     [switch]$SkipReplaceRemoveImage,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
@@ -465,6 +473,10 @@ if (
     $SkipTableCellFill -and
     $SkipTableCellBorder -and
     $SkipTableCellWidth -and
+    $SkipTableCellMargin -and
+    $SkipTableCellVerticalAlignment -and
+    $SkipTableCellTextDirection -and
+    $SkipTableCellMerge -and
     $SkipReplaceRemoveImage
 ) {
     throw "At least one release-gate flow must remain enabled."
@@ -495,6 +507,10 @@ $resolvedTableRowRepeatHeaderOutputDir = Join-Path $resolvedGateOutputDir "table
 $resolvedTableCellFillOutputDir = Join-Path $resolvedGateOutputDir "table-cell-fill"
 $resolvedTableCellBorderOutputDir = Join-Path $resolvedGateOutputDir "table-cell-border"
 $resolvedTableCellWidthOutputDir = Join-Path $resolvedGateOutputDir "table-cell-width"
+$resolvedTableCellMarginOutputDir = Join-Path $resolvedGateOutputDir "table-cell-margin"
+$resolvedTableCellVerticalAlignmentOutputDir = Join-Path $resolvedGateOutputDir "table-cell-vertical-alignment"
+$resolvedTableCellTextDirectionOutputDir = Join-Path $resolvedGateOutputDir "table-cell-text-direction"
+$resolvedTableCellMergeOutputDir = Join-Path $resolvedGateOutputDir "table-cell-merge"
 $resolvedReplaceRemoveImageOutputDir = Join-Path $resolvedGateOutputDir "replace-remove-image"
 $reportDir = Join-Path $resolvedGateOutputDir "report"
 $gateSummaryPath = Join-Path $reportDir "gate_summary.json"
@@ -548,6 +564,14 @@ $tableCellBorderOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoo
     -TargetPath $resolvedTableCellBorderOutputDir -Label "Table cell border output directory"
 $tableCellWidthOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedTableCellWidthOutputDir -Label "Table cell width output directory"
+$tableCellMarginOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableCellMarginOutputDir -Label "Table cell margin output directory"
+$tableCellVerticalAlignmentOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableCellVerticalAlignmentOutputDir -Label "Table cell vertical alignment output directory"
+$tableCellTextDirectionOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableCellTextDirectionOutputDir -Label "Table cell text direction output directory"
+$tableCellMergeOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableCellMergeOutputDir -Label "Table cell merge output directory"
 $replaceRemoveImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedReplaceRemoveImageOutputDir -Label "Replace/remove image output directory"
 $taskOutputRootForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
@@ -575,6 +599,10 @@ $tableRowRepeatHeaderScript = Join-Path $repoRoot "scripts\run_table_row_repeat_
 $tableCellFillScript = Join-Path $repoRoot "scripts\run_table_cell_fill_visual_regression.ps1"
 $tableCellBorderScript = Join-Path $repoRoot "scripts\run_table_cell_border_visual_regression.ps1"
 $tableCellWidthScript = Join-Path $repoRoot "scripts\run_table_cell_width_visual_regression.ps1"
+$tableCellMarginScript = Join-Path $repoRoot "scripts\run_table_cell_margin_visual_regression.ps1"
+$tableCellVerticalAlignmentScript = Join-Path $repoRoot "scripts\run_table_cell_vertical_alignment_visual_regression.ps1"
+$tableCellTextDirectionScript = Join-Path $repoRoot "scripts\run_table_cell_text_direction_visual_regression.ps1"
+$tableCellMergeScript = Join-Path $repoRoot "scripts\run_table_cell_merge_visual_regression.ps1"
 $replaceRemoveImageScript = Join-Path $repoRoot "scripts\run_replace_remove_image_visual_regression.ps1"
 $prepareTaskScript = Join-Path $repoRoot "scripts\prepare_word_review_task.ps1"
 $refreshReadmeAssetsScript = Join-Path $repoRoot "scripts\refresh_readme_visual_assets.ps1"
@@ -768,6 +796,42 @@ $curatedVisualFlowDescriptors = @(
         output_dir = $resolvedTableCellWidthOutputDir
         output_dir_for_child = $tableCellWidthOutputDirForChild
         script_path = $tableCellWidthScript
+    },
+    [ordered]@{
+        id = "table-cell-margin"
+        label = "Table cell margin"
+        skip = $SkipTableCellMargin.IsPresent
+        build_dir = $TableCellMarginBuildDir
+        output_dir = $resolvedTableCellMarginOutputDir
+        output_dir_for_child = $tableCellMarginOutputDirForChild
+        script_path = $tableCellMarginScript
+    },
+    [ordered]@{
+        id = "table-cell-vertical-alignment"
+        label = "Table cell vertical alignment"
+        skip = $SkipTableCellVerticalAlignment.IsPresent
+        build_dir = $TableCellVerticalAlignmentBuildDir
+        output_dir = $resolvedTableCellVerticalAlignmentOutputDir
+        output_dir_for_child = $tableCellVerticalAlignmentOutputDirForChild
+        script_path = $tableCellVerticalAlignmentScript
+    },
+    [ordered]@{
+        id = "table-cell-text-direction"
+        label = "Table cell text direction"
+        skip = $SkipTableCellTextDirection.IsPresent
+        build_dir = $TableCellTextDirectionBuildDir
+        output_dir = $resolvedTableCellTextDirectionOutputDir
+        output_dir_for_child = $tableCellTextDirectionOutputDirForChild
+        script_path = $tableCellTextDirectionScript
+    },
+    [ordered]@{
+        id = "table-cell-merge"
+        label = "Table cell merge"
+        skip = $SkipTableCellMerge.IsPresent
+        build_dir = $TableCellMergeBuildDir
+        output_dir = $resolvedTableCellMergeOutputDir
+        output_dir_for_child = $tableCellMergeOutputDirForChild
+        script_path = $tableCellMergeScript
     },
     [ordered]@{
         id = "replace-remove-image"
