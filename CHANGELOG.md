@@ -67,6 +67,15 @@ performance.
   execution plus the new flow-specific default build directories so first-run
   CMake warnings and Windows object-path limits no longer derail release-gate
   packaging for those template-table CLI bundles.
+- Extended `scripts/run_word_visual_release_gate.ps1` once more so the curated
+  visual regression stage now also covers
+  `template-table-cli-section-kind-column`,
+  `template-table-cli-section-kind-merge-unmerge`, and
+  `template-table-cli-selector`, and updated
+  `scripts/run_template_table_cli_selector_visual_regression.ps1` to
+  self-configure its dedicated NMake build directory so the selector bundle no
+  longer depends on a pre-existing shared build tree before release-gate
+  packaging can run.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding

@@ -1,5 +1,5 @@
 param(
-    [string]$BuildDir = "build-codex-clang-compat",
+    [string]$BuildDir = "build-ttcli-selector-visual",
     [string]$OutputDir = "output/template-table-cli-selector-visual-regression",
     [int]$Dpi = 144,
     [switch]$SkipBuild,
@@ -30,6 +30,34 @@ function Resolve-RepoPath {
     }
 
     return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $InputPath))
+}
+
+function Get-VcvarsPath {
+    $candidates = @(
+        "D:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat",
+        "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat",
+        "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+    )
+
+    foreach ($path in $candidates) {
+        if (Test-Path $path) {
+            return $path
+        }
+    }
+
+    throw "Could not locate vcvars64.bat for MSVC command-line builds."
+}
+
+function Invoke-MsvcCommand {
+    param(
+        [string]$VcvarsPath,
+        [string]$CommandText
+    )
+
+    & cmd.exe /c "call `"$VcvarsPath`" && $CommandText"
+    if ($LASTEXITCODE -ne 0) {
+        throw "MSVC command failed: $CommandText"
+    }
 }
 
 function Find-BuildExecutable {
@@ -213,11 +241,11 @@ $wordSmokeScript = Join-Path $repoRoot "scripts\run_word_visual_smoke.ps1"
 $contactSheetScript = Join-Path $repoRoot "scripts\build_image_contact_sheet.py"
 
 if (-not $SkipBuild) {
+    $vcvarsPath = Get-VcvarsPath
+    Write-Step "Configuring dedicated build directory $resolvedBuildDir"
+    Invoke-MsvcCommand -VcvarsPath $vcvarsPath -CommandText "cmake -S `"$repoRoot`" -B `"$resolvedBuildDir`" -G `"NMake Makefiles`" -DBUILD_SAMPLES=ON -DBUILD_CLI=ON -DBUILD_TESTING=OFF"
     Write-Step "Building featherdoc_cli and selector visual sample"
-    & cmake --build $resolvedBuildDir --target featherdoc_cli featherdoc_sample_template_table_cli_bookmark_visual -- -j4
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to build selector visual regression prerequisites."
-    }
+    Invoke-MsvcCommand -VcvarsPath $vcvarsPath -CommandText "cmake --build `"$resolvedBuildDir`" --target featherdoc_cli featherdoc_sample_template_table_cli_bookmark_visual"
 }
 
 $cliExecutable = Find-BuildExecutable -BuildRoot $resolvedBuildDir -TargetName "featherdoc_cli"
