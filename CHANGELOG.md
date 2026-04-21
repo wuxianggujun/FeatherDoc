@@ -134,6 +134,12 @@ performance.
   those verdicts and bundle-specific
   `open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle`
   shortcuts after verdict sync.
+- Updated the repository entry docs (`README.md`, `README.zh-CN.md`,
+  `docs/index.rst`, and `VISUAL_VALIDATION.zh-CN.md`) so they now explain that
+  verdict-sync refreshes `START_HERE.md`, the release bundle notes, and the
+  reviewer entry points with finer-grained section-page-setup,
+  page-number-fields, and curated visual regression bundle verdicts instead of
+  only the top-level Word visual verdict.
 - Added `featherdoc_cli inspect-tables` and
   `featherdoc_cli inspect-table-cells` so table and table-cell inspection
   metadata can be queried from the CLI without writing a C++ integration.

@@ -87,6 +87,19 @@ bundle task，而不是只处理最早那几条固定链路，因此不需要为
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1
 ```
 
+刷新后的 `START_HERE.md`、`report/ARTIFACT_GUIDE.md`、
+`report/REVIEWER_CHECKLIST.md`、`report/release_handoff.md`、
+`report/release_body.zh-CN.md` 和 `report/release_summary.zh-CN.md`
+现在会同时展示：
+
+- 总 `visual verdict`
+- `section page setup` verdict
+- `page number fields` verdict
+- 每个 curated visual regression bundle 的 verdict
+- 对应 review task 路径，以及
+  `open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle`
+  的快捷入口
+
 如果你需要手动覆盖自动推断出的 gate / release 路径，则改用：
 
 ```powershell

@@ -92,6 +92,9 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_latest_visual_
 `output/release-candidate-checks/report/summary.json`，同时重刷
 `START_HERE.md`、`release_handoff.md`、`release_body.zh-CN.md` 和
 `release_summary.zh-CN.md`，这条默认命令也会一并刷新检测到的 release bundle。
+刷新后的入口页除了总 `visual verdict` 外，还会同步显示
+`section page setup`、`page number fields` 和每个 curated visual
+regression bundle 的 verdict。
 只有在你需要手动覆盖推断路径时，才继续执行下面这条显式命令：
 
 ```powershell

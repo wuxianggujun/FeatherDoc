@@ -216,7 +216,13 @@ override paths explicitly, keep using ``scripts/sync_visual_review_verdict.ps1``
 against the saved ``gate_summary.json``. If a release-preflight
 ``summary.json`` also exists, pass it as ``-ReleaseCandidateSummaryJson``
 together with ``-RefreshReleaseBundle`` to refresh ``START_HERE.md`` plus the
-release-facing notes without rerunning the full preflight.
+release-facing notes without rerunning the full preflight. Those refreshed
+entry points now also surface the finer-grained visual signoff state: the
+top-level visual verdict, the section-page-setup verdict, the
+page-number-fields verdict, and each curated visual-regression bundle verdict
+together with the matching review-task paths / bundle-specific
+``open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle``
+shortcuts.
 
 .. _featherdoc-cli:
 

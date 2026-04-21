@@ -667,6 +667,12 @@ keep using `sync_visual_review_verdict.ps1` with explicit
 promote the final Word verdict into the saved summaries and refresh
 `START_HERE.md`, the guide/checklist, and the release-facing notes without
 rerunning the full preflight.
+Those refreshed entry points now surface not only the top-level visual verdict,
+but also the `section page setup` verdict, the `page number fields` verdict,
+every curated visual-regression bundle verdict, and the matching review-task
+paths / bundle-specific
+`open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle`
+shortcuts.
 
 ## Use From CMake
 
