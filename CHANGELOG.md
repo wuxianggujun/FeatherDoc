@@ -58,6 +58,15 @@ performance.
   those flows now consistently honors a custom `TaskOutputRoot` instead of
   falling back to the default task directory when the bundle output path is a
   directory.
+- Extended `scripts/run_word_visual_release_gate.ps1` further so the curated
+  visual regression stage also covers `template-table-cli`,
+  `template-table-cli-merge-unmerge`, `template-table-cli-direct`,
+  `template-table-cli-direct-merge-unmerge`,
+  `template-table-cli-section-kind`, and
+  `template-table-cli-section-kind-row`, and hardened child PowerShell
+  execution plus the new flow-specific default build directories so first-run
+  CMake warnings and Windows object-path limits no longer derail release-gate
+  packaging for those template-table CLI bundles.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding

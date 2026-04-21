@@ -75,6 +75,12 @@ param(
     [string]$TemplateTableCliBookmarkBuildDir = "build-template-table-cli-bookmark-visual-nmake",
     [string]$TemplateTableCliColumnBuildDir = "build-template-table-cli-column-visual-nmake",
     [string]$TemplateTableCliDirectColumnBuildDir = "build-template-table-cli-direct-column-visual-nmake",
+    [string]$TemplateTableCliBuildDir = "build-ttcli-visual",
+    [string]$TemplateTableCliMergeUnmergeBuildDir = "build-ttcli-merge-visual",
+    [string]$TemplateTableCliDirectBuildDir = "build-ttcli-direct-visual",
+    [string]$TemplateTableCliDirectMergeUnmergeBuildDir = "build-ttcli-direct-merge-visual",
+    [string]$TemplateTableCliSectionKindBuildDir = "build-ttcli-section-kind-visual",
+    [string]$TemplateTableCliSectionKindRowBuildDir = "build-ttcli-section-kind-row-visual",
     [string]$ReplaceRemoveImageBuildDir = "build-image-mutate-visual-nmake",
     [int]$Dpi = 144,
     [switch]$SkipBuild,
@@ -115,6 +121,12 @@ param(
     [switch]$SkipTemplateTableCliBookmark,
     [switch]$SkipTemplateTableCliColumn,
     [switch]$SkipTemplateTableCliDirectColumn,
+    [switch]$SkipTemplateTableCli,
+    [switch]$SkipTemplateTableCliMergeUnmerge,
+    [switch]$SkipTemplateTableCliDirect,
+    [switch]$SkipTemplateTableCliDirectMergeUnmerge,
+    [switch]$SkipTemplateTableCliSectionKind,
+    [switch]$SkipTemplateTableCliSectionKindRow,
     [switch]$SkipReplaceRemoveImage,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
@@ -208,8 +220,14 @@ function Invoke-ChildPowerShell {
         [string]$FailureMessage
     )
 
-    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
-    $exitCode = $LASTEXITCODE
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
 
     foreach ($line in $commandOutput) {
         Write-Host $line
@@ -512,6 +530,12 @@ if (
     $SkipTemplateTableCliBookmark -and
     $SkipTemplateTableCliColumn -and
     $SkipTemplateTableCliDirectColumn -and
+    $SkipTemplateTableCli -and
+    $SkipTemplateTableCliMergeUnmerge -and
+    $SkipTemplateTableCliDirect -and
+    $SkipTemplateTableCliDirectMergeUnmerge -and
+    $SkipTemplateTableCliSectionKind -and
+    $SkipTemplateTableCliSectionKindRow -and
     $SkipReplaceRemoveImage
 ) {
     throw "At least one release-gate flow must remain enabled."
@@ -557,6 +581,12 @@ $resolvedEnsureStyleOutputDir = Join-Path $resolvedGateOutputDir "ensure-style"
 $resolvedTemplateTableCliBookmarkOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-bookmark"
 $resolvedTemplateTableCliColumnOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-column"
 $resolvedTemplateTableCliDirectColumnOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-direct-column"
+$resolvedTemplateTableCliOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli"
+$resolvedTemplateTableCliMergeUnmergeOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-merge-unmerge"
+$resolvedTemplateTableCliDirectOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-direct"
+$resolvedTemplateTableCliDirectMergeUnmergeOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-direct-merge-unmerge"
+$resolvedTemplateTableCliSectionKindOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-section-kind"
+$resolvedTemplateTableCliSectionKindRowOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-section-kind-row"
 $resolvedReplaceRemoveImageOutputDir = Join-Path $resolvedGateOutputDir "replace-remove-image"
 $reportDir = Join-Path $resolvedGateOutputDir "report"
 $gateSummaryPath = Join-Path $reportDir "gate_summary.json"
@@ -640,6 +670,18 @@ $templateTableCliColumnOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $
     -TargetPath $resolvedTemplateTableCliColumnOutputDir -Label "Template table CLI column output directory"
 $templateTableCliDirectColumnOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedTemplateTableCliDirectColumnOutputDir -Label "Template table CLI direct column output directory"
+$templateTableCliOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateTableCliOutputDir -Label "Template table CLI output directory"
+$templateTableCliMergeUnmergeOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateTableCliMergeUnmergeOutputDir -Label "Template table CLI merge/unmerge output directory"
+$templateTableCliDirectOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateTableCliDirectOutputDir -Label "Template table CLI direct output directory"
+$templateTableCliDirectMergeUnmergeOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateTableCliDirectMergeUnmergeOutputDir -Label "Template table CLI direct merge/unmerge output directory"
+$templateTableCliSectionKindOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateTableCliSectionKindOutputDir -Label "Template table CLI section-kind output directory"
+$templateTableCliSectionKindRowOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateTableCliSectionKindRowOutputDir -Label "Template table CLI section-kind row output directory"
 $replaceRemoveImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedReplaceRemoveImageOutputDir -Label "Replace/remove image output directory"
 $taskOutputRootForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
@@ -682,6 +724,12 @@ $ensureStyleScript = Join-Path $repoRoot "scripts\run_ensure_style_visual_regres
 $templateTableCliBookmarkScript = Join-Path $repoRoot "scripts\run_template_table_cli_bookmark_visual_regression.ps1"
 $templateTableCliColumnScript = Join-Path $repoRoot "scripts\run_template_table_cli_column_visual_regression.ps1"
 $templateTableCliDirectColumnScript = Join-Path $repoRoot "scripts\run_template_table_cli_direct_column_visual_regression.ps1"
+$templateTableCliScript = Join-Path $repoRoot "scripts\run_template_table_cli_visual_regression.ps1"
+$templateTableCliMergeUnmergeScript = Join-Path $repoRoot "scripts\run_template_table_cli_merge_unmerge_visual_regression.ps1"
+$templateTableCliDirectScript = Join-Path $repoRoot "scripts\run_template_table_cli_direct_visual_regression.ps1"
+$templateTableCliDirectMergeUnmergeScript = Join-Path $repoRoot "scripts\run_template_table_cli_direct_merge_unmerge_visual_regression.ps1"
+$templateTableCliSectionKindScript = Join-Path $repoRoot "scripts\run_template_table_cli_section_kind_visual_regression.ps1"
+$templateTableCliSectionKindRowScript = Join-Path $repoRoot "scripts\run_template_table_cli_section_kind_row_visual_regression.ps1"
 $replaceRemoveImageScript = Join-Path $repoRoot "scripts\run_replace_remove_image_visual_regression.ps1"
 $prepareTaskScript = Join-Path $repoRoot "scripts\prepare_word_review_task.ps1"
 $refreshReadmeAssetsScript = Join-Path $repoRoot "scripts\refresh_readme_visual_assets.ps1"
@@ -1010,6 +1058,60 @@ $curatedVisualFlowDescriptors = @(
         output_dir = $resolvedTemplateTableCliDirectColumnOutputDir
         output_dir_for_child = $templateTableCliDirectColumnOutputDirForChild
         script_path = $templateTableCliDirectColumnScript
+    },
+    [ordered]@{
+        id = "template-table-cli"
+        label = "Template table CLI"
+        skip = $SkipTemplateTableCli.IsPresent
+        build_dir = $TemplateTableCliBuildDir
+        output_dir = $resolvedTemplateTableCliOutputDir
+        output_dir_for_child = $templateTableCliOutputDirForChild
+        script_path = $templateTableCliScript
+    },
+    [ordered]@{
+        id = "template-table-cli-merge-unmerge"
+        label = "Template table CLI merge/unmerge"
+        skip = $SkipTemplateTableCliMergeUnmerge.IsPresent
+        build_dir = $TemplateTableCliMergeUnmergeBuildDir
+        output_dir = $resolvedTemplateTableCliMergeUnmergeOutputDir
+        output_dir_for_child = $templateTableCliMergeUnmergeOutputDirForChild
+        script_path = $templateTableCliMergeUnmergeScript
+    },
+    [ordered]@{
+        id = "template-table-cli-direct"
+        label = "Template table CLI direct"
+        skip = $SkipTemplateTableCliDirect.IsPresent
+        build_dir = $TemplateTableCliDirectBuildDir
+        output_dir = $resolvedTemplateTableCliDirectOutputDir
+        output_dir_for_child = $templateTableCliDirectOutputDirForChild
+        script_path = $templateTableCliDirectScript
+    },
+    [ordered]@{
+        id = "template-table-cli-direct-merge-unmerge"
+        label = "Template table CLI direct merge/unmerge"
+        skip = $SkipTemplateTableCliDirectMergeUnmerge.IsPresent
+        build_dir = $TemplateTableCliDirectMergeUnmergeBuildDir
+        output_dir = $resolvedTemplateTableCliDirectMergeUnmergeOutputDir
+        output_dir_for_child = $templateTableCliDirectMergeUnmergeOutputDirForChild
+        script_path = $templateTableCliDirectMergeUnmergeScript
+    },
+    [ordered]@{
+        id = "template-table-cli-section-kind"
+        label = "Template table CLI section kind"
+        skip = $SkipTemplateTableCliSectionKind.IsPresent
+        build_dir = $TemplateTableCliSectionKindBuildDir
+        output_dir = $resolvedTemplateTableCliSectionKindOutputDir
+        output_dir_for_child = $templateTableCliSectionKindOutputDirForChild
+        script_path = $templateTableCliSectionKindScript
+    },
+    [ordered]@{
+        id = "template-table-cli-section-kind-row"
+        label = "Template table CLI section kind row"
+        skip = $SkipTemplateTableCliSectionKindRow.IsPresent
+        build_dir = $TemplateTableCliSectionKindRowBuildDir
+        output_dir = $resolvedTemplateTableCliSectionKindRowOutputDir
+        output_dir_for_child = $templateTableCliSectionKindRowOutputDirForChild
+        script_path = $templateTableCliSectionKindRowScript
     },
     [ordered]@{
         id = "replace-remove-image"
