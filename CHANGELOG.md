@@ -33,6 +33,12 @@ performance.
   `paragraph-style-numbering`, keeping those paragraph-focused Word evidence
   bundles on the same generic review-task packaging path as the rest of the
   release gate.
+- Extended `scripts/run_word_visual_release_gate.ps1` once more so the curated
+  visual regression stage also covers `table-row-height`,
+  `table-row-cant-split`, `table-row-repeat-header`, `table-cell-fill`,
+  `table-cell-border`, and `table-cell-width`, keeping those table-focused
+  Word evidence bundles on the same generic review-task packaging path as the
+  rest of the release gate.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding

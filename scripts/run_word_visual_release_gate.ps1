@@ -54,6 +54,12 @@ param(
     [string]$FillBookmarksBuildDir = "build-fill-bookmarks-visual-nmake",
     [string]$AppendImageBuildDir = "build-append-image-visual-nmake",
     [string]$TableRowBuildDir = "build-table-row-visual-nmake",
+    [string]$TableRowHeightBuildDir = "build-table-row-height-visual-nmake",
+    [string]$TableRowCantSplitBuildDir = "build-table-row-cant-split-visual-nmake",
+    [string]$TableRowRepeatHeaderBuildDir = "build-table-row-repeat-header-visual-nmake",
+    [string]$TableCellFillBuildDir = "build-table-cell-fill-visual-nmake",
+    [string]$TableCellBorderBuildDir = "build-table-cell-border-visual-nmake",
+    [string]$TableCellWidthBuildDir = "build-table-cell-width-visual-nmake",
     [string]$ReplaceRemoveImageBuildDir = "build-image-mutate-visual-nmake",
     [int]$Dpi = 144,
     [switch]$SkipBuild,
@@ -73,6 +79,12 @@ param(
     [switch]$SkipFillBookmarks,
     [switch]$SkipAppendImage,
     [switch]$SkipTableRow,
+    [switch]$SkipTableRowHeight,
+    [switch]$SkipTableRowCantSplit,
+    [switch]$SkipTableRowRepeatHeader,
+    [switch]$SkipTableCellFill,
+    [switch]$SkipTableCellBorder,
+    [switch]$SkipTableCellWidth,
     [switch]$SkipReplaceRemoveImage,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
@@ -447,6 +459,12 @@ if (
     $SkipFillBookmarks -and
     $SkipAppendImage -and
     $SkipTableRow -and
+    $SkipTableRowHeight -and
+    $SkipTableRowCantSplit -and
+    $SkipTableRowRepeatHeader -and
+    $SkipTableCellFill -and
+    $SkipTableCellBorder -and
+    $SkipTableCellWidth -and
     $SkipReplaceRemoveImage
 ) {
     throw "At least one release-gate flow must remain enabled."
@@ -471,6 +489,12 @@ $resolvedParagraphStyleNumberingOutputDir = Join-Path $resolvedGateOutputDir "pa
 $resolvedFillBookmarksOutputDir = Join-Path $resolvedGateOutputDir "fill-bookmarks"
 $resolvedAppendImageOutputDir = Join-Path $resolvedGateOutputDir "append-image"
 $resolvedTableRowOutputDir = Join-Path $resolvedGateOutputDir "table-row"
+$resolvedTableRowHeightOutputDir = Join-Path $resolvedGateOutputDir "table-row-height"
+$resolvedTableRowCantSplitOutputDir = Join-Path $resolvedGateOutputDir "table-row-cant-split"
+$resolvedTableRowRepeatHeaderOutputDir = Join-Path $resolvedGateOutputDir "table-row-repeat-header"
+$resolvedTableCellFillOutputDir = Join-Path $resolvedGateOutputDir "table-cell-fill"
+$resolvedTableCellBorderOutputDir = Join-Path $resolvedGateOutputDir "table-cell-border"
+$resolvedTableCellWidthOutputDir = Join-Path $resolvedGateOutputDir "table-cell-width"
 $resolvedReplaceRemoveImageOutputDir = Join-Path $resolvedGateOutputDir "replace-remove-image"
 $reportDir = Join-Path $resolvedGateOutputDir "report"
 $gateSummaryPath = Join-Path $reportDir "gate_summary.json"
@@ -512,6 +536,18 @@ $appendImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedAppendImageOutputDir -Label "Append image output directory"
 $tableRowOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedTableRowOutputDir -Label "Table row output directory"
+$tableRowHeightOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableRowHeightOutputDir -Label "Table row height output directory"
+$tableRowCantSplitOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableRowCantSplitOutputDir -Label "Table row cant split output directory"
+$tableRowRepeatHeaderOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableRowRepeatHeaderOutputDir -Label "Table row repeat header output directory"
+$tableCellFillOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableCellFillOutputDir -Label "Table cell fill output directory"
+$tableCellBorderOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableCellBorderOutputDir -Label "Table cell border output directory"
+$tableCellWidthOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableCellWidthOutputDir -Label "Table cell width output directory"
 $replaceRemoveImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedReplaceRemoveImageOutputDir -Label "Replace/remove image output directory"
 $taskOutputRootForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
@@ -533,6 +569,12 @@ $paragraphStyleNumberingScript = Join-Path $repoRoot "scripts\run_paragraph_styl
 $fillBookmarksScript = Join-Path $repoRoot "scripts\run_fill_bookmarks_visual_regression.ps1"
 $appendImageScript = Join-Path $repoRoot "scripts\run_append_image_visual_regression.ps1"
 $tableRowScript = Join-Path $repoRoot "scripts\run_table_row_visual_regression.ps1"
+$tableRowHeightScript = Join-Path $repoRoot "scripts\run_table_row_height_visual_regression.ps1"
+$tableRowCantSplitScript = Join-Path $repoRoot "scripts\run_table_row_cant_split_visual_regression.ps1"
+$tableRowRepeatHeaderScript = Join-Path $repoRoot "scripts\run_table_row_repeat_header_visual_regression.ps1"
+$tableCellFillScript = Join-Path $repoRoot "scripts\run_table_cell_fill_visual_regression.ps1"
+$tableCellBorderScript = Join-Path $repoRoot "scripts\run_table_cell_border_visual_regression.ps1"
+$tableCellWidthScript = Join-Path $repoRoot "scripts\run_table_cell_width_visual_regression.ps1"
 $replaceRemoveImageScript = Join-Path $repoRoot "scripts\run_replace_remove_image_visual_regression.ps1"
 $prepareTaskScript = Join-Path $repoRoot "scripts\prepare_word_review_task.ps1"
 $refreshReadmeAssetsScript = Join-Path $repoRoot "scripts\refresh_readme_visual_assets.ps1"
@@ -672,6 +714,60 @@ $curatedVisualFlowDescriptors = @(
         output_dir = $resolvedTableRowOutputDir
         output_dir_for_child = $tableRowOutputDirForChild
         script_path = $tableRowScript
+    },
+    [ordered]@{
+        id = "table-row-height"
+        label = "Table row height"
+        skip = $SkipTableRowHeight.IsPresent
+        build_dir = $TableRowHeightBuildDir
+        output_dir = $resolvedTableRowHeightOutputDir
+        output_dir_for_child = $tableRowHeightOutputDirForChild
+        script_path = $tableRowHeightScript
+    },
+    [ordered]@{
+        id = "table-row-cant-split"
+        label = "Table row cant split"
+        skip = $SkipTableRowCantSplit.IsPresent
+        build_dir = $TableRowCantSplitBuildDir
+        output_dir = $resolvedTableRowCantSplitOutputDir
+        output_dir_for_child = $tableRowCantSplitOutputDirForChild
+        script_path = $tableRowCantSplitScript
+    },
+    [ordered]@{
+        id = "table-row-repeat-header"
+        label = "Table row repeat header"
+        skip = $SkipTableRowRepeatHeader.IsPresent
+        build_dir = $TableRowRepeatHeaderBuildDir
+        output_dir = $resolvedTableRowRepeatHeaderOutputDir
+        output_dir_for_child = $tableRowRepeatHeaderOutputDirForChild
+        script_path = $tableRowRepeatHeaderScript
+    },
+    [ordered]@{
+        id = "table-cell-fill"
+        label = "Table cell fill"
+        skip = $SkipTableCellFill.IsPresent
+        build_dir = $TableCellFillBuildDir
+        output_dir = $resolvedTableCellFillOutputDir
+        output_dir_for_child = $tableCellFillOutputDirForChild
+        script_path = $tableCellFillScript
+    },
+    [ordered]@{
+        id = "table-cell-border"
+        label = "Table cell border"
+        skip = $SkipTableCellBorder.IsPresent
+        build_dir = $TableCellBorderBuildDir
+        output_dir = $resolvedTableCellBorderOutputDir
+        output_dir_for_child = $tableCellBorderOutputDirForChild
+        script_path = $tableCellBorderScript
+    },
+    [ordered]@{
+        id = "table-cell-width"
+        label = "Table cell width"
+        skip = $SkipTableCellWidth.IsPresent
+        build_dir = $TableCellWidthBuildDir
+        output_dir = $resolvedTableCellWidthOutputDir
+        output_dir_for_child = $tableCellWidthOutputDirForChild
+        script_path = $tableCellWidthScript
     },
     [ordered]@{
         id = "replace-remove-image"
