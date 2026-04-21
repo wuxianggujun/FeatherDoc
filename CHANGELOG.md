@@ -44,6 +44,12 @@ performance.
   `table-cell-vertical-alignment`, `table-cell-text-direction`, and
   `table-cell-merge`, keeping those additional table cell evidence bundles on
   the same generic review-task packaging path as the rest of the release gate.
+- Extended `scripts/run_word_visual_release_gate.ps1` further so the curated
+  visual regression stage also covers `template-bookmark-multiline`,
+  `section-text-multiline`, `remove-bookmark-block`,
+  `template-bookmark-paragraphs-pagination`, and `section-order`, keeping
+  those text/template Word evidence bundles on the same generic review-task
+  packaging path as the rest of the release gate.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding

@@ -64,6 +64,11 @@ param(
     [string]$TableCellVerticalAlignmentBuildDir = "build-table-cell-vertical-alignment-visual-nmake",
     [string]$TableCellTextDirectionBuildDir = "build-table-cell-text-direction-visual-nmake",
     [string]$TableCellMergeBuildDir = "build-table-cell-merge-visual-nmake",
+    [string]$TemplateBookmarkMultilineBuildDir = "build-codex-clang-compat",
+    [string]$SectionTextMultilineBuildDir = "build-codex-clang-compat",
+    [string]$RemoveBookmarkBlockBuildDir = "build-codex-clang-compat",
+    [string]$TemplateBookmarkParagraphsPaginationBuildDir = "build-codex-clang-compat",
+    [string]$SectionOrderBuildDir = "build-section-order-visual-nmake",
     [string]$ReplaceRemoveImageBuildDir = "build-image-mutate-visual-nmake",
     [int]$Dpi = 144,
     [switch]$SkipBuild,
@@ -93,6 +98,11 @@ param(
     [switch]$SkipTableCellVerticalAlignment,
     [switch]$SkipTableCellTextDirection,
     [switch]$SkipTableCellMerge,
+    [switch]$SkipTemplateBookmarkMultiline,
+    [switch]$SkipSectionTextMultiline,
+    [switch]$SkipRemoveBookmarkBlock,
+    [switch]$SkipTemplateBookmarkParagraphsPagination,
+    [switch]$SkipSectionOrder,
     [switch]$SkipReplaceRemoveImage,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
@@ -477,6 +487,11 @@ if (
     $SkipTableCellVerticalAlignment -and
     $SkipTableCellTextDirection -and
     $SkipTableCellMerge -and
+    $SkipTemplateBookmarkMultiline -and
+    $SkipSectionTextMultiline -and
+    $SkipRemoveBookmarkBlock -and
+    $SkipTemplateBookmarkParagraphsPagination -and
+    $SkipSectionOrder -and
     $SkipReplaceRemoveImage
 ) {
     throw "At least one release-gate flow must remain enabled."
@@ -511,6 +526,11 @@ $resolvedTableCellMarginOutputDir = Join-Path $resolvedGateOutputDir "table-cell
 $resolvedTableCellVerticalAlignmentOutputDir = Join-Path $resolvedGateOutputDir "table-cell-vertical-alignment"
 $resolvedTableCellTextDirectionOutputDir = Join-Path $resolvedGateOutputDir "table-cell-text-direction"
 $resolvedTableCellMergeOutputDir = Join-Path $resolvedGateOutputDir "table-cell-merge"
+$resolvedTemplateBookmarkMultilineOutputDir = Join-Path $resolvedGateOutputDir "template-bookmark-multiline"
+$resolvedSectionTextMultilineOutputDir = Join-Path $resolvedGateOutputDir "section-text-multiline"
+$resolvedRemoveBookmarkBlockOutputDir = Join-Path $resolvedGateOutputDir "remove-bookmark-block"
+$resolvedTemplateBookmarkParagraphsPaginationOutputDir = Join-Path $resolvedGateOutputDir "template-bookmark-paragraphs-pagination"
+$resolvedSectionOrderOutputDir = Join-Path $resolvedGateOutputDir "section-order"
 $resolvedReplaceRemoveImageOutputDir = Join-Path $resolvedGateOutputDir "replace-remove-image"
 $reportDir = Join-Path $resolvedGateOutputDir "report"
 $gateSummaryPath = Join-Path $reportDir "gate_summary.json"
@@ -572,6 +592,16 @@ $tableCellTextDirectionOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $
     -TargetPath $resolvedTableCellTextDirectionOutputDir -Label "Table cell text direction output directory"
 $tableCellMergeOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedTableCellMergeOutputDir -Label "Table cell merge output directory"
+$templateBookmarkMultilineOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateBookmarkMultilineOutputDir -Label "Template bookmark multiline output directory"
+$sectionTextMultilineOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedSectionTextMultilineOutputDir -Label "Section text multiline output directory"
+$removeBookmarkBlockOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedRemoveBookmarkBlockOutputDir -Label "Remove bookmark block output directory"
+$templateBookmarkParagraphsPaginationOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateBookmarkParagraphsPaginationOutputDir -Label "Template bookmark paragraphs pagination output directory"
+$sectionOrderOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedSectionOrderOutputDir -Label "Section order output directory"
 $replaceRemoveImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedReplaceRemoveImageOutputDir -Label "Replace/remove image output directory"
 $taskOutputRootForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
@@ -603,6 +633,11 @@ $tableCellMarginScript = Join-Path $repoRoot "scripts\run_table_cell_margin_visu
 $tableCellVerticalAlignmentScript = Join-Path $repoRoot "scripts\run_table_cell_vertical_alignment_visual_regression.ps1"
 $tableCellTextDirectionScript = Join-Path $repoRoot "scripts\run_table_cell_text_direction_visual_regression.ps1"
 $tableCellMergeScript = Join-Path $repoRoot "scripts\run_table_cell_merge_visual_regression.ps1"
+$templateBookmarkMultilineScript = Join-Path $repoRoot "scripts\run_template_bookmark_multiline_visual_regression.ps1"
+$sectionTextMultilineScript = Join-Path $repoRoot "scripts\run_section_text_multiline_visual_regression.ps1"
+$removeBookmarkBlockScript = Join-Path $repoRoot "scripts\run_remove_bookmark_block_visual_regression.ps1"
+$templateBookmarkParagraphsPaginationScript = Join-Path $repoRoot "scripts\run_template_bookmark_paragraphs_pagination_visual_regression.ps1"
+$sectionOrderScript = Join-Path $repoRoot "scripts\run_section_order_visual_regression.ps1"
 $replaceRemoveImageScript = Join-Path $repoRoot "scripts\run_replace_remove_image_visual_regression.ps1"
 $prepareTaskScript = Join-Path $repoRoot "scripts\prepare_word_review_task.ps1"
 $refreshReadmeAssetsScript = Join-Path $repoRoot "scripts\refresh_readme_visual_assets.ps1"
@@ -832,6 +867,51 @@ $curatedVisualFlowDescriptors = @(
         output_dir = $resolvedTableCellMergeOutputDir
         output_dir_for_child = $tableCellMergeOutputDirForChild
         script_path = $tableCellMergeScript
+    },
+    [ordered]@{
+        id = "template-bookmark-multiline"
+        label = "Template bookmark multiline"
+        skip = $SkipTemplateBookmarkMultiline.IsPresent
+        build_dir = $TemplateBookmarkMultilineBuildDir
+        output_dir = $resolvedTemplateBookmarkMultilineOutputDir
+        output_dir_for_child = $templateBookmarkMultilineOutputDirForChild
+        script_path = $templateBookmarkMultilineScript
+    },
+    [ordered]@{
+        id = "section-text-multiline"
+        label = "Section text multiline"
+        skip = $SkipSectionTextMultiline.IsPresent
+        build_dir = $SectionTextMultilineBuildDir
+        output_dir = $resolvedSectionTextMultilineOutputDir
+        output_dir_for_child = $sectionTextMultilineOutputDirForChild
+        script_path = $sectionTextMultilineScript
+    },
+    [ordered]@{
+        id = "remove-bookmark-block"
+        label = "Remove bookmark block"
+        skip = $SkipRemoveBookmarkBlock.IsPresent
+        build_dir = $RemoveBookmarkBlockBuildDir
+        output_dir = $resolvedRemoveBookmarkBlockOutputDir
+        output_dir_for_child = $removeBookmarkBlockOutputDirForChild
+        script_path = $removeBookmarkBlockScript
+    },
+    [ordered]@{
+        id = "template-bookmark-paragraphs-pagination"
+        label = "Template bookmark paragraphs pagination"
+        skip = $SkipTemplateBookmarkParagraphsPagination.IsPresent
+        build_dir = $TemplateBookmarkParagraphsPaginationBuildDir
+        output_dir = $resolvedTemplateBookmarkParagraphsPaginationOutputDir
+        output_dir_for_child = $templateBookmarkParagraphsPaginationOutputDirForChild
+        script_path = $templateBookmarkParagraphsPaginationScript
+    },
+    [ordered]@{
+        id = "section-order"
+        label = "Section order"
+        skip = $SkipSectionOrder.IsPresent
+        build_dir = $SectionOrderBuildDir
+        output_dir = $resolvedSectionOrderOutputDir
+        output_dir_for_child = $sectionOrderOutputDirForChild
+        script_path = $sectionOrderScript
     },
     [ordered]@{
         id = "replace-remove-image"
