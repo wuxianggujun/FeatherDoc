@@ -229,10 +229,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\refresh_readme_visual_assets.
 featherdoc_cli inspect-sections input.docx
 featherdoc_cli inspect-sections input.docx --json
 featherdoc_cli inspect-styles input.docx --style Strong --json
+featherdoc_cli inspect-runs input.docx 1 --run 0 --json
+featherdoc_cli inspect-template-runs input.docx 1 --run 0 --json
 featherdoc_cli inspect-numbering input.docx --definition 1 --json
 featherdoc_cli inspect-page-setup input.docx --section 1 --json
 featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --json
+featherdoc_cli ensure-table-style input.docx ReportTable --name "Report Table" --based-on TableGrid --output styled.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -246,12 +249,104 @@ featherdoc_cli remove-section-footer input.docx 1 --kind first --output detached
 featherdoc_cli remove-header-part input.docx 1 --output headers-pruned.docx
 featherdoc_cli remove-footer-part input.docx 0 --output footers-pruned.docx
 featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
+featherdoc_cli set-template-table-from-json report.docx --bookmark line_items_table --patch-file row_patch.json --output report-updated.docx --json
+featherdoc_cli set-template-tables-from-json report.docx --patch-file multi_table_patch.json --output report-updated.docx --json
 featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
 ```
 
 上面的命令块是代表性示例，不是完整 CLI 清单。更完整的命令列表和字
 段说明请优先看 `docs/index.rst`；如果你同时需要仓库级背景说明，再配合
 [README.md](README.md) 一起看会更顺。
+
+补充命令族示例：
+
+```bash
+# 段落、run、样式、编号
+featherdoc_cli inspect-paragraphs input.docx --paragraph 4 --json
+featherdoc_cli set-paragraph-style input.docx 4 Heading2 --output styled-paragraph.docx --json
+featherdoc_cli clear-paragraph-style input.docx 4 --output cleared-paragraph-style.docx --json
+featherdoc_cli set-run-style input.docx 4 1 Strong --output styled-run.docx --json
+featherdoc_cli clear-run-style input.docx 4 1 --output cleared-run-style.docx --json
+featherdoc_cli set-run-font-family input.docx 4 1 Consolas --output font-run.docx --json
+featherdoc_cli clear-run-font-family input.docx 4 1 --output cleared-run-font.docx --json
+featherdoc_cli set-run-language input.docx 4 1 en-US --output language-run.docx --json
+featherdoc_cli clear-run-language input.docx 4 1 --output cleared-run-language.docx --json
+featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
+featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
+featherdoc_cli ensure-numbering-definition input.docx --definition-name OutlineReview --numbering-level 0:decimal:1:%1. --output numbering.docx --json
+featherdoc_cli set-paragraph-numbering input.docx 6 --definition 12 --level 0 --output numbered.docx --json
+featherdoc_cli set-paragraph-style-numbering input.docx Heading2 --definition-name HeadingReview --numbering-level 0:decimal:1:%1. --style-level 1 --output style-numbering.docx --json
+featherdoc_cli clear-paragraph-style-numbering input.docx Heading2 --output cleared-style-numbering.docx --json
+featherdoc_cli set-paragraph-list input.docx 6 --kind bullet --level 1 --output bulleted.docx --json
+featherdoc_cli restart-paragraph-list input.docx 10 --kind decimal --level 0 --output restarted-list.docx --json
+featherdoc_cli clear-paragraph-list input.docx 10 --output cleared-list.docx --json
+
+# 正文表格与行列元数据
+featherdoc_cli inspect-tables input.docx --table 0 --json
+featherdoc_cli inspect-table-cells input.docx 0 --row 1 --cell 1 --json
+featherdoc_cli inspect-table-rows input.docx 0 --row 1 --json
+featherdoc_cli set-table-cell-text input.docx 0 1 1 --text "Updated" --output cell-text.docx --json
+featherdoc_cli set-table-cell-fill input.docx 0 1 1 FFE699 --output cell-fill.docx --json
+featherdoc_cli clear-table-cell-fill input.docx 0 1 1 --output cell-fill-cleared.docx --json
+featherdoc_cli set-table-cell-vertical-alignment input.docx 0 1 1 center --output cell-align.docx --json
+featherdoc_cli clear-table-cell-vertical-alignment input.docx 0 1 1 --output cell-align-cleared.docx --json
+featherdoc_cli set-table-cell-text-direction input.docx 0 1 1 top_to_bottom_right_to_left --output cell-text-direction.docx --json
+featherdoc_cli clear-table-cell-text-direction input.docx 0 1 1 --output cell-text-direction-cleared.docx --json
+featherdoc_cli set-table-cell-width input.docx 0 1 1 2400 --output cell-width.docx --json
+featherdoc_cli clear-table-cell-width input.docx 0 1 1 --output cell-width-cleared.docx --json
+featherdoc_cli set-table-cell-margin input.docx 0 1 1 left 160 --output cell-margin.docx --json
+featherdoc_cli clear-table-cell-margin input.docx 0 1 1 left --output cell-margin-cleared.docx --json
+featherdoc_cli set-table-cell-border input.docx 0 1 1 right --style single --size 8 --color FF0000 --output cell-border.docx --json
+featherdoc_cli clear-table-cell-border input.docx 0 1 1 right --output cell-border-cleared.docx --json
+featherdoc_cli set-table-row-height input.docx 0 1 720 exact --output row-height.docx --json
+featherdoc_cli clear-table-row-height input.docx 0 1 --output row-height-cleared.docx --json
+featherdoc_cli set-table-row-cant-split input.docx 0 1 --output row-cant-split.docx --json
+featherdoc_cli clear-table-row-cant-split input.docx 0 1 --output row-cant-split-cleared.docx --json
+featherdoc_cli set-table-row-repeat-header input.docx 0 0 --output row-repeat-header.docx --json
+featherdoc_cli clear-table-row-repeat-header input.docx 0 0 --output row-repeat-header-cleared.docx --json
+featherdoc_cli append-table-row input.docx 0 --cell-count 3 --output row-appended.docx --json
+featherdoc_cli insert-table-row-before input.docx 0 1 --output row-inserted-before.docx --json
+featherdoc_cli insert-table-row-after input.docx 0 1 --output row-inserted-after.docx --json
+featherdoc_cli remove-table-row input.docx 0 1 --output row-removed.docx --json
+featherdoc_cli merge-table-cells input.docx 0 0 0 --direction right --count 2 --output merged.docx --json
+featherdoc_cli unmerge-table-cells input.docx 0 0 0 --direction right --output unmerged.docx --json
+
+# 模板部件、模板表格、书签、图片、页码字段
+featherdoc_cli inspect-template-paragraphs input.docx --part header --index 0 --paragraph 0 --json
+featherdoc_cli inspect-template-tables input.docx --part body --table 0 --json
+featherdoc_cli inspect-template-table-rows input.docx 0 --row 1 --json
+featherdoc_cli inspect-template-table-cells input.docx 0 --row 1 --cell 1 --json
+featherdoc_cli set-template-table-row-texts input.docx 0 1 --row "SKU-1" --cell "2" --cell "$10" --output template-row-texts.docx --json
+featherdoc_cli set-template-table-cell-block-texts input.docx 0 1 0 --row "Header" --cell "Line A" --cell "Line B" --output template-block-texts.docx --json
+featherdoc_cli insert-template-table-column-before input.docx 0 1 1 --output template-column-before.docx --json
+featherdoc_cli insert-template-table-column-after input.docx 0 1 1 --output template-column-after.docx --json
+featherdoc_cli remove-template-table-column input.docx 0 1 1 --output template-column-removed.docx --json
+featherdoc_cli append-template-table-row input.docx 0 --cell-count 3 --output template-row-appended.docx --json
+featherdoc_cli insert-template-table-row-before input.docx 0 1 --output template-row-before.docx --json
+featherdoc_cli insert-template-table-row-after input.docx 0 1 --output template-row-after.docx --json
+featherdoc_cli remove-template-table-row input.docx 0 1 --output template-row-removed.docx --json
+featherdoc_cli merge-template-table-cells input.docx 0 1 0 --direction right --count 2 --output template-merged.docx --json
+featherdoc_cli unmerge-template-table-cells input.docx 0 1 0 --direction right --output template-unmerged.docx --json
+featherdoc_cli replace-bookmark-text input.docx customer_name --text "Ada Lovelace" --output bookmark-text.docx --json
+featherdoc_cli fill-bookmarks input.docx --set customer_name "Ada Lovelace" --set invoice_no INV-001 --output filled.docx --json
+featherdoc_cli replace-bookmark-paragraphs input.docx notes --paragraph "Line one" --paragraph "Line two" --output bookmark-paragraphs.docx --json
+featherdoc_cli replace-bookmark-table input.docx line_items --row "SKU-1" --cell "2" --cell "$10" --output bookmark-table.docx --json
+featherdoc_cli replace-bookmark-table-rows input.docx line_items --row "SKU-2" --cell "4" --cell "$20" --output bookmark-table-rows.docx --json
+featherdoc_cli remove-bookmark-block input.docx optional_section --output bookmark-block-removed.docx --json
+featherdoc_cli set-bookmark-block-visibility input.docx optional_section --visible false --output bookmark-hidden.docx --json
+featherdoc_cli apply-bookmark-block-visibility input.docx --hide optional_section --show totals --output bookmark-visibility.docx --json
+featherdoc_cli replace-bookmark-image input.docx logo assets/logo.png --width 120 --height 40 --output bookmark-image.docx --json
+featherdoc_cli replace-bookmark-floating-image input.docx hero assets/hero.png --width 320 --height 180 --horizontal-reference margin --vertical-reference paragraph --wrap-mode square --output bookmark-floating-image.docx --json
+featherdoc_cli extract-image input.docx exported.png --relationship-id rId5 --json
+featherdoc_cli replace-image input.docx replacement.png --relationship-id rId5 --output image-replaced.docx --json
+featherdoc_cli remove-image input.docx --relationship-id rId5 --output image-removed.docx --json
+featherdoc_cli append-image input.docx badge.png --width 96 --height 48 --output image-appended.docx --json
+featherdoc_cli show-section-header input.docx 1 --kind even
+featherdoc_cli show-section-footer input.docx 2 --json
+featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
+featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
+featherdoc_cli append-total-pages-field input.docx --part section-footer --section 1 --kind first --output total-pages.docx --json
+```
 
 ## 安装
 

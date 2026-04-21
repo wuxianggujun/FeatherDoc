@@ -227,8 +227,10 @@ $renderPython = if ($SkipVisual) { $null } else { Ensure-RenderPython -RepoRoot 
 New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
 $aggregateEvidenceDir = Join-Path $resolvedOutputDir "aggregate-evidence"
 $aggregateFirstPagesDir = Join-Path $aggregateEvidenceDir "first-pages"
+$aggregateSelectedPagesDir = Join-Path $aggregateEvidenceDir "selected-pages"
 $aggregateContactSheetPath = Join-Path $aggregateEvidenceDir "contact_sheet.png"
 New-Item -ItemType Directory -Path $aggregateFirstPagesDir -Force | Out-Null
+New-Item -ItemType Directory -Path $aggregateSelectedPagesDir -Force | Out-Null
 
 $sharedBaselineDocxPath = Join-Path $resolvedOutputDir "shared-baseline.docx"
 $sharedBaselineVisualDir = Join-Path $resolvedOutputDir "shared-baseline-visual"
@@ -274,6 +276,7 @@ $summary = [ordered]@{
 
 $aggregateImages = @()
 $aggregateLabels = @()
+$script:selectedPagesByCase = @{}
 
 function Register-VisualPair {
     param(
@@ -284,12 +287,24 @@ function Register-VisualPair {
 
     $baselineCopy = Join-Path $aggregateFirstPagesDir "$CaseId-baseline-page-01.png"
     $mutatedCopy = Join-Path $aggregateFirstPagesDir "$CaseId-mutated-page-01.png"
+    $baselineSelectedCopy = Join-Path $aggregateSelectedPagesDir "$CaseId-baseline-page-01.png"
+    $mutatedSelectedCopy = Join-Path $aggregateSelectedPagesDir "$CaseId-mutated-page-01.png"
     Copy-Item -Path $BaselinePage -Destination $baselineCopy -Force
     Copy-Item -Path $MutatedPage -Destination $mutatedCopy -Force
+    Copy-Item -Path $BaselinePage -Destination $baselineSelectedCopy -Force
+    Copy-Item -Path $MutatedPage -Destination $mutatedSelectedCopy -Force
     $script:aggregateImages += $baselineCopy
     $script:aggregateImages += $mutatedCopy
     $script:aggregateLabels += "$CaseId-baseline"
     $script:aggregateLabels += "$CaseId-mutated"
+    $script:selectedPagesByCase[$CaseId] = @(
+        [ordered]@{
+            page_number = 1
+            role = "primary"
+            baseline_page = $baselineSelectedCopy
+            mutated_page = $mutatedSelectedCopy
+        }
+    )
 }
 
 function Write-SummaryArtifacts {
@@ -302,10 +317,16 @@ function Write-SummaryArtifacts {
     )
 
     if (-not $SkipVisual) {
+        foreach ($case in $script:summary.cases) {
+            if ($script:selectedPagesByCase.ContainsKey($case.id) -and $case.Contains("visual")) {
+                $case.visual["selected_pages"] = $script:selectedPagesByCase[$case.id]
+            }
+        }
         Build-ContactSheet -Python $Python -ScriptPath $ScriptPath -OutputPath $AggregateContactSheetPath -Images $script:aggregateImages -Labels $script:aggregateLabels
         $script:summary.aggregate_evidence = [ordered]@{
             root = $script:aggregateEvidenceDir
             first_pages_dir = $script:aggregateFirstPagesDir
+            selected_pages_dir = $script:aggregateSelectedPagesDir
             contact_sheet = $AggregateContactSheetPath
         }
     }

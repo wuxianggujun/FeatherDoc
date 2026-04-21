@@ -10,6 +10,21 @@ performance.
 
 ### Added
 
+- Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
+  `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
+  standard aggregate visual-evidence layout by adding
+  `aggregate-evidence/selected-pages/` and
+  `aggregate-evidence/before_after_contact_sheet.png`, while preserving the
+  legacy `contact_sheet.png` and `contact-sheets/` paths for downstream
+  review-task compatibility, and ensured case-level `rendered_pages` metadata
+  stays array-shaped even when Word only renders a single page.
+- Aligned the legacy template-table CLI visual scripts so their aggregate
+  evidence now also records `aggregate-evidence/selected-pages/` plus
+  per-case `selected_pages` metadata, while preserving existing
+  `first-pages`/`baseline_first_page` compatibility fields, and taught
+  `scripts/run_template_table_cli_direct_visual_regression.ps1` to reuse any
+  existing `build*` directory that already contains `featherdoc_cli` and the
+  matching sample target when `-SkipBuild` is used.
 - Added `featherdoc_cli inspect-tables` and
   `featherdoc_cli inspect-table-cells` so table and table-cell inspection
   metadata can be queried from the CLI without writing a C++ integration.
@@ -95,6 +110,19 @@ performance.
   `replace-bookmark-image`, including inline body bookmark replacement with
   structure assertions from `inspect-images` / `extract-image` plus real
   Word-rendered before/after evidence.
+- Added Word-backed visual regression coverage for
+  `replace-bookmark-floating-image`, including anchored body bookmark
+  replacement with `inspect-images` / `extract-image` assertions plus real
+  Word-rendered before/after evidence for floating layout, wrap distances, and
+  retained paragraph order.
+- Added Word-backed visual regression coverage for `fill-bookmarks`,
+  including batch body bookmark replacement with `inspect-template-paragraphs`
+  / `inspect-bookmarks` assertions plus real Word-rendered before/after
+  evidence that labels, filled values, and paragraph order remain stable.
+- Added Word-backed visual regression coverage for `append-image`, including
+  both inline body insertion and section-header floating insertion with
+  `inspect-images`, `extract-image`, and `inspect-header-parts` assertions
+  plus real Word-rendered before/after evidence.
 - Added `featherdoc_cli inspect-template-paragraphs`,
   `inspect-template-runs`, `inspect-template-tables`, and
   `inspect-template-table-cells` so CLI workflows can inspect paragraph/run/
@@ -209,6 +237,29 @@ performance.
 - Added `featherdoc_cli set-run-style` and `featherdoc_cli clear-run-style` so
   CLI workflows can assign or remove character styles from specific body runs
   by paragraph index and run index without dropping to the C++ API.
+- Added Word-backed visual regression coverage for `set-paragraph-style`,
+  `clear-paragraph-style`, `set-run-style`, and `clear-run-style`, including
+  screenshot-backed before/after evidence for paragraph growth/shrink and
+  inline emphasis toggles on body content, plus baseline JSON assertions for
+  `inspect-template-runs` against the same shared sample document.
+- Added `featherdoc_cli inspect-template-runs` to the top-level command
+  reference surfaces in `README.md`, `README.zh-CN.md`, and `docs/index.rst`
+  so template-part run inspection is exposed alongside `inspect-runs`.
+- Expanded the top-level CLI reference surfaces in `README.md`,
+  `README.zh-CN.md`, and `docs/index.rst` with grouped examples for
+  paragraph/run/list, body-table, bookmark/image, and template-table command
+  families so every currently shipped `featherdoc_cli` subcommand is now
+  surfaced somewhere in the primary docs.
+- Added Word-backed visual regression coverage for
+  `set-table-cell-fill`, `clear-table-cell-fill`,
+  `set-table-cell-border`, `clear-table-cell-border`,
+  `set-table-cell-width`, `clear-table-cell-width`,
+  `set-table-cell-margin`, `clear-table-cell-margin`,
+  `set-table-cell-text-direction`, `clear-table-cell-text-direction`,
+  `set-table-cell-vertical-alignment`, and
+  `clear-table-cell-vertical-alignment`, including real Word-rendered
+  before/after evidence plus structural assertions from
+  `inspect-table-cells` and `word/document.xml`.
 - Added `featherdoc_cli inspect-runs` so CLI workflows can enumerate run
   indices, character style ids, direct run font/language tags, and text
   content for a specific body paragraph before issuing run-targeted mutations.
@@ -220,6 +271,76 @@ performance.
   `featherdoc_cli clear-run-language` so CLI workflows can assign or remove
   direct run language tags on specific body runs by paragraph index and run
   index without dropping to the C++ API.
+- Added Word-backed visual regression coverage for `set-run-font-family`,
+  `clear-run-font-family`, `set-run-language`, and `clear-run-language`,
+  including screenshot-backed monospaced before/after evidence plus
+  no-layout-drift language-tag metadata checks on body runs.
+- Added Word-backed visual regression coverage for `set-paragraph-list`,
+  `restart-paragraph-list`, and `clear-paragraph-list`, including
+  screenshot-backed before/after evidence for bullet insertion, decimal list
+  restart-at-1 behavior, and list-marker removal on body paragraphs.
+- Added Word-backed visual regression coverage for
+  `ensure-numbering-definition` and `set-paragraph-numbering`, including
+  screenshot-backed custom outline `(3)` / `(3.1)` evidence plus custom `>>`
+  bullet application on body paragraphs.
+- Added Word-backed visual regression coverage for
+  `set-paragraph-style-numbering` and `clear-paragraph-style-numbering`,
+  including screenshot-backed visible body paragraphs whose numbering is
+  driven by paragraph style definitions, nested heading style numbering, and a
+  clear-numbering assertion that keeps `w:bidi` in `word/styles.xml`.
+- Added Word-backed visual regression coverage for `ensure-paragraph-style`,
+  `ensure-character-style`, and `ensure-table-style`, including
+  screenshot-backed evidence that existing body paragraphs, runs, and
+  ReviewTable-bound body tables pick up rewritten style definitions without
+  rebinding, plus `inspect-tables` / `word/styles.xml` assertions for
+  paragraph, character, and table-style metadata changes.
+- Added Word-backed visual regression coverage for `set-table-cell-text`,
+  `merge-table-cells`, and `unmerge-table-cells`, including screenshot-backed
+  evidence for body-cell text replacement, horizontal header-cell merges, and
+  merged-banner restoration back to visible three-column body grids.
+- Added Word-backed visual regression coverage for `set-table-cell-fill` and
+  `clear-table-cell-fill`, including screenshot-backed evidence that body-cell
+  shading can be applied and removed without changing surrounding table
+  geometry, plus `word/document.xml` shading assertions for both seeded and
+  cleared targets.
+- Added Word-backed visual regression coverage for `set-table-cell-border` and
+  `clear-table-cell-border`, including screenshot-backed evidence that direct
+  top-edge cell borders can be applied and cleared on body tables without
+  shifting geometry, plus `word/document.xml` assertions for the targeted
+  `w:tcBorders/w:top` edge.
+- Added Word-backed visual regression coverage for
+  `set-table-cell-text-direction` and `clear-table-cell-text-direction`,
+  including screenshot-backed evidence that body-table cell text can switch
+  between normal horizontal flow and `top_to_bottom_right_to_left` vertical
+  flow, plus `word/document.xml` assertions for the targeted
+  `w:textDirection` node.
+- Added Word-backed visual regression coverage for `set-table-row-height` and
+  `clear-table-row-height`, including real Word-rendered before/after evidence
+  for exact-height growth and auto-height restoration on body-table rows, plus
+  `inspect-table-rows` and `word/document.xml` assertions for seeded and
+  cleared `w:trHeight` metadata.
+- Added Word-backed visual regression coverage for
+  `set-table-row-repeat-header` and `clear-table-row-repeat-header`, including
+  real Word-rendered page-2 before/after evidence for repeated-header gain and
+  removal on body tables, plus `inspect-table-rows` and `word/document.xml`
+  assertions for seeded and cleared `w:tblHeader` metadata.
+- Added Word-backed visual regression coverage for
+  `set-table-row-cant-split` and `clear-table-row-cant-split`, including real
+  Word-rendered page-2/page-3 before/after evidence for row-splitting versus
+  intact-row forwarding on body tables, plus `inspect-table-rows` and
+  `word/document.xml` assertions for seeded and cleared `w:cantSplit` metadata.
+- Added Word-backed visual regression coverage for `insert-section`,
+  `copy-section-layout`, `move-section`, and `remove-section`, including real
+  Word-rendered multi-page before/after evidence for inserted, reordered, and
+  removed sections, plus `inspect-sections`, `show-section-header`, and
+  `show-section-footer` assertions for inherited versus detached header/footer
+  layouts.
+- Added Word-backed visual regression coverage for `assign-section-header`,
+  `assign-section-footer`, `remove-section-header`, `remove-section-footer`,
+  `remove-header-part`, and `remove-footer-part`, including real Word-rendered
+  before/after evidence for shared-part rebinding and part removal, plus
+  `inspect-header-parts`, `inspect-footer-parts`, `show-section-header`, and
+  `show-section-footer` assertions for section-to-part reference changes.
 
 ## [1.8.0] - 2026-04-15
 
@@ -267,15 +388,15 @@ performance.
   `featherdoc_cli append-total-pages-field` commands so page-number fields can
   be appended to body, header, footer, and section-scoped template parts with
   regression coverage.
-- Added `scripts/run_section_page_setup_regression.ps1` and the
-  `section_page_setup_regression_bundle` PowerShell test so the repository now
-  has a one-shot bundle for the API sample, the CLI rewrite flow, machine-
-  readable page-setup inspection JSON, and optional Word-rendered evidence.
-- Added `scripts/run_page_number_fields_regression.ps1` and the
-  `page_number_fields_regression_bundle` PowerShell test so the repository now
-  has a screenshot-backed review bundle for API-written and CLI-appended
-  `PAGE` / `NUMPAGES` fields, together with per-case `field_summary.json`
-  artifacts.
+- Added `scripts/run_section_page_setup_visual_regression.ps1` plus a
+  compatibility wrapper at `scripts/run_section_page_setup_regression.ps1`,
+  promoting the existing page-setup bundle into the repository's standard
+  visual-regression entry-point naming.
+- Added `scripts/run_page_number_fields_visual_regression.ps1` plus a
+  compatibility wrapper at `scripts/run_page_number_fields_regression.ps1`,
+  promoting the existing `PAGE` / `NUMPAGES` bundle into the repository's
+  standard visual-regression entry-point naming while keeping the
+  `field_summary.json` artifacts intact.
 - Added richer style inspection coverage through `Document::find_style(...)`,
   `Document::find_style_usage(...)`, and `featherdoc_cli inspect-styles`,
   including style-linked numbering summaries, body/header/footer usage

@@ -202,6 +202,126 @@ if(BUILD_SAMPLES)
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_bookmark_image_visual)
 
+    add_executable(featherdoc_sample_bookmark_floating_image_visual
+        samples/sample_bookmark_floating_image_visual.cpp)
+    target_link_libraries(featherdoc_sample_bookmark_floating_image_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_bookmark_floating_image_visual)
+
+    add_executable(featherdoc_sample_fill_bookmarks_visual
+        samples/sample_fill_bookmarks_visual.cpp)
+    target_link_libraries(featherdoc_sample_fill_bookmarks_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_fill_bookmarks_visual)
+
+    add_executable(featherdoc_sample_append_image_visual
+        samples/sample_append_image_visual.cpp)
+    target_link_libraries(featherdoc_sample_append_image_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_append_image_visual)
+
+    add_executable(featherdoc_sample_table_row_visual
+        samples/sample_table_row_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_row_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_row_visual)
+
+    add_executable(featherdoc_sample_paragraph_run_style_visual
+        samples/sample_paragraph_run_style_visual.cpp)
+    target_link_libraries(featherdoc_sample_paragraph_run_style_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_paragraph_run_style_visual)
+
+    add_executable(featherdoc_sample_run_font_language_visual
+        samples/sample_run_font_language_visual.cpp)
+    target_link_libraries(featherdoc_sample_run_font_language_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_run_font_language_visual)
+
+    add_executable(featherdoc_sample_paragraph_list_visual
+        samples/sample_paragraph_list_visual.cpp)
+    target_link_libraries(featherdoc_sample_paragraph_list_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_paragraph_list_visual)
+
+    add_executable(featherdoc_sample_paragraph_numbering_visual
+        samples/sample_paragraph_numbering_visual.cpp)
+    target_link_libraries(featherdoc_sample_paragraph_numbering_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_paragraph_numbering_visual)
+
+    add_executable(featherdoc_sample_paragraph_style_numbering_visual
+        samples/sample_paragraph_style_numbering_visual.cpp)
+    target_link_libraries(featherdoc_sample_paragraph_style_numbering_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_paragraph_style_numbering_visual)
+
+    add_executable(featherdoc_sample_ensure_style_visual
+        samples/sample_ensure_style_visual.cpp)
+    target_link_libraries(featherdoc_sample_ensure_style_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_ensure_style_visual)
+
+    add_executable(featherdoc_sample_table_cell_merge_visual
+        samples/sample_table_cell_merge_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_cell_merge_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_merge_visual)
+
+    add_executable(featherdoc_sample_table_cell_fill_visual
+        samples/sample_table_cell_fill_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_cell_fill_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_fill_visual)
+
+    add_executable(featherdoc_sample_table_cell_border_visual
+        samples/sample_table_cell_border_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_cell_border_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_border_visual)
+
+    add_executable(featherdoc_sample_table_cell_text_direction_visual
+        samples/sample_table_cell_text_direction_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_cell_text_direction_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_text_direction_visual)
+
+    add_executable(featherdoc_sample_table_cell_vertical_alignment_visual
+        samples/sample_table_cell_vertical_alignment_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_cell_vertical_alignment_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_vertical_alignment_visual)
+
+    add_executable(featherdoc_sample_table_cell_width_visual
+        samples/sample_table_cell_width_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_cell_width_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_width_visual)
+
+    add_executable(featherdoc_sample_table_cell_margin_visual
+        samples/sample_table_cell_margin_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_cell_margin_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_margin_visual)
+
+    add_executable(featherdoc_sample_table_row_height_visual
+        samples/sample_table_row_height_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_row_height_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_row_height_visual)
+
+    add_executable(featherdoc_sample_table_row_repeat_header_visual
+        samples/sample_table_row_repeat_header_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_row_repeat_header_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_row_repeat_header_visual)
+
+    add_executable(featherdoc_sample_table_row_cant_split_visual
+        samples/sample_table_row_cant_split_visual.cpp)
+    target_link_libraries(featherdoc_sample_table_row_cant_split_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_table_row_cant_split_visual)
+
     add_executable(featherdoc_sample_template_bookmark_paragraphs_pagination_visual
         samples/sample_template_bookmark_paragraphs_pagination_visual.cpp)
     target_link_libraries(featherdoc_sample_template_bookmark_paragraphs_pagination_visual
@@ -213,6 +333,18 @@ if(BUILD_SAMPLES)
     target_link_libraries(featherdoc_sample_section_text_multiline_visual
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_section_text_multiline_visual)
+
+    add_executable(featherdoc_sample_section_part_refs_visual
+        samples/sample_section_part_refs_visual.cpp)
+    target_link_libraries(featherdoc_sample_section_part_refs_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_section_part_refs_visual)
+
+    add_executable(featherdoc_sample_section_order_visual
+        samples/sample_section_order_visual.cpp)
+    target_link_libraries(featherdoc_sample_section_order_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_section_order_visual)
 
     add_executable(featherdoc_sample_template_table_cli_section_kind_visual
         samples/sample_template_table_cli_section_kind_visual.cpp)

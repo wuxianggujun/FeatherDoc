@@ -91,6 +91,42 @@ function Find-BuildExecutable {
     return $bestCandidate.FullName
 }
 
+function Resolve-BuildSearchRoot {
+    param(
+        [string]$RepoRoot,
+        [string]$PreferredBuildRoot,
+        [string[]]$TargetNames
+    )
+
+    $candidateRoots = @()
+    if (Test-Path $PreferredBuildRoot) {
+        $candidateRoots += (Resolve-Path $PreferredBuildRoot).Path
+    }
+
+    $candidateRoots += @(Get-ChildItem -Path $RepoRoot -Directory -Filter "build*" -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -ExpandProperty FullName)
+
+    foreach ($root in ($candidateRoots | Select-Object -Unique)) {
+        $hasAllTargets = $true
+        foreach ($targetName in $TargetNames) {
+            $target = Get-ChildItem -Path $root -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -ieq "$targetName.exe" -or $_.Name -ieq $targetName } |
+                Select-Object -First 1
+            if (-not $target) {
+                $hasAllTargets = $false
+                break
+            }
+        }
+
+        if ($hasAllTargets) {
+            return $root
+        }
+    }
+
+    throw "Could not locate a build directory containing targets: $($TargetNames -join ', ')."
+}
+
 function Get-BasePython {
     $python = Get-Command python -ErrorAction SilentlyContinue
     if ($python) {
@@ -319,6 +355,17 @@ $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir
 $wordSmokeScript = Join-Path $repoRoot "scripts\run_word_visual_smoke.ps1"
 $contactSheetScript = Join-Path $repoRoot "scripts\build_image_contact_sheet.py"
+$sampleTargetName = "featherdoc_sample_template_table_cli_direct_visual"
+$buildSearchRoot = $resolvedBuildDir
+if ($SkipBuild) {
+    $buildSearchRoot = Resolve-BuildSearchRoot `
+        -RepoRoot $repoRoot `
+        -PreferredBuildRoot $resolvedBuildDir `
+        -TargetNames @("featherdoc_cli", $sampleTargetName)
+    if ($buildSearchRoot -ne $resolvedBuildDir) {
+        Write-Step "Using existing build directory $buildSearchRoot"
+    }
+}
 
 $cases = @(
     [ordered]@{
@@ -414,6 +461,7 @@ $baselineDocxPath = Join-Path $baselineDir "template_table_cli_direct_visual_bas
 $baselineVisualDir = Join-Path $baselineDir "visual"
 $aggregateEvidenceDir = Join-Path $resolvedOutputDir "aggregate-evidence"
 $aggregateFirstPagesDir = Join-Path $aggregateEvidenceDir "first-pages"
+$aggregateSelectedPagesDir = Join-Path $aggregateEvidenceDir "selected-pages"
 $aggregateContactSheetPath = Join-Path $aggregateEvidenceDir "before_after_contact_sheet.png"
 $summaryPath = Join-Path $resolvedOutputDir "summary.json"
 $reviewManifestPath = Join-Path $resolvedOutputDir "review_manifest.json"
@@ -424,6 +472,7 @@ New-Item -ItemType Directory -Path $baselineDir -Force | Out-Null
 if (-not $SkipVisual) {
     New-Item -ItemType Directory -Path $aggregateEvidenceDir -Force | Out-Null
     New-Item -ItemType Directory -Path $aggregateFirstPagesDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $aggregateSelectedPagesDir -Force | Out-Null
 }
 
 if (-not $SkipBuild) {
@@ -432,11 +481,11 @@ if (-not $SkipBuild) {
     Invoke-MsvcCommand -VcvarsPath $vcvarsPath -CommandText "cmake -S `"$repoRoot`" -B `"$resolvedBuildDir`" -G `"NMake Makefiles`" -DBUILD_SAMPLES=ON -DBUILD_CLI=ON -DBUILD_TESTING=OFF"
 
     Write-Step "Building CLI and direct template table visual sample"
-    Invoke-MsvcCommand -VcvarsPath $vcvarsPath -CommandText "cmake --build `"$resolvedBuildDir`" --target featherdoc_cli featherdoc_sample_template_table_cli_direct_visual"
+    Invoke-MsvcCommand -VcvarsPath $vcvarsPath -CommandText "cmake --build `"$resolvedBuildDir`" --target featherdoc_cli $sampleTargetName"
 }
 
-$cliExecutable = Find-BuildExecutable -BuildRoot $resolvedBuildDir -TargetName "featherdoc_cli"
-$sampleExecutable = Find-BuildExecutable -BuildRoot $resolvedBuildDir -TargetName "featherdoc_sample_template_table_cli_direct_visual"
+$cliExecutable = Find-BuildExecutable -BuildRoot $buildSearchRoot -TargetName "featherdoc_cli"
+$sampleExecutable = Find-BuildExecutable -BuildRoot $buildSearchRoot -TargetName $sampleTargetName
 
 Write-Step "Generating direct template table visual baseline via $sampleExecutable"
 & $sampleExecutable $baselineDocxPath
@@ -446,7 +495,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
-    build_dir = $resolvedBuildDir
+    build_dir = $buildSearchRoot
     output_dir = $resolvedOutputDir
     visual_enabled = (-not $SkipVisual.IsPresent)
     cli_executable = $cliExecutable
@@ -475,10 +524,10 @@ $aggregateLabels = @()
 
 if (-not $SkipVisual) {
     Write-Step "Rendering Word evidence for shared baseline document"
-    & $wordSmokeScript `
-        -BuildDir $BuildDir `
-        -InputDocx $baselineDocxPath `
-        -OutputDir $baselineVisualDir `
+        & $wordSmokeScript `
+            -BuildDir $buildSearchRoot `
+            -InputDocx $baselineDocxPath `
+            -OutputDir $baselineVisualDir `
         -SkipBuild `
         -Dpi $Dpi `
         -KeepWordOpen:$KeepWordOpen.IsPresent `
@@ -580,7 +629,7 @@ foreach ($case in $cases) {
     if (-not $SkipVisual) {
         Write-Step "Rendering Word evidence for case '$($case.id)'"
         & $wordSmokeScript `
-            -BuildDir $BuildDir `
+            -BuildDir $buildSearchRoot `
             -InputDocx $mutatedDocxPath `
             -OutputDir $mutatedVisualDir `
             -SkipBuild `
@@ -600,6 +649,10 @@ foreach ($case in $cases) {
         $aggregateMutatedPage = Join-Path $aggregateFirstPagesDir "$($case.id)-mutated-page-01.png"
         Copy-Item -Path $baselineFirstPage -Destination $aggregateBaselinePage -Force
         Copy-Item -Path $mutatedFirstPage -Destination $aggregateMutatedPage -Force
+        $aggregateSelectedBaselinePage = Join-Path $aggregateSelectedPagesDir "$($case.id)-baseline-page-01.png"
+        $aggregateSelectedMutatedPage = Join-Path $aggregateSelectedPagesDir "$($case.id)-mutated-page-01.png"
+        Copy-Item -Path $baselineFirstPage -Destination $aggregateSelectedBaselinePage -Force
+        Copy-Item -Path $mutatedFirstPage -Destination $aggregateSelectedMutatedPage -Force
 
         $renderPython = Ensure-RenderPython -RepoRoot $repoRoot
         Write-Step "Building before/after contact sheet for case '$($case.id)'"
@@ -623,6 +676,14 @@ foreach ($case in $cases) {
             baseline_first_page = $aggregateBaselinePage
             mutated_visual_output_dir = $mutatedVisualDir
             mutated_first_page = $aggregateMutatedPage
+            selected_pages = @(
+                [ordered]@{
+                    page_number = 1
+                    role = "primary"
+                    baseline_page = $aggregateSelectedBaselinePage
+                    mutated_page = $aggregateSelectedMutatedPage
+                }
+            )
             before_after_contact_sheet = $caseContactSheetPath
         }
     }
@@ -653,6 +714,7 @@ if (-not $SkipVisual) {
     $summary.aggregate_evidence = [ordered]@{
         root = $aggregateEvidenceDir
         first_pages_dir = $aggregateFirstPagesDir
+        selected_pages_dir = $aggregateSelectedPagesDir
         contact_sheet = $aggregateContactSheetPath
         shared_baseline_visual_output_dir = $baselineVisualDir
     }

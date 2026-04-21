@@ -848,13 +848,13 @@ if ($sourceKind -eq "document") {
         $taskRelativeDir, "repair", "fix-01", "bundle-regression").Replace("/", "\")
     $bundleRefreshCommand = @(
         "powershell -ExecutionPolicy Bypass -File"
-        "`"$repoRoot\scripts\run_section_page_setup_regression.ps1`""
+        "`"$repoRoot\scripts\run_section_page_setup_visual_regression.ps1`""
         "-OutputDir"
         "`"$bundleRefreshOutputRelative`""
     ) -join " "
     $bundleRepairCommandExample = @(
         "powershell -ExecutionPolicy Bypass -File"
-        "`"$repoRoot\scripts\run_section_page_setup_regression.ps1`""
+        "`"$repoRoot\scripts\run_section_page_setup_visual_regression.ps1`""
         "-OutputDir"
         "`"$bundleRepairOutputRelativeExample`""
     ) -join " "
@@ -868,13 +868,13 @@ if ($sourceKind -eq "document") {
         $taskRelativeDir, "repair", "fix-01", "bundle-regression").Replace("/", "\")
     $bundleRefreshCommand = @(
         "powershell -ExecutionPolicy Bypass -File"
-        "`"$repoRoot\scripts\run_page_number_fields_regression.ps1`""
+        "`"$repoRoot\scripts\run_page_number_fields_visual_regression.ps1`""
         "-OutputDir"
         "`"$bundleRefreshOutputRelative`""
     ) -join " "
     $bundleRepairCommandExample = @(
         "powershell -ExecutionPolicy Bypass -File"
-        "`"$repoRoot\scripts\run_page_number_fields_regression.ps1`""
+        "`"$repoRoot\scripts\run_page_number_fields_visual_regression.ps1`""
         "-OutputDir"
         "`"$bundleRepairOutputRelativeExample`""
     ) -join " "

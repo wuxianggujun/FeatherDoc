@@ -457,10 +457,13 @@ bookmarks, images, and template parts.
 featherdoc_cli inspect-sections input.docx
 featherdoc_cli inspect-sections input.docx --json
 featherdoc_cli inspect-styles input.docx --style Strong --json
+featherdoc_cli inspect-runs input.docx 1 --run 0 --json
+featherdoc_cli inspect-template-runs input.docx 1 --run 0 --json
 featherdoc_cli inspect-numbering input.docx --definition 1 --json
 featherdoc_cli inspect-page-setup input.docx --section 1 --json
 featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --json
+featherdoc_cli ensure-table-style input.docx ReportTable --name "Report Table" --based-on TableGrid --output styled.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -478,6 +481,8 @@ featherdoc_cli show-section-footer input.docx 2 --json
 featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
 featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
 featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
+featherdoc_cli set-template-table-from-json report.docx --bookmark line_items_table --patch-file row_patch.json --output report-updated.docx --json
+featherdoc_cli set-template-tables-from-json report.docx --patch-file multi_table_patch.json --output report-updated.docx --json
 featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
 ```
 
@@ -495,6 +500,53 @@ same order consumed by `assign-section-*` and `remove-*-part`. Their output
 includes each part's relationship id, package entry path, section references,
 and paragraph text. Pass `--json` when you need the same information as a
 machine-readable object.
+
+Additional representative command groups:
+
+```bash
+# Paragraphs, runs, styles, and numbering
+featherdoc_cli inspect-paragraphs input.docx --paragraph 4 --json
+featherdoc_cli set-paragraph-style input.docx 4 Heading2 --output styled-paragraph.docx --json
+featherdoc_cli clear-paragraph-style input.docx 4 --output cleared-paragraph-style.docx --json
+featherdoc_cli set-run-style input.docx 4 1 Strong --output styled-run.docx --json
+featherdoc_cli clear-run-style input.docx 4 1 --output cleared-run-style.docx --json
+featherdoc_cli set-run-font-family input.docx 4 1 Consolas --output font-run.docx --json
+featherdoc_cli clear-run-font-family input.docx 4 1 --output cleared-run-font.docx --json
+featherdoc_cli set-run-language input.docx 4 1 en-US --output language-run.docx --json
+featherdoc_cli clear-run-language input.docx 4 1 --output cleared-run-language.docx --json
+featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
+featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
+featherdoc_cli ensure-numbering-definition input.docx --definition-name OutlineReview --numbering-level 0:decimal:1:%1. --output numbering.docx --json
+featherdoc_cli set-paragraph-numbering input.docx 6 --definition 12 --level 0 --output numbered.docx --json
+featherdoc_cli set-paragraph-style-numbering input.docx Heading2 --definition-name HeadingReview --numbering-level 0:decimal:1:%1. --style-level 1 --output style-numbering.docx --json
+featherdoc_cli clear-paragraph-style-numbering input.docx Heading2 --output cleared-style-numbering.docx --json
+featherdoc_cli set-paragraph-list input.docx 6 --kind bullet --level 1 --output bulleted.docx --json
+featherdoc_cli restart-paragraph-list input.docx 10 --kind decimal --level 0 --output restarted-list.docx --json
+featherdoc_cli clear-paragraph-list input.docx 10 --output cleared-list.docx --json
+
+# Template inspection and bookmark-driven edits
+featherdoc_cli inspect-template-paragraphs input.docx --part header --index 0 --paragraph 0 --json
+featherdoc_cli inspect-template-tables input.docx --part body --table 0 --json
+featherdoc_cli inspect-template-table-rows input.docx 0 --row 1 --json
+featherdoc_cli inspect-template-table-cells input.docx 0 --row 1 --cell 1 --json
+featherdoc_cli replace-bookmark-text input.docx customer_name --text "Ada Lovelace" --output bookmark-text.docx --json
+featherdoc_cli fill-bookmarks input.docx --set customer_name "Ada Lovelace" --set invoice_no INV-001 --output filled.docx --json
+featherdoc_cli replace-bookmark-paragraphs input.docx notes --paragraph "Line one" --paragraph "Line two" --output bookmark-paragraphs.docx --json
+featherdoc_cli replace-bookmark-table input.docx line_items --row "SKU-1" --cell "2" --cell "$10" --output bookmark-table.docx --json
+featherdoc_cli replace-bookmark-table-rows input.docx line_items --row "SKU-2" --cell "4" --cell "$20" --output bookmark-table-rows.docx --json
+featherdoc_cli remove-bookmark-block input.docx optional_section --output bookmark-block-removed.docx --json
+featherdoc_cli set-bookmark-block-visibility input.docx optional_section --visible false --output bookmark-hidden.docx --json
+featherdoc_cli apply-bookmark-block-visibility input.docx --hide optional_section --show totals --output bookmark-visibility.docx --json
+
+# Images and page fields
+featherdoc_cli replace-bookmark-image input.docx logo assets/logo.png --width 120 --height 40 --output bookmark-image.docx --json
+featherdoc_cli replace-bookmark-floating-image input.docx hero assets/hero.png --width 320 --height 180 --horizontal-reference margin --vertical-reference paragraph --wrap-mode square --output bookmark-floating-image.docx --json
+featherdoc_cli extract-image input.docx exported.png --relationship-id rId5 --json
+featherdoc_cli replace-image input.docx replacement.png --relationship-id rId5 --output image-replaced.docx --json
+featherdoc_cli remove-image input.docx --relationship-id rId5 --output image-removed.docx --json
+featherdoc_cli append-image input.docx badge.png --width 96 --height 48 --output image-appended.docx --json
+featherdoc_cli append-total-pages-field input.docx --part section-footer --section 1 --kind first --output total-pages.docx --json
+```
 
 `assign-section-header` / `assign-section-footer` make a section reuse an
 already loaded header/footer part by index. `remove-section-header` /

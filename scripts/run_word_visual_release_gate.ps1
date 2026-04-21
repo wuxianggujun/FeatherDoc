@@ -334,8 +334,8 @@ $taskOutputRootForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
 
 $smokeScript = Join-Path $repoRoot "scripts\run_word_visual_smoke.ps1"
 $fixedGridScript = Join-Path $repoRoot "scripts\run_fixed_grid_merge_unmerge_regression.ps1"
-$sectionPageSetupScript = Join-Path $repoRoot "scripts\run_section_page_setup_regression.ps1"
-$pageNumberFieldsScript = Join-Path $repoRoot "scripts\run_page_number_fields_regression.ps1"
+$sectionPageSetupScript = Join-Path $repoRoot "scripts\run_section_page_setup_visual_regression.ps1"
+$pageNumberFieldsScript = Join-Path $repoRoot "scripts\run_page_number_fields_visual_regression.ps1"
 $prepareTaskScript = Join-Path $repoRoot "scripts\prepare_word_review_task.ps1"
 $refreshReadmeAssetsScript = Join-Path $repoRoot "scripts\refresh_readme_visual_assets.ps1"
 

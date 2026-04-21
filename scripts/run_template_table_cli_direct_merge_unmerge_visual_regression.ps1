@@ -387,6 +387,7 @@ New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
 
 $aggregateEvidenceDir = Join-Path $resolvedOutputDir "aggregate-evidence"
 $aggregateFirstPagesDir = Join-Path $aggregateEvidenceDir "first-pages"
+$aggregateSelectedPagesDir = Join-Path $aggregateEvidenceDir "selected-pages"
 $aggregateContactSheetPath = Join-Path $aggregateEvidenceDir "before_after_contact_sheet.png"
 $summaryPath = Join-Path $resolvedOutputDir "summary.json"
 $reviewManifestPath = Join-Path $resolvedOutputDir "review_manifest.json"
@@ -396,6 +397,7 @@ $finalReviewPath = Join-Path $resolvedOutputDir "final_review.md"
 if (-not $SkipVisual) {
     New-Item -ItemType Directory -Path $aggregateEvidenceDir -Force | Out-Null
     New-Item -ItemType Directory -Path $aggregateFirstPagesDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $aggregateSelectedPagesDir -Force | Out-Null
 }
 
 if (-not $SkipBuild) {
@@ -580,6 +582,10 @@ foreach ($case in $cases) {
         $aggregateMutatedPage = Join-Path $aggregateFirstPagesDir "$($case.id)-mutated-page-01.png"
         Copy-Item -Path $baselineFirstPage -Destination $aggregateBaselinePage -Force
         Copy-Item -Path $mutatedFirstPage -Destination $aggregateMutatedPage -Force
+        $aggregateSelectedBaselinePage = Join-Path $aggregateSelectedPagesDir "$($case.id)-baseline-page-01.png"
+        $aggregateSelectedMutatedPage = Join-Path $aggregateSelectedPagesDir "$($case.id)-mutated-page-01.png"
+        Copy-Item -Path $baselineFirstPage -Destination $aggregateSelectedBaselinePage -Force
+        Copy-Item -Path $mutatedFirstPage -Destination $aggregateSelectedMutatedPage -Force
 
         $renderPython = Ensure-RenderPython -RepoRoot $repoRoot
         Write-Step "Building before/after contact sheet for case '$($case.id)'"
@@ -603,6 +609,14 @@ foreach ($case in $cases) {
             baseline_first_page = $aggregateBaselinePage
             mutated_visual_output_dir = $mutatedVisualDir
             mutated_first_page = $aggregateMutatedPage
+            selected_pages = @(
+                [ordered]@{
+                    page_number = 1
+                    role = "primary"
+                    baseline_page = $aggregateSelectedBaselinePage
+                    mutated_page = $aggregateSelectedMutatedPage
+                }
+            )
             before_after_contact_sheet = $caseContactSheetPath
         }
     }
@@ -633,6 +647,7 @@ if (-not $SkipVisual) {
     $summary.aggregate_evidence = [ordered]@{
         root = $aggregateEvidenceDir
         first_pages_dir = $aggregateFirstPagesDir
+        selected_pages_dir = $aggregateSelectedPagesDir
         contact_sheet = $aggregateContactSheetPath
     }
     $reviewManifest.aggregate_evidence = $summary.aggregate_evidence
