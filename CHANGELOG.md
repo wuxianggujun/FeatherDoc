@@ -126,6 +126,14 @@ performance.
   `scripts/run_template_table_cli_direct_visual_regression.ps1` to reuse any
   existing `build*` directory that already contains `featherdoc_cli` and the
   matching sample target when `-SkipBuild` is used.
+- Updated `docs/release_policy_zh.rst` and
+  `docs/automation/word_visual_workflow_zh.rst` so the Chinese release /
+  automation docs now describe the finer-grained Word visual signoff flow,
+  including section-page-setup, page-number-fields, curated visual regression
+  bundle verdicts, and the fact that release bundle entry points surface both
+  those verdicts and bundle-specific
+  `open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle`
+  shortcuts after verdict sync.
 - Added `featherdoc_cli inspect-tables` and
   `featherdoc_cli inspect-table-cells` so table and table-cell inspection
   metadata can be queried from the CLI without writing a C++ integration.

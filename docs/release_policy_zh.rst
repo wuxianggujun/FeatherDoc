@@ -59,7 +59,9 @@
 5. MSVC 构建、测试、样例运行通过。
 6. ``cmake --install`` 之后，外部最小工程可以 ``find_package(FeatherDoc CONFIG REQUIRED)`` 并成功链接运行。
 7. 本地 Word visual release gate 已执行，至少覆盖常规 smoke 与
-   fixed-grid merge/unmerge quartet，可在真实 Word 渲染下排查明显回归。
+   fixed-grid merge/unmerge quartet，以及本轮涉及的 section page setup、
+   page number fields 和 curated visual regression bundles，可在真实 Word
+   渲染下排查明显回归。
 8. 公开 API 变更已经反映到样例、测试和文档中。
 9. 完成以上检查后再打 tag / 创建 release。
 
@@ -106,8 +108,10 @@
    ``run_word_visual_release_gate.ps1`` 串成一条本地发布前总检查。
 2. GitHub 云端 CI 仍适合做构建、单测和样例 ``.docx`` 结构验证，但不应代替
    依赖本机 ``Microsoft Word`` 的最终视觉 gate。
-3. ``run_word_visual_release_gate.ps1`` 会继续拆成 document task 和
-   fixed-grid bundle task，便于后续把截图级人工/AI 复核接到发布流程里。
+3. ``run_word_visual_release_gate.ps1`` 会继续拆成 document task、
+   fixed-grid bundle task、section page setup task、page number fields task，
+   以及按 bundle key 分流的 curated visual bundle task，便于后续把截图级
+   人工/AI 复核接到发布流程里。
 
 
 依赖升级策略
@@ -168,6 +172,13 @@ report：
 提供一份中文正文，``release_summary.zh-CN.md`` 则适合作为 GitHub Release
 首屏短摘要。后两者都会优先从 ``CHANGELOG.md`` 的 ``Unreleased`` 区块自动
 抽取“核心变化”要点。
+这些入口页现在也会同步展示 Word visual gate 的细粒度结论：除了总
+``visual verdict`` 外，还会写出 ``section page setup``、
+``page number fields`` 以及每个 curated visual regression bundle 的
+verdict；``release_handoff.md``、``ARTIFACT_GUIDE.md`` 和
+``REVIEWER_CHECKLIST.md`` 还会继续给出对应 review task 路径，以及
+``open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle``
+这类 bundle-specific 打开命令。
 如果只想单独复跑 fixed-grid merge/unmerge 四件套，并生成可截图签收的
 review task，可另外执行：
 
