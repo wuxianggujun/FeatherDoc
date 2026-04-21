@@ -5,8 +5,9 @@ Runs the local Word visual release gate for FeatherDoc.
 .DESCRIPTION
 Executes the standard smoke flow, the fixed-grid merge/unmerge regression
 bundle, the section page setup regression bundle, the page number fields
-regression bundle, packages screenshot-backed review tasks, and can optionally
-refresh the repository README gallery assets from the generated evidence.
+regression bundle, selected curated visual regression bundles, packages
+screenshot-backed review tasks, and can optionally refresh the repository
+README gallery assets from the generated evidence.
 
 .PARAMETER RefreshReadmeAssets
 Copies the latest visual smoke and fixed-grid evidence into
@@ -41,12 +42,22 @@ param(
     [string]$FixedGridBuildDir = "build-fixed-grid-regression-nmake",
     [string]$SectionPageSetupBuildDir = "build-section-page-setup-regression-nmake",
     [string]$PageNumberFieldsBuildDir = "build-page-number-fields-regression-nmake",
+    [string]$BookmarkFloatingImageBuildDir = "build-msvc-nmake-bookmark-floating-image-visual",
+    [string]$FillBookmarksBuildDir = "build-fill-bookmarks-visual-nmake",
+    [string]$AppendImageBuildDir = "build-append-image-visual-nmake",
+    [string]$TableRowBuildDir = "build-table-row-visual-nmake",
+    [string]$ReplaceRemoveImageBuildDir = "build-image-mutate-visual-nmake",
     [int]$Dpi = 144,
     [switch]$SkipBuild,
     [switch]$SkipSmoke,
     [switch]$SkipFixedGrid,
     [switch]$SkipSectionPageSetup,
     [switch]$SkipPageNumberFields,
+    [switch]$SkipBookmarkFloatingImage,
+    [switch]$SkipFillBookmarks,
+    [switch]$SkipAppendImage,
+    [switch]$SkipTableRow,
+    [switch]$SkipReplaceRemoveImage,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -300,10 +311,121 @@ function Get-FlowStatusLine {
     return "- $Label flow: $($FlowInfo.status)"
 }
 
+function Resolve-AggregateContactSheetPath {
+    param(
+        [string]$AggregateEvidenceDir,
+        [string]$Label
+    )
+
+    foreach ($fileName in @("before_after_contact_sheet.png", "contact_sheet.png")) {
+        $candidate = Join-Path $AggregateEvidenceDir $fileName
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    throw "Expected $Label aggregate contact sheet was not found under: $AggregateEvidenceDir"
+}
+
+function New-VisualRegressionRefreshCommand {
+    param(
+        [string]$ScriptPath,
+        [string]$BuildDir,
+        [string]$OutputDir,
+        [int]$Dpi,
+        [bool]$SkipBuild
+    )
+
+    $parts = @(
+        "powershell -ExecutionPolicy Bypass -File"
+        "`"$ScriptPath`""
+        "-BuildDir"
+        "`"$BuildDir`""
+        "-OutputDir"
+        "`"$OutputDir`""
+        "-Dpi"
+        $Dpi.ToString()
+    )
+
+    if ($SkipBuild) {
+        $parts += "-SkipBuild"
+    }
+
+    return ($parts -join " ")
+}
+
+function Invoke-VisualRegressionBundleFlow {
+    param(
+        [string]$Label,
+        [string]$Id,
+        [string]$ScriptPath,
+        [string]$BuildDir,
+        [string]$OutputDirForChild,
+        [string]$ResolvedOutputDir,
+        [int]$Dpi,
+        [bool]$SkipBuild,
+        [bool]$KeepWordOpen,
+        [bool]$VisibleWord
+    )
+
+    Write-Step "Running $Label visual regression flow"
+
+    $arguments = @(
+        "-BuildDir"
+        $BuildDir
+        "-OutputDir"
+        $OutputDirForChild
+        "-Dpi"
+        $Dpi.ToString()
+    )
+    if ($SkipBuild) {
+        $arguments += "-SkipBuild"
+    }
+    if ($KeepWordOpen) {
+        $arguments += "-KeepWordOpen"
+    }
+    if ($VisibleWord) {
+        $arguments += "-VisibleWord"
+    }
+
+    Invoke-ChildPowerShell -ScriptPath $ScriptPath `
+        -Arguments $arguments `
+        -FailureMessage "$Label visual regression gate step failed." | Out-Null
+
+    $summaryPath = Join-Path $ResolvedOutputDir "summary.json"
+    $aggregateEvidenceDir = Join-Path $ResolvedOutputDir "aggregate-evidence"
+    Assert-PathExists -Path $summaryPath -Label "$Label summary JSON"
+    Assert-PathExists -Path $aggregateEvidenceDir -Label "$Label aggregate evidence directory"
+
+    $aggregateContactSheetPath = Resolve-AggregateContactSheetPath `
+        -AggregateEvidenceDir $aggregateEvidenceDir `
+        -Label $Label
+
+    return [ordered]@{
+        id = $Id
+        label = $Label
+        status = "completed"
+        output_dir = $ResolvedOutputDir
+        summary_json = $summaryPath
+        aggregate_evidence_dir = $aggregateEvidenceDir
+        aggregate_contact_sheet = $aggregateContactSheetPath
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
 
-if ($SkipSmoke -and $SkipFixedGrid -and $SkipSectionPageSetup -and $SkipPageNumberFields) {
-    throw "At least one of smoke, fixed-grid, section-page-setup, or page-number-fields flows must remain enabled."
+if (
+    $SkipSmoke -and
+    $SkipFixedGrid -and
+    $SkipSectionPageSetup -and
+    $SkipPageNumberFields -and
+    $SkipBookmarkFloatingImage -and
+    $SkipFillBookmarks -and
+    $SkipAppendImage -and
+    $SkipTableRow -and
+    $SkipReplaceRemoveImage
+) {
+    throw "At least one release-gate flow must remain enabled."
 }
 
 $resolvedGateOutputDir = Resolve-FullPath -RepoRoot $repoRoot -InputPath $GateOutputDir
@@ -313,6 +435,11 @@ $resolvedSmokeOutputDir = Join-Path $resolvedGateOutputDir "smoke"
 $resolvedFixedGridOutputDir = Join-Path $resolvedGateOutputDir "fixed-grid"
 $resolvedSectionPageSetupOutputDir = Join-Path $resolvedGateOutputDir "section-page-setup"
 $resolvedPageNumberFieldsOutputDir = Join-Path $resolvedGateOutputDir "page-number-fields"
+$resolvedBookmarkFloatingImageOutputDir = Join-Path $resolvedGateOutputDir "bookmark-floating-image"
+$resolvedFillBookmarksOutputDir = Join-Path $resolvedGateOutputDir "fill-bookmarks"
+$resolvedAppendImageOutputDir = Join-Path $resolvedGateOutputDir "append-image"
+$resolvedTableRowOutputDir = Join-Path $resolvedGateOutputDir "table-row"
+$resolvedReplaceRemoveImageOutputDir = Join-Path $resolvedGateOutputDir "replace-remove-image"
 $reportDir = Join-Path $resolvedGateOutputDir "report"
 $gateSummaryPath = Join-Path $reportDir "gate_summary.json"
 $gateFinalReviewPath = Join-Path $reportDir "gate_final_review.md"
@@ -329,6 +456,16 @@ $sectionPageSetupOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRo
     -TargetPath $resolvedSectionPageSetupOutputDir -Label "Section page setup output directory"
 $pageNumberFieldsOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedPageNumberFieldsOutputDir -Label "Page number fields output directory"
+$bookmarkFloatingImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedBookmarkFloatingImageOutputDir -Label "Bookmark floating image output directory"
+$fillBookmarksOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedFillBookmarksOutputDir -Label "Fill bookmarks output directory"
+$appendImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedAppendImageOutputDir -Label "Append image output directory"
+$tableRowOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableRowOutputDir -Label "Table row output directory"
+$replaceRemoveImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedReplaceRemoveImageOutputDir -Label "Replace/remove image output directory"
 $taskOutputRootForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedTaskOutputRoot -Label "Task output root"
 
@@ -336,6 +473,11 @@ $smokeScript = Join-Path $repoRoot "scripts\run_word_visual_smoke.ps1"
 $fixedGridScript = Join-Path $repoRoot "scripts\run_fixed_grid_merge_unmerge_regression.ps1"
 $sectionPageSetupScript = Join-Path $repoRoot "scripts\run_section_page_setup_visual_regression.ps1"
 $pageNumberFieldsScript = Join-Path $repoRoot "scripts\run_page_number_fields_visual_regression.ps1"
+$bookmarkFloatingImageScript = Join-Path $repoRoot "scripts\run_bookmark_floating_image_visual_regression.ps1"
+$fillBookmarksScript = Join-Path $repoRoot "scripts\run_fill_bookmarks_visual_regression.ps1"
+$appendImageScript = Join-Path $repoRoot "scripts\run_append_image_visual_regression.ps1"
+$tableRowScript = Join-Path $repoRoot "scripts\run_table_row_visual_regression.ps1"
+$replaceRemoveImageScript = Join-Path $repoRoot "scripts\run_replace_remove_image_visual_regression.ps1"
 $prepareTaskScript = Join-Path $repoRoot "scripts\prepare_word_review_task.ps1"
 $refreshReadmeAssetsScript = Join-Path $repoRoot "scripts\refresh_readme_visual_assets.ps1"
 
@@ -356,13 +498,63 @@ $gateSummary = [ordered]@{
     fixed_grid = $null
     section_page_setup = $null
     page_number_fields = $null
+    curated_visual_regressions = @()
     review_tasks = [ordered]@{
         document = $null
         fixed_grid = $null
         section_page_setup = $null
         page_number_fields = $null
+        curated_visual_regressions = @()
     }
 }
+
+$curatedVisualFlowDescriptors = @(
+    [ordered]@{
+        id = "bookmark-floating-image"
+        label = "Bookmark floating image"
+        skip = $SkipBookmarkFloatingImage.IsPresent
+        build_dir = $BookmarkFloatingImageBuildDir
+        output_dir = $resolvedBookmarkFloatingImageOutputDir
+        output_dir_for_child = $bookmarkFloatingImageOutputDirForChild
+        script_path = $bookmarkFloatingImageScript
+    },
+    [ordered]@{
+        id = "fill-bookmarks"
+        label = "Fill bookmarks"
+        skip = $SkipFillBookmarks.IsPresent
+        build_dir = $FillBookmarksBuildDir
+        output_dir = $resolvedFillBookmarksOutputDir
+        output_dir_for_child = $fillBookmarksOutputDirForChild
+        script_path = $fillBookmarksScript
+    },
+    [ordered]@{
+        id = "append-image"
+        label = "Append image"
+        skip = $SkipAppendImage.IsPresent
+        build_dir = $AppendImageBuildDir
+        output_dir = $resolvedAppendImageOutputDir
+        output_dir_for_child = $appendImageOutputDirForChild
+        script_path = $appendImageScript
+    },
+    [ordered]@{
+        id = "table-row"
+        label = "Table row"
+        skip = $SkipTableRow.IsPresent
+        build_dir = $TableRowBuildDir
+        output_dir = $resolvedTableRowOutputDir
+        output_dir_for_child = $tableRowOutputDirForChild
+        script_path = $tableRowScript
+    },
+    [ordered]@{
+        id = "replace-remove-image"
+        label = "Replace/remove image"
+        skip = $SkipReplaceRemoveImage.IsPresent
+        build_dir = $ReplaceRemoveImageBuildDir
+        output_dir = $resolvedReplaceRemoveImageOutputDir
+        output_dir_for_child = $replaceRemoveImageOutputDirForChild
+        script_path = $replaceRemoveImageScript
+    }
+)
 
 if ($RefreshReadmeAssets) {
     if ($SkipReviewTasks) {
@@ -693,6 +885,72 @@ if (-not $SkipPageNumberFields) {
     }
 }
 
+foreach ($descriptor in $curatedVisualFlowDescriptors) {
+    if ($descriptor.skip) {
+        $gateSummary.curated_visual_regressions += [ordered]@{
+            id = $descriptor.id
+            label = $descriptor.label
+            status = "skipped"
+        }
+        continue
+    }
+
+    $flowInfo = Invoke-VisualRegressionBundleFlow `
+        -Label $descriptor.label `
+        -Id $descriptor.id `
+        -ScriptPath $descriptor.script_path `
+        -BuildDir $descriptor.build_dir `
+        -OutputDirForChild $descriptor.output_dir_for_child `
+        -ResolvedOutputDir $descriptor.output_dir `
+        -Dpi $Dpi `
+        -SkipBuild $SkipBuild.IsPresent `
+        -KeepWordOpen $KeepWordOpen.IsPresent `
+        -VisibleWord $VisibleWord.IsPresent
+
+    $flowInfo.refresh_command = New-VisualRegressionRefreshCommand `
+        -ScriptPath $descriptor.script_path `
+        -BuildDir $descriptor.build_dir `
+        -OutputDir $descriptor.output_dir_for_child `
+        -Dpi $Dpi `
+        -SkipBuild $SkipBuild.IsPresent
+
+    if (-not $SkipReviewTasks) {
+        Write-Step "Preparing $($descriptor.label) visual regression review task"
+
+        $prepareTaskArgs = @(
+            "-VisualRegressionBundleRoot"
+            $descriptor.output_dir
+            "-VisualRegressionBundleLabel"
+            $descriptor.label
+            "-VisualRegressionBundleKey"
+            "$($descriptor.id)-visual-regression-bundle"
+            "-VisualRegressionRefreshCommand"
+            $flowInfo.refresh_command
+            "-Mode"
+            $ReviewMode
+            "-TaskOutputRoot"
+            $taskOutputRootForChild
+        )
+        if ($OpenTaskDirs) {
+            $prepareTaskArgs += "-OpenTaskDir"
+        }
+
+        $bundleTaskOutput = Invoke-ChildPowerShell -ScriptPath $prepareTaskScript `
+            -Arguments $prepareTaskArgs `
+            -FailureMessage "$($descriptor.label) review task preparation failed."
+        $bundleTaskInfo = Parse-PrepareTaskOutput -Lines $bundleTaskOutput
+
+        $flowInfo.task = $bundleTaskInfo
+        $gateSummary.review_tasks.curated_visual_regressions += [ordered]@{
+            id = $descriptor.id
+            label = $descriptor.label
+            task = $bundleTaskInfo
+        }
+    }
+
+    $gateSummary.curated_visual_regressions += $flowInfo
+}
+
 if ($RefreshReadmeAssets) {
     Write-Step "Refreshing repository README gallery assets"
     Invoke-ChildPowerShell -ScriptPath $refreshReadmeAssetsScript `
@@ -756,6 +1014,29 @@ $smokeStatusLine = Get-FlowStatusLine -Label "Smoke" -FlowInfo $gateSummary.smok
 $fixedGridStatusLine = Get-FlowStatusLine -Label "Fixed-grid" -FlowInfo $gateSummary.fixed_grid -PathField "summary_json"
 $sectionPageSetupStatusLine = Get-FlowStatusLine -Label "Section page setup" -FlowInfo $gateSummary.section_page_setup -PathField "summary_json"
 $pageNumberFieldsStatusLine = Get-FlowStatusLine -Label "Page number fields" -FlowInfo $gateSummary.page_number_fields -PathField "summary_json"
+$curatedVisualStatusLines = if ($gateSummary.curated_visual_regressions.Count -gt 0) {
+    ($gateSummary.curated_visual_regressions | ForEach-Object {
+            if ($_.status -eq "completed") {
+                "- $($_.label) flow: completed ($($_.summary_json))"
+            } else {
+                "- $($_.label) flow: $($_.status)"
+            }
+        }) -join [Environment]::NewLine
+} else {
+    "- Curated visual regression bundles: not requested"
+}
+$curatedVisualTaskSummary = if ($gateSummary.review_tasks.curated_visual_regressions.Count -gt 0) {
+    ($gateSummary.review_tasks.curated_visual_regressions | ForEach-Object {
+            @(
+                "- $($_.label) task id: $($_.task.task_id)"
+                "- $($_.label) task dir: $($_.task.task_dir)"
+                "- $($_.label) prompt: $($_.task.prompt_path)"
+                "- $($_.label) latest pointer: $($_.task.latest_source_kind_task_pointer_path)"
+            ) -join [Environment]::NewLine
+        }) -join [Environment]::NewLine
+} else {
+    "- Curated visual regression review tasks: not requested"
+}
 
 $readmeGalleryStatusLine = if ($gateSummary.readme_gallery.status -eq "completed") {
     "- README gallery refresh: completed ($($gateSummary.readme_gallery.assets_dir))"
@@ -769,13 +1050,31 @@ $nextSteps = if ($SkipReviewTasks) {
         "2. Re-run without -SkipReviewTasks if you want stable task prompts and latest pointers."
     ) -join [Environment]::NewLine
 } else {
-    @(
-        '1. Review the document task via open_latest_word_review_task.ps1 -SourceKind document -PrintPrompt.'
-        '2. Review the fixed-grid task via open_latest_fixed_grid_review_task.ps1 -PrintPrompt.'
-        '3. Review the section page setup task via open_latest_section_page_setup_review_task.ps1 -PrintPrompt.'
-        '4. Review the page number fields task via open_latest_page_number_fields_review_task.ps1 -PrintPrompt.'
-        '5. Write screenshot-backed verdicts into each task''s report/ directory.'
-    ) -join [Environment]::NewLine
+    $steps = @()
+    $stepIndex = 1
+
+    if ($gateSummary.review_tasks.document) {
+        $steps += "$stepIndex. Review the document task via open_latest_word_review_task.ps1 -SourceKind document -PrintPrompt."
+        $stepIndex += 1
+    }
+    if ($gateSummary.review_tasks.fixed_grid) {
+        $steps += "$stepIndex. Review the fixed-grid task via open_latest_fixed_grid_review_task.ps1 -PrintPrompt."
+        $stepIndex += 1
+    }
+    if ($gateSummary.review_tasks.section_page_setup) {
+        $steps += "$stepIndex. Review the section page setup task via open_latest_section_page_setup_review_task.ps1 -PrintPrompt."
+        $stepIndex += 1
+    }
+    if ($gateSummary.review_tasks.page_number_fields) {
+        $steps += "$stepIndex. Review the page number fields task via open_latest_page_number_fields_review_task.ps1 -PrintPrompt."
+        $stepIndex += 1
+    }
+    foreach ($bundleTask in $gateSummary.review_tasks.curated_visual_regressions) {
+        $steps += "$stepIndex. Review the $($bundleTask.label) task through $($bundleTask.task.prompt_path)."
+        $stepIndex += 1
+    }
+    $steps += "$stepIndex. Write screenshot-backed verdicts into each task's report/ directory."
+    $steps -join [Environment]::NewLine
 }
 
 $gateFinalReview = @"
@@ -794,6 +1093,7 @@ $smokeStatusLine
 $fixedGridStatusLine
 $sectionPageSetupStatusLine
 $pageNumberFieldsStatusLine
+$curatedVisualStatusLines
 $readmeGalleryStatusLine
 
 ## Review tasks
@@ -802,6 +1102,7 @@ $documentTaskSummary
 $fixedGridTaskSummary
 $sectionPageSetupTaskSummary
 $pageNumberFieldsTaskSummary
+$curatedVisualTaskSummary
 
 ## Next steps
 
@@ -823,6 +1124,9 @@ if ($gateSummary.review_tasks.section_page_setup) {
 }
 if ($gateSummary.review_tasks.page_number_fields) {
     Write-Host "Page number fields task: $($gateSummary.review_tasks.page_number_fields.task_dir)"
+}
+foreach ($bundleTask in $gateSummary.review_tasks.curated_visual_regressions) {
+    Write-Host "$($bundleTask.label) task: $($bundleTask.task.task_dir)"
 }
 if ($gateSummary.readme_gallery.status -eq "completed") {
     Write-Host "README gallery assets: $($gateSummary.readme_gallery.assets_dir)"

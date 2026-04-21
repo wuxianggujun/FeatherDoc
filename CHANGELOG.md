@@ -10,6 +10,18 @@ performance.
 
 ### Added
 
+- Extended `scripts/prepare_word_review_task.ps1` with a generic
+  `visual-regression-bundle` source so screenshot-backed Word review tasks can
+  now be packaged from any curated visual regression bundle that provides
+  `summary.json` plus `aggregate-evidence/`, including support for either
+  `before_after_contact_sheet.png` or the legacy `contact_sheet.png`, copied
+  aggregate evidence, bundle-specific latest-task pointers, and dedicated
+  review/review-and-repair task prompt templates.
+- Extended `scripts/run_word_visual_release_gate.ps1` so the release gate can
+  now execute and package curated visual regression bundles for
+  `bookmark-floating-image`, `fill-bookmarks`, `append-image`, `table-row`,
+  and `replace-remove-image`, recording each flow plus its generated review
+  task in `gate_summary.json` and `gate_final_review.md`.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding
