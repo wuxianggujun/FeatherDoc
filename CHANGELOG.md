@@ -95,6 +95,12 @@ performance.
   paths, and bundle-specific `open_latest_word_review_task.ps1 -SourceKind
   <bundle-key>-visual-regression-bundle` entry points alongside the existing
   section/page-number visual signoff details.
+- Extended `scripts/write_release_body_zh.ps1` so both
+  `release_body.zh-CN.md` and `release_summary.zh-CN.md` now surface
+  section-page-setup, page-number-fields, and curated visual regression
+  bundle verdict details instead of only the top-level `visual verdict`,
+  keeping the short release summary aligned with the richer release handoff
+  and checklist outputs.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding
