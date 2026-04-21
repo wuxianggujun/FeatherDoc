@@ -4,10 +4,10 @@ Synchronizes the newest screenshot-backed visual verdicts with minimal input.
 
 .DESCRIPTION
 Resolves the newest document, fixed-grid, and section page setup review tasks
-plus page number fields review tasks from the latest-task pointer files,
-infers the matching Word visual gate output directory, tries to find the
-corresponding release-candidate summary, and then delegates to
-sync_visual_review_verdict.ps1.
+plus page number fields review tasks and any curated visual-regression bundle
+tasks from the latest-task pointer files, infers the matching Word visual gate
+output directory, tries to find the corresponding release-candidate summary,
+and then delegates to sync_visual_review_verdict.ps1.
 
 .PARAMETER TaskOutputRoot
 Optional explicit task root containing latest_task.json plus latest source-kind

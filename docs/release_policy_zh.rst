@@ -144,9 +144,10 @@
 ``REVIEWER_CHECKLIST.md``、``release_handoff.md``、``release_body.zh-CN.md``
 和 ``release_summary.zh-CN.md``。
 如果你后来又把 visual verdict 从 ``pending_manual_review`` 回写成
-``pass``，优先执行最短的一键同步命令，把最新 document task /
-fixed-grid task 的结论回灌进 gate summary、release-preflight summary，
-并顺手重刷整套 report：
+``pass``，优先执行最短的一键同步命令，把最新 document task、
+fixed-grid task，以及同一 task root 下的 curated visual bundle task
+结论回灌进 gate summary、release-preflight summary，并顺手重刷整套
+report：
 
 .. code-block:: powershell
 

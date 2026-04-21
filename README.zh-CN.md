@@ -79,7 +79,9 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
 
 如果截图级 review 结论是在后续补写的，优先执行最短同步命令，把最终
 visual verdict 一次性回写到 gate summary、release summary 和 release note
-bundle，而不是整条 preflight 重新跑一遍：
+bundle。这个同步流程现在也会自动吸收同一 task root 下的 curated visual
+bundle task，而不是只处理最早那几条固定链路，因此不需要为了补写 bundle
+结论重新跑整条 preflight：
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1
@@ -144,7 +146,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 
 - `repair/`
 
 并维护 `output/word-visual-smoke/tasks/` 下的 latest pointer，
-方便自动化消费最新任务。
+方便自动化消费最新任务，例如：
+
+- `latest_fixed-grid-regression-bundle_task.json`
+- `latest_template-table-cli-selector-visual-regression-bundle_task.json`
+
+如果你不想自己解析这些稳定指针，可以直接运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1
+
+powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 `
+    -SourceKind template-table-cli-selector-visual-regression-bundle `
+    -PrintPrompt
+```
 
 ## 渲染示例
 

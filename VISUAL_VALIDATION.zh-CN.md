@@ -80,9 +80,9 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\open_latest_word_re
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\open_latest_fixed_grid_review_task.ps1 -PrintPrompt
 ```
 
-当这两条 task 的截图级 verdict 已经写回各自 `report/` 后，优先用下面这条
-最短命令自动识别最新 task / gate / release 路径，并把结果正式上卷回
-gate summary：
+当这些 task 的截图级 verdict 已经写回各自 `report/` 后，包括 release gate
+产生的 curated visual-regression bundle task，优先用下面这条最短命令自动
+识别最新 task / gate / release 路径，并把结果正式上卷回 gate summary：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_latest_visual_review_verdict.ps1

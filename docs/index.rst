@@ -136,8 +136,9 @@ To reproduce the same screenshots locally on Windows with a real
     # Refresh the repository gallery PNGs from already-generated tasks only
     powershell -ExecutionPolicy Bypass -File .\scripts\refresh_readme_visual_assets.ps1
 
-    # After both screenshot-backed task verdicts are written, sync them back
-    # into the gate summary
+    # After the screenshot-backed verdicts are written, including any curated
+    # visual-regression bundles from the gate, sync them back into the gate
+    # summary
     powershell -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1
 
     # Same sync step, but with explicit paths when you need to override the
@@ -207,12 +208,15 @@ The CI metadata artifact adds a root ``RELEASE_METADATA_START_HERE.md`` that
 points back into the same bundle.
 After a later manual visual verdict update, prefer
 ``scripts/sync_latest_visual_review_verdict.ps1`` for the shortest
-auto-detected path. When you need to override paths explicitly, keep using
-``scripts/sync_visual_review_verdict.ps1`` against the saved
-``gate_summary.json``. If a release-preflight ``summary.json`` also exists,
-pass it as ``-ReleaseCandidateSummaryJson`` together with
-``-RefreshReleaseBundle`` to refresh ``START_HERE.md`` plus the release-facing
-notes without rerunning the full preflight.
+auto-detected path. It now scans every ``latest_*_task.json`` pointer it can
+resolve under the chosen task root, so curated visual-regression bundle tasks
+from the release gate are synchronized together with the classic document /
+fixed-grid / section-page-setup / page-number-fields tasks. When you need to
+override paths explicitly, keep using ``scripts/sync_visual_review_verdict.ps1``
+against the saved ``gate_summary.json``. If a release-preflight
+``summary.json`` also exists, pass it as ``-ReleaseCandidateSummaryJson``
+together with ``-RefreshReleaseBundle`` to refresh ``START_HERE.md`` plus the
+release-facing notes without rerunning the full preflight.
 
 .. _featherdoc-cli:
 

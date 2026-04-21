@@ -302,8 +302,10 @@ or output structure. The intended handoff flow is:
 Every task generation also refreshes stable pointer files under
 `output/word-visual-smoke/tasks/`, including `latest_task.json` plus a
 source-kind-specific file such as
-`latest_fixed-grid-regression-bundle_task.json`, so external automation can
-resolve the newest task package without guessing timestamped directory names.
+`latest_fixed-grid-regression-bundle_task.json` or
+`latest_template-table-cli-selector-visual-regression-bundle_task.json`, so
+external automation can resolve the newest task package without guessing
+timestamped directory names.
 
 When you want to consume those pointers directly, use:
 
@@ -316,6 +318,14 @@ Or for the newest fixed-grid bundle task specifically:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 `
     -SourceKind fixed-grid-regression-bundle `
+    -PrintPrompt
+```
+
+Or for a curated visual regression bundle emitted by the release gate:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 `
+    -SourceKind template-table-cli-selector-visual-regression-bundle `
     -PrintPrompt
 ```
 
@@ -433,12 +443,18 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.
     -RefreshReadmeAssets
 ```
 
-After both screenshot-backed review tasks are signed off, sync the final
-verdict back into the gate summary with:
+After the screenshot-backed review tasks you care about are signed off,
+including any curated visual regression bundles emitted by the gate, sync the
+final verdict back into the gate summary with:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1
 ```
+
+That shortest sync path now walks every `latest_*_task.json` pointer it can
+resolve under the task root, so later curated visual-regression bundle tasks
+from `run_word_visual_release_gate.ps1` are promoted together with the classic
+document / fixed-grid / section-page-setup / page-number-fields tasks.
 
 If you need to override the inferred gate/release paths manually, use:
 

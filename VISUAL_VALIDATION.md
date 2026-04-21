@@ -81,7 +81,9 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\open_latest_fixed_g
 ```
 
 After the screenshot-backed verdicts are written into those task reports,
-promote them back into the gate summary with the shortest auto-detected path:
+including any curated visual-regression bundle tasks emitted by the release
+gate, promote them back into the gate summary with the shortest auto-detected
+path:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_latest_visual_review_verdict.ps1

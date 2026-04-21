@@ -90,6 +90,16 @@ performance.
   legacy `contact_sheet.png` and `contact-sheets/` paths for downstream
   review-task compatibility, and ensured case-level `rendered_pages` metadata
   stays array-shaped even when Word only renders a single page.
+
+### Documentation
+
+- Updated `README.md`, `README.zh-CN.md`, `VISUAL_VALIDATION*.md`,
+  `docs/index.rst`, and `docs/automation/word_visual_workflow_zh.rst` so the
+  latest-pointer and verdict-sync workflow now documents curated
+  `visual-regression-bundle` tasks explicitly, including
+  `open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle`
+  examples and the fact that `sync_latest_visual_review_verdict.ps1` now scans
+  all resolved `latest_*_task.json` pointers under the chosen task root.
 - Aligned the legacy template-table CLI visual scripts so their aggregate
   evidence now also records `aggregate-evidence/selected-pages/` plus
   per-case `selected_pages` metadata, while preserving existing
