@@ -95,6 +95,12 @@ performance.
   paths, and bundle-specific `open_latest_word_review_task.ps1 -SourceKind
   <bundle-key>-visual-regression-bundle` entry points alongside the existing
   section/page-number visual signoff details.
+- Extended `scripts/write_release_metadata_start_here.ps1` again so
+  `START_HERE.md` now also surfaces the section-page-setup / page-number-fields
+  review task paths plus each curated visual bundle task path and matching
+  `open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle`
+  shortcut, turning the summary-root note into a true first-click handoff for
+  fine-grained visual signoff.
 - Extended `scripts/write_release_body_zh.ps1` so both
   `release_body.zh-CN.md` and `release_summary.zh-CN.md` now surface
   section-page-setup, page-number-fields, and curated visual regression

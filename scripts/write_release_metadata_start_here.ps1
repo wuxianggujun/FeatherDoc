@@ -123,6 +123,32 @@ function Get-RepoRelativePath {
     return $resolvedPath
 }
 
+function Get-VisualTaskDir {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryTaskDir = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_task_dir" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryTaskDir)) {
+        return $summaryTaskDir
+    }
+
+    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
+    $taskInfo = Get-OptionalPropertyObject -Object $reviewTasks -Name $TaskKey
+    if ($null -eq $taskInfo) {
+        return ""
+    }
+
+    $nestedTask = Get-OptionalPropertyObject -Object $taskInfo -Name "task"
+    if ($null -ne $nestedTask) {
+        $taskInfo = $nestedTask
+    }
+
+    return Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
+}
+
 function Get-VisualTaskVerdict {
     param(
         $VisualGateSummary,
@@ -186,6 +212,7 @@ function Get-CuratedVisualReviewEntries {
                     id = ""
                     label = ""
                     verdict = ""
+                    task_dir = ""
                 }
                 [void]$entryOrder.Add($key)
             }
@@ -200,6 +227,15 @@ function Get-CuratedVisualReviewEntries {
             $verdict = Get-OptionalPropertyValue -Object $source -Name "verdict"
             if (-not [string]::IsNullOrWhiteSpace($verdict)) {
                 $entryMap[$key].verdict = $verdict
+            }
+
+            $taskInfo = Get-OptionalPropertyObject -Object $source -Name "task"
+            if ($null -eq $taskInfo) {
+                $taskInfo = $source
+            }
+            $taskDir = Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
+            if (-not [string]::IsNullOrWhiteSpace($taskDir)) {
+                $entryMap[$key].task_dir = $taskDir
             }
         }
     }
@@ -256,6 +292,8 @@ if ([string]::IsNullOrWhiteSpace($visualVerdict)) {
 }
 $sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$sectionPageSetupTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
 $installDirLeaf = if ([string]::IsNullOrWhiteSpace($installDir)) {
     "build-msvc-install"
@@ -336,6 +374,18 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
 foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
     [void]$lines.Add("- $($curatedVisualReview.label) verdict: $(Get-DisplayValue -Value $curatedVisualReview.verdict)")
+}
+
+[void]$lines.Add("")
+[void]$lines.Add("## Visual Task Shortcuts")
+[void]$lines.Add("")
+[void]$lines.Add("- Section page setup review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
+[void]$lines.Add("- Page number fields review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
+foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
+    [void]$lines.Add("- $($curatedVisualReview.label) review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.task_dir)")
+    if (-not [string]::IsNullOrWhiteSpace($curatedVisualReview.id)) {
+        [void]$lines.Add("- $($curatedVisualReview.label) open-latest command: pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind $($curatedVisualReview.id)-visual-regression-bundle -PrintPrompt")
+    }
 }
 
 [void]$lines.Add("")
