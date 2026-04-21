@@ -27,6 +27,12 @@ performance.
   `bookmark-block-visibility`, `template-bookmark-paragraphs`, and
   `bookmark-table-replacement`, keeping those screenshot-backed bundles on the
   same generic review-task packaging path as the rest of the release gate.
+- Extended `scripts/run_word_visual_release_gate.ps1` further so the curated
+  visual regression stage also covers `paragraph-list`,
+  `paragraph-numbering`, `paragraph-run-style`, and
+  `paragraph-style-numbering`, keeping those paragraph-focused Word evidence
+  bundles on the same generic review-task packaging path as the rest of the
+  release gate.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding

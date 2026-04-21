@@ -47,6 +47,10 @@ param(
     [string]$BookmarkBlockVisibilityBuildDir = "build-codex-clang-compat",
     [string]$TemplateBookmarkParagraphsBuildDir = "build-codex-clang-compat",
     [string]$BookmarkTableReplacementBuildDir = "build-codex-clang-compat",
+    [string]$ParagraphListBuildDir = "build-paragraph-list-visual-nmake",
+    [string]$ParagraphNumberingBuildDir = "build-paragraph-numbering-visual-nmake",
+    [string]$ParagraphRunStyleBuildDir = "build-paragraph-run-style-visual-nmake",
+    [string]$ParagraphStyleNumberingBuildDir = "build-paragraph-style-numbering-visual-nmake",
     [string]$FillBookmarksBuildDir = "build-fill-bookmarks-visual-nmake",
     [string]$AppendImageBuildDir = "build-append-image-visual-nmake",
     [string]$TableRowBuildDir = "build-table-row-visual-nmake",
@@ -62,6 +66,10 @@ param(
     [switch]$SkipBookmarkBlockVisibility,
     [switch]$SkipTemplateBookmarkParagraphs,
     [switch]$SkipBookmarkTableReplacement,
+    [switch]$SkipParagraphList,
+    [switch]$SkipParagraphNumbering,
+    [switch]$SkipParagraphRunStyle,
+    [switch]$SkipParagraphStyleNumbering,
     [switch]$SkipFillBookmarks,
     [switch]$SkipAppendImage,
     [switch]$SkipTableRow,
@@ -432,6 +440,10 @@ if (
     $SkipBookmarkBlockVisibility -and
     $SkipTemplateBookmarkParagraphs -and
     $SkipBookmarkTableReplacement -and
+    $SkipParagraphList -and
+    $SkipParagraphNumbering -and
+    $SkipParagraphRunStyle -and
+    $SkipParagraphStyleNumbering -and
     $SkipFillBookmarks -and
     $SkipAppendImage -and
     $SkipTableRow -and
@@ -452,6 +464,10 @@ $resolvedBookmarkImageOutputDir = Join-Path $resolvedGateOutputDir "bookmark-ima
 $resolvedBookmarkBlockVisibilityOutputDir = Join-Path $resolvedGateOutputDir "bookmark-block-visibility"
 $resolvedTemplateBookmarkParagraphsOutputDir = Join-Path $resolvedGateOutputDir "template-bookmark-paragraphs"
 $resolvedBookmarkTableReplacementOutputDir = Join-Path $resolvedGateOutputDir "bookmark-table-replacement"
+$resolvedParagraphListOutputDir = Join-Path $resolvedGateOutputDir "paragraph-list"
+$resolvedParagraphNumberingOutputDir = Join-Path $resolvedGateOutputDir "paragraph-numbering"
+$resolvedParagraphRunStyleOutputDir = Join-Path $resolvedGateOutputDir "paragraph-run-style"
+$resolvedParagraphStyleNumberingOutputDir = Join-Path $resolvedGateOutputDir "paragraph-style-numbering"
 $resolvedFillBookmarksOutputDir = Join-Path $resolvedGateOutputDir "fill-bookmarks"
 $resolvedAppendImageOutputDir = Join-Path $resolvedGateOutputDir "append-image"
 $resolvedTableRowOutputDir = Join-Path $resolvedGateOutputDir "table-row"
@@ -482,6 +498,14 @@ $templateBookmarkParagraphsOutputDirForChild = Convert-ToChildScriptPath -RepoRo
     -TargetPath $resolvedTemplateBookmarkParagraphsOutputDir -Label "Template bookmark paragraphs output directory"
 $bookmarkTableReplacementOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedBookmarkTableReplacementOutputDir -Label "Bookmark table replacement output directory"
+$paragraphListOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedParagraphListOutputDir -Label "Paragraph list output directory"
+$paragraphNumberingOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedParagraphNumberingOutputDir -Label "Paragraph numbering output directory"
+$paragraphRunStyleOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedParagraphRunStyleOutputDir -Label "Paragraph run style output directory"
+$paragraphStyleNumberingOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedParagraphStyleNumberingOutputDir -Label "Paragraph style numbering output directory"
 $fillBookmarksOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedFillBookmarksOutputDir -Label "Fill bookmarks output directory"
 $appendImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
@@ -502,6 +526,10 @@ $bookmarkImageScript = Join-Path $repoRoot "scripts\run_bookmark_image_visual_re
 $bookmarkBlockVisibilityScript = Join-Path $repoRoot "scripts\run_bookmark_block_visibility_visual_regression.ps1"
 $templateBookmarkParagraphsScript = Join-Path $repoRoot "scripts\run_template_bookmark_paragraphs_visual_regression.ps1"
 $bookmarkTableReplacementScript = Join-Path $repoRoot "scripts\run_bookmark_table_replacement_visual_regression.ps1"
+$paragraphListScript = Join-Path $repoRoot "scripts\run_paragraph_list_visual_regression.ps1"
+$paragraphNumberingScript = Join-Path $repoRoot "scripts\run_paragraph_numbering_visual_regression.ps1"
+$paragraphRunStyleScript = Join-Path $repoRoot "scripts\run_paragraph_run_style_visual_regression.ps1"
+$paragraphStyleNumberingScript = Join-Path $repoRoot "scripts\run_paragraph_style_numbering_visual_regression.ps1"
 $fillBookmarksScript = Join-Path $repoRoot "scripts\run_fill_bookmarks_visual_regression.ps1"
 $appendImageScript = Join-Path $repoRoot "scripts\run_append_image_visual_regression.ps1"
 $tableRowScript = Join-Path $repoRoot "scripts\run_table_row_visual_regression.ps1"
@@ -581,6 +609,42 @@ $curatedVisualFlowDescriptors = @(
         output_dir = $resolvedBookmarkTableReplacementOutputDir
         output_dir_for_child = $bookmarkTableReplacementOutputDirForChild
         script_path = $bookmarkTableReplacementScript
+    },
+    [ordered]@{
+        id = "paragraph-list"
+        label = "Paragraph list"
+        skip = $SkipParagraphList.IsPresent
+        build_dir = $ParagraphListBuildDir
+        output_dir = $resolvedParagraphListOutputDir
+        output_dir_for_child = $paragraphListOutputDirForChild
+        script_path = $paragraphListScript
+    },
+    [ordered]@{
+        id = "paragraph-numbering"
+        label = "Paragraph numbering"
+        skip = $SkipParagraphNumbering.IsPresent
+        build_dir = $ParagraphNumberingBuildDir
+        output_dir = $resolvedParagraphNumberingOutputDir
+        output_dir_for_child = $paragraphNumberingOutputDirForChild
+        script_path = $paragraphNumberingScript
+    },
+    [ordered]@{
+        id = "paragraph-run-style"
+        label = "Paragraph run style"
+        skip = $SkipParagraphRunStyle.IsPresent
+        build_dir = $ParagraphRunStyleBuildDir
+        output_dir = $resolvedParagraphRunStyleOutputDir
+        output_dir_for_child = $paragraphRunStyleOutputDirForChild
+        script_path = $paragraphRunStyleScript
+    },
+    [ordered]@{
+        id = "paragraph-style-numbering"
+        label = "Paragraph style numbering"
+        skip = $SkipParagraphStyleNumbering.IsPresent
+        build_dir = $ParagraphStyleNumberingBuildDir
+        output_dir = $resolvedParagraphStyleNumberingOutputDir
+        output_dir_for_child = $paragraphStyleNumberingOutputDirForChild
+        script_path = $paragraphStyleNumberingScript
     },
     [ordered]@{
         id = "fill-bookmarks"
