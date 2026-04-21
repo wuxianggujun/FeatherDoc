@@ -69,6 +69,12 @@ param(
     [string]$RemoveBookmarkBlockBuildDir = "build-codex-clang-compat",
     [string]$TemplateBookmarkParagraphsPaginationBuildDir = "build-codex-clang-compat",
     [string]$SectionOrderBuildDir = "build-section-order-visual-nmake",
+    [string]$SectionPartRefsBuildDir = "build-section-part-refs-visual-nmake",
+    [string]$RunFontLanguageBuildDir = "build-run-font-language-visual-nmake",
+    [string]$EnsureStyleBuildDir = "build-ensure-style-visual-nmake",
+    [string]$TemplateTableCliBookmarkBuildDir = "build-template-table-cli-bookmark-visual-nmake",
+    [string]$TemplateTableCliColumnBuildDir = "build-template-table-cli-column-visual-nmake",
+    [string]$TemplateTableCliDirectColumnBuildDir = "build-template-table-cli-direct-column-visual-nmake",
     [string]$ReplaceRemoveImageBuildDir = "build-image-mutate-visual-nmake",
     [int]$Dpi = 144,
     [switch]$SkipBuild,
@@ -103,6 +109,12 @@ param(
     [switch]$SkipRemoveBookmarkBlock,
     [switch]$SkipTemplateBookmarkParagraphsPagination,
     [switch]$SkipSectionOrder,
+    [switch]$SkipSectionPartRefs,
+    [switch]$SkipRunFontLanguage,
+    [switch]$SkipEnsureStyle,
+    [switch]$SkipTemplateTableCliBookmark,
+    [switch]$SkipTemplateTableCliColumn,
+    [switch]$SkipTemplateTableCliDirectColumn,
     [switch]$SkipReplaceRemoveImage,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
@@ -382,13 +394,15 @@ function New-VisualRegressionRefreshCommand {
         [bool]$SkipBuild
     )
 
+    $normalizedOutputDir = $OutputDir.TrimEnd('\', '/')
+
     $parts = @(
         "powershell -ExecutionPolicy Bypass -File"
         "`"$ScriptPath`""
         "-BuildDir"
         "`"$BuildDir`""
         "-OutputDir"
-        "`"$OutputDir`""
+        "`"$normalizedOutputDir`""
         "-Dpi"
         $Dpi.ToString()
     )
@@ -492,6 +506,12 @@ if (
     $SkipRemoveBookmarkBlock -and
     $SkipTemplateBookmarkParagraphsPagination -and
     $SkipSectionOrder -and
+    $SkipSectionPartRefs -and
+    $SkipRunFontLanguage -and
+    $SkipEnsureStyle -and
+    $SkipTemplateTableCliBookmark -and
+    $SkipTemplateTableCliColumn -and
+    $SkipTemplateTableCliDirectColumn -and
     $SkipReplaceRemoveImage
 ) {
     throw "At least one release-gate flow must remain enabled."
@@ -531,6 +551,12 @@ $resolvedSectionTextMultilineOutputDir = Join-Path $resolvedGateOutputDir "secti
 $resolvedRemoveBookmarkBlockOutputDir = Join-Path $resolvedGateOutputDir "remove-bookmark-block"
 $resolvedTemplateBookmarkParagraphsPaginationOutputDir = Join-Path $resolvedGateOutputDir "template-bookmark-paragraphs-pagination"
 $resolvedSectionOrderOutputDir = Join-Path $resolvedGateOutputDir "section-order"
+$resolvedSectionPartRefsOutputDir = Join-Path $resolvedGateOutputDir "section-part-refs"
+$resolvedRunFontLanguageOutputDir = Join-Path $resolvedGateOutputDir "run-font-language"
+$resolvedEnsureStyleOutputDir = Join-Path $resolvedGateOutputDir "ensure-style"
+$resolvedTemplateTableCliBookmarkOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-bookmark"
+$resolvedTemplateTableCliColumnOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-column"
+$resolvedTemplateTableCliDirectColumnOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-direct-column"
 $resolvedReplaceRemoveImageOutputDir = Join-Path $resolvedGateOutputDir "replace-remove-image"
 $reportDir = Join-Path $resolvedGateOutputDir "report"
 $gateSummaryPath = Join-Path $reportDir "gate_summary.json"
@@ -602,6 +628,18 @@ $templateBookmarkParagraphsPaginationOutputDirForChild = Convert-ToChildScriptPa
     -TargetPath $resolvedTemplateBookmarkParagraphsPaginationOutputDir -Label "Template bookmark paragraphs pagination output directory"
 $sectionOrderOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedSectionOrderOutputDir -Label "Section order output directory"
+$sectionPartRefsOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedSectionPartRefsOutputDir -Label "Section part refs output directory"
+$runFontLanguageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedRunFontLanguageOutputDir -Label "Run font language output directory"
+$ensureStyleOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedEnsureStyleOutputDir -Label "Ensure style output directory"
+$templateTableCliBookmarkOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateTableCliBookmarkOutputDir -Label "Template table CLI bookmark output directory"
+$templateTableCliColumnOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateTableCliColumnOutputDir -Label "Template table CLI column output directory"
+$templateTableCliDirectColumnOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTemplateTableCliDirectColumnOutputDir -Label "Template table CLI direct column output directory"
 $replaceRemoveImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedReplaceRemoveImageOutputDir -Label "Replace/remove image output directory"
 $taskOutputRootForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
@@ -638,6 +676,12 @@ $sectionTextMultilineScript = Join-Path $repoRoot "scripts\run_section_text_mult
 $removeBookmarkBlockScript = Join-Path $repoRoot "scripts\run_remove_bookmark_block_visual_regression.ps1"
 $templateBookmarkParagraphsPaginationScript = Join-Path $repoRoot "scripts\run_template_bookmark_paragraphs_pagination_visual_regression.ps1"
 $sectionOrderScript = Join-Path $repoRoot "scripts\run_section_order_visual_regression.ps1"
+$sectionPartRefsScript = Join-Path $repoRoot "scripts\run_section_part_refs_visual_regression.ps1"
+$runFontLanguageScript = Join-Path $repoRoot "scripts\run_run_font_language_visual_regression.ps1"
+$ensureStyleScript = Join-Path $repoRoot "scripts\run_ensure_style_visual_regression.ps1"
+$templateTableCliBookmarkScript = Join-Path $repoRoot "scripts\run_template_table_cli_bookmark_visual_regression.ps1"
+$templateTableCliColumnScript = Join-Path $repoRoot "scripts\run_template_table_cli_column_visual_regression.ps1"
+$templateTableCliDirectColumnScript = Join-Path $repoRoot "scripts\run_template_table_cli_direct_column_visual_regression.ps1"
 $replaceRemoveImageScript = Join-Path $repoRoot "scripts\run_replace_remove_image_visual_regression.ps1"
 $prepareTaskScript = Join-Path $repoRoot "scripts\prepare_word_review_task.ps1"
 $refreshReadmeAssetsScript = Join-Path $repoRoot "scripts\refresh_readme_visual_assets.ps1"
@@ -912,6 +956,60 @@ $curatedVisualFlowDescriptors = @(
         output_dir = $resolvedSectionOrderOutputDir
         output_dir_for_child = $sectionOrderOutputDirForChild
         script_path = $sectionOrderScript
+    },
+    [ordered]@{
+        id = "section-part-refs"
+        label = "Section part refs"
+        skip = $SkipSectionPartRefs.IsPresent
+        build_dir = $SectionPartRefsBuildDir
+        output_dir = $resolvedSectionPartRefsOutputDir
+        output_dir_for_child = $sectionPartRefsOutputDirForChild
+        script_path = $sectionPartRefsScript
+    },
+    [ordered]@{
+        id = "run-font-language"
+        label = "Run font language"
+        skip = $SkipRunFontLanguage.IsPresent
+        build_dir = $RunFontLanguageBuildDir
+        output_dir = $resolvedRunFontLanguageOutputDir
+        output_dir_for_child = $runFontLanguageOutputDirForChild
+        script_path = $runFontLanguageScript
+    },
+    [ordered]@{
+        id = "ensure-style"
+        label = "Ensure style"
+        skip = $SkipEnsureStyle.IsPresent
+        build_dir = $EnsureStyleBuildDir
+        output_dir = $resolvedEnsureStyleOutputDir
+        output_dir_for_child = $ensureStyleOutputDirForChild
+        script_path = $ensureStyleScript
+    },
+    [ordered]@{
+        id = "template-table-cli-bookmark"
+        label = "Template table CLI bookmark"
+        skip = $SkipTemplateTableCliBookmark.IsPresent
+        build_dir = $TemplateTableCliBookmarkBuildDir
+        output_dir = $resolvedTemplateTableCliBookmarkOutputDir
+        output_dir_for_child = $templateTableCliBookmarkOutputDirForChild
+        script_path = $templateTableCliBookmarkScript
+    },
+    [ordered]@{
+        id = "template-table-cli-column"
+        label = "Template table CLI column"
+        skip = $SkipTemplateTableCliColumn.IsPresent
+        build_dir = $TemplateTableCliColumnBuildDir
+        output_dir = $resolvedTemplateTableCliColumnOutputDir
+        output_dir_for_child = $templateTableCliColumnOutputDirForChild
+        script_path = $templateTableCliColumnScript
+    },
+    [ordered]@{
+        id = "template-table-cli-direct-column"
+        label = "Template table CLI direct column"
+        skip = $SkipTemplateTableCliDirectColumn.IsPresent
+        build_dir = $TemplateTableCliDirectColumnBuildDir
+        output_dir = $resolvedTemplateTableCliDirectColumnOutputDir
+        output_dir_for_child = $templateTableCliDirectColumnOutputDirForChild
+        script_path = $templateTableCliDirectColumnScript
     },
     [ordered]@{
         id = "replace-remove-image"

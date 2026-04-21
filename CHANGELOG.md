@@ -50,6 +50,14 @@ performance.
   `template-bookmark-paragraphs-pagination`, and `section-order`, keeping
   those text/template Word evidence bundles on the same generic review-task
   packaging path as the rest of the release gate.
+- Extended `scripts/run_word_visual_release_gate.ps1` again so the curated
+  visual regression stage also covers `section-part-refs`,
+  `run-font-language`, `ensure-style`, `template-table-cli-bookmark`,
+  `template-table-cli-column`, and `template-table-cli-direct-column`, and
+  normalized the generated bundle refresh command so review-task packaging for
+  those flows now consistently honors a custom `TaskOutputRoot` instead of
+  falling back to the default task directory when the bundle output path is a
+  directory.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding
