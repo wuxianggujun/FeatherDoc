@@ -172,53 +172,93 @@ function Convert-LatestPointerToTaskInfo {
     }
 }
 
-function Get-ReviewTaskKeyFromSourceKind {
-    param([string]$SourceKind)
-
-    switch ($SourceKind) {
-        "document" { return "document" }
-        "fixed-grid-regression-bundle" { return "fixed_grid" }
-        "section-page-setup-regression-bundle" { return "section_page_setup" }
-        "page-number-fields-regression-bundle" { return "page_number_fields" }
-        default { throw "Unsupported source kind for review-task refresh: $SourceKind" }
-    }
-}
-
-function Get-GateFlowKeyFromSourceKind {
-    param([string]$SourceKind)
-
-    switch ($SourceKind) {
-        "document" { return "smoke" }
-        "fixed-grid-regression-bundle" { return "fixed_grid" }
-        "section-page-setup-regression-bundle" { return "section_page_setup" }
-        "page-number-fields-regression-bundle" { return "page_number_fields" }
-        default { throw "Unsupported source kind for gate-flow refresh: $SourceKind" }
-    }
-}
-
 function Update-GateSummaryReviewTasksFromPointers {
     param(
         [string]$GateSummaryPath,
-        [hashtable]$LatestPointers
+        [object[]]$LatestPointerDescriptors
     )
 
-    if ($LatestPointers.Count -eq 0) {
+    if ($LatestPointerDescriptors.Count -eq 0) {
         return
     }
 
     $gateSummary = Read-JsonFile -Path $GateSummaryPath
     $reviewTasks = Get-OrCreateChildObject -Object $gateSummary -Name "review_tasks"
+    $curatedReviewTasks = @()
+    $curatedReviewTasksProperty = Get-OptionalPropertyObject -Object $reviewTasks -Name "curated_visual_regressions"
+    if ($null -ne $curatedReviewTasksProperty) {
+        $curatedReviewTasks = @($curatedReviewTasksProperty)
+    }
 
-    foreach ($sourceKind in $LatestPointers.Keys) {
-        $taskInfo = Convert-LatestPointerToTaskInfo -Pointer $LatestPointers[$sourceKind]
-        $reviewTaskKey = Get-ReviewTaskKeyFromSourceKind -SourceKind $sourceKind
-        $flowKey = Get-GateFlowKeyFromSourceKind -SourceKind $sourceKind
-        $flowInfo = Get-OrCreateChildObject -Object $gateSummary -Name $flowKey
+    foreach ($descriptor in $LatestPointerDescriptors) {
+        $sourceKind = $descriptor.source_kind
+        $taskInfo = Convert-LatestPointerToTaskInfo -Pointer $descriptor.pointer
 
-        Set-PropertyValue -Object $reviewTasks -Name $reviewTaskKey -Value $taskInfo
-        Set-PropertyValue -Object $flowInfo -Name "task" -Value $taskInfo
+        switch ($sourceKind) {
+            "document" {
+                $flowInfo = Get-OrCreateChildObject -Object $gateSummary -Name "smoke"
+                Set-PropertyValue -Object $reviewTasks -Name "document" -Value $taskInfo
+                Set-PropertyValue -Object $flowInfo -Name "task" -Value $taskInfo
+                Write-Step "Refreshed document task metadata in gate summary: $($taskInfo.task_dir)"
+            }
+            "fixed-grid-regression-bundle" {
+                $flowInfo = Get-OrCreateChildObject -Object $gateSummary -Name "fixed_grid"
+                Set-PropertyValue -Object $reviewTasks -Name "fixed_grid" -Value $taskInfo
+                Set-PropertyValue -Object $flowInfo -Name "task" -Value $taskInfo
+                Write-Step "Refreshed fixed_grid task metadata in gate summary: $($taskInfo.task_dir)"
+            }
+            "section-page-setup-regression-bundle" {
+                $flowInfo = Get-OrCreateChildObject -Object $gateSummary -Name "section_page_setup"
+                Set-PropertyValue -Object $reviewTasks -Name "section_page_setup" -Value $taskInfo
+                Set-PropertyValue -Object $flowInfo -Name "task" -Value $taskInfo
+                Write-Step "Refreshed section_page_setup task metadata in gate summary: $($taskInfo.task_dir)"
+            }
+            "page-number-fields-regression-bundle" {
+                $flowInfo = Get-OrCreateChildObject -Object $gateSummary -Name "page_number_fields"
+                Set-PropertyValue -Object $reviewTasks -Name "page_number_fields" -Value $taskInfo
+                Set-PropertyValue -Object $flowInfo -Name "task" -Value $taskInfo
+                Write-Step "Refreshed page_number_fields task metadata in gate summary: $($taskInfo.task_dir)"
+            }
+            "visual-regression-bundle" {
+                $bundleId = [string]$descriptor.bundle_id
+                $curatedFlowsProperty = Get-OptionalPropertyObject -Object $gateSummary -Name "curated_visual_regressions"
+                $curatedFlows = if ($null -eq $curatedFlowsProperty) { @() } else { @($curatedFlowsProperty) }
+                $flowInfo = $curatedFlows | Where-Object { (Get-OptionalPropertyValue -Object $_ -Name "id") -eq $bundleId } | Select-Object -First 1
+                $bundleLabel = if ($null -ne $flowInfo) {
+                    Get-OptionalPropertyValue -Object $flowInfo -Name "label"
+                } else {
+                    $bundleId
+                }
+                if ($null -ne $flowInfo) {
+                    Set-PropertyValue -Object $flowInfo -Name "task" -Value $taskInfo
+                }
 
-        Write-Step "Refreshed $reviewTaskKey task metadata in gate summary: $($taskInfo.task_dir)"
+                $existingBundleTask = $curatedReviewTasks |
+                    Where-Object { (Get-OptionalPropertyValue -Object $_ -Name "id") -eq $bundleId } |
+                    Select-Object -First 1
+                if ($null -eq $existingBundleTask) {
+                    $existingBundleTask = [pscustomobject]@{
+                        id = $bundleId
+                        label = $bundleLabel
+                        task = $taskInfo
+                    }
+                    $curatedReviewTasks += $existingBundleTask
+                } else {
+                    Set-PropertyValue -Object $existingBundleTask -Name "id" -Value $bundleId
+                    Set-PropertyValue -Object $existingBundleTask -Name "label" -Value $bundleLabel
+                    Set-PropertyValue -Object $existingBundleTask -Name "task" -Value $taskInfo
+                }
+
+                Write-Step "Refreshed curated visual task metadata for ${bundleId}: $($taskInfo.task_dir)"
+            }
+            default {
+                throw "Unsupported source kind for review-task refresh: $sourceKind"
+            }
+        }
+    }
+
+    if ($curatedReviewTasks.Count -gt 0) {
+        Set-PropertyValue -Object $reviewTasks -Name "curated_visual_regressions" -Value @($curatedReviewTasks)
     }
 
     ($gateSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $GateSummaryPath -Encoding UTF8
@@ -227,19 +267,25 @@ function Update-GateSummaryReviewTasksFromPointers {
 function Update-ReleaseSummaryTaskDirsFromPointers {
     param(
         [string]$ReleaseSummaryPath,
-        [hashtable]$LatestPointers
+        [object[]]$LatestPointerDescriptors
     )
 
-    if ([string]::IsNullOrWhiteSpace($ReleaseSummaryPath) -or $LatestPointers.Count -eq 0) {
+    if ([string]::IsNullOrWhiteSpace($ReleaseSummaryPath) -or $LatestPointerDescriptors.Count -eq 0) {
         return
     }
 
     $summary = Read-JsonFile -Path $ReleaseSummaryPath
     $steps = Get-OrCreateChildObject -Object $summary -Name "steps"
     $visualGate = Get-OrCreateChildObject -Object $steps -Name "visual_gate"
+    $curatedReleaseTasks = @()
+    $curatedReleaseTasksProperty = Get-OptionalPropertyObject -Object $visualGate -Name "curated_visual_regressions"
+    if ($null -ne $curatedReleaseTasksProperty) {
+        $curatedReleaseTasks = @($curatedReleaseTasksProperty)
+    }
 
-    foreach ($sourceKind in $LatestPointers.Keys) {
-        $pointer = $LatestPointers[$sourceKind]
+    foreach ($descriptor in $LatestPointerDescriptors) {
+        $sourceKind = $descriptor.source_kind
+        $pointer = $descriptor.pointer
         $taskDir = Get-OptionalPropertyValue -Object $pointer -Name "task_dir"
 
         switch ($sourceKind) {
@@ -255,9 +301,39 @@ function Update-ReleaseSummaryTaskDirsFromPointers {
             "page-number-fields-regression-bundle" {
                 Set-PropertyValue -Object $visualGate -Name "page_number_fields_task_dir" -Value $taskDir
             }
+            "visual-regression-bundle" {
+                $source = Get-OptionalPropertyObject -Object $pointer -Name "source"
+                $sourcePath = Get-OptionalPropertyValue -Object $source -Name "path"
+                $bundleId = [string]$descriptor.bundle_id
+                $existingBundleTask = $curatedReleaseTasks |
+                    Where-Object { (Get-OptionalPropertyValue -Object $_ -Name "id") -eq $bundleId } |
+                    Select-Object -First 1
+
+                if ($null -eq $existingBundleTask) {
+                    $existingBundleTask = [pscustomobject]@{
+                        id = $bundleId
+                        source_kind = $sourceKind
+                        source_path = $sourcePath
+                        task_dir = $taskDir
+                    }
+                    $curatedReleaseTasks += $existingBundleTask
+                } else {
+                    Set-PropertyValue -Object $existingBundleTask -Name "id" -Value $bundleId
+                    Set-PropertyValue -Object $existingBundleTask -Name "source_kind" -Value $sourceKind
+                    Set-PropertyValue -Object $existingBundleTask -Name "source_path" -Value $sourcePath
+                    Set-PropertyValue -Object $existingBundleTask -Name "task_dir" -Value $taskDir
+                }
+            }
+            default {
+                throw "Unsupported source kind for release-summary refresh: $sourceKind"
+            }
         }
 
         Write-Step "Refreshed release summary task dir for ${sourceKind}: $taskDir"
+    }
+
+    if ($curatedReleaseTasks.Count -gt 0) {
+        Set-PropertyValue -Object $visualGate -Name "curated_visual_regressions" -Value @($curatedReleaseTasks)
     }
 
     ($summary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $ReleaseSummaryPath -Encoding UTF8
@@ -295,12 +371,7 @@ function Find-LatestTaskRoot {
 
     $pointerFiles = Get-ChildItem -Path $SearchRoot -Recurse -File |
         Where-Object {
-            $_.Name -in @(
-                "latest_document_task.json",
-                "latest_fixed-grid-regression-bundle_task.json",
-                "latest_section-page-setup-regression-bundle_task.json",
-                "latest_page-number-fields-regression-bundle_task.json"
-            )
+            $_.Name -like "latest_*_task.json" -and $_.Name -ne "latest_task.json"
         }
 
     if (-not $pointerFiles) {
@@ -317,29 +388,56 @@ function Find-LatestTaskRoot {
     return $group.Name
 }
 
-function Get-LatestPointerPath {
-    param(
-        [string]$TaskRoot,
-        [string]$SourceKind
-    )
+function Get-LatestPointerDescriptorsFromTaskRoot {
+    param([string]$TaskRoot)
 
-    switch ($SourceKind) {
-        "document" {
-            return Join-Path $TaskRoot "latest_document_task.json"
+    $pointerFiles = Get-ChildItem -Path $TaskRoot -File |
+        Where-Object {
+            $_.Name -like "latest_*_task.json" -and $_.Name -ne "latest_task.json"
+        } |
+        Sort-Object Name
+
+    $descriptors = @()
+    foreach ($pointerFile in $pointerFiles) {
+        $sourceKind = ""
+        $bundleId = ""
+
+        switch -Regex ($pointerFile.Name) {
+            '^latest_document_task\.json$' {
+                $sourceKind = "document"
+                break
+            }
+            '^latest_fixed-grid-regression-bundle_task\.json$' {
+                $sourceKind = "fixed-grid-regression-bundle"
+                break
+            }
+            '^latest_section-page-setup-regression-bundle_task\.json$' {
+                $sourceKind = "section-page-setup-regression-bundle"
+                break
+            }
+            '^latest_page-number-fields-regression-bundle_task\.json$' {
+                $sourceKind = "page-number-fields-regression-bundle"
+                break
+            }
+            '^latest_(.+)-visual-regression-bundle_task\.json$' {
+                $sourceKind = "visual-regression-bundle"
+                $bundleId = $Matches[1]
+                break
+            }
+            default {
+                continue
+            }
         }
-        "fixed-grid-regression-bundle" {
-            return Join-Path $TaskRoot "latest_fixed-grid-regression-bundle_task.json"
-        }
-        "section-page-setup-regression-bundle" {
-            return Join-Path $TaskRoot "latest_section-page-setup-regression-bundle_task.json"
-        }
-        "page-number-fields-regression-bundle" {
-            return Join-Path $TaskRoot "latest_page-number-fields-regression-bundle_task.json"
-        }
-        default {
-            throw "Unsupported source kind: $SourceKind"
+
+        $descriptors += [pscustomobject]@{
+            source_kind = $sourceKind
+            bundle_id = $bundleId
+            pointer_path = $pointerFile.FullName
+            pointer = Read-JsonFile -Path $pointerFile.FullName
         }
     }
+
+    return @($descriptors)
 }
 
 function Resolve-GateOutputDirFromPointer {
@@ -361,6 +459,9 @@ function Resolve-GateOutputDirFromPointer {
             return Split-Path -Parent $sourcePath
         }
         "page-number-fields-regression-bundle" {
+            return Split-Path -Parent $sourcePath
+        }
+        "visual-regression-bundle" {
             return Split-Path -Parent $sourcePath
         }
         default {
@@ -434,41 +535,31 @@ $resolvedTaskOutputRoot = if ([string]::IsNullOrWhiteSpace($TaskOutputRoot)) {
 }
 Assert-PathExists -Path $resolvedTaskOutputRoot -Label "task output root"
 
-$documentPointerPath = Get-LatestPointerPath -TaskRoot $resolvedTaskOutputRoot -SourceKind "document"
-$fixedGridPointerPath = Get-LatestPointerPath -TaskRoot $resolvedTaskOutputRoot -SourceKind "fixed-grid-regression-bundle"
-$sectionPageSetupPointerPath = Get-LatestPointerPath -TaskRoot $resolvedTaskOutputRoot -SourceKind "section-page-setup-regression-bundle"
-$pageNumberFieldsPointerPath = Get-LatestPointerPath -TaskRoot $resolvedTaskOutputRoot -SourceKind "page-number-fields-regression-bundle"
-
+$latestPointerDescriptors = Get-LatestPointerDescriptorsFromTaskRoot -TaskRoot $resolvedTaskOutputRoot
 $gateOutputCandidates = @()
-$latestPointers = @{}
-if (Test-Path -LiteralPath $documentPointerPath) {
-    $documentPointer = Read-JsonFile -Path $documentPointerPath
-    $latestPointers["document"] = $documentPointer
-    $gateOutputCandidates += Resolve-GateOutputDirFromPointer -Pointer $documentPointer
-    Write-Step "Resolved latest document task: $(Get-OptionalPropertyValue -Object $documentPointer -Name 'task_dir')"
-}
-if (Test-Path -LiteralPath $fixedGridPointerPath) {
-    $fixedGridPointer = Read-JsonFile -Path $fixedGridPointerPath
-    $latestPointers["fixed-grid-regression-bundle"] = $fixedGridPointer
-    $gateOutputCandidates += Resolve-GateOutputDirFromPointer -Pointer $fixedGridPointer
-    Write-Step "Resolved latest fixed-grid task: $(Get-OptionalPropertyValue -Object $fixedGridPointer -Name 'task_dir')"
-}
-if (Test-Path -LiteralPath $sectionPageSetupPointerPath) {
-    $sectionPageSetupPointer = Read-JsonFile -Path $sectionPageSetupPointerPath
-    $latestPointers["section-page-setup-regression-bundle"] = $sectionPageSetupPointer
-    $gateOutputCandidates += Resolve-GateOutputDirFromPointer -Pointer $sectionPageSetupPointer
-    Write-Step "Resolved latest section page setup task: $(Get-OptionalPropertyValue -Object $sectionPageSetupPointer -Name 'task_dir')"
-}
-if (Test-Path -LiteralPath $pageNumberFieldsPointerPath) {
-    $pageNumberFieldsPointer = Read-JsonFile -Path $pageNumberFieldsPointerPath
-    $latestPointers["page-number-fields-regression-bundle"] = $pageNumberFieldsPointer
-    $gateOutputCandidates += Resolve-GateOutputDirFromPointer -Pointer $pageNumberFieldsPointer
-    Write-Step "Resolved latest page number fields task: $(Get-OptionalPropertyValue -Object $pageNumberFieldsPointer -Name 'task_dir')"
+$supportedSourceKinds = @(
+    "document",
+    "fixed-grid-regression-bundle",
+    "section-page-setup-regression-bundle",
+    "page-number-fields-regression-bundle",
+    "visual-regression-bundle"
+)
+$latestPointerDescriptors = @($latestPointerDescriptors | Where-Object { $_.source_kind -in $supportedSourceKinds })
+foreach ($descriptor in $latestPointerDescriptors) {
+    $pointer = $descriptor.pointer
+    $taskDir = Get-OptionalPropertyValue -Object $pointer -Name "task_dir"
+    $gateOutputCandidates += Resolve-GateOutputDirFromPointer -Pointer $pointer
+
+    if ($descriptor.source_kind -eq "visual-regression-bundle") {
+        Write-Step "Resolved latest curated visual task for $($descriptor.bundle_id): $taskDir"
+    } else {
+        Write-Step "Resolved latest $($descriptor.source_kind) task: $taskDir"
+    }
 }
 
 $gateOutputCandidates = @($gateOutputCandidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
 if ($gateOutputCandidates.Count -eq 0) {
-    throw "No latest document/fixed-grid/section-page-setup/page-number-fields task pointers were found under $resolvedTaskOutputRoot."
+    throw "No latest screenshot-backed task pointers were found under $resolvedTaskOutputRoot."
 }
 if ($gateOutputCandidates.Count -gt 1) {
     throw "Latest task pointers do not agree on one gate output directory: $($gateOutputCandidates -join ', ')"
@@ -498,10 +589,10 @@ if (-not [string]::IsNullOrWhiteSpace($ReleaseCandidateSummaryJson)) {
 
 Update-GateSummaryReviewTasksFromPointers `
     -GateSummaryPath $resolvedGateSummaryPath `
-    -LatestPointers $latestPointers
+    -LatestPointerDescriptors $latestPointerDescriptors
 Update-ReleaseSummaryTaskDirsFromPointers `
     -ReleaseSummaryPath $resolvedReleaseSummaryPath `
-    -LatestPointers $latestPointers
+    -LatestPointerDescriptors $latestPointerDescriptors
 
 $auditScript = Join-Path $repoRoot "scripts\find_superseded_review_tasks.ps1"
 $supersededReviewTasksReportPath = Join-Path $resolvedTaskOutputRoot "superseded_review_tasks.json"

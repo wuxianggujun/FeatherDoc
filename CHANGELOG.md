@@ -76,6 +76,12 @@ performance.
   self-configure its dedicated NMake build directory so the selector bundle no
   longer depends on a pre-existing shared build tree before release-gate
   packaging can run.
+- Extended `scripts/sync_visual_review_verdict.ps1` and
+  `scripts/sync_latest_visual_review_verdict.ps1` so verdict refresh now also
+  tracks curated `visual-regression-bundle` review tasks, refreshes matching
+  gate/release summary task metadata from bundle-specific latest pointers, and
+  preserves curated bundle flow plus verdict details when rewriting
+  `gate_final_review.md`.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding

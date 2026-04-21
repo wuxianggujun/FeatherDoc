@@ -267,6 +267,21 @@ if(WIN32)
 
         add_test(
             NAME
+            sync_visual_review_verdict_curated_visual_bundle
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_visual_review_verdict_curated_visual_bundle_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_visual_review_verdict_curated_visual_bundle
+        )
+
+        add_test(
+            NAME
             sync_latest_visual_review_verdict
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}
@@ -278,6 +293,21 @@ if(WIN32)
             ${PROJECT_SOURCE_DIR}
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict
+        )
+
+        add_test(
+            NAME
+            sync_latest_visual_review_verdict_curated_visual_bundle
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_latest_visual_review_verdict_curated_visual_bundle_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_curated_visual_bundle
         )
 
         add_test(
