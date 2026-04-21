@@ -82,6 +82,11 @@ performance.
   gate/release summary task metadata from bundle-specific latest pointers, and
   preserves curated bundle flow plus verdict details when rewriting
   `gate_final_review.md`.
+- Extended `scripts/find_superseded_review_tasks.ps1` so superseded-task audits
+  now scan every resolved `latest_*_task.json` pointer under the chosen task
+  root instead of only the legacy fixed source kinds, allowing bundle-specific
+  curated visual regression tasks to report pointer alignment against the
+  newest task in their source group.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding

@@ -325,6 +325,21 @@ if(WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/find_superseded_review_tasks
         )
 
+        add_test(
+            NAME
+            find_superseded_review_tasks_curated_visual_bundle
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/find_superseded_review_tasks_curated_visual_bundle_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/find_superseded_review_tasks_curated_visual_bundle
+        )
+
         if(FEATHERDOC_PYTHON_EXECUTABLE)
             add_test(
                 NAME
