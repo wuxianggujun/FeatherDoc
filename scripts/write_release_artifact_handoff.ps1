@@ -154,6 +154,160 @@ function Get-VisualTaskVerdict {
     return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
 }
 
+function Get-OptionalPropertyArray {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $propertyValue = Get-OptionalPropertyObject -Object $Object -Name $Name
+    if ($null -eq $propertyValue) {
+        return @()
+    }
+
+    return @($propertyValue)
+}
+
+function Get-OrCreateCuratedVisualReviewEntry {
+    param(
+        [hashtable]$EntryMap,
+        [System.Collections.Generic.List[string]]$EntryOrder,
+        $Source,
+        [int]$FallbackIndex
+    )
+
+    $id = Get-OptionalPropertyValue -Object $Source -Name "id"
+    $displayLabel = Get-OptionalPropertyValue -Object $Source -Name "display_label"
+    $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
+        $displayLabel
+    } else {
+        Get-OptionalPropertyValue -Object $Source -Name "label"
+    }
+
+    $key = if (-not [string]::IsNullOrWhiteSpace($id)) {
+        $id
+    } elseif (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
+        $label
+    } else {
+        "__curated_{0}" -f $FallbackIndex
+    }
+
+    if (-not $EntryMap.ContainsKey($key)) {
+        $EntryMap[$key] = [ordered]@{
+            id = ""
+            label = ""
+            verdict = ""
+            task_dir = ""
+            review_result_path = ""
+            final_review_path = ""
+        }
+        [void]$EntryOrder.Add($key)
+    }
+
+    return $EntryMap[$key]
+}
+
+function Merge-CuratedVisualReviewEntry {
+    param(
+        $Entry,
+        $Source
+    )
+
+    if ($null -eq $Source) {
+        return
+    }
+
+    $id = Get-OptionalPropertyValue -Object $Source -Name "id"
+    if (-not [string]::IsNullOrWhiteSpace($id)) {
+        $Entry.id = $id
+    }
+
+    $displayLabel = Get-OptionalPropertyValue -Object $Source -Name "display_label"
+    $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
+        $displayLabel
+    } else {
+        Get-OptionalPropertyValue -Object $Source -Name "label"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
+        $Entry.label = $label
+    }
+
+    $verdict = Get-OptionalPropertyValue -Object $Source -Name "verdict"
+    if (-not [string]::IsNullOrWhiteSpace($verdict)) {
+        $Entry.verdict = $verdict
+    }
+
+    $taskInfo = Get-OptionalPropertyObject -Object $Source -Name "task"
+    if ($null -eq $taskInfo) {
+        $taskInfo = $Source
+    }
+
+    $taskDir = Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
+    if (-not [string]::IsNullOrWhiteSpace($taskDir)) {
+        $Entry.task_dir = $taskDir
+    }
+
+    $reviewResultPath = Get-OptionalPropertyValue -Object $taskInfo -Name "review_result_path"
+    if (-not [string]::IsNullOrWhiteSpace($reviewResultPath)) {
+        $Entry.review_result_path = $reviewResultPath
+    }
+
+    $finalReviewPath = Get-OptionalPropertyValue -Object $taskInfo -Name "final_review_path"
+    if (-not [string]::IsNullOrWhiteSpace($finalReviewPath)) {
+        $Entry.final_review_path = $finalReviewPath
+    }
+}
+
+function Get-CuratedVisualReviewEntries {
+    param(
+        $VisualGateSummary,
+        $GateSummary
+    )
+
+    $entryMap = @{}
+    $entryOrder = New-Object 'System.Collections.Generic.List[string]'
+    $fallbackIndex = 0
+
+    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
+    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
+    $manualTasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
+
+    $sources = @(
+        (Get-OptionalPropertyArray -Object $VisualGateSummary -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $reviewTasks -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $manualTasks -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $GateSummary -Name "curated_visual_regressions")
+    )
+
+    foreach ($sourceGroup in $sources) {
+        foreach ($source in $sourceGroup) {
+            $fallbackIndex += 1
+            $entry = Get-OrCreateCuratedVisualReviewEntry `
+                -EntryMap $entryMap `
+                -EntryOrder $entryOrder `
+                -Source $source `
+                -FallbackIndex $fallbackIndex
+            Merge-CuratedVisualReviewEntry -Entry $entry -Source $source
+        }
+    }
+
+    $entries = @()
+    foreach ($key in $entryOrder) {
+        $entry = $entryMap[$key]
+        if ([string]::IsNullOrWhiteSpace($entry.label)) {
+            if (-not [string]::IsNullOrWhiteSpace($entry.id)) {
+                $entry.label = $entry.id
+            } else {
+                $entry.label = "Curated visual regression bundle"
+            }
+        }
+
+        $entries += [pscustomobject]$entry
+    }
+
+    return $entries
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$RepoRoot,
@@ -260,6 +414,7 @@ $sectionPageSetupTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep 
 $pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
 $supersededReviewTasksReportPath = Get-SupersededReviewTasksReportPath -Summary $summary -VisualGateSummary $visualGateStep
 if ([string]::IsNullOrWhiteSpace($taskOutputRoot) -and -not [string]::IsNullOrWhiteSpace($supersededReviewTasksReportPath)) {
     $taskOutputRoot = Split-Path -Parent $supersededReviewTasksReportPath
@@ -321,6 +476,14 @@ if (-not [string]::IsNullOrWhiteSpace($taskOutputRoot)) {
     $findSupersededTasksCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\find_superseded_review_tasks.ps1 -TaskOutputRoot "{0}"' -f `
         (Get-RepoRelativePath -RepoRoot $repoRoot -Path $taskOutputRoot)
 }
+$openCuratedVisualTaskCommands = @(
+    $curatedVisualReviewEntries |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_.id) } |
+        ForEach-Object {
+            'pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind {0}-visual-regression-bundle -PrintPrompt' -f `
+                $_.id
+        }
+)
 
 $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 
@@ -339,6 +502,7 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 [void]$handoffLines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$handoffLines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
+[void]$handoffLines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
 [void]$handoffLines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
 [void]$handoffLines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
 [void]$handoffLines.Add("")
@@ -378,6 +542,21 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Section page setup review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
 [void]$handoffLines.Add("- Page number fields review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
 [void]$handoffLines.Add("")
+[void]$handoffLines.Add("## Curated Visual Regression Bundles")
+[void]$handoffLines.Add("")
+if ($curatedVisualReviewEntries.Count -gt 0) {
+    foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
+        [void]$handoffLines.Add("- $($curatedVisualReview.label) verdict: $(Get-DisplayValue -Value $curatedVisualReview.verdict)")
+        [void]$handoffLines.Add("- $($curatedVisualReview.label) review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.task_dir)")
+        if (-not [string]::IsNullOrWhiteSpace($curatedVisualReview.id)) {
+            [void]$handoffLines.Add("- $($curatedVisualReview.label) open-latest command: pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind $($curatedVisualReview.id)-visual-regression-bundle -PrintPrompt")
+        }
+        [void]$handoffLines.Add("")
+    }
+} else {
+    [void]$handoffLines.Add("- Curated visual regression bundles: (not available)")
+    [void]$handoffLines.Add("")
+}
 [void]$handoffLines.Add("## Reproduction Commands")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
@@ -388,6 +567,9 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add($openFixedGridTaskCommand)
 [void]$handoffLines.Add($openSectionPageSetupTaskCommand)
 [void]$handoffLines.Add($openPageNumberFieldsTaskCommand)
+foreach ($openCuratedVisualTaskCommand in $openCuratedVisualTaskCommands) {
+    [void]$handoffLines.Add($openCuratedVisualTaskCommand)
+}
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("If the visual verdict changes after screenshot-backed manual review, rerun the shortest verdict sync first:")
@@ -477,6 +659,9 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add("- Visual verdict: $(if ($visualVerdict) { $visualVerdict } else { '<pass|fail|pending_manual_review>' })")
 [void]$handoffLines.Add("- Section page setup verdict: $(if ($sectionPageSetupVerdict) { $sectionPageSetupVerdict } else { '<pass|fail|pending_manual_review>' })")
 [void]$handoffLines.Add("- Page number fields verdict: $(if ($pageNumberFieldsVerdict) { $pageNumberFieldsVerdict } else { '<pass|fail|pending_manual_review>' })")
+foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
+    [void]$handoffLines.Add("- $($curatedVisualReview.label) verdict: $(if ($curatedVisualReview.verdict) { $curatedVisualReview.verdict } else { '<pass|fail|pending_manual_review>' })")
+}
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Installed Package Entry Points")
 [void]$handoffLines.Add("- $(if ($installedQuickstartZh) { Get-DisplayPath -RepoRoot $repoRoot -Path $installedQuickstartZh } else { 'share/FeatherDoc/VISUAL_VALIDATION_QUICKSTART.zh-CN.md' })")

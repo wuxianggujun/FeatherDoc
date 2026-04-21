@@ -87,6 +87,13 @@ performance.
   root instead of only the legacy fixed source kinds, allowing bundle-specific
   curated visual regression tasks to report pointer alignment against the
   newest task in their source group.
+- Extended `scripts/write_release_artifact_handoff.ps1`,
+  `scripts/write_release_artifact_guide.ps1`, and
+  `scripts/write_release_reviewer_checklist.ps1` so generated release
+  artifacts now surface curated visual regression bundle verdicts, review-task
+  paths, and bundle-specific `open_latest_word_review_task.ps1 -SourceKind
+  <bundle-key>-visual-regression-bundle` entry points alongside the existing
+  section/page-number visual signoff details.
 - Aligned `scripts/run_section_page_setup_visual_regression.ps1` and
   `scripts/run_page_number_fields_visual_regression.ps1` with the repository's
   standard aggregate visual-evidence layout by adding

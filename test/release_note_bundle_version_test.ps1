@@ -41,6 +41,9 @@ $gateReportDir = Join-Path $resolvedWorkingDir "word-visual-release-gate\report"
 $taskOutputRoot = Join-Path $resolvedWorkingDir "tasks"
 $sectionPageSetupTaskDir = Join-Path $resolvedWorkingDir "tasks\section-page-setup"
 $pageNumberFieldsTaskDir = Join-Path $resolvedWorkingDir "tasks\page-number-fields"
+$curatedBundleId = "template-table-cli-selector"
+$curatedBundleLabel = "Template table CLI selector"
+$curatedBundleTaskDir = Join-Path $resolvedWorkingDir "tasks\$curatedBundleId"
 $supersededReviewTasksReportPath = Join-Path $taskOutputRoot "superseded_review_tasks.json"
 $expectedSupersededReviewTasksReportDisplayPath = ".\" + `
     ($supersededReviewTasksReportPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/') -replace '/', '\')
@@ -51,6 +54,7 @@ New-Item -ItemType Directory -Path $gateReportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $taskOutputRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $sectionPageSetupTaskDir -Force | Out-Null
 New-Item -ItemType Directory -Path $pageNumberFieldsTaskDir -Force | Out-Null
+New-Item -ItemType Directory -Path $curatedBundleTaskDir -Force | Out-Null
 
 $summaryPath = Join-Path $reportDir "summary.json"
 $gateSummaryPath = Join-Path $gateReportDir "gate_summary.json"
@@ -68,6 +72,15 @@ $gateSummary = [ordered]@{
         page_number_fields = [ordered]@{
             task_dir = $pageNumberFieldsTaskDir
         }
+        curated_visual_regressions = @(
+            [ordered]@{
+                id = $curatedBundleId
+                label = $curatedBundleLabel
+                task = [ordered]@{
+                    task_dir = $curatedBundleTaskDir
+                }
+            }
+        )
     }
     manual_review = [ordered]@{
         tasks = [ordered]@{
@@ -77,8 +90,27 @@ $gateSummary = [ordered]@{
             page_number_fields = [ordered]@{
                 verdict = "pending_manual_review"
             }
+            curated_visual_regressions = @(
+                [ordered]@{
+                    id = $curatedBundleId
+                    label = "curated:$curatedBundleId"
+                    display_label = $curatedBundleLabel
+                    verdict = "pass"
+                    task_dir = $curatedBundleTaskDir
+                }
+            )
         }
     }
+    curated_visual_regressions = @(
+        [ordered]@{
+            id = $curatedBundleId
+            label = $curatedBundleLabel
+            status = "completed"
+            task = [ordered]@{
+                task_dir = $curatedBundleTaskDir
+            }
+        }
+    )
 }
 ($gateSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $gateSummaryPath -Encoding UTF8
 Set-Content -LiteralPath $gateFinalReviewPath -Encoding UTF8 -Value "# Gate Final Review"
@@ -113,6 +145,14 @@ $summary = [ordered]@{
             summary_json = $gateSummaryPath
             final_review = $gateFinalReviewPath
             superseded_review_tasks_report = $supersededReviewTasksReportPath
+            curated_visual_regressions = @(
+                [ordered]@{
+                    id = $curatedBundleId
+                    label = $curatedBundleLabel
+                    verdict = "pass"
+                    task_dir = $curatedBundleTaskDir
+                }
+            )
         }
     }
 }
@@ -130,6 +170,9 @@ Assert-Contains -Path $handoffPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'r
 Assert-Contains -Path $handoffPath -ExpectedText 'publish_github_release.ps1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'Section page setup verdict: pass' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'Page number fields verdict: pending_manual_review' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Template table CLI selector verdict: pass' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Template table CLI selector review task' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'open_latest_word_review_task.ps1 -SourceKind template-table-cli-selector-visual-regression-bundle -PrintPrompt' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'Superseded review tasks: 0' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText $expectedSupersededReviewTasksReportDisplayPath -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'open_latest_page_number_fields_review_task.ps1' -Label 'release_handoff.md'
@@ -170,9 +213,13 @@ Assert-Contains -Path $checklistPath -ExpectedText 'release-refresh-output' -Lab
 Assert-Contains -Path $checklistPath -ExpectedText 'release-publish-output' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Section page setup verdict: pass' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Page number fields review task' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'Template table CLI selector verdict: pass' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'Template table CLI selector review task' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Superseded review tasks: 0' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Confirm `superseded_review_tasks.json` reports zero stale task directories' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Page number fields verdict: pending_manual_review' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Template table CLI selector verdict: pass' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Open the Template table CLI selector review task if the release touches this curated visual bundle' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Open the page number fields review task if the release touches page numbers' -Label 'REVIEWER_CHECKLIST.md'
 
 $bodyContent = Get-Content -Raw -LiteralPath $bodyPath

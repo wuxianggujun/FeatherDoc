@@ -149,6 +149,160 @@ function Get-VisualTaskVerdict {
     return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
 }
 
+function Get-OptionalPropertyArray {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $propertyValue = Get-OptionalPropertyObject -Object $Object -Name $Name
+    if ($null -eq $propertyValue) {
+        return @()
+    }
+
+    return @($propertyValue)
+}
+
+function Get-OrCreateCuratedVisualReviewEntry {
+    param(
+        [hashtable]$EntryMap,
+        [System.Collections.Generic.List[string]]$EntryOrder,
+        $Source,
+        [int]$FallbackIndex
+    )
+
+    $id = Get-OptionalPropertyValue -Object $Source -Name "id"
+    $displayLabel = Get-OptionalPropertyValue -Object $Source -Name "display_label"
+    $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
+        $displayLabel
+    } else {
+        Get-OptionalPropertyValue -Object $Source -Name "label"
+    }
+
+    $key = if (-not [string]::IsNullOrWhiteSpace($id)) {
+        $id
+    } elseif (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
+        $label
+    } else {
+        "__curated_{0}" -f $FallbackIndex
+    }
+
+    if (-not $EntryMap.ContainsKey($key)) {
+        $EntryMap[$key] = [ordered]@{
+            id = ""
+            label = ""
+            verdict = ""
+            task_dir = ""
+            review_result_path = ""
+            final_review_path = ""
+        }
+        [void]$EntryOrder.Add($key)
+    }
+
+    return $EntryMap[$key]
+}
+
+function Merge-CuratedVisualReviewEntry {
+    param(
+        $Entry,
+        $Source
+    )
+
+    if ($null -eq $Source) {
+        return
+    }
+
+    $id = Get-OptionalPropertyValue -Object $Source -Name "id"
+    if (-not [string]::IsNullOrWhiteSpace($id)) {
+        $Entry.id = $id
+    }
+
+    $displayLabel = Get-OptionalPropertyValue -Object $Source -Name "display_label"
+    $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
+        $displayLabel
+    } else {
+        Get-OptionalPropertyValue -Object $Source -Name "label"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
+        $Entry.label = $label
+    }
+
+    $verdict = Get-OptionalPropertyValue -Object $Source -Name "verdict"
+    if (-not [string]::IsNullOrWhiteSpace($verdict)) {
+        $Entry.verdict = $verdict
+    }
+
+    $taskInfo = Get-OptionalPropertyObject -Object $Source -Name "task"
+    if ($null -eq $taskInfo) {
+        $taskInfo = $Source
+    }
+
+    $taskDir = Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
+    if (-not [string]::IsNullOrWhiteSpace($taskDir)) {
+        $Entry.task_dir = $taskDir
+    }
+
+    $reviewResultPath = Get-OptionalPropertyValue -Object $taskInfo -Name "review_result_path"
+    if (-not [string]::IsNullOrWhiteSpace($reviewResultPath)) {
+        $Entry.review_result_path = $reviewResultPath
+    }
+
+    $finalReviewPath = Get-OptionalPropertyValue -Object $taskInfo -Name "final_review_path"
+    if (-not [string]::IsNullOrWhiteSpace($finalReviewPath)) {
+        $Entry.final_review_path = $finalReviewPath
+    }
+}
+
+function Get-CuratedVisualReviewEntries {
+    param(
+        $VisualGateSummary,
+        $GateSummary
+    )
+
+    $entryMap = @{}
+    $entryOrder = New-Object 'System.Collections.Generic.List[string]'
+    $fallbackIndex = 0
+
+    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
+    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
+    $manualTasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
+
+    $sources = @(
+        (Get-OptionalPropertyArray -Object $VisualGateSummary -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $reviewTasks -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $manualTasks -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $GateSummary -Name "curated_visual_regressions")
+    )
+
+    foreach ($sourceGroup in $sources) {
+        foreach ($source in $sourceGroup) {
+            $fallbackIndex += 1
+            $entry = Get-OrCreateCuratedVisualReviewEntry `
+                -EntryMap $entryMap `
+                -EntryOrder $entryOrder `
+                -Source $source `
+                -FallbackIndex $fallbackIndex
+            Merge-CuratedVisualReviewEntry -Entry $entry -Source $source
+        }
+    }
+
+    $entries = @()
+    foreach ($key in $entryOrder) {
+        $entry = $entryMap[$key]
+        if ([string]::IsNullOrWhiteSpace($entry.label)) {
+            if (-not [string]::IsNullOrWhiteSpace($entry.id)) {
+                $entry.label = $entry.id
+            } else {
+                $entry.label = "Curated visual regression bundle"
+            }
+        }
+
+        $entries += [pscustomobject]$entry
+    }
+
+    return $entries
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$RepoRoot,
@@ -237,6 +391,7 @@ $sectionPageSetupTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep 
 $pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
 $supersededReviewTasksReportPath = Get-SupersededReviewTasksReportPath -Summary $summary -VisualGateSummary $visualGateStep
 if ([string]::IsNullOrWhiteSpace($taskOutputRoot) -and -not [string]::IsNullOrWhiteSpace($supersededReviewTasksReportPath)) {
     $taskOutputRoot = Split-Path -Parent $supersededReviewTasksReportPath
@@ -285,6 +440,10 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Visual verdict: $visualVerdict")
 [void]$lines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$lines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
+[void]$lines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
+foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
+    [void]$lines.Add("- $($curatedVisualReview.label) verdict: $(Get-DisplayValue -Value $curatedVisualReview.verdict)")
+}
 [void]$lines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
 [void]$lines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
@@ -329,6 +488,12 @@ if (-not [string]::IsNullOrWhiteSpace($sectionPageSetupTaskDir)) {
 }
 if (-not [string]::IsNullOrWhiteSpace($pageNumberFieldsTaskDir)) {
     Add-CheckboxLine -Lines $lines -Text ('Open the page number fields review task if the release touches page numbers, PAGE/NUMPAGES fields, or field refresh behavior: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir))
+}
+foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
+    if (-not [string]::IsNullOrWhiteSpace($curatedVisualReview.task_dir)) {
+        Add-CheckboxLine -Lines $lines -Text ('Open the {0} review task if the release touches this curated visual bundle: {1}' -f `
+                $curatedVisualReview.label, (Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.task_dir))
+    }
 }
 if ($readmeGalleryStatus -eq "completed") {
     Add-CheckboxLine -Lines $lines -Text ('Confirm the repository README gallery PNGs were refreshed from the latest Word evidence: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir))
