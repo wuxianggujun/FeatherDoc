@@ -24,6 +24,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "template_schema_cli_common.ps1")
+. (Join-Path $PSScriptRoot "project_template_smoke_manifest_common.ps1")
 
 function Write-Step {
     param([string]$Message)
@@ -537,6 +538,20 @@ $visualSmokeScriptPath = Join-Path $PSScriptRoot "run_word_visual_smoke.ps1"
 
 New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $entriesOutputDir -Force | Out-Null
+
+$manifestValidation = Test-ProjectTemplateSmokeManifest `
+    -RepoRoot $repoRoot `
+    -ManifestPath $resolvedManifestPath `
+    -BuildDir $resolvedBuildDir `
+    -CheckPaths
+if (-not $manifestValidation.passed) {
+    $errorLines = New-Object 'System.Collections.Generic.List[string]'
+    $errorLines.Add("Project template smoke manifest validation failed:") | Out-Null
+    foreach ($issue in $manifestValidation.errors) {
+        $errorLines.Add("- $($issue.path): $($issue.message)") | Out-Null
+    }
+    throw ($errorLines -join [System.Environment]::NewLine)
+}
 
 $manifest = Get-Content -Raw -LiteralPath $resolvedManifestPath | ConvertFrom-Json
 $entries = @($manifest.entries)

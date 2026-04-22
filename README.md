@@ -527,6 +527,7 @@ featherdoc_cli check-template-schema input.docx --schema-file committed-schema.j
 pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -CheckPaths
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
 ```
 
@@ -539,6 +540,14 @@ wrapper writes per-entry artifacts plus aggregate `summary.json` and
 `summary.md` so you can review a whole template pack in one place. See
 `samples/project_template_smoke.manifest.json` for a runnable repository
 example.
+
+To validate the manifest contract before running the full harness, use
+`scripts/check_project_template_smoke_manifest.ps1`. The sample manifest now
+includes a local `$schema` reference to
+`samples/project_template_smoke.manifest.schema.json`, so JSON-aware editors
+can surface field completions and shape errors earlier. The runtime harness
+also performs the same upfront validation and stops immediately on malformed
+entries.
 
 `inspect-sections` prints the current section count together with per-section
 header/footer attachment flags for `default`, `first`, and `even` references.

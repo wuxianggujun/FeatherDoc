@@ -1595,10 +1595,20 @@ wrapper and records aggregate results in ``summary.json`` and ``summary.md``.
 
 .. code-block:: sh
 
+    pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manifest.ps1 \
+      -ManifestPath .\samples\project_template_smoke.manifest.json \
+      -BuildDir build-codex-clang-compat \
+      -CheckPaths
+
     pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 \
       -ManifestPath .\samples\project_template_smoke.manifest.json \
       -BuildDir build-codex-clang-compat \
       -OutputDir output/project-template-smoke
+
+The sample manifest carries a local ``$schema`` reference to
+``samples/project_template_smoke.manifest.schema.json``, and the runtime
+wrapper now performs the same manifest validation up front before it starts
+building fixtures or launching Word-backed smoke passes.
 
 .. code-block:: cpp
 

@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/featherdoc/project_template_smoke.manifest.schema.json",
+  "title": "FeatherDoc Project Template Smoke Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    }
+  },
+  "required": [
+    "entries"
+  ],
+  "$defs": {
+    "slotString": {
+      "type": "string",
+      "minLength": 3,
+      "pattern": "^[^:]+:[^:]+"
+    },
+    "slotObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bookmark": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "bookmark"
+          ]
+        },
+        {
+          "required": [
+            "name"
+          ]
+        }
+      ]
+    },
+    "slotSpec": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/slotString"
+        },
+        {
+          "$ref": "#/$defs/slotObject"
+        }
+      ]
+    },
+    "selectionBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "part": {
+          "type": "string",
+          "enum": [
+            "body",
+            "header",
+            "footer",
+            "section-header",
+            "section-footer"
+          ]
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "default",
+            "first",
+            "even"
+          ]
+        },
+        "slots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/slotSpec"
+          }
+        }
+      },
+      "required": [
+        "part"
+      ]
+    },
+    "schemaValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/selectionBase"
+          }
+        }
+      }
+    },
+    "schemaBaseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_mode": {
+          "type": "string",
+          "enum": [
+            "default",
+            "section-targets",
+            "resolved-section-targets"
+          ]
+        },
+        "generated_output": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "schema_file"
+      ]
+    },
+    "visualSmokeObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "output_dir": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_docx": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_docx_build_relative": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prepare_sample_target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prepare_argument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "template_validations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/selectionBase"
+          }
+        },
+        "schema_validation": {
+          "$ref": "#/$defs/schemaValidation"
+        },
+        "schema_baseline": {
+          "$ref": "#/$defs/schemaBaseline"
+        },
+        "visual_smoke": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/visualSmokeObject"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "input_docx"
+          ]
+        },
+        {
+          "required": [
+            "input_docx_build_relative"
+          ]
+        }
+      ]
+    }
+  }
+}

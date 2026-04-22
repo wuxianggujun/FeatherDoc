@@ -1,4 +1,5 @@
 {
+  "$schema": "./project_template_smoke.manifest.schema.json",
   "entries": [
     {
       "name": "part-template-validation-smoke",
