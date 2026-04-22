@@ -40,6 +40,12 @@ performance.
   Word-backed ensure-style visual regression bundle with a dedicated
   child-style freeze case to verify that parent rewrites no longer leak through
   after materialization.
+- Added direct paragraph style metadata accessors and mutators for
+  `basedOn`/`next`/`outlineLvl`, plus CLI
+  `inspect-paragraph-style-properties`,
+  `set-paragraph-style-properties`, and `clear-paragraph-style-properties`,
+  so heading-flow metadata can now be updated without routing through the more
+  destructive `ensure_paragraph_style(...)` path.
 - Expanded `validate_template(...)` into a stronger schema pass that now also
   reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
   extended CLI `validate-template` parsing with `count=` / `min=` / `max=`

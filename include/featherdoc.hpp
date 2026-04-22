@@ -1344,7 +1344,20 @@ class Document {
         std::string_view style_id);
     [[nodiscard]] std::optional<bool> style_run_rtl(std::string_view style_id);
     [[nodiscard]] std::optional<bool> style_paragraph_bidi(std::string_view style_id);
+    [[nodiscard]] std::optional<std::string> paragraph_style_next_style(
+        std::string_view style_id);
+    [[nodiscard]] std::optional<std::uint32_t> paragraph_style_outline_level(
+        std::string_view style_id);
     [[nodiscard]] bool materialize_style_run_properties(std::string_view style_id);
+    [[nodiscard]] bool set_paragraph_style_based_on(std::string_view style_id,
+                                                    std::string_view based_on);
+    [[nodiscard]] bool clear_paragraph_style_based_on(std::string_view style_id);
+    [[nodiscard]] bool set_paragraph_style_next_style(std::string_view style_id,
+                                                      std::string_view next_style);
+    [[nodiscard]] bool clear_paragraph_style_next_style(std::string_view style_id);
+    [[nodiscard]] bool set_paragraph_style_outline_level(std::string_view style_id,
+                                                         std::uint32_t outline_level);
+    [[nodiscard]] bool clear_paragraph_style_outline_level(std::string_view style_id);
     [[nodiscard]] bool set_style_run_font_family(std::string_view style_id,
                                                  std::string_view font_family);
     [[nodiscard]] bool set_style_run_east_asia_font_family(std::string_view style_id,

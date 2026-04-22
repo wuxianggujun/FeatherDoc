@@ -20050,6 +20050,71 @@ TEST_CASE("materialize_style_run_properties freezes inherited style metadata on 
     fs::remove(target);
 }
 
+TEST_CASE("paragraph style property mutators update metadata without clearing direct run properties") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "paragraph_style_property_mutators_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    auto definition = featherdoc::paragraph_style_definition{};
+    definition.name = "Working Style";
+    definition.based_on = std::string{"Normal"};
+    definition.next_style = std::string{"WorkingStyle"};
+    definition.run_font_family = std::string{"Consolas"};
+    CHECK(doc.ensure_paragraph_style("WorkingStyle", definition));
+
+    REQUIRE(doc.paragraph_style_next_style("WorkingStyle").has_value());
+    CHECK_EQ(*doc.paragraph_style_next_style("WorkingStyle"), "WorkingStyle");
+    CHECK_FALSE(doc.paragraph_style_outline_level("WorkingStyle").has_value());
+    REQUIRE(doc.style_run_font_family("WorkingStyle").has_value());
+    CHECK_EQ(*doc.style_run_font_family("WorkingStyle"), "Consolas");
+
+    CHECK(doc.set_paragraph_style_based_on("WorkingStyle", "Heading1"));
+    CHECK(doc.set_paragraph_style_next_style("WorkingStyle", "BodyText"));
+    CHECK(doc.set_paragraph_style_outline_level("WorkingStyle", 2U));
+
+    const auto summary = doc.find_style("WorkingStyle");
+    REQUIRE(summary.has_value());
+    REQUIRE(summary->based_on.has_value());
+    CHECK_EQ(*summary->based_on, "Heading1");
+    REQUIRE(doc.paragraph_style_next_style("WorkingStyle").has_value());
+    CHECK_EQ(*doc.paragraph_style_next_style("WorkingStyle"), "BodyText");
+    REQUIRE(doc.paragraph_style_outline_level("WorkingStyle").has_value());
+    CHECK_EQ(*doc.paragraph_style_outline_level("WorkingStyle"), 2U);
+    REQUIRE(doc.style_run_font_family("WorkingStyle").has_value());
+    CHECK_EQ(*doc.style_run_font_family("WorkingStyle"), "Consolas");
+
+    CHECK(doc.clear_paragraph_style_based_on("WorkingStyle"));
+    CHECK(doc.clear_paragraph_style_next_style("WorkingStyle"));
+    CHECK(doc.clear_paragraph_style_outline_level("WorkingStyle"));
+
+    const auto cleared_summary = doc.find_style("WorkingStyle");
+    REQUIRE(cleared_summary.has_value());
+    CHECK_FALSE(cleared_summary->based_on.has_value());
+    CHECK_FALSE(doc.paragraph_style_next_style("WorkingStyle").has_value());
+    CHECK_FALSE(doc.paragraph_style_outline_level("WorkingStyle").has_value());
+    REQUIRE(doc.style_run_font_family("WorkingStyle").has_value());
+    CHECK_EQ(*doc.style_run_font_family("WorkingStyle"), "Consolas");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    const auto reopened_summary = reopened.find_style("WorkingStyle");
+    REQUIRE(reopened_summary.has_value());
+    CHECK_FALSE(reopened_summary->based_on.has_value());
+    CHECK_FALSE(reopened.paragraph_style_next_style("WorkingStyle").has_value());
+    CHECK_FALSE(reopened.paragraph_style_outline_level("WorkingStyle").has_value());
+    REQUIRE(reopened.style_run_font_family("WorkingStyle").has_value());
+    CHECK_EQ(*reopened.style_run_font_family("WorkingStyle"), "Consolas");
+
+    fs::remove(target);
+}
+
 TEST_CASE("get_section_page_setup reads explicit section settings") {
     namespace fs = std::filesystem;
 

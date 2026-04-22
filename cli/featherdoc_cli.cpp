@@ -225,6 +225,26 @@ struct inspect_style_run_properties_options {
     bool json_output = false;
 };
 
+struct inspect_paragraph_style_properties_options {
+    bool json_output = false;
+};
+
+struct set_paragraph_style_properties_options {
+    std::optional<std::string> based_on;
+    std::optional<std::string> next_style;
+    std::optional<std::uint32_t> outline_level;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct clear_paragraph_style_properties_options {
+    bool clear_based_on = false;
+    bool clear_next_style = false;
+    bool clear_outline_level = false;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
 struct materialize_style_run_properties_options {
     std::optional<path_type> output_path;
     bool json_output = false;
@@ -263,6 +283,12 @@ struct style_run_properties_summary {
     std::optional<std::string> bidi_language;
     std::optional<bool> rtl;
     std::optional<bool> paragraph_bidi;
+};
+
+struct paragraph_style_properties_summary {
+    std::optional<std::string> based_on;
+    std::optional<std::string> next_style;
+    std::optional<std::uint32_t> outline_level;
 };
 
 struct materialized_style_run_property_summary {
@@ -1172,7 +1198,15 @@ void print_usage(std::ostream &stream) {
            " [--paragraph-bidi] [--output <path>] [--json]\n"
         << "  featherdoc_cli inspect-style-run-properties <input.docx> <style-id>"
            " [--json]\n"
+        << "  featherdoc_cli inspect-paragraph-style-properties <input.docx> <style-id>"
+           " [--json]\n"
         << "  featherdoc_cli materialize-style-run-properties <input.docx> <style-id>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-paragraph-style-properties <input.docx> <style-id>"
+           " [--based-on <style-id>] [--next-style <style-id>]"
+           " [--outline-level <0-8>] [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-paragraph-style-properties <input.docx> <style-id>"
+           " [--based-on] [--next-style] [--outline-level]"
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli set-style-run-properties <input.docx> <style-id>"
            " [--font-family <name>] [--east-asia-font-family <name>]"
@@ -7931,6 +7965,184 @@ auto parse_inspect_style_run_properties_options(
     return true;
 }
 
+auto parse_inspect_paragraph_style_properties_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    inspect_paragraph_style_properties_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_set_paragraph_style_properties_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    set_paragraph_style_properties_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--based-on") {
+            if (options.based_on.has_value()) {
+                error_message = "duplicate --based-on option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --based-on";
+                return false;
+            }
+
+            options.based_on = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--next-style") {
+            if (options.next_style.has_value()) {
+                error_message = "duplicate --next-style option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --next-style";
+                return false;
+            }
+
+            options.next_style = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--outline-level") {
+            if (options.outline_level.has_value()) {
+                error_message = "duplicate --outline-level option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --outline-level";
+                return false;
+            }
+
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message =
+                    "invalid --outline-level value: " +
+                    std::string(arguments[index + 1U]);
+                return false;
+            }
+            if (value > 8U) {
+                error_message = "invalid --outline-level value: expected 0-8";
+                return false;
+            }
+
+            options.outline_level = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.based_on.has_value() && !options.next_style.has_value() &&
+        !options.outline_level.has_value()) {
+        error_message = "set-paragraph-style-properties requires at least one mutation option";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_clear_paragraph_style_properties_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    clear_paragraph_style_properties_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--based-on") {
+            if (options.clear_based_on) {
+                error_message = "duplicate --based-on option";
+                return false;
+            }
+            options.clear_based_on = true;
+            continue;
+        }
+
+        if (argument == "--next-style") {
+            if (options.clear_next_style) {
+                error_message = "duplicate --next-style option";
+                return false;
+            }
+            options.clear_next_style = true;
+            continue;
+        }
+
+        if (argument == "--outline-level") {
+            if (options.clear_outline_level) {
+                error_message = "duplicate --outline-level option";
+                return false;
+            }
+            options.clear_outline_level = true;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.clear_based_on && !options.clear_next_style &&
+        !options.clear_outline_level) {
+        error_message = "clear-paragraph-style-properties requires at least one clear option";
+        return false;
+    }
+
+    return true;
+}
+
 auto parse_materialize_style_run_properties_options(
     const std::vector<std::string_view> &arguments, std::size_t start_index,
     materialize_style_run_properties_options &options, std::string &error_message) -> bool {
@@ -11357,6 +11569,21 @@ void write_json_style_run_properties_summary(
     stream << '}';
 }
 
+void write_json_paragraph_style_properties_summary(
+    std::ostream &stream, const paragraph_style_properties_summary &summary) {
+    stream << "{\"based_on\":";
+    write_json_optional_string(stream, summary.based_on);
+    stream << ",\"next_style\":";
+    write_json_optional_string(stream, summary.next_style);
+    stream << ",\"outline_level\":";
+    if (summary.outline_level.has_value()) {
+        stream << *summary.outline_level;
+    } else {
+        stream << "null";
+    }
+    stream << '}';
+}
+
 void append_materialized_style_run_property(
     std::vector<materialized_style_run_property_summary> &materialized_properties,
     std::string_view current_style_id, std::string_view field_name,
@@ -11454,6 +11681,33 @@ void print_style_run_properties_summary(
     stream << "paragraph_bidi: ";
     if (summary.paragraph_bidi.has_value()) {
         stream << yes_no(*summary.paragraph_bidi);
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+}
+
+void print_paragraph_style_properties_summary(
+    std::ostream &stream, const paragraph_style_properties_summary &summary) {
+    stream << "based_on: ";
+    if (summary.based_on.has_value()) {
+        stream << *summary.based_on;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "next_style: ";
+    if (summary.next_style.has_value()) {
+        stream << *summary.next_style;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "outline_level: ";
+    if (summary.outline_level.has_value()) {
+        stream << *summary.outline_level;
     } else {
         stream << "none";
     }
@@ -24870,6 +25124,85 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    if (command == "inspect-paragraph-style-properties") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "inspect-paragraph-style-properties expects an input path and a style id",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = std::string(arguments[2]);
+        inspect_paragraph_style_properties_options options;
+        std::string error_message;
+        if (!parse_inspect_paragraph_style_properties_options(arguments, 3U, options,
+                                                              error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        paragraph_style_properties_summary summary{};
+        const auto style = doc.find_style(style_id);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+        if (!style.has_value()) {
+            report_operation_failure(
+                command, "inspect", "operation failed",
+                featherdoc::document_error_info{
+                    std::make_error_code(std::errc::invalid_argument),
+                    "style id '" + style_id + "' was not found in word/styles.xml",
+                    "word/styles.xml", std::nullopt},
+                options.json_output);
+            return 1;
+        }
+
+        if (style->kind != featherdoc::style_kind::paragraph) {
+            report_operation_failure(
+                command, "inspect", "operation failed",
+                featherdoc::document_error_info{
+                    std::make_error_code(std::errc::invalid_argument),
+                    "style id '" + style_id + "' is not a paragraph style",
+                    "word/styles.xml", std::nullopt},
+                options.json_output);
+            return 1;
+        }
+        summary.based_on = style->based_on;
+
+        summary.next_style = doc.paragraph_style_next_style(style_id);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.outline_level = doc.paragraph_style_outline_level(style_id);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        if (options.json_output) {
+            std::cout << "{\"style_id\":";
+            write_json_string(std::cout, style_id);
+            std::cout << ",\"paragraph_style_properties\":";
+            write_json_paragraph_style_properties_summary(std::cout, summary);
+            std::cout << "}\n";
+        } else {
+            std::cout << "style_id: " << style_id << '\n';
+            print_paragraph_style_properties_summary(std::cout, summary);
+        }
+
+        return 0;
+    }
+
     if (command == "materialize-style-run-properties") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 3U) {
@@ -24940,6 +25273,153 @@ int main(int argc, char **argv) {
                     stream << ",\"materialized\":";
                     write_json_materialized_style_run_properties(stream,
                                                                  materialized_properties);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-paragraph-style-properties") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "set-paragraph-style-properties expects an input path, a style id, and mutation options",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = std::string(arguments[2]);
+        set_paragraph_style_properties_options options;
+        std::string error_message;
+        if (!parse_set_paragraph_style_properties_options(arguments, 3U, options,
+                                                          error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.based_on.has_value() &&
+            !doc.set_paragraph_style_based_on(style_id, *options.based_on)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.next_style.has_value() &&
+            !doc.set_paragraph_style_next_style(style_id, *options.next_style)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.outline_level.has_value() &&
+            !doc.set_paragraph_style_outline_level(style_id, *options.outline_level)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&style_id, &options](std::ostream &stream) {
+                    stream << ",\"style_id\":";
+                    write_json_string(stream, style_id);
+                    stream << ",\"based_on\":";
+                    write_json_optional_string(stream, options.based_on);
+                    stream << ",\"next_style\":";
+                    write_json_optional_string(stream, options.next_style);
+                    stream << ",\"outline_level\":";
+                    if (options.outline_level.has_value()) {
+                        stream << *options.outline_level;
+                    } else {
+                        stream << "null";
+                    }
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-paragraph-style-properties") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "clear-paragraph-style-properties expects an input path, a style id, and clear options",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = std::string(arguments[2]);
+        clear_paragraph_style_properties_options options;
+        std::string error_message;
+        if (!parse_clear_paragraph_style_properties_options(arguments, 3U, options,
+                                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        std::vector<std::string> cleared_fields;
+        if (options.clear_based_on) {
+            if (!doc.clear_paragraph_style_based_on(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("based_on");
+        }
+
+        if (options.clear_next_style) {
+            if (!doc.clear_paragraph_style_next_style(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("next_style");
+        }
+
+        if (options.clear_outline_level) {
+            if (!doc.clear_paragraph_style_outline_level(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("outline_level");
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&style_id, &cleared_fields](std::ostream &stream) {
+                    stream << ",\"style_id\":";
+                    write_json_string(stream, style_id);
+                    stream << ",\"cleared\":[";
+                    for (std::size_t index = 0U; index < cleared_fields.size(); ++index) {
+                        if (index != 0U) {
+                            stream << ',';
+                        }
+                        write_json_string(stream, cleared_fields[index]);
+                    }
+                    stream << ']';
                 });
         }
 

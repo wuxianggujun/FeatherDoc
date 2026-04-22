@@ -313,6 +313,9 @@ Additional representative command groups:
     featherdoc_cli set-style-run-properties input.docx Normal --font-family "Segoe UI" --east-asia-font-family "Microsoft YaHei" --language en-US --east-asia-language zh-CN --rtl true --paragraph-bidi true --output style-run-properties.docx --json
     featherdoc_cli clear-style-run-properties input.docx Normal --primary-language --rtl --paragraph-bidi --output cleared-style-run-properties.docx --json
     featherdoc_cli inspect-style-inheritance input.docx Normal --json
+    featherdoc_cli inspect-paragraph-style-properties input.docx Heading1 --json
+    featherdoc_cli set-paragraph-style-properties input.docx Heading1 --next-style BodyText --outline-level 1 --output updated-paragraph-style-properties.docx --json
+    featherdoc_cli clear-paragraph-style-properties input.docx Heading1 --next-style --outline-level --output cleared-paragraph-style-properties.docx --json
     featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
     featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
     featherdoc_cli ensure-numbering-definition input.docx --definition-name OutlineReview --numbering-level 0:decimal:1:%1. --output numbering.docx --json
@@ -564,8 +567,11 @@ to :ref:`Task-Oriented Sample And CLI Map <featherdoc-sample-cli-map>`.
   ``set_paragraph_style(...)``, ``set_run_style(...)``,
   ``ensure_numbering_definition(...)``, ``set_paragraph_numbering(...)``,
   ``set_paragraph_style_numbering(...)``, ``resolve_style_properties(...)``,
-  ``materialize_style_run_properties(...)``, and the default run font/language
-  helpers. See :ref:`Lists And Styles <featherdoc-lists-styles>` and
+  ``materialize_style_run_properties(...)``,
+  ``set_paragraph_style_based_on(...)``,
+  ``set_paragraph_style_next_style(...)``,
+  ``set_paragraph_style_outline_level(...)``, and the default run
+  font/language helpers. See :ref:`Lists And Styles <featherdoc-lists-styles>` and
   :ref:`Creating New Documents And Language Defaults <featherdoc-doc-lifecycle>`.
 - Inspect or mutate sections, headers, footers, and page setup:
   ``inspect_sections()``, ``get_section_page_setup(...)``,
