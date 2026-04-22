@@ -1349,6 +1349,8 @@ class Document {
     [[nodiscard]] std::optional<std::uint32_t> paragraph_style_outline_level(
         std::string_view style_id);
     [[nodiscard]] bool materialize_style_run_properties(std::string_view style_id);
+    [[nodiscard]] bool rebase_paragraph_style_based_on(std::string_view style_id,
+                                                       std::string_view based_on);
     [[nodiscard]] bool set_paragraph_style_based_on(std::string_view style_id,
                                                     std::string_view based_on);
     [[nodiscard]] bool clear_paragraph_style_based_on(std::string_view style_id);

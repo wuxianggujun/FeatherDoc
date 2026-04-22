@@ -46,6 +46,12 @@ performance.
   `set-paragraph-style-properties`, and `clear-paragraph-style-properties`,
   so heading-flow metadata can now be updated without routing through the more
   destructive `ensure_paragraph_style(...)` path.
+- Added `rebase_paragraph_style_based_on()` plus CLI
+  `rebase-paragraph-style-based-on` so a paragraph style can now switch to a
+  new parent while freezing the currently resolved inherited
+  font/language/RTL/paragraph-bidi fields that would otherwise drift, and
+  extended the Word-backed ensure-style visual regression bundle with a rebased
+  child-style preservation case.
 - Expanded `validate_template(...)` into a stronger schema pass that now also
   reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
   extended CLI `validate-template` parsing with `count=` / `min=` / `max=`

@@ -250,6 +250,11 @@ struct materialize_style_run_properties_options {
     bool json_output = false;
 };
 
+struct rebase_paragraph_style_based_on_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
 struct set_style_run_properties_options {
     std::optional<std::string> font_family;
     std::optional<std::string> east_asia_font_family;
@@ -1202,6 +1207,8 @@ void print_usage(std::ostream &stream) {
            " [--json]\n"
         << "  featherdoc_cli materialize-style-run-properties <input.docx> <style-id>"
            " [--output <path>] [--json]\n"
+        << "  featherdoc_cli rebase-paragraph-style-based-on <input.docx> <style-id>"
+           " <based-on-style-id> [--output <path>] [--json]\n"
         << "  featherdoc_cli set-paragraph-style-properties <input.docx> <style-id>"
            " [--based-on <style-id>] [--next-style <style-id>]"
            " [--outline-level <0-8>] [--output <path>] [--json]\n"
@@ -8146,6 +8153,38 @@ auto parse_clear_paragraph_style_properties_options(
 auto parse_materialize_style_run_properties_options(
     const std::vector<std::string_view> &arguments, std::size_t start_index,
     materialize_style_run_properties_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_rebase_paragraph_style_based_on_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    rebase_paragraph_style_based_on_options &options, std::string &error_message) -> bool {
     for (std::size_t index = start_index; index < arguments.size(); ++index) {
         const auto argument = arguments[index];
         if (argument == "--output") {
@@ -25273,6 +25312,85 @@ int main(int argc, char **argv) {
                     stream << ",\"materialized\":";
                     write_json_materialized_style_run_properties(stream,
                                                                  materialized_properties);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "rebase-paragraph-style-based-on") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "rebase-paragraph-style-based-on expects an input path, a style id, and a target basedOn style id",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = std::string(arguments[2]);
+        const auto based_on = std::string(arguments[3]);
+        rebase_paragraph_style_based_on_options options;
+        std::string error_message;
+        if (!parse_rebase_paragraph_style_based_on_options(arguments, 4U, options,
+                                                           error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto resolved = doc.resolve_style_properties(style_id);
+        if (!resolved.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        auto preserved_properties = std::vector<materialized_style_run_property_summary>{};
+        append_materialized_style_run_property(preserved_properties, style_id,
+                                              "font_family", resolved->run_font_family);
+        append_materialized_style_run_property(preserved_properties, style_id,
+                                              "east_asia_font_family",
+                                              resolved->run_east_asia_font_family);
+        append_materialized_style_run_property(preserved_properties, style_id,
+                                              "language", resolved->run_language);
+        append_materialized_style_run_property(preserved_properties, style_id,
+                                              "east_asia_language",
+                                              resolved->run_east_asia_language);
+        append_materialized_style_run_property(preserved_properties, style_id,
+                                              "bidi_language",
+                                              resolved->run_bidi_language);
+        append_materialized_style_run_property(preserved_properties, style_id,
+                                              "rtl", resolved->run_rtl);
+        append_materialized_style_run_property(preserved_properties, style_id,
+                                              "paragraph_bidi",
+                                              resolved->paragraph_bidi);
+
+        if (!doc.rebase_paragraph_style_based_on(style_id, based_on)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&style_id, &based_on, &preserved_properties](std::ostream &stream) {
+                    stream << ",\"style_id\":";
+                    write_json_string(stream, style_id);
+                    stream << ",\"based_on\":";
+                    write_json_string(stream, based_on);
+                    stream << ",\"preserved\":";
+                    write_json_materialized_style_run_properties(stream,
+                                                                 preserved_properties);
                 });
         }
 
