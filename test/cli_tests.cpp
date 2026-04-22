@@ -3378,6 +3378,217 @@ TEST_CASE("cli rebase-paragraph-style-based-on reports parse and mutate errors")
     remove_if_exists(mutate_output);
 }
 
+TEST_CASE("cli rebase-character-style-based-on preserves inherited values while switching parent") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_rebase_character_style_source.docx";
+    const fs::path base_a_doc =
+        working_directory / "cli_rebase_character_style_base_a.docx";
+    const fs::path base_b_doc =
+        working_directory / "cli_rebase_character_style_base_b.docx";
+    const fs::path child_doc =
+        working_directory / "cli_rebase_character_style_child.docx";
+    const fs::path rebased_doc =
+        working_directory / "cli_rebase_character_style_rebased.docx";
+    const fs::path base_a_output =
+        working_directory / "cli_rebase_character_style_base_a.json";
+    const fs::path base_b_output =
+        working_directory / "cli_rebase_character_style_base_b.json";
+    const fs::path child_output =
+        working_directory / "cli_rebase_character_style_child.json";
+    const fs::path rebase_output =
+        working_directory / "cli_rebase_character_style_rebase.json";
+    const fs::path inspect_output =
+        working_directory / "cli_rebase_character_style_inspect.json";
+    const fs::path style_output =
+        working_directory / "cli_rebase_character_style_style.json";
+
+    remove_if_exists(source);
+    remove_if_exists(base_a_doc);
+    remove_if_exists(base_b_doc);
+    remove_if_exists(child_doc);
+    remove_if_exists(rebased_doc);
+    remove_if_exists(base_a_output);
+    remove_if_exists(base_b_output);
+    remove_if_exists(child_output);
+    remove_if_exists(rebase_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(style_output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"ensure-character-style",
+                      source.string(),
+                      "BaseA",
+                      "--name",
+                      "Base A",
+                      "--based-on",
+                      "DefaultParagraphFont",
+                      "--run-font-family",
+                      "Segoe UI",
+                      "--run-east-asia-language",
+                      "zh-CN",
+                      "--run-rtl",
+                      "true",
+                      "--output",
+                      base_a_doc.string(),
+                      "--json"},
+                     base_a_output),
+             0);
+
+    CHECK_EQ(run_cli({"ensure-character-style",
+                      base_a_doc.string(),
+                      "BaseB",
+                      "--name",
+                      "Base B",
+                      "--based-on",
+                      "DefaultParagraphFont",
+                      "--run-font-family",
+                      "Arial",
+                      "--run-east-asia-language",
+                      "ja-JP",
+                      "--run-rtl",
+                      "false",
+                      "--output",
+                      base_b_doc.string(),
+                      "--json"},
+                     base_b_output),
+             0);
+
+    CHECK_EQ(run_cli({"ensure-character-style",
+                      base_b_doc.string(),
+                      "ChildStyle",
+                      "--name",
+                      "Child Style",
+                      "--based-on",
+                      "BaseA",
+                      "--run-language",
+                      "en-US",
+                      "--output",
+                      child_doc.string(),
+                      "--json"},
+                     child_output),
+             0);
+
+    CHECK_EQ(run_cli({"rebase-character-style-based-on",
+                      child_doc.string(),
+                      "ChildStyle",
+                      "BaseB",
+                      "--output",
+                      rebased_doc.string(),
+                      "--json"},
+                     rebase_output),
+             0);
+    CHECK_EQ(
+        read_text_file(rebase_output),
+        std::string{
+            "{\"command\":\"rebase-character-style-based-on\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"style_id\":\"ChildStyle\",\"based_on\":\"BaseB\",\"preserved\":["
+            "{\"field\":\"font_family\",\"source_style_id\":\"BaseA\"},"
+            "{\"field\":\"east_asia_language\",\"source_style_id\":\"BaseA\"},"
+            "{\"field\":\"rtl\",\"source_style_id\":\"BaseA\"}]}\n"});
+
+    CHECK_EQ(run_cli({"inspect-style-inheritance",
+                      rebased_doc.string(),
+                      "ChildStyle",
+                      "--json"},
+                     inspect_output),
+             0);
+    CHECK_EQ(
+        read_text_file(inspect_output),
+        std::string{
+            "{\"style_id\":\"ChildStyle\",\"type\":\"character\","
+            "\"kind\":\"character\",\"based_on\":\"BaseB\","
+            "\"inheritance_chain\":[\"ChildStyle\",\"BaseB\",\"DefaultParagraphFont\"],"
+            "\"resolved_properties\":{\"font_family\":{\"value\":\"Segoe UI\","
+            "\"source_style_id\":\"ChildStyle\"},"
+            "\"east_asia_font_family\":{\"value\":null,\"source_style_id\":null},"
+            "\"language\":{\"value\":\"en-US\",\"source_style_id\":\"ChildStyle\"},"
+            "\"east_asia_language\":{\"value\":\"zh-CN\","
+            "\"source_style_id\":\"ChildStyle\"},"
+            "\"bidi_language\":{\"value\":null,\"source_style_id\":null},"
+            "\"rtl\":{\"value\":true,\"source_style_id\":\"ChildStyle\"},"
+            "\"paragraph_bidi\":{\"value\":null,"
+            "\"source_style_id\":null}}}\n"});
+
+    CHECK_EQ(run_cli({"inspect-styles",
+                      rebased_doc.string(),
+                      "--style",
+                      "ChildStyle",
+                      "--json"},
+                     style_output),
+             0);
+    const auto style_json = read_text_file(style_output);
+    CHECK_NE(style_json.find("\"style_id\":\"ChildStyle\""), std::string::npos);
+    CHECK_NE(style_json.find("\"type\":\"character\""), std::string::npos);
+    CHECK_NE(style_json.find("\"based_on\":\"BaseB\""), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(base_a_doc);
+    remove_if_exists(base_b_doc);
+    remove_if_exists(child_doc);
+    remove_if_exists(rebased_doc);
+    remove_if_exists(base_a_output);
+    remove_if_exists(base_b_output);
+    remove_if_exists(child_output);
+    remove_if_exists(rebase_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(style_output);
+}
+
+TEST_CASE("cli rebase-character-style-based-on reports parse and mutate errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_rebase_character_style_error_source.docx";
+    const fs::path parse_output =
+        working_directory / "cli_rebase_character_style_parse.json";
+    const fs::path mutate_output =
+        working_directory / "cli_rebase_character_style_mutate.json";
+
+    remove_if_exists(source);
+    remove_if_exists(parse_output);
+    remove_if_exists(mutate_output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"rebase-character-style-based-on",
+                      source.string(),
+                      "DefaultParagraphFont",
+                      "Strong",
+                      "--bogus",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_output),
+        std::string{
+            "{\"command\":\"rebase-character-style-based-on\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"unknown option: --bogus\"}\n"});
+
+    CHECK_EQ(run_cli({"rebase-character-style-based-on",
+                      source.string(),
+                      "MissingStyle",
+                      "Strong",
+                      "--json"},
+                     mutate_output),
+             1);
+    const auto mutate_json = read_text_file(mutate_output);
+    CHECK_NE(mutate_json.find("\"command\":\"rebase-character-style-based-on\""),
+             std::string::npos);
+    CHECK_NE(mutate_json.find("\"stage\":\"inspect\""), std::string::npos);
+    CHECK_NE(mutate_json.find(
+                 "\"detail\":\"style id 'MissingStyle' was not found in "
+                 "word/styles.xml\""),
+             std::string::npos);
+    CHECK_NE(mutate_json.find("\"entry\":\"word/styles.xml\""),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(parse_output);
+    remove_if_exists(mutate_output);
+}
+
 TEST_CASE("cli paragraph style property commands inspect set and clear metadata without disturbing run properties") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =

@@ -143,6 +143,47 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    auto inherited_character_parent = featherdoc::character_style_definition{};
+    inherited_character_parent.name = "Accent Parent Mono";
+    inherited_character_parent.based_on = std::string{"DefaultParagraphFont"};
+    inherited_character_parent.is_custom = true;
+    inherited_character_parent.is_semi_hidden = false;
+    inherited_character_parent.is_unhide_when_used = false;
+    inherited_character_parent.is_quick_format = true;
+    inherited_character_parent.run_font_family = std::string{"Courier New"};
+    inherited_character_parent.run_rtl = false;
+    if (!doc.ensure_character_style("AccentParentMono", inherited_character_parent)) {
+        print_document_error(doc, "ensure_character_style(AccentParentMono)");
+        return 1;
+    }
+
+    auto inherited_character_rebase_parent = featherdoc::character_style_definition{};
+    inherited_character_rebase_parent.name = "Accent Parent Serif";
+    inherited_character_rebase_parent.based_on = std::string{"DefaultParagraphFont"};
+    inherited_character_rebase_parent.is_custom = true;
+    inherited_character_rebase_parent.is_semi_hidden = false;
+    inherited_character_rebase_parent.is_unhide_when_used = false;
+    inherited_character_rebase_parent.is_quick_format = true;
+    inherited_character_rebase_parent.run_font_family = std::string{"Times New Roman"};
+    inherited_character_rebase_parent.run_rtl = false;
+    if (!doc.ensure_character_style("AccentParentSerif",
+                                    inherited_character_rebase_parent)) {
+        print_document_error(doc, "ensure_character_style(AccentParentSerif)");
+        return 1;
+    }
+
+    auto inherited_character_style = featherdoc::character_style_definition{};
+    inherited_character_style.name = "Accent Marker Child";
+    inherited_character_style.based_on = std::string{"AccentParentMono"};
+    inherited_character_style.is_custom = true;
+    inherited_character_style.is_semi_hidden = false;
+    inherited_character_style.is_unhide_when_used = false;
+    inherited_character_style.is_quick_format = true;
+    if (!doc.ensure_character_style("AccentMarkerChild", inherited_character_style)) {
+        print_document_error(doc, "ensure_character_style(AccentMarkerChild)");
+        return 1;
+    }
+
     auto table_style = featherdoc::table_style_definition{};
     table_style.name = "Review Table";
     table_style.based_on = std::string{"TableGrid"};
@@ -195,6 +236,24 @@ int main(int argc, char **argv) {
                  " while the prefix and suffix stay in the document default formatting.")
              .has_next()) {
         print_document_error(doc, "configure character style target");
+        return 1;
+    }
+
+    auto inherited_character_style_target = append_body_paragraph(
+        doc, "Inherited character style target: ");
+    if (!inherited_character_style_target.has_next()) {
+        std::cerr << "failed to append inherited character style target paragraph\n";
+        return 1;
+    }
+    auto inherited_styled_run = inherited_character_style_target.add_run(
+        "OMEGA 456 inherited marker");
+    if (!inherited_styled_run.has_next() ||
+        !doc.set_run_style(inherited_styled_run, "AccentMarkerChild") ||
+        !inherited_character_style_target
+             .add_run(
+                 " while rebase-character-style-based-on should keep this monospace look even after the basedOn chain changes.")
+             .has_next()) {
+        print_document_error(doc, "configure inherited character style target");
         return 1;
     }
 

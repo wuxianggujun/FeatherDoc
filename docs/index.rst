@@ -316,6 +316,7 @@ Additional representative command groups:
     featherdoc_cli inspect-paragraph-style-properties input.docx Heading1 --json
     featherdoc_cli set-paragraph-style-properties input.docx Heading1 --next-style BodyText --outline-level 1 --output updated-paragraph-style-properties.docx --json
     featherdoc_cli clear-paragraph-style-properties input.docx Heading1 --next-style --outline-level --output cleared-paragraph-style-properties.docx --json
+    featherdoc_cli rebase-character-style-based-on input.docx ReviewStrong Strong --output rebased-character-style.docx --json
     featherdoc_cli rebase-paragraph-style-based-on input.docx Heading2 Normal --output rebased-paragraph-style.docx --json
     featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
     featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
@@ -569,6 +570,7 @@ to :ref:`Task-Oriented Sample And CLI Map <featherdoc-sample-cli-map>`.
   ``ensure_numbering_definition(...)``, ``set_paragraph_numbering(...)``,
   ``set_paragraph_style_numbering(...)``, ``resolve_style_properties(...)``,
   ``materialize_style_run_properties(...)``,
+  ``rebase_character_style_based_on(...)``,
   ``set_paragraph_style_based_on(...)``,
   ``set_paragraph_style_next_style(...)``,
   ``set_paragraph_style_outline_level(...)``,
@@ -2033,10 +2035,12 @@ Current Limitations
   effective inherited style properties can be inspected through
   ``resolve_style_properties(...)``, supported inherited font/language/RTL/
   paragraph-bidi metadata can be materialized through
-  ``materialize_style_run_properties(...)``, and minimal
+  ``materialize_style_run_properties(...)``, paragraph and character styles can
+  now be rebased through ``rebase_paragraph_style_based_on(...)`` and
+  ``rebase_character_style_based_on(...)``, and minimal
   paragraph/character/table style definitions can be created through
-  ``ensure_*_style(...)``, but there is still no inheritance-aware style
-  refactoring or style-linked numbering API.
+  ``ensure_*_style(...)``. Higher-level style-linked numbering and broader
+  style refactoring APIs are still missing.
 - Bookmark-based template filling now works across body, header, and footer
   parts through ``fill_bookmarks(...)``, the standalone replacement helpers,
   and ``TemplatePart`` handles returned by ``body_template()``,

@@ -894,6 +894,7 @@ New-Item -ItemType Directory -Path $aggregatePagesDir -Force | Out-Null
 $paragraphTargetText = "Paragraph style target: this paragraph already uses ReviewPara, so ensure-paragraph-style should rewrite the style definition and restyle this whole line without rebinding the paragraph."
 $inheritedParagraphTargetText = "Inherited style target: this paragraph uses ReviewParaChild, so rewriting ReviewPara should flow through the basedOn chain and restyle this line without rebinding the child paragraph."
 $runTargetText = "ALPHA 123 hello world"
+$inheritedRunTargetText = "OMEGA 456 inherited marker"
 $reviewTableStyleId = "ReviewTable"
 $reviewTableStyleName = "Review Table"
 
@@ -1251,6 +1252,16 @@ $caseDefinitions = @(
         )
     },
     [pscustomobject][ordered]@{
+        id = "rebase-character-style-based-on-child-preserve-visual"
+        command = "rebase-character-style-based-on"
+        arguments = @("AccentMarkerChild", "AccentParentSerif")
+        expected_visual_cues = @(
+            "The inherited AccentMarkerChild run keeps the same Courier New monospace look even after its basedOn chain changes from AccentParentMono to AccentParentSerif.",
+            "The preserved inherited font is materialized onto AccentMarkerChild itself instead of silently drifting to the new serif parent.",
+            "The ReviewPara paragraphs, AccentMarker run, and ReviewTable target remain visually and structurally unchanged in this case."
+        )
+    },
+    [pscustomobject][ordered]@{
         id = "ensure-table-style-borderless-visual"
         command = "ensure-table-style"
         arguments = @(
@@ -1350,6 +1361,24 @@ foreach ($case in $caseDefinitions) {
             -ExpectedUnhideWhenUsed $false `
             -ExpectedQuickFormat $true `
             -Label $case.id
+    } elseif ($case.id -eq "rebase-character-style-based-on-child-preserve-visual") {
+        $rebaseResult = Get-Content -Raw -Path $mutationJsonPath | ConvertFrom-Json
+        if ($rebaseResult.command -ne "rebase-character-style-based-on") {
+            throw "Unexpected command '$($rebaseResult.command)' in case '$($case.id)'."
+        }
+        if (-not $rebaseResult.ok) {
+            throw "Character style rebase case '$($case.id)' did not report success."
+        }
+        if ($rebaseResult.style_id -ne "AccentMarkerChild") {
+            throw "Expected style_id AccentMarkerChild in case '$($case.id)'."
+        }
+        if ($rebaseResult.based_on -ne "AccentParentSerif") {
+            throw "Expected based_on AccentParentSerif in case '$($case.id)'."
+        }
+        $preservedFields = @($rebaseResult.preserved | ForEach-Object { $_.field })
+        if (@("font_family", "rtl") | Where-Object { $_ -notin $preservedFields }) {
+            throw "Character style rebase case '$($case.id)' did not preserve the expected inherited fields."
+        }
     } elseif ($case.command -eq "ensure-character-style") {
         Assert-EnsureCharacterStyleResult `
             -JsonPath $mutationJsonPath `
@@ -1411,6 +1440,20 @@ foreach ($case in $caseDefinitions) {
         -ExpectedStyleId "AccentMarker" `
         -Label "$($case.id)-accent-marker-run"
 
+    $inheritedRunJsonPath = Join-Path $caseDir "inspect-accent-marker-child-run.json"
+    Invoke-Capture `
+        -Executable $cliExecutable `
+        -Arguments @("inspect-runs", $mutatedDocxPath, "4", "--run", "1", "--json") `
+        -OutputPath $inheritedRunJsonPath `
+        -FailureMessage "Failed to inspect AccentMarkerChild run for case '$($case.id)'."
+    Assert-RunState `
+        -JsonPath $inheritedRunJsonPath `
+        -ExpectedParagraphIndex 4 `
+        -ExpectedRunIndex 1 `
+        -ExpectedText $inheritedRunTargetText `
+        -ExpectedStyleId "AccentMarkerChild" `
+        -Label "$($case.id)-accent-marker-child-run"
+
     $reviewTableJsonPath = Join-Path $caseDir "inspect-review-table.json"
     Invoke-Capture `
         -Executable $cliExecutable `
@@ -1446,6 +1489,13 @@ foreach ($case in $caseDefinitions) {
         -OutputPath $accentMarkerStyleJsonPath `
         -FailureMessage "Failed to inspect AccentMarker style for case '$($case.id)'."
 
+    $accentMarkerChildStyleJsonPath = Join-Path $caseDir "inspect-accent-marker-child-style.json"
+    Invoke-Capture `
+        -Executable $cliExecutable `
+        -Arguments @("inspect-styles", $mutatedDocxPath, "--style", "AccentMarkerChild", "--json") `
+        -OutputPath $accentMarkerChildStyleJsonPath `
+        -FailureMessage "Failed to inspect AccentMarkerChild style for case '$($case.id)'."
+
     $reviewTableStyleJsonPath = Join-Path $caseDir "inspect-review-table-style.json"
     Invoke-Capture `
         -Executable $cliExecutable `
@@ -1460,9 +1510,17 @@ foreach ($case in $caseDefinitions) {
         -OutputPath $reviewParaChildInheritanceJsonPath `
         -FailureMessage "Failed to inspect ReviewParaChild inheritance for case '$($case.id)'."
 
+    $accentMarkerChildInheritanceJsonPath = Join-Path $caseDir "inspect-accent-marker-child-inheritance.json"
+    Invoke-Capture `
+        -Executable $cliExecutable `
+        -Arguments @("inspect-style-inheritance", $mutatedDocxPath, "AccentMarkerChild", "--json") `
+        -OutputPath $accentMarkerChildInheritanceJsonPath `
+        -FailureMessage "Failed to inspect AccentMarkerChild inheritance for case '$($case.id)'."
+
     $reviewParaXmlState = Get-StyleXmlState -DocxPath $mutatedDocxPath -StyleId "ReviewPara"
     $reviewParaChildXmlState = Get-StyleXmlState -DocxPath $mutatedDocxPath -StyleId "ReviewParaChild"
     $accentMarkerXmlState = Get-StyleXmlState -DocxPath $mutatedDocxPath -StyleId "AccentMarker"
+    $accentMarkerChildXmlState = Get-StyleXmlState -DocxPath $mutatedDocxPath -StyleId "AccentMarkerChild"
     $reviewTableXmlState = Get-StyleXmlState -DocxPath $mutatedDocxPath -StyleId $reviewTableStyleId
 
     if ($case.id -eq "ensure-paragraph-style-heading-visual") {
@@ -1873,6 +1931,192 @@ foreach ($case in $caseDefinitions) {
             -ExpectedLangBidi $null `
             -ExpectedRtlValue $null `
             -Label "$($case.id)-review-table-xml"
+    } elseif ($case.id -eq "rebase-character-style-based-on-child-preserve-visual") {
+        Assert-StyleCatalogState `
+            -JsonPath $reviewParaStyleJsonPath `
+            -ExpectedStyleId "ReviewPara" `
+            -ExpectedName "Review Paragraph" `
+            -ExpectedBasedOn "Normal" `
+            -ExpectedKind "paragraph" `
+            -ExpectedType "paragraph" `
+            -ExpectedCustom $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedQuickFormat $true `
+            -Label "$($case.id)-review-para-style"
+        Assert-StyleCatalogState `
+            -JsonPath $reviewParaChildStyleJsonPath `
+            -ExpectedStyleId "ReviewParaChild" `
+            -ExpectedName "Review Paragraph Child" `
+            -ExpectedBasedOn "ReviewPara" `
+            -ExpectedKind "paragraph" `
+            -ExpectedType "paragraph" `
+            -ExpectedCustom $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedQuickFormat $true `
+            -Label "$($case.id)-review-para-child-style"
+        Assert-StyleCatalogState `
+            -JsonPath $accentMarkerStyleJsonPath `
+            -ExpectedStyleId "AccentMarker" `
+            -ExpectedName "Accent Marker" `
+            -ExpectedBasedOn "DefaultParagraphFont" `
+            -ExpectedKind "character" `
+            -ExpectedType "character" `
+            -ExpectedCustom $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedQuickFormat $true `
+            -Label "$($case.id)-accent-marker-style"
+        Assert-StyleCatalogState `
+            -JsonPath $accentMarkerChildStyleJsonPath `
+            -ExpectedStyleId "AccentMarkerChild" `
+            -ExpectedName "Accent Marker Child" `
+            -ExpectedBasedOn "AccentParentSerif" `
+            -ExpectedKind "character" `
+            -ExpectedType "character" `
+            -ExpectedCustom $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedQuickFormat $true `
+            -Label "$($case.id)-accent-marker-child-style"
+        Assert-StyleCatalogState `
+            -JsonPath $reviewTableStyleJsonPath `
+            -ExpectedStyleId $reviewTableStyleId `
+            -ExpectedName $reviewTableStyleName `
+            -ExpectedBasedOn "TableGrid" `
+            -ExpectedKind "table" `
+            -ExpectedType "table" `
+            -ExpectedCustom $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedQuickFormat $true `
+            -Label "$($case.id)-review-table-style"
+
+        Assert-StyleXmlState `
+            -State $reviewParaXmlState `
+            -ExpectedType "paragraph" `
+            -ExpectedName "Review Paragraph" `
+            -ExpectedBasedOn "Normal" `
+            -ExpectedNextStyle "ReviewPara" `
+            -ExpectedQFormat $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedParagraphBidi $false `
+            -ExpectedOutlineLevel $null `
+            -ExpectedFontAscii "Courier New" `
+            -ExpectedLangValue $null `
+            -ExpectedLangBidi $null `
+            -ExpectedRtlValue $null `
+            -Label "$($case.id)-review-para-xml"
+        Assert-StyleXmlState `
+            -State $reviewParaChildXmlState `
+            -ExpectedType "paragraph" `
+            -ExpectedName "Review Paragraph Child" `
+            -ExpectedBasedOn "ReviewPara" `
+            -ExpectedNextStyle "ReviewParaChild" `
+            -ExpectedQFormat $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedParagraphBidi $false `
+            -ExpectedOutlineLevel $null `
+            -ExpectedFontAscii $null `
+            -ExpectedLangValue $null `
+            -ExpectedLangBidi $null `
+            -ExpectedRtlValue $null `
+            -Label "$($case.id)-review-para-child-xml"
+        Assert-StyleInheritanceState `
+            -JsonPath $reviewParaChildInheritanceJsonPath `
+            -ExpectedStyleId "ReviewParaChild" `
+            -ExpectedType "paragraph" `
+            -ExpectedKind "paragraph" `
+            -ExpectedBasedOn "ReviewPara" `
+            -ExpectedInheritanceChain @("ReviewParaChild", "ReviewPara", "Normal") `
+            -ExpectedFontFamilyValue "Courier New" `
+            -ExpectedFontFamilySource "ReviewPara" `
+            -ExpectedEastAsiaFontFamilyValue $null `
+            -ExpectedEastAsiaFontFamilySource $null `
+            -ExpectedLanguageValue $null `
+            -ExpectedLanguageSource $null `
+            -ExpectedEastAsiaLanguageValue $null `
+            -ExpectedEastAsiaLanguageSource $null `
+            -ExpectedBidiLanguageValue $null `
+            -ExpectedBidiLanguageSource $null `
+            -ExpectedRtlValue $null `
+            -ExpectedRtlSource $null `
+            -ExpectedParagraphBidiValue $null `
+            -ExpectedParagraphBidiSource $null `
+            -Label "$($case.id)-review-para-child-inheritance"
+        Assert-StyleXmlState `
+            -State $accentMarkerXmlState `
+            -ExpectedType "character" `
+            -ExpectedName "Accent Marker" `
+            -ExpectedBasedOn "DefaultParagraphFont" `
+            -ExpectedNextStyle $null `
+            -ExpectedQFormat $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedParagraphBidi $false `
+            -ExpectedOutlineLevel $null `
+            -ExpectedFontAscii "Courier New" `
+            -ExpectedLangValue $null `
+            -ExpectedLangBidi $null `
+            -ExpectedRtlValue "0" `
+            -Label "$($case.id)-accent-marker-xml"
+        Assert-StyleXmlState `
+            -State $accentMarkerChildXmlState `
+            -ExpectedType "character" `
+            -ExpectedName "Accent Marker Child" `
+            -ExpectedBasedOn "AccentParentSerif" `
+            -ExpectedNextStyle $null `
+            -ExpectedQFormat $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedParagraphBidi $false `
+            -ExpectedOutlineLevel $null `
+            -ExpectedFontAscii "Courier New" `
+            -ExpectedLangValue $null `
+            -ExpectedLangBidi $null `
+            -ExpectedRtlValue "0" `
+            -Label "$($case.id)-accent-marker-child-xml"
+        Assert-StyleInheritanceState `
+            -JsonPath $accentMarkerChildInheritanceJsonPath `
+            -ExpectedStyleId "AccentMarkerChild" `
+            -ExpectedType "character" `
+            -ExpectedKind "character" `
+            -ExpectedBasedOn "AccentParentSerif" `
+            -ExpectedInheritanceChain @("AccentMarkerChild", "AccentParentSerif", "DefaultParagraphFont") `
+            -ExpectedFontFamilyValue "Courier New" `
+            -ExpectedFontFamilySource "AccentMarkerChild" `
+            -ExpectedEastAsiaFontFamilyValue $null `
+            -ExpectedEastAsiaFontFamilySource $null `
+            -ExpectedLanguageValue $null `
+            -ExpectedLanguageSource $null `
+            -ExpectedEastAsiaLanguageValue $null `
+            -ExpectedEastAsiaLanguageSource $null `
+            -ExpectedBidiLanguageValue $null `
+            -ExpectedBidiLanguageSource $null `
+            -ExpectedRtlValue $false `
+            -ExpectedRtlSource "AccentMarkerChild" `
+            -ExpectedParagraphBidiValue $null `
+            -ExpectedParagraphBidiSource $null `
+            -Label "$($case.id)-accent-marker-child-inheritance"
+        Assert-StyleXmlState `
+            -State $reviewTableXmlState `
+            -ExpectedType "table" `
+            -ExpectedName $reviewTableStyleName `
+            -ExpectedBasedOn "TableGrid" `
+            -ExpectedNextStyle $null `
+            -ExpectedQFormat $true `
+            -ExpectedSemiHidden $false `
+            -ExpectedUnhideWhenUsed $false `
+            -ExpectedParagraphBidi $false `
+            -ExpectedOutlineLevel $null `
+            -ExpectedFontAscii $null `
+            -ExpectedLangValue $null `
+            -ExpectedLangBidi $null `
+            -ExpectedRtlValue $null `
+            -Label "$($case.id)-review-table-xml"
     } elseif ($case.id -eq "ensure-character-style-serif-visual") {
         Assert-StyleCatalogState `
             -JsonPath $reviewParaStyleJsonPath `
@@ -2181,15 +2425,19 @@ foreach ($case in $caseDefinitions) {
         inspect_review_paragraph_json = $paragraphJsonPath
         inspect_review_child_paragraph_json = $inheritedParagraphJsonPath
         inspect_accent_run_json = $runJsonPath
+        inspect_accent_child_run_json = $inheritedRunJsonPath
         inspect_review_table_json = $reviewTableJsonPath
         inspect_review_style_json = $reviewParaStyleJsonPath
         inspect_review_child_style_json = $reviewParaChildStyleJsonPath
         inspect_review_child_inheritance_json = $reviewParaChildInheritanceJsonPath
         inspect_accent_style_json = $accentMarkerStyleJsonPath
+        inspect_accent_child_style_json = $accentMarkerChildStyleJsonPath
+        inspect_accent_child_inheritance_json = $accentMarkerChildInheritanceJsonPath
         inspect_review_table_style_json = $reviewTableStyleJsonPath
         review_para_styles_xml = $reviewParaXmlState
         review_para_child_styles_xml = $reviewParaChildXmlState
         accent_marker_styles_xml = $accentMarkerXmlState
+        accent_marker_child_styles_xml = $accentMarkerChildXmlState
         review_table_styles_xml = $reviewTableXmlState
         expected_visual_cues = $case.expected_visual_cues
         visual_artifacts = $artifacts

@@ -52,6 +52,12 @@ performance.
   font/language/RTL/paragraph-bidi fields that would otherwise drift, and
   extended the Word-backed ensure-style visual regression bundle with a rebased
   child-style preservation case.
+- Added `rebase_character_style_based_on()` plus `set_character_style_based_on()`
+  / `clear_character_style_based_on()` and CLI
+  `rebase-character-style-based-on` so a character style can now switch to a
+  new parent while freezing the currently resolved inherited font/RTL fields
+  that would otherwise drift, and extended the Word-backed ensure-style visual
+  regression bundle with an inherited-run preservation case.
 - Expanded `validate_template(...)` into a stronger schema pass that now also
   reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
   extended CLI `validate-template` parsing with `count=` / `min=` / `max=`

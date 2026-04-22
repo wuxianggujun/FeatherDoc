@@ -568,6 +568,7 @@ featherdoc_cli inspect-style-inheritance input.docx Normal --json
 featherdoc_cli inspect-paragraph-style-properties input.docx Heading1 --json
 featherdoc_cli set-paragraph-style-properties input.docx Heading1 --next-style BodyText --outline-level 1 --output updated-paragraph-style-properties.docx --json
 featherdoc_cli clear-paragraph-style-properties input.docx Heading1 --next-style --outline-level --output cleared-paragraph-style-properties.docx --json
+featherdoc_cli rebase-character-style-based-on input.docx ReviewStrong Strong --output rebased-character-style.docx --json
 featherdoc_cli rebase-paragraph-style-based-on input.docx Heading2 Normal --output rebased-paragraph-style.docx --json
 featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
 featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
@@ -833,6 +834,7 @@ you want to get done:
   `ensure_numbering_definition()`, `set_paragraph_style_numbering()`,
   `default_run_*()`, `style_run_*()`, `resolve_style_properties()`,
   `materialize_style_run_properties()`,
+  `rebase_character_style_based_on()`,
   `set_paragraph_style_based_on()`, `set_paragraph_style_next_style()`,
   `set_paragraph_style_outline_level()`,
   `rebase_paragraph_style_based_on()`
@@ -1976,9 +1978,12 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   `find_style_usage()`, `resolve_style_properties()`, and the
   `ensure_*_style(...)` helpers. Effective inherited
   font/language/RTL/paragraph-bidi inspection is now available, and
-  `materialize_style_run_properties(...)` can now freeze those supported
-  inherited properties onto the child style, but there is still no fully
-  inheritance-aware style refactoring or mutation layer.
+  `materialize_style_run_properties(...)`,
+  `rebase_paragraph_style_based_on(...)`, and
+  `rebase_character_style_based_on(...)` can now freeze supported inherited
+  properties onto the child style before a `basedOn` rewrite. Broader
+  style-linked numbering and higher-level style refactoring workflows are
+  still missing.
 - Bookmark-based template filling now works across body, header, and footer
   parts through `fill_bookmarks(...)`, the standalone replacement helpers, and
   `TemplatePart` handles returned by `body_template()`, `header_template()`,
