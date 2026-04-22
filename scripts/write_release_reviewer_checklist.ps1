@@ -370,6 +370,70 @@ if ([string]::IsNullOrWhiteSpace($releaseSummaryPath)) {
 $finalReviewPath = Join-Path $reportDir "final_review.md"
 $taskOutputRoot = Get-OptionalPropertyValue -Object $summary -Name "task_output_root"
 
+$templateSchemaSummary = Get-OptionalPropertyObject -Object $summary -Name "template_schema"
+$templateSchemaStep = Get-OptionalPropertyObject -Object $summary.steps -Name "template_schema"
+$templateSchemaRequested = Get-OptionalPropertyValue -Object $templateSchemaSummary -Name "requested"
+$templateSchemaStatus = Get-OptionalPropertyValue -Object $templateSchemaStep -Name "status"
+if ([string]::IsNullOrWhiteSpace($templateSchemaStatus)) {
+    $templateSchemaStatus = if ($templateSchemaRequested -eq "True") { "requested" } else { "not_requested" }
+}
+$templateSchemaMatches = Get-OptionalPropertyValue -Object $templateSchemaStep -Name "matches"
+if ([string]::IsNullOrWhiteSpace($templateSchemaMatches)) {
+    $templateSchemaMatches = Get-OptionalPropertyValue -Object $templateSchemaSummary -Name "matches"
+}
+$templateSchemaBaseline = Get-OptionalPropertyValue -Object $templateSchemaSummary -Name "baseline"
+if ([string]::IsNullOrWhiteSpace($templateSchemaBaseline)) {
+    $templateSchemaBaseline = Get-OptionalPropertyValue -Object $templateSchemaStep -Name "schema_file"
+}
+$templateSchemaInputDocx = Get-OptionalPropertyValue -Object $templateSchemaSummary -Name "input_docx"
+$templateSchemaGeneratedOutput = Get-OptionalPropertyValue -Object $templateSchemaSummary -Name "generated_output"
+if ([string]::IsNullOrWhiteSpace($templateSchemaGeneratedOutput)) {
+    $templateSchemaGeneratedOutput = Get-OptionalPropertyValue -Object $templateSchemaStep -Name "generated_output_path"
+}
+$templateSchemaAddedTargetCount = Get-OptionalPropertyValue -Object $templateSchemaStep -Name "added_target_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaAddedTargetCount)) {
+    $templateSchemaAddedTargetCount = Get-OptionalPropertyValue -Object $templateSchemaSummary -Name "added_target_count"
+}
+$templateSchemaRemovedTargetCount = Get-OptionalPropertyValue -Object $templateSchemaStep -Name "removed_target_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaRemovedTargetCount)) {
+    $templateSchemaRemovedTargetCount = Get-OptionalPropertyValue -Object $templateSchemaSummary -Name "removed_target_count"
+}
+$templateSchemaChangedTargetCount = Get-OptionalPropertyValue -Object $templateSchemaStep -Name "changed_target_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaChangedTargetCount)) {
+    $templateSchemaChangedTargetCount = Get-OptionalPropertyValue -Object $templateSchemaSummary -Name "changed_target_count"
+}
+$templateSchemaManifestSummary = Get-OptionalPropertyObject -Object $summary -Name "template_schema_manifest"
+$templateSchemaManifestStep = Get-OptionalPropertyObject -Object $summary.steps -Name "template_schema_manifest"
+$templateSchemaManifestRequested = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "requested"
+$templateSchemaManifestStatus = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "status"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestStatus)) {
+    $templateSchemaManifestStatus = if ($templateSchemaManifestRequested -eq "True") { "requested" } else { "not_requested" }
+}
+$templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "passed"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestPassed)) {
+    $templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "passed"
+}
+$templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "entry_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestEntryCount)) {
+    $templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "entry_count"
+}
+$templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "drift_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestDriftCount)) {
+    $templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "drift_count"
+}
+$templateSchemaManifestPath = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "manifest_path"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestPath)) {
+    $templateSchemaManifestPath = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "manifest_path"
+}
+$templateSchemaManifestOutputDir = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "output_dir"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestOutputDir)) {
+    $templateSchemaManifestOutputDir = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "output_dir"
+}
+$templateSchemaManifestSummaryJson = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "summary_json"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestSummaryJson)) {
+    $templateSchemaManifestSummaryJson = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "summary_json"
+}
+
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
 $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
@@ -436,6 +500,14 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Reviewer Checklist")
 [void]$lines.Add("")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
+[void]$lines.Add("- Template schema gate status: $(Get-DisplayValue -Value $templateSchemaStatus)")
+[void]$lines.Add("- Template schema matches baseline: $(Get-DisplayValue -Value $templateSchemaMatches)")
+[void]$lines.Add("- Template schema drift counts (added/removed/changed): $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $templateSchemaAddedTargetCount, $templateSchemaRemovedTargetCount, $templateSchemaChangedTargetCount))")
+[void]$lines.Add("- Template schema baseline: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaBaseline)")
+[void]$lines.Add("- Template schema manifest status: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
+[void]$lines.Add("- Template schema manifest passed: $(Get-DisplayValue -Value $templateSchemaManifestPassed)")
+[void]$lines.Add("- Template schema manifest entries / drifts: $(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
+[void]$lines.Add("- Template schema manifest: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestPath)")
 [void]$lines.Add("- Visual gate status: $($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict: $visualVerdict")
 [void]$lines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
@@ -466,6 +538,30 @@ if (-not [string]::IsNullOrWhiteSpace($supersededReviewTasksCount)) {
 } else {
     Add-CheckboxLine -Lines $lines -Text ('Confirm `superseded_review_tasks.json` reports zero stale task directories or intentionally explains any preserved older tasks: {0}' -f `
             (Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath))
+}
+if ($templateSchemaRequested -eq "True" -or $templateSchemaStatus -ne "not_requested") {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the template schema input DOCX is the intended release candidate document: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaInputDocx))
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the committed template schema baseline is the expected one for this release: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaBaseline))
+    if (-not [string]::IsNullOrWhiteSpace($templateSchemaGeneratedOutput)) {
+        Add-CheckboxLine -Lines $lines -Text ('Open the generated normalized template schema output when you need to inspect the compared result: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaGeneratedOutput))
+    }
+
+    if ($templateSchemaMatches -eq "True") {
+        Add-CheckboxLine -Lines $lines -Text ('Confirm the template schema gate is green and drift counts stay at `0/0/0` for added/removed/changed targets.')
+    } elseif ($templateSchemaMatches -eq "False") {
+        Add-CheckboxLine -Lines $lines -Text ('Stop here until the template schema drift is either intentionally re-baselined or the document/code regression is fixed.')
+    }
+}
+if ($templateSchemaManifestRequested -eq "True" -or $templateSchemaManifestStatus -ne "not_requested") {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the template schema manifest matches the intended repository baseline set: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestPath))
+    Add-CheckboxLine -Lines $lines -Text ('Open the template schema manifest summary when you need per-entry status and drift counts: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestSummaryJson))
+    Add-CheckboxLine -Lines $lines -Text ('Inspect the generated manifest output directory if any repository baseline needs a generated schema artifact: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestOutputDir))
+
+    if ($templateSchemaManifestPassed -eq "True") {
+        Add-CheckboxLine -Lines $lines -Text ('Confirm the template schema manifest gate stays green and the drift count remains `0` across all registered baselines.')
+    } elseif ($templateSchemaManifestPassed -eq "False") {
+        Add-CheckboxLine -Lines $lines -Text ('Stop here until every registered template schema baseline either matches again or is intentionally re-baselined.')
+    }
 }
 
 if ($summary.steps.visual_gate.status -eq "skipped") {
@@ -528,6 +624,8 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
 [void]$lines.Add("## Stop Conditions")
 [void]$lines.Add("")
 [void]$lines.Add('- Do not approve for public release when `execution_status` is not `pass`.')
+[void]$lines.Add('- Do not approve for public release when a requested template schema gate does not report `matches = true`.')
+[void]$lines.Add('- Do not approve for public release when a requested template schema manifest gate does not report `passed = true`.')
 [void]$lines.Add('- Do not approve for public release when the final local visual verdict is not `pass`.')
 [void]$lines.Add("- Do not treat a CI-only artifact with visual gate = skipped as the final screenshot-backed release signoff.")
 

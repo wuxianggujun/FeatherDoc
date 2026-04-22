@@ -10,6 +10,72 @@ performance.
 
 ### Added
 
+- Added floating-image anchor z-order control through
+  `floating_image_options::z_order`, threaded that metadata through image
+  inspection, CLI append/replace flows, and round-trip parsing of
+  `wp:anchor/@relativeHeight`, and added a dedicated
+  `sample_floating_image_z_order_visual` sample plus
+  `run_floating_image_z_order_visual_regression.ps1` / release-gate bundle
+  coverage for Word-backed overlap validation.
+- Added high-level header/footer part reordering through
+  `move_header_part()` / `move_footer_part()` plus CLI
+  `move-header-part` / `move-footer-part`, keeping section references bound to
+  the same relationship ids across save/reopen while exposing the reordered
+  logical part indexes.
+- Added CLI `inspect-default-run-properties`,
+  `set-default-run-properties`, and `clear-default-run-properties` so
+  `docDefaults` font/language/RTL metadata can now be inspected and mutated
+  from scripts instead of only through the C++ API.
+- Added CLI `inspect-style-run-properties`,
+  `set-style-run-properties`, and `clear-style-run-properties` so existing
+  styles can now have run font/language/RTL and paragraph bidi metadata
+  inspected and updated from scripts instead of only through the C++ API.
+- Added `resolve_style_properties()` plus CLI `inspect-style-inheritance` so
+  style `basedOn` chains can now be inspected as effective inherited
+  font/language/RTL/paragraph-bidi values with per-property source style ids.
+- Added `materialize_style_run_properties()` plus CLI
+  `materialize-style-run-properties` so supported inherited
+  font/language/RTL/paragraph-bidi style metadata can now be frozen onto the
+  child style before later parent-style rewrites, and extended the existing
+  Word-backed ensure-style visual regression bundle with a dedicated
+  child-style freeze case to verify that parent rewrites no longer leak through
+  after materialization.
+- Expanded `validate_template(...)` into a stronger schema pass that now also
+  reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
+  extended CLI `validate-template` parsing with `count=` / `min=` / `max=`
+  slot constraints, and kept the new result shape covered by unit and CLI
+  regression tests.
+- Added document-level `validate_template_schema(...)`, exposed the same
+  multi-part schema contract through CLI `validate-template-schema`, added a
+  runnable `sample_template_schema_validation` sample, added reusable
+  `--schema-file <path>` JSON input for CLI schema validation, taught schema
+  files to accept both compact slot strings and structured slot objects, and
+  added `export-template-schema` so existing templates can now be turned into
+  starter schema files. The export flow now also supports `--section-targets`
+  for direct `section-header` / `section-footer` target generation and
+  `--resolved-section-targets` for effective linked-to-previous section views;
+  schema validation now resolves section header/footer inheritance the same way,
+  and CLI schema tooling now also includes `normalize-template-schema` plus
+  `diff-template-schema` for canonicalization and revision-to-revision
+  comparison, including `--fail-on-diff` for CI-style gating, and the new
+  `check-template-schema` command for one-step baseline verification against a
+  live document. Added repository-level wrapper scripts
+  `freeze_template_schema_baseline.ps1` and
+  `check_template_schema_baseline.ps1` so baseline freeze/check workflows can be
+  reused locally or in CI. The local release-preflight wrapper
+  `run_release_candidate_checks.ps1` can now optionally run the same template
+  schema baseline gate and record it in `report/summary.json`, with the parser
+  and export flow covered by focused CLI regression tests.
+- Added a repository-level template schema baseline registry under
+  `baselines/template-schema/manifest.json`, including mixed support for
+  committed source templates plus build-relative generated fixtures,
+  `prepare_sample_target` fixture preparation, `check_template_schema_manifest.ps1`
+  manifest gating, `describe_template_schema_manifest.ps1` maintenance
+  reporting, and `register_template_schema_manifest_entry.ps1` for one-step
+  baseline freeze plus manifest registration. The same manifest gate is now
+  surfaced through release-preflight summaries and generated release metadata
+  entry points such as `START_HERE.md`, `REVIEWER_CHECKLIST.md`,
+  `release_handoff.md`, `release_body.zh-CN.md`, and `ARTIFACT_GUIDE.md`.
 - Extended `scripts/prepare_word_review_task.ps1` with a generic
   `visual-regression-bundle` source so screenshot-backed Word review tasks can
   now be packaged from any curated visual regression bundle that provides
@@ -118,6 +184,19 @@ performance.
 
 ### Documentation
 
+- Updated `README.md`, `README.zh-CN.md`, and `docs/v1_7_roadmap_zh.rst` to
+  reflect that first-pass style catalog inspection, numbering definition,
+  template validation, and floating-image wrap/crop/z-order controls are
+  already available, while clarifying the remaining gaps.
+- Updated `README.md`, `README.zh-CN.md`, `docs/release_policy_zh.rst`, and
+  `baselines/template-schema/README.md` so the repository-level template
+  schema maintenance workflow now documents manifest registration, manifest
+  inspection, and release-preflight manifest gating from the top-level entry
+  points instead of only the low-level helper scripts.
+- Updated `scripts/run_word_visual_smoke.ps1` so custom `-InputDocx` runs now
+  emit generic review notes and checklist wording instead of the repository's
+  fixed table-smoke checklist, keeping ad-hoc visual validation output aligned
+  with the document actually under review.
 - Updated `README.md`, `README.zh-CN.md`, `VISUAL_VALIDATION*.md`,
   `docs/index.rst`, and `docs/automation/word_visual_workflow_zh.rst` so the
   latest-pointer and verdict-sync workflow now documents curated

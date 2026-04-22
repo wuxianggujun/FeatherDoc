@@ -77,6 +77,24 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
 - `report/release_body.zh-CN.md`
 - `report/release_summary.zh-CN.md`
 
+如果你还希望把模板 schema baseline 检查也并入这条发布前总检查，可以额外传入
+`-TemplateSchemaInputDocx`、`-TemplateSchemaBaseline`，以及
+`-TemplateSchemaSectionTargets` /
+`-TemplateSchemaResolvedSectionTargets` 其中之一。这样脚本会把 template
+schema gate 结果写进 `report/summary.json`，一旦发现 schema 漂移就会让整条
+preflight 失败。
+
+如果你想把仓库里已经登记到 manifest 的多份 template schema baseline 一次性
+并入这条发布前总检查，则改传 `-TemplateSchemaManifestPath`。脚本会转而调用
+`check_template_schema_manifest.ps1`，把 manifest gate 的状态、entry 数量和
+drift 数量一起写进 `report/summary.json`，只要其中任一 baseline 漂移就会让
+整条 preflight 失败。
+
+如果你的目标不是做一次临时校验，而是把某份模板正式纳入仓库级 baseline，
+优先使用 `register_template_schema_manifest_entry.ps1`。它会在需要时先准备
+generated fixture，再冻结标准化 schema baseline，并把对应条目写入或更新到
+`baselines/template-schema/manifest.json`，省掉手工改 manifest 的步骤。
+
 如果截图级 review 结论是在后续补写的，优先执行最短同步命令，把最终
 visual verdict 一次性回写到 gate summary、release summary 和 release note
 bundle。这个同步流程现在也会自动吸收同一 task root 下的 curated visual
@@ -121,6 +139,17 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_template_table_cli_bookmark_vis
 `set-template-table-cell-block-texts` 的 `--bookmark` 形式做变更，再导出
 Word 渲染前后截图和 contact sheet，输出到
 `output/template-table-cli-bookmark-visual-regression/`。
+
+如果你想单独验证浮动图片锚点的 z-order 真实叠放效果，可运行：
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\scripts\run_floating_image_z_order_visual_regression.ps1
+```
+
+这个回归会构建 `sample_floating_image_z_order_visual` 样例，先用 CLI 检查并提取
+两张 anchored 图片，确认 z-order 和媒体内容都正确，再导出 Word 渲染后的首页
+截图，方便你确认橙色浮动图片确实覆盖并显示在蓝色图片上方。输出目录为
+`output/floating-image-z-order-visual-regression/`。
 
 如果只想跑基础 Word 冒烟检查：
 
@@ -275,12 +304,30 @@ featherdoc_cli assign-section-footer input.docx 2 1 --output shared-footer.docx 
 featherdoc_cli remove-section-header input.docx 2 --kind even --output detached-header.docx
 featherdoc_cli remove-section-footer input.docx 1 --kind first --output detached-footer.docx
 featherdoc_cli remove-header-part input.docx 1 --output headers-pruned.docx
+featherdoc_cli move-header-part input.docx 1 0 --output headers-reordered.docx --json
 featherdoc_cli remove-footer-part input.docx 0 --output footers-pruned.docx
+featherdoc_cli move-footer-part input.docx 1 0 --output footers-reordered.docx --json
 featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
 featherdoc_cli set-template-table-from-json report.docx --bookmark line_items_table --patch-file row_patch.json --output report-updated.docx --json
 featherdoc_cli set-template-tables-from-json report.docx --patch-file multi_table_patch.json --output report-updated.docx --json
 featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
+featherdoc_cli validate-template-schema input.docx --target section-header --section 0 --slot header_title:text --target section-footer --section 0 --slot footer_company:text --slot footer_summary:block --json
+featherdoc_cli validate-template-schema input.docx --schema-file template-schema.json --json
+featherdoc_cli export-template-schema input.docx --output template-schema.json --json
+featherdoc_cli export-template-schema input.docx --section-targets --output section-template-schema.json --json
+featherdoc_cli export-template-schema input.docx --resolved-section-targets --output resolved-section-template-schema.json --json
+featherdoc_cli normalize-template-schema template-schema.json --output normalized-template-schema.json --json
+featherdoc_cli diff-template-schema old-template-schema.json new-template-schema.json --json
+featherdoc_cli diff-template-schema committed-schema.json generated-schema.json --fail-on-diff --json
+featherdoc_cli check-template-schema input.docx --schema-file committed-schema.json --resolved-section-targets --output generated-schema.json --json
+pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
 ```
+
+`move-header-part` / `move-footer-part` 用来重排当前文档里已加载的
+header/footer part 索引顺序，同时保持各 section 继续指向原来的关系 id，
+不会因为重排索引就把引用绑错。
 
 上面的命令块是代表性示例，不是完整 CLI 清单。更完整的命令列表和字
 段说明请优先看 `docs/index.rst`；如果你同时需要仓库级背景说明，再配合
@@ -299,6 +346,14 @@ featherdoc_cli set-run-font-family input.docx 4 1 Consolas --output font-run.doc
 featherdoc_cli clear-run-font-family input.docx 4 1 --output cleared-run-font.docx --json
 featherdoc_cli set-run-language input.docx 4 1 en-US --output language-run.docx --json
 featherdoc_cli clear-run-language input.docx 4 1 --output cleared-run-language.docx --json
+featherdoc_cli inspect-default-run-properties input.docx --json
+featherdoc_cli set-default-run-properties input.docx --font-family "Segoe UI" --east-asia-font-family "Microsoft YaHei" --language en-US --east-asia-language zh-CN --rtl true --output default-run-properties.docx --json
+featherdoc_cli clear-default-run-properties input.docx --primary-language --rtl --output cleared-default-run-properties.docx --json
+featherdoc_cli inspect-style-run-properties input.docx Normal --json
+featherdoc_cli materialize-style-run-properties input.docx Normal --output materialized-style-run-properties.docx --json
+featherdoc_cli set-style-run-properties input.docx Normal --font-family "Segoe UI" --east-asia-font-family "Microsoft YaHei" --language en-US --east-asia-language zh-CN --rtl true --paragraph-bidi true --output style-run-properties.docx --json
+featherdoc_cli clear-style-run-properties input.docx Normal --primary-language --rtl --paragraph-bidi --output cleared-style-run-properties.docx --json
+featherdoc_cli inspect-style-inheritance input.docx Normal --json
 featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
 featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
 featherdoc_cli ensure-numbering-definition input.docx --definition-name OutlineReview --numbering-level 0:decimal:1:%1. --output numbering.docx --json
@@ -472,8 +527,8 @@ int main() {
 - 处理表格与版式：`append_table()`、插行 / 插列、`merge_right()`、`merge_down()`、`unmerge_*()`、列宽 / fixed-grid / 布局模式相关 API
 - 做模板填充或书签校验：`list_bookmarks()`、`validate_template()`、`fill_bookmarks()`、`replace_bookmark_with_*()`、`body_template()` / `header_template()` / `footer_template()`
 - 处理图片和页码字段：`append_image()`、`append_floating_image()`、`replace_*image()`、`append_page_number_field()`、`append_total_pages_field()`
-- 处理分节、页眉页脚和页面设置：`inspect_sections()`、`get_section_page_setup()`、`set_section_page_setup()`、`ensure_*header*()`、`ensure_*footer*()`、`append_section()`、`insert_section()`、`move_section()`
-- 处理样式、编号和语言元数据：`list_styles()`、`find_style()`、`ensure_*style()`、`ensure_numbering_definition()`、`set_paragraph_style_numbering()`
+- 处理分节、页眉页脚和页面设置：`inspect_sections()`、`get_section_page_setup()`、`set_section_page_setup()`、`ensure_*header*()`、`ensure_*footer*()`、`append_section()`、`insert_section()`、`move_section()`、`move_header_part()`、`move_footer_part()`
+- 处理样式、编号和语言元数据：`list_styles()`、`find_style()`、`ensure_*style()`、`ensure_numbering_definition()`、`set_paragraph_style_numbering()`、`default_run_*()`、`style_run_*()`、`resolve_style_properties()`、`materialize_style_run_properties()`
 - 想做脚本化检查或一次性改写：优先看 CLI 的 `inspect-*`、`validate-template`、`append-page-number-field`、`set-section-page-setup`
 
 如果你需要更完整的参数说明、可运行 sample 对照和边界行为说明，继续看
@@ -527,6 +582,79 @@ doc.save_as("report-updated.docx");
 `header_template()`、`footer_template()`、`section_header_template()` 或
 `section_footer_template()`。
 
+如果你要一次性约束多个 part，可以直接用
+`Document::validate_template_schema(...)`，把 body / header / footer /
+section-header / section-footer 的要求组合到一个文档级 schema 里。
+
+```cpp
+const auto result = doc.validate_template_schema({
+    {
+        {featherdoc::template_schema_part_kind::section_header, std::nullopt, 0U,
+         featherdoc::section_reference_kind::default_reference},
+        {"header_title", featherdoc::template_slot_kind::text, true},
+    },
+    {
+        {featherdoc::template_schema_part_kind::section_footer, std::nullopt, 0U,
+         featherdoc::section_reference_kind::default_reference},
+        {"footer_signature", featherdoc::template_slot_kind::text, true},
+    },
+});
+```
+
+可运行的文档级样例见
+`samples/sample_template_schema_validation.cpp`，对应 target 是
+`featherdoc_sample_template_schema_validation`。CLI 对应命令是
+`featherdoc_cli validate-template-schema ...`，同时也支持
+`--schema-file <path>` 读取可复用的 JSON schema 文件。
+
+`--schema-file` 既支持紧凑字符串 slot，例如 `"header_title:text"`，
+也支持结构化 slot 对象：
+
+```json
+{
+  "targets": [
+    {
+      "part": "section-header",
+      "section": 0,
+      "kind": "default",
+      "slots": [
+        { "bookmark": "header_title", "kind": "text" },
+        { "bookmark_name": "header_note", "kind": "block", "required": true },
+        { "bookmark": "header_rows", "kind": "table_rows", "count": 1 }
+      ]
+    }
+  ]
+}
+```
+
+仓库里现成的示例文件见 `samples/template_schema_validation.schema.json`。
+
+如果你不想手写第一版 schema，可以直接从现有模板导出一份初稿：
+
+```bash
+featherdoc_cli export-template-schema input.docx --output template-schema.json --json
+featherdoc_cli validate-template-schema input.docx --schema-file template-schema.json --json
+```
+
+`export-template-schema` 默认会导出正文以及已加载的 `header[index]` /
+`footer[index]` target。如果你希望直接导出成 `section-header` /
+`section-footer` 的“直接引用”视角，可以加 `--section-targets`。如果你要
+的是每个 section 实际生效的页眉/页脚视角，需要加
+`--resolved-section-targets`；这种导出会额外带上
+`resolved_from_section` / `linked_to_previous` 之类的元数据，同时仍然可以
+直接回喂给 `validate-template-schema --schema-file ...`。这三种模式都会基于
+`list_bookmarks()` 当前暴露的轻量书签分类来序列化可表示的 slot。如果你想
+把 schema 文件整理成稳定顺序，方便提交或 review，可以再跑一遍
+`normalize-template-schema`；如果要比较两个 schema 版本的差异，可以直接用
+`diff-template-schema` 查看 added / removed / changed targets。如果想把它直接
+接进 CI，当发现 schema 漂移时返回非零退出码，可以加 `--fail-on-diff`。如果
+你希望把“导出 + 规范化 + 对比 + gate” 合成一步，可以直接用
+`check-template-schema`；它在完全匹配时返回 `0`，发现漂移时返回 `1`，并且
+可以通过 `--output` 额外写出规范化后的 generated schema。如果你更希望用仓库
+级脚本入口，可以直接用
+`scripts/freeze_template_schema_baseline.ps1` 和
+`scripts/check_template_schema_baseline.ps1`，它们会负责 CLI 的复用或构建。
+
 ## 当前能力范围
 
 当前 FeatherDoc 已覆盖以下高价值能力：
@@ -537,14 +665,19 @@ doc.save_as("report-updated.docx");
 - 书签填充、模板表格扩展、条件块显隐
 - 内联图片与浮动图片
 - 页眉、页脚、分节复制 / 插入 / 移动 / 删除
-- 列表、基础样式引用和样式 look 编辑
+- 列表、自定义编号定义、基础样式目录检查与最小样式定义编辑
 
 ## 当前限制
 
 - 不支持加密或受密码保护的 `.docx`
 - 还没有高层公式（OMML）typed API
 - 暂无高层的自定义表格样式定义编辑
-- 暂无完整的样式目录检查 / 继承感知样式管理 API
+- 模板校验已经覆盖 slot、缺失、重复、意外书签、kind 不匹配、occurrence 约束，
+  并且已经有 `validate_template_schema(...)` 和
+  `featherdoc_cli validate-template-schema` 这套文档级多 part 校验入口，
+  还支持 `--schema-file` 读取可复用 JSON schema，但还没有更高层的
+  schema 变更 API 或独立 schema 管理工具链
+- 现在已经可以做继承感知的样式属性检查，但仍然没有完整的继承感知样式重构 / 变更 API
 
 更细的限制列表请看 [README.md](README.md) 里的 `Current Limitations`。
 

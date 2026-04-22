@@ -329,6 +329,33 @@ $reviewerChecklistPath = Get-OptionalPropertyValue -Object $summary -Name "revie
 if ([string]::IsNullOrWhiteSpace($reviewerChecklistPath)) {
     $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 }
+$templateSchemaManifestSummary = Get-OptionalPropertyObject -Object $summary -Name "template_schema_manifest"
+$templateSchemaManifestStep = Get-OptionalPropertyObject -Object $summary.steps -Name "template_schema_manifest"
+$templateSchemaManifestStatus = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "status"
+$templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "passed"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestPassed)) {
+    $templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "passed"
+}
+$templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "entry_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestEntryCount)) {
+    $templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "entry_count"
+}
+$templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "drift_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestDriftCount)) {
+    $templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "drift_count"
+}
+$templateSchemaManifestPath = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "manifest_path"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestPath)) {
+    $templateSchemaManifestPath = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "manifest_path"
+}
+$templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "summary_json"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestSummaryPath)) {
+    $templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "summary_json"
+}
+$templateSchemaManifestOutputDir = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "output_dir"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestOutputDir)) {
+    $templateSchemaManifestOutputDir = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "output_dir"
+}
 
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
@@ -401,6 +428,9 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("")
 [void]$lines.Add("- Generated at: $(Get-Date -Format s)")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
+[void]$lines.Add("- Template schema manifest status: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
+[void]$lines.Add("- Template schema manifest passed: $(Get-DisplayValue -Value $templateSchemaManifestPassed)")
+[void]$lines.Add("- Template schema manifest entries / drifts: $(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
 [void]$lines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 [void]$lines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$lines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
@@ -422,6 +452,9 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Release handoff: $(Get-DisplayPath -RepoRoot $repoRoot -Path $releaseHandoffPath)")
 [void]$lines.Add("- Final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $finalReviewPath)")
 [void]$lines.Add("- Consumer smoke document: $(Get-DisplayPath -RepoRoot $repoRoot -Path $consumerDocument)")
+[void]$lines.Add("- Template schema manifest: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestPath)")
+[void]$lines.Add("- Template schema manifest summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestSummaryPath)")
+[void]$lines.Add("- Template schema manifest output dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestOutputDir)")
 [void]$lines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$lines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$lines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")

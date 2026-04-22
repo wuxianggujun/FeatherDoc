@@ -360,6 +360,25 @@ struct bookmark_block_visibility_result {
     }
 };
 
+enum class bookmark_kind : std::uint8_t {
+    text = 0U,
+    block,
+    table_rows,
+    block_range,
+    malformed,
+    mixed,
+};
+
+struct bookmark_summary {
+    std::string bookmark_name;
+    std::size_t occurrence_count{};
+    featherdoc::bookmark_kind kind{featherdoc::bookmark_kind::text};
+
+    [[nodiscard]] bool is_duplicate() const noexcept {
+        return this->occurrence_count > 1U;
+    }
+};
+
 enum class template_slot_kind : std::uint8_t {
     text = 0U,
     table_rows,
@@ -373,17 +392,90 @@ struct template_slot_requirement {
     std::string bookmark_name;
     featherdoc::template_slot_kind kind{featherdoc::template_slot_kind::text};
     bool required{true};
+    std::optional<std::size_t> min_occurrences;
+    std::optional<std::size_t> max_occurrences;
+};
+
+struct template_kind_mismatch {
+    std::string bookmark_name;
+    featherdoc::template_slot_kind expected_kind{featherdoc::template_slot_kind::text};
+    featherdoc::bookmark_kind actual_kind{featherdoc::bookmark_kind::text};
+    std::size_t occurrence_count{};
+};
+
+struct template_occurrence_mismatch {
+    std::string bookmark_name;
+    std::size_t actual_occurrences{};
+    std::size_t min_occurrences{};
+    std::optional<std::size_t> max_occurrences;
 };
 
 struct template_validation_result {
     std::vector<std::string> missing_required;
     std::vector<std::string> duplicate_bookmarks;
     std::vector<std::string> malformed_placeholders;
+    std::vector<bookmark_summary> unexpected_bookmarks;
+    std::vector<template_kind_mismatch> kind_mismatches;
+    std::vector<template_occurrence_mismatch> occurrence_mismatches;
 
     explicit operator bool() const noexcept {
         return this->missing_required.empty() &&
                this->duplicate_bookmarks.empty() &&
-               this->malformed_placeholders.empty();
+               this->malformed_placeholders.empty() &&
+               this->unexpected_bookmarks.empty() &&
+               this->kind_mismatches.empty() &&
+               this->occurrence_mismatches.empty();
+    }
+};
+
+enum class template_schema_part_kind : std::uint8_t {
+    body = 0U,
+    header,
+    footer,
+    section_header,
+    section_footer,
+};
+
+struct template_schema_part_selector {
+    featherdoc::template_schema_part_kind part{
+        featherdoc::template_schema_part_kind::body};
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind{
+        featherdoc::section_reference_kind::default_reference};
+};
+
+struct template_schema_entry {
+    featherdoc::template_schema_part_selector target{};
+    featherdoc::template_slot_requirement requirement{};
+};
+
+struct template_schema {
+    std::vector<featherdoc::template_schema_entry> entries;
+};
+
+struct template_schema_part_validation_result {
+    featherdoc::template_schema_part_selector target{};
+    std::string entry_name;
+    bool available{false};
+    featherdoc::template_validation_result validation{};
+
+    explicit operator bool() const noexcept {
+        return static_cast<bool>(this->validation);
+    }
+};
+
+struct template_schema_validation_result {
+    std::vector<featherdoc::template_schema_part_validation_result> part_results;
+
+    explicit operator bool() const noexcept {
+        for (const auto &part_result : this->part_results) {
+            if (!static_cast<bool>(part_result)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 };
 
@@ -408,25 +500,6 @@ struct section_page_setup {
     std::uint32_t height_twips{};
     featherdoc::page_margins margins{};
     std::optional<std::uint32_t> page_number_start;
-};
-
-enum class bookmark_kind : std::uint8_t {
-    text = 0U,
-    block,
-    table_rows,
-    block_range,
-    malformed,
-    mixed,
-};
-
-struct bookmark_summary {
-    std::string bookmark_name;
-    std::size_t occurrence_count{};
-    featherdoc::bookmark_kind kind{featherdoc::bookmark_kind::text};
-
-    [[nodiscard]] bool is_duplicate() const noexcept {
-        return this->occurrence_count > 1U;
-    }
 };
 
 struct inline_image_info {
@@ -480,6 +553,7 @@ struct floating_image_options {
     std::int32_t vertical_offset_px{0};
     bool behind_text{false};
     bool allow_overlap{true};
+    std::uint32_t z_order{0};
     featherdoc::floating_image_wrap_mode wrap_mode{
         featherdoc::floating_image_wrap_mode::none};
     std::uint32_t wrap_distance_left_px{0};
@@ -552,6 +626,31 @@ struct style_summary {
     bool is_semi_hidden{false};
     bool is_unhide_when_used{false};
     bool is_quick_format{false};
+};
+
+struct resolved_style_string_property {
+    std::optional<std::string> value;
+    std::optional<std::string> source_style_id;
+};
+
+struct resolved_style_bool_property {
+    std::optional<bool> value;
+    std::optional<std::string> source_style_id;
+};
+
+struct resolved_style_properties_summary {
+    std::string style_id;
+    std::string type_name;
+    std::optional<std::string> based_on;
+    featherdoc::style_kind kind{featherdoc::style_kind::unknown};
+    std::vector<std::string> inheritance_chain;
+    featherdoc::resolved_style_string_property run_font_family{};
+    featherdoc::resolved_style_string_property run_east_asia_font_family{};
+    featherdoc::resolved_style_string_property run_language{};
+    featherdoc::resolved_style_string_property run_east_asia_language{};
+    featherdoc::resolved_style_string_property run_bidi_language{};
+    featherdoc::resolved_style_bool_property run_rtl{};
+    featherdoc::resolved_style_bool_property paragraph_bidi{};
 };
 
 struct style_usage_breakdown {
@@ -924,6 +1023,10 @@ class Document {
     [[nodiscard]] bool remove_related_part(
         std::size_t part_index, std::vector<std::unique_ptr<xml_part_state>> &parts,
         const char *reference_name);
+    [[nodiscard]] bool move_related_part(
+        std::size_t source_index, std::size_t target_index,
+        std::vector<std::unique_ptr<xml_part_state>> &parts,
+        const char *relationship_type);
     [[nodiscard]] bool copy_section_related_part_references(
         std::size_t source_section_index, std::size_t target_section_index,
         const char *reference_name);
@@ -1110,6 +1213,10 @@ class Document {
             featherdoc::section_reference_kind::default_reference);
     [[nodiscard]] bool remove_header_part(std::size_t index);
     [[nodiscard]] bool remove_footer_part(std::size_t index);
+    [[nodiscard]] bool move_header_part(std::size_t source_index,
+                                        std::size_t target_index);
+    [[nodiscard]] bool move_footer_part(std::size_t source_index,
+                                        std::size_t target_index);
     [[nodiscard]] bool copy_section_header_references(std::size_t source_section_index,
                                                       std::size_t target_section_index);
     [[nodiscard]] bool copy_section_footer_references(std::size_t source_section_index,
@@ -1139,6 +1246,14 @@ class Document {
         std::span<const template_slot_requirement> requirements) const;
     [[nodiscard]] template_validation_result validate_template(
         std::initializer_list<template_slot_requirement> requirements) const;
+    [[nodiscard]] featherdoc::template_schema_validation_result
+    validate_template_schema(
+        std::span<const featherdoc::template_schema_entry> entries) const;
+    [[nodiscard]] featherdoc::template_schema_validation_result
+    validate_template_schema(
+        std::initializer_list<featherdoc::template_schema_entry> entries) const;
+    [[nodiscard]] featherdoc::template_schema_validation_result
+    validate_template_schema(const featherdoc::template_schema &schema) const;
     [[nodiscard]] std::size_t replace_bookmark_with_paragraphs(
         std::string_view bookmark_name, const std::vector<std::string> &paragraphs);
     [[nodiscard]] std::size_t replace_bookmark_with_table_rows(
@@ -1206,6 +1321,8 @@ class Document {
     [[nodiscard]] std::vector<featherdoc::style_summary> list_styles();
     [[nodiscard]] std::optional<featherdoc::style_summary> find_style(
         std::string_view style_id);
+    [[nodiscard]] std::optional<featherdoc::resolved_style_properties_summary>
+    resolve_style_properties(std::string_view style_id);
     [[nodiscard]] std::optional<featherdoc::style_usage_summary> find_style_usage(
         std::string_view style_id);
     [[nodiscard]] bool ensure_paragraph_style(
@@ -1227,6 +1344,7 @@ class Document {
         std::string_view style_id);
     [[nodiscard]] std::optional<bool> style_run_rtl(std::string_view style_id);
     [[nodiscard]] std::optional<bool> style_paragraph_bidi(std::string_view style_id);
+    [[nodiscard]] bool materialize_style_run_properties(std::string_view style_id);
     [[nodiscard]] bool set_style_run_font_family(std::string_view style_id,
                                                  std::string_view font_family);
     [[nodiscard]] bool set_style_run_east_asia_font_family(std::string_view style_id,

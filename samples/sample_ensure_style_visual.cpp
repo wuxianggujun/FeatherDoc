@@ -116,6 +116,19 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    auto inherited_paragraph_style = featherdoc::paragraph_style_definition{};
+    inherited_paragraph_style.name = "Review Paragraph Child";
+    inherited_paragraph_style.based_on = std::string{"ReviewPara"};
+    inherited_paragraph_style.next_style = std::string{"ReviewParaChild"};
+    inherited_paragraph_style.is_custom = true;
+    inherited_paragraph_style.is_semi_hidden = false;
+    inherited_paragraph_style.is_unhide_when_used = false;
+    inherited_paragraph_style.is_quick_format = true;
+    if (!doc.ensure_paragraph_style("ReviewParaChild", inherited_paragraph_style)) {
+        print_document_error(doc, "ensure_paragraph_style(ReviewParaChild)");
+        return 1;
+    }
+
     auto character_style = featherdoc::character_style_definition{};
     character_style.name = "Accent Marker";
     character_style.based_on = std::string{"DefaultParagraphFont"};
@@ -157,6 +170,15 @@ int main(int argc, char **argv) {
     if (!paragraph_style_target.has_next() ||
         !doc.set_paragraph_style(paragraph_style_target, "ReviewPara")) {
         print_document_error(doc, "configure paragraph style target");
+        return 1;
+    }
+
+    auto inherited_paragraph_target = append_body_paragraph(
+        doc,
+        "Inherited style target: this paragraph uses ReviewParaChild, so rewriting ReviewPara should flow through the basedOn chain and restyle this line without rebinding the child paragraph.");
+    if (!inherited_paragraph_target.has_next() ||
+        !doc.set_paragraph_style(inherited_paragraph_target, "ReviewParaChild")) {
+        print_document_error(doc, "configure inherited paragraph style target");
         return 1;
     }
 

@@ -390,6 +390,33 @@ if ([string]::IsNullOrWhiteSpace($reviewerChecklistPath)) {
     $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 }
 $taskOutputRoot = Get-OptionalPropertyValue -Object $summary -Name "task_output_root"
+$templateSchemaManifestSummary = Get-OptionalPropertyObject -Object $summary -Name "template_schema_manifest"
+$templateSchemaManifestStep = Get-OptionalPropertyObject -Object $summary.steps -Name "template_schema_manifest"
+$templateSchemaManifestStatus = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "status"
+$templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "passed"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestPassed)) {
+    $templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "passed"
+}
+$templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "entry_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestEntryCount)) {
+    $templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "entry_count"
+}
+$templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "drift_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestDriftCount)) {
+    $templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "drift_count"
+}
+$templateSchemaManifestPath = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "manifest_path"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestPath)) {
+    $templateSchemaManifestPath = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "manifest_path"
+}
+$templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "summary_json"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestSummaryPath)) {
+    $templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "summary_json"
+}
+$templateSchemaManifestOutputDir = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "output_dir"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestOutputDir)) {
+    $templateSchemaManifestOutputDir = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "output_dir"
+}
 
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
@@ -499,6 +526,9 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
 [void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath)")
 [void]$handoffLines.Add("- Execution status: $($summary.execution_status)")
+[void]$handoffLines.Add("- Template schema manifest status: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
+[void]$handoffLines.Add("- Template schema manifest passed: $(Get-DisplayValue -Value $templateSchemaManifestPassed)")
+[void]$handoffLines.Add("- Template schema manifest entries / drifts: $(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
 [void]$handoffLines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 [void]$handoffLines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$handoffLines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
@@ -511,6 +541,7 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Configure: $($summary.steps.configure.status)")
 [void]$handoffLines.Add("- Build: $($summary.steps.build.status)")
 [void]$handoffLines.Add("- Tests: $($summary.steps.tests.status)")
+[void]$handoffLines.Add("- Template schema manifest: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
 [void]$handoffLines.Add("- Install smoke: $($summary.steps.install_smoke.status)")
 [void]$handoffLines.Add("- Visual gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
@@ -533,6 +564,9 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Release summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $releaseSummaryPath)")
 [void]$handoffLines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
 [void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath)")
+[void]$handoffLines.Add("- Template schema manifest: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestPath)")
+[void]$handoffLines.Add("- Template schema manifest summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestSummaryPath)")
+[void]$handoffLines.Add("- Template schema manifest output dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestOutputDir)")
 [void]$handoffLines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$handoffLines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$handoffLines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
@@ -654,6 +688,9 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add("## Validation")
 [void]$handoffLines.Add("- MSVC configure/build: $($summary.steps.configure.status) / $($summary.steps.build.status)")
 [void]$handoffLines.Add("- ctest: $($summary.steps.tests.status)")
+[void]$handoffLines.Add("- Template schema manifest: $(if ($templateSchemaManifestStatus) { $templateSchemaManifestStatus } else { '<completed|failed|not_requested>' })")
+[void]$handoffLines.Add("- Template schema manifest passed: $(if ($templateSchemaManifestPassed) { $templateSchemaManifestPassed } else { '<True|False>' })")
+[void]$handoffLines.Add("- Template schema manifest entries/drifts: $(if ($templateSchemaManifestEntryCount -or $templateSchemaManifestDriftCount) { '{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount } else { '<entry_count>/<drift_count>' })")
 [void]$handoffLines.Add("- install + find_package smoke: $($summary.steps.install_smoke.status)")
 [void]$handoffLines.Add("- Word visual release gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- Visual verdict: $(if ($visualVerdict) { $visualVerdict } else { '<pass|fail|pending_manual_review>' })")
@@ -676,6 +713,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$handoffLines.Add("- $(if ($releaseSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $releaseSummaryPath } else { 'output/release-candidate-checks/report/release_summary.zh-CN.md' })")
 [void]$handoffLines.Add("- $(if ($artifactGuidePath) { Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath } else { 'output/release-candidate-checks/report/ARTIFACT_GUIDE.md' })")
 [void]$handoffLines.Add("- $(if ($reviewerChecklistPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath } else { 'output/release-candidate-checks/report/REVIEWER_CHECKLIST.md' })")
+[void]$handoffLines.Add("- $(if ($templateSchemaManifestSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestSummaryPath } else { 'output/release-candidate-checks/report/template-schema-manifest-checks/summary.json' })")
 [void]$handoffLines.Add("- $(if ($gateSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath } else { 'output/word-visual-release-gate/report/gate_summary.json' })")
 [void]$handoffLines.Add("- $(if ($gateFinalReviewPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath } else { 'output/word-visual-release-gate/report/gate_final_review.md' })")
 [void]$handoffLines.Add('```')

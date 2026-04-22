@@ -89,6 +89,19 @@ Word-rendered baseline/mutated evidence plus per-case and aggregate
 before/after contact sheets under
 `output/template-table-cli-bookmark-visual-regression/`.
 
+For a dedicated Word-rendered overlap check of floating-image anchor z-order,
+use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_floating_image_z_order_visual_regression.ps1
+```
+
+That regression builds the dedicated `sample_floating_image_z_order_visual`
+fixture, verifies both anchored images through CLI inspection and extraction,
+then captures the rendered first page so you can confirm the orange floating
+image overlaps and appears above the blue one under
+`output/floating-image-z-order-visual-regression/`.
+
 For a before/after Word-rendered check of section-scoped template-table
 row/cell commands across `--kind default/even/first`, use:
 
@@ -491,7 +504,9 @@ featherdoc_cli assign-section-footer input.docx 2 1 --output shared-footer.docx 
 featherdoc_cli remove-section-header input.docx 2 --kind even --output detached-header.docx
 featherdoc_cli remove-section-footer input.docx 1 --kind first --output detached-footer.docx
 featherdoc_cli remove-header-part input.docx 1 --output headers-pruned.docx
+featherdoc_cli move-header-part input.docx 1 0 --output headers-reordered.docx --json
 featherdoc_cli remove-footer-part input.docx 0 --output footers-pruned.docx --json
+featherdoc_cli move-footer-part input.docx 1 0 --output footers-reordered.docx --json
 featherdoc_cli show-section-header input.docx 1 --kind even
 featherdoc_cli show-section-footer input.docx 2 --json
 featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
@@ -500,6 +515,18 @@ featherdoc_cli append-page-number-field input.docx --part section-header --secti
 featherdoc_cli set-template-table-from-json report.docx --bookmark line_items_table --patch-file row_patch.json --output report-updated.docx --json
 featherdoc_cli set-template-tables-from-json report.docx --patch-file multi_table_patch.json --output report-updated.docx --json
 featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
+featherdoc_cli validate-template-schema input.docx --target section-header --section 0 --slot header_title:text --target section-footer --section 0 --slot footer_company:text --slot footer_summary:block --json
+featherdoc_cli validate-template-schema input.docx --schema-file template-schema.json --json
+featherdoc_cli export-template-schema input.docx --output template-schema.json --json
+featherdoc_cli export-template-schema input.docx --section-targets --output section-template-schema.json --json
+featherdoc_cli export-template-schema input.docx --resolved-section-targets --output resolved-section-template-schema.json --json
+featherdoc_cli normalize-template-schema template-schema.json --output normalized-template-schema.json --json
+featherdoc_cli diff-template-schema old-template-schema.json new-template-schema.json --json
+featherdoc_cli diff-template-schema committed-schema.json generated-schema.json --fail-on-diff --json
+featherdoc_cli check-template-schema input.docx --schema-file committed-schema.json --resolved-section-targets --output generated-schema.json --json
+pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
 ```
 
 `inspect-sections` prints the current section count together with per-section
@@ -530,6 +557,14 @@ featherdoc_cli set-run-font-family input.docx 4 1 Consolas --output font-run.doc
 featherdoc_cli clear-run-font-family input.docx 4 1 --output cleared-run-font.docx --json
 featherdoc_cli set-run-language input.docx 4 1 en-US --output language-run.docx --json
 featherdoc_cli clear-run-language input.docx 4 1 --output cleared-run-language.docx --json
+featherdoc_cli inspect-default-run-properties input.docx --json
+featherdoc_cli set-default-run-properties input.docx --font-family "Segoe UI" --east-asia-font-family "Microsoft YaHei" --language en-US --east-asia-language zh-CN --rtl true --output default-run-properties.docx --json
+featherdoc_cli clear-default-run-properties input.docx --primary-language --rtl --output cleared-default-run-properties.docx --json
+featherdoc_cli inspect-style-run-properties input.docx Normal --json
+featherdoc_cli materialize-style-run-properties input.docx Normal --output materialized-style-run-properties.docx --json
+featherdoc_cli set-style-run-properties input.docx Normal --font-family "Segoe UI" --east-asia-font-family "Microsoft YaHei" --language en-US --east-asia-language zh-CN --rtl true --paragraph-bidi true --output style-run-properties.docx --json
+featherdoc_cli clear-style-run-properties input.docx Normal --primary-language --rtl --paragraph-bidi --output cleared-style-run-properties.docx --json
+featherdoc_cli inspect-style-inheritance input.docx Normal --json
 featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
 featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
 featherdoc_cli ensure-numbering-definition input.docx --definition-name OutlineReview --numbering-level 0:decimal:1:%1. --output numbering.docx --json
@@ -569,7 +604,9 @@ already loaded header/footer part by index. `remove-section-header` /
 `remove-section-footer` detach one section-level reference kind without
 removing the underlying part if it is still used elsewhere. `remove-header-part`
 / `remove-footer-part` drop one loaded part entirely and detach every section
-reference that points at it.
+reference that points at it. `move-header-part` / `move-footer-part` reorder the
+loaded part indexes while keeping section references bound to the same
+underlying relationship ids.
 
 `show-section-header` / `show-section-footer` print the referenced paragraphs
 one line per paragraph. `set-section-header` / `set-section-footer` rewrite the
@@ -646,6 +683,24 @@ A local `run_release_candidate_checks.ps1` execution also writes
 `output/release-candidate-checks/START_HERE.md`; use that summary-root note as
 the first entry before you open `report/ARTIFACT_GUIDE.md` or
 `REVIEWER_CHECKLIST.md`.
+
+If you also want release-preflight to gate a template DOCX against a committed
+schema baseline, pass `-TemplateSchemaInputDocx`, `-TemplateSchemaBaseline`,
+and one of `-TemplateSchemaSectionTargets` /
+`-TemplateSchemaResolvedSectionTargets`. The wrapper then records that check in
+`report/summary.json` and fails the whole preflight on schema drift.
+
+If you want the same preflight to gate every repository-registered template
+schema baseline at once, pass `-TemplateSchemaManifestPath` instead. The
+wrapper then runs `check_template_schema_manifest.ps1`, records the manifest
+status plus entry/drift counts in `report/summary.json`, and fails the whole
+preflight when any registered baseline drifts.
+
+When you want to add or refresh a repository-level baseline without manually
+editing `baselines/template-schema/manifest.json`, prefer
+`register_template_schema_manifest_entry.ps1`. It prepares a generated fixture
+when needed, freezes the normalized schema baseline, and writes or updates the
+matching manifest entry in one step.
 
 The same workflow now also uploads a separate `windows-msvc-release-metadata`
 artifact containing `build-msvc-install/share/FeatherDoc/**`, a root-level
@@ -767,10 +822,13 @@ you want to get done:
 - Work with sections, headers/footers, and page setup:
   `inspect_sections()`, `get_section_page_setup()`, `set_section_page_setup()`,
   `ensure_*header*()`, `ensure_*footer*()`, `append_section()`,
-  `insert_section()`, `move_section()`
+  `insert_section()`, `move_section()`, `move_header_part()`,
+  `move_footer_part()`
 - Work with styles, numbering, and language metadata:
   `list_styles()`, `find_style()`, `ensure_*style()`,
-  `ensure_numbering_definition()`, `set_paragraph_style_numbering()`
+  `ensure_numbering_definition()`, `set_paragraph_style_numbering()`,
+  `default_run_*()`, `style_run_*()`, `resolve_style_properties()`,
+  `materialize_style_run_properties()`
 - Prefer the CLI for scriptable inspection or one-shot rewrites:
   `inspect-*`, `validate-template`, `append-page-number-field`,
   `set-section-page-setup`
@@ -1093,10 +1151,9 @@ Use `append_floating_image(path, options)` or
 `append_floating_image(path, width_px, height_px, options)` when you want an
 anchored `wp:anchor` image with explicit margin/page-relative offsets.
 `floating_image_options` currently lets you pick horizontal/vertical reference
-frames, pixel offsets, whether the image sits behind text, and whether overlap
-is allowed. The same API works on `Document` and `TemplatePart`. The generated
-floating drawing currently uses `wrapNone`, so Word does not reflow
-surrounding text for you.
+frames, pixel offsets, whether the image sits behind text, whether overlap is
+allowed, the anchor z-order, rectangular wrap modes plus wrap distances, and
+basic crop values. The same API works on `Document` and `TemplatePart`.
 
 ```cpp
 featherdoc::floating_image_options options;
@@ -1106,6 +1163,11 @@ options.horizontal_offset_px = 460;
 options.vertical_reference =
     featherdoc::floating_image_vertical_reference::margin;
 options.vertical_offset_px = 24;
+options.z_order = 32;
+options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
+options.wrap_distance_left_px = 12;
+options.wrap_distance_right_px = 12;
+options.crop = featherdoc::floating_image_crop{90U, 0U, 140U, 0U};
 
 doc.append_floating_image("badge.png", 144, 48, options);
 
@@ -1417,6 +1479,84 @@ if (footer_template) {
 }
 ```
 
+When you need one document-level contract for multiple parts at once, use
+`Document::validate_template_schema(...)` and group requirements by body,
+header, footer, or section-scoped header/footer targets.
+
+```cpp
+const auto result = doc.validate_template_schema({
+    {
+        {featherdoc::template_schema_part_kind::section_header, std::nullopt, 0U,
+         featherdoc::section_reference_kind::default_reference},
+        {"header_title", featherdoc::template_slot_kind::text, true},
+    },
+    {
+        {featherdoc::template_schema_part_kind::section_footer, std::nullopt, 0U,
+         featherdoc::section_reference_kind::default_reference},
+        {"footer_signature", featherdoc::template_slot_kind::text, true},
+    },
+});
+```
+
+For a runnable document-level sample, build
+`featherdoc_sample_template_schema_validation` from
+`samples/sample_template_schema_validation.cpp`. The CLI equivalent is
+`featherdoc_cli validate-template-schema ...`, which also accepts
+`--schema-file <path>` for reusable JSON schema contracts.
+
+The schema-file flow accepts either compact string slots such as
+`"header_title:text"` or structured slot objects:
+
+```json
+{
+  "targets": [
+    {
+      "part": "section-header",
+      "section": 0,
+      "kind": "default",
+      "slots": [
+        { "bookmark": "header_title", "kind": "text" },
+        { "bookmark_name": "header_note", "kind": "block", "required": true },
+        { "bookmark": "header_rows", "kind": "table_rows", "count": 1 }
+      ]
+    }
+  ]
+}
+```
+
+A ready-to-run example lives at
+`samples/template_schema_validation.schema.json`.
+
+If you do not want to hand-author the first schema, start from an existing
+template:
+
+```bash
+featherdoc_cli export-template-schema input.docx --output template-schema.json --json
+featherdoc_cli validate-template-schema input.docx --schema-file template-schema.json --json
+```
+
+`export-template-schema` currently emits body plus loaded `header[index]` /
+`footer[index]` targets by default. Pass `--section-targets` when you want the
+same export rewritten as `section-header` / `section-footer` targets for direct
+section references. Pass `--resolved-section-targets` when you need the
+effective per-section header/footer view after following linked-to-previous
+references; that export also includes metadata such as
+`resolved_from_section` / `linked_to_previous`, and the JSON can still be fed
+back into `validate-template-schema --schema-file ...`. All three modes
+serialize representable bookmark kinds using the same lightweight
+classification returned by `list_bookmarks()`. If you need a stable schema file
+for reviews or commits, run `normalize-template-schema`; if you need to compare
+two revisions, use `diff-template-schema` to get added / removed / changed
+targets directly. Add `--fail-on-diff` when you want the diff command to behave
+like a CI gate and return a non-zero exit code on schema drift. If you want a
+single command that exports, normalizes, compares, and gates against a committed
+baseline, use `check-template-schema`; it returns `0` on match and `1` on drift,
+and can optionally write the normalized generated schema with `--output`. If you
+prefer a higher-level repository entrypoint, the wrapper scripts
+`scripts/freeze_template_schema_baseline.ps1` and
+`scripts/check_template_schema_baseline.ps1` provide the same workflow with
+optional CLI auto-build/reuse logic.
+
 `append_paragraph(...)` appends a new paragraph to the existing body/header/footer
 part and returns the appended `Paragraph`, so you can immediately continue
 editing it through `add_run(...)`, `set_text(...)`, or bidi-related paragraph
@@ -1667,6 +1807,11 @@ if (const auto error = doc.save()) {
 }
 ```
 
+The CLI now exposes the same `docDefaults` surface through
+`inspect-default-run-properties`, `set-default-run-properties`, and
+`clear-default-run-properties` when you need the same default font/language/RTL
+edits from scripts instead of C++.
+
 When one paragraph needs its own override, call `run.set_font_family(...)`,
 `run.set_east_asia_font_family(...)`, `run.set_language(...)`, and
 `run.set_east_asia_language(...)` on the returned `Run`.
@@ -1798,7 +1943,8 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   `copy_section_footer_references()`. New sections can now be appended or
   inserted after an existing section through `append_section()` /
   `insert_section()`, removed through `remove_section()`, and reordered through
-  `move_section()`, but there is still no high-level API for part reordering.
+  `move_section()`. Header/footer part indexes can now also be reordered
+  through `move_header_part()` / `move_footer_part()`.
 - Word equations (`OMML`) are not surfaced through a typed equation API.
 - Tables can now be appended, extended structurally, given explicit cell,
   column, and table widths, merged horizontally and vertically, assigned
@@ -1811,20 +1957,35 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   there is still no high-level API for custom table style definitions or
   floating table positioning.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
-  restart managed list sequences, but there is still no high-level API for
-  custom numbering definitions or paragraph style-based numbering.
+  restart managed list sequences. Custom numbering definitions and
+  paragraph-style numbering are now supported through
+  `ensure_numbering_definition(...)` and
+  `set_paragraph_style_numbering(...)`, but there is still no richer
+  import/export or override-management layer for existing numbering catalogs.
 - Paragraph and run style references can now be attached and cleared, and a
-  minimal `word/styles.xml` is created automatically when needed, but there is
-  still no high-level API for custom style definition editing, style catalog
-  inspection, or inheritance-aware style management.
+  minimal `word/styles.xml` is created automatically when needed. Style
+  catalog inspection and minimal paragraph/character/table style definition
+  editing are now available through `list_styles()`, `find_style()`,
+  `find_style_usage()`, `resolve_style_properties()`, and the
+  `ensure_*_style(...)` helpers. Effective inherited
+  font/language/RTL/paragraph-bidi inspection is now available, and
+  `materialize_style_run_properties(...)` can now freeze those supported
+  inherited properties onto the child style, but there is still no fully
+  inheritance-aware style refactoring or mutation layer.
 - Bookmark-based template filling now works across body, header, and footer
   parts through `fill_bookmarks(...)`, the standalone replacement helpers, and
   `TemplatePart` handles returned by `body_template()`, `header_template()`,
   `footer_template()`, `section_header_template()`, and
   `section_footer_template()`. Conditional block visibility is now supported
   through `set_bookmark_block_visibility(...)` and
-  `apply_bookmark_block_visibility(...)`, but there is still no high-level API
-  for structured template schema validation.
+  `apply_bookmark_block_visibility(...)`, and `validate_template(...)` now
+  covers slot declarations, missing required slots, duplicate names,
+  malformed placeholders, unexpected bookmarks, kind mismatches, and
+  occurrence constraints. Document-level multi-part schema validation is now
+  available through `validate_template_schema(...)` plus
+  `featherdoc_cli validate-template-schema`, and reusable JSON schema files can
+  now be fed through `--schema-file`, but there is still no richer schema
+  mutation layer or external schema-management toolchain.
 - Images can now be appended as inline body drawings, enumerated through
   `inline_images()` or the broader `drawing_images()`, extracted through
   `extract_inline_image(...)` / `extract_drawing_image(...)`, removed through
@@ -1833,8 +1994,10 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   Floating body image creation is now supported through
   `append_floating_image(...)`, and bookmark-based floating image replacement
   is available through `replace_bookmark_with_floating_image(...)` across
-  body, header, and footer `TemplatePart` handles. Advanced wrapping and
-  cropping control are still not exposed as high-level APIs.
+  body, header, and footer `TemplatePart` handles. Rectangular wrapping,
+  crop values, overlap control, and anchor z-order are now exposed through
+  `floating_image_options`, but more advanced drawing behaviors are still not
+  surfaced as high-level APIs.
 
 ## Source Layout
 

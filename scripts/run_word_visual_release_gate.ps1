@@ -53,6 +53,7 @@ param(
     [string]$ParagraphStyleNumberingBuildDir = "build-paragraph-style-numbering-visual-nmake",
     [string]$FillBookmarksBuildDir = "build-fill-bookmarks-visual-nmake",
     [string]$AppendImageBuildDir = "build-append-image-visual-nmake",
+    [string]$FloatingImageZOrderBuildDir = "build-floating-image-z-order-visual-nmake",
     [string]$TableRowBuildDir = "build-table-row-visual-nmake",
     [string]$TableRowHeightBuildDir = "build-table-row-height-visual-nmake",
     [string]$TableRowCantSplitBuildDir = "build-table-row-cant-split-visual-nmake",
@@ -102,6 +103,7 @@ param(
     [switch]$SkipParagraphStyleNumbering,
     [switch]$SkipFillBookmarks,
     [switch]$SkipAppendImage,
+    [switch]$SkipFloatingImageZOrder,
     [switch]$SkipTableRow,
     [switch]$SkipTableRowHeight,
     [switch]$SkipTableRowCantSplit,
@@ -514,6 +516,7 @@ if (
     $SkipParagraphStyleNumbering -and
     $SkipFillBookmarks -and
     $SkipAppendImage -and
+    $SkipFloatingImageZOrder -and
     $SkipTableRow -and
     $SkipTableRowHeight -and
     $SkipTableRowCantSplit -and
@@ -568,6 +571,7 @@ $resolvedParagraphRunStyleOutputDir = Join-Path $resolvedGateOutputDir "paragrap
 $resolvedParagraphStyleNumberingOutputDir = Join-Path $resolvedGateOutputDir "paragraph-style-numbering"
 $resolvedFillBookmarksOutputDir = Join-Path $resolvedGateOutputDir "fill-bookmarks"
 $resolvedAppendImageOutputDir = Join-Path $resolvedGateOutputDir "append-image"
+$resolvedFloatingImageZOrderOutputDir = Join-Path $resolvedGateOutputDir "floating-image-z-order"
 $resolvedTableRowOutputDir = Join-Path $resolvedGateOutputDir "table-row"
 $resolvedTableRowHeightOutputDir = Join-Path $resolvedGateOutputDir "table-row-height"
 $resolvedTableRowCantSplitOutputDir = Join-Path $resolvedGateOutputDir "table-row-cant-split"
@@ -638,6 +642,8 @@ $fillBookmarksOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot 
     -TargetPath $resolvedFillBookmarksOutputDir -Label "Fill bookmarks output directory"
 $appendImageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedAppendImageOutputDir -Label "Append image output directory"
+$floatingImageZOrderOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedFloatingImageZOrderOutputDir -Label "Floating image z-order output directory"
 $tableRowOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedTableRowOutputDir -Label "Table row output directory"
 $tableRowHeightOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
@@ -720,6 +726,7 @@ $paragraphRunStyleScript = Join-Path $repoRoot "scripts\run_paragraph_run_style_
 $paragraphStyleNumberingScript = Join-Path $repoRoot "scripts\run_paragraph_style_numbering_visual_regression.ps1"
 $fillBookmarksScript = Join-Path $repoRoot "scripts\run_fill_bookmarks_visual_regression.ps1"
 $appendImageScript = Join-Path $repoRoot "scripts\run_append_image_visual_regression.ps1"
+$floatingImageZOrderScript = Join-Path $repoRoot "scripts\run_floating_image_z_order_visual_regression.ps1"
 $tableRowScript = Join-Path $repoRoot "scripts\run_table_row_visual_regression.ps1"
 $tableRowHeightScript = Join-Path $repoRoot "scripts\run_table_row_height_visual_regression.ps1"
 $tableRowCantSplitScript = Join-Path $repoRoot "scripts\run_table_row_cant_split_visual_regression.ps1"
@@ -881,6 +888,15 @@ $curatedVisualFlowDescriptors = @(
         output_dir = $resolvedAppendImageOutputDir
         output_dir_for_child = $appendImageOutputDirForChild
         script_path = $appendImageScript
+    },
+    [ordered]@{
+        id = "floating-image-z-order"
+        label = "Floating image z-order"
+        skip = $SkipFloatingImageZOrder.IsPresent
+        build_dir = $FloatingImageZOrderBuildDir
+        output_dir = $resolvedFloatingImageZOrderOutputDir
+        output_dir_for_child = $floatingImageZOrderOutputDirForChild
+        script_path = $floatingImageZOrderScript
     },
     [ordered]@{
         id = "table-row"

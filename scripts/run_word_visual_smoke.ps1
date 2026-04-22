@@ -267,6 +267,108 @@ function Assert-RenderedEvidence {
     }
 }
 
+function Get-ReviewNotes {
+    param(
+        [switch]$CustomInput
+    )
+
+    if ($CustomInput) {
+        return @(
+            "Fill findings after the visual Word review is complete.",
+            "Keep verdict as pass/fail/undetermined according to screenshot evidence.",
+            "Confirm the exported PDF and rendered PNG pages match the intended Word layout for this custom input document.",
+            "Check page breaks, text flow, tables, headers/footers, images, and spacing for unexpected drift after Word export.",
+            "Use the generated contact sheet plus page PNGs as the source of truth when recording findings."
+        )
+    }
+
+    return @(
+        "Fill findings after the visual Word review is complete.",
+        "Keep verdict as pass/fail/undetermined according to screenshot evidence.",
+        "Confirm the Chinese/CJK and RTL/bidi sample text inherits readable fonts plus w:lang markers from docDefaults and style-based run formatting without tofu, broken RTL order, or unstable line wrapping.",
+        "Confirm table-cell w:textDirection samples keep vertical or rotated text readable without clipped glyphs, border drift, or row-height collapse.",
+        "Confirm narrow table cells with mixed RTL/LTR/CJK content keep sane ordering, punctuation, line wrapping, and no overlap.",
+        "Confirm the fixed-grid merge_right() cue keeps the blue merged cell visibly wider than the 1000-twip base column and still narrower than the green 4100-twip tail column; if it collapses to the narrow width, tcW synchronization likely regressed.",
+        "Confirm the unmerge showcase restores standalone orange and green cells after unmerge_right()/unmerge_down() without leftover merge artifacts, border breaks, or row-height collapse.",
+        "Confirm the column-insertion showcase keeps inserted columns aligned after insert_cell_before()/insert_cell_after() and after the merged-boundary insert without broken borders, missing fills, or misplaced cell order.",
+        "Confirm the column-width showcase keeps the left key column narrow, the middle column medium, and the right evidence column visibly widest after Table::set_column_width_twips(...) edits."
+    )
+}
+
+function Get-ReviewChecklist {
+    param(
+        [switch]$CustomInput,
+        [string]$DocxPath,
+        [string]$PdfPath,
+        [string]$EvidenceDir,
+        [string]$PagesDir,
+        [string]$ContactSheetPath,
+        [string]$ReportDir,
+        [string]$SummaryPath,
+        [string]$ReviewResultPath,
+        [string]$FinalReviewPath,
+        [string]$RepairDir
+    )
+
+    if ($CustomInput) {
+        return @"
+# Word visual smoke checklist
+
+- Verify the rendered pages match the expected Word layout for this custom input document.
+- Verify page breaks, paragraph spacing, and line wrapping stay stable after Word export.
+- Verify tables, borders, fills, alignment, and cell sizing do not drift unexpectedly.
+- Verify images, floating objects, and any overlap or z-order-dependent layout remain visually correct.
+- Verify headers, footers, and page-number fields still appear where expected.
+- Record any page-specific regressions in final_review.md and review_result.json.
+
+Artifacts:
+
+- DOCX: $DocxPath
+- PDF: $PdfPath
+- Evidence directory: $EvidenceDir
+- PNG pages: $PagesDir
+- Contact sheet: $ContactSheetPath
+- Report directory: $ReportDir
+- Summary JSON: $SummaryPath
+- Review result JSON: $ReviewResultPath
+- Final review Markdown: $FinalReviewPath
+- Reserved repair directory: $RepairDir
+"@
+    }
+
+    return @"
+# Word visual smoke checklist
+
+- Verify the overview table banner spans the full first row without broken borders.
+- Verify the yellow vertical-merge block spans two rows without duplicate content.
+- Verify the multi-page audit table repeats its header row on every later page.
+- Verify the highlighted cantSplit row (``R16``) stays entirely on one page.
+- Verify fills, margins, and centered cells still look intentional after Word export.
+- Verify the Chinese/CJK and RTL/bidi samples inherit readable glyphs plus ``w:lang`` language markers from docDefaults and ``Strong`` style formatting with stable line breaks, sane RTL order, and no obvious fallback-font drift.
+- Verify the direction stress table keeps table-cell ``w:textDirection`` vertical/rotated text readable, with stable row heights and no clipped glyphs.
+- Verify the narrow mixed RTL/LTR/CJK cells keep sane wrap order, punctuation placement, border continuity, and no overlap beside rotated cells.
+- Verify the fixed-grid ``merge_right()`` cue keeps the blue merged cell visibly wider than the gray ``1000`` base column and still narrower than the green ``4100`` tail column.
+- Verify the unmerge showcase restores the orange and green cells as clean standalone cells after ``unmerge_right()`` / ``unmerge_down()`` without stray merge artifacts.
+- Verify the yellow/orange inserted columns stay in the expected order after ``insert_cell_after()`` and ``insert_cell_before()`` without width collapse, broken borders, or misplaced fills.
+- Verify the merged-boundary insertion keeps a yellow cell between the blue merged block and the green tail without stray merge artifacts.
+- Verify the column-width showcase keeps the blue key column narrow, the yellow middle column medium, and the green evidence column clearly widest.
+- Verify the final merge matrix has no clipped text, border gaps, or missing shading.
+
+Artifacts:
+
+- DOCX: $DocxPath
+- PDF: $PdfPath
+- Evidence directory: $EvidenceDir
+- PNG pages: $PagesDir
+- Contact sheet: $ContactSheetPath
+- Report directory: $ReportDir
+- Summary JSON: $SummaryPath
+- Review result JSON: $ReviewResultPath
+- Final review Markdown: $FinalReviewPath
+- Reserved repair directory: $RepairDir
+"@
+}
+
 $repoRoot = Resolve-RepoRoot
 $vcvarsPath = Get-VcvarsPath
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
@@ -332,6 +434,7 @@ if ($LASTEXITCODE -ne 0) {
 $summary = Get-Content -Path $summaryPath -Raw | ConvertFrom-Json
 $pdfPageCount = Get-PdfPageCount -PythonCommand $renderPython -PdfPath $pdfPath
 Assert-RenderedEvidence -Summary $summary -PagesDir $pagesDir -ContactSheetPath $contactSheetPath -PdfPageCount $pdfPageCount
+$customInput = [bool]$InputDocx
 $reviewResult = [ordered]@{
     document_path = $docxPath
     pdf_path = $pdfPath
@@ -349,17 +452,7 @@ $reviewResult = [ordered]@{
         page_images = @($summary.pages)
     }
     findings = @()
-    notes = @(
-        "Fill findings after the visual Word review is complete.",
-        "Keep verdict as pass/fail/undetermined according to screenshot evidence.",
-        "Confirm the Chinese/CJK and RTL/bidi sample text inherits readable fonts plus w:lang markers from docDefaults and style-based run formatting without tofu, broken RTL order, or unstable line wrapping.",
-        "Confirm table-cell w:textDirection samples keep vertical or rotated text readable without clipped glyphs, border drift, or row-height collapse.",
-        "Confirm narrow table cells with mixed RTL/LTR/CJK content keep sane ordering, punctuation, line wrapping, and no overlap.",
-        "Confirm the fixed-grid merge_right() cue keeps the blue merged cell visibly wider than the 1000-twip base column and still narrower than the green 4100-twip tail column; if it collapses to the narrow width, tcW synchronization likely regressed.",
-        "Confirm the unmerge showcase restores standalone orange and green cells after unmerge_right()/unmerge_down() without leftover merge artifacts, border breaks, or row-height collapse.",
-        "Confirm the column-insertion showcase keeps inserted columns aligned after insert_cell_before()/insert_cell_after() and after the merged-boundary insert without broken borders, missing fills, or misplaced cell order.",
-        "Confirm the column-width showcase keeps the left key column narrow, the middle column medium, and the right evidence column visibly widest after Table::set_column_width_twips(...) edits."
-    )
+    notes = @(Get-ReviewNotes -CustomInput:$customInput)
 }
 ($reviewResult | ConvertTo-Json -Depth 6) | Set-Content -Path $reviewResultPath -Encoding UTF8
 
@@ -398,37 +491,17 @@ $finalReview = @"
 "@
 $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
-$checklist = @"
-# Word visual smoke checklist
-
-- Verify the overview table banner spans the full first row without broken borders.
-- Verify the yellow vertical-merge block spans two rows without duplicate content.
-- Verify the multi-page audit table repeats its header row on every later page.
-- Verify the highlighted cantSplit row (``R16``) stays entirely on one page.
-- Verify fills, margins, and centered cells still look intentional after Word export.
-- Verify the Chinese/CJK and RTL/bidi samples inherit readable glyphs plus ``w:lang`` language markers from docDefaults and ``Strong`` style formatting with stable line breaks, sane RTL order, and no obvious fallback-font drift.
-- Verify the direction stress table keeps table-cell ``w:textDirection`` vertical/rotated text readable, with stable row heights and no clipped glyphs.
-- Verify the narrow mixed RTL/LTR/CJK cells keep sane wrap order, punctuation placement, border continuity, and no overlap beside rotated cells.
-- Verify the fixed-grid ``merge_right()`` cue keeps the blue merged cell visibly wider than the gray ``1000`` base column and still narrower than the green ``4100`` tail column.
-- Verify the unmerge showcase restores the orange and green cells as clean standalone cells after ``unmerge_right()`` / ``unmerge_down()`` without stray merge artifacts.
-- Verify the yellow/orange inserted columns stay in the expected order after ``insert_cell_after()`` and ``insert_cell_before()`` without width collapse, broken borders, or misplaced fills.
-- Verify the merged-boundary insertion keeps a yellow cell between the blue merged block and the green tail without stray merge artifacts.
-- Verify the column-width showcase keeps the blue key column narrow, the yellow middle column medium, and the green evidence column clearly widest.
-- Verify the final merge matrix has no clipped text, border gaps, or missing shading.
-
-Artifacts:
-
-- DOCX: $docxPath
-- PDF: $pdfPath
-- Evidence directory: $evidenceDir
-- PNG pages: $pagesDir
-- Contact sheet: $contactSheetPath
-- Report directory: $reportDir
-- Summary JSON: $summaryPath
-- Review result JSON: $reviewResultPath
-- Final review Markdown: $finalReviewPath
-- Reserved repair directory: $repairDir
-"@
+$checklist = Get-ReviewChecklist -CustomInput:$customInput `
+    -DocxPath $docxPath `
+    -PdfPath $pdfPath `
+    -EvidenceDir $evidenceDir `
+    -PagesDir $pagesDir `
+    -ContactSheetPath $contactSheetPath `
+    -ReportDir $reportDir `
+    -SummaryPath $summaryPath `
+    -ReviewResultPath $reviewResultPath `
+    -FinalReviewPath $finalReviewPath `
+    -RepairDir $repairDir
 $checklist | Set-Content -Path $checklistPath -Encoding UTF8
 
 Write-Step "Completed visual smoke run"

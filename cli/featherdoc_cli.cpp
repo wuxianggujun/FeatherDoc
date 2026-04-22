@@ -23,6 +23,31 @@ struct command_options {
     bool json_output = false;
 };
 
+struct export_template_schema_options {
+    std::optional<path_type> output_path;
+    bool section_targets = false;
+    bool resolved_section_targets = false;
+    bool json_output = false;
+};
+
+struct normalize_template_schema_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct diff_template_schema_options {
+    bool json_output = false;
+    bool fail_on_diff = false;
+};
+
+struct check_template_schema_options {
+    std::optional<path_type> schema_path;
+    std::optional<path_type> output_path;
+    bool section_targets = false;
+    bool resolved_section_targets = false;
+    bool json_output = false;
+};
+
 struct inspect_options {
     bool json_output = false;
 };
@@ -30,6 +55,10 @@ struct inspect_options {
 struct inspect_styles_options {
     std::optional<std::string> style_id;
     bool usage_output = false;
+    bool json_output = false;
+};
+
+struct inspect_style_inheritance_options {
     bool json_output = false;
 };
 
@@ -151,6 +180,94 @@ struct set_run_language_options {
 struct clear_run_language_options {
     std::optional<path_type> output_path;
     bool json_output = false;
+};
+
+struct inspect_default_run_properties_options {
+    bool json_output = false;
+};
+
+struct set_default_run_properties_options {
+    std::optional<std::string> font_family;
+    std::optional<std::string> east_asia_font_family;
+    std::optional<std::string> language;
+    std::optional<std::string> east_asia_language;
+    std::optional<std::string> bidi_language;
+    std::optional<bool> rtl;
+    std::optional<bool> paragraph_bidi;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct clear_default_run_properties_options {
+    bool clear_font_family = false;
+    bool clear_east_asia_font_family = false;
+    bool clear_primary_language = false;
+    bool clear_language = false;
+    bool clear_east_asia_language = false;
+    bool clear_bidi_language = false;
+    bool clear_rtl = false;
+    bool clear_paragraph_bidi = false;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct default_run_properties_summary {
+    std::optional<std::string> font_family;
+    std::optional<std::string> east_asia_font_family;
+    std::optional<std::string> language;
+    std::optional<std::string> east_asia_language;
+    std::optional<std::string> bidi_language;
+    std::optional<bool> rtl;
+    std::optional<bool> paragraph_bidi;
+};
+
+struct inspect_style_run_properties_options {
+    bool json_output = false;
+};
+
+struct materialize_style_run_properties_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct set_style_run_properties_options {
+    std::optional<std::string> font_family;
+    std::optional<std::string> east_asia_font_family;
+    std::optional<std::string> language;
+    std::optional<std::string> east_asia_language;
+    std::optional<std::string> bidi_language;
+    std::optional<bool> rtl;
+    std::optional<bool> paragraph_bidi;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct clear_style_run_properties_options {
+    bool clear_font_family = false;
+    bool clear_east_asia_font_family = false;
+    bool clear_primary_language = false;
+    bool clear_language = false;
+    bool clear_east_asia_language = false;
+    bool clear_bidi_language = false;
+    bool clear_rtl = false;
+    bool clear_paragraph_bidi = false;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct style_run_properties_summary {
+    std::optional<std::string> font_family;
+    std::optional<std::string> east_asia_font_family;
+    std::optional<std::string> language;
+    std::optional<std::string> east_asia_language;
+    std::optional<std::string> bidi_language;
+    std::optional<bool> rtl;
+    std::optional<bool> paragraph_bidi;
+};
+
+struct materialized_style_run_property_summary {
+    std::string field;
+    std::string source_style_id;
 };
 
 struct set_paragraph_style_numbering_options {
@@ -653,6 +770,22 @@ struct validate_template_options {
     bool json_output = false;
 };
 
+struct validate_template_schema_target_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::vector<featherdoc::template_slot_requirement> requirements;
+    bool has_kind = false;
+};
+
+struct validate_template_schema_options {
+    std::vector<validate_template_schema_target_options> targets;
+    std::vector<path_type> schema_files;
+    bool json_output = false;
+};
+
 struct append_field_options {
     validation_part_family part = validation_part_family::body;
     std::optional<std::size_t> part_index;
@@ -679,6 +812,58 @@ struct applied_template_table_json_batch_operation {
     std::size_t table_index = 0U;
     featherdoc::template_table_selector selector;
     template_table_json_patch patch;
+};
+
+struct exported_template_schema_target {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    std::optional<featherdoc::section_reference_kind> reference_kind;
+    std::optional<std::size_t> resolved_from_section_index;
+    bool linked_to_previous = false;
+    std::string entry_name;
+    std::vector<featherdoc::template_slot_requirement> requirements;
+};
+
+struct exported_template_schema_skipped_bookmark {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    std::optional<featherdoc::section_reference_kind> reference_kind;
+    std::optional<std::size_t> resolved_from_section_index;
+    bool linked_to_previous = false;
+    std::string entry_name;
+    featherdoc::bookmark_summary bookmark;
+    std::string reason;
+};
+
+struct exported_template_schema_result {
+    std::vector<exported_template_schema_target> targets;
+    std::vector<exported_template_schema_skipped_bookmark> skipped_bookmarks;
+
+    [[nodiscard]] std::size_t slot_count() const noexcept {
+        std::size_t total = 0U;
+        for (const auto &target : this->targets) {
+            total += target.requirements.size();
+        }
+        return total;
+    }
+};
+
+struct changed_template_schema_target {
+    exported_template_schema_target left;
+    exported_template_schema_target right;
+};
+
+struct template_schema_diff_result {
+    std::vector<exported_template_schema_target> added_targets;
+    std::vector<exported_template_schema_target> removed_targets;
+    std::vector<changed_template_schema_target> changed_targets;
+
+    [[nodiscard]] bool equal() const noexcept {
+        return this->added_targets.empty() && this->removed_targets.empty() &&
+               this->changed_targets.empty();
+    }
 };
 
 template <typename ExtraWriter>
@@ -721,6 +906,8 @@ void print_usage(std::ostream &stream) {
         << "    [--json]\n"
         << "  featherdoc_cli inspect-styles <input.docx>"
            " [--style <style-id>] [--usage] [--json]\n"
+        << "  featherdoc_cli inspect-style-inheritance <input.docx> <style-id>"
+           " [--json]\n"
         << "  featherdoc_cli inspect-numbering <input.docx>"
            " [--definition <id>] [--instance <num-id>] [--json]\n"
         << "  featherdoc_cli inspect-paragraphs <input.docx>"
@@ -972,6 +1159,30 @@ void print_usage(std::ostream &stream) {
            " <run-index> <language> [--output <path>] [--json]\n"
         << "  featherdoc_cli clear-run-language <input.docx> <paragraph-index>"
            " <run-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli inspect-default-run-properties <input.docx>"
+           " [--json]\n"
+        << "  featherdoc_cli set-default-run-properties <input.docx>"
+           " [--font-family <name>] [--east-asia-font-family <name>]"
+           " [--language <tag>] [--east-asia-language <tag>]"
+           " [--bidi-language <tag>] [--rtl true|false]"
+           " [--paragraph-bidi true|false] [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-default-run-properties <input.docx>"
+           " [--font-family] [--east-asia-font-family] [--primary-language]"
+           " [--language] [--east-asia-language] [--bidi-language] [--rtl]"
+           " [--paragraph-bidi] [--output <path>] [--json]\n"
+        << "  featherdoc_cli inspect-style-run-properties <input.docx> <style-id>"
+           " [--json]\n"
+        << "  featherdoc_cli materialize-style-run-properties <input.docx> <style-id>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-style-run-properties <input.docx> <style-id>"
+           " [--font-family <name>] [--east-asia-font-family <name>]"
+           " [--language <tag>] [--east-asia-language <tag>]"
+           " [--bidi-language <tag>] [--rtl true|false]"
+           " [--paragraph-bidi true|false] [--output <path>] [--json]\n"
+        << "  featherdoc_cli clear-style-run-properties <input.docx> <style-id>"
+           " [--font-family] [--east-asia-font-family] [--primary-language]"
+           " [--language] [--east-asia-language] [--bidi-language] [--rtl]"
+           " [--paragraph-bidi] [--output <path>] [--json]\n"
         << "  featherdoc_cli ensure-paragraph-style <input.docx> <style-id>"
            " --name <name> [--based-on <style-id>] [--next-style <style-id>]"
            " [--custom true|false] [--semi-hidden true|false]"
@@ -1080,7 +1291,7 @@ void print_usage(std::ostream &stream) {
            " [--horizontal-offset <px>]"
            " [--vertical-reference page|margin|paragraph|line]"
            " [--vertical-offset <px>] [--behind-text true|false]"
-           " [--allow-overlap true|false]"
+           " [--allow-overlap true|false] [--z-order <value>]"
            " [--wrap-mode none|square|top-bottom]"
            " [--wrap-distance-left <px>] [--wrap-distance-right <px>]"
            " [--wrap-distance-top <px>] [--wrap-distance-bottom <px>]"
@@ -1117,7 +1328,7 @@ void print_usage(std::ostream &stream) {
            " [--horizontal-offset <px>]"
            " [--vertical-reference page|margin|paragraph|line]"
            " [--vertical-offset <px>] [--behind-text true|false]"
-           " [--allow-overlap true|false]"
+           " [--allow-overlap true|false] [--z-order <value>]"
            " [--wrap-mode none|square|top-bottom]"
            " [--wrap-distance-left <px>] [--wrap-distance-right <px>]"
            " [--wrap-distance-top <px>] [--wrap-distance-bottom <px>]"
@@ -1148,6 +1359,10 @@ void print_usage(std::ostream &stream) {
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli remove-footer-part <input.docx> <footer-index>"
            " [--output <path>] [--json]\n"
+        << "  featherdoc_cli move-header-part <input.docx> <source-index>"
+           " <target-index> [--output <path>] [--json]\n"
+        << "  featherdoc_cli move-footer-part <input.docx> <source-index>"
+           " <target-index> [--output <path>] [--json]\n"
         << "  featherdoc_cli show-section-header <input.docx> <section-index>"
            " [--kind default|first|even] [--json]\n"
         << "  featherdoc_cli show-section-footer <input.docx> <section-index>"
@@ -1170,7 +1385,26 @@ void print_usage(std::ostream &stream) {
            " --part body|header|footer|section-header|section-footer"
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even]"
-           " --slot <bookmark>:<kind>[:required|optional] [--slot ...] [--json]\n";
+           " --slot <bookmark>:<kind>[:required|optional][:count=<n>|min=<n>|max=<n>...]"
+           " [--slot ...] [--json]\n"
+        << "  featherdoc_cli validate-template-schema <input.docx>"
+           " [--schema-file <path>]"
+           " (--target body|header|footer|section-header|section-footer"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even]"
+           " --slot <bookmark>:<kind>[:required|optional][:count=<n>|min=<n>|max=<n>...]"
+           " [--slot ...])+ [--json]\n"
+        << "  featherdoc_cli export-template-schema <input.docx>"
+           " [--section-targets|--resolved-section-targets]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli normalize-template-schema <schema.json>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli diff-template-schema <left-schema.json>"
+           " <right-schema.json> [--fail-on-diff] [--json]\n"
+        << "  featherdoc_cli check-template-schema <input.docx>"
+           " --schema-file <path>"
+           " [--section-targets|--resolved-section-targets]"
+           " [--output <generated-schema-path>] [--json]\n";
 }
 
 void print_error_info(const featherdoc::document_error_info &error_info) {
@@ -1479,6 +1713,184 @@ auto parse_options(const std::vector<std::string_view> &arguments,
         }
 
         error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_export_template_schema_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    export_template_schema_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--section-targets") {
+            if (options.resolved_section_targets) {
+                error_message =
+                    "--section-targets conflicts with --resolved-section-targets";
+                return false;
+            }
+            options.section_targets = true;
+            continue;
+        }
+
+        if (argument == "--resolved-section-targets") {
+            if (options.section_targets) {
+                error_message =
+                    "--resolved-section-targets conflicts with --section-targets";
+                return false;
+            }
+            options.resolved_section_targets = true;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_normalize_template_schema_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    normalize_template_schema_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_diff_template_schema_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    diff_template_schema_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--fail-on-diff") {
+            options.fail_on_diff = true;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_check_template_schema_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    check_template_schema_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--schema-file") {
+            if (options.schema_path.has_value()) {
+                error_message = "duplicate --schema-file option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --schema-file";
+                return false;
+            }
+
+            options.schema_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section-targets") {
+            if (options.resolved_section_targets) {
+                error_message =
+                    "--section-targets conflicts with --resolved-section-targets";
+                return false;
+            }
+            options.section_targets = true;
+            continue;
+        }
+
+        if (argument == "--resolved-section-targets") {
+            if (options.section_targets) {
+                error_message =
+                    "--resolved-section-targets conflicts with --section-targets";
+                return false;
+            }
+            options.resolved_section_targets = true;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.schema_path.has_value()) {
+        error_message = "missing required --schema-file <path> option";
         return false;
     }
 
@@ -2764,6 +3176,23 @@ auto validate_template_part_selection(validation_part_family part,
             return false;
         }
         break;
+    }
+
+    return true;
+}
+
+auto parse_inspect_style_inheritance_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    inspect_style_inheritance_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
     }
 
     return true;
@@ -6438,6 +6867,25 @@ auto parse_append_image_options(const std::vector<std::string_view> &arguments,
             continue;
         }
 
+        if (argument == "--z-order") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --z-order";
+                return false;
+            }
+
+            std::uint32_t z_order = 0U;
+            if (!parse_uint32(arguments[index + 1U], z_order)) {
+                error_message = "invalid z-order value: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.floating_options.z_order = z_order;
+            options.floating = true;
+            ++index;
+            continue;
+        }
+
         if (argument == "--wrap-mode") {
             if (index + 1U >= arguments.size()) {
                 error_message = "missing value after --wrap-mode";
@@ -6744,20 +7192,37 @@ auto parse_template_slot_requirement(std::string_view text,
     const auto first_separator = text.find(':');
     if (first_separator == std::string_view::npos || first_separator == 0U) {
         error_message =
-            "invalid --slot value: expected <bookmark>:<kind>[:required|optional]";
+            "invalid --slot value: expected <bookmark>:<kind>"
+            "[:required|optional][:count=<n>|min=<n>|max=<n>...]";
         return false;
     }
 
-    const auto second_separator = text.find(':', first_separator + 1U);
-    const auto bookmark_name = text.substr(0U, first_separator);
-    const auto kind_text =
-        second_separator == std::string_view::npos
-            ? text.substr(first_separator + 1U)
-            : text.substr(first_separator + 1U,
-                          second_separator - first_separator - 1U);
+    std::vector<std::string_view> segments;
+    std::size_t segment_start = 0U;
+    while (segment_start <= text.size()) {
+        const auto separator = text.find(':', segment_start);
+        if (separator == std::string_view::npos) {
+            segments.push_back(text.substr(segment_start));
+            break;
+        }
+
+        segments.push_back(text.substr(segment_start, separator - segment_start));
+        segment_start = separator + 1U;
+    }
+
+    if (segments.size() < 2U || segments[0].empty()) {
+        error_message =
+            "invalid --slot value: expected <bookmark>:<kind>"
+            "[:required|optional][:count=<n>|min=<n>|max=<n>...]";
+        return false;
+    }
+
+    const auto bookmark_name = segments[0];
+    const auto kind_text = segments[1];
     if (kind_text.empty()) {
         error_message =
-            "invalid --slot value: expected <bookmark>:<kind>[:required|optional]";
+            "invalid --slot value: expected <bookmark>:<kind>"
+            "[:required|optional][:count=<n>|min=<n>|max=<n>...]";
         return false;
     }
 
@@ -6768,22 +7233,98 @@ auto parse_template_slot_requirement(std::string_view text,
     }
 
     bool required = true;
-    if (second_separator != std::string_view::npos) {
-        const auto requirement_text = text.substr(second_separator + 1U);
-        if (requirement_text == "required") {
-            required = true;
-        } else if (requirement_text == "optional") {
-            required = false;
-        } else {
-            error_message = "invalid --slot requirement: " +
-                            std::string(requirement_text);
+    bool requirement_seen = false;
+    bool count_seen = false;
+    bool min_seen = false;
+    bool max_seen = false;
+    std::optional<std::size_t> min_occurrences;
+    std::optional<std::size_t> max_occurrences;
+    for (std::size_t index = 2U; index < segments.size(); ++index) {
+        const auto segment = segments[index];
+        if (segment.empty()) {
+            error_message = "invalid --slot segment: value must not be empty";
             return false;
         }
+
+        if (segment == "required" || segment == "optional") {
+            if (requirement_seen) {
+                error_message = "duplicate --slot requirement segment: " +
+                                std::string(segment);
+                return false;
+            }
+
+            required = segment == "required";
+            requirement_seen = true;
+            continue;
+        }
+
+        const auto equals = segment.find('=');
+        if (equals == std::string_view::npos || equals == 0U ||
+            equals + 1U >= segment.size()) {
+            error_message = "invalid --slot segment: " + std::string(segment);
+            return false;
+        }
+
+        const auto key = segment.substr(0U, equals);
+        const auto value_text = segment.substr(equals + 1U);
+        std::size_t value = 0U;
+        if (!parse_index(value_text, value)) {
+            error_message = "invalid --slot occurrence value: " +
+                            std::string(value_text);
+            return false;
+        }
+
+        if (key == "count") {
+            if (count_seen || min_seen || max_seen) {
+                error_message = "conflicting --slot occurrence segment: " +
+                                std::string(segment);
+                return false;
+            }
+
+            min_occurrences = value;
+            max_occurrences = value;
+            count_seen = true;
+            continue;
+        }
+
+        if (key == "min") {
+            if (count_seen || min_seen) {
+                error_message = "duplicate --slot min occurrence segment";
+                return false;
+            }
+
+            min_occurrences = value;
+            min_seen = true;
+            continue;
+        }
+
+        if (key == "max") {
+            if (count_seen || max_seen) {
+                error_message = "duplicate --slot max occurrence segment";
+                return false;
+            }
+
+            max_occurrences = value;
+            max_seen = true;
+            continue;
+        }
+
+        error_message = "invalid --slot segment: " + std::string(segment);
+        return false;
+    }
+
+    if (min_occurrences.has_value() && max_occurrences.has_value() &&
+        *max_occurrences < *min_occurrences) {
+        error_message =
+            "invalid --slot occurrence range: max must be greater than or equal to min";
+        return false;
     }
 
     requirement.bookmark_name = std::string(bookmark_name);
     requirement.kind = kind;
     requirement.required = required;
+    requirement.min_occurrences = min_occurrences;
+    requirement.max_occurrences = max_occurrences;
     return true;
 }
 
@@ -6906,13 +7447,792 @@ auto parse_validate_template_options(
     }
     if (options.requirements.empty()) {
         error_message =
-            "expected at least one --slot <bookmark>:<kind>[:required|optional]";
+            "expected at least one --slot <bookmark>:<kind>"
+            "[:required|optional][:count=<n>|min=<n>|max=<n>...]";
         return false;
     }
 
     return validate_template_part_selection(options.part, options.part_index,
                                             options.section_index, options.has_kind,
                                             "validation", error_message);
+}
+
+auto parse_validate_template_schema_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    validate_template_schema_options &options, std::string &error_message) -> bool {
+    validate_template_schema_target_options *current_target = nullptr;
+
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--target") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --target";
+                return false;
+            }
+
+            validation_part_family part = validation_part_family::body;
+            if (!parse_validation_part(arguments[index + 1U], part)) {
+                error_message =
+                    "invalid template schema target: " +
+                    std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.targets.push_back({});
+            current_target = &options.targets.back();
+            current_target->part = part;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--schema-file") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --schema-file";
+                return false;
+            }
+
+            options.schema_files.emplace_back(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        if (current_target == nullptr) {
+            error_message =
+                std::string(argument) +
+                " requires a preceding --target "
+                "<body|header|footer|section-header|section-footer>";
+            return false;
+        }
+
+        if (argument == "--index") {
+            if (current_target->part_index.has_value()) {
+                error_message = "duplicate --index option for current --target";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            current_target->part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (current_target->section_index.has_value()) {
+                error_message = "duplicate --section option for current --target";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            current_target->section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (current_target->has_kind) {
+                error_message = "duplicate --kind option for current --target";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+
+            if (!parse_reference_kind(arguments[index + 1U],
+                                      current_target->reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            current_target->has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--slot") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --slot";
+                return false;
+            }
+
+            featherdoc::template_slot_requirement requirement;
+            if (!parse_template_slot_requirement(arguments[index + 1U], requirement,
+                                                 error_message)) {
+                return false;
+            }
+
+            current_target->requirements.push_back(std::move(requirement));
+            ++index;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.targets.empty() && options.schema_files.empty()) {
+        error_message =
+            "expected at least one --schema-file <path> or --target "
+            "<body|header|footer|section-header|section-footer>";
+        return false;
+    }
+
+    for (std::size_t index = 0U; index < options.targets.size(); ++index) {
+        const auto &target = options.targets[index];
+        if (target.requirements.empty()) {
+            error_message =
+                "target[" + std::to_string(index) +
+                "] requires at least one --slot <bookmark>:<kind>"
+                "[:required|optional][:count=<n>|min=<n>|max=<n>...]";
+            return false;
+        }
+
+        if (!validate_template_part_selection(
+                target.part, target.part_index, target.section_index,
+                target.has_kind, "schema validation", error_message)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+auto parse_inspect_default_run_properties_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    inspect_default_run_properties_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_set_default_run_properties_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    set_default_run_properties_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--font-family") {
+            if (options.font_family.has_value()) {
+                error_message = "duplicate --font-family option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --font-family";
+                return false;
+            }
+
+            options.font_family = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--east-asia-font-family") {
+            if (options.east_asia_font_family.has_value()) {
+                error_message = "duplicate --east-asia-font-family option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --east-asia-font-family";
+                return false;
+            }
+
+            options.east_asia_font_family = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--language") {
+            if (options.language.has_value()) {
+                error_message = "duplicate --language option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --language";
+                return false;
+            }
+
+            options.language = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--east-asia-language") {
+            if (options.east_asia_language.has_value()) {
+                error_message = "duplicate --east-asia-language option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --east-asia-language";
+                return false;
+            }
+
+            options.east_asia_language = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--bidi-language") {
+            if (options.bidi_language.has_value()) {
+                error_message = "duplicate --bidi-language option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --bidi-language";
+                return false;
+            }
+
+            options.bidi_language = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--rtl") {
+            if (options.rtl.has_value()) {
+                error_message = "duplicate --rtl option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --rtl";
+                return false;
+            }
+
+            bool value = false;
+            if (!parse_bool(arguments[index + 1U], value)) {
+                error_message = "invalid --rtl value: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.rtl = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--paragraph-bidi") {
+            if (options.paragraph_bidi.has_value()) {
+                error_message = "duplicate --paragraph-bidi option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --paragraph-bidi";
+                return false;
+            }
+
+            bool value = false;
+            if (!parse_bool(arguments[index + 1U], value)) {
+                error_message =
+                    "invalid --paragraph-bidi value: " +
+                    std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.paragraph_bidi = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.font_family.has_value() && !options.east_asia_font_family.has_value() &&
+        !options.language.has_value() && !options.east_asia_language.has_value() &&
+        !options.bidi_language.has_value() && !options.rtl.has_value() &&
+        !options.paragraph_bidi.has_value()) {
+        error_message =
+            "set-default-run-properties requires at least one mutation option";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_clear_default_run_properties_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    clear_default_run_properties_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--font-family") {
+            if (options.clear_font_family) {
+                error_message = "duplicate --font-family option";
+                return false;
+            }
+            options.clear_font_family = true;
+            continue;
+        }
+
+        if (argument == "--east-asia-font-family") {
+            if (options.clear_east_asia_font_family) {
+                error_message = "duplicate --east-asia-font-family option";
+                return false;
+            }
+            options.clear_east_asia_font_family = true;
+            continue;
+        }
+
+        if (argument == "--primary-language") {
+            if (options.clear_primary_language) {
+                error_message = "duplicate --primary-language option";
+                return false;
+            }
+            options.clear_primary_language = true;
+            continue;
+        }
+
+        if (argument == "--language") {
+            if (options.clear_language) {
+                error_message = "duplicate --language option";
+                return false;
+            }
+            options.clear_language = true;
+            continue;
+        }
+
+        if (argument == "--east-asia-language") {
+            if (options.clear_east_asia_language) {
+                error_message = "duplicate --east-asia-language option";
+                return false;
+            }
+            options.clear_east_asia_language = true;
+            continue;
+        }
+
+        if (argument == "--bidi-language") {
+            if (options.clear_bidi_language) {
+                error_message = "duplicate --bidi-language option";
+                return false;
+            }
+            options.clear_bidi_language = true;
+            continue;
+        }
+
+        if (argument == "--rtl") {
+            if (options.clear_rtl) {
+                error_message = "duplicate --rtl option";
+                return false;
+            }
+            options.clear_rtl = true;
+            continue;
+        }
+
+        if (argument == "--paragraph-bidi") {
+            if (options.clear_paragraph_bidi) {
+                error_message = "duplicate --paragraph-bidi option";
+                return false;
+            }
+            options.clear_paragraph_bidi = true;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.clear_font_family && !options.clear_east_asia_font_family &&
+        !options.clear_primary_language && !options.clear_language &&
+        !options.clear_east_asia_language && !options.clear_bidi_language &&
+        !options.clear_rtl && !options.clear_paragraph_bidi) {
+        error_message = "clear-default-run-properties requires at least one clear option";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_inspect_style_run_properties_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    inspect_style_run_properties_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_materialize_style_run_properties_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    materialize_style_run_properties_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_set_style_run_properties_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    set_style_run_properties_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--font-family") {
+            if (options.font_family.has_value()) {
+                error_message = "duplicate --font-family option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --font-family";
+                return false;
+            }
+
+            options.font_family = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--east-asia-font-family") {
+            if (options.east_asia_font_family.has_value()) {
+                error_message = "duplicate --east-asia-font-family option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --east-asia-font-family";
+                return false;
+            }
+
+            options.east_asia_font_family = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--language") {
+            if (options.language.has_value()) {
+                error_message = "duplicate --language option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --language";
+                return false;
+            }
+
+            options.language = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--east-asia-language") {
+            if (options.east_asia_language.has_value()) {
+                error_message = "duplicate --east-asia-language option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --east-asia-language";
+                return false;
+            }
+
+            options.east_asia_language = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--bidi-language") {
+            if (options.bidi_language.has_value()) {
+                error_message = "duplicate --bidi-language option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --bidi-language";
+                return false;
+            }
+
+            options.bidi_language = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--rtl") {
+            if (options.rtl.has_value()) {
+                error_message = "duplicate --rtl option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --rtl";
+                return false;
+            }
+
+            bool value = false;
+            if (!parse_bool(arguments[index + 1U], value)) {
+                error_message = "invalid --rtl value: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.rtl = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--paragraph-bidi") {
+            if (options.paragraph_bidi.has_value()) {
+                error_message = "duplicate --paragraph-bidi option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --paragraph-bidi";
+                return false;
+            }
+
+            bool value = false;
+            if (!parse_bool(arguments[index + 1U], value)) {
+                error_message =
+                    "invalid --paragraph-bidi value: " +
+                    std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            options.paragraph_bidi = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.font_family.has_value() && !options.east_asia_font_family.has_value() &&
+        !options.language.has_value() && !options.east_asia_language.has_value() &&
+        !options.bidi_language.has_value() && !options.rtl.has_value() &&
+        !options.paragraph_bidi.has_value()) {
+        error_message =
+            "set-style-run-properties requires at least one mutation option";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_clear_style_run_properties_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    clear_style_run_properties_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--font-family") {
+            if (options.clear_font_family) {
+                error_message = "duplicate --font-family option";
+                return false;
+            }
+            options.clear_font_family = true;
+            continue;
+        }
+
+        if (argument == "--east-asia-font-family") {
+            if (options.clear_east_asia_font_family) {
+                error_message = "duplicate --east-asia-font-family option";
+                return false;
+            }
+            options.clear_east_asia_font_family = true;
+            continue;
+        }
+
+        if (argument == "--primary-language") {
+            if (options.clear_primary_language) {
+                error_message = "duplicate --primary-language option";
+                return false;
+            }
+            options.clear_primary_language = true;
+            continue;
+        }
+
+        if (argument == "--language") {
+            if (options.clear_language) {
+                error_message = "duplicate --language option";
+                return false;
+            }
+            options.clear_language = true;
+            continue;
+        }
+
+        if (argument == "--east-asia-language") {
+            if (options.clear_east_asia_language) {
+                error_message = "duplicate --east-asia-language option";
+                return false;
+            }
+            options.clear_east_asia_language = true;
+            continue;
+        }
+
+        if (argument == "--bidi-language") {
+            if (options.clear_bidi_language) {
+                error_message = "duplicate --bidi-language option";
+                return false;
+            }
+            options.clear_bidi_language = true;
+            continue;
+        }
+
+        if (argument == "--rtl") {
+            if (options.clear_rtl) {
+                error_message = "duplicate --rtl option";
+                return false;
+            }
+            options.clear_rtl = true;
+            continue;
+        }
+
+        if (argument == "--paragraph-bidi") {
+            if (options.clear_paragraph_bidi) {
+                error_message = "duplicate --paragraph-bidi option";
+                return false;
+            }
+            options.clear_paragraph_bidi = true;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.clear_font_family && !options.clear_east_asia_font_family &&
+        !options.clear_primary_language && !options.clear_language &&
+        !options.clear_east_asia_language && !options.clear_bidi_language &&
+        !options.clear_rtl && !options.clear_paragraph_bidi) {
+        error_message = "clear-style-run-properties requires at least one clear option";
+        return false;
+    }
+
+    return true;
 }
 
 auto parse_append_field_options(const std::vector<std::string_view> &arguments,
@@ -8304,6 +9624,59 @@ auto validation_part_name(validation_part_family family) -> const char * {
     return "body";
 }
 
+auto bookmark_kind_to_template_slot_kind(featherdoc::bookmark_kind kind)
+    -> std::optional<featherdoc::template_slot_kind> {
+    switch (kind) {
+    case featherdoc::bookmark_kind::text:
+        return featherdoc::template_slot_kind::text;
+    case featherdoc::bookmark_kind::block:
+        return featherdoc::template_slot_kind::block;
+    case featherdoc::bookmark_kind::table_rows:
+        return featherdoc::template_slot_kind::table_rows;
+    case featherdoc::bookmark_kind::block_range:
+    case featherdoc::bookmark_kind::malformed:
+    case featherdoc::bookmark_kind::mixed:
+        return std::nullopt;
+    }
+
+    return std::nullopt;
+}
+
+auto to_template_schema_part_kind(validation_part_family family)
+    -> featherdoc::template_schema_part_kind {
+    switch (family) {
+    case validation_part_family::body:
+        return featherdoc::template_schema_part_kind::body;
+    case validation_part_family::header:
+        return featherdoc::template_schema_part_kind::header;
+    case validation_part_family::footer:
+        return featherdoc::template_schema_part_kind::footer;
+    case validation_part_family::section_header:
+        return featherdoc::template_schema_part_kind::section_header;
+    case validation_part_family::section_footer:
+        return featherdoc::template_schema_part_kind::section_footer;
+    }
+
+    return featherdoc::template_schema_part_kind::body;
+}
+
+auto validation_part_name(featherdoc::template_schema_part_kind part) -> const char * {
+    switch (part) {
+    case featherdoc::template_schema_part_kind::body:
+        return "body";
+    case featherdoc::template_schema_part_kind::header:
+        return "header";
+    case featherdoc::template_schema_part_kind::footer:
+        return "footer";
+    case featherdoc::template_schema_part_kind::section_header:
+        return "section-header";
+    case featherdoc::template_schema_part_kind::section_footer:
+        return "section-footer";
+    }
+
+    return "body";
+}
+
 void write_json_selected_template_part(std::ostream &stream,
                                        const selected_template_part &selected) {
     stream << "\"part\":";
@@ -8385,6 +9758,25 @@ auto bookmark_kind_name(featherdoc::bookmark_kind kind) -> const char * {
     }
 
     return "mixed";
+}
+
+auto template_slot_kind_name(featherdoc::template_slot_kind kind) -> const char * {
+    switch (kind) {
+    case featherdoc::template_slot_kind::text:
+        return "text";
+    case featherdoc::template_slot_kind::table_rows:
+        return "table_rows";
+    case featherdoc::template_slot_kind::table:
+        return "table";
+    case featherdoc::template_slot_kind::image:
+        return "image";
+    case featherdoc::template_slot_kind::floating_image:
+        return "floating_image";
+    case featherdoc::template_slot_kind::block:
+        return "block";
+    }
+
+    return "text";
 }
 
 auto drawing_image_placement_name(featherdoc::drawing_image_placement placement)
@@ -9868,6 +11260,326 @@ void write_json_body_run_summary(std::ostream &stream,
     stream << '}';
 }
 
+void write_json_default_run_properties_summary(
+    std::ostream &stream, const default_run_properties_summary &summary) {
+    stream << "{\"font_family\":";
+    write_json_optional_string(stream, summary.font_family);
+    stream << ",\"east_asia_font_family\":";
+    write_json_optional_string(stream, summary.east_asia_font_family);
+    stream << ",\"language\":";
+    write_json_optional_string(stream, summary.language);
+    stream << ",\"east_asia_language\":";
+    write_json_optional_string(stream, summary.east_asia_language);
+    stream << ",\"bidi_language\":";
+    write_json_optional_string(stream, summary.bidi_language);
+    stream << ",\"rtl\":";
+    write_json_optional_bool(stream, summary.rtl);
+    stream << ",\"paragraph_bidi\":";
+    write_json_optional_bool(stream, summary.paragraph_bidi);
+    stream << '}';
+}
+
+void print_default_run_properties_summary(
+    std::ostream &stream, const default_run_properties_summary &summary) {
+    stream << "font_family: ";
+    if (summary.font_family.has_value()) {
+        stream << *summary.font_family;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "east_asia_font_family: ";
+    if (summary.east_asia_font_family.has_value()) {
+        stream << *summary.east_asia_font_family;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "language: ";
+    if (summary.language.has_value()) {
+        stream << *summary.language;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "east_asia_language: ";
+    if (summary.east_asia_language.has_value()) {
+        stream << *summary.east_asia_language;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "bidi_language: ";
+    if (summary.bidi_language.has_value()) {
+        stream << *summary.bidi_language;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "rtl: ";
+    if (summary.rtl.has_value()) {
+        stream << yes_no(*summary.rtl);
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "paragraph_bidi: ";
+    if (summary.paragraph_bidi.has_value()) {
+        stream << yes_no(*summary.paragraph_bidi);
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+}
+
+void write_json_style_run_properties_summary(
+    std::ostream &stream, const style_run_properties_summary &summary) {
+    stream << "{\"font_family\":";
+    write_json_optional_string(stream, summary.font_family);
+    stream << ",\"east_asia_font_family\":";
+    write_json_optional_string(stream, summary.east_asia_font_family);
+    stream << ",\"language\":";
+    write_json_optional_string(stream, summary.language);
+    stream << ",\"east_asia_language\":";
+    write_json_optional_string(stream, summary.east_asia_language);
+    stream << ",\"bidi_language\":";
+    write_json_optional_string(stream, summary.bidi_language);
+    stream << ",\"rtl\":";
+    write_json_optional_bool(stream, summary.rtl);
+    stream << ",\"paragraph_bidi\":";
+    write_json_optional_bool(stream, summary.paragraph_bidi);
+    stream << '}';
+}
+
+void append_materialized_style_run_property(
+    std::vector<materialized_style_run_property_summary> &materialized_properties,
+    std::string_view current_style_id, std::string_view field_name,
+    const featherdoc::resolved_style_string_property &property) {
+    if (!property.value.has_value() || !property.source_style_id.has_value() ||
+        *property.source_style_id == current_style_id) {
+        return;
+    }
+
+    materialized_properties.push_back(
+        {std::string(field_name), *property.source_style_id});
+}
+
+void append_materialized_style_run_property(
+    std::vector<materialized_style_run_property_summary> &materialized_properties,
+    std::string_view current_style_id, std::string_view field_name,
+    const featherdoc::resolved_style_bool_property &property) {
+    if (!property.value.has_value() || !property.source_style_id.has_value() ||
+        *property.source_style_id == current_style_id) {
+        return;
+    }
+
+    materialized_properties.push_back(
+        {std::string(field_name), *property.source_style_id});
+}
+
+void write_json_materialized_style_run_properties(
+    std::ostream &stream,
+    const std::vector<materialized_style_run_property_summary> &materialized_properties) {
+    stream << '[';
+    for (std::size_t index = 0U; index < materialized_properties.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+
+        stream << "{\"field\":";
+        write_json_string(stream, materialized_properties[index].field);
+        stream << ",\"source_style_id\":";
+        write_json_string(stream, materialized_properties[index].source_style_id);
+        stream << '}';
+    }
+    stream << ']';
+}
+
+void print_style_run_properties_summary(
+    std::ostream &stream, const style_run_properties_summary &summary) {
+    stream << "font_family: ";
+    if (summary.font_family.has_value()) {
+        stream << *summary.font_family;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "east_asia_font_family: ";
+    if (summary.east_asia_font_family.has_value()) {
+        stream << *summary.east_asia_font_family;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "language: ";
+    if (summary.language.has_value()) {
+        stream << *summary.language;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "east_asia_language: ";
+    if (summary.east_asia_language.has_value()) {
+        stream << *summary.east_asia_language;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "bidi_language: ";
+    if (summary.bidi_language.has_value()) {
+        stream << *summary.bidi_language;
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "rtl: ";
+    if (summary.rtl.has_value()) {
+        stream << yes_no(*summary.rtl);
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+
+    stream << "paragraph_bidi: ";
+    if (summary.paragraph_bidi.has_value()) {
+        stream << yes_no(*summary.paragraph_bidi);
+    } else {
+        stream << "none";
+    }
+    stream << '\n';
+}
+
+void write_json_resolved_style_string_property(
+    std::ostream &stream, const featherdoc::resolved_style_string_property &property) {
+    stream << "{\"value\":";
+    write_json_optional_string(stream, property.value);
+    stream << ",\"source_style_id\":";
+    write_json_optional_string(stream, property.source_style_id);
+    stream << '}';
+}
+
+void write_json_resolved_style_bool_property(
+    std::ostream &stream, const featherdoc::resolved_style_bool_property &property) {
+    stream << "{\"value\":";
+    write_json_optional_bool(stream, property.value);
+    stream << ",\"source_style_id\":";
+    write_json_optional_string(stream, property.source_style_id);
+    stream << '}';
+}
+
+void write_json_resolved_style_properties_summary(
+    std::ostream &stream, const featherdoc::resolved_style_properties_summary &summary) {
+    stream << "{\"style_id\":";
+    write_json_string(stream, summary.style_id);
+    stream << ",\"type\":";
+    write_json_string(stream, summary.type_name);
+    stream << ",\"kind\":";
+    write_json_string(stream, style_kind_name(summary.kind));
+    stream << ",\"based_on\":";
+    write_json_optional_string(stream, summary.based_on);
+    stream << ",\"inheritance_chain\":";
+    write_json_strings(stream, summary.inheritance_chain);
+    stream << ",\"resolved_properties\":{\"font_family\":";
+    write_json_resolved_style_string_property(stream, summary.run_font_family);
+    stream << ",\"east_asia_font_family\":";
+    write_json_resolved_style_string_property(stream, summary.run_east_asia_font_family);
+    stream << ",\"language\":";
+    write_json_resolved_style_string_property(stream, summary.run_language);
+    stream << ",\"east_asia_language\":";
+    write_json_resolved_style_string_property(stream, summary.run_east_asia_language);
+    stream << ",\"bidi_language\":";
+    write_json_resolved_style_string_property(stream, summary.run_bidi_language);
+    stream << ",\"rtl\":";
+    write_json_resolved_style_bool_property(stream, summary.run_rtl);
+    stream << ",\"paragraph_bidi\":";
+    write_json_resolved_style_bool_property(stream, summary.paragraph_bidi);
+    stream << "}}";
+}
+
+void print_resolved_style_string_property(std::ostream &stream, std::string_view label,
+                                          const featherdoc::resolved_style_string_property &property) {
+    stream << label << ": ";
+    if (property.value.has_value()) {
+        stream << *property.value;
+    } else {
+        stream << "none";
+    }
+    stream << " (source=";
+    if (property.source_style_id.has_value()) {
+        stream << *property.source_style_id;
+    } else {
+        stream << "none";
+    }
+    stream << ")\n";
+}
+
+void print_resolved_style_bool_property(std::ostream &stream, std::string_view label,
+                                        const featherdoc::resolved_style_bool_property &property) {
+    stream << label << ": ";
+    if (property.value.has_value()) {
+        stream << yes_no(*property.value);
+    } else {
+        stream << "none";
+    }
+    stream << " (source=";
+    if (property.source_style_id.has_value()) {
+        stream << *property.source_style_id;
+    } else {
+        stream << "none";
+    }
+    stream << ")\n";
+}
+
+void inspect_resolved_style_properties(
+    const featherdoc::resolved_style_properties_summary &summary, bool json_output) {
+    if (json_output) {
+        write_json_resolved_style_properties_summary(std::cout, summary);
+        std::cout << '\n';
+        return;
+    }
+
+    std::cout << "style_id: " << summary.style_id << '\n';
+    std::cout << "type: " << summary.type_name << '\n';
+    std::cout << "kind: " << style_kind_name(summary.kind) << '\n';
+    std::cout << "based_on: ";
+    if (summary.based_on.has_value()) {
+        std::cout << *summary.based_on;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n';
+    std::cout << "inheritance_chain: ";
+    for (std::size_t index = 0U; index < summary.inheritance_chain.size(); ++index) {
+        if (index != 0U) {
+            std::cout << " -> ";
+        }
+        std::cout << summary.inheritance_chain[index];
+    }
+    std::cout << '\n';
+    print_resolved_style_string_property(std::cout, "font_family", summary.run_font_family);
+    print_resolved_style_string_property(std::cout, "east_asia_font_family",
+                                         summary.run_east_asia_font_family);
+    print_resolved_style_string_property(std::cout, "language", summary.run_language);
+    print_resolved_style_string_property(std::cout, "east_asia_language",
+                                         summary.run_east_asia_language);
+    print_resolved_style_string_property(std::cout, "bidi_language",
+                                         summary.run_bidi_language);
+    print_resolved_style_bool_property(std::cout, "rtl", summary.run_rtl);
+    print_resolved_style_bool_property(std::cout, "paragraph_bidi",
+                                       summary.paragraph_bidi);
+}
+
 void write_json_template_paragraph_numbering_summary(
     std::ostream &stream,
     const featherdoc::paragraph_inspection_summary::numbering_summary &numbering) {
@@ -10177,6 +11889,7 @@ void write_json_floating_image_options(
     stream << ",\"vertical_offset_px\":" << options.vertical_offset_px
            << ",\"behind_text\":" << json_bool(options.behind_text)
            << ",\"allow_overlap\":" << json_bool(options.allow_overlap)
+           << ",\"z_order\":" << options.z_order
            << ",\"wrap_mode\":";
     write_json_string(stream, floating_image_wrap_mode_name(options.wrap_mode));
     stream << ",\"wrap_distance_left_px\":" << options.wrap_distance_left_px
@@ -10270,6 +11983,7 @@ void print_drawing_image_summary(std::ostream &stream,
            << " vertical_offset_px=" << floating_options.vertical_offset_px
            << " behind_text=" << yes_no(floating_options.behind_text)
            << " allow_overlap=" << yes_no(floating_options.allow_overlap)
+           << " z_order=" << floating_options.z_order
            << " wrap_mode="
            << floating_image_wrap_mode_name(floating_options.wrap_mode)
            << " wrap_distance_left_px="
@@ -11913,6 +13627,7 @@ void inspect_image(const selected_template_part &selected,
     std::cout << "behind_text: " << yes_no(floating_options.behind_text) << '\n';
     std::cout << "allow_overlap: " << yes_no(floating_options.allow_overlap)
               << '\n';
+    std::cout << "z_order: " << floating_options.z_order << '\n';
     std::cout << "wrap_mode: "
               << floating_image_wrap_mode_name(floating_options.wrap_mode)
               << '\n';
@@ -13403,11 +15118,17 @@ void skip_json_patch_whitespace(std::string_view text, std::size_t &index) {
     }
 }
 
-auto report_json_patch_error(std::size_t offset, std::string_view detail,
+auto report_json_input_error(std::string_view input_label, std::size_t offset,
+                             std::string_view detail,
                              std::string &error_message) -> bool {
-    error_message = "invalid JSON patch at byte offset '" +
+    error_message = "invalid " + std::string(input_label) + " at byte offset '" +
                     std::to_string(offset) + "': " + std::string(detail);
     return false;
+}
+
+auto report_json_patch_error(std::size_t offset, std::string_view detail,
+                             std::string &error_message) -> bool {
+    return report_json_input_error("JSON patch", offset, detail, error_message);
 }
 
 auto append_utf8_code_point(std::string &text, std::uint32_t code_point,
@@ -14108,6 +15829,45 @@ auto parse_json_patch_reference_kind_value(
     return true;
 }
 
+auto parse_json_patch_bool_member_value(std::string_view text, std::size_t &index,
+                                        bool &value, std::string_view member_name,
+                                        std::string &error_message) -> bool {
+    skip_json_patch_whitespace(text, index);
+    if (index >= text.size()) {
+        return report_json_input_error("JSON schema file", index,
+                                       "expected boolean value", error_message);
+    }
+
+    if (text[index] == '"') {
+        std::string token;
+        if (!parse_json_patch_string(text, index, token, error_message)) {
+            return false;
+        }
+        if (!parse_bool(token, value)) {
+            error_message = "JSON schema member '" + std::string(member_name) +
+                            "' must be a boolean";
+            return false;
+        }
+        return true;
+    }
+
+    if (text.substr(index, 4U) == "true") {
+        value = true;
+        index += 4U;
+        return true;
+    }
+
+    if (text.substr(index, 5U) == "false") {
+        value = false;
+        index += 5U;
+        return true;
+    }
+
+    error_message = "JSON schema member '" + std::string(member_name) +
+                    "' must be a boolean";
+    return false;
+}
+
 auto read_template_table_json_content(const path_type &patch_path,
                                       std::string &content, std::size_t &index,
                                       std::string &error_message) -> bool {
@@ -14350,6 +16110,609 @@ auto read_template_table_json_patch(const path_type &patch_path,
 
     patch.start_row_index = *resolved_start_row_index;
     patch.rows = std::move(rows);
+    return true;
+}
+
+auto parse_template_schema_json_slot(
+    std::string_view content, std::size_t &index,
+    featherdoc::template_slot_requirement &requirement, std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size()) {
+        return report_json_input_error("JSON schema file", index,
+                                       "expected slot entry", error_message);
+    }
+
+    if (content[index] == '"') {
+        std::string slot_text;
+        if (!parse_json_patch_string(content, index, slot_text, error_message)) {
+            return false;
+        }
+        return parse_template_slot_requirement(slot_text, requirement, error_message);
+    }
+
+    if (content[index] != '{') {
+        return report_json_input_error("JSON schema file", index,
+                                       "slot entries must be strings or objects",
+                                       error_message);
+    }
+
+    std::optional<std::string> bookmark_value;
+    std::optional<std::string> bookmark_name_value;
+    std::optional<std::string> kind_value;
+    std::optional<bool> required_value;
+    std::optional<std::size_t> count_value;
+    std::optional<std::size_t> min_value;
+    std::optional<std::size_t> max_value;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error("JSON schema file", index,
+                                               "expected ':' after object member",
+                                               error_message);
+            }
+
+            ++index;
+            if (member_name == "bookmark") {
+                if (bookmark_value.has_value()) {
+                    error_message =
+                        "JSON schema slot member 'bookmark' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                bookmark_value.emplace();
+                if (!parse_json_patch_string(content, index, *bookmark_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "bookmark_name") {
+                if (bookmark_name_value.has_value()) {
+                    error_message = "JSON schema slot member 'bookmark_name' must "
+                                    "not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                bookmark_name_value.emplace();
+                if (!parse_json_patch_string(content, index,
+                                             *bookmark_name_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "kind") {
+                if (kind_value.has_value()) {
+                    error_message =
+                        "JSON schema slot member 'kind' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                kind_value.emplace();
+                if (!parse_json_patch_string(content, index, *kind_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "required") {
+                if (required_value.has_value()) {
+                    error_message = "JSON schema slot member 'required' must not "
+                                    "be duplicated";
+                    return false;
+                }
+                bool parsed_required = true;
+                if (!parse_json_patch_bool_member_value(content, index,
+                                                        parsed_required,
+                                                        "required",
+                                                        error_message)) {
+                    return false;
+                }
+                required_value = parsed_required;
+            } else if (member_name == "count") {
+                if (count_value.has_value()) {
+                    error_message =
+                        "JSON schema slot member 'count' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "count", error_message)) {
+                    return false;
+                }
+                count_value = parsed_index;
+            } else if (member_name == "min") {
+                if (min_value.has_value()) {
+                    error_message =
+                        "JSON schema slot member 'min' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index, "min",
+                                                  error_message)) {
+                    return false;
+                }
+                min_value = parsed_index;
+            } else if (member_name == "max") {
+                if (max_value.has_value()) {
+                    error_message =
+                        "JSON schema slot member 'max' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index, "max",
+                                                  error_message)) {
+                    return false;
+                }
+                max_value = parsed_index;
+            } else {
+                return report_json_input_error("JSON schema file", index,
+                                               "unknown slot member", error_message);
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_input_error("JSON schema file", index,
+                                           "expected ',' or '}' after object member",
+                                           error_message);
+        }
+    }
+
+    std::optional<std::string> resolved_bookmark_name;
+    if (!resolve_json_patch_string_member(bookmark_value, bookmark_name_value, "bookmark",
+                                          "bookmark_name", resolved_bookmark_name,
+                                          error_message)) {
+        return false;
+    }
+    if (!resolved_bookmark_name.has_value() || resolved_bookmark_name->empty()) {
+        error_message =
+            "JSON schema slot must contain 'bookmark' or 'bookmark_name'";
+        return false;
+    }
+
+    if (!kind_value.has_value()) {
+        error_message = "JSON schema slot must contain 'kind'";
+        return false;
+    }
+
+    featherdoc::template_slot_kind kind{};
+    if (!parse_template_slot_kind(*kind_value, kind)) {
+        error_message =
+            "JSON schema slot member 'kind' must be one of "
+            "'text', 'table_rows', 'table', 'image', 'floating_image', or "
+            "'block'";
+        return false;
+    }
+
+    if (count_value.has_value() && (min_value.has_value() || max_value.has_value())) {
+        error_message =
+            "JSON schema slot member 'count' conflicts with 'min'/'max'";
+        return false;
+    }
+    if (min_value.has_value() && max_value.has_value() && *max_value < *min_value) {
+        error_message =
+            "JSON schema slot occurrence range is invalid: max must be greater "
+            "than or equal to min";
+        return false;
+    }
+
+    requirement = {};
+    requirement.bookmark_name = *resolved_bookmark_name;
+    requirement.kind = kind;
+    requirement.required = required_value.value_or(true);
+    if (count_value.has_value()) {
+        requirement.min_occurrences = *count_value;
+        requirement.max_occurrences = *count_value;
+    } else {
+        requirement.min_occurrences = min_value;
+        requirement.max_occurrences = max_value;
+    }
+    return true;
+}
+
+auto parse_template_schema_json_slots(std::string_view content, std::size_t &index,
+                                      std::vector<featherdoc::template_slot_requirement> &slots,
+                                      std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("JSON schema file", index,
+                                       "expected slots array", error_message);
+    }
+
+    slots.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        featherdoc::template_slot_requirement requirement;
+        if (!parse_template_schema_json_slot(content, index, requirement,
+                                             error_message)) {
+            return false;
+        }
+        slots.push_back(std::move(requirement));
+
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size()) {
+            break;
+        }
+        if (content[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(content, index);
+            continue;
+        }
+        if (content[index] == ']') {
+            ++index;
+            return true;
+        }
+        return report_json_input_error(
+            "JSON schema file", index, "expected ',' or ']' after slot entry",
+            error_message);
+    }
+
+    return report_json_input_error("JSON schema file", index,
+                                   "unterminated slots array", error_message);
+}
+
+auto parse_template_schema_json_target(
+    std::string_view content, std::size_t &index,
+    exported_template_schema_target &target, std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("JSON schema file", index,
+                                       "expected target object", error_message);
+    }
+
+    std::optional<std::string> part_value;
+    std::optional<std::size_t> index_value;
+    std::optional<std::size_t> section_value;
+    std::optional<featherdoc::section_reference_kind> kind_value;
+    std::optional<std::size_t> resolved_from_section_value;
+    std::optional<bool> linked_to_previous_value;
+    bool saw_slots = false;
+    std::vector<featherdoc::template_slot_requirement> slots;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error("JSON schema file", index,
+                                               "expected ':' after object member",
+                                               error_message);
+            }
+
+            ++index;
+            if (member_name == "part") {
+                if (part_value.has_value()) {
+                    error_message =
+                        "JSON schema member 'part' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                part_value.emplace();
+                if (!parse_json_patch_string(content, index, *part_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "index") {
+                if (index_value.has_value()) {
+                    error_message =
+                        "JSON schema member 'index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index, "index",
+                                                  error_message)) {
+                    return false;
+                }
+                index_value = parsed_index;
+            } else if (member_name == "section") {
+                if (section_value.has_value()) {
+                    error_message =
+                        "JSON schema member 'section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "section", error_message)) {
+                    return false;
+                }
+                section_value = parsed_index;
+            } else if (member_name == "kind") {
+                if (kind_value.has_value()) {
+                    error_message =
+                        "JSON schema member 'kind' must not be duplicated";
+                    return false;
+                }
+                featherdoc::section_reference_kind parsed_kind{};
+                if (!parse_json_patch_reference_kind_value(content, index,
+                                                           parsed_kind,
+                                                           error_message)) {
+                    return false;
+                }
+                kind_value = parsed_kind;
+            } else if (member_name == "slots") {
+                if (saw_slots) {
+                    error_message =
+                        "JSON schema member 'slots' must not be duplicated";
+                    return false;
+                }
+                if (!parse_template_schema_json_slots(content, index, slots,
+                                                      error_message)) {
+                    return false;
+                }
+                saw_slots = true;
+            } else if (member_name == "linked_to_previous") {
+                if (linked_to_previous_value.has_value()) {
+                    error_message = "JSON schema member 'linked_to_previous' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                bool parsed_value = false;
+                if (!parse_json_patch_bool_member_value(content, index, parsed_value,
+                                                        "linked_to_previous",
+                                                        error_message)) {
+                    return false;
+                }
+                linked_to_previous_value = parsed_value;
+            } else if (member_name == "resolved_from_section") {
+                if (resolved_from_section_value.has_value()) {
+                    error_message = "JSON schema member 'resolved_from_section' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_value = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_value,
+                                                  "resolved_from_section",
+                                                  error_message)) {
+                    return false;
+                }
+                resolved_from_section_value = parsed_value;
+            } else if (member_name == "entry_name") {
+                std::string ignored;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, ignored, error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("JSON schema file", index,
+                                               "unknown target member",
+                                               error_message);
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_input_error("JSON schema file", index,
+                                           "expected ',' or '}' after object member",
+                                           error_message);
+        }
+    }
+
+    if (!part_value.has_value()) {
+        error_message = "JSON schema target must contain 'part'";
+        return false;
+    }
+    if (!saw_slots) {
+        error_message = "JSON schema target must contain a 'slots' array";
+        return false;
+    }
+    if (slots.empty()) {
+        error_message = "JSON schema target 'slots' array must not be empty";
+        return false;
+    }
+
+    target = {};
+    if (!parse_validation_part(*part_value, target.part)) {
+        error_message =
+            "JSON schema member 'part' must be one of "
+            "'body', 'header', 'footer', 'section-header', or 'section-footer'";
+        return false;
+    }
+    target.part_index = index_value;
+    target.section_index = section_value;
+    target.requirements = std::move(slots);
+    target.reference_kind = kind_value;
+    target.resolved_from_section_index = resolved_from_section_value;
+    target.linked_to_previous = linked_to_previous_value.value_or(false);
+
+    return validate_template_part_selection(target.part, target.part_index,
+                                            target.section_index,
+                                            target.reference_kind.has_value(),
+                                            "schema validation", error_message);
+}
+
+auto read_template_schema_file(const path_type &schema_path,
+                               exported_template_schema_result &result,
+                               std::string &error_message) -> bool {
+    std::string content;
+    std::size_t index = 0U;
+    if (!read_template_table_json_content(schema_path, content, index,
+                                          error_message)) {
+        if (error_message.rfind("failed to read JSON patch file:", 0U) == 0U) {
+            error_message.replace(0U, std::string("failed to read JSON patch file:").size(),
+                                  "failed to read JSON schema file:");
+        }
+        return false;
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("JSON schema file", index,
+                                       "root must be an object", error_message);
+    }
+
+    bool saw_targets = false;
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error("JSON schema file", index,
+                                               "expected ':' after object member",
+                                               error_message);
+            }
+
+            ++index;
+            if (member_name == "targets") {
+                if (saw_targets) {
+                    error_message =
+                        "JSON schema member 'targets' must not be duplicated";
+                    return false;
+                }
+
+                skip_json_patch_whitespace(content, index);
+                if (index >= content.size() || content[index] != '[') {
+                    return report_json_input_error("JSON schema file", index,
+                                                   "expected targets array",
+                                                   error_message);
+                }
+
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                if (index < content.size() && content[index] == ']') {
+                    ++index;
+                    saw_targets = true;
+                } else {
+                    while (index < content.size()) {
+                        exported_template_schema_target target;
+                        if (!parse_template_schema_json_target(content, index, target,
+                                                               error_message)) {
+                            return false;
+                        }
+                        result.targets.push_back(std::move(target));
+
+                        skip_json_patch_whitespace(content, index);
+                        if (index >= content.size()) {
+                            break;
+                        }
+                        if (content[index] == ',') {
+                            ++index;
+                            skip_json_patch_whitespace(content, index);
+                            continue;
+                        }
+                        if (content[index] == ']') {
+                            ++index;
+                            saw_targets = true;
+                            break;
+                        }
+                        return report_json_input_error(
+                            "JSON schema file", index,
+                            "expected ',' or ']' after target entry", error_message);
+                    }
+                }
+            } else {
+                return report_json_input_error("JSON schema file", index,
+                                               "unknown root member", error_message);
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_input_error("JSON schema file", index,
+                                           "expected ',' or '}' after object member",
+                                           error_message);
+        }
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index != content.size()) {
+        return report_json_input_error("JSON schema file", index,
+                                       "unexpected trailing content after root object",
+                                       error_message);
+    }
+
+    if (!saw_targets) {
+        error_message = "JSON schema file must contain a 'targets' array";
+        return false;
+    }
+
+    return true;
+}
+
+auto append_validate_template_schema_file_targets(
+    const path_type &schema_path,
+    std::vector<validate_template_schema_target_options> &targets,
+    std::string &error_message) -> bool {
+    exported_template_schema_result schema_file;
+    if (!read_template_schema_file(schema_path, schema_file, error_message)) {
+        return false;
+    }
+
+    for (const auto &schema_target : schema_file.targets) {
+        validate_template_schema_target_options target{};
+        target.part = schema_target.part;
+        target.part_index = schema_target.part_index;
+        target.section_index = schema_target.section_index;
+        target.requirements = schema_target.requirements;
+        if (schema_target.reference_kind.has_value()) {
+            target.reference_kind = *schema_target.reference_kind;
+            target.has_kind = true;
+        }
+        targets.push_back(std::move(target));
+    }
+
     return true;
 }
 
@@ -15141,6 +17504,22 @@ auto remove_part(featherdoc::Document &doc, section_part_family family,
     return true;
 }
 
+auto move_part(featherdoc::Document &doc, section_part_family family,
+               std::size_t source_index, std::size_t target_index,
+               std::string_view command, bool json_output) -> bool {
+    const auto success = family == section_part_family::header
+                             ? doc.move_header_part(source_index, target_index)
+                             : doc.move_footer_part(source_index, target_index);
+    if (!success) {
+        std::string message =
+            std::string(section_part_name(family)) + " part could not be reordered";
+        return report_operation_failure(command, "mutate", message, doc.last_error(),
+                                        json_output);
+    }
+
+    return true;
+}
+
 auto replace_section_text(featherdoc::Document &doc, section_part_family family,
                           std::size_t section_index, std::string_view replacement_text,
                           featherdoc::section_reference_kind reference_kind,
@@ -15173,6 +17552,133 @@ void print_string_list(std::ostream &stream, std::string_view label,
             stream << ", ";
         }
         stream << values[index];
+    }
+    stream << '\n';
+}
+
+void write_json_bookmark_summaries(
+    std::ostream &stream,
+    const std::vector<featherdoc::bookmark_summary> &bookmarks) {
+    stream << '[';
+    for (std::size_t index = 0; index < bookmarks.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_bookmark_summary(stream, bookmarks[index]);
+    }
+    stream << ']';
+}
+
+void write_json_template_kind_mismatches(
+    std::ostream &stream,
+    const std::vector<featherdoc::template_kind_mismatch> &mismatches) {
+    stream << '[';
+    for (std::size_t index = 0; index < mismatches.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+
+        const auto &mismatch = mismatches[index];
+        stream << "{\"bookmark_name\":";
+        write_json_string(stream, mismatch.bookmark_name);
+        stream << ",\"expected_kind\":";
+        write_json_string(stream, template_slot_kind_name(mismatch.expected_kind));
+        stream << ",\"actual_kind\":";
+        write_json_string(stream, bookmark_kind_name(mismatch.actual_kind));
+        stream << ",\"occurrence_count\":" << mismatch.occurrence_count << '}';
+    }
+    stream << ']';
+}
+
+void write_json_template_occurrence_mismatches(
+    std::ostream &stream,
+    const std::vector<featherdoc::template_occurrence_mismatch> &mismatches) {
+    stream << '[';
+    for (std::size_t index = 0; index < mismatches.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+
+        const auto &mismatch = mismatches[index];
+        stream << "{\"bookmark_name\":";
+        write_json_string(stream, mismatch.bookmark_name);
+        stream << ",\"actual_occurrences\":" << mismatch.actual_occurrences
+               << ",\"min_occurrences\":" << mismatch.min_occurrences
+               << ",\"max_occurrences\":";
+        if (mismatch.max_occurrences.has_value()) {
+            stream << *mismatch.max_occurrences;
+        } else {
+            stream << "null";
+        }
+        stream << '}';
+    }
+    stream << ']';
+}
+
+void print_bookmark_summary_list(std::ostream &stream, std::string_view label,
+                                 const std::vector<featherdoc::bookmark_summary> &bookmarks) {
+    stream << label << ": ";
+    if (bookmarks.empty()) {
+        stream << "none\n";
+        return;
+    }
+
+    for (std::size_t index = 0; index < bookmarks.size(); ++index) {
+        if (index != 0U) {
+            stream << "; ";
+        }
+        print_bookmark_summary(stream, bookmarks[index]);
+    }
+    stream << '\n';
+}
+
+void print_template_kind_mismatch_list(
+    std::ostream &stream, std::string_view label,
+    const std::vector<featherdoc::template_kind_mismatch> &mismatches) {
+    stream << label << ": ";
+    if (mismatches.empty()) {
+        stream << "none\n";
+        return;
+    }
+
+    for (std::size_t index = 0; index < mismatches.size(); ++index) {
+        if (index != 0U) {
+            stream << "; ";
+        }
+
+        const auto &mismatch = mismatches[index];
+        stream << mismatch.bookmark_name
+               << " expected=" << template_slot_kind_name(mismatch.expected_kind)
+               << " actual=" << bookmark_kind_name(mismatch.actual_kind)
+               << " occurrences=" << mismatch.occurrence_count;
+    }
+    stream << '\n';
+}
+
+void print_template_occurrence_mismatch_list(
+    std::ostream &stream, std::string_view label,
+    const std::vector<featherdoc::template_occurrence_mismatch> &mismatches) {
+    stream << label << ": ";
+    if (mismatches.empty()) {
+        stream << "none\n";
+        return;
+    }
+
+    for (std::size_t index = 0; index < mismatches.size(); ++index) {
+        if (index != 0U) {
+            stream << "; ";
+        }
+
+        const auto &mismatch = mismatches[index];
+        stream << mismatch.bookmark_name
+               << " actual=" << mismatch.actual_occurrences
+               << " min=" << mismatch.min_occurrences
+               << " max=";
+        if (mismatch.max_occurrences.has_value()) {
+            stream << *mismatch.max_occurrences;
+        } else {
+            stream << "unbounded";
+        }
     }
     stream << '\n';
 }
@@ -15359,6 +17865,13 @@ void print_template_validation_result(
         write_json_strings(std::cout, result.duplicate_bookmarks);
         std::cout << ",\"malformed_placeholders\":";
         write_json_strings(std::cout, result.malformed_placeholders);
+        std::cout << ",\"unexpected_bookmarks\":";
+        write_json_bookmark_summaries(std::cout, result.unexpected_bookmarks);
+        std::cout << ",\"kind_mismatches\":";
+        write_json_template_kind_mismatches(std::cout, result.kind_mismatches);
+        std::cout << ",\"occurrence_mismatches\":";
+        write_json_template_occurrence_mismatches(
+            std::cout, result.occurrence_mismatches);
         std::cout << "}\n";
         return;
     }
@@ -15380,6 +17893,989 @@ void print_template_validation_result(
     print_string_list(std::cout, "duplicate_bookmarks", result.duplicate_bookmarks);
     print_string_list(std::cout, "malformed_placeholders",
                       result.malformed_placeholders);
+    print_bookmark_summary_list(std::cout, "unexpected_bookmarks",
+                                result.unexpected_bookmarks);
+    print_template_kind_mismatch_list(std::cout, "kind_mismatches",
+                                      result.kind_mismatches);
+    print_template_occurrence_mismatch_list(std::cout, "occurrence_mismatches",
+                                            result.occurrence_mismatches);
+}
+
+void write_json_template_schema_part_result(
+    std::ostream &stream,
+    const featherdoc::template_schema_part_validation_result &part_result) {
+    stream << "{\"part\":";
+    write_json_string(stream, validation_part_name(part_result.target.part));
+    if (part_result.target.part_index.has_value()) {
+        stream << ",\"part_index\":" << *part_result.target.part_index;
+    }
+    if (part_result.target.section_index.has_value()) {
+        stream << ",\"section\":" << *part_result.target.section_index;
+    }
+    if (part_result.target.part ==
+            featherdoc::template_schema_part_kind::section_header ||
+        part_result.target.part ==
+            featherdoc::template_schema_part_kind::section_footer) {
+        stream << ",\"kind\":";
+        write_json_string(
+            stream, featherdoc::to_xml_reference_type(part_result.target.reference_kind));
+    }
+    stream << ",\"available\":" << json_bool(part_result.available)
+           << ",\"entry_name\":";
+    write_json_string(stream, part_result.entry_name);
+    stream << ",\"passed\":" << json_bool(static_cast<bool>(part_result))
+           << ",\"missing_required\":";
+    write_json_strings(stream, part_result.validation.missing_required);
+    stream << ",\"duplicate_bookmarks\":";
+    write_json_strings(stream, part_result.validation.duplicate_bookmarks);
+    stream << ",\"malformed_placeholders\":";
+    write_json_strings(stream, part_result.validation.malformed_placeholders);
+    stream << ",\"unexpected_bookmarks\":";
+    write_json_bookmark_summaries(stream, part_result.validation.unexpected_bookmarks);
+    stream << ",\"kind_mismatches\":";
+    write_json_template_kind_mismatches(stream, part_result.validation.kind_mismatches);
+    stream << ",\"occurrence_mismatches\":";
+    write_json_template_occurrence_mismatches(
+        stream, part_result.validation.occurrence_mismatches);
+    stream << '}';
+}
+
+void print_template_schema_part_result(
+    std::ostream &stream,
+    const featherdoc::template_schema_part_validation_result &part_result) {
+    stream << "part: " << validation_part_name(part_result.target.part) << '\n';
+    if (part_result.target.part_index.has_value()) {
+        stream << "part_index: " << *part_result.target.part_index << '\n';
+    }
+    if (part_result.target.section_index.has_value()) {
+        stream << "section: " << *part_result.target.section_index << '\n';
+    }
+    if (part_result.target.part ==
+            featherdoc::template_schema_part_kind::section_header ||
+        part_result.target.part ==
+            featherdoc::template_schema_part_kind::section_footer) {
+        stream << "kind: "
+               << featherdoc::to_xml_reference_type(part_result.target.reference_kind)
+               << '\n';
+    }
+    stream << "available: " << yes_no(part_result.available) << '\n';
+    stream << "entry_name: " << part_result.entry_name << '\n';
+    stream << "passed: " << yes_no(static_cast<bool>(part_result)) << '\n';
+    print_string_list(stream, "missing_required",
+                      part_result.validation.missing_required);
+    print_string_list(stream, "duplicate_bookmarks",
+                      part_result.validation.duplicate_bookmarks);
+    print_string_list(stream, "malformed_placeholders",
+                      part_result.validation.malformed_placeholders);
+    print_bookmark_summary_list(stream, "unexpected_bookmarks",
+                                part_result.validation.unexpected_bookmarks);
+    print_template_kind_mismatch_list(stream, "kind_mismatches",
+                                      part_result.validation.kind_mismatches);
+    print_template_occurrence_mismatch_list(
+        stream, "occurrence_mismatches",
+        part_result.validation.occurrence_mismatches);
+}
+
+void print_template_schema_validation_result(
+    const featherdoc::template_schema_validation_result &result, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"passed\":" << json_bool(static_cast<bool>(result))
+                  << ",\"part_results\":[";
+        for (std::size_t index = 0U; index < result.part_results.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_template_schema_part_result(std::cout,
+                                                   result.part_results[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "passed: " << yes_no(static_cast<bool>(result)) << '\n';
+    std::cout << "part_result_count: " << result.part_results.size() << '\n';
+    for (std::size_t index = 0U; index < result.part_results.size(); ++index) {
+        std::cout << '\n';
+        std::cout << "part_result[" << index << "]\n";
+        print_template_schema_part_result(std::cout, result.part_results[index]);
+    }
+}
+
+void write_json_exported_template_schema_requirement(
+    std::ostream &stream, const featherdoc::template_slot_requirement &requirement) {
+    stream << "{\"bookmark\":";
+    write_json_string(stream, requirement.bookmark_name);
+    stream << ",\"kind\":";
+    write_json_string(stream, template_slot_kind_name(requirement.kind));
+    if (requirement.min_occurrences.has_value() &&
+        requirement.max_occurrences.has_value() &&
+        *requirement.min_occurrences == *requirement.max_occurrences) {
+        stream << ",\"count\":" << *requirement.min_occurrences;
+    } else {
+        if (!requirement.required) {
+            stream << ",\"required\":false";
+        }
+        if (requirement.min_occurrences.has_value()) {
+            stream << ",\"min\":" << *requirement.min_occurrences;
+        }
+        if (requirement.max_occurrences.has_value()) {
+            stream << ",\"max\":" << *requirement.max_occurrences;
+        }
+    }
+    stream << '}';
+}
+
+auto compare_optional_index(const std::optional<std::size_t> &left,
+                            const std::optional<std::size_t> &right) -> int {
+    if (left.has_value() != right.has_value()) {
+        return left.has_value() ? 1 : -1;
+    }
+    if (!left.has_value()) {
+        return 0;
+    }
+    if (*left < *right) {
+        return -1;
+    }
+    if (*right < *left) {
+        return 1;
+    }
+    return 0;
+}
+
+auto compare_optional_reference_kind(
+    const std::optional<featherdoc::section_reference_kind> &left,
+    const std::optional<featherdoc::section_reference_kind> &right) -> int {
+    if (left.has_value() != right.has_value()) {
+        return left.has_value() ? 1 : -1;
+    }
+    if (!left.has_value()) {
+        return 0;
+    }
+    if (static_cast<int>(*left) < static_cast<int>(*right)) {
+        return -1;
+    }
+    if (static_cast<int>(*right) < static_cast<int>(*left)) {
+        return 1;
+    }
+    return 0;
+}
+
+auto compare_template_slot_requirement(
+    const featherdoc::template_slot_requirement &left,
+    const featherdoc::template_slot_requirement &right) -> int {
+    if (left.bookmark_name < right.bookmark_name) {
+        return -1;
+    }
+    if (right.bookmark_name < left.bookmark_name) {
+        return 1;
+    }
+    if (static_cast<int>(left.kind) < static_cast<int>(right.kind)) {
+        return -1;
+    }
+    if (static_cast<int>(right.kind) < static_cast<int>(left.kind)) {
+        return 1;
+    }
+    if (left.required != right.required) {
+        return left.required ? 1 : -1;
+    }
+    if (const auto min_compare =
+            compare_optional_index(left.min_occurrences, right.min_occurrences);
+        min_compare != 0) {
+        return min_compare;
+    }
+    return compare_optional_index(left.max_occurrences, right.max_occurrences);
+}
+
+auto compare_template_schema_target_selector(
+    const exported_template_schema_target &left,
+    const exported_template_schema_target &right) -> int {
+    if (static_cast<int>(left.part) < static_cast<int>(right.part)) {
+        return -1;
+    }
+    if (static_cast<int>(right.part) < static_cast<int>(left.part)) {
+        return 1;
+    }
+    if (const auto part_index_compare =
+            compare_optional_index(left.part_index, right.part_index);
+        part_index_compare != 0) {
+        return part_index_compare;
+    }
+    if (const auto section_index_compare =
+            compare_optional_index(left.section_index, right.section_index);
+        section_index_compare != 0) {
+        return section_index_compare;
+    }
+    return compare_optional_reference_kind(left.reference_kind, right.reference_kind);
+}
+
+auto compare_template_schema_target(const exported_template_schema_target &left,
+                                    const exported_template_schema_target &right)
+    -> int {
+    if (const auto selector_compare =
+            compare_template_schema_target_selector(left, right);
+        selector_compare != 0) {
+        return selector_compare;
+    }
+    if (const auto resolved_compare = compare_optional_index(
+            left.resolved_from_section_index, right.resolved_from_section_index);
+        resolved_compare != 0) {
+        return resolved_compare;
+    }
+    if (left.linked_to_previous != right.linked_to_previous) {
+        return left.linked_to_previous ? 1 : -1;
+    }
+
+    const auto shared_size =
+        std::min(left.requirements.size(), right.requirements.size());
+    for (std::size_t index = 0U; index < shared_size; ++index) {
+        if (const auto requirement_compare = compare_template_slot_requirement(
+                left.requirements[index], right.requirements[index]);
+            requirement_compare != 0) {
+            return requirement_compare;
+        }
+    }
+    if (left.requirements.size() < right.requirements.size()) {
+        return -1;
+    }
+    if (right.requirements.size() < left.requirements.size()) {
+        return 1;
+    }
+    return 0;
+}
+
+void normalize_template_schema_result(exported_template_schema_result &result) {
+    for (auto &target : result.targets) {
+        std::sort(target.requirements.begin(), target.requirements.end(),
+                  [](const featherdoc::template_slot_requirement &left,
+                     const featherdoc::template_slot_requirement &right) {
+                      return compare_template_slot_requirement(left, right) < 0;
+                  });
+        target.entry_name.clear();
+    }
+
+    std::sort(result.targets.begin(), result.targets.end(),
+              [](const exported_template_schema_target &left,
+                 const exported_template_schema_target &right) {
+                  return compare_template_schema_target(left, right) < 0;
+              });
+}
+
+auto diff_template_schema_results(const exported_template_schema_result &left,
+                                  const exported_template_schema_result &right)
+    -> template_schema_diff_result {
+    template_schema_diff_result result;
+
+    std::size_t left_index = 0U;
+    std::size_t right_index = 0U;
+    while (left_index < left.targets.size() && right_index < right.targets.size()) {
+        const auto selector_compare = compare_template_schema_target_selector(
+            left.targets[left_index], right.targets[right_index]);
+        if (selector_compare < 0) {
+            result.removed_targets.push_back(left.targets[left_index]);
+            ++left_index;
+            continue;
+        }
+        if (selector_compare > 0) {
+            result.added_targets.push_back(right.targets[right_index]);
+            ++right_index;
+            continue;
+        }
+
+        std::size_t left_group_end = left_index + 1U;
+        while (left_group_end < left.targets.size() &&
+               compare_template_schema_target_selector(left.targets[left_index],
+                                                      left.targets[left_group_end]) == 0) {
+            ++left_group_end;
+        }
+        std::size_t right_group_end = right_index + 1U;
+        while (right_group_end < right.targets.size() &&
+               compare_template_schema_target_selector(right.targets[right_index],
+                                                      right.targets[right_group_end]) == 0) {
+            ++right_group_end;
+        }
+
+        const auto left_group_size = left_group_end - left_index;
+        const auto right_group_size = right_group_end - right_index;
+        if (left_group_size == 1U && right_group_size == 1U) {
+            if (compare_template_schema_target(left.targets[left_index],
+                                               right.targets[right_index]) != 0) {
+                result.changed_targets.push_back(
+                    {left.targets[left_index], right.targets[right_index]});
+            }
+        } else {
+            const bool groups_equal =
+                left_group_size == right_group_size &&
+                std::equal(left.targets.begin() + static_cast<std::ptrdiff_t>(left_index),
+                           left.targets.begin() +
+                               static_cast<std::ptrdiff_t>(left_group_end),
+                           right.targets.begin() + static_cast<std::ptrdiff_t>(right_index),
+                           [](const exported_template_schema_target &left_target,
+                              const exported_template_schema_target &right_target) {
+                               return compare_template_schema_target(left_target,
+                                                                     right_target) == 0;
+                           });
+            if (!groups_equal) {
+                result.removed_targets.insert(
+                    result.removed_targets.end(),
+                    left.targets.begin() + static_cast<std::ptrdiff_t>(left_index),
+                    left.targets.begin() + static_cast<std::ptrdiff_t>(left_group_end));
+                result.added_targets.insert(
+                    result.added_targets.end(),
+                    right.targets.begin() + static_cast<std::ptrdiff_t>(right_index),
+                    right.targets.begin() + static_cast<std::ptrdiff_t>(right_group_end));
+            }
+        }
+
+        left_index = left_group_end;
+        right_index = right_group_end;
+    }
+
+    result.removed_targets.insert(
+        result.removed_targets.end(),
+        left.targets.begin() + static_cast<std::ptrdiff_t>(left_index), left.targets.end());
+    result.added_targets.insert(
+        result.added_targets.end(),
+        right.targets.begin() + static_cast<std::ptrdiff_t>(right_index),
+        right.targets.end());
+    return result;
+}
+
+void write_json_exported_template_schema_target(
+    std::ostream &stream, const exported_template_schema_target &target) {
+    stream << "{\"part\":";
+    write_json_string(stream, validation_part_name(target.part));
+    if (target.part_index.has_value()) {
+        stream << ",\"index\":" << *target.part_index;
+    }
+    if (target.section_index.has_value()) {
+        stream << ",\"section\":" << *target.section_index;
+    }
+    if (target.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*target.reference_kind));
+    }
+    if (target.resolved_from_section_index.has_value()) {
+        stream << ",\"resolved_from_section\":"
+               << *target.resolved_from_section_index;
+    }
+    if (target.linked_to_previous) {
+        stream << ",\"linked_to_previous\":true";
+    }
+    stream << ",\"slots\":[";
+    for (std::size_t slot_index = 0U; slot_index < target.requirements.size();
+         ++slot_index) {
+        if (slot_index != 0U) {
+            stream << ',';
+        }
+        write_json_exported_template_schema_requirement(stream,
+                                                        target.requirements[slot_index]);
+    }
+    stream << "]}";
+}
+
+void write_json_exported_template_schema(std::ostream &stream,
+                                         const exported_template_schema_result &result) {
+    stream << "{\"targets\":[";
+    for (std::size_t target_index = 0U; target_index < result.targets.size();
+         ++target_index) {
+        if (target_index != 0U) {
+            stream << ',';
+        }
+        write_json_exported_template_schema_target(stream, result.targets[target_index]);
+    }
+    stream << "]}\n";
+}
+
+void write_json_exported_template_schema_skipped_bookmark(
+    std::ostream &stream,
+    const exported_template_schema_skipped_bookmark &bookmark) {
+    stream << "{\"part\":";
+    write_json_string(stream, validation_part_name(bookmark.part));
+    if (bookmark.part_index.has_value()) {
+        stream << ",\"part_index\":" << *bookmark.part_index;
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, bookmark.entry_name);
+    if (bookmark.section_index.has_value()) {
+        stream << ",\"section\":" << *bookmark.section_index;
+    }
+    if (bookmark.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*bookmark.reference_kind));
+    }
+    if (bookmark.resolved_from_section_index.has_value()) {
+        stream << ",\"resolved_from_section\":"
+               << *bookmark.resolved_from_section_index;
+    }
+    if (bookmark.linked_to_previous) {
+        stream << ",\"linked_to_previous\":true";
+    }
+    stream << ",\"bookmark_name\":";
+    write_json_string(stream, bookmark.bookmark.bookmark_name);
+    stream << ",\"kind\":";
+    write_json_string(stream, bookmark_kind_name(bookmark.bookmark.kind));
+    stream << ",\"occurrence_count\":" << bookmark.bookmark.occurrence_count
+           << ",\"reason\":";
+    write_json_string(stream, bookmark.reason);
+    stream << '}';
+}
+
+void print_exported_template_schema_summary(
+    const exported_template_schema_result &result,
+    const std::optional<path_type> &output_path, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"export-template-schema\",\"ok\":true";
+        if (output_path.has_value()) {
+            std::cout << ",\"output_path\":";
+            write_json_string(std::cout, output_path->string());
+        }
+        std::cout << ",\"target_count\":" << result.targets.size()
+                  << ",\"slot_count\":" << result.slot_count()
+                  << ",\"skipped_count\":" << result.skipped_bookmarks.size()
+                  << ",\"skipped_bookmarks\":[";
+        for (std::size_t index = 0U; index < result.skipped_bookmarks.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_exported_template_schema_skipped_bookmark(
+                std::cout, result.skipped_bookmarks[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    }
+    std::cout << "target_count: " << result.targets.size() << '\n'
+              << "slot_count: " << result.slot_count() << '\n'
+              << "skipped_count: " << result.skipped_bookmarks.size() << '\n';
+    if (result.skipped_bookmarks.empty()) {
+        std::cout << "skipped_bookmarks: none\n";
+        return;
+    }
+
+    for (std::size_t index = 0U; index < result.skipped_bookmarks.size(); ++index) {
+        const auto &bookmark = result.skipped_bookmarks[index];
+        std::cout << "skipped_bookmarks[" << index << "]: part="
+                  << validation_part_name(bookmark.part);
+        if (bookmark.part_index.has_value()) {
+            std::cout << " part_index=" << *bookmark.part_index;
+        }
+        if (bookmark.section_index.has_value()) {
+            std::cout << " section=" << *bookmark.section_index;
+        }
+        if (bookmark.reference_kind.has_value()) {
+            std::cout << " kind="
+                      << featherdoc::to_xml_reference_type(*bookmark.reference_kind);
+        }
+        if (bookmark.resolved_from_section_index.has_value()) {
+            std::cout << " resolved_from_section="
+                      << *bookmark.resolved_from_section_index;
+        }
+        if (bookmark.linked_to_previous) {
+            std::cout << " linked_to_previous=yes";
+        }
+        std::cout << " entry=" << bookmark.entry_name
+                  << " bookmark=" << bookmark.bookmark.bookmark_name
+                  << " kind=" << bookmark_kind_name(bookmark.bookmark.kind)
+                  << " occurrences=" << bookmark.bookmark.occurrence_count
+                  << " reason=" << bookmark.reason << '\n';
+    }
+}
+
+void print_exported_template_schema_requirement(
+    std::ostream &stream, const featherdoc::template_slot_requirement &requirement) {
+    stream << "bookmark=" << requirement.bookmark_name
+           << " kind=" << template_slot_kind_name(requirement.kind);
+    if (requirement.min_occurrences.has_value() &&
+        requirement.max_occurrences.has_value() &&
+        *requirement.min_occurrences == *requirement.max_occurrences) {
+        stream << " count=" << *requirement.min_occurrences;
+        return;
+    }
+
+    stream << " required=" << yes_no(requirement.required);
+    if (requirement.min_occurrences.has_value()) {
+        stream << " min=" << *requirement.min_occurrences;
+    }
+    if (requirement.max_occurrences.has_value()) {
+        stream << " max=" << *requirement.max_occurrences;
+    }
+}
+
+void print_exported_template_schema_target(
+    std::ostream &stream, const exported_template_schema_target &target) {
+    stream << "part: " << validation_part_name(target.part) << '\n';
+    if (target.part_index.has_value()) {
+        stream << "part_index: " << *target.part_index << '\n';
+    }
+    if (target.section_index.has_value()) {
+        stream << "section: " << *target.section_index << '\n';
+    }
+    if (target.reference_kind.has_value()) {
+        stream << "kind: "
+               << featherdoc::to_xml_reference_type(*target.reference_kind) << '\n';
+    }
+    if (target.resolved_from_section_index.has_value()) {
+        stream << "resolved_from_section: " << *target.resolved_from_section_index
+               << '\n';
+    }
+    stream << "linked_to_previous: " << yes_no(target.linked_to_previous) << '\n';
+    stream << "slot_count: " << target.requirements.size() << '\n';
+    for (std::size_t index = 0U; index < target.requirements.size(); ++index) {
+        stream << "slot[" << index << "]: ";
+        print_exported_template_schema_requirement(stream, target.requirements[index]);
+        stream << '\n';
+    }
+}
+
+void print_normalized_template_schema_summary(
+    const exported_template_schema_result &result,
+    const std::optional<path_type> &output_path, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"normalize-template-schema\",\"ok\":true";
+        if (output_path.has_value()) {
+            std::cout << ",\"output_path\":";
+            write_json_string(std::cout, output_path->string());
+        }
+        std::cout << ",\"target_count\":" << result.targets.size()
+                  << ",\"slot_count\":" << result.slot_count() << "}\n";
+        return;
+    }
+
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    }
+    std::cout << "target_count: " << result.targets.size() << '\n'
+              << "slot_count: " << result.slot_count() << '\n';
+}
+
+void write_json_template_schema_diff_result(
+    std::ostream &stream, const template_schema_diff_result &result) {
+    stream << "{\"equal\":" << json_bool(result.equal())
+           << ",\"added_target_count\":" << result.added_targets.size()
+           << ",\"removed_target_count\":" << result.removed_targets.size()
+           << ",\"changed_target_count\":" << result.changed_targets.size()
+           << ",\"added_targets\":[";
+    for (std::size_t index = 0U; index < result.added_targets.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_exported_template_schema_target(stream, result.added_targets[index]);
+    }
+    stream << "],\"removed_targets\":[";
+    for (std::size_t index = 0U; index < result.removed_targets.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_exported_template_schema_target(stream, result.removed_targets[index]);
+    }
+    stream << "],\"changed_targets\":[";
+    for (std::size_t index = 0U; index < result.changed_targets.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        stream << "{\"left\":";
+        write_json_exported_template_schema_target(stream, result.changed_targets[index].left);
+        stream << ",\"right\":";
+        write_json_exported_template_schema_target(stream, result.changed_targets[index].right);
+        stream << '}';
+    }
+    stream << "]}\n";
+}
+
+void print_template_schema_diff_result(const template_schema_diff_result &result,
+                                       bool json_output) {
+    if (json_output) {
+        write_json_template_schema_diff_result(std::cout, result);
+        return;
+    }
+
+    std::cout << "equal: " << yes_no(result.equal()) << '\n'
+              << "added_target_count: " << result.added_targets.size() << '\n'
+              << "removed_target_count: " << result.removed_targets.size() << '\n'
+              << "changed_target_count: " << result.changed_targets.size() << '\n';
+
+    for (std::size_t index = 0U; index < result.added_targets.size(); ++index) {
+        std::cout << '\n' << "added_target[" << index << "]\n";
+        print_exported_template_schema_target(std::cout, result.added_targets[index]);
+    }
+    for (std::size_t index = 0U; index < result.removed_targets.size(); ++index) {
+        std::cout << '\n' << "removed_target[" << index << "]\n";
+        print_exported_template_schema_target(std::cout, result.removed_targets[index]);
+    }
+    for (std::size_t index = 0U; index < result.changed_targets.size(); ++index) {
+        std::cout << '\n' << "changed_target[" << index << "].left\n";
+        print_exported_template_schema_target(std::cout,
+                                              result.changed_targets[index].left);
+        std::cout << '\n' << "changed_target[" << index << "].right\n";
+        print_exported_template_schema_target(std::cout,
+                                              result.changed_targets[index].right);
+    }
+}
+
+void print_checked_template_schema_result(
+    const path_type &schema_path, const template_schema_diff_result &result,
+    const std::optional<path_type> &output_path, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"check-template-schema\",\"matches\":"
+                  << json_bool(result.equal()) << ",\"schema_file\":";
+        write_json_string(std::cout, schema_path.string());
+        if (output_path.has_value()) {
+            std::cout << ",\"generated_output_path\":";
+            write_json_string(std::cout, output_path->string());
+        }
+        std::cout << ",\"added_target_count\":" << result.added_targets.size()
+                  << ",\"removed_target_count\":" << result.removed_targets.size()
+                  << ",\"changed_target_count\":" << result.changed_targets.size()
+                  << ",\"added_targets\":[";
+        for (std::size_t index = 0U; index < result.added_targets.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_exported_template_schema_target(std::cout,
+                                                       result.added_targets[index]);
+        }
+        std::cout << "],\"removed_targets\":[";
+        for (std::size_t index = 0U; index < result.removed_targets.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_exported_template_schema_target(
+                std::cout, result.removed_targets[index]);
+        }
+        std::cout << "],\"changed_targets\":[";
+        for (std::size_t index = 0U; index < result.changed_targets.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            std::cout << "{\"left\":";
+            write_json_exported_template_schema_target(
+                std::cout, result.changed_targets[index].left);
+            std::cout << ",\"right\":";
+            write_json_exported_template_schema_target(
+                std::cout, result.changed_targets[index].right);
+            std::cout << '}';
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "schema_file: " << schema_path.string() << '\n';
+    if (output_path.has_value()) {
+        std::cout << "generated_output_path: " << output_path->string() << '\n';
+    }
+    std::cout << "matches: " << yes_no(result.equal()) << '\n'
+              << "added_target_count: " << result.added_targets.size() << '\n'
+              << "removed_target_count: " << result.removed_targets.size() << '\n'
+              << "changed_target_count: " << result.changed_targets.size() << '\n';
+
+    for (std::size_t index = 0U; index < result.added_targets.size(); ++index) {
+        std::cout << '\n' << "added_target[" << index << "]\n";
+        print_exported_template_schema_target(std::cout, result.added_targets[index]);
+    }
+    for (std::size_t index = 0U; index < result.removed_targets.size(); ++index) {
+        std::cout << '\n' << "removed_target[" << index << "]\n";
+        print_exported_template_schema_target(std::cout, result.removed_targets[index]);
+    }
+    for (std::size_t index = 0U; index < result.changed_targets.size(); ++index) {
+        std::cout << '\n' << "changed_target[" << index << "].baseline\n";
+        print_exported_template_schema_target(std::cout,
+                                              result.changed_targets[index].left);
+        std::cout << '\n' << "changed_target[" << index << "].generated\n";
+        print_exported_template_schema_target(std::cout,
+                                              result.changed_targets[index].right);
+    }
+}
+
+auto append_exported_template_schema_target(
+    featherdoc::Document &doc, validation_part_family part_family,
+    std::optional<std::size_t> part_index,
+    std::optional<std::size_t> section_index,
+    std::optional<featherdoc::section_reference_kind> reference_kind,
+    std::optional<std::size_t> resolved_from_section_index,
+    bool linked_to_previous,
+    featherdoc::TemplatePart part,
+    exported_template_schema_result &result, std::string_view command,
+    bool json_output) -> bool {
+    if (!part) {
+        featherdoc::document_error_info error_info{};
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail = "target template part is not available";
+        return report_operation_failure(command, "inspect",
+                                        "failed to inspect template part",
+                                        error_info, json_output);
+    }
+
+    const auto entry_name = std::string(part.entry_name());
+    const auto bookmarks = part.list_bookmarks();
+    if (const auto &error_info = doc.last_error(); error_info.code) {
+        return report_document_error(command, "inspect", error_info, json_output);
+    }
+
+    exported_template_schema_target target{};
+    target.part = part_family;
+    target.part_index = part_index;
+    target.section_index = section_index;
+    target.reference_kind = reference_kind;
+    target.resolved_from_section_index = resolved_from_section_index;
+    target.linked_to_previous = linked_to_previous;
+    target.entry_name = entry_name;
+
+    for (const auto &bookmark : bookmarks) {
+        const auto slot_kind = bookmark_kind_to_template_slot_kind(bookmark.kind);
+        if (!slot_kind.has_value()) {
+            result.skipped_bookmarks.push_back(
+                {part_family,
+                 part_index,
+                 section_index,
+                 reference_kind,
+                 resolved_from_section_index,
+                 linked_to_previous,
+                 entry_name,
+                 bookmark,
+                 "bookmark kind cannot be represented as a template slot"});
+            continue;
+        }
+
+        featherdoc::template_slot_requirement requirement{};
+        requirement.bookmark_name = bookmark.bookmark_name;
+        requirement.kind = *slot_kind;
+        if (bookmark.occurrence_count > 1U) {
+            requirement.min_occurrences = bookmark.occurrence_count;
+            requirement.max_occurrences = bookmark.occurrence_count;
+        }
+        target.requirements.push_back(std::move(requirement));
+    }
+
+    if (!target.requirements.empty()) {
+        result.targets.push_back(std::move(target));
+    }
+
+    return true;
+}
+
+auto write_exported_template_schema_file(
+    const path_type &output_path, const exported_template_schema_result &result,
+    std::string &error_message) -> bool {
+    std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
+    if (!stream.good()) {
+        error_message = "failed to open schema output path: " + output_path.string();
+        return false;
+    }
+
+    write_json_exported_template_schema(stream, result);
+    if (!stream.good()) {
+        error_message = "failed to write schema output path: " + output_path.string();
+        return false;
+    }
+
+    return true;
+}
+
+auto append_exported_section_targets(featherdoc::Document &doc,
+                                     exported_template_schema_result &result,
+                                     std::string_view command, bool json_output)
+    -> bool {
+    const auto sections = doc.inspect_sections();
+    if (const auto &error_info = doc.last_error(); error_info.code) {
+        return report_document_error(command, "inspect", error_info, json_output);
+    }
+
+    for (const auto &section : sections.sections) {
+        const auto append_if_present =
+            [&](validation_part_family part_family,
+                featherdoc::section_reference_kind reference_kind,
+                bool present) -> bool {
+            if (!present) {
+                return true;
+            }
+
+            const auto template_part =
+                part_family == validation_part_family::section_header
+                    ? doc.section_header_template(section.index, reference_kind)
+                    : doc.section_footer_template(section.index, reference_kind);
+            return append_exported_template_schema_target(
+                doc, part_family, std::nullopt, section.index, reference_kind,
+                std::nullopt, false, template_part, result, command, json_output);
+        };
+
+        if (!append_if_present(validation_part_family::section_header,
+                               featherdoc::section_reference_kind::default_reference,
+                               section.header.has_default) ||
+            !append_if_present(validation_part_family::section_header,
+                               featherdoc::section_reference_kind::first_page,
+                               section.header.has_first) ||
+            !append_if_present(validation_part_family::section_header,
+                               featherdoc::section_reference_kind::even_page,
+                               section.header.has_even) ||
+            !append_if_present(validation_part_family::section_footer,
+                               featherdoc::section_reference_kind::default_reference,
+                               section.footer.has_default) ||
+            !append_if_present(validation_part_family::section_footer,
+                               featherdoc::section_reference_kind::first_page,
+                               section.footer.has_first) ||
+            !append_if_present(validation_part_family::section_footer,
+                               featherdoc::section_reference_kind::even_page,
+                               section.footer.has_even)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+auto find_related_template_part_by_entry_name(
+    featherdoc::Document &doc, section_part_family family, std::string_view entry_name,
+    std::optional<std::size_t> &part_index, featherdoc::TemplatePart &part) -> bool {
+    const auto total =
+        family == section_part_family::header ? doc.header_count() : doc.footer_count();
+    for (std::size_t index = 0U; index < total; ++index) {
+        auto current =
+            family == section_part_family::header ? doc.header_template(index)
+                                                  : doc.footer_template(index);
+        if (current && current.entry_name() == entry_name) {
+            part_index = index;
+            part = current;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+auto append_exported_resolved_section_targets(featherdoc::Document &doc,
+                                              exported_template_schema_result &result,
+                                              std::string_view command,
+                                              bool json_output) -> bool {
+    const auto sections = doc.inspect_sections();
+    if (const auto &error_info = doc.last_error(); error_info.code) {
+        return report_document_error(command, "inspect", error_info, json_output);
+    }
+
+    for (const auto &section : sections.sections) {
+        const auto append_if_resolved =
+            [&](validation_part_family part_family, section_part_family part_group,
+                featherdoc::section_reference_kind reference_kind,
+                const std::optional<std::string> &resolved_entry_name,
+                const std::optional<std::size_t> &resolved_section_index) -> bool {
+            if (!resolved_entry_name.has_value() || !resolved_section_index.has_value()) {
+                return true;
+            }
+
+            std::optional<std::size_t> part_index;
+            featherdoc::TemplatePart part;
+            if (!find_related_template_part_by_entry_name(doc, part_group,
+                                                          *resolved_entry_name,
+                                                          part_index, part)) {
+                featherdoc::document_error_info error_info{};
+                error_info.code = std::make_error_code(std::errc::invalid_argument);
+                error_info.detail =
+                    "failed to resolve related part by entry name during schema export";
+                error_info.entry_name = *resolved_entry_name;
+                return report_operation_failure(command, "inspect",
+                                                "failed to resolve related part",
+                                                error_info, json_output);
+            }
+
+            return append_exported_template_schema_target(
+                doc, part_family, std::nullopt, section.index, reference_kind,
+                *resolved_section_index, *resolved_section_index != section.index, part,
+                result, command, json_output);
+        };
+
+        if (!append_if_resolved(validation_part_family::section_header,
+                                section_part_family::header,
+                                featherdoc::section_reference_kind::default_reference,
+                                section.header.resolved_default_entry_name,
+                                section.header.resolved_default_section_index) ||
+            !append_if_resolved(validation_part_family::section_header,
+                                section_part_family::header,
+                                featherdoc::section_reference_kind::first_page,
+                                section.header.resolved_first_entry_name,
+                                section.header.resolved_first_section_index) ||
+            !append_if_resolved(validation_part_family::section_header,
+                                section_part_family::header,
+                                featherdoc::section_reference_kind::even_page,
+                                section.header.resolved_even_entry_name,
+                                section.header.resolved_even_section_index) ||
+            !append_if_resolved(validation_part_family::section_footer,
+                                section_part_family::footer,
+                                featherdoc::section_reference_kind::default_reference,
+                                section.footer.resolved_default_entry_name,
+                                section.footer.resolved_default_section_index) ||
+            !append_if_resolved(validation_part_family::section_footer,
+                                section_part_family::footer,
+                                featherdoc::section_reference_kind::first_page,
+                                section.footer.resolved_first_entry_name,
+                                section.footer.resolved_first_section_index) ||
+            !append_if_resolved(validation_part_family::section_footer,
+                                section_part_family::footer,
+                                featherdoc::section_reference_kind::even_page,
+                                section.footer.resolved_even_entry_name,
+                                section.footer.resolved_even_section_index)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+auto build_exported_template_schema(featherdoc::Document &doc,
+                                    bool section_targets,
+                                    bool resolved_section_targets,
+                                    exported_template_schema_result &result,
+                                    std::string_view command, bool json_output)
+    -> bool {
+    result = {};
+    if (!append_exported_template_schema_target(
+            doc, validation_part_family::body, std::nullopt, std::nullopt,
+            std::nullopt, std::nullopt, false, doc.body_template(), result, command,
+            json_output)) {
+        return false;
+    }
+
+    if (resolved_section_targets) {
+        if (!append_exported_resolved_section_targets(doc, result, command, json_output)) {
+            return false;
+        }
+    } else if (section_targets) {
+        if (!append_exported_section_targets(doc, result, command, json_output)) {
+            return false;
+        }
+    } else {
+        for (std::size_t index = 0U; index < doc.header_count(); ++index) {
+            if (!append_exported_template_schema_target(
+                    doc, validation_part_family::header, index, std::nullopt,
+                    std::nullopt, std::nullopt, false, doc.header_template(index),
+                    result, command, json_output)) {
+                return false;
+            }
+        }
+
+        for (std::size_t index = 0U; index < doc.footer_count(); ++index) {
+            if (!append_exported_template_schema_target(
+                    doc, validation_part_family::footer, index, std::nullopt,
+                    std::nullopt, std::nullopt, false, doc.footer_template(index),
+                    result, command, json_output)) {
+                return false;
+            }
+        }
+    }
+
+    if (!result.targets.empty()) {
+        return true;
+    }
+
+    featherdoc::document_error_info error_info{};
+    error_info.code = std::make_error_code(std::errc::invalid_argument);
+    error_info.detail = "document does not contain any exportable template bookmarks";
+    return report_operation_failure(command, "inspect",
+                                    "failed to export template schema", error_info,
+                                    json_output);
 }
 } // namespace
 
@@ -15472,6 +18968,41 @@ int main(int argc, char **argv) {
         }
 
         inspect_styles(styles, options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-style-inheritance") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "inspect-style-inheritance expects an input path and a style id",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = std::string(arguments[2]);
+        inspect_style_inheritance_options options;
+        std::string error_message;
+        if (!parse_inspect_style_inheritance_options(arguments, 3U, options,
+                                                     error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto resolved = doc.resolve_style_properties(style_id);
+        if (!resolved.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        inspect_resolved_style_properties(*resolved, options.json_output);
         return 0;
     }
 
@@ -20965,6 +24496,681 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    if (command == "inspect-default-run-properties") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command,
+                              "inspect-default-run-properties expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        inspect_default_run_properties_options options;
+        std::string error_message;
+        if (!parse_inspect_default_run_properties_options(arguments, 2U, options,
+                                                          error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        default_run_properties_summary summary{};
+        summary.font_family = doc.default_run_font_family();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.east_asia_font_family = doc.default_run_east_asia_font_family();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.language = doc.default_run_language();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.east_asia_language = doc.default_run_east_asia_language();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.bidi_language = doc.default_run_bidi_language();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.rtl = doc.default_run_rtl();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.paragraph_bidi = doc.default_paragraph_bidi();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        if (options.json_output) {
+            std::cout << "{\"default_run_properties\":";
+            write_json_default_run_properties_summary(std::cout, summary);
+            std::cout << "}\n";
+        } else {
+            print_default_run_properties_summary(std::cout, summary);
+        }
+
+        return 0;
+    }
+
+    if (command == "set-default-run-properties") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(
+                command,
+                "set-default-run-properties expects an input path and mutation options",
+                json_output);
+            return 2;
+        }
+
+        set_default_run_properties_options options;
+        std::string error_message;
+        if (!parse_set_default_run_properties_options(arguments, 2U, options,
+                                                      error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.font_family.has_value() &&
+            !doc.set_default_run_font_family(*options.font_family)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.east_asia_font_family.has_value() &&
+            !doc.set_default_run_east_asia_font_family(*options.east_asia_font_family)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.language.has_value() &&
+            !doc.set_default_run_language(*options.language)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.east_asia_language.has_value() &&
+            !doc.set_default_run_east_asia_language(*options.east_asia_language)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.bidi_language.has_value() &&
+            !doc.set_default_run_bidi_language(*options.bidi_language)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.rtl.has_value() && !doc.set_default_run_rtl(*options.rtl)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.paragraph_bidi.has_value() &&
+            !doc.set_default_paragraph_bidi(*options.paragraph_bidi)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&options](std::ostream &stream) {
+                    stream << ",\"font_family\":";
+                    write_json_optional_string(stream, options.font_family);
+                    stream << ",\"east_asia_font_family\":";
+                    write_json_optional_string(stream, options.east_asia_font_family);
+                    stream << ",\"language\":";
+                    write_json_optional_string(stream, options.language);
+                    stream << ",\"east_asia_language\":";
+                    write_json_optional_string(stream, options.east_asia_language);
+                    stream << ",\"bidi_language\":";
+                    write_json_optional_string(stream, options.bidi_language);
+                    stream << ",\"rtl\":";
+                    write_json_optional_bool(stream, options.rtl);
+                    stream << ",\"paragraph_bidi\":";
+                    write_json_optional_bool(stream, options.paragraph_bidi);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-default-run-properties") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(
+                command,
+                "clear-default-run-properties expects an input path and clear options",
+                json_output);
+            return 2;
+        }
+
+        clear_default_run_properties_options options;
+        std::string error_message;
+        if (!parse_clear_default_run_properties_options(arguments, 2U, options,
+                                                        error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        std::vector<std::string> cleared_fields;
+        if (options.clear_font_family) {
+            if (!doc.clear_default_run_font_family()) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("font_family");
+        }
+
+        if (options.clear_east_asia_font_family) {
+            if (!doc.clear_default_run_east_asia_font_family()) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("east_asia_font_family");
+        }
+
+        if (options.clear_primary_language) {
+            if (!doc.clear_default_run_primary_language()) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("primary_language");
+        }
+
+        if (options.clear_language) {
+            if (!doc.clear_default_run_language()) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("language");
+        }
+
+        if (options.clear_east_asia_language) {
+            if (!doc.clear_default_run_east_asia_language()) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("east_asia_language");
+        }
+
+        if (options.clear_bidi_language) {
+            if (!doc.clear_default_run_bidi_language()) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("bidi_language");
+        }
+
+        if (options.clear_rtl) {
+            if (!doc.clear_default_run_rtl()) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("rtl");
+        }
+
+        if (options.clear_paragraph_bidi) {
+            if (!doc.clear_default_paragraph_bidi()) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("paragraph_bidi");
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&cleared_fields](std::ostream &stream) {
+                    stream << ",\"cleared\":[";
+                    for (std::size_t index = 0U; index < cleared_fields.size(); ++index) {
+                        if (index != 0U) {
+                            stream << ',';
+                        }
+                        write_json_string(stream, cleared_fields[index]);
+                    }
+                    stream << ']';
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "inspect-style-run-properties") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "inspect-style-run-properties expects an input path and a style id",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = std::string(arguments[2]);
+        inspect_style_run_properties_options options;
+        std::string error_message;
+        if (!parse_inspect_style_run_properties_options(arguments, 3U, options,
+                                                        error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        style_run_properties_summary summary{};
+        summary.font_family = doc.style_run_font_family(style_id);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.east_asia_font_family = doc.style_run_east_asia_font_family(style_id);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.language = doc.style_run_language(style_id);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.east_asia_language = doc.style_run_east_asia_language(style_id);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.bidi_language = doc.style_run_bidi_language(style_id);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.rtl = doc.style_run_rtl(style_id);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        summary.paragraph_bidi = doc.style_paragraph_bidi(style_id);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        if (options.json_output) {
+            std::cout << "{\"style_id\":";
+            write_json_string(std::cout, style_id);
+            std::cout << ",\"style_run_properties\":";
+            write_json_style_run_properties_summary(std::cout, summary);
+            std::cout << "}\n";
+        } else {
+            std::cout << "style_id: " << style_id << '\n';
+            print_style_run_properties_summary(std::cout, summary);
+        }
+
+        return 0;
+    }
+
+    if (command == "materialize-style-run-properties") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "materialize-style-run-properties expects an input path and a style id",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = std::string(arguments[2]);
+        materialize_style_run_properties_options options;
+        std::string error_message;
+        if (!parse_materialize_style_run_properties_options(arguments, 3U, options,
+                                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto resolved = doc.resolve_style_properties(style_id);
+        if (!resolved.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        auto materialized_properties = std::vector<materialized_style_run_property_summary>{};
+        append_materialized_style_run_property(materialized_properties, style_id,
+                                              "font_family", resolved->run_font_family);
+        append_materialized_style_run_property(materialized_properties, style_id,
+                                              "east_asia_font_family",
+                                              resolved->run_east_asia_font_family);
+        append_materialized_style_run_property(materialized_properties, style_id,
+                                              "language", resolved->run_language);
+        append_materialized_style_run_property(materialized_properties, style_id,
+                                              "east_asia_language",
+                                              resolved->run_east_asia_language);
+        append_materialized_style_run_property(materialized_properties, style_id,
+                                              "bidi_language",
+                                              resolved->run_bidi_language);
+        append_materialized_style_run_property(materialized_properties, style_id,
+                                              "rtl", resolved->run_rtl);
+        append_materialized_style_run_property(materialized_properties, style_id,
+                                              "paragraph_bidi",
+                                              resolved->paragraph_bidi);
+
+        if (!doc.materialize_style_run_properties(style_id)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&style_id, &materialized_properties](std::ostream &stream) {
+                    stream << ",\"style_id\":";
+                    write_json_string(stream, style_id);
+                    stream << ",\"materialized\":";
+                    write_json_materialized_style_run_properties(stream,
+                                                                 materialized_properties);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-style-run-properties") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "set-style-run-properties expects an input path, a style id, and mutation options",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = std::string(arguments[2]);
+        set_style_run_properties_options options;
+        std::string error_message;
+        if (!parse_set_style_run_properties_options(arguments, 3U, options,
+                                                    error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.font_family.has_value() &&
+            !doc.set_style_run_font_family(style_id, *options.font_family)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.east_asia_font_family.has_value() &&
+            !doc.set_style_run_east_asia_font_family(style_id,
+                                                     *options.east_asia_font_family)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.language.has_value() &&
+            !doc.set_style_run_language(style_id, *options.language)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.east_asia_language.has_value() &&
+            !doc.set_style_run_east_asia_language(style_id,
+                                                  *options.east_asia_language)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.bidi_language.has_value() &&
+            !doc.set_style_run_bidi_language(style_id, *options.bidi_language)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.rtl.has_value() && !doc.set_style_run_rtl(style_id, *options.rtl)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.paragraph_bidi.has_value() &&
+            !doc.set_style_paragraph_bidi(style_id, *options.paragraph_bidi)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&options, &style_id](std::ostream &stream) {
+                    stream << ",\"style_id\":";
+                    write_json_string(stream, style_id);
+                    stream << ",\"font_family\":";
+                    write_json_optional_string(stream, options.font_family);
+                    stream << ",\"east_asia_font_family\":";
+                    write_json_optional_string(stream, options.east_asia_font_family);
+                    stream << ",\"language\":";
+                    write_json_optional_string(stream, options.language);
+                    stream << ",\"east_asia_language\":";
+                    write_json_optional_string(stream, options.east_asia_language);
+                    stream << ",\"bidi_language\":";
+                    write_json_optional_string(stream, options.bidi_language);
+                    stream << ",\"rtl\":";
+                    write_json_optional_bool(stream, options.rtl);
+                    stream << ",\"paragraph_bidi\":";
+                    write_json_optional_bool(stream, options.paragraph_bidi);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-style-run-properties") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "clear-style-run-properties expects an input path, a style id, and clear options",
+                json_output);
+            return 2;
+        }
+
+        const auto style_id = std::string(arguments[2]);
+        clear_style_run_properties_options options;
+        std::string error_message;
+        if (!parse_clear_style_run_properties_options(arguments, 3U, options,
+                                                      error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        std::vector<std::string> cleared_fields;
+        if (options.clear_font_family) {
+            if (!doc.clear_style_run_font_family(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("font_family");
+        }
+
+        if (options.clear_east_asia_font_family) {
+            if (!doc.clear_style_run_east_asia_font_family(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("east_asia_font_family");
+        }
+
+        if (options.clear_primary_language) {
+            if (!doc.clear_style_run_primary_language(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("primary_language");
+        }
+
+        if (options.clear_language) {
+            if (!doc.clear_style_run_language(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("language");
+        }
+
+        if (options.clear_east_asia_language) {
+            if (!doc.clear_style_run_east_asia_language(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("east_asia_language");
+        }
+
+        if (options.clear_bidi_language) {
+            if (!doc.clear_style_run_bidi_language(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("bidi_language");
+        }
+
+        if (options.clear_rtl) {
+            if (!doc.clear_style_run_rtl(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("rtl");
+        }
+
+        if (options.clear_paragraph_bidi) {
+            if (!doc.clear_style_paragraph_bidi(style_id)) {
+                report_document_error(command, "mutate", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+            cleared_fields.emplace_back("paragraph_bidi");
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&cleared_fields, &style_id](std::ostream &stream) {
+                    stream << ",\"style_id\":";
+                    write_json_string(stream, style_id);
+                    stream << ",\"cleared\":[";
+                    for (std::size_t index = 0U; index < cleared_fields.size(); ++index) {
+                        if (index != 0U) {
+                            stream << ',';
+                        }
+                        write_json_string(stream, cleared_fields[index]);
+                    }
+                    stream << ']';
+                });
+        }
+
+        return 0;
+    }
+
     if (command == "set-paragraph-style-numbering") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 3U) {
@@ -23329,6 +27535,70 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    if (command == "move-header-part" || command == "move-footer-part") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "move-header/footer-part expects an input path, a source index, "
+                "and a target index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t source_index = 0;
+        std::size_t target_index = 0;
+        if (!parse_index(arguments[2], source_index)) {
+            print_parse_error(command,
+                              "invalid source index: " + std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+        if (!parse_index(arguments[3], target_index)) {
+            print_parse_error(command,
+                              "invalid target index: " + std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        command_options options;
+        std::string error_message;
+        if (!parse_options(arguments, 4U, false, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        const auto family = command == "move-header-part"
+                                ? section_part_family::header
+                                : section_part_family::footer;
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (!move_part(doc, family, source_index, target_index, command,
+                       options.json_output)) {
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [family, source_index, target_index](std::ostream &stream) {
+                    stream << ",\"part\":";
+                    write_json_string(stream, section_part_name(family));
+                    stream << ",\"source\":" << source_index
+                           << ",\"target\":" << target_index;
+                });
+        }
+
+        return 0;
+    }
+
     if (command == "show-section-header" || command == "show-section-footer") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 3U) {
@@ -23551,6 +27821,262 @@ int main(int argc, char **argv) {
         }
 
         print_template_validation_result(selected, result, options.json_output);
+        return 0;
+    }
+
+    if (command == "validate-template-schema") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "validate-template-schema expects an input path and schema validation options",
+                json_output);
+            return 2;
+        }
+
+        validate_template_schema_options options;
+        std::string error_message;
+        if (!parse_validate_template_schema_options(arguments, 2U, options,
+                                                    error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        for (const auto &schema_file : options.schema_files) {
+            if (!append_validate_template_schema_file_targets(
+                    schema_file, options.targets, error_message)) {
+                print_parse_error(command, error_message, json_output);
+                return 2;
+            }
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::template_schema schema;
+        std::size_t entry_count = 0U;
+        for (const auto &target : options.targets) {
+            entry_count += target.requirements.size();
+        }
+        schema.entries.reserve(entry_count);
+
+        for (const auto &target : options.targets) {
+            featherdoc::template_schema_part_selector selector{};
+            selector.part = to_template_schema_part_kind(target.part);
+            selector.part_index = target.part_index;
+            selector.section_index = target.section_index;
+            selector.reference_kind = target.reference_kind;
+
+            for (const auto &requirement : target.requirements) {
+                schema.entries.push_back({selector, requirement});
+            }
+        }
+
+        const auto result = doc.validate_template_schema(schema);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info, options.json_output);
+            return 1;
+        }
+
+        print_template_schema_validation_result(result, options.json_output);
+        return 0;
+    }
+
+    if (command == "export-template-schema") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command, "export-template-schema expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        export_template_schema_options options;
+        std::string error_message;
+        if (!parse_export_template_schema_options(arguments, 2U, options,
+                                                  error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        exported_template_schema_result result;
+        if (!build_exported_template_schema(
+                doc, options.section_targets, options.resolved_section_targets, result,
+                command, options.json_output)) {
+            return 1;
+        }
+
+        if (!options.output_path.has_value()) {
+            write_json_exported_template_schema(std::cout, result);
+            return 0;
+        }
+
+        if (!write_exported_template_schema_file(*options.output_path, result,
+                                                 error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write template schema output",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        print_exported_template_schema_summary(result, options.output_path,
+                                               options.json_output);
+        return 0;
+    }
+
+    if (command == "normalize-template-schema") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command,
+                              "normalize-template-schema expects a schema path",
+                              json_output);
+            return 2;
+        }
+
+        normalize_template_schema_options options;
+        std::string error_message;
+        if (!parse_normalize_template_schema_options(arguments, 2U, options,
+                                                     error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        exported_template_schema_result result;
+        if (!read_template_schema_file(path_type(std::string(arguments[1])), result,
+                                       error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+        normalize_template_schema_result(result);
+
+        if (!options.output_path.has_value()) {
+            write_json_exported_template_schema(std::cout, result);
+            return 0;
+        }
+
+        if (!write_exported_template_schema_file(*options.output_path, result,
+                                                 error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write normalized schema output",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        print_normalized_template_schema_summary(result, options.output_path,
+                                                 options.json_output);
+        return 0;
+    }
+
+    if (command == "diff-template-schema") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(command,
+                              "diff-template-schema expects left and right schema paths",
+                              json_output);
+            return 2;
+        }
+
+        diff_template_schema_options options;
+        std::string error_message;
+        if (!parse_diff_template_schema_options(arguments, 3U, options,
+                                                error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        exported_template_schema_result left;
+        if (!read_template_schema_file(path_type(std::string(arguments[1])), left,
+                                       error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        exported_template_schema_result right;
+        if (!read_template_schema_file(path_type(std::string(arguments[2])), right,
+                                       error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        normalize_template_schema_result(left);
+        normalize_template_schema_result(right);
+        const auto result = diff_template_schema_results(left, right);
+        print_template_schema_diff_result(result, options.json_output);
+        if (options.fail_on_diff && !result.equal()) {
+            return 1;
+        }
+        return 0;
+    }
+
+    if (command == "check-template-schema") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "check-template-schema expects an input path and --schema-file <path>",
+                json_output);
+            return 2;
+        }
+
+        check_template_schema_options options;
+        std::string error_message;
+        if (!parse_check_template_schema_options(arguments, 2U, options,
+                                                 error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        exported_template_schema_result baseline;
+        if (!read_template_schema_file(*options.schema_path, baseline, error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+        normalize_template_schema_result(baseline);
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        exported_template_schema_result generated;
+        if (!build_exported_template_schema(
+                doc, options.section_targets, options.resolved_section_targets,
+                generated, command, options.json_output)) {
+            return 1;
+        }
+        normalize_template_schema_result(generated);
+
+        if (options.output_path.has_value() &&
+            !write_exported_template_schema_file(*options.output_path, generated,
+                                                error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write generated schema output",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        const auto result = diff_template_schema_results(baseline, generated);
+        print_checked_template_schema_result(*options.schema_path, result,
+                                             options.output_path,
+                                             options.json_output);
+        if (!result.equal()) {
+            return 1;
+        }
         return 0;
     }
 

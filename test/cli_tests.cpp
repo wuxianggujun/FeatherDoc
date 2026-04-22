@@ -13,6 +13,9 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <sys/wait.h>
 #else
 #include <sys/wait.h>
 #endif
@@ -29,6 +32,35 @@ auto cli_binary_name() -> const char * {
     return "featherdoc_cli.exe";
 #else
     return "featherdoc_cli";
+#endif
+}
+
+auto test_binary_directory() -> fs::path {
+#if defined(_WIN32)
+    std::wstring buffer(static_cast<std::size_t>(MAX_PATH), L'\0');
+    while (true) {
+        const DWORD copied =
+            GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+        REQUIRE(copied != 0);
+        if (copied < buffer.size()) {
+            buffer.resize(static_cast<std::size_t>(copied));
+            return fs::path(buffer).parent_path();
+        }
+
+        buffer.resize(buffer.size() * 2U);
+    }
+#elif defined(__APPLE__)
+    uint32_t size = 0;
+    REQUIRE_EQ(_NSGetExecutablePath(nullptr, &size), -1);
+
+    std::string buffer(static_cast<std::size_t>(size), '\0');
+    REQUIRE_EQ(_NSGetExecutablePath(buffer.data(), &size), 0);
+    return fs::weakly_canonical(fs::path(buffer.c_str())).parent_path();
+#else
+    std::error_code error;
+    const fs::path executable_path = fs::read_symlink("/proc/self/exe", error);
+    REQUIRE_FALSE(error);
+    return executable_path.parent_path();
 #endif
 }
 
@@ -171,7 +203,8 @@ void append_windows_command_line_argument(std::wstring_view argument,
 #endif
 
 auto cli_binary_path() -> fs::path {
-    return fs::current_path() / cli_binary_name();
+    static const fs::path executable_path = test_binary_directory() / cli_binary_name();
+    return executable_path;
 }
 
 void remove_if_exists(const fs::path &path) {
@@ -198,6 +231,34 @@ void write_binary_file(const fs::path &path, const std::string &data) {
     REQUIRE(stream.good());
     stream.write(data.data(), static_cast<std::streamsize>(data.size()));
     REQUIRE(stream.good());
+}
+
+auto json_escape_text(std::string_view text) -> std::string {
+    std::string escaped;
+    escaped.reserve(text.size());
+    for (const char ch : text) {
+        switch (ch) {
+        case '\\':
+            escaped += "\\\\";
+            break;
+        case '"':
+            escaped += "\\\"";
+            break;
+        case '\n':
+            escaped += "\\n";
+            break;
+        case '\r':
+            escaped += "\\r";
+            break;
+        case '\t':
+            escaped += "\\t";
+            break;
+        default:
+            escaped.push_back(ch);
+            break;
+        }
+    }
+    return escaped;
 }
 
 auto tiny_png_data() -> std::string {
@@ -661,6 +722,74 @@ void create_cli_part_template_validation_fixture(const fs::path &path) {
                                 document_relationships_xml));
     REQUIRE(write_archive_entry(archive, "word/header1.xml", header_xml));
     REQUIRE(write_archive_entry(archive, "word/footer1.xml", footer_xml));
+    zip_close(archive);
+}
+
+void create_cli_resolved_part_template_validation_fixture(const fs::path &path) {
+    create_cli_part_template_validation_fixture(path);
+
+    featherdoc::Document document(path);
+    REQUIRE_FALSE(document.open());
+    REQUIRE(document.append_section(false));
+    append_body_paragraph(document, "section 1 body");
+    REQUIRE_EQ(document.section_count(), 2U);
+    REQUIRE_FALSE(document.save());
+}
+
+void create_cli_schema_v2_template_validation_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="summary_block"/>
+      <w:r><w:t>standalone block placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Approver: </w:t></w:r>
+      <w:bookmarkStart w:id="1" w:name="approver"/>
+      <w:r><w:t>Alice</w:t></w:r>
+      <w:bookmarkEnd w:id="1"/>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Extra: </w:t></w:r>
+      <w:bookmarkStart w:id="2" w:name="extra_slot"/>
+      <w:r><w:t>Keep me declared or report me</w:t></w:r>
+      <w:bookmarkEnd w:id="2"/>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
     zip_close(archive);
 }
 
@@ -2047,6 +2176,7 @@ void create_cli_image_fixture(const fs::path &path) {
     body_options.vertical_offset_px = -8;
     body_options.behind_text = true;
     body_options.allow_overlap = false;
+    body_options.z_order = 72U;
     body_options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
     body_options.wrap_distance_left_px = 8U;
     body_options.wrap_distance_right_px = 10U;
@@ -2074,6 +2204,7 @@ void create_cli_image_fixture(const fs::path &path) {
     header_options.vertical_reference =
         featherdoc::floating_image_vertical_reference::margin;
     header_options.vertical_offset_px = 12;
+    header_options.z_order = 84U;
     header_options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
     header_options.wrap_distance_left_px = 5U;
     header_options.wrap_distance_right_px = 7U;
@@ -2641,6 +2772,398 @@ TEST_CASE("cli inspect-styles rejects usage without a single style target") {
 
     remove_if_exists(source);
     remove_if_exists(output);
+}
+
+TEST_CASE("cli inspect-style-inheritance resolves effective properties across basedOn chain") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_style_inheritance_source.docx";
+    const fs::path rooted =
+        working_directory / "cli_style_inheritance_rooted.docx";
+    const fs::path based =
+        working_directory / "cli_style_inheritance_based.docx";
+    const fs::path updated =
+        working_directory / "cli_style_inheritance_updated.docx";
+    const fs::path root_output =
+        working_directory / "cli_style_inheritance_root_output.json";
+    const fs::path base_output =
+        working_directory / "cli_style_inheritance_base_output.json";
+    const fs::path child_output =
+        working_directory / "cli_style_inheritance_child_output.json";
+    const fs::path inspect_output =
+        working_directory / "cli_style_inheritance_inspect_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(rooted);
+    remove_if_exists(based);
+    remove_if_exists(updated);
+    remove_if_exists(root_output);
+    remove_if_exists(base_output);
+    remove_if_exists(child_output);
+    remove_if_exists(inspect_output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"set-style-run-properties",
+                      source.string(),
+                      "Normal",
+                      "--bidi-language",
+                      "ar-SA",
+                      "--output",
+                      rooted.string(),
+                      "--json"},
+                     root_output),
+             0);
+
+    CHECK_EQ(run_cli({"ensure-paragraph-style",
+                      rooted.string(),
+                      "BaseStyle",
+                      "--name",
+                      "Base Style",
+                      "--based-on",
+                      "Normal",
+                      "--run-font-family",
+                      "Segoe UI",
+                      "--run-east-asia-language",
+                      "zh-CN",
+                      "--run-rtl",
+                      "true",
+                      "--output",
+                      based.string(),
+                      "--json"},
+                     base_output),
+             0);
+
+    CHECK_EQ(run_cli({"ensure-paragraph-style",
+                      based.string(),
+                      "ChildStyle",
+                      "--name",
+                      "Child Style",
+                      "--based-on",
+                      "BaseStyle",
+                      "--run-language",
+                      "en-US",
+                      "--paragraph-bidi",
+                      "true",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     child_output),
+             0);
+
+    CHECK_EQ(run_cli({"inspect-style-inheritance",
+                      updated.string(),
+                      "ChildStyle",
+                      "--json"},
+                     inspect_output),
+             0);
+    CHECK_EQ(
+        read_text_file(inspect_output),
+        std::string{
+            "{\"style_id\":\"ChildStyle\",\"type\":\"paragraph\","
+            "\"kind\":\"paragraph\",\"based_on\":\"BaseStyle\","
+            "\"inheritance_chain\":[\"ChildStyle\",\"BaseStyle\",\"Normal\"],"
+            "\"resolved_properties\":{\"font_family\":{\"value\":\"Segoe UI\","
+            "\"source_style_id\":\"BaseStyle\"},"
+            "\"east_asia_font_family\":{\"value\":null,\"source_style_id\":null},"
+            "\"language\":{\"value\":\"en-US\",\"source_style_id\":\"ChildStyle\"},"
+            "\"east_asia_language\":{\"value\":\"zh-CN\","
+            "\"source_style_id\":\"BaseStyle\"},"
+            "\"bidi_language\":{\"value\":\"ar-SA\","
+            "\"source_style_id\":\"Normal\"},"
+            "\"rtl\":{\"value\":true,\"source_style_id\":\"BaseStyle\"},"
+            "\"paragraph_bidi\":{\"value\":true,"
+            "\"source_style_id\":\"ChildStyle\"}}}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(rooted);
+    remove_if_exists(based);
+    remove_if_exists(updated);
+    remove_if_exists(root_output);
+    remove_if_exists(base_output);
+    remove_if_exists(child_output);
+    remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli inspect-style-inheritance reports parse and inspect errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_style_inheritance_error_source.docx";
+    const fs::path parse_output =
+        working_directory / "cli_style_inheritance_parse_output.json";
+    const fs::path inspect_output =
+        working_directory / "cli_style_inheritance_inspect_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(parse_output);
+    remove_if_exists(inspect_output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"inspect-style-inheritance",
+                      source.string(),
+                      "Normal",
+                      "--bogus",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_output),
+        std::string{
+            "{\"command\":\"inspect-style-inheritance\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"unknown option: --bogus\"}\n"});
+
+    CHECK_EQ(run_cli({"inspect-style-inheritance",
+                      source.string(),
+                      "MissingStyle",
+                      "--json"},
+                     inspect_output),
+             1);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find("\"command\":\"inspect-style-inheritance\""),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"stage\":\"inspect\""), std::string::npos);
+    CHECK_NE(inspect_json.find(
+                 "\"detail\":\"style id 'MissingStyle' was not found in "
+                 "word/styles.xml\""),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"entry\":\"word/styles.xml\""),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(parse_output);
+    remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli materialize-style-run-properties freezes inherited values on the child style") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_materialize_style_source.docx";
+    const fs::path rooted =
+        working_directory / "cli_materialize_style_rooted.docx";
+    const fs::path based =
+        working_directory / "cli_materialize_style_based.docx";
+    const fs::path child =
+        working_directory / "cli_materialize_style_child.docx";
+    const fs::path materialized =
+        working_directory / "cli_materialize_style_materialized.docx";
+    const fs::path base_mutated =
+        working_directory / "cli_materialize_style_base_mutated.docx";
+    const fs::path updated =
+        working_directory / "cli_materialize_style_updated.docx";
+    const fs::path root_output =
+        working_directory / "cli_materialize_style_root_output.json";
+    const fs::path base_output =
+        working_directory / "cli_materialize_style_base_output.json";
+    const fs::path child_output =
+        working_directory / "cli_materialize_style_child_output.json";
+    const fs::path materialize_output =
+        working_directory / "cli_materialize_style_materialize_output.json";
+    const fs::path base_mutate_output =
+        working_directory / "cli_materialize_style_base_mutate_output.json";
+    const fs::path normal_mutate_output =
+        working_directory / "cli_materialize_style_normal_mutate_output.json";
+    const fs::path inspect_output =
+        working_directory / "cli_materialize_style_inspect_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(rooted);
+    remove_if_exists(based);
+    remove_if_exists(child);
+    remove_if_exists(materialized);
+    remove_if_exists(base_mutated);
+    remove_if_exists(updated);
+    remove_if_exists(root_output);
+    remove_if_exists(base_output);
+    remove_if_exists(child_output);
+    remove_if_exists(materialize_output);
+    remove_if_exists(base_mutate_output);
+    remove_if_exists(normal_mutate_output);
+    remove_if_exists(inspect_output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"set-style-run-properties",
+                      source.string(),
+                      "Normal",
+                      "--bidi-language",
+                      "ar-SA",
+                      "--output",
+                      rooted.string(),
+                      "--json"},
+                     root_output),
+             0);
+
+    CHECK_EQ(run_cli({"ensure-paragraph-style",
+                      rooted.string(),
+                      "BaseStyle",
+                      "--name",
+                      "Base Style",
+                      "--based-on",
+                      "Normal",
+                      "--run-font-family",
+                      "Segoe UI",
+                      "--run-east-asia-language",
+                      "zh-CN",
+                      "--run-rtl",
+                      "true",
+                      "--paragraph-bidi",
+                      "true",
+                      "--output",
+                      based.string(),
+                      "--json"},
+                     base_output),
+             0);
+
+    CHECK_EQ(run_cli({"ensure-paragraph-style",
+                      based.string(),
+                      "ChildStyle",
+                      "--name",
+                      "Child Style",
+                      "--based-on",
+                      "BaseStyle",
+                      "--output",
+                      child.string(),
+                      "--json"},
+                     child_output),
+             0);
+
+    CHECK_EQ(run_cli({"materialize-style-run-properties",
+                      child.string(),
+                      "ChildStyle",
+                      "--output",
+                      materialized.string(),
+                      "--json"},
+                     materialize_output),
+             0);
+    CHECK_EQ(
+        read_text_file(materialize_output),
+        std::string{
+            "{\"command\":\"materialize-style-run-properties\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"style_id\":\"ChildStyle\",\"materialized\":["
+            "{\"field\":\"font_family\",\"source_style_id\":\"BaseStyle\"},"
+            "{\"field\":\"east_asia_language\",\"source_style_id\":\"BaseStyle\"},"
+            "{\"field\":\"bidi_language\",\"source_style_id\":\"Normal\"},"
+            "{\"field\":\"rtl\",\"source_style_id\":\"BaseStyle\"},"
+            "{\"field\":\"paragraph_bidi\",\"source_style_id\":\"BaseStyle\"}]}\n"});
+
+    CHECK_EQ(run_cli({"set-style-run-properties",
+                      materialized.string(),
+                      "BaseStyle",
+                      "--font-family",
+                      "Arial",
+                      "--east-asia-language",
+                      "ja-JP",
+                      "--rtl",
+                      "false",
+                      "--paragraph-bidi",
+                      "false",
+                      "--output",
+                      base_mutated.string(),
+                      "--json"},
+                     base_mutate_output),
+             0);
+
+    CHECK_EQ(run_cli({"set-style-run-properties",
+                      base_mutated.string(),
+                      "Normal",
+                      "--bidi-language",
+                      "he-IL",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     normal_mutate_output),
+             0);
+
+    CHECK_EQ(run_cli({"inspect-style-inheritance",
+                      updated.string(),
+                      "ChildStyle",
+                      "--json"},
+                     inspect_output),
+             0);
+    CHECK_EQ(
+        read_text_file(inspect_output),
+        std::string{
+            "{\"style_id\":\"ChildStyle\",\"type\":\"paragraph\","
+            "\"kind\":\"paragraph\",\"based_on\":\"BaseStyle\","
+            "\"inheritance_chain\":[\"ChildStyle\",\"BaseStyle\",\"Normal\"],"
+            "\"resolved_properties\":{\"font_family\":{\"value\":\"Segoe UI\","
+            "\"source_style_id\":\"ChildStyle\"},"
+            "\"east_asia_font_family\":{\"value\":null,\"source_style_id\":null},"
+            "\"language\":{\"value\":null,\"source_style_id\":null},"
+            "\"east_asia_language\":{\"value\":\"zh-CN\","
+            "\"source_style_id\":\"ChildStyle\"},"
+            "\"bidi_language\":{\"value\":\"ar-SA\","
+            "\"source_style_id\":\"ChildStyle\"},"
+            "\"rtl\":{\"value\":true,\"source_style_id\":\"ChildStyle\"},"
+            "\"paragraph_bidi\":{\"value\":true,"
+            "\"source_style_id\":\"ChildStyle\"}}}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(rooted);
+    remove_if_exists(based);
+    remove_if_exists(child);
+    remove_if_exists(materialized);
+    remove_if_exists(base_mutated);
+    remove_if_exists(updated);
+    remove_if_exists(root_output);
+    remove_if_exists(base_output);
+    remove_if_exists(child_output);
+    remove_if_exists(materialize_output);
+    remove_if_exists(base_mutate_output);
+    remove_if_exists(normal_mutate_output);
+    remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli materialize-style-run-properties reports parse and inspect errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_materialize_style_error_source.docx";
+    const fs::path parse_output =
+        working_directory / "cli_materialize_style_parse_output.json";
+    const fs::path inspect_output =
+        working_directory / "cli_materialize_style_inspect_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(parse_output);
+    remove_if_exists(inspect_output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"materialize-style-run-properties",
+                      source.string(),
+                      "Normal",
+                      "--bogus",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_output),
+        std::string{
+            "{\"command\":\"materialize-style-run-properties\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"unknown option: --bogus\"}\n"});
+
+    CHECK_EQ(run_cli({"materialize-style-run-properties",
+                      source.string(),
+                      "MissingStyle",
+                      "--json"},
+                     inspect_output),
+             1);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find("\"command\":\"materialize-style-run-properties\""),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"stage\":\"inspect\""), std::string::npos);
+    CHECK_NE(inspect_json.find(
+                 "\"detail\":\"style id 'MissingStyle' was not found in "
+                 "word/styles.xml\""),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"entry\":\"word/styles.xml\""),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(parse_output);
+    remove_if_exists(inspect_output);
 }
 
 TEST_CASE("cli inspect-numbering lists custom numbering definitions") {
@@ -11337,6 +11860,7 @@ TEST_CASE("cli run language commands set and clear body run language") {
         read_text_file(inspect_set_output),
         std::string{
             "{\"paragraph_index\":1,\"run\":{\"index\":0,\"style_id\":null,"
+            "\"font_family\":null,\"east_asia_font_family\":null,"
             "\"language\":\"ja-JP\",\"text\":\"beta\"}}\n"});
 
     CHECK_EQ(run_cli({"clear-run-language",
@@ -11385,6 +11909,7 @@ TEST_CASE("cli run language commands set and clear body run language") {
         read_text_file(inspect_cleared_output),
         std::string{
             "{\"paragraph_index\":1,\"run\":{\"index\":0,\"style_id\":null,"
+            "\"font_family\":null,\"east_asia_font_family\":null,"
             "\"language\":null,\"text\":\"beta\"}}\n"});
 
     remove_if_exists(source);
@@ -11442,6 +11967,390 @@ TEST_CASE("cli run language commands report parse and mutate errors") {
     remove_if_exists(source);
     remove_if_exists(parse_output);
     remove_if_exists(mutate_output);
+}
+
+TEST_CASE("cli default run properties commands set inspect and clear docDefaults") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_default_run_properties_source.docx";
+    const fs::path updated =
+        working_directory / "cli_default_run_properties_updated.docx";
+    const fs::path cleared =
+        working_directory / "cli_default_run_properties_cleared.docx";
+    const fs::path set_output =
+        working_directory / "cli_default_run_properties_set.json";
+    const fs::path inspect_updated_output =
+        working_directory / "cli_default_run_properties_inspect_updated.json";
+    const fs::path clear_output =
+        working_directory / "cli_default_run_properties_clear.json";
+    const fs::path inspect_cleared_output =
+        working_directory / "cli_default_run_properties_inspect_cleared.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(inspect_updated_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_cleared_output);
+
+    create_cli_empty_document_fixture(source);
+
+    CHECK_EQ(run_cli({"set-default-run-properties",
+                      source.string(),
+                      "--font-family",
+                      "Segoe UI",
+                      "--east-asia-font-family",
+                      "Microsoft YaHei",
+                      "--language",
+                      "en-US",
+                      "--east-asia-language",
+                      "zh-CN",
+                      "--bidi-language",
+                      "ar-SA",
+                      "--rtl",
+                      "true",
+                      "--paragraph-bidi",
+                      "true",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     set_output),
+             0);
+    const auto set_json = read_text_file(set_output);
+    CHECK_NE(set_json.find("\"command\":\"set-default-run-properties\""),
+             std::string::npos);
+    CHECK_NE(set_json.find("\"font_family\":\"Segoe UI\""), std::string::npos);
+    CHECK_NE(set_json.find("\"east_asia_font_family\":\"Microsoft YaHei\""),
+             std::string::npos);
+    CHECK_NE(set_json.find("\"language\":\"en-US\""), std::string::npos);
+    CHECK_NE(set_json.find("\"east_asia_language\":\"zh-CN\""),
+             std::string::npos);
+    CHECK_NE(set_json.find("\"bidi_language\":\"ar-SA\""),
+             std::string::npos);
+    CHECK_NE(set_json.find("\"rtl\":true"), std::string::npos);
+    CHECK_NE(set_json.find("\"paragraph_bidi\":true"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-default-run-properties", updated.string(), "--json"},
+                     inspect_updated_output),
+             0);
+    CHECK_EQ(
+        read_text_file(inspect_updated_output),
+        std::string{
+            "{\"default_run_properties\":{\"font_family\":\"Segoe UI\","
+            "\"east_asia_font_family\":\"Microsoft YaHei\","
+            "\"language\":\"en-US\",\"east_asia_language\":\"zh-CN\","
+            "\"bidi_language\":\"ar-SA\",\"rtl\":true,"
+            "\"paragraph_bidi\":true}}\n"});
+
+    CHECK_EQ(run_cli({"clear-default-run-properties",
+                      updated.string(),
+                      "--east-asia-font-family",
+                      "--primary-language",
+                      "--rtl",
+                      "--output",
+                      cleared.string(),
+                      "--json"},
+                     clear_output),
+             0);
+    const auto clear_json = read_text_file(clear_output);
+    CHECK_NE(clear_json.find("\"command\":\"clear-default-run-properties\""),
+             std::string::npos);
+    CHECK_NE(clear_json.find("\"cleared\":[\"east_asia_font_family\","
+                             "\"primary_language\",\"rtl\"]"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-default-run-properties", cleared.string(), "--json"},
+                     inspect_cleared_output),
+             0);
+    CHECK_EQ(
+        read_text_file(inspect_cleared_output),
+        std::string{
+            "{\"default_run_properties\":{\"font_family\":\"Segoe UI\","
+            "\"east_asia_font_family\":null,\"language\":null,"
+            "\"east_asia_language\":\"zh-CN\",\"bidi_language\":\"ar-SA\","
+            "\"rtl\":null,\"paragraph_bidi\":true}}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(inspect_updated_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_cleared_output);
+}
+
+TEST_CASE("cli default run properties commands report parse errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_default_run_properties_error_source.docx";
+    const fs::path set_output =
+        working_directory / "cli_default_run_properties_set_error.json";
+    const fs::path clear_output =
+        working_directory / "cli_default_run_properties_clear_error.json";
+    const fs::path inspect_output =
+        working_directory / "cli_default_run_properties_inspect_error.json";
+
+    remove_if_exists(source);
+    remove_if_exists(set_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_output);
+
+    create_cli_empty_document_fixture(source);
+
+    CHECK_EQ(run_cli({"set-default-run-properties",
+                      source.string(),
+                      "--rtl",
+                      "maybe",
+                      "--json"},
+                     set_output),
+             2);
+    CHECK_EQ(
+        read_text_file(set_output),
+        std::string{
+            "{\"command\":\"set-default-run-properties\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"invalid --rtl value: maybe\"}\n"});
+
+    CHECK_EQ(run_cli({"clear-default-run-properties", source.string(), "--json"},
+                     clear_output),
+             2);
+    CHECK_EQ(
+        read_text_file(clear_output),
+        std::string{
+            "{\"command\":\"clear-default-run-properties\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"clear-default-run-properties "
+            "requires at least one clear option\"}\n"});
+
+    CHECK_EQ(run_cli({"inspect-default-run-properties",
+                      source.string(),
+                      "--bogus",
+                      "--json"},
+                     inspect_output),
+             2);
+    CHECK_EQ(
+        read_text_file(inspect_output),
+        std::string{
+            "{\"command\":\"inspect-default-run-properties\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"unknown option: --bogus\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(set_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli style run properties commands set inspect and clear style metadata") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_style_run_properties_source.docx";
+    const fs::path updated =
+        working_directory / "cli_style_run_properties_updated.docx";
+    const fs::path cleared =
+        working_directory / "cli_style_run_properties_cleared.docx";
+    const fs::path set_output =
+        working_directory / "cli_style_run_properties_set.json";
+    const fs::path inspect_updated_output =
+        working_directory / "cli_style_run_properties_inspect_updated.json";
+    const fs::path clear_output =
+        working_directory / "cli_style_run_properties_clear.json";
+    const fs::path inspect_cleared_output =
+        working_directory / "cli_style_run_properties_inspect_cleared.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(inspect_updated_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_cleared_output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"set-style-run-properties",
+                      source.string(),
+                      "Normal",
+                      "--font-family",
+                      "Segoe UI",
+                      "--east-asia-font-family",
+                      "Microsoft YaHei",
+                      "--language",
+                      "en-US",
+                      "--east-asia-language",
+                      "zh-CN",
+                      "--bidi-language",
+                      "ar-SA",
+                      "--rtl",
+                      "true",
+                      "--paragraph-bidi",
+                      "true",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     set_output),
+             0);
+    const auto set_json = read_text_file(set_output);
+    CHECK_NE(set_json.find("\"command\":\"set-style-run-properties\""),
+             std::string::npos);
+    CHECK_NE(set_json.find("\"style_id\":\"Normal\""), std::string::npos);
+    CHECK_NE(set_json.find("\"font_family\":\"Segoe UI\""), std::string::npos);
+    CHECK_NE(set_json.find("\"east_asia_font_family\":\"Microsoft YaHei\""),
+             std::string::npos);
+    CHECK_NE(set_json.find("\"language\":\"en-US\""), std::string::npos);
+    CHECK_NE(set_json.find("\"east_asia_language\":\"zh-CN\""),
+             std::string::npos);
+    CHECK_NE(set_json.find("\"bidi_language\":\"ar-SA\""),
+             std::string::npos);
+    CHECK_NE(set_json.find("\"rtl\":true"), std::string::npos);
+    CHECK_NE(set_json.find("\"paragraph_bidi\":true"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-style-run-properties",
+                      updated.string(),
+                      "Normal",
+                      "--json"},
+                     inspect_updated_output),
+             0);
+    CHECK_EQ(
+        read_text_file(inspect_updated_output),
+        std::string{
+            "{\"style_id\":\"Normal\",\"style_run_properties\":{"
+            "\"font_family\":\"Segoe UI\","
+            "\"east_asia_font_family\":\"Microsoft YaHei\","
+            "\"language\":\"en-US\",\"east_asia_language\":\"zh-CN\","
+            "\"bidi_language\":\"ar-SA\",\"rtl\":true,"
+            "\"paragraph_bidi\":true}}\n"});
+
+    const auto styles_xml = read_docx_entry(updated, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(styles_xml.c_str()));
+    const auto normal_style =
+        find_style_xml_node(styles_document.child("w:styles"), "Normal");
+    REQUIRE(normal_style != pugi::xml_node{});
+    const auto run_properties = normal_style.child("w:rPr");
+    REQUIRE(run_properties != pugi::xml_node{});
+    const auto fonts = run_properties.child("w:rFonts");
+    REQUIRE(fonts != pugi::xml_node{});
+    CHECK_EQ(std::string_view{fonts.attribute("w:ascii").value()}, "Segoe UI");
+    CHECK_EQ(std::string_view{fonts.attribute("w:eastAsia").value()},
+             "Microsoft YaHei");
+    const auto language = run_properties.child("w:lang");
+    REQUIRE(language != pugi::xml_node{});
+    CHECK_EQ(std::string_view{language.attribute("w:val").value()}, "en-US");
+    CHECK_EQ(std::string_view{language.attribute("w:eastAsia").value()}, "zh-CN");
+    CHECK_EQ(std::string_view{language.attribute("w:bidi").value()}, "ar-SA");
+    CHECK(run_properties.child("w:rtl") != pugi::xml_node{});
+    CHECK(normal_style.child("w:pPr").child("w:bidi") != pugi::xml_node{});
+
+    CHECK_EQ(run_cli({"clear-style-run-properties",
+                      updated.string(),
+                      "Normal",
+                      "--east-asia-font-family",
+                      "--primary-language",
+                      "--rtl",
+                      "--paragraph-bidi",
+                      "--output",
+                      cleared.string(),
+                      "--json"},
+                     clear_output),
+             0);
+    const auto clear_json = read_text_file(clear_output);
+    CHECK_NE(clear_json.find("\"command\":\"clear-style-run-properties\""),
+             std::string::npos);
+    CHECK_NE(clear_json.find("\"style_id\":\"Normal\""), std::string::npos);
+    CHECK_NE(clear_json.find("\"cleared\":[\"east_asia_font_family\","
+                             "\"primary_language\",\"rtl\",\"paragraph_bidi\"]"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-style-run-properties",
+                      cleared.string(),
+                      "Normal",
+                      "--json"},
+                     inspect_cleared_output),
+             0);
+    CHECK_EQ(
+        read_text_file(inspect_cleared_output),
+        std::string{
+            "{\"style_id\":\"Normal\",\"style_run_properties\":{"
+            "\"font_family\":\"Segoe UI\","
+            "\"east_asia_font_family\":null,"
+            "\"language\":null,\"east_asia_language\":\"zh-CN\","
+            "\"bidi_language\":\"ar-SA\",\"rtl\":null,"
+            "\"paragraph_bidi\":null}}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(inspect_updated_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_cleared_output);
+}
+
+TEST_CASE("cli style run properties commands report parse and mutate errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_style_run_properties_error_source.docx";
+    const fs::path set_output =
+        working_directory / "cli_style_run_properties_set_error.json";
+    const fs::path clear_output =
+        working_directory / "cli_style_run_properties_clear_error.json";
+    const fs::path inspect_output =
+        working_directory / "cli_style_run_properties_inspect_error.json";
+
+    remove_if_exists(source);
+    remove_if_exists(set_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_output);
+
+    create_cli_style_defaults_fixture(source);
+
+    CHECK_EQ(run_cli({"set-style-run-properties",
+                      source.string(),
+                      "Normal",
+                      "--rtl",
+                      "maybe",
+                      "--json"},
+                     set_output),
+             2);
+    CHECK_EQ(
+        read_text_file(set_output),
+        std::string{
+            "{\"command\":\"set-style-run-properties\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"invalid --rtl value: maybe\"}\n"});
+
+    CHECK_EQ(run_cli({"clear-style-run-properties",
+                      source.string(),
+                      "Normal",
+                      "--json"},
+                     clear_output),
+             2);
+    CHECK_EQ(
+        read_text_file(clear_output),
+        std::string{
+            "{\"command\":\"clear-style-run-properties\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"clear-style-run-properties "
+            "requires at least one clear option\"}\n"});
+
+    CHECK_EQ(run_cli({"inspect-style-run-properties",
+                      source.string(),
+                      "MissingStyle",
+                      "--json"},
+                     inspect_output),
+             1);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find("\"command\":\"inspect-style-run-properties\""),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"stage\":\"inspect\""), std::string::npos);
+    CHECK_NE(inspect_json.find(
+                 "\"detail\":\"style id 'MissingStyle' was not found in "
+                 "word/styles.xml\""),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"entry\":\"word/styles.xml\""),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(set_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_output);
 }
 
 TEST_CASE("cli inspect-page-setup lists all sections in text mode") {
@@ -11748,6 +12657,7 @@ TEST_CASE("cli inspect-images lists selected body drawing images as json") {
     CHECK_NE(json.find("\"placement\":\"inline\""), std::string::npos);
     CHECK_NE(json.find("\"placement\":\"anchored\""), std::string::npos);
     CHECK_NE(json.find("\"floating_options\":null"), std::string::npos);
+    CHECK_NE(json.find("\"z_order\":72"), std::string::npos);
     CHECK_NE(json.find("\"wrap_mode\":\"square\""), std::string::npos);
     CHECK_NE(json.find("\"crop\":{\"left_per_mille\":15,\"top_per_mille\":25,"
                        "\"right_per_mille\":35,\"bottom_per_mille\":45}"),
@@ -11778,6 +12688,7 @@ TEST_CASE("cli inspect-images supports single image text output for header parts
     CHECK_NE(text.find("entry_name: word/header1.xml\n"), std::string::npos);
     CHECK_NE(text.find("image_index: 0\n"), std::string::npos);
     CHECK_NE(text.find("placement: anchored\n"), std::string::npos);
+    CHECK_NE(text.find("z_order: 84\n"), std::string::npos);
     CHECK_NE(text.find("wrap_mode: square\n"), std::string::npos);
     CHECK_NE(text.find("crop_left_per_mille: 10\n"), std::string::npos);
     CHECK_NE(text.find("crop_bottom_per_mille: 40\n"), std::string::npos);
@@ -12220,6 +13131,8 @@ TEST_CASE("cli append-image materializes a section header floating image") {
                  "true",
                  "--allow-overlap",
                  "false",
+                 "--z-order",
+                 "96",
                  "--wrap-mode",
                  "square",
                  "--wrap-distance-left",
@@ -12253,6 +13166,7 @@ TEST_CASE("cli append-image materializes a section header floating image") {
     CHECK_NE(json.find("\"vertical_offset_px\":12"), std::string::npos);
     CHECK_NE(json.find("\"behind_text\":true"), std::string::npos);
     CHECK_NE(json.find("\"allow_overlap\":false"), std::string::npos);
+    CHECK_NE(json.find("\"z_order\":96"), std::string::npos);
     CHECK_NE(json.find("\"wrap_mode\":\"square\""), std::string::npos);
     CHECK_NE(json.find("\"crop\":{\"left_per_mille\":10,\"top_per_mille\":20,"
                        "\"right_per_mille\":30,\"bottom_per_mille\":40}"),
@@ -12277,6 +13191,7 @@ TEST_CASE("cli append-image materializes a section header floating image") {
     CHECK_EQ(images[0].floating_options->vertical_offset_px, 12);
     CHECK(images[0].floating_options->behind_text);
     CHECK_FALSE(images[0].floating_options->allow_overlap);
+    CHECK_EQ(images[0].floating_options->z_order, 96U);
     CHECK_EQ(images[0].floating_options->wrap_mode,
              featherdoc::floating_image_wrap_mode::square);
     CHECK_EQ(images[0].floating_options->wrap_distance_left_px, 5U);
@@ -13237,6 +14152,8 @@ TEST_CASE("cli replace-bookmark-floating-image replaces a section header bookmar
                  "true",
                  "--allow-overlap",
                  "false",
+                 "--z-order",
+                 "108",
                  "--wrap-mode",
                  "square",
                  "--wrap-distance-left",
@@ -13273,6 +14190,7 @@ TEST_CASE("cli replace-bookmark-floating-image replaces a section header bookmar
     CHECK_NE(json.find("\"vertical_offset_px\":12"), std::string::npos);
     CHECK_NE(json.find("\"behind_text\":true"), std::string::npos);
     CHECK_NE(json.find("\"allow_overlap\":false"), std::string::npos);
+    CHECK_NE(json.find("\"z_order\":108"), std::string::npos);
     CHECK_NE(json.find("\"wrap_mode\":\"square\""), std::string::npos);
     CHECK_NE(json.find("\"crop\":{\"left_per_mille\":10,\"top_per_mille\":20,"
                        "\"right_per_mille\":30,\"bottom_per_mille\":40}"),
@@ -13297,6 +14215,7 @@ TEST_CASE("cli replace-bookmark-floating-image replaces a section header bookmar
     CHECK_EQ(images[0].floating_options->vertical_offset_px, 12);
     CHECK(images[0].floating_options->behind_text);
     CHECK_FALSE(images[0].floating_options->allow_overlap);
+    CHECK_EQ(images[0].floating_options->z_order, 108U);
     CHECK_EQ(images[0].floating_options->wrap_mode,
              featherdoc::floating_image_wrap_mode::square);
     CHECK_EQ(images[0].floating_options->wrap_distance_left_px, 5U);
@@ -13609,6 +14528,137 @@ TEST_CASE("cli can assign and remove section header footer references and parts"
     remove_if_exists(remove_footer_part_output);
 }
 
+TEST_CASE("cli can reorder header and footer parts without rebinding section references") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_move_parts_source.docx";
+    const fs::path header_moved =
+        working_directory / "cli_move_parts_header_moved.docx";
+    const fs::path footer_moved =
+        working_directory / "cli_move_parts_footer_moved.docx";
+    const fs::path move_header_output =
+        working_directory / "cli_move_header_part.json";
+    const fs::path move_footer_output =
+        working_directory / "cli_move_footer_part.json";
+
+    remove_if_exists(source);
+    remove_if_exists(header_moved);
+    remove_if_exists(footer_moved);
+    remove_if_exists(move_header_output);
+    remove_if_exists(move_footer_output);
+
+    create_cli_reference_fixture(source);
+
+    featherdoc::Document fixture_doc(source);
+    REQUIRE_FALSE(fixture_doc.open());
+    const auto source_header_index =
+        find_header_index_by_text(fixture_doc, "section 1 header");
+    const auto target_header_index =
+        find_header_index_by_text(fixture_doc, "section 0 header");
+    const auto source_footer_index =
+        find_footer_index_by_text(fixture_doc, "section 1 first footer");
+    const auto target_footer_index =
+        find_footer_index_by_text(fixture_doc, "section 0 footer");
+
+    CHECK_EQ(run_cli({"move-header-part", source.string(),
+                      std::to_string(source_header_index),
+                      std::to_string(target_header_index), "--output",
+                      header_moved.string(), "--json"},
+                     move_header_output),
+             0);
+    CHECK_EQ(
+        read_text_file(move_header_output),
+        std::string{"{\"command\":\"move-header-part\",\"ok\":true,"
+                    "\"in_place\":false,\"sections\":3,\"headers\":2,"
+                    "\"footers\":2,\"part\":\"header\",\"source\":"} +
+            std::to_string(source_header_index) + ",\"target\":" +
+            std::to_string(target_header_index) + "}\n");
+
+    featherdoc::Document moved_header_doc(header_moved);
+    REQUIRE_FALSE(moved_header_doc.open());
+    CHECK_EQ(moved_header_doc.header_paragraphs(0).runs().get_text(),
+             "section 1 header");
+    CHECK_EQ(moved_header_doc.header_paragraphs(1).runs().get_text(),
+             "section 0 header");
+    CHECK_EQ(moved_header_doc.section_header_paragraphs(0).runs().get_text(),
+             "section 0 header");
+    CHECK_EQ(moved_header_doc.section_header_paragraphs(1).runs().get_text(),
+             "section 1 header");
+
+    CHECK_EQ(run_cli({"move-footer-part", header_moved.string(),
+                      std::to_string(source_footer_index),
+                      std::to_string(target_footer_index), "--output",
+                      footer_moved.string(), "--json"},
+                     move_footer_output),
+             0);
+    CHECK_EQ(
+        read_text_file(move_footer_output),
+        std::string{"{\"command\":\"move-footer-part\",\"ok\":true,"
+                    "\"in_place\":false,\"sections\":3,\"headers\":2,"
+                    "\"footers\":2,\"part\":\"footer\",\"source\":"} +
+            std::to_string(source_footer_index) + ",\"target\":" +
+            std::to_string(target_footer_index) + "}\n");
+
+    featherdoc::Document moved_footer_doc(footer_moved);
+    REQUIRE_FALSE(moved_footer_doc.open());
+    const auto expected_footer_at_index_zero =
+        target_footer_index == 0U ? "section 1 first footer" : "section 0 footer";
+    const auto expected_footer_at_index_one =
+        target_footer_index == 0U ? "section 0 footer" : "section 1 first footer";
+    CHECK_EQ(moved_footer_doc.footer_paragraphs(0).runs().get_text(),
+             expected_footer_at_index_zero);
+    CHECK_EQ(moved_footer_doc.footer_paragraphs(1).runs().get_text(),
+             expected_footer_at_index_one);
+    CHECK_EQ(moved_footer_doc.section_footer_paragraphs(0).runs().get_text(),
+             "section 0 footer");
+    CHECK_EQ(moved_footer_doc.section_footer_paragraphs(
+                 1, featherdoc::section_reference_kind::first_page)
+                 .runs()
+                 .get_text(),
+             "section 1 first footer");
+
+    remove_if_exists(source);
+    remove_if_exists(header_moved);
+    remove_if_exists(footer_moved);
+    remove_if_exists(move_header_output);
+    remove_if_exists(move_footer_output);
+}
+
+TEST_CASE("cli move-header-part and move-footer-part report parse and runtime errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_move_parts_error_source.docx";
+    const fs::path parse_output =
+        working_directory / "cli_move_header_part_parse.json";
+    const fs::path runtime_output =
+        working_directory / "cli_move_footer_part_runtime.json";
+
+    remove_if_exists(source);
+    remove_if_exists(parse_output);
+    remove_if_exists(runtime_output);
+
+    create_cli_reference_fixture(source);
+
+    CHECK_EQ(run_cli({"move-header-part", source.string(), "0", "--json"},
+                     parse_output),
+             2);
+    CHECK_EQ(read_text_file(parse_output),
+             std::string{
+                 "{\"command\":\"move-header-part\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"invalid target index: --json\"}\n"});
+
+    CHECK_EQ(run_cli({"move-footer-part", source.string(), "0", "3", "--json"},
+                     runtime_output),
+             1);
+    const auto runtime_json = read_text_file(runtime_output);
+    CHECK_NE(runtime_json.find("\"command\":\"move-footer-part\""), std::string::npos);
+    CHECK_NE(runtime_json.find("\"stage\":\"mutate\""), std::string::npos);
+    CHECK_NE(runtime_json.find("\"detail\":\"header/footer part index is out of range for reordering\""),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(parse_output);
+    remove_if_exists(runtime_output);
+}
+
 TEST_CASE("cli can inspect header and footer parts") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_inspect_parts_source.docx";
@@ -13682,7 +14732,9 @@ TEST_CASE("cli validate-template reports body schema mismatches as json") {
                  "{\"part\":\"body\",\"entry_name\":\"word/document.xml\","
                  "\"passed\":false,\"missing_required\":[\"signature_image\"],"
                  "\"duplicate_bookmarks\":[\"customer\"],"
-                 "\"malformed_placeholders\":[\"summary_block\"]}\n"});
+                 "\"malformed_placeholders\":[\"summary_block\"],"
+                 "\"unexpected_bookmarks\":[],\"kind_mismatches\":[],"
+                 "\"occurrence_mismatches\":[]}\n"});
 
     remove_if_exists(source);
     remove_if_exists(output);
@@ -13714,7 +14766,8 @@ TEST_CASE("cli validate-template supports header and section footer targets") {
                  "{\"part\":\"header\",\"part_index\":0,"
                  "\"entry_name\":\"word/header1.xml\",\"passed\":true,"
                  "\"missing_required\":[],\"duplicate_bookmarks\":[],"
-                 "\"malformed_placeholders\":[]}\n"});
+                 "\"malformed_placeholders\":[],\"unexpected_bookmarks\":[],"
+                 "\"kind_mismatches\":[],\"occurrence_mismatches\":[]}\n"});
 
     CHECK_EQ(run_cli({"validate-template", source.string(), "--part",
                       "section-footer", "--section", "0", "--kind", "default",
@@ -13732,11 +14785,57 @@ TEST_CASE("cli validate-template supports header and section footer targets") {
                  "passed: no\n"
                  "missing_required: none\n"
                  "duplicate_bookmarks: footer_company\n"
-                 "malformed_placeholders: footer_summary\n"});
+                 "malformed_placeholders: footer_summary\n"
+                 "unexpected_bookmarks: none\n"
+                 "kind_mismatches: none\n"
+                 "occurrence_mismatches: none\n"});
 
     remove_if_exists(source);
     remove_if_exists(header_output);
     remove_if_exists(footer_output);
+}
+
+TEST_CASE("cli validate-template reports unexpected bookmarks kind mismatches and occurrence mismatches") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_validate_template_schema_v2_source.docx";
+    const fs::path output =
+        working_directory / "cli_validate_template_schema_v2_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    create_cli_schema_v2_template_validation_fixture(source);
+
+    CHECK_EQ(run_cli({"validate-template",
+                      source.string(),
+                      "--part",
+                      "body",
+                      "--slot",
+                      "summary_block:text",
+                      "--slot",
+                      "approver:text:count=2",
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"part\":\"body\",\"entry_name\":\"word/document.xml\","
+                 "\"passed\":false,\"missing_required\":[],"
+                 "\"duplicate_bookmarks\":[],\"malformed_placeholders\":[],"
+                 "\"unexpected_bookmarks\":[{\"bookmark_name\":\"extra_slot\","
+                 "\"occurrence_count\":1,\"kind\":\"text\","
+                 "\"is_duplicate\":false}],"
+                 "\"kind_mismatches\":[{\"bookmark_name\":\"summary_block\","
+                 "\"expected_kind\":\"text\",\"actual_kind\":\"block\","
+                 "\"occurrence_count\":1}],"
+                 "\"occurrence_mismatches\":[{\"bookmark_name\":\"approver\","
+                 "\"actual_occurrences\":1,\"min_occurrences\":2,"
+                 "\"max_occurrences\":2}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(output);
 }
 
 TEST_CASE("cli validate-template reports json parse errors") {
@@ -13762,7 +14861,949 @@ TEST_CASE("cli validate-template reports json parse errors") {
             "\"stage\":\"parse\",\"message\":\"section-header/section-footer "
             "validation requires --section <index>\"}\n"});
 
+    CHECK_EQ(run_cli({"validate-template", source.string(), "--part", "body", "--slot",
+                      "header_title:text:min=3:max=1", "--json"},
+                     output),
+             2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"validate-template\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"invalid --slot occurrence "
+                 "range: max must be greater than or equal to min\"}\n"});
+
     remove_if_exists(source);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli validate-template-schema aggregates multiple targets as json") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_validate_template_schema_source.docx";
+    const fs::path output =
+        working_directory / "cli_validate_template_schema_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    create_cli_part_template_validation_fixture(source);
+
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--target",
+                      "section-header",
+                      "--section",
+                      "0",
+                      "--kind",
+                      "default",
+                      "--slot",
+                      "header_title:text",
+                      "--slot",
+                      "header_note:block",
+                      "--slot",
+                      "header_rows:table_rows",
+                      "--target",
+                      "section-footer",
+                      "--section",
+                      "0",
+                      "--kind",
+                      "default",
+                      "--slot",
+                      "footer_company:text",
+                      "--slot",
+                      "footer_summary:block",
+                      "--slot",
+                      "footer_signature:text",
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"passed\":false,\"part_results\":["
+                 "{\"part\":\"section-header\",\"section\":0,"
+                 "\"kind\":\"default\",\"available\":true,"
+                 "\"entry_name\":\"word/header1.xml\",\"passed\":true,"
+                 "\"missing_required\":[],\"duplicate_bookmarks\":[],"
+                 "\"malformed_placeholders\":[],\"unexpected_bookmarks\":[],"
+                 "\"kind_mismatches\":[],\"occurrence_mismatches\":[]},"
+                 "{\"part\":\"section-footer\",\"section\":0,"
+                 "\"kind\":\"default\",\"available\":true,"
+                 "\"entry_name\":\"word/footer1.xml\",\"passed\":false,"
+                 "\"missing_required\":[\"footer_signature\"],"
+                 "\"duplicate_bookmarks\":[\"footer_company\"],"
+                 "\"malformed_placeholders\":[\"footer_summary\"],"
+                 "\"unexpected_bookmarks\":[],\"kind_mismatches\":[],"
+                 "\"occurrence_mismatches\":[]}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli validate-template-schema reports unavailable targets in text output") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_validate_template_schema_unavailable_source.docx";
+    const fs::path output =
+        working_directory / "cli_validate_template_schema_unavailable_output.txt";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    create_cli_part_template_validation_fixture(source);
+
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--target",
+                      "section-header",
+                      "--section",
+                      "1",
+                      "--slot",
+                      "optional_header:text:optional",
+                      "--target",
+                      "section-footer",
+                      "--section",
+                      "1",
+                      "--slot",
+                      "required_footer:text"},
+                     output),
+             0);
+
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "passed: no\n"
+                 "part_result_count: 2\n"
+                 "\n"
+                 "part_result[0]\n"
+                 "part: section-header\n"
+                 "section: 1\n"
+                 "kind: default\n"
+                 "available: no\n"
+                 "entry_name: \n"
+                 "passed: yes\n"
+                 "missing_required: none\n"
+                 "duplicate_bookmarks: none\n"
+                 "malformed_placeholders: none\n"
+                 "unexpected_bookmarks: none\n"
+                 "kind_mismatches: none\n"
+                 "occurrence_mismatches: none\n"
+                 "\n"
+                 "part_result[1]\n"
+                 "part: section-footer\n"
+                 "section: 1\n"
+                 "kind: default\n"
+                 "available: no\n"
+                 "entry_name: \n"
+                 "passed: no\n"
+                 "missing_required: required_footer\n"
+                 "duplicate_bookmarks: none\n"
+                 "malformed_placeholders: none\n"
+                 "unexpected_bookmarks: none\n"
+                 "kind_mismatches: none\n"
+                 "occurrence_mismatches: none\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli validate-template-schema reads targets from a schema file") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_validate_template_schema_file_source.docx";
+    const fs::path schema_file =
+        working_directory / "cli_validate_template_schema_file.json";
+    const fs::path output =
+        working_directory / "cli_validate_template_schema_file_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(output);
+
+    create_cli_part_template_validation_fixture(source);
+    write_binary_file(
+        schema_file,
+        std::string{
+            "{\n"
+            "  \"targets\": [\n"
+            "    {\n"
+            "      \"part\": \"section-header\",\n"
+            "      \"section\": 0,\n"
+            "      \"kind\": \"default\",\n"
+            "      \"slots\": [\"header_title:text\", \"header_note:block\", "
+            "\"header_rows:table_rows\"]\n"
+            "    },\n"
+            "    {\n"
+            "      \"part\": \"section-footer\",\n"
+            "      \"section\": 0,\n"
+            "      \"kind\": \"default\",\n"
+            "      \"slots\": [\"footer_company:text\", "
+            "\"footer_summary:block\", \"footer_signature:text\"]\n"
+            "    }\n"
+            "  ]\n"
+            "}\n"});
+
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--schema-file",
+                      schema_file.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"passed\":false,\"part_results\":["
+                 "{\"part\":\"section-header\",\"section\":0,"
+                 "\"kind\":\"default\",\"available\":true,"
+                 "\"entry_name\":\"word/header1.xml\",\"passed\":true,"
+                 "\"missing_required\":[],\"duplicate_bookmarks\":[],"
+                 "\"malformed_placeholders\":[],\"unexpected_bookmarks\":[],"
+                 "\"kind_mismatches\":[],\"occurrence_mismatches\":[]},"
+                 "{\"part\":\"section-footer\",\"section\":0,"
+                 "\"kind\":\"default\",\"available\":true,"
+                 "\"entry_name\":\"word/footer1.xml\",\"passed\":false,"
+                 "\"missing_required\":[\"footer_signature\"],"
+                 "\"duplicate_bookmarks\":[\"footer_company\"],"
+                 "\"malformed_placeholders\":[\"footer_summary\"],"
+                 "\"unexpected_bookmarks\":[],\"kind_mismatches\":[],"
+                 "\"occurrence_mismatches\":[]}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli validate-template-schema reads structured slot objects from a schema file") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_validate_template_schema_object_file_source.docx";
+    const fs::path schema_file =
+        working_directory / "cli_validate_template_schema_object_file.json";
+    const fs::path output =
+        working_directory / "cli_validate_template_schema_object_file_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(output);
+
+    create_cli_part_template_validation_fixture(source);
+    write_binary_file(
+        schema_file,
+        std::string{
+            "{\n"
+            "  \"targets\": [\n"
+            "    {\n"
+            "      \"part\": \"section-header\",\n"
+            "      \"section\": 0,\n"
+            "      \"kind\": \"default\",\n"
+            "      \"slots\": [\n"
+            "        {\"bookmark\": \"header_title\", \"kind\": \"text\"},\n"
+            "        {\"bookmark_name\": \"header_note\", \"kind\": \"block\", "
+            "\"required\": true},\n"
+            "        {\"bookmark\": \"header_rows\", \"kind\": \"table_rows\", "
+            "\"count\": 1}\n"
+            "      ]\n"
+            "    },\n"
+            "    {\n"
+            "      \"part\": \"section-footer\",\n"
+            "      \"section\": 0,\n"
+            "      \"kind\": \"default\",\n"
+            "      \"slots\": [\n"
+            "        {\"bookmark\": \"footer_company\", \"kind\": \"text\"},\n"
+            "        {\"bookmark\": \"footer_summary\", \"kind\": \"block\"},\n"
+            "        {\"bookmark\": \"footer_signature\", \"kind\": \"text\"}\n"
+            "      ]\n"
+            "    }\n"
+            "  ]\n"
+            "}\n"});
+
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--schema-file",
+                      schema_file.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"passed\":false,\"part_results\":["
+                 "{\"part\":\"section-header\",\"section\":0,"
+                 "\"kind\":\"default\",\"available\":true,"
+                 "\"entry_name\":\"word/header1.xml\",\"passed\":true,"
+                 "\"missing_required\":[],\"duplicate_bookmarks\":[],"
+                 "\"malformed_placeholders\":[],\"unexpected_bookmarks\":[],"
+                 "\"kind_mismatches\":[],\"occurrence_mismatches\":[]},"
+                 "{\"part\":\"section-footer\",\"section\":0,"
+                 "\"kind\":\"default\",\"available\":true,"
+                 "\"entry_name\":\"word/footer1.xml\",\"passed\":false,"
+                 "\"missing_required\":[\"footer_signature\"],"
+                 "\"duplicate_bookmarks\":[\"footer_company\"],"
+                 "\"malformed_placeholders\":[\"footer_summary\"],"
+                 "\"unexpected_bookmarks\":[],\"kind_mismatches\":[],"
+                 "\"occurrence_mismatches\":[]}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli validate-template-schema reports parse errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_validate_template_schema_parse_source.docx";
+    const fs::path schema_file =
+        working_directory / "cli_validate_template_schema_parse_schema.json";
+    const fs::path output =
+        working_directory / "cli_validate_template_schema_parse_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(output);
+
+    create_cli_part_template_validation_fixture(source);
+
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--slot",
+                      "header_title:text",
+                      "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"validate-template-schema\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"--slot requires a preceding "
+            "--target <body|header|footer|section-header|section-footer>\"}\n"});
+
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--target",
+                      "section-header",
+                      "--slot",
+                      "header_title:text",
+                      "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"validate-template-schema\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"section-header/section-footer "
+            "schema validation requires --section <index>\"}\n"});
+
+    write_binary_file(schema_file,
+                      std::string{
+                          "{"
+                          "\"targets\":[{"
+                          "\"part\":\"section-header\","
+                          "\"slots\":[\"header_title:text\"]"
+                          "}]"
+                          "}"});
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--schema-file",
+                      schema_file.string(),
+                      "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"validate-template-schema\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"section-header/section-footer "
+            "schema validation requires --section <index>\"}\n"});
+
+    write_binary_file(schema_file,
+                      std::string{
+                          "{"
+                          "\"targets\":[{"
+                          "\"part\":\"body\","
+                          "\"slots\":[{"
+                          "\"bookmark\":\"customer\","
+                          "\"kind\":\"text\","
+                          "\"count\":1,"
+                          "\"min\":1"
+                          "}]"
+                          "}]"
+                          "}"});
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--schema-file",
+                      schema_file.string(),
+                      "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"validate-template-schema\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"JSON schema slot member "
+            "'count' conflicts with 'min'/'max'\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli export-template-schema prints reusable schema json") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_export_template_schema_source.docx";
+    const fs::path output =
+        working_directory / "cli_export_template_schema_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    create_cli_part_template_validation_fixture(source);
+
+    CHECK_EQ(run_cli({"export-template-schema", source.string()}, output), 0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"targets\":["
+                 "{\"part\":\"header\",\"index\":0,\"slots\":["
+                 "{\"bookmark\":\"header_title\",\"kind\":\"text\"},"
+                 "{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+                 "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"}]},"
+                 "{\"part\":\"footer\",\"index\":0,\"slots\":["
+                 "{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli export-template-schema writes schema file and summary json") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_export_template_schema_summary_source.docx";
+    const fs::path schema_output =
+        working_directory / "cli_export_template_schema_summary.schema.json";
+    const fs::path output =
+        working_directory / "cli_export_template_schema_summary_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+
+    create_cli_body_template_validation_fixture(source);
+
+    CHECK_EQ(run_cli({"export-template-schema",
+                      source.string(),
+                      "--output",
+                      schema_output.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"export-template-schema\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(schema_output.string()) +
+                 "\",\"target_count\":1,\"slot_count\":2,"
+                 "\"skipped_count\":0,\"skipped_bookmarks\":[]}\n"});
+    CHECK_EQ(read_text_file(schema_output),
+             std::string{
+                 "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                 "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"summary_block\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli export-template-schema emits section targets when requested") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_export_template_schema_section_source.docx";
+    const fs::path output =
+        working_directory / "cli_export_template_schema_section_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    create_cli_part_template_validation_fixture(source);
+
+    CHECK_EQ(run_cli({"export-template-schema",
+                      source.string(),
+                      "--section-targets"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"targets\":["
+                 "{\"part\":\"section-header\",\"section\":0,"
+                 "\"kind\":\"default\",\"slots\":["
+                 "{\"bookmark\":\"header_title\",\"kind\":\"text\"},"
+                 "{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+                 "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"}]},"
+                 "{\"part\":\"section-footer\",\"section\":0,"
+                 "\"kind\":\"default\",\"slots\":["
+                 "{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli export-template-schema emits resolved section targets and round-trips") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_export_template_schema_resolved_source.docx";
+    const fs::path schema_output =
+        working_directory / "cli_export_template_schema_resolved.schema.json";
+    const fs::path export_output =
+        working_directory / "cli_export_template_schema_resolved_output.json";
+    const fs::path validate_output =
+        working_directory / "cli_export_template_schema_resolved_validate.json";
+
+    remove_if_exists(source);
+    remove_if_exists(schema_output);
+    remove_if_exists(export_output);
+    remove_if_exists(validate_output);
+
+    create_cli_resolved_part_template_validation_fixture(source);
+
+    CHECK_EQ(run_cli({"export-template-schema",
+                      source.string(),
+                      "--resolved-section-targets",
+                      "--output",
+                      schema_output.string(),
+                      "--json"},
+                     export_output),
+             0);
+    CHECK_EQ(read_text_file(export_output),
+             std::string{
+                 "{\"command\":\"export-template-schema\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(schema_output.string()) +
+                 "\",\"target_count\":4,\"slot_count\":10,"
+                 "\"skipped_count\":0,\"skipped_bookmarks\":[]}\n"});
+    CHECK_EQ(read_text_file(schema_output),
+             std::string{
+                 "{\"targets\":["
+                 "{\"part\":\"section-header\",\"section\":0,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"slots\":[{\"bookmark\":\"header_title\",\"kind\":\"text\"},"
+                 "{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+                 "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"}]},"
+                 "{\"part\":\"section-footer\",\"section\":0,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"slots\":[{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]},"
+                 "{\"part\":\"section-header\",\"section\":1,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"linked_to_previous\":true,"
+                 "\"slots\":[{\"bookmark\":\"header_title\",\"kind\":\"text\"},"
+                 "{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+                 "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"}]},"
+                 "{\"part\":\"section-footer\",\"section\":1,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"linked_to_previous\":true,"
+                 "\"slots\":[{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}"
+                 "]}\n"});
+
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--schema-file",
+                      schema_output.string(),
+                      "--json"},
+                     validate_output),
+             0);
+    CHECK_EQ(read_text_file(validate_output),
+             std::string{
+                 "{\"passed\":true,\"part_results\":["
+                 "{\"part\":\"section-header\",\"section\":0,"
+                 "\"kind\":\"default\",\"available\":true,"
+                 "\"entry_name\":\"word/header1.xml\",\"passed\":true,"
+                 "\"missing_required\":[],\"duplicate_bookmarks\":[],"
+                 "\"malformed_placeholders\":[],\"unexpected_bookmarks\":[],"
+                 "\"kind_mismatches\":[],\"occurrence_mismatches\":[]},"
+                 "{\"part\":\"section-footer\",\"section\":0,"
+                 "\"kind\":\"default\",\"available\":true,"
+                 "\"entry_name\":\"word/footer1.xml\",\"passed\":true,"
+                 "\"missing_required\":[],\"duplicate_bookmarks\":[],"
+                 "\"malformed_placeholders\":[],\"unexpected_bookmarks\":[],"
+                 "\"kind_mismatches\":[],\"occurrence_mismatches\":[]},"
+                 "{\"part\":\"section-header\",\"section\":1,"
+                 "\"kind\":\"default\",\"available\":true,"
+                 "\"entry_name\":\"word/header1.xml\",\"passed\":true,"
+                 "\"missing_required\":[],\"duplicate_bookmarks\":[],"
+                 "\"malformed_placeholders\":[],\"unexpected_bookmarks\":[],"
+                 "\"kind_mismatches\":[],\"occurrence_mismatches\":[]},"
+                 "{\"part\":\"section-footer\",\"section\":1,"
+                 "\"kind\":\"default\",\"available\":true,"
+                 "\"entry_name\":\"word/footer1.xml\",\"passed\":true,"
+                 "\"missing_required\":[],\"duplicate_bookmarks\":[],"
+                 "\"malformed_placeholders\":[],\"unexpected_bookmarks\":[],"
+                 "\"kind_mismatches\":[],\"occurrence_mismatches\":[]}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(schema_output);
+    remove_if_exists(export_output);
+    remove_if_exists(validate_output);
+}
+
+TEST_CASE("cli normalize-template-schema writes canonical schema file and summary json") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema_input =
+        working_directory / "cli_normalize_template_schema_input.json";
+    const fs::path schema_output =
+        working_directory / "cli_normalize_template_schema_output.json";
+    const fs::path output =
+        working_directory / "cli_normalize_template_schema_summary.json";
+
+    remove_if_exists(schema_input);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+
+    write_binary_file(schema_input,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"section-footer\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"linked_to_previous\":true,"
+                          "\"resolved_from_section\":0,"
+                          "\"slots\":["
+                          "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"},"
+                          "{\"bookmark_name\":\"footer_company\",\"kind\":\"text\","
+                          "\"count\":2}"
+                          "]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"summary_block\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2}"
+                          "]"
+                          "},"
+                          "{"
+                          "\"part\":\"section-header\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"resolved_from_section\":0,"
+                          "\"linked_to_previous\":true,"
+                          "\"slots\":["
+                          "{\"bookmark\":\"header_title\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"header_note\",\"kind\":\"block\"}"
+                          "]"
+                          "}"
+                          "]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"normalize-template-schema",
+                      schema_input.string(),
+                      "--output",
+                      schema_output.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"normalize-template-schema\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(schema_output.string()) +
+                 "\",\"target_count\":3,\"slot_count\":6}\n"});
+    CHECK_EQ(read_text_file(schema_output),
+             std::string{
+                 "{\"targets\":["
+                 "{\"part\":\"body\",\"slots\":["
+                 "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"summary_block\",\"kind\":\"text\"}]},"
+                 "{\"part\":\"section-header\",\"section\":1,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"linked_to_previous\":true,\"slots\":["
+                 "{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+                 "{\"bookmark\":\"header_title\",\"kind\":\"text\"}]},"
+                 "{\"part\":\"section-footer\",\"section\":1,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"linked_to_previous\":true,\"slots\":["
+                 "{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(schema_input);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli diff-template-schema reports added removed and changed targets as json") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left_schema =
+        working_directory / "cli_diff_template_schema_left.json";
+    const fs::path right_schema =
+        working_directory / "cli_diff_template_schema_right.json";
+    const fs::path output =
+        working_directory / "cli_diff_template_schema_output.json";
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(output);
+
+    write_binary_file(left_schema,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"section-header\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"resolved_from_section\":0,"
+                          "\"linked_to_previous\":true,"
+                          "\"slots\":["
+                          "{\"bookmark\":\"header_title\",\"kind\":\"text\"}"
+                          "]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2}"
+                          "]"
+                          "}"
+                          "]"
+                          "}"});
+    write_binary_file(right_schema,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"section-footer\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}"
+                          "]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":3}"
+                          "]"
+                          "}"
+                          "]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"diff-template-schema",
+                      left_schema.string(),
+                      right_schema.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"equal\":false,\"added_target_count\":1,"
+                 "\"removed_target_count\":1,\"changed_target_count\":1,"
+                 "\"added_targets\":[{\"part\":\"section-footer\",\"section\":1,"
+                 "\"kind\":\"default\",\"slots\":[{\"bookmark\":\"footer_summary\","
+                 "\"kind\":\"text\"}]}],"
+                 "\"removed_targets\":[{\"part\":\"section-header\",\"section\":1,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"linked_to_previous\":true,\"slots\":[{\"bookmark\":"
+                 "\"header_title\",\"kind\":\"text\"}]}],"
+                 "\"changed_targets\":[{\"left\":{\"part\":\"body\",\"slots\":["
+                 "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2}]},"
+                 "\"right\":{\"part\":\"body\",\"slots\":[{\"bookmark\":"
+                 "\"customer\",\"kind\":\"text\",\"count\":3}]}}]}\n"});
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli diff-template-schema supports fail-on-diff gate exit code") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left_schema =
+        working_directory / "cli_diff_template_schema_fail_left.json";
+    const fs::path right_schema =
+        working_directory / "cli_diff_template_schema_fail_right.json";
+    const fs::path output =
+        working_directory / "cli_diff_template_schema_fail_output.json";
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(output);
+
+    write_binary_file(left_schema,
+                      std::string{
+                          "{"
+                          "\"targets\":[{"
+                          "\"part\":\"body\","
+                          "\"slots\":[{\"bookmark\":\"customer\",\"kind\":\"text\"}]"
+                          "}]"
+                          "}"});
+    write_binary_file(right_schema,
+                      std::string{
+                          "{"
+                          "\"targets\":[{"
+                          "\"part\":\"body\","
+                          "\"slots\":[{\"bookmark\":\"customer\",\"kind\":\"text\","
+                          "\"count\":2}]"
+                          "}]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"diff-template-schema",
+                      left_schema.string(),
+                      right_schema.string(),
+                      "--fail-on-diff",
+                      "--json"},
+                     output),
+             1);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"equal\":false,\"added_target_count\":0,"
+                 "\"removed_target_count\":0,\"changed_target_count\":1,"
+                 "\"added_targets\":[],\"removed_targets\":[],"
+                 "\"changed_targets\":[{\"left\":{\"part\":\"body\",\"slots\":["
+                 "{\"bookmark\":\"customer\",\"kind\":\"text\"}]},"
+                 "\"right\":{\"part\":\"body\",\"slots\":[{\"bookmark\":"
+                 "\"customer\",\"kind\":\"text\",\"count\":2}]}}]}\n"});
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli check-template-schema matches resolved section baseline and writes generated schema") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_check_template_schema_match_source.docx";
+    const fs::path schema_file =
+        working_directory / "cli_check_template_schema_match_schema.json";
+    const fs::path generated_output =
+        working_directory / "cli_check_template_schema_match_generated.json";
+    const fs::path output =
+        working_directory / "cli_check_template_schema_match_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(generated_output);
+    remove_if_exists(output);
+
+    create_cli_resolved_part_template_validation_fixture(source);
+
+    write_binary_file(schema_file,
+                      std::string{
+                          "{\"targets\":["
+                          "{\"part\":\"section-header\",\"section\":0,"
+                          "\"kind\":\"default\",\"resolved_from_section\":0,"
+                          "\"slots\":[{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+                          "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"},"
+                          "{\"bookmark\":\"header_title\",\"kind\":\"text\"}]},"
+                          "{\"part\":\"section-footer\",\"section\":0,"
+                          "\"kind\":\"default\",\"resolved_from_section\":0,"
+                          "\"slots\":[{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                          "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]},"
+                          "{\"part\":\"section-header\",\"section\":1,"
+                          "\"kind\":\"default\",\"resolved_from_section\":0,"
+                          "\"linked_to_previous\":true,"
+                          "\"slots\":[{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+                          "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"},"
+                          "{\"bookmark\":\"header_title\",\"kind\":\"text\"}]},"
+                          "{\"part\":\"section-footer\",\"section\":1,"
+                          "\"kind\":\"default\",\"resolved_from_section\":0,"
+                          "\"linked_to_previous\":true,"
+                          "\"slots\":[{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                          "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
+
+    CHECK_EQ(run_cli({"check-template-schema",
+                      source.string(),
+                      "--schema-file",
+                      schema_file.string(),
+                      "--resolved-section-targets",
+                      "--output",
+                      generated_output.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"check-template-schema\",\"matches\":true,"
+                 "\"schema_file\":\"" +
+                 json_escape_text(schema_file.string()) +
+                 "\",\"generated_output_path\":\"" +
+                 json_escape_text(generated_output.string()) +
+                 "\",\"added_target_count\":0,\"removed_target_count\":0,"
+                 "\"changed_target_count\":0,\"added_targets\":[],"
+                 "\"removed_targets\":[],\"changed_targets\":[]}\n"});
+    CHECK_EQ(read_text_file(generated_output),
+             std::string{
+                 "{\"targets\":["
+                 "{\"part\":\"section-header\",\"section\":0,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"slots\":[{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+                 "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"},"
+                 "{\"bookmark\":\"header_title\",\"kind\":\"text\"}]},"
+                 "{\"part\":\"section-header\",\"section\":1,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"linked_to_previous\":true,"
+                 "\"slots\":[{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+                 "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"},"
+                 "{\"bookmark\":\"header_title\",\"kind\":\"text\"}]},"
+                 "{\"part\":\"section-footer\",\"section\":0,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"slots\":[{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]},"
+                 "{\"part\":\"section-footer\",\"section\":1,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"linked_to_previous\":true,"
+                 "\"slots\":[{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(generated_output);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli check-template-schema fails when generated schema drifts from baseline") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_check_template_schema_drift_source.docx";
+    const fs::path schema_file =
+        working_directory / "cli_check_template_schema_drift_schema.json";
+    const fs::path output =
+        working_directory / "cli_check_template_schema_drift_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(output);
+
+    create_cli_body_template_validation_fixture(source);
+
+    write_binary_file(schema_file,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"summary_block\",\"kind\":\"text\"}]}]}\n"});
+
+    CHECK_EQ(run_cli({"check-template-schema",
+                      source.string(),
+                      "--schema-file",
+                      schema_file.string(),
+                      "--json"},
+                     output),
+             1);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"check-template-schema\",\"matches\":false,"
+                 "\"schema_file\":\"" +
+                 json_escape_text(schema_file.string()) +
+                 "\",\"added_target_count\":0,\"removed_target_count\":0,"
+                 "\"changed_target_count\":1,\"added_targets\":[],"
+                 "\"removed_targets\":[],\"changed_targets\":[{\"left\":"
+                 "{\"part\":\"body\",\"slots\":[{\"bookmark\":\"customer\","
+                 "\"kind\":\"text\"},{\"bookmark\":\"summary_block\","
+                 "\"kind\":\"text\"}]},\"right\":{\"part\":\"body\",\"slots\":["
+                 "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"summary_block\",\"kind\":\"text\"}]}}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
     remove_if_exists(output);
 }
 

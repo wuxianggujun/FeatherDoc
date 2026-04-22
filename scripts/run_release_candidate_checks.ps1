@@ -5,7 +5,8 @@ Runs the local FeatherDoc release-candidate preflight.
 .DESCRIPTION
 Builds and verifies the local MSVC release candidate pipeline, including
 ctest, install/find_package smoke, the Word visual gate, and optional
-repository README gallery refresh.
+repository README gallery refresh. It can also optionally verify a template
+DOCX against a committed template-schema baseline.
 
 .PARAMETER RefreshReadmeAssets
 Refreshes docs/assets/readme from the latest screenshot-backed Word visual
@@ -25,6 +26,15 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 `
     -TaskOutputRoot output/word-visual-smoke/tasks-release-checks `
     -SummaryOutputDir output/release-candidate-checks `
     -RefreshReadmeAssets
+
+.EXAMPLE
+pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 `
+    -SkipConfigure `
+    -SkipBuild `
+    -BuildDir build-codex-clang-column-visual-verify `
+    -TemplateSchemaInputDocx output\template-schema-validation-smoke\template_schema_validation_two_sections.docx `
+    -TemplateSchemaBaseline output\template-schema-validation-smoke\script_frozen_template_schema.json `
+    -TemplateSchemaResolvedSectionTargets
 #>
 param(
     [string]$BuildDir = "build-msvc-nmake",
@@ -44,6 +54,13 @@ param(
     [switch]$SkipVisualGate,
     [switch]$SkipSectionPageSetup,
     [switch]$SkipPageNumberFields,
+    [string]$TemplateSchemaInputDocx = "",
+    [string]$TemplateSchemaBaseline = "",
+    [string]$TemplateSchemaGeneratedOutput = "",
+    [switch]$TemplateSchemaSectionTargets,
+    [switch]$TemplateSchemaResolvedSectionTargets,
+    [string]$TemplateSchemaManifestPath = "",
+    [string]$TemplateSchemaManifestOutputDir = "",
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -401,6 +418,26 @@ function Parse-VisualGateOutput {
     return $result
 }
 
+function Parse-TemplateSchemaCheckOutput {
+    param([string[]]$Lines)
+
+    $jsonLine = $Lines |
+        Where-Object { $_ -match '^\{"command":"check-template-schema",' } |
+        Select-Object -Last 1
+    if ([string]::IsNullOrWhiteSpace($jsonLine)) {
+        throw "Template schema check did not emit a JSON result line."
+    }
+
+    return $jsonLine | ConvertFrom-Json
+}
+
+function Parse-TemplateSchemaManifestSummary {
+    param([string]$SummaryPath)
+
+    Assert-PathExists -Path $SummaryPath -Label "template schema manifest summary"
+    return Get-Content -Raw -LiteralPath $SummaryPath | ConvertFrom-Json
+}
+
 $repoRoot = Resolve-RepoRoot
 $msvcBootstrap = Get-MsvcBootstrap
 
@@ -421,8 +458,48 @@ $artifactGuidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $startHerePath = Join-Path $resolvedSummaryOutputDir "START_HERE.md"
 $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smoke.ps1"
+$templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
+$templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
 $visualGateScript = Join-Path $repoRoot "scripts\run_word_visual_release_gate.ps1"
 $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
+
+$resolvedTemplateSchemaInputDocx = if ([string]::IsNullOrWhiteSpace($TemplateSchemaInputDocx)) {
+    ""
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $TemplateSchemaInputDocx
+}
+$resolvedTemplateSchemaBaseline = if ([string]::IsNullOrWhiteSpace($TemplateSchemaBaseline)) {
+    ""
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $TemplateSchemaBaseline
+}
+$resolvedTemplateSchemaGeneratedOutput = if ([string]::IsNullOrWhiteSpace($TemplateSchemaGeneratedOutput)) {
+    Join-Path $reportDir "generated_template_schema.json"
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $TemplateSchemaGeneratedOutput
+}
+$resolvedTemplateSchemaManifestPath = if ([string]::IsNullOrWhiteSpace($TemplateSchemaManifestPath)) {
+    ""
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $TemplateSchemaManifestPath
+}
+$templateSchemaManifestRequested = -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaManifestPath)
+$resolvedTemplateSchemaManifestOutputDir = if ($templateSchemaManifestRequested) {
+    if ([string]::IsNullOrWhiteSpace($TemplateSchemaManifestOutputDir)) {
+        Join-Path $reportDir "template-schema-manifest-checks"
+    } else {
+        Resolve-FullPath -RepoRoot $repoRoot -InputPath $TemplateSchemaManifestOutputDir
+    }
+} else {
+    ""
+}
+$resolvedTemplateSchemaManifestSummaryPath = if ($templateSchemaManifestRequested) {
+    Join-Path $resolvedTemplateSchemaManifestOutputDir "summary.json"
+} else {
+    ""
+}
+$templateSchemaRequested = -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaInputDocx) -or
+    -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaBaseline)
 
 New-Item -ItemType Directory -Path $resolvedSummaryOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
@@ -451,6 +528,18 @@ $summary = [ordered]@{
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
+    template_schema = [ordered]@{
+        requested = $templateSchemaRequested
+        baseline = $resolvedTemplateSchemaBaseline
+        input_docx = $resolvedTemplateSchemaInputDocx
+        generated_output = if ($templateSchemaRequested) { $resolvedTemplateSchemaGeneratedOutput } else { "" }
+    }
+    template_schema_manifest = [ordered]@{
+        requested = $templateSchemaManifestRequested
+        manifest_path = $resolvedTemplateSchemaManifestPath
+        output_dir = $resolvedTemplateSchemaManifestOutputDir
+        summary_json = $resolvedTemplateSchemaManifestSummaryPath
+    }
     readme_gallery = [ordered]@{
         status = if ($SkipVisualGate) { "visual_gate_skipped" } else { "pending" }
     }
@@ -458,6 +547,8 @@ $summary = [ordered]@{
         configure = [ordered]@{ status = if ($SkipConfigure) { "skipped" } else { "pending" } }
         build = [ordered]@{ status = if ($SkipBuild) { "skipped" } else { "pending" } }
         tests = [ordered]@{ status = if ($SkipTests) { "skipped" } else { "pending" } }
+        template_schema = [ordered]@{ status = if ($templateSchemaRequested) { "pending" } else { "not_requested" } }
+        template_schema_manifest = [ordered]@{ status = if ($templateSchemaManifestRequested) { "pending" } else { "not_requested" } }
         install_smoke = [ordered]@{ status = if ($SkipInstallSmoke) { "skipped" } else { "pending" } }
         visual_gate = [ordered]@{ status = if ($SkipVisualGate) { "skipped" } else { "pending" } }
     }
@@ -466,6 +557,23 @@ $summary = [ordered]@{
 $activeStep = ""
 
 try {
+    if ($TemplateSchemaSectionTargets -and $TemplateSchemaResolvedSectionTargets) {
+        $activeStep = "template_schema"
+        throw "Template schema checking forbids using -TemplateSchemaSectionTargets and -TemplateSchemaResolvedSectionTargets together."
+    }
+    if ($templateSchemaRequested -and [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaBaseline)) {
+        $activeStep = "template_schema"
+        throw "Template schema checking requires -TemplateSchemaBaseline when template schema options are requested."
+    }
+    if ($templateSchemaRequested -and [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaInputDocx)) {
+        $activeStep = "template_schema"
+        throw "Template schema checking requires -TemplateSchemaInputDocx when template schema options are requested."
+    }
+    if ($templateSchemaManifestRequested -and -not (Test-Path -LiteralPath $resolvedTemplateSchemaManifestPath)) {
+        $activeStep = "template_schema_manifest"
+        throw "Template schema manifest does not exist: $resolvedTemplateSchemaManifestPath"
+    }
+
     if ($RefreshReadmeAssets -and $SkipVisualGate) {
         $activeStep = "visual_gate"
         throw "README gallery refresh requires the visual gate. Re-run without -SkipVisualGate."
@@ -545,6 +653,118 @@ try {
             "ctest --test-dir `"$resolvedBuildDir`" --output-on-failure --timeout $CtestTimeoutSeconds"
         )
         $summary.steps.tests.status = "completed"
+    }
+
+    if ($templateSchemaRequested) {
+        $activeStep = "template_schema"
+        Write-Step "Running template schema baseline check"
+        Assert-PathExists -Path $resolvedTemplateSchemaInputDocx -Label "template schema input DOCX"
+        Assert-PathExists -Path $resolvedTemplateSchemaBaseline -Label "template schema baseline"
+
+        $templateSchemaArgs = @(
+            "-InputDocx"
+            $resolvedTemplateSchemaInputDocx
+            "-SchemaFile"
+            $resolvedTemplateSchemaBaseline
+            "-GeneratedSchemaOutput"
+            $resolvedTemplateSchemaGeneratedOutput
+            "-SkipBuild"
+            "-BuildDir"
+            $resolvedBuildDir
+        )
+        if ($TemplateSchemaSectionTargets) {
+            $templateSchemaArgs += "-SectionTargets"
+        } elseif ($TemplateSchemaResolvedSectionTargets) {
+            $templateSchemaArgs += "-ResolvedSectionTargets"
+        }
+
+        $templateSchemaOutput = @(
+            & powershell.exe -ExecutionPolicy Bypass -File $templateSchemaCheckScript @templateSchemaArgs 2>&1
+        )
+        $templateSchemaExitCode = $LASTEXITCODE
+        foreach ($line in $templateSchemaOutput) {
+            Write-Host $line
+        }
+        if ($templateSchemaExitCode -notin @(0, 1)) {
+            throw "Template schema baseline check failed."
+        }
+
+        $templateSchemaInfo = Parse-TemplateSchemaCheckOutput -Lines @(
+            $templateSchemaOutput | ForEach-Object { $_.ToString() }
+        )
+        $summary.steps.template_schema.status = if ($templateSchemaExitCode -eq 0) {
+            "completed"
+        } else {
+            "failed"
+        }
+        $summary.steps.template_schema.matches = [bool]$templateSchemaInfo.matches
+        $summary.steps.template_schema.schema_file = [string]$templateSchemaInfo.schema_file
+        if (-not [string]::IsNullOrWhiteSpace([string]$templateSchemaInfo.generated_output_path)) {
+            $summary.steps.template_schema.generated_output_path = [string]$templateSchemaInfo.generated_output_path
+        }
+        $summary.steps.template_schema.added_target_count = [int]$templateSchemaInfo.added_target_count
+        $summary.steps.template_schema.removed_target_count = [int]$templateSchemaInfo.removed_target_count
+        $summary.steps.template_schema.changed_target_count = [int]$templateSchemaInfo.changed_target_count
+        $summary.template_schema.matches = [bool]$templateSchemaInfo.matches
+        $summary.template_schema.added_target_count = [int]$templateSchemaInfo.added_target_count
+        $summary.template_schema.removed_target_count = [int]$templateSchemaInfo.removed_target_count
+        $summary.template_schema.changed_target_count = [int]$templateSchemaInfo.changed_target_count
+
+        if ($templateSchemaExitCode -ne 0) {
+            throw "Template schema baseline drift detected."
+        }
+    }
+
+    if ($templateSchemaManifestRequested) {
+        $activeStep = "template_schema_manifest"
+        Write-Step "Running template schema manifest check"
+        Assert-PathExists -Path $resolvedTemplateSchemaManifestPath -Label "template schema manifest"
+        New-Item -ItemType Directory -Path $resolvedTemplateSchemaManifestOutputDir -Force | Out-Null
+
+        $templateSchemaManifestArgs = @(
+            "-ManifestPath"
+            $resolvedTemplateSchemaManifestPath
+            "-BuildDir"
+            $resolvedBuildDir
+            "-OutputDir"
+            $resolvedTemplateSchemaManifestOutputDir
+            "-SkipBuild"
+        )
+
+        $templateSchemaManifestOutput = @(
+            & powershell.exe -ExecutionPolicy Bypass -File $templateSchemaManifestScript @templateSchemaManifestArgs 2>&1
+        )
+        $templateSchemaManifestExitCode = $LASTEXITCODE
+        foreach ($line in $templateSchemaManifestOutput) {
+            Write-Host $line
+        }
+        if ($templateSchemaManifestExitCode -notin @(0, 1)) {
+            throw "Template schema manifest check failed."
+        }
+
+        $templateSchemaManifestInfo = Parse-TemplateSchemaManifestSummary -SummaryPath $resolvedTemplateSchemaManifestSummaryPath
+        $summary.steps.template_schema_manifest.status = if ($templateSchemaManifestExitCode -eq 0) {
+            "completed"
+        } else {
+            "failed"
+        }
+        $summary.steps.template_schema_manifest.summary_json = $resolvedTemplateSchemaManifestSummaryPath
+        $summary.steps.template_schema_manifest.manifest_path = [string]$templateSchemaManifestInfo.manifest_path
+        $summary.steps.template_schema_manifest.output_dir = [string]$resolvedTemplateSchemaManifestOutputDir
+        $summary.steps.template_schema_manifest.passed = [bool]$templateSchemaManifestInfo.passed
+        $summary.steps.template_schema_manifest.entry_count = [int]$templateSchemaManifestInfo.entry_count
+        $summary.steps.template_schema_manifest.drift_count = [int]$templateSchemaManifestInfo.drift_count
+
+        $summary.template_schema_manifest.summary_json = $resolvedTemplateSchemaManifestSummaryPath
+        $summary.template_schema_manifest.manifest_path = [string]$templateSchemaManifestInfo.manifest_path
+        $summary.template_schema_manifest.output_dir = [string]$resolvedTemplateSchemaManifestOutputDir
+        $summary.template_schema_manifest.passed = [bool]$templateSchemaManifestInfo.passed
+        $summary.template_schema_manifest.entry_count = [int]$templateSchemaManifestInfo.entry_count
+        $summary.template_schema_manifest.drift_count = [int]$templateSchemaManifestInfo.drift_count
+
+        if ($templateSchemaManifestExitCode -ne 0) {
+            throw "Template schema manifest drift detected."
+        }
     }
 
     if (-not $SkipInstallSmoke) {
@@ -670,6 +890,11 @@ try {
     $consumerBuildDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedConsumerBuildDir
     $gateOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedGateOutputDir
     $taskOutputRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedTaskOutputRoot
+    $templateSchemaBaselineDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema.baseline
+    $templateSchemaGeneratedDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema.generated_output
+    $templateSchemaManifestDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema_manifest.manifest_path
+    $templateSchemaManifestSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema_manifest.summary_json
+    $templateSchemaManifestOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema_manifest.output_dir
     $releaseHandoffDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
     $releaseBodyDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseBodyZhCnPath
     $releaseSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseSummaryZhCnPath
@@ -708,6 +933,8 @@ try {
 - Configure: $($summary.steps.configure.status)
 - Build: $($summary.steps.build.status)
 - Tests: $($summary.steps.tests.status)
+- Template schema: $($summary.steps.template_schema.status)
+- Template schema manifest: $($summary.steps.template_schema_manifest.status)
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
 $readmeGalleryStatusLine
@@ -719,6 +946,11 @@ $readmeGalleryStatusLine
 - Consumer build directory: $consumerBuildDirDisplay
 - Visual gate output: $gateOutputDirDisplay
 - Review task root: $taskOutputRootDisplay
+- Template schema baseline: $templateSchemaBaselineDisplay
+- Template schema generated output: $templateSchemaGeneratedDisplay
+- Template schema manifest: $templateSchemaManifestDisplay
+- Template schema manifest summary: $templateSchemaManifestSummaryDisplay
+- Template schema manifest output dir: $templateSchemaManifestOutputDirDisplay
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath

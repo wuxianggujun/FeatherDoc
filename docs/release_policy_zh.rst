@@ -105,7 +105,13 @@
 
 1. ``run_release_candidate_checks.ps1`` 会把 ``MSVC configure/build``、
    ``ctest``、``install + find_package smoke``、以及
-   ``run_word_visual_release_gate.ps1`` 串成一条本地发布前总检查。
+   ``run_word_visual_release_gate.ps1`` 串成一条本地发布前总检查。若同时提供
+   ``-TemplateSchemaInputDocx`` 与 ``-TemplateSchemaBaseline``，还会把
+   template schema baseline gate 一起纳入 summary；若改为提供
+   ``-TemplateSchemaManifestPath``，则会把仓库级 template schema manifest gate
+   一起纳入 summary，并在任一已登记 baseline 漂移时让整条 preflight 失败。
+   如果本次发布准备同时需要新增或刷新某个仓库级 baseline，优先先跑
+   ``register_template_schema_manifest_entry.ps1``，再进入这条总检查。
 2. GitHub 云端 CI 仍适合做构建、单测和样例 ``.docx`` 结构验证，但不应代替
    依赖本机 ``Microsoft Word`` 的最终视觉 gate。
 3. ``run_word_visual_release_gate.ps1`` 会继续拆成 document task、

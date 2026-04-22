@@ -703,6 +703,10 @@ function Get-ShortSummaryBullets {
         [string]$VisualGateStatus,
         [string]$VisualVerdict,
         [string]$InstalledDataDir,
+        [string]$TemplateSchemaManifestStatus,
+        [string]$TemplateSchemaManifestPassed,
+        [string]$TemplateSchemaManifestEntryCount,
+        [string]$TemplateSchemaManifestDriftCount,
         [string]$SectionPageSetupVerdict,
         [string]$PageNumberFieldsVerdict,
         [object[]]$CuratedVisualReviewEntries
@@ -763,6 +767,21 @@ function Get-ShortSummaryBullets {
         -InstallSmokeStatus $InstallSmokeStatus `
         -VisualGateStatus $VisualGateStatus `
         -VisualVerdict $VisualVerdict)
+
+    if (-not [string]::IsNullOrWhiteSpace($TemplateSchemaManifestStatus) -and
+        $TemplateSchemaManifestStatus -ne "not_requested") {
+        if ($TemplateSchemaManifestPassed -eq "True") {
+            Add-UniqueLine -Lines $bullets -Line (
+                '仓库级 template schema manifest 当前覆盖 {0} 份 baseline，漂移数为 {1}，并已纳入 release preflight。' -f `
+                    $TemplateSchemaManifestEntryCount, $TemplateSchemaManifestDriftCount
+            )
+        } else {
+            Add-UniqueLine -Lines $bullets -Line (
+                '仓库级 template schema manifest 当前覆盖 {0} 份 baseline，但仍有 {1} 份漂移待处理。' -f `
+                    $TemplateSchemaManifestEntryCount, $TemplateSchemaManifestDriftCount
+            )
+        }
+    }
 
     $visualValidationDetailBullet = Get-VisualValidationDetailBullet `
         -SectionPageSetupVerdict $SectionPageSetupVerdict `
@@ -858,6 +877,25 @@ $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke 
 $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
 $gateSummaryPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "summary_json"
 $gateFinalReviewPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "final_review"
+$templateSchemaManifestSummary = Get-OptionalPropertyObject -Object $summary -Name "template_schema_manifest"
+$templateSchemaManifestStep = Get-OptionalPropertyObject -Object $summary.steps -Name "template_schema_manifest"
+$templateSchemaManifestStatus = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "status"
+$templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "passed"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestPassed)) {
+    $templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "passed"
+}
+$templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "entry_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestEntryCount)) {
+    $templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "entry_count"
+}
+$templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "drift_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestDriftCount)) {
+    $templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "drift_count"
+}
+$templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "summary_json"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestSummaryPath)) {
+    $templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "summary_json"
+}
 
 $visualVerdict = ""
 $readmeGalleryStatus = ""
@@ -930,6 +968,10 @@ $shortSummaryBullets = Get-ShortSummaryBullets `
     -VisualGateStatus $summary.steps.visual_gate.status `
     -VisualVerdict $visualVerdict `
     -InstalledDataDir $installedDataDir `
+    -TemplateSchemaManifestStatus $templateSchemaManifestStatus `
+    -TemplateSchemaManifestPassed $templateSchemaManifestPassed `
+    -TemplateSchemaManifestEntryCount $templateSchemaManifestEntryCount `
+    -TemplateSchemaManifestDriftCount $templateSchemaManifestDriftCount `
     -SectionPageSetupVerdict $sectionPageSetupVerdict `
     -PageNumberFieldsVerdict $pageNumberFieldsVerdict `
     -CuratedVisualReviewEntries $curatedVisualReviewEntries
@@ -955,6 +997,9 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- 执行状态：$($summary.execution_status)")
 [void]$lines.Add("- MSVC configure/build：$($summary.steps.configure.status) / $($summary.steps.build.status)")
 [void]$lines.Add("- ctest：$($summary.steps.tests.status)")
+[void]$lines.Add("- template schema manifest gate：$(Get-DisplayValue -Value $templateSchemaManifestStatus)")
+[void]$lines.Add("- template schema manifest passed：$(Get-DisplayValue -Value $templateSchemaManifestPassed)")
+[void]$lines.Add("- template schema manifest entries / drifts：$(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
 [void]$lines.Add("- install + find_package smoke：$($summary.steps.install_smoke.status)")
 [void]$lines.Add("- Word visual release gate：$($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict：$(if ($visualVerdict) { $visualVerdict } else { 'pending_manual_review' })")
@@ -988,6 +1033,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$lines.Add("- Release short summary：$(Get-DisplayValue -Value $publicShortOutputPath)")
 [void]$lines.Add("- Artifact guide：$(Get-DisplayValue -Value $publicArtifactGuidePath)")
 [void]$lines.Add("- Reviewer checklist：$(Get-DisplayValue -Value $publicReviewerChecklistPath)")
+[void]$lines.Add("- Template schema manifest summary：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $templateSchemaManifestSummaryPath))")
 [void]$lines.Add("- Visual gate summary：$(Get-DisplayValue -Value $publicGateSummaryPath)")
 [void]$lines.Add("- Visual gate final review：$(Get-DisplayValue -Value $publicGateFinalReviewPath)")
 [void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $publicReadmeGalleryAssetsDir)")

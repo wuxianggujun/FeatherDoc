@@ -3746,6 +3746,92 @@ bool Document::remove_related_part(
     return true;
 }
 
+bool Document::move_related_part(
+    std::size_t source_index, std::size_t target_index,
+    std::vector<std::unique_ptr<xml_part_state>> &parts, const char *relationship_type) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reordering header/footer parts");
+        return false;
+    }
+
+    if (source_index >= parts.size() || target_index >= parts.size()) {
+        set_last_error(this->last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "header/footer part index is out of range for reordering",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    if (source_index == target_index) {
+        this->last_error_info.clear();
+        return true;
+    }
+
+    auto relationships = this->document_relationships.child("Relationships");
+    if (relationships == pugi::xml_node{} &&
+        !initialize_empty_relationships_document(this->document_relationships)) {
+        set_last_error(this->last_error_info,
+                       document_errc::relationships_xml_parse_failed,
+                       "failed to initialize relationships XML for header/footer reordering",
+                       std::string{document_relationships_xml_entry});
+        return false;
+    }
+    relationships = this->document_relationships.child("Relationships");
+
+    const auto source_relationship_id = parts[source_index]->relationship_id;
+    const auto target_relationship_id = parts[target_index]->relationship_id;
+
+    auto source_relationship = pugi::xml_node{};
+    auto target_relationship = pugi::xml_node{};
+    for (auto relationship = relationships.child("Relationship");
+         relationship != pugi::xml_node{};
+         relationship = relationship.next_sibling("Relationship")) {
+        if (std::string_view{relationship.attribute("Type").value()} != relationship_type) {
+            continue;
+        }
+
+        const auto relationship_id =
+            std::string_view{relationship.attribute("Id").value()};
+        if (relationship_id == source_relationship_id) {
+            source_relationship = relationship;
+        } else if (relationship_id == target_relationship_id) {
+            target_relationship = relationship;
+        }
+    }
+
+    if (source_relationship == pugi::xml_node{} ||
+        target_relationship == pugi::xml_node{}) {
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            "failed to resolve the requested header/footer relationship in document.xml.rels",
+            std::string{document_relationships_xml_entry});
+        return false;
+    }
+
+    const auto moved_relationship =
+        source_index < target_index
+            ? relationships.insert_move_after(source_relationship, target_relationship)
+            : relationships.insert_move_before(source_relationship, target_relationship);
+    if (moved_relationship == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to reorder the requested header/footer relationship",
+                       std::string{document_relationships_xml_entry});
+        return false;
+    }
+
+    auto moved_part = std::move(parts[source_index]);
+    parts.erase(parts.begin() + static_cast<std::ptrdiff_t>(source_index));
+    parts.insert(parts.begin() + static_cast<std::ptrdiff_t>(target_index),
+                 std::move(moved_part));
+
+    this->has_document_relationships_part = true;
+    this->document_relationships_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::copy_section_related_part_references(
     std::size_t source_section_index, std::size_t target_section_index,
     const char *reference_name) {
@@ -3912,6 +3998,16 @@ bool Document::remove_header_part(std::size_t index) {
 
 bool Document::remove_footer_part(std::size_t index) {
     return this->remove_related_part(index, this->footer_parts, "w:footerReference");
+}
+
+bool Document::move_header_part(std::size_t source_index, std::size_t target_index) {
+    return this->move_related_part(source_index, target_index, this->header_parts,
+                                   header_relationship_type.data());
+}
+
+bool Document::move_footer_part(std::size_t source_index, std::size_t target_index) {
+    return this->move_related_part(source_index, target_index, this->footer_parts,
+                                   footer_relationship_type.data());
 }
 
 bool Document::copy_section_header_references(std::size_t source_section_index,

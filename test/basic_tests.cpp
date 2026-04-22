@@ -6,7 +6,9 @@
 #include <fstream>
 #include <sstream>
 #include <system_error>
+#include <type_traits>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN32)
@@ -24,6 +26,17 @@
 #include <featherdoc.hpp>
 
 namespace {
+template <class T, class = void>
+inline constexpr bool supports_featherdoc_adl_begin_end = false;
+
+template <class T>
+inline constexpr bool supports_featherdoc_adl_begin_end<
+    T, std::void_t<decltype(begin(std::declval<const T &>())),
+                   decltype(end(std::declval<const T &>()))>> = true;
+
+static_assert(supports_featherdoc_adl_begin_end<featherdoc::Paragraph>);
+static_assert(!supports_featherdoc_adl_begin_end<featherdoc::template_schema>);
+
 constexpr auto test_document_xml_entry = "word/document.xml";
 constexpr auto test_relationships_xml_entry = "_rels/.rels";
 constexpr auto test_content_types_xml_entry = "[Content_Types].xml";
@@ -2872,6 +2885,9 @@ TEST_CASE("template parts can validate header and footer bookmark schemas") {
     CHECK(header_result.missing_required.empty());
     CHECK(header_result.duplicate_bookmarks.empty());
     CHECK(header_result.malformed_placeholders.empty());
+    CHECK(header_result.unexpected_bookmarks.empty());
+    CHECK(header_result.kind_mismatches.empty());
+    CHECK(header_result.occurrence_mismatches.empty());
     CHECK(static_cast<bool>(header_result));
 
     auto footer_template = doc.section_footer_template(0);
@@ -2889,6 +2905,9 @@ TEST_CASE("template parts can validate header and footer bookmark schemas") {
     CHECK_EQ(footer_result.duplicate_bookmarks.front(), "footer_company");
     REQUIRE(footer_result.malformed_placeholders.size() == 1);
     CHECK_EQ(footer_result.malformed_placeholders.front(), "footer_summary");
+    CHECK(footer_result.unexpected_bookmarks.empty());
+    CHECK(footer_result.kind_mismatches.empty());
+    CHECK(footer_result.occurrence_mismatches.empty());
     CHECK_FALSE(static_cast<bool>(footer_result));
 
     auto missing_header_template = doc.section_header_template(1);
@@ -2896,6 +2915,11 @@ TEST_CASE("template parts can validate header and footer bookmark schemas") {
     const auto unavailable_result = missing_header_template.validate_template(
         {{"unused", featherdoc::template_slot_kind::text, true}});
     CHECK(unavailable_result.missing_required.empty());
+    CHECK(unavailable_result.duplicate_bookmarks.empty());
+    CHECK(unavailable_result.malformed_placeholders.empty());
+    CHECK(unavailable_result.unexpected_bookmarks.empty());
+    CHECK(unavailable_result.kind_mismatches.empty());
+    CHECK(unavailable_result.occurrence_mismatches.empty());
     CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
     CHECK_NE(doc.last_error().detail.find("template part is not available"),
              std::string::npos);
@@ -4173,6 +4197,7 @@ TEST_CASE("body template part can append floating images and preserve them acros
     options.vertical_offset_px = -8;
     options.behind_text = true;
     options.allow_overlap = false;
+    options.z_order = 32U;
     options.wrap_mode = featherdoc::floating_image_wrap_mode::top_bottom;
     options.wrap_distance_top_px = 4U;
     options.wrap_distance_bottom_px = 9U;
@@ -4208,6 +4233,7 @@ TEST_CASE("body template part can append floating images and preserve them acros
              std::string::npos);
     CHECK_NE(saved_document_xml.find("behindDoc=\"1\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("allowOverlap=\"0\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("relativeHeight=\"32\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("distT=\"38100\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("distB=\"85725\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("<wp:wrapTopAndBottom"), std::string::npos);
@@ -4235,6 +4261,7 @@ TEST_CASE("body template part can append floating images and preserve them acros
     CHECK_EQ(drawing_images[0].floating_options->vertical_offset_px, -8);
     CHECK(drawing_images[0].floating_options->behind_text);
     CHECK_FALSE(drawing_images[0].floating_options->allow_overlap);
+    CHECK_EQ(drawing_images[0].floating_options->z_order, 32U);
     CHECK_EQ(drawing_images[0].floating_options->wrap_mode,
              featherdoc::floating_image_wrap_mode::top_bottom);
     CHECK_EQ(drawing_images[0].floating_options->wrap_distance_top_px, 4U);
@@ -4361,6 +4388,7 @@ TEST_CASE("header template part can append floating images") {
     options.vertical_reference =
         featherdoc::floating_image_vertical_reference::margin;
     options.vertical_offset_px = 12;
+    options.z_order = 48U;
     options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
     options.wrap_distance_left_px = 5U;
     options.wrap_distance_right_px = 7U;
@@ -4393,6 +4421,7 @@ TEST_CASE("header template part can append floating images") {
              std::string::npos);
     CHECK_NE(saved_header_xml.find("<wp:posOffset>114300</wp:posOffset>"),
              std::string::npos);
+    CHECK_NE(saved_header_xml.find("relativeHeight=\"48\""), std::string::npos);
     CHECK_NE(saved_header_xml.find("distL=\"47625\""), std::string::npos);
     CHECK_NE(saved_header_xml.find("distR=\"66675\""), std::string::npos);
     CHECK_NE(saved_header_xml.find("<wp:wrapSquare wrapText=\"bothSides\""),
@@ -4422,6 +4451,7 @@ TEST_CASE("header template part can append floating images") {
     CHECK_EQ(drawing_images[0].width_px, 30U);
     CHECK_EQ(drawing_images[0].height_px, 15U);
     REQUIRE(drawing_images[0].floating_options.has_value());
+    CHECK_EQ(drawing_images[0].floating_options->z_order, 48U);
     CHECK_EQ(drawing_images[0].floating_options->wrap_mode,
              featherdoc::floating_image_wrap_mode::square);
     CHECK_EQ(drawing_images[0].floating_options->wrap_distance_left_px, 5U);
@@ -5788,6 +5818,164 @@ TEST_CASE("remove header and footer parts updates counts and prunes archive outp
     fs::remove(target);
 }
 
+TEST_CASE("move header and footer parts reorders logical indices and persists after reopen") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "move_header_footer_parts.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/header2.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+  <Override PartName="/word/footer2.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:sectPr>
+          <w:headerReference w:type="default" r:id="rId2"/>
+          <w:footerReference w:type="default" r:id="rId3"/>
+        </w:sectPr>
+      </w:pPr>
+      <w:r><w:t>section one</w:t></w:r>
+    </w:p>
+    <w:p><w:r><w:t>section two</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId4"/>
+      <w:footerReference w:type="default" r:id="rId5"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+  <Relationship Id="rId4"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header2.xml"/>
+  <Relationship Id="rId5"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer2.xml"/>
+</Relationships>
+)";
+
+    const std::string header1_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>section 1 header</w:t></w:r></w:p>
+</w:hdr>
+)";
+    const std::string header2_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>section 2 header</w:t></w:r></w:p>
+</w:hdr>
+)";
+    const std::string footer1_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>section 1 footer</w:t></w:r></w:p>
+</w:ftr>
+)";
+    const std::string footer2_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>section 2 footer</w:t></w:r></w:p>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header1_xml},
+            {"word/header2.xml", header2_xml},
+            {"word/footer1.xml", footer1_xml},
+            {"word/footer2.xml", footer2_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+    CHECK_EQ(doc.header_paragraphs(0).runs().get_text(), "section 1 header");
+    CHECK_EQ(doc.header_paragraphs(1).runs().get_text(), "section 2 header");
+    CHECK_EQ(doc.footer_paragraphs(0).runs().get_text(), "section 1 footer");
+    CHECK_EQ(doc.footer_paragraphs(1).runs().get_text(), "section 2 footer");
+
+    CHECK(doc.move_header_part(1, 0));
+    CHECK(doc.move_footer_part(1, 0));
+    CHECK_EQ(doc.header_paragraphs(0).runs().get_text(), "section 2 header");
+    CHECK_EQ(doc.header_paragraphs(1).runs().get_text(), "section 1 header");
+    CHECK_EQ(doc.footer_paragraphs(0).runs().get_text(), "section 2 footer");
+    CHECK_EQ(doc.footer_paragraphs(1).runs().get_text(), "section 1 footer");
+
+    CHECK_EQ(doc.section_header_paragraphs(0).runs().get_text(), "section 1 header");
+    CHECK_EQ(doc.section_header_paragraphs(1).runs().get_text(), "section 2 header");
+    CHECK_EQ(doc.section_footer_paragraphs(0).runs().get_text(), "section 1 footer");
+    CHECK_EQ(doc.section_footer_paragraphs(1).runs().get_text(), "section 2 footer");
+    CHECK_FALSE(doc.save());
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK(saved_relationships.find("Target=\"header2.xml\"") <
+          saved_relationships.find("Target=\"header1.xml\""));
+    CHECK(saved_relationships.find("Target=\"footer2.xml\"") <
+          saved_relationships.find("Target=\"footer1.xml\""));
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    CHECK_EQ(reopened.header_paragraphs(0).runs().get_text(), "section 2 header");
+    CHECK_EQ(reopened.header_paragraphs(1).runs().get_text(), "section 1 header");
+    CHECK_EQ(reopened.footer_paragraphs(0).runs().get_text(), "section 2 footer");
+    CHECK_EQ(reopened.footer_paragraphs(1).runs().get_text(), "section 1 footer");
+    CHECK_EQ(reopened.section_header_paragraphs(0).runs().get_text(), "section 1 header");
+    CHECK_EQ(reopened.section_header_paragraphs(1).runs().get_text(), "section 2 header");
+    CHECK_EQ(reopened.section_footer_paragraphs(0).runs().get_text(), "section 1 footer");
+    CHECK_EQ(reopened.section_footer_paragraphs(1).runs().get_text(), "section 2 footer");
+
+    featherdoc::Document invalid(target);
+    CHECK_FALSE(invalid.move_header_part(0, 0));
+    CHECK_EQ(invalid.last_error().code, featherdoc::document_errc::document_not_open);
+
+    featherdoc::Document invalid_range(target);
+    CHECK_FALSE(invalid_range.open());
+    CHECK_FALSE(invalid_range.move_header_part(2, 0));
+    CHECK_EQ(invalid_range.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(invalid_range.move_footer_part(0, 2));
+    CHECK_EQ(invalid_range.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+}
+
 TEST_CASE("copying section header and footer references replaces target layout") {
     namespace fs = std::filesystem;
 
@@ -6607,6 +6795,353 @@ TEST_CASE("fill_bookmarks rejects duplicate or empty binding names") {
     fs::remove(target);
 }
 
+TEST_CASE("validate_template_schema aggregates section header and footer validation") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_schema_validate_parts.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml"
+           ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>Schema Validation Fixture</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+      <w:footerReference w:type="default" r:id="rId3"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:r><w:t>Header title: </w:t></w:r>
+    <w:bookmarkStart w:id="0" w:name="header_title"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="0"/>
+  </w:p>
+</w:hdr>
+)";
+
+    const std::string footer_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:r><w:t>Footer company A: </w:t></w:r>
+    <w:bookmarkStart w:id="1" w:name="footer_company"/>
+    <w:r><w:t>placeholder A</w:t></w:r>
+    <w:bookmarkEnd w:id="1"/>
+  </w:p>
+  <w:p>
+    <w:r><w:t>Footer company B: </w:t></w:r>
+    <w:bookmarkStart w:id="2" w:name="footer_company"/>
+    <w:r><w:t>placeholder B</w:t></w:r>
+    <w:bookmarkEnd w:id="2"/>
+  </w:p>
+  <w:p>
+    <w:r><w:t>Summary: prefix </w:t></w:r>
+    <w:bookmarkStart w:id="3" w:name="footer_summary"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="3"/>
+    <w:r><w:t> suffix</w:t></w:r>
+  </w:p>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header_xml},
+            {"word/footer1.xml", footer_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    featherdoc::template_schema schema{
+        {
+            {
+                {featherdoc::template_schema_part_kind::section_header, std::nullopt, 0U,
+                 featherdoc::section_reference_kind::default_reference},
+                {"header_title", featherdoc::template_slot_kind::text, true},
+            },
+            {
+                {featherdoc::template_schema_part_kind::section_footer, std::nullopt, 0U,
+                 featherdoc::section_reference_kind::default_reference},
+                {"footer_company", featherdoc::template_slot_kind::text, true},
+            },
+            {
+                {featherdoc::template_schema_part_kind::section_footer, std::nullopt, 0U,
+                 featherdoc::section_reference_kind::default_reference},
+                {"footer_summary", featherdoc::template_slot_kind::block, true},
+            },
+            {
+                {featherdoc::template_schema_part_kind::section_footer, std::nullopt, 0U,
+                 featherdoc::section_reference_kind::default_reference},
+                {"footer_signature", featherdoc::template_slot_kind::text, true},
+            },
+        }};
+
+    const auto result = doc.validate_template_schema(schema);
+
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(result.part_results.size() == 2U);
+    CHECK(result.part_results[0].available);
+    CHECK_EQ(result.part_results[0].entry_name, "word/header1.xml");
+    CHECK(static_cast<bool>(result.part_results[0]));
+    CHECK_EQ(result.part_results[0].target.part,
+             featherdoc::template_schema_part_kind::section_header);
+    REQUIRE(result.part_results[0].target.section_index.has_value());
+    CHECK_EQ(*result.part_results[0].target.section_index, 0U);
+
+    CHECK(result.part_results[1].available);
+    CHECK_EQ(result.part_results[1].entry_name, "word/footer1.xml");
+    CHECK_FALSE(static_cast<bool>(result.part_results[1]));
+    CHECK_EQ(result.part_results[1].target.part,
+             featherdoc::template_schema_part_kind::section_footer);
+    REQUIRE(result.part_results[1].target.section_index.has_value());
+    CHECK_EQ(*result.part_results[1].target.section_index, 0U);
+    REQUIRE(result.part_results[1].validation.missing_required.size() == 1U);
+    CHECK_EQ(result.part_results[1].validation.missing_required.front(),
+             "footer_signature");
+    REQUIRE(result.part_results[1].validation.duplicate_bookmarks.size() == 1U);
+    CHECK_EQ(result.part_results[1].validation.duplicate_bookmarks.front(),
+             "footer_company");
+    REQUIRE(result.part_results[1].validation.malformed_placeholders.size() == 1U);
+    CHECK_EQ(result.part_results[1].validation.malformed_placeholders.front(),
+             "footer_summary");
+    CHECK_FALSE(static_cast<bool>(result));
+
+    fs::remove(target);
+}
+
+TEST_CASE("validate_template_schema resolves linked-to-previous section targets") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_schema_validate_resolved.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml"
+           ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>Section 0 body</w:t></w:r></w:p>
+    <w:p>
+      <w:r><w:t>Section break</w:t></w:r>
+      <w:pPr>
+        <w:sectPr>
+          <w:headerReference w:type="default" r:id="rId2"/>
+          <w:footerReference w:type="default" r:id="rId3"/>
+        </w:sectPr>
+      </w:pPr>
+    </w:p>
+    <w:p><w:r><w:t>Section 1 body</w:t></w:r></w:p>
+    <w:sectPr/>
+  </w:body>
+</w:document>
+)";
+
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+
+    const std::string header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:r><w:t>Header title: </w:t></w:r>
+    <w:bookmarkStart w:id="0" w:name="header_title"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="0"/>
+  </w:p>
+</w:hdr>
+)";
+
+    const std::string footer_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:r><w:t>Footer company: </w:t></w:r>
+    <w:bookmarkStart w:id="1" w:name="footer_company"/>
+    <w:r><w:t>placeholder</w:t></w:r>
+    <w:bookmarkEnd w:id="1"/>
+  </w:p>
+</w:ftr>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/header1.xml", header_xml},
+            {"word/footer1.xml", footer_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto result = doc.validate_template_schema(
+        {
+            {
+                {featherdoc::template_schema_part_kind::section_header, std::nullopt, 1U,
+                 featherdoc::section_reference_kind::default_reference},
+                {"header_title", featherdoc::template_slot_kind::text, true},
+            },
+            {
+                {featherdoc::template_schema_part_kind::section_footer, std::nullopt, 1U,
+                 featherdoc::section_reference_kind::default_reference},
+                {"footer_company", featherdoc::template_slot_kind::text, true},
+            },
+        });
+
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(result.part_results.size() == 2U);
+    CHECK(result.part_results[0].available);
+    CHECK_EQ(result.part_results[0].entry_name, "word/header1.xml");
+    CHECK(static_cast<bool>(result.part_results[0]));
+    REQUIRE(result.part_results[0].target.section_index.has_value());
+    CHECK_EQ(*result.part_results[0].target.section_index, 1U);
+
+    CHECK(result.part_results[1].available);
+    CHECK_EQ(result.part_results[1].entry_name, "word/footer1.xml");
+    CHECK(static_cast<bool>(result.part_results[1]));
+    REQUIRE(result.part_results[1].target.section_index.has_value());
+    CHECK_EQ(*result.part_results[1].target.section_index, 1U);
+    CHECK(static_cast<bool>(result));
+
+    fs::remove(target);
+}
+
+TEST_CASE("validate_template_schema reports unavailable parts without failing optional-only groups") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_schema_validate_unavailable.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    const auto result = doc.validate_template_schema(
+        {
+            {
+                {featherdoc::template_schema_part_kind::section_header, std::nullopt, 1U,
+                 featherdoc::section_reference_kind::default_reference},
+                {"optional_header", featherdoc::template_slot_kind::text, false},
+            },
+            {
+                {featherdoc::template_schema_part_kind::section_footer, std::nullopt, 1U,
+                 featherdoc::section_reference_kind::default_reference},
+                {"required_footer", featherdoc::template_slot_kind::text, true},
+            },
+        });
+
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(result.part_results.size() == 2U);
+    CHECK_FALSE(result.part_results[0].available);
+    CHECK(result.part_results[0].entry_name.empty());
+    CHECK(result.part_results[0].validation.missing_required.empty());
+    CHECK(static_cast<bool>(result.part_results[0]));
+
+    CHECK_FALSE(result.part_results[1].available);
+    CHECK(result.part_results[1].entry_name.empty());
+    REQUIRE(result.part_results[1].validation.missing_required.size() == 1U);
+    CHECK_EQ(result.part_results[1].validation.missing_required.front(),
+             "required_footer");
+    CHECK_FALSE(static_cast<bool>(result.part_results[1]));
+    CHECK_FALSE(static_cast<bool>(result));
+
+    fs::remove(target);
+}
+
+TEST_CASE("validate_template_schema rejects invalid selectors") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_schema_validate_invalid.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    const auto result = doc.validate_template_schema(
+        {{
+            {featherdoc::template_schema_part_kind::section_header, std::nullopt,
+             std::nullopt, featherdoc::section_reference_kind::default_reference},
+            {"header_title", featherdoc::template_slot_kind::text, true},
+        }});
+
+    CHECK(result.part_results.empty());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().detail,
+             "section-header/section-footer schema target requires section_index");
+    CHECK_EQ(doc.last_error().entry_name, test_document_xml_entry);
+
+    fs::remove(target);
+}
+
 TEST_CASE("validate_template reports missing required bookmarks") {
     namespace fs = std::filesystem;
 
@@ -6643,6 +7178,9 @@ TEST_CASE("validate_template reports missing required bookmarks") {
     CHECK_EQ(result.missing_required.front(), "invoice");
     CHECK(result.duplicate_bookmarks.empty());
     CHECK(result.malformed_placeholders.empty());
+    CHECK(result.unexpected_bookmarks.empty());
+    CHECK(result.kind_mismatches.empty());
+    CHECK(result.occurrence_mismatches.empty());
     CHECK_FALSE(static_cast<bool>(result));
 
     fs::remove(target);
@@ -6659,11 +7197,13 @@ TEST_CASE("validate_template reports duplicate bookmark names") {
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
     <w:p>
+      <w:r><w:t>customer A: </w:t></w:r>
       <w:bookmarkStart w:id="0" w:name="customer"/>
       <w:r><w:t>first</w:t></w:r>
       <w:bookmarkEnd w:id="0"/>
     </w:p>
     <w:p>
+      <w:r><w:t>customer B: </w:t></w:r>
       <w:bookmarkStart w:id="1" w:name="customer"/>
       <w:r><w:t>second</w:t></w:r>
       <w:bookmarkEnd w:id="1"/>
@@ -6684,6 +7224,9 @@ TEST_CASE("validate_template reports duplicate bookmark names") {
     REQUIRE(result.duplicate_bookmarks.size() == 1);
     CHECK_EQ(result.duplicate_bookmarks.front(), "customer");
     CHECK(result.malformed_placeholders.empty());
+    CHECK(result.unexpected_bookmarks.empty());
+    CHECK(result.kind_mismatches.empty());
+    CHECK(result.occurrence_mismatches.empty());
     CHECK_FALSE(static_cast<bool>(result));
 
     fs::remove(target);
@@ -6722,6 +7265,9 @@ TEST_CASE("validate_template reports malformed block placeholders") {
     CHECK(result.duplicate_bookmarks.empty());
     REQUIRE(result.malformed_placeholders.size() == 1);
     CHECK_EQ(result.malformed_placeholders.front(), "items");
+    CHECK(result.unexpected_bookmarks.empty());
+    CHECK(result.kind_mismatches.empty());
+    CHECK(result.occurrence_mismatches.empty());
     CHECK_FALSE(static_cast<bool>(result));
 
     fs::remove(target);
@@ -6797,6 +7343,121 @@ TEST_CASE("validate_template passes a valid mixed bookmark template") {
     CHECK(result.missing_required.empty());
     CHECK(result.duplicate_bookmarks.empty());
     CHECK(result.malformed_placeholders.empty());
+    CHECK(result.unexpected_bookmarks.empty());
+    CHECK(result.kind_mismatches.empty());
+    CHECK(result.occurrence_mismatches.empty());
+    CHECK(static_cast<bool>(result));
+
+    fs::remove(target);
+}
+
+TEST_CASE("validate_template reports unexpected bookmarks kind mismatches and occurrence mismatches") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_validate_schema_v2.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:bookmarkStart w:id="0" w:name="summary_block"/>
+      <w:r><w:t>standalone block placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Approver: </w:t></w:r>
+      <w:bookmarkStart w:id="1" w:name="approver"/>
+      <w:r><w:t>Alice</w:t></w:r>
+      <w:bookmarkEnd w:id="1"/>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Extra: </w:t></w:r>
+      <w:bookmarkStart w:id="2" w:name="extra_slot"/>
+      <w:r><w:t>Keep me declared or report me</w:t></w:r>
+      <w:bookmarkEnd w:id="2"/>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto result = doc.validate_template(
+        {
+            {"summary_block", featherdoc::template_slot_kind::text, true},
+            {"approver", featherdoc::template_slot_kind::text, true, 2U, 2U},
+        });
+
+    CHECK_FALSE(doc.last_error());
+    CHECK(result.missing_required.empty());
+    CHECK(result.duplicate_bookmarks.empty());
+    CHECK(result.malformed_placeholders.empty());
+    REQUIRE(result.unexpected_bookmarks.size() == 1U);
+    CHECK_EQ(result.unexpected_bookmarks.front().bookmark_name, "extra_slot");
+    CHECK_EQ(result.unexpected_bookmarks.front().occurrence_count, 1U);
+    CHECK_EQ(result.unexpected_bookmarks.front().kind, featherdoc::bookmark_kind::text);
+    REQUIRE(result.kind_mismatches.size() == 1U);
+    CHECK_EQ(result.kind_mismatches.front().bookmark_name, "summary_block");
+    CHECK_EQ(result.kind_mismatches.front().expected_kind,
+             featherdoc::template_slot_kind::text);
+    CHECK_EQ(result.kind_mismatches.front().actual_kind,
+             featherdoc::bookmark_kind::block);
+    CHECK_EQ(result.kind_mismatches.front().occurrence_count, 1U);
+    REQUIRE(result.occurrence_mismatches.size() == 1U);
+    CHECK_EQ(result.occurrence_mismatches.front().bookmark_name, "approver");
+    CHECK_EQ(result.occurrence_mismatches.front().actual_occurrences, 1U);
+    CHECK_EQ(result.occurrence_mismatches.front().min_occurrences, 2U);
+    REQUIRE(result.occurrence_mismatches.front().max_occurrences.has_value());
+    CHECK_EQ(*result.occurrence_mismatches.front().max_occurrences, 2U);
+    CHECK_FALSE(static_cast<bool>(result));
+
+    fs::remove(target);
+}
+
+TEST_CASE("validate_template allows declared multi occurrence bookmarks") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_validate_multi_occurrence.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t>first: </w:t></w:r>
+      <w:bookmarkStart w:id="0" w:name="customer"/>
+      <w:r><w:t>first</w:t></w:r>
+      <w:bookmarkEnd w:id="0"/>
+    </w:p>
+    <w:p>
+      <w:r><w:t>second: </w:t></w:r>
+      <w:bookmarkStart w:id="1" w:name="customer"/>
+      <w:r><w:t>second</w:t></w:r>
+      <w:bookmarkEnd w:id="1"/>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto result = doc.validate_template(
+        {{"customer", featherdoc::template_slot_kind::text, true, 2U, 2U}});
+
+    CHECK_FALSE(doc.last_error());
+    CHECK(result.missing_required.empty());
+    CHECK(result.duplicate_bookmarks.empty());
+    CHECK(result.malformed_placeholders.empty());
+    CHECK(result.unexpected_bookmarks.empty());
+    CHECK(result.kind_mismatches.empty());
+    CHECK(result.occurrence_mismatches.empty());
     CHECK(static_cast<bool>(result));
 
     fs::remove(target);
@@ -14033,6 +14694,7 @@ TEST_CASE("append_floating_image writes anchored media parts and preserves them 
     options.vertical_offset_px = -8;
     options.behind_text = true;
     options.allow_overlap = false;
+    options.z_order = 64U;
     options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
     options.wrap_distance_left_px = 8U;
     options.wrap_distance_right_px = 10U;
@@ -14067,6 +14729,7 @@ TEST_CASE("append_floating_image writes anchored media parts and preserves them 
              std::string::npos);
     CHECK_NE(saved_document_xml.find("behindDoc=\"1\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("allowOverlap=\"0\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("relativeHeight=\"64\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("distT=\"57150\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("distB=\"114300\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("distL=\"76200\""), std::string::npos);
@@ -14096,6 +14759,7 @@ TEST_CASE("append_floating_image writes anchored media parts and preserves them 
     CHECK_EQ(drawing_images[0].floating_options->vertical_offset_px, -8);
     CHECK(drawing_images[0].floating_options->behind_text);
     CHECK_FALSE(drawing_images[0].floating_options->allow_overlap);
+    CHECK_EQ(drawing_images[0].floating_options->z_order, 64U);
     CHECK_EQ(drawing_images[0].floating_options->wrap_mode,
              featherdoc::floating_image_wrap_mode::square);
     CHECK_EQ(drawing_images[0].floating_options->wrap_distance_left_px, 8U);
@@ -19212,6 +19876,180 @@ TEST_CASE("ensure style definition APIs validate definitions and reject type mis
     fs::remove(target);
 }
 
+TEST_CASE("resolve_style_properties follows basedOn chains and reports value sources") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "resolve_style_properties_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK(doc.set_style_run_bidi_language("Normal", "ar-SA"));
+
+    auto base_definition = featherdoc::paragraph_style_definition{};
+    base_definition.name = "Base Style";
+    base_definition.based_on = std::string{"Normal"};
+    base_definition.run_font_family = std::string{"Segoe UI"};
+    base_definition.run_east_asia_language = std::string{"zh-CN"};
+    base_definition.run_rtl = true;
+    CHECK(doc.ensure_paragraph_style("BaseStyle", base_definition));
+
+    auto child_definition = featherdoc::paragraph_style_definition{};
+    child_definition.name = "Child Style";
+    child_definition.based_on = std::string{"BaseStyle"};
+    child_definition.run_language = std::string{"en-US"};
+    child_definition.paragraph_bidi = true;
+    CHECK(doc.ensure_paragraph_style("ChildStyle", child_definition));
+
+    const auto resolved = doc.resolve_style_properties("ChildStyle");
+    REQUIRE(resolved.has_value());
+    CHECK_EQ(resolved->style_id, "ChildStyle");
+    CHECK_EQ(resolved->type_name, "paragraph");
+    CHECK_EQ(resolved->kind, featherdoc::style_kind::paragraph);
+    REQUIRE(resolved->based_on.has_value());
+    CHECK_EQ(*resolved->based_on, "BaseStyle");
+    CHECK_EQ(resolved->inheritance_chain.size(), 3U);
+    CHECK_EQ(resolved->inheritance_chain[0], "ChildStyle");
+    CHECK_EQ(resolved->inheritance_chain[1], "BaseStyle");
+    CHECK_EQ(resolved->inheritance_chain[2], "Normal");
+
+    REQUIRE(resolved->run_font_family.value.has_value());
+    REQUIRE(resolved->run_font_family.source_style_id.has_value());
+    CHECK_EQ(*resolved->run_font_family.value, "Segoe UI");
+    CHECK_EQ(*resolved->run_font_family.source_style_id, "BaseStyle");
+
+    CHECK_FALSE(resolved->run_east_asia_font_family.value.has_value());
+    CHECK_FALSE(resolved->run_east_asia_font_family.source_style_id.has_value());
+
+    REQUIRE(resolved->run_language.value.has_value());
+    REQUIRE(resolved->run_language.source_style_id.has_value());
+    CHECK_EQ(*resolved->run_language.value, "en-US");
+    CHECK_EQ(*resolved->run_language.source_style_id, "ChildStyle");
+
+    REQUIRE(resolved->run_east_asia_language.value.has_value());
+    REQUIRE(resolved->run_east_asia_language.source_style_id.has_value());
+    CHECK_EQ(*resolved->run_east_asia_language.value, "zh-CN");
+    CHECK_EQ(*resolved->run_east_asia_language.source_style_id, "BaseStyle");
+
+    REQUIRE(resolved->run_bidi_language.value.has_value());
+    REQUIRE(resolved->run_bidi_language.source_style_id.has_value());
+    CHECK_EQ(*resolved->run_bidi_language.value, "ar-SA");
+    CHECK_EQ(*resolved->run_bidi_language.source_style_id, "Normal");
+
+    REQUIRE(resolved->run_rtl.value.has_value());
+    REQUIRE(resolved->run_rtl.source_style_id.has_value());
+    CHECK(*resolved->run_rtl.value);
+    CHECK_EQ(*resolved->run_rtl.source_style_id, "BaseStyle");
+
+    REQUIRE(resolved->paragraph_bidi.value.has_value());
+    REQUIRE(resolved->paragraph_bidi.source_style_id.has_value());
+    CHECK(*resolved->paragraph_bidi.value);
+    CHECK_EQ(*resolved->paragraph_bidi.source_style_id, "ChildStyle");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    const auto reopened_resolved = reopened.resolve_style_properties("ChildStyle");
+    REQUIRE(reopened_resolved.has_value());
+    REQUIRE(reopened_resolved->run_bidi_language.value.has_value());
+    REQUIRE(reopened_resolved->run_bidi_language.source_style_id.has_value());
+    CHECK_EQ(*reopened_resolved->run_bidi_language.value, "ar-SA");
+    CHECK_EQ(*reopened_resolved->run_bidi_language.source_style_id, "Normal");
+
+    fs::remove(target);
+}
+
+TEST_CASE("materialize_style_run_properties freezes inherited style metadata on the child style") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "materialize_style_run_properties_roundtrip.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.create_empty());
+
+    CHECK(doc.set_style_run_bidi_language("Normal", "ar-SA"));
+
+    auto base_definition = featherdoc::paragraph_style_definition{};
+    base_definition.name = "Base Style";
+    base_definition.based_on = std::string{"Normal"};
+    base_definition.run_font_family = std::string{"Segoe UI"};
+    base_definition.run_east_asia_language = std::string{"zh-CN"};
+    base_definition.run_rtl = true;
+    base_definition.paragraph_bidi = true;
+    CHECK(doc.ensure_paragraph_style("BaseStyle", base_definition));
+
+    auto child_definition = featherdoc::paragraph_style_definition{};
+    child_definition.name = "Child Style";
+    child_definition.based_on = std::string{"BaseStyle"};
+    CHECK(doc.ensure_paragraph_style("ChildStyle", child_definition));
+
+    const auto before = doc.resolve_style_properties("ChildStyle");
+    REQUIRE(before.has_value());
+    REQUIRE(before->run_font_family.source_style_id.has_value());
+    CHECK_EQ(*before->run_font_family.source_style_id, "BaseStyle");
+    REQUIRE(before->run_bidi_language.source_style_id.has_value());
+    CHECK_EQ(*before->run_bidi_language.source_style_id, "Normal");
+
+    CHECK(doc.materialize_style_run_properties("ChildStyle"));
+
+    REQUIRE(doc.style_run_font_family("ChildStyle").has_value());
+    CHECK_EQ(*doc.style_run_font_family("ChildStyle"), "Segoe UI");
+    REQUIRE(doc.style_run_east_asia_language("ChildStyle").has_value());
+    CHECK_EQ(*doc.style_run_east_asia_language("ChildStyle"), "zh-CN");
+    REQUIRE(doc.style_run_bidi_language("ChildStyle").has_value());
+    CHECK_EQ(*doc.style_run_bidi_language("ChildStyle"), "ar-SA");
+    REQUIRE(doc.style_run_rtl("ChildStyle").has_value());
+    CHECK(*doc.style_run_rtl("ChildStyle"));
+    REQUIRE(doc.style_paragraph_bidi("ChildStyle").has_value());
+    CHECK(*doc.style_paragraph_bidi("ChildStyle"));
+
+    CHECK(doc.set_style_run_font_family("BaseStyle", "Arial"));
+    CHECK(doc.set_style_run_east_asia_language("BaseStyle", "ja-JP"));
+    CHECK(doc.set_style_run_rtl("BaseStyle", false));
+    CHECK(doc.set_style_paragraph_bidi("BaseStyle", false));
+    CHECK(doc.set_style_run_bidi_language("Normal", "he-IL"));
+
+    const auto after = doc.resolve_style_properties("ChildStyle");
+    REQUIRE(after.has_value());
+    REQUIRE(after->run_font_family.value.has_value());
+    REQUIRE(after->run_font_family.source_style_id.has_value());
+    CHECK_EQ(*after->run_font_family.value, "Segoe UI");
+    CHECK_EQ(*after->run_font_family.source_style_id, "ChildStyle");
+    REQUIRE(after->run_east_asia_language.value.has_value());
+    REQUIRE(after->run_east_asia_language.source_style_id.has_value());
+    CHECK_EQ(*after->run_east_asia_language.value, "zh-CN");
+    CHECK_EQ(*after->run_east_asia_language.source_style_id, "ChildStyle");
+    REQUIRE(after->run_bidi_language.value.has_value());
+    REQUIRE(after->run_bidi_language.source_style_id.has_value());
+    CHECK_EQ(*after->run_bidi_language.value, "ar-SA");
+    CHECK_EQ(*after->run_bidi_language.source_style_id, "ChildStyle");
+    REQUIRE(after->run_rtl.value.has_value());
+    REQUIRE(after->run_rtl.source_style_id.has_value());
+    CHECK(*after->run_rtl.value);
+    CHECK_EQ(*after->run_rtl.source_style_id, "ChildStyle");
+    REQUIRE(after->paragraph_bidi.value.has_value());
+    REQUIRE(after->paragraph_bidi.source_style_id.has_value());
+    CHECK(*after->paragraph_bidi.value);
+    CHECK_EQ(*after->paragraph_bidi.source_style_id, "ChildStyle");
+
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    const auto reopened_resolved = reopened.resolve_style_properties("ChildStyle");
+    REQUIRE(reopened_resolved.has_value());
+    REQUIRE(reopened_resolved->run_font_family.source_style_id.has_value());
+    CHECK_EQ(*reopened_resolved->run_font_family.source_style_id, "ChildStyle");
+    REQUIRE(reopened_resolved->run_bidi_language.source_style_id.has_value());
+    CHECK_EQ(*reopened_resolved->run_bidi_language.source_style_id, "ChildStyle");
+
+    fs::remove(target);
+}
+
 TEST_CASE("get_section_page_setup reads explicit section settings") {
     namespace fs = std::filesystem;
 
@@ -19593,6 +20431,9 @@ TEST_CASE("validate_template rejects empty slot bookmark names") {
     CHECK(result.missing_required.empty());
     CHECK(result.duplicate_bookmarks.empty());
     CHECK(result.malformed_placeholders.empty());
+    CHECK(result.unexpected_bookmarks.empty());
+    CHECK(result.kind_mismatches.empty());
+    CHECK(result.occurrence_mismatches.empty());
     CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
     CHECK_EQ(doc.last_error().detail, "template slot bookmark name must not be empty");
     CHECK_EQ(doc.last_error().entry_name, test_document_xml_entry);

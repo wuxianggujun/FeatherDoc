@@ -381,21 +381,6 @@ void collect_named_bookmark_starts(pugi::xml_node node, std::string_view bookmar
     }
 }
 
-void collect_named_bookmark_counts(
-    pugi::xml_node node, std::unordered_map<std::string, std::size_t> &bookmark_counts) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        if (std::string_view{child.name()} == "w:bookmarkStart") {
-            const auto bookmark_name = std::string_view{child.attribute("w:name").value()};
-            if (!bookmark_name.empty()) {
-                ++bookmark_counts[std::string{bookmark_name}];
-            }
-        }
-
-        collect_named_bookmark_counts(child, bookmark_counts);
-    }
-}
-
 void collect_bookmark_starts_in_order(pugi::xml_node node,
                                       std::vector<pugi::xml_node> &bookmark_starts) {
     for (auto child = node.first_child(); child != pugi::xml_node{};
@@ -927,8 +912,7 @@ auto classify_bookmark_start_kind(pugi::xml_node bookmark_start)
 }
 
 auto summarize_bookmarks_in_part(featherdoc::document_error_info &last_error_info,
-                                 pugi::xml_document &document,
-                                 std::string_view entry_name)
+                                 pugi::xml_document &document)
     -> std::vector<featherdoc::bookmark_summary> {
     std::vector<pugi::xml_node> bookmark_starts;
     collect_bookmark_starts_in_order(document, bookmark_starts);
@@ -977,8 +961,7 @@ auto find_bookmark_in_part(featherdoc::document_error_info &last_error_info,
         return std::nullopt;
     }
 
-    const auto summaries =
-        summarize_bookmarks_in_part(last_error_info, document, entry_name);
+    const auto summaries = summarize_bookmarks_in_part(last_error_info, document);
     for (const auto &summary : summaries) {
         if (summary.bookmark_name == bookmark_name) {
             last_error_info.clear();
@@ -1513,6 +1496,122 @@ auto validate_placeholder_requirement(
     return false;
 }
 
+auto effective_min_occurrences(
+    const featherdoc::template_slot_requirement &requirement) -> std::size_t {
+    return requirement.min_occurrences.value_or(requirement.required ? 1U : 0U);
+}
+
+auto effective_max_occurrences(
+    const featherdoc::template_slot_requirement &requirement)
+    -> std::optional<std::size_t> {
+    return requirement.max_occurrences;
+}
+
+auto template_schema_selector_equals(
+    const featherdoc::template_schema_part_selector &left,
+    const featherdoc::template_schema_part_selector &right) -> bool {
+    return left.part == right.part && left.part_index == right.part_index &&
+           left.section_index == right.section_index &&
+           left.reference_kind == right.reference_kind;
+}
+
+auto normalize_template_schema_selector(
+    const featherdoc::template_schema_part_selector &selector,
+    featherdoc::template_schema_part_selector &normalized, std::string &error_detail) -> bool {
+    normalized = selector;
+
+    switch (selector.part) {
+    case featherdoc::template_schema_part_kind::body:
+        if (selector.part_index.has_value() || selector.section_index.has_value()) {
+            error_detail =
+                "body schema target does not accept part_index or section_index";
+            return false;
+        }
+        if (selector.reference_kind != featherdoc::section_reference_kind::default_reference) {
+            error_detail =
+                "body schema target does not accept a non-default reference kind";
+            return false;
+        }
+        break;
+    case featherdoc::template_schema_part_kind::header:
+    case featherdoc::template_schema_part_kind::footer:
+        if (selector.section_index.has_value()) {
+            error_detail = "header/footer schema target does not accept section_index";
+            return false;
+        }
+        if (selector.reference_kind != featherdoc::section_reference_kind::default_reference) {
+            error_detail =
+                "header/footer schema target does not accept a non-default reference kind";
+            return false;
+        }
+        normalized.part_index = selector.part_index.value_or(0U);
+        break;
+    case featherdoc::template_schema_part_kind::section_header:
+    case featherdoc::template_schema_part_kind::section_footer:
+        if (!selector.section_index.has_value()) {
+            error_detail =
+                "section-header/section-footer schema target requires section_index";
+            return false;
+        }
+        if (selector.part_index.has_value()) {
+            error_detail =
+                "section-header/section-footer schema target does not accept part_index";
+            return false;
+        }
+        break;
+    }
+
+    return true;
+}
+
+auto make_unavailable_part_validation(
+    std::span<const featherdoc::template_slot_requirement> requirements)
+    -> featherdoc::template_validation_result {
+    featherdoc::template_validation_result result;
+    std::unordered_set<std::string> missing_seen;
+    for (const auto &requirement : requirements) {
+        if (effective_min_occurrences(requirement) > 0U &&
+            missing_seen.emplace(requirement.bookmark_name).second) {
+            result.missing_required.push_back(requirement.bookmark_name);
+        }
+    }
+
+    return result;
+}
+
+auto requirement_matches_bookmark_kind(
+    const featherdoc::template_slot_requirement &requirement,
+    featherdoc::bookmark_kind actual_kind) -> bool {
+    switch (requirement.kind) {
+    case featherdoc::template_slot_kind::text:
+        return actual_kind == featherdoc::bookmark_kind::text;
+    case featherdoc::template_slot_kind::table_rows:
+        return actual_kind == featherdoc::bookmark_kind::table_rows;
+    case featherdoc::template_slot_kind::table:
+    case featherdoc::template_slot_kind::image:
+    case featherdoc::template_slot_kind::floating_image:
+    case featherdoc::template_slot_kind::block:
+        return actual_kind == featherdoc::bookmark_kind::block;
+    }
+
+    return false;
+}
+
+auto requirement_matches_named_bookmark_kinds(
+    pugi::xml_document &document, std::string_view bookmark_name,
+    const featherdoc::template_slot_requirement &requirement) -> bool {
+    std::vector<pugi::xml_node> bookmark_starts;
+    collect_named_bookmark_starts(document, bookmark_name, bookmark_starts);
+    for (const auto bookmark_start : bookmark_starts) {
+        if (!requirement_matches_bookmark_kind(requirement,
+                                               classify_bookmark_start_kind(bookmark_start))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 auto validate_template_in_part(
     featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
     std::string_view entry_name,
@@ -1520,12 +1619,24 @@ auto validate_template_in_part(
     -> featherdoc::template_validation_result {
     featherdoc::template_validation_result result;
 
-    std::unordered_map<std::string, std::size_t> bookmark_counts;
-    collect_named_bookmark_counts(document, bookmark_counts);
+    const auto bookmark_summaries =
+        summarize_bookmarks_in_part(last_error_info, document);
+    if (last_error_info.code) {
+        return result;
+    }
 
+    std::unordered_map<std::string, featherdoc::bookmark_summary> bookmarks_by_name;
+    bookmarks_by_name.reserve(bookmark_summaries.size());
+    for (const auto &summary : bookmark_summaries) {
+        bookmarks_by_name.emplace(summary.bookmark_name, summary);
+    }
+
+    std::unordered_set<std::string> declared_bookmarks;
     std::unordered_set<std::string> missing_seen;
     std::unordered_set<std::string> duplicates_seen;
     std::unordered_set<std::string> malformed_seen;
+    std::unordered_set<std::string> kind_mismatch_seen;
+    std::unordered_set<std::string> occurrence_mismatch_seen;
     for (const auto &requirement : requirements) {
         if (requirement.bookmark_name.empty()) {
             set_last_error(last_error_info,
@@ -1535,16 +1646,37 @@ auto validate_template_in_part(
             return result;
         }
 
-        const auto count_it = bookmark_counts.find(requirement.bookmark_name);
-        const auto bookmark_count =
-            count_it == bookmark_counts.end() ? 0U : count_it->second;
+        const auto [_, inserted] = declared_bookmarks.emplace(requirement.bookmark_name);
+        if (!inserted) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "duplicate template slot requirement for bookmark '" +
+                               requirement.bookmark_name + "'",
+                           std::string{entry_name});
+            return result;
+        }
 
-        if (requirement.required && bookmark_count == 0U &&
+        const auto min_occurrences = effective_min_occurrences(requirement);
+        const auto max_occurrences = effective_max_occurrences(requirement);
+        if (max_occurrences.has_value() && *max_occurrences < min_occurrences) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "template slot occurrence range is invalid for bookmark '" +
+                               requirement.bookmark_name + "'",
+                           std::string{entry_name});
+            return result;
+        }
+
+        const auto summary_it = bookmarks_by_name.find(requirement.bookmark_name);
+        const auto bookmark_count =
+            summary_it == bookmarks_by_name.end() ? 0U : summary_it->second.occurrence_count;
+
+        if (min_occurrences > 0U && bookmark_count == 0U &&
             missing_seen.emplace(requirement.bookmark_name).second) {
             result.missing_required.push_back(requirement.bookmark_name);
         }
 
-        if (bookmark_count > 1U &&
+        if (bookmark_count > 1U && (!max_occurrences.has_value() || *max_occurrences <= 1U) &&
             duplicates_seen.emplace(requirement.bookmark_name).second) {
             result.duplicate_bookmarks.push_back(requirement.bookmark_name);
         }
@@ -1553,15 +1685,44 @@ auto validate_template_in_part(
             continue;
         }
 
+        if ((bookmark_count < min_occurrences ||
+             (max_occurrences.has_value() && bookmark_count > *max_occurrences)) &&
+            !(bookmark_count == 0U && min_occurrences > 0U) &&
+            occurrence_mismatch_seen.emplace(requirement.bookmark_name).second) {
+            result.occurrence_mismatches.push_back(
+                {requirement.bookmark_name, bookmark_count, min_occurrences,
+                 max_occurrences});
+        }
+
         if (!validate_placeholder_requirement(document, entry_name, requirement) &&
             malformed_seen.emplace(requirement.bookmark_name).second) {
             result.malformed_placeholders.push_back(requirement.bookmark_name);
+            continue;
+        }
+
+        if (!requirement_matches_named_bookmark_kinds(document, requirement.bookmark_name,
+                                                      requirement) &&
+            kind_mismatch_seen.emplace(requirement.bookmark_name).second) {
+            result.kind_mismatches.push_back({requirement.bookmark_name, requirement.kind,
+                                              summary_it->second.kind,
+                                              summary_it->second.occurrence_count});
+        }
+    }
+
+    for (const auto &summary : bookmark_summaries) {
+        if (!declared_bookmarks.contains(summary.bookmark_name)) {
+            result.unexpected_bookmarks.push_back(summary);
         }
     }
 
     last_error_info.clear();
     return result;
 }
+
+struct template_schema_group final {
+    featherdoc::template_schema_part_selector target{};
+    std::vector<featherdoc::template_slot_requirement> requirements;
+};
 
 auto set_bookmark_block_visibility_in_part(
     featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
@@ -2386,8 +2547,7 @@ std::vector<featherdoc::bookmark_summary> TemplatePart::list_bookmarks() const {
         return {};
     }
 
-    return summarize_bookmarks_in_part(*this->last_error_info, *this->xml_document,
-                                       this->entry_name_storage);
+    return summarize_bookmarks_in_part(*this->last_error_info, *this->xml_document);
 }
 
 std::optional<featherdoc::bookmark_summary> TemplatePart::find_bookmark(
@@ -2855,8 +3015,7 @@ std::vector<featherdoc::bookmark_summary> Document::list_bookmarks() const {
     }
 
     return summarize_bookmarks_in_part(this->last_error_info,
-                                       const_cast<pugi::xml_document &>(this->document),
-                                       document_xml_entry);
+                                       const_cast<pugi::xml_document &>(this->document));
 }
 
 std::optional<featherdoc::bookmark_summary> Document::find_bookmark(
@@ -2891,6 +3050,152 @@ template_validation_result Document::validate_template(
     return this->validate_template(
         std::span<const template_slot_requirement>{requirements.begin(),
                                                    requirements.size()});
+}
+
+featherdoc::template_schema_validation_result Document::validate_template_schema(
+    std::span<const featherdoc::template_schema_entry> entries) const {
+    featherdoc::template_schema_validation_result result;
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before validating a template schema");
+        return result;
+    }
+
+    std::vector<template_schema_group> groups;
+    groups.reserve(entries.size());
+    for (const auto &entry : entries) {
+        if (entry.requirement.bookmark_name.empty()) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "template schema bookmark name must not be empty",
+                           std::string{document_xml_entry});
+            return result;
+        }
+
+        featherdoc::template_schema_part_selector normalized_target{};
+        std::string error_detail;
+        if (!normalize_template_schema_selector(entry.target, normalized_target,
+                                                error_detail)) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::move(error_detail), std::string{document_xml_entry});
+            return result;
+        }
+
+        auto group_it =
+            std::find_if(groups.begin(), groups.end(),
+                         [&](const template_schema_group &group) {
+                             return template_schema_selector_equals(group.target,
+                                                                    normalized_target);
+                         });
+        if (group_it == groups.end()) {
+            groups.push_back({normalized_target, {}});
+            group_it = groups.end() - 1;
+        }
+
+        group_it->requirements.push_back(entry.requirement);
+    }
+
+    auto *mutable_document = const_cast<Document *>(this);
+    const auto resolve_section_part_state =
+        [mutable_document](std::size_t section_index,
+                           featherdoc::section_reference_kind reference_kind,
+                           auto &parts, const char *reference_name) {
+            for (std::size_t source_section_index = section_index + 1U;
+                 source_section_index > 0U; --source_section_index) {
+                const auto resolved_section_index = source_section_index - 1U;
+                if (auto *part = mutable_document->section_related_part_state(
+                        resolved_section_index, reference_kind, parts, reference_name);
+                    part != nullptr) {
+                    return part;
+                }
+            }
+
+            return static_cast<Document::xml_part_state *>(nullptr);
+        };
+
+    for (const auto &group : groups) {
+        featherdoc::template_schema_part_validation_result part_result{};
+        part_result.target = group.target;
+
+        pugi::xml_document *xml_document = nullptr;
+        switch (group.target.part) {
+        case featherdoc::template_schema_part_kind::body:
+            xml_document = &mutable_document->document;
+            part_result.entry_name = document_xml_entry;
+            break;
+        case featherdoc::template_schema_part_kind::header:
+            if (*group.target.part_index < mutable_document->header_parts.size() &&
+                mutable_document->header_parts[*group.target.part_index] != nullptr) {
+                auto &part = *mutable_document->header_parts[*group.target.part_index];
+                xml_document = &part.xml;
+                part_result.entry_name = part.entry_name;
+            }
+            break;
+        case featherdoc::template_schema_part_kind::footer:
+            if (*group.target.part_index < mutable_document->footer_parts.size() &&
+                mutable_document->footer_parts[*group.target.part_index] != nullptr) {
+                auto &part = *mutable_document->footer_parts[*group.target.part_index];
+                xml_document = &part.xml;
+                part_result.entry_name = part.entry_name;
+            }
+            break;
+        case featherdoc::template_schema_part_kind::section_header:
+            if (*group.target.section_index < mutable_document->section_count()) {
+                if (auto *part = resolve_section_part_state(
+                        *group.target.section_index, group.target.reference_kind,
+                        mutable_document->header_parts,
+                        "w:headerReference");
+                    part != nullptr) {
+                    xml_document = &part->xml;
+                    part_result.entry_name = part->entry_name;
+                }
+            }
+            break;
+        case featherdoc::template_schema_part_kind::section_footer:
+            if (*group.target.section_index < mutable_document->section_count()) {
+                if (auto *part = resolve_section_part_state(
+                        *group.target.section_index, group.target.reference_kind,
+                        mutable_document->footer_parts,
+                        "w:footerReference");
+                    part != nullptr) {
+                    xml_document = &part->xml;
+                    part_result.entry_name = part->entry_name;
+                }
+            }
+            break;
+        }
+
+        if (xml_document != nullptr) {
+            part_result.available = true;
+            part_result.validation = validate_template_in_part(
+                this->last_error_info, *xml_document, part_result.entry_name,
+                std::span<const featherdoc::template_slot_requirement>{
+                    group.requirements.data(), group.requirements.size()});
+        } else {
+            part_result.validation = make_unavailable_part_validation(
+                std::span<const featherdoc::template_slot_requirement>{
+                    group.requirements.data(), group.requirements.size()});
+        }
+
+        result.part_results.push_back(std::move(part_result));
+    }
+
+    this->last_error_info.clear();
+    return result;
+}
+
+featherdoc::template_schema_validation_result Document::validate_template_schema(
+    std::initializer_list<featherdoc::template_schema_entry> entries) const {
+    return this->validate_template_schema(
+        std::span<const featherdoc::template_schema_entry>{entries.begin(), entries.size()});
+}
+
+featherdoc::template_schema_validation_result Document::validate_template_schema(
+    const featherdoc::template_schema &schema) const {
+    return this->validate_template_schema(
+        std::span<const featherdoc::template_schema_entry>{schema.entries.data(),
+                                                           schema.entries.size()});
 }
 
 std::size_t Document::replace_bookmark_with_paragraphs(

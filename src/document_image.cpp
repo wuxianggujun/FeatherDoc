@@ -346,6 +346,10 @@ auto parse_floating_options(pugi::xml_node drawing_node)
         std::string_view{drawing_node.attribute("behindDoc").value()} == "1";
     options.allow_overlap =
         std::string_view{drawing_node.attribute("allowOverlap").value()} != "0";
+    if (const auto relative_height =
+            parse_u32_attribute_value(drawing_node.attribute("relativeHeight").value())) {
+        options.z_order = *relative_height;
+    }
     options.wrap_mode = parse_wrap_mode(drawing_node);
 
     if (const auto distance =
@@ -1923,7 +1927,8 @@ bool Document::append_drawing_image_part(
 
     if (floating_options.has_value()) {
         ensure_attribute_value(drawing_container, "simplePos", "0");
-        ensure_attribute_value(drawing_container, "relativeHeight", "0");
+        ensure_attribute_value(drawing_container, "relativeHeight",
+                               std::to_string(floating_options->z_order));
         ensure_attribute_value(drawing_container, "behindDoc",
                                floating_options->behind_text ? "1" : "0");
         ensure_attribute_value(drawing_container, "locked", "0");

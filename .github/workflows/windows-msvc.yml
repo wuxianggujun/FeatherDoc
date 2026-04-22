@@ -105,6 +105,23 @@ jobs:
           -Generator "NMake Makefiles"
           -Config Release
 
+      - name: Check committed template schema baselines
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+
+          if (-not (Test-Path -LiteralPath .\baselines\template-schema\manifest.json)) {
+              Write-Host "No template schema manifest found; skipping baseline checks."
+              exit 0
+          }
+
+          pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_manifest.ps1 `
+              -ManifestPath .\baselines\template-schema\manifest.json `
+              -BuildDir build-msvc-nmake `
+              -OutputDir output/template-schema-manifest-checks-ci `
+              -SkipBuild
+
       - name: Generate release metadata bundle
         shell: pwsh
         run: >
@@ -156,6 +173,7 @@ jobs:
             build-msvc-install/share/FeatherDoc/**
             output/release-candidate-checks-ci/START_HERE.md
             output/release-candidate-checks-ci/report/**
+            output/template-schema-manifest-checks-ci/**
           if-no-files-found: warn
 
       - name: Upload release asset preview bundle

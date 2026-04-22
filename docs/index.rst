@@ -204,6 +204,11 @@ It also writes ``output/release-candidate-checks/START_HERE.md`` plus
 ``report/ARTIFACT_GUIDE.md``, ``REVIEWER_CHECKLIST.md``,
 ``release_handoff.md``, ``release_body.zh-CN.md``, and
 ``release_summary.zh-CN.md``. Use ``START_HERE.md`` as the local entry point.
+When you provide ``-TemplateSchemaInputDocx`` together with
+``-TemplateSchemaBaseline`` and one of
+``-TemplateSchemaSectionTargets`` / ``-TemplateSchemaResolvedSectionTargets``,
+the same wrapper also runs the template-schema baseline gate and records its
+result in the generated ``summary.json``.
 The CI metadata artifact adds a root ``RELEASE_METADATA_START_HERE.md`` that
 points back into the same bundle.
 After a later manual visual verdict update, prefer
@@ -300,6 +305,14 @@ Additional representative command groups:
     featherdoc_cli clear-run-font-family input.docx 4 1 --output cleared-run-font.docx --json
     featherdoc_cli set-run-language input.docx 4 1 en-US --output language-run.docx --json
     featherdoc_cli clear-run-language input.docx 4 1 --output cleared-run-language.docx --json
+    featherdoc_cli inspect-default-run-properties input.docx --json
+    featherdoc_cli set-default-run-properties input.docx --font-family "Segoe UI" --east-asia-font-family "Microsoft YaHei" --language en-US --east-asia-language zh-CN --rtl true --output default-run-properties.docx --json
+    featherdoc_cli clear-default-run-properties input.docx --primary-language --rtl --output cleared-default-run-properties.docx --json
+    featherdoc_cli inspect-style-run-properties input.docx Normal --json
+    featherdoc_cli materialize-style-run-properties input.docx Normal --output materialized-style-run-properties.docx --json
+    featherdoc_cli set-style-run-properties input.docx Normal --font-family "Segoe UI" --east-asia-font-family "Microsoft YaHei" --language en-US --east-asia-language zh-CN --rtl true --paragraph-bidi true --output style-run-properties.docx --json
+    featherdoc_cli clear-style-run-properties input.docx Normal --primary-language --rtl --paragraph-bidi --output cleared-style-run-properties.docx --json
+    featherdoc_cli inspect-style-inheritance input.docx Normal --json
     featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
     featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
     featherdoc_cli ensure-numbering-definition input.docx --definition-name OutlineReview --numbering-level 0:decimal:1:%1. --output numbering.docx --json
@@ -550,7 +563,8 @@ to :ref:`Task-Oriented Sample And CLI Map <featherdoc-sample-cli-map>`.
   ``list_styles()``, ``find_style(...)``, ``ensure_*style(...)``,
   ``set_paragraph_style(...)``, ``set_run_style(...)``,
   ``ensure_numbering_definition(...)``, ``set_paragraph_numbering(...)``,
-  ``set_paragraph_style_numbering(...)``, and the default run font/language
+  ``set_paragraph_style_numbering(...)``, ``resolve_style_properties(...)``,
+  ``materialize_style_run_properties(...)``, and the default run font/language
   helpers. See :ref:`Lists And Styles <featherdoc-lists-styles>` and
   :ref:`Creating New Documents And Language Defaults <featherdoc-doc-lifecycle>`.
 - Inspect or mutate sections, headers, footers, and page setup:
@@ -1922,6 +1936,11 @@ fallback behavior.
         return 1;
     }
 
+The CLI now exposes the same ``docDefaults`` surface through
+``inspect-default-run-properties``, ``set-default-run-properties``, and
+``clear-default-run-properties`` when you need the same default
+font/language/RTL edits from scripts instead of C++.
+
     if (const auto error = doc.save()) {
         std::cerr << error.message() << std::endl;
         return 1;
@@ -2002,8 +2021,12 @@ Current Limitations
   numbering definition through ``set_paragraph_style_numbering(...)``, but
   there is still no higher-level numbering-style abstraction.
 - Paragraph and run style references can now be attached and cleared, style
-  catalogs can be inspected through ``list_styles()`` / ``find_style()``, and
-  minimal paragraph/character/table style definitions can be created through
+  catalogs can be inspected through ``list_styles()`` / ``find_style()``,
+  effective inherited style properties can be inspected through
+  ``resolve_style_properties(...)``, supported inherited font/language/RTL/
+  paragraph-bidi metadata can be materialized through
+  ``materialize_style_run_properties(...)``, and minimal
+  paragraph/character/table style definitions can be created through
   ``ensure_*_style(...)``, but there is still no inheritance-aware style
   refactoring or style-linked numbering API.
 - Bookmark-based template filling now works across body, header, and footer

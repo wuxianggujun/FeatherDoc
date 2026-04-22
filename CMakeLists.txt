@@ -424,6 +424,12 @@ if(BUILD_SAMPLES)
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_floating_images)
 
+    add_executable(featherdoc_sample_floating_image_z_order_visual
+        samples/sample_floating_image_z_order_visual.cpp)
+    target_link_libraries(featherdoc_sample_floating_image_z_order_visual
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_floating_image_z_order_visual)
+
     add_executable(featherdoc_sample_remove_images
         samples/sample_remove_images.cpp)
     target_link_libraries(featherdoc_sample_remove_images
@@ -549,6 +555,18 @@ if(BUILD_SAMPLES)
     target_link_libraries(featherdoc_sample_part_template_validation
         PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_sample_part_template_validation)
+
+    add_executable(featherdoc_sample_template_schema_validation
+        samples/sample_template_schema_validation.cpp)
+    target_link_libraries(featherdoc_sample_template_schema_validation
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_template_schema_validation)
+
+    add_executable(featherdoc_sample_template_schema_manifest_fixture
+        samples/sample_template_schema_manifest_fixture.cpp)
+    target_link_libraries(featherdoc_sample_template_schema_manifest_fixture
+        PRIVATE FeatherDoc::FeatherDoc)
+    featherdoc_copy_runtime_dlls(featherdoc_sample_template_schema_manifest_fixture)
 
     add_executable(featherdoc_sample_insert_table_row
         samples/sample_insert_table_row.cpp)

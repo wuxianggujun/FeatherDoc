@@ -830,6 +830,85 @@ auto find_style_node(pugi::xml_node styles_root, std::string_view style_id) -> p
     return {};
 }
 
+auto style_node_id(pugi::xml_node style) -> std::string_view {
+    return style.attribute("w:styleId").value();
+}
+
+auto build_style_inheritance_chain(pugi::xml_node styles_root, pugi::xml_node style,
+                                   featherdoc::document_error_info &last_error_info,
+                                   std::vector<pugi::xml_node> &chain)
+    -> bool {
+    chain.clear();
+    while (style != pugi::xml_node{}) {
+        const auto current_style_id = style_node_id(style);
+        for (const auto &visited_style : chain) {
+            if (style_node_id(visited_style) == current_style_id) {
+                set_last_error(last_error_info,
+                               std::make_error_code(std::errc::invalid_argument),
+                               "style inheritance cycle detected at style '" +
+                                   std::string{current_style_id} + "'",
+                               std::string{styles_xml_entry});
+                return false;
+            }
+        }
+
+        chain.push_back(style);
+
+        const auto based_on =
+            std::string_view{style.child("w:basedOn").attribute("w:val").value()};
+        if (based_on.empty()) {
+            return true;
+        }
+
+        const auto parent_style = find_style_node(styles_root, based_on);
+        if (parent_style == pugi::xml_node{}) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "style id '" + std::string{current_style_id} +
+                               "' references missing basedOn style '" +
+                               std::string{based_on} + "'",
+                           std::string{styles_xml_entry});
+            return false;
+        }
+
+        style = parent_style;
+    }
+
+    return true;
+}
+
+template <typename Reader>
+auto resolve_style_string_property(const std::vector<pugi::xml_node> &chain,
+                                   Reader &&reader)
+    -> featherdoc::resolved_style_string_property {
+    for (const auto &style : chain) {
+        if (const auto value = reader(style); value.has_value()) {
+            featherdoc::resolved_style_string_property property{};
+            property.value = value;
+            property.source_style_id = std::string{style_node_id(style)};
+            return property;
+        }
+    }
+
+    return {};
+}
+
+template <typename Reader>
+auto resolve_style_bool_property(const std::vector<pugi::xml_node> &chain,
+                                 Reader &&reader)
+    -> featherdoc::resolved_style_bool_property {
+    for (const auto &style : chain) {
+        if (const auto value = reader(style); value.has_value()) {
+            featherdoc::resolved_style_bool_property property{};
+            property.value = value;
+            property.source_style_id = std::string{style_node_id(style)};
+            return property;
+        }
+    }
+
+    return {};
+}
+
 auto read_on_off_attribute(pugi::xml_node node, const char *attribute_name) -> bool {
     if (node == pugi::xml_node{}) {
         return false;
@@ -1709,6 +1788,87 @@ std::optional<featherdoc::style_summary> Document::find_style(std::string_view s
             summary.numbering->instance = lookup->instance;
         }
     }
+
+    this->last_error_info.clear();
+    return summary;
+}
+
+std::optional<featherdoc::resolved_style_properties_summary> Document::resolve_style_properties(
+    std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before resolving style properties",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when resolving style properties",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    std::vector<pugi::xml_node> chain;
+    if (!build_style_inheritance_chain(styles_root, style, this->last_error_info, chain)) {
+        return std::nullopt;
+    }
+
+    featherdoc::resolved_style_properties_summary summary{};
+    summary.style_id = std::string{style_id};
+    summary.type_name = style.attribute("w:type").value();
+    summary.kind = decode_style_kind(summary.type_name);
+    if (const auto based_on = style.child("w:basedOn").attribute("w:val");
+        based_on != pugi::xml_attribute{} && based_on.value()[0] != '\0') {
+        summary.based_on = std::string{based_on.value()};
+    }
+
+    summary.inheritance_chain.reserve(chain.size());
+    for (const auto &visited_style : chain) {
+        summary.inheritance_chain.emplace_back(std::string{style_node_id(visited_style)});
+    }
+
+    summary.run_font_family = resolve_style_string_property(
+        chain, [](pugi::xml_node node) { return read_primary_font_family(node.child("w:rPr")); });
+    summary.run_east_asia_font_family =
+        resolve_style_string_property(chain, [](pugi::xml_node node) {
+            return read_east_asia_font_family(node.child("w:rPr"));
+        });
+    summary.run_language = resolve_style_string_property(
+        chain, [](pugi::xml_node node) { return read_primary_language(node.child("w:rPr")); });
+    summary.run_east_asia_language =
+        resolve_style_string_property(chain, [](pugi::xml_node node) {
+            return read_east_asia_language(node.child("w:rPr"));
+        });
+    summary.run_bidi_language = resolve_style_string_property(
+        chain, [](pugi::xml_node node) { return read_bidi_language(node.child("w:rPr")); });
+    summary.run_rtl = resolve_style_bool_property(
+        chain, [](pugi::xml_node node) { return read_run_rtl(node.child("w:rPr")); });
+    summary.paragraph_bidi = resolve_style_bool_property(
+        chain, [](pugi::xml_node node) { return read_paragraph_bidi(node.child("w:pPr")); });
 
     this->last_error_info.clear();
     return summary;
@@ -3255,6 +3415,82 @@ std::optional<bool> Document::style_paragraph_bidi(std::string_view style_id) {
 
     this->last_error_info.clear();
     return read_paragraph_bidi(style.child("w:pPr"));
+}
+
+bool Document::materialize_style_run_properties(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before materializing style run properties",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when materializing style run properties",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto resolved = this->resolve_style_properties(style_id);
+    if (!resolved.has_value()) {
+        return false;
+    }
+
+    if (resolved->kind != featherdoc::style_kind::paragraph &&
+        resolved->kind != featherdoc::style_kind::character) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' with type '" +
+                           resolved->type_name +
+                           "' does not support style run property materialization",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto style_id_string = std::string{style_id};
+    const auto materialize_string = [&](const featherdoc::resolved_style_string_property &property,
+                                        auto setter) -> bool {
+        if (!property.value.has_value() || !property.source_style_id.has_value() ||
+            *property.source_style_id == style_id_string) {
+            return true;
+        }
+
+        return (this->*setter)(style_id_string, *property.value);
+    };
+
+    const auto materialize_bool = [&](const featherdoc::resolved_style_bool_property &property,
+                                      auto setter) -> bool {
+        if (!property.value.has_value() || !property.source_style_id.has_value() ||
+            *property.source_style_id == style_id_string) {
+            return true;
+        }
+
+        return (this->*setter)(style_id_string, *property.value);
+    };
+
+    if (!materialize_string(resolved->run_font_family,
+                            &Document::set_style_run_font_family) ||
+        !materialize_string(resolved->run_east_asia_font_family,
+                            &Document::set_style_run_east_asia_font_family) ||
+        !materialize_string(resolved->run_language,
+                            &Document::set_style_run_language) ||
+        !materialize_string(resolved->run_east_asia_language,
+                            &Document::set_style_run_east_asia_language) ||
+        !materialize_string(resolved->run_bidi_language,
+                            &Document::set_style_run_bidi_language) ||
+        !materialize_bool(resolved->run_rtl, &Document::set_style_run_rtl)) {
+        return false;
+    }
+
+    if (resolved->kind == featherdoc::style_kind::paragraph &&
+        !materialize_bool(resolved->paragraph_bidi, &Document::set_style_paragraph_bidi)) {
+        return false;
+    }
+
+    this->last_error_info.clear();
+    return true;
 }
 
 bool Document::set_style_run_font_family(std::string_view style_id,
