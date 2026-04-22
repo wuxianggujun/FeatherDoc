@@ -1643,7 +1643,13 @@ JSON array files. After a reviewer edits any referenced
 ``summary.json`` and ``summary.md`` with the latest entry-level visual review
 status, aggregate ``visual_verdict``, and pending or undetermined visual-review
 counts. ``describe_project_template_smoke_manifest.ps1`` now also surfaces
-those latest visual verdict fields in its maintenance output.
+those latest visual verdict fields in its maintenance output. When that smoke
+summary is already referenced by ``run_release_candidate_checks.ps1``, pass
+``-ReleaseCandidateSummaryJson <report/summary.json> -RefreshReleaseBundle`` to
+the same sync script so the release-candidate ``summary.json``,
+``final_review.md``, ``START_HERE.md``, ``ARTIFACT_GUIDE.md``,
+``REVIEWER_CHECKLIST.md``, and ``release_handoff.md`` are refreshed without
+rerunning the full preflight.
 
 .. code-block:: cpp
 

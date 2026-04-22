@@ -502,6 +502,12 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
 }
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
+$syncProjectTemplateSmokeCommand = ""
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSummaryPath)) {
+    $syncProjectTemplateSmokeCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson "{0}" -ReleaseCandidateSummaryJson "{1}" -RefreshReleaseBundle' -f `
+        (Get-RepoRelativePath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryPath),
+        $summaryCommandPath
+}
 $syncExplicitCommand = ""
 if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath)) {
     $gateSummaryCommandPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $gateSummaryPath
@@ -658,9 +664,11 @@ foreach ($openCuratedVisualTaskCommand in $openCuratedVisualTaskCommands) {
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
 [void]$handoffLines.Add($syncLatestCommand)
+[void]$handoffLines.Add($(if (-not [string]::IsNullOrWhiteSpace($syncProjectTemplateSmokeCommand)) { $syncProjectTemplateSmokeCommand } else { "" }))
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("That command auto-detects the latest review task, syncs the final verdict back into the gate summary, and refreshes the detected release bundle.")
+[void]$handoffLines.Add("If project template smoke also carries a later manual visual verdict, use the second command to sync its smoke summary and refresh the same release bundle.")
 [void]$handoffLines.Add("")
 if (-not [string]::IsNullOrWhiteSpace($findSupersededTasksCommand)) {
     [void]$handoffLines.Add("Rerun the stale-task audit directly when you need to inspect older preserved task directories:")

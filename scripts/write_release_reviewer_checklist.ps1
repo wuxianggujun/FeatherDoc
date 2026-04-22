@@ -505,6 +505,12 @@ if ([string]::IsNullOrWhiteSpace($visualVerdict)) {
 }
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
+$syncProjectTemplateSmokeCommand = ""
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSummaryJson)) {
+    $syncProjectTemplateSmokeCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson "{0}" -ReleaseCandidateSummaryJson "{1}" -RefreshReleaseBundle' -f `
+        (Get-RepoRelativePath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryJson),
+        $summaryCommandPath
+}
 $findSupersededTasksCommand = ""
 if (-not [string]::IsNullOrWhiteSpace($taskOutputRoot)) {
     $findSupersededTasksCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\find_superseded_review_tasks.ps1 -TaskOutputRoot "{0}"' -f `
@@ -618,6 +624,12 @@ if ($projectTemplateSmokeRequested -eq "True" -or $projectTemplateSmokeStatus -n
     } elseif ($projectTemplateSmokePassed -eq "False") {
         Add-CheckboxLine -Lines $lines -Text ('Stop here until every failing project template smoke entry is fixed or intentionally removed from the registered release-candidate set.')
     }
+
+    if ($projectTemplateSmokeVisualVerdict -in @("pass", "not_applicable")) {
+        Add-CheckboxLine -Lines $lines -Text ('Confirm the project template smoke visual verdict is already signed off as `{0}`.' -f $projectTemplateSmokeVisualVerdict)
+    } elseif (-not [string]::IsNullOrWhiteSpace($projectTemplateSmokeVisualVerdict)) {
+        Add-CheckboxLine -Lines $lines -Text ('Stop here until the project template smoke visual verdict changes from `{0}`.' -f $projectTemplateSmokeVisualVerdict)
+    }
 }
 
 if ($summary.steps.visual_gate.status -eq "skipped") {
@@ -665,6 +677,9 @@ Add-CheckboxLine -Lines $lines -Text ('If a self-hosted Windows runner already c
 Add-CheckboxLine -Lines $lines -Text ('Use GitHub Actions `{0}` (`{1}`) only after final local Word signoff when the GitHub Release should go live publicly.' -f $publishWorkflowName, $publishWorkflowFile)
 Add-CheckboxLine -Lines $lines -Text ('For the GitHub web flow, go to `Actions`, choose `{0}` or `{1}`, click `Run workflow`, then inspect `release-refresh-output` / `release-publish-output` and the target GitHub Release page.' -f $refreshWorkflowName, $publishWorkflowName)
 Add-CheckboxLine -Lines $lines -Text ('If the visual verdict changes later, rerun the verdict sync command so the gate summary and release notes stay in sync: `{0}`' -f $syncLatestCommand)
+if (-not [string]::IsNullOrWhiteSpace($syncProjectTemplateSmokeCommand)) {
+    Add-CheckboxLine -Lines $lines -Text ('If the project template smoke visual verdict changes later, rerun its sync command so the smoke summary and release notes stay in sync: `{0}`' -f $syncProjectTemplateSmokeCommand)
+}
 if (-not [string]::IsNullOrWhiteSpace($findSupersededTasksCommand)) {
     Add-CheckboxLine -Lines $lines -Text ('Rerun the superseded review-task audit when you need to recheck older preserved task directories: `{0}`' -f $findSupersededTasksCommand)
 }
@@ -683,6 +698,7 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
 [void]$lines.Add('- Do not approve for public release when a requested template schema gate does not report `matches = true`.')
 [void]$lines.Add('- Do not approve for public release when a requested template schema manifest gate does not report `passed = true`.')
 [void]$lines.Add('- Do not approve for public release when a requested project template smoke gate does not report `passed = true`.')
+[void]$lines.Add('- Do not approve for public release when a requested project template smoke visual verdict is neither `pass` nor `not_applicable`.')
 [void]$lines.Add('- Do not approve for public release when the final local visual verdict is not `pass`.')
 [void]$lines.Add("- Do not treat a CI-only artifact with visual gate = skipped as the final screenshot-backed release signoff.")
 

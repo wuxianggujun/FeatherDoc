@@ -10,7 +10,9 @@ both `summary.json` and `summary.md`.
 #>
 param(
     [string]$SummaryJson = "output/project-template-smoke/summary.json",
-    [string]$SummaryMarkdown = ""
+    [string]$SummaryMarkdown = "",
+    [string]$ReleaseCandidateSummaryJson = "",
+    [switch]$RefreshReleaseBundle
 )
 
 Set-StrictMode -Version Latest
@@ -38,6 +40,32 @@ function Resolve-RepoPath {
         -RepoRoot $RepoRoot `
         -InputPath $InputPath `
         -AllowMissing:$AllowMissing
+}
+
+function Resolve-FullPath {
+    param(
+        [string]$RepoRoot,
+        [string]$InputPath
+    )
+
+    $candidate = if ([System.IO.Path]::IsPathRooted($InputPath)) {
+        $InputPath
+    } else {
+        Join-Path $RepoRoot $InputPath
+    }
+
+    return [System.IO.Path]::GetFullPath($candidate)
+}
+
+function Assert-PathExists {
+    param(
+        [string]$Path,
+        [string]$Label
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        throw "$Label was not found: $Path"
+    }
 }
 
 function Get-RepoRelativeDisplayPath {
@@ -81,6 +109,25 @@ function Set-ProjectTemplateSmokePropertyValue {
         Add-Member -InputObject $Object -NotePropertyName $Name -NotePropertyValue $Value
     } else {
         $property.Value = $Value
+    }
+}
+
+function Invoke-ChildPowerShell {
+    param(
+        [string]$ScriptPath,
+        [string[]]$Arguments,
+        [string]$FailureMessage
+    )
+
+    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
+    $exitCode = $LASTEXITCODE
+
+    foreach ($line in $commandOutput) {
+        Write-Host $line
+    }
+
+    if ($exitCode -ne 0) {
+        throw $FailureMessage
     }
 }
 
@@ -339,6 +386,77 @@ function Write-SummaryMarkdown {
     $lines | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
+function New-ReleaseCandidateFinalReviewContent {
+    param(
+        [string]$RepoRoot,
+        $Summary,
+        [string]$ReleaseSummaryPath
+    )
+
+    $readmeGallery = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $Summary -Name "readme_gallery"
+    $readmeGalleryStatus = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $readmeGallery -Name "status"
+    $readmeGalleryStatusLine = switch ($readmeGalleryStatus) {
+        "completed" { "- README gallery refresh: completed ($(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $readmeGallery -Name 'assets_dir')))" }
+        "visual_gate_skipped" { "- README gallery refresh: unavailable (visual gate skipped)" }
+        "pending" { "- README gallery refresh: pending" }
+        "not_requested" { "- README gallery refresh: not requested" }
+        default {
+            if ([string]::IsNullOrWhiteSpace($readmeGalleryStatus)) {
+                "- README gallery refresh: unknown"
+            } else {
+                "- README gallery refresh: $readmeGalleryStatus"
+            }
+        }
+    }
+
+    $projectTemplateSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $Summary -Name "project_template_smoke"
+    $projectTemplateSmokeSummaryPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $projectTemplateSmoke -Name "summary_json"
+    $projectTemplateSmokeManifestPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $projectTemplateSmoke -Name "manifest_path"
+    $projectTemplateSmokeOutputDir = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $projectTemplateSmoke -Name "output_dir"
+
+    return @"
+# Release Candidate Checks
+
+- Generated at: $(Get-Date -Format s)
+- Workspace: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $RepoRoot)
+- Summary JSON: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryPath)
+- Execution status: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'execution_status')
+- Visual verdict: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'visual_verdict')
+- Failed step: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'failed_step')
+- Error: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'error')
+- MSVC bootstrap mode: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'msvc_bootstrap_mode')
+
+## Step status
+
+- Configure: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary.steps.configure -Name 'status')
+- Build: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary.steps.build -Name 'status')
+- Tests: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary.steps.tests -Name 'status')
+- Template schema: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary.steps.template_schema -Name 'status')
+- Template schema manifest: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary.steps.template_schema_manifest -Name 'status')
+- Project template smoke: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary.steps.project_template_smoke -Name 'status')
+- Install smoke: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary.steps.install_smoke -Name 'status')
+- Visual gate: $(Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary.steps.visual_gate -Name 'status')
+$readmeGalleryStatusLine
+
+## Key outputs
+
+- Build directory: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'build_dir'))
+- Install directory: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'install_dir'))
+- Consumer build directory: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'consumer_build_dir'))
+- Visual gate output: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'gate_output_dir'))
+- Review task root: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'task_output_root'))
+- Project template smoke manifest: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $projectTemplateSmokeManifestPath)
+- Project template smoke summary: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $projectTemplateSmokeSummaryPath)
+- Project template smoke output dir: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $projectTemplateSmokeOutputDir)
+- Release handoff: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'release_handoff'))
+- Release body: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'release_body_zh_cn'))
+- Release summary: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'release_summary_zh_cn'))
+- Artifact guide: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'artifact_guide'))
+- Reviewer checklist: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'reviewer_checklist'))
+- Start here: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'start_here'))
+"@
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedSummaryJson = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $SummaryJson
 $resolvedSummaryMarkdown = if ([string]::IsNullOrWhiteSpace($SummaryMarkdown)) {
@@ -346,9 +464,17 @@ $resolvedSummaryMarkdown = if ([string]::IsNullOrWhiteSpace($SummaryMarkdown)) {
 } else {
     Resolve-RepoPath -RepoRoot $repoRoot -InputPath $SummaryMarkdown -AllowMissing
 }
+$resolvedReleaseSummaryPath = if ([string]::IsNullOrWhiteSpace($ReleaseCandidateSummaryJson)) {
+    ""
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $ReleaseCandidateSummaryJson
+}
 
 if (-not (Test-Path -LiteralPath $resolvedSummaryJson)) {
     throw "Project template smoke summary was not found: $resolvedSummaryJson"
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
+    Assert-PathExists -Path $resolvedReleaseSummaryPath -Label "release-candidate summary JSON"
 }
 
 $summary = Get-Content -Raw -LiteralPath $resolvedSummaryJson | ConvertFrom-Json
@@ -425,10 +551,78 @@ Set-ProjectTemplateSmokePropertyValue -Object $summary -Name "overall_status" -V
 ($summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $resolvedSummaryJson -Encoding UTF8
 Write-SummaryMarkdown -Path $resolvedSummaryMarkdown -RepoRoot $repoRoot -Summary $summary
 
+if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
+    $releaseSummary = Get-Content -Raw -LiteralPath $resolvedReleaseSummaryPath | ConvertFrom-Json
+    $projectTemplateSmokeStep = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $releaseSummary.steps -Name "project_template_smoke"
+    if ($null -eq $projectTemplateSmokeStep) {
+        $projectTemplateSmokeStep = [ordered]@{}
+        Set-ProjectTemplateSmokePropertyValue -Object $releaseSummary.steps -Name "project_template_smoke" -Value $projectTemplateSmokeStep
+    }
+    $projectTemplateSmokeSummary = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $releaseSummary -Name "project_template_smoke"
+    if ($null -eq $projectTemplateSmokeSummary) {
+        $projectTemplateSmokeSummary = [ordered]@{}
+        Set-ProjectTemplateSmokePropertyValue -Object $releaseSummary -Name "project_template_smoke" -Value $projectTemplateSmokeSummary
+    }
+
+    $statusValue = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $projectTemplateSmokeStep -Name "status"
+    if ([string]::IsNullOrWhiteSpace($statusValue)) {
+        $statusValue = "completed"
+    }
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "status" -Value $statusValue
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "summary_json" -Value $resolvedSummaryJson
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "manifest_path" -Value (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summary -Name "manifest_path")
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "output_dir" -Value (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summary -Name "output_dir")
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "passed" -Value $summaryPassed
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "entry_count" -Value $entries.Count
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "failed_entry_count" -Value $failedEntryCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "visual_entry_count" -Value $visualEntryCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "visual_verdict" -Value $visualVerdict
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "manual_review_pending_count" -Value $manualReviewPendingCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "visual_review_undetermined_count" -Value $visualReviewUndeterminedCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "overall_status" -Value $overallStatus
+
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "summary_json" -Value $resolvedSummaryJson
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "manifest_path" -Value (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summary -Name "manifest_path")
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "output_dir" -Value (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summary -Name "output_dir")
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "passed" -Value $summaryPassed
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "entry_count" -Value $entries.Count
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "failed_entry_count" -Value $failedEntryCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "visual_entry_count" -Value $visualEntryCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "visual_verdict" -Value $visualVerdict
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "manual_review_pending_count" -Value $manualReviewPendingCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "visual_review_undetermined_count" -Value $visualReviewUndeterminedCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "overall_status" -Value $overallStatus
+
+    ($releaseSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $resolvedReleaseSummaryPath -Encoding UTF8
+
+    $releaseFinalReviewPath = Join-Path (Split-Path -Parent $resolvedReleaseSummaryPath) "final_review.md"
+    $releaseFinalReviewContent = New-ReleaseCandidateFinalReviewContent `
+        -RepoRoot $repoRoot `
+        -Summary $releaseSummary `
+        -ReleaseSummaryPath $resolvedReleaseSummaryPath
+    $releaseFinalReviewContent | Set-Content -LiteralPath $releaseFinalReviewPath -Encoding UTF8
+    Write-Step "Updated release-candidate summary and final review"
+
+    if ($RefreshReleaseBundle) {
+        $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
+        Invoke-ChildPowerShell -ScriptPath $releaseNoteBundleScript `
+            -Arguments @(
+                "-SummaryJson"
+                $resolvedReleaseSummaryPath
+            ) `
+            -FailureMessage "Failed to refresh the release note bundle."
+        Write-Step "Refreshed release note bundle"
+    }
+}
+
 Write-Step "Summary JSON: $resolvedSummaryJson"
 Write-Step "Summary Markdown: $resolvedSummaryMarkdown"
 Write-Step "Overall status: $overallStatus"
 Write-Step "Visual verdict: $visualVerdict"
+if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
+    Write-Host "Release summary: $resolvedReleaseSummaryPath"
+    Write-Host "Release final review: $(Join-Path (Split-Path -Parent $resolvedReleaseSummaryPath) 'final_review.md')"
+}
 
 if (-not $summaryPassed) {
     exit 1

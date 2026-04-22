@@ -83,7 +83,9 @@ performance.
   `review_status` and `review_verdict`, top-level `visual_verdict`, and
   explicit pending or undetermined visual-review counts. The manifest describe
   helper now surfaces the same latest visual verdict details in maintenance
-  output.
+  output. The same sync script can now also update a linked
+  release-candidate `summary.json`, rewrite `final_review.md`, and refresh the
+  generated release bundle through `write_release_note_bundle.ps1`.
 - Extended `run_release_candidate_checks.ps1` with an optional
   `-ProjectTemplateSmokeManifestPath` gate so release-preflight can now execute
   `run_project_template_smoke.ps1`, record real-template smoke counts plus the

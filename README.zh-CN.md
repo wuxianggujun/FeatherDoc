@@ -367,7 +367,12 @@ entry，而不是手改 JSON。常见场景直接传
 `review_status` / `review_verdict`、顶层 `visual_verdict`，以及 pending /
 undetermined 计数同步回 `summary.json` 和 `summary.md`。现在
 `describe_project_template_smoke_manifest.ps1` 也会把这些最新的 visual
-verdict 字段一起带出来，方便维护时快速确认。
+verdict 字段一起带出来，方便维护时快速确认。如果这份 smoke summary 已经接
+进 `run_release_candidate_checks.ps1`，再额外传
+`-ReleaseCandidateSummaryJson <report/summary.json> -RefreshReleaseBundle`，
+还可以顺手把 release-candidate 的 `summary.json`、`final_review.md`、
+`START_HERE.md`、`ARTIFACT_GUIDE.md`、`REVIEWER_CHECKLIST.md` 和
+`release_handoff.md` 一起刷新掉，不需要重跑整条 preflight。
 
 `move-header-part` / `move-footer-part` 用来重排当前文档里已加载的
 header/footer part 索引顺序，同时保持各 section 继续指向原来的关系 id，

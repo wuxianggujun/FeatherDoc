@@ -419,6 +419,12 @@ $quickstartArtifactPath = Join-Path $installDirLeaf "share\FeatherDoc\VISUAL_VAL
 $templateArtifactPath = Join-Path $installDirLeaf "share\FeatherDoc\RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
+$syncProjectTemplateSmokeCommand = ""
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSummaryJson)) {
+    $syncProjectTemplateSmokeCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson "{0}" -ReleaseCandidateSummaryJson "{1}" -RefreshReleaseBundle' -f `
+        (Get-RepoRelativePath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryJson),
+        $summaryCommandPath
+}
 $packageAssetsCommand = if ($releaseVersion) {
     'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
         $summaryCommandPath, $releaseVersion
@@ -535,9 +541,11 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add("")
 [void]$lines.Add('```powershell')
 [void]$lines.Add($syncLatestCommand)
+[void]$lines.Add($(if (-not [string]::IsNullOrWhiteSpace($syncProjectTemplateSmokeCommand)) { $syncProjectTemplateSmokeCommand } else { "" }))
 [void]$lines.Add('```')
 [void]$lines.Add("")
 [void]$lines.Add("Use that command locally after the screenshot-backed manual review changes the final visual verdict. It will sync the detected latest task verdict back into the gate summary and refresh the release bundle.")
+[void]$lines.Add("If project template smoke also carries manual visual review, use the second command to sync its refreshed verdict back into the smoke summary and the same release bundle.")
 [void]$lines.Add("")
 [void]$lines.Add("## Package The Public Release Assets")
 [void]$lines.Add("")

@@ -566,7 +566,13 @@ from JSON files via `-TemplateValidationsFile` and
 `summary.json` and `summary.md` with the latest entry-level
 `review_status`/`review_verdict`, top-level `visual_verdict`, and pending or
 undetermined visual-review counts. The describe helper now surfaces those
-latest visual verdict fields as part of the maintenance view.
+latest visual verdict fields as part of the maintenance view. When the same
+smoke summary is already wired into `run_release_candidate_checks.ps1`, pass
+`-ReleaseCandidateSummaryJson <report/summary.json> -RefreshReleaseBundle` to
+the sync script so it also rewrites the release-candidate `summary.json`,
+`final_review.md`, `START_HERE.md`, `ARTIFACT_GUIDE.md`,
+`REVIEWER_CHECKLIST.md`, and `release_handoff.md` without rerunning the full
+preflight.
 
 `inspect-sections` prints the current section count together with per-section
 header/footer attachment flags for `default`, `first`, and `even` references.
