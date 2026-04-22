@@ -528,6 +528,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -CheckPaths
+pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -SummaryJson .\output\project-template-smoke\summary.json -BuildDir build-codex-clang-compat
+pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
 ```
 
@@ -548,6 +550,16 @@ includes a local `$schema` reference to
 can surface field completions and shape errors earlier. The runtime harness
 also performs the same upfront validation and stops immediately on malformed
 entries.
+
+To maintain the manifest itself, use
+`scripts/describe_project_template_smoke_manifest.ps1` for a readable overview
+of registered entries plus their latest smoke status, and
+`scripts/register_project_template_smoke_manifest_entry.ps1` to add or update
+one entry without hand-editing JSON. `register_*` accepts direct
+`-SchemaValidationFile` / `-SchemaBaselineFile` flags for common cases and can
+also load complex `template_validations` or `schema_validation.targets` arrays
+from JSON files via `-TemplateValidationsFile` and
+`-SchemaValidationTargetsFile`.
 
 `inspect-sections` prints the current section count together with per-section
 header/footer attachment flags for `default`, `first`, and `even` references.

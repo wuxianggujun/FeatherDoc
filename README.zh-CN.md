@@ -324,6 +324,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -CheckPaths
+pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -SummaryJson .\output\project-template-smoke\summary.json -BuildDir build-codex-clang-compat
+pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
 ```
 
@@ -342,6 +344,16 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -Man
 `samples/project_template_smoke.manifest.schema.json`，这样支持 JSON
 schema 的编辑器可以更早给出字段补全和结构报错。`run_project_template_smoke.ps1`
 本身也会先做同样的前置校验，遇到坏 entry 会立刻中止，不会跑到中途才炸。
+
+如果你要维护这份 manifest 本身，可以用
+`scripts/describe_project_template_smoke_manifest.ps1` 看当前登记的 entry
+和最近一次 smoke 结果，也可以用
+`scripts/register_project_template_smoke_manifest_entry.ps1` 新增或更新单条
+entry，而不是手改 JSON。常见场景直接传
+`-SchemaValidationFile` / `-SchemaBaselineFile` 就够了；如果你的
+`template_validations` 或 `schema_validation.targets` 比较复杂，也可以用
+`-TemplateValidationsFile` 和 `-SchemaValidationTargetsFile` 从 JSON 数组文
+件直接回填。
 
 `move-header-part` / `move-footer-part` 用来重排当前文档里已加载的
 header/footer part 索引顺序，同时保持各 section 继续指向原来的关系 id，

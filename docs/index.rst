@@ -1600,6 +1600,20 @@ wrapper and records aggregate results in ``summary.json`` and ``summary.md``.
       -BuildDir build-codex-clang-compat \
       -CheckPaths
 
+    pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 \
+      -ManifestPath .\samples\project_template_smoke.manifest.json \
+      -SummaryJson .\output\project-template-smoke\summary.json \
+      -BuildDir build-codex-clang-compat
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 \
+      -Name contract-template \
+      -ManifestPath .\samples\project_template_smoke.manifest.json \
+      -InputDocx .\samples\chinese_invoice_template.docx \
+      -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json \
+      -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json \
+      -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual \
+      -ReplaceExisting
+
     pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 \
       -ManifestPath .\samples\project_template_smoke.manifest.json \
       -BuildDir build-codex-clang-compat \
@@ -1609,6 +1623,13 @@ The sample manifest carries a local ``$schema`` reference to
 ``samples/project_template_smoke.manifest.schema.json``, and the runtime
 wrapper now performs the same manifest validation up front before it starts
 building fixtures or launching Word-backed smoke passes.
+
+For day-to-day maintenance, ``describe_project_template_smoke_manifest.ps1``
+prints the currently registered entries plus the latest per-entry smoke status,
+while ``register_project_template_smoke_manifest_entry.ps1`` updates one entry
+without hand-editing JSON. For more complex entry shapes, the register helper
+can also load ``template_validations`` and ``schema_validation.targets`` from
+JSON array files.
 
 .. code-block:: cpp
 

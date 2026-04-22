@@ -72,7 +72,11 @@ performance.
   `check_project_template_smoke_manifest.ps1` preflight plus
   `project_template_smoke.manifest.schema.json` so malformed manifest entries
   can now be rejected before the harness starts preparing fixtures or launching
-  visual smoke work.
+  visual smoke work. Added
+  `describe_project_template_smoke_manifest.ps1` and
+  `register_project_template_smoke_manifest_entry.ps1` so the same manifest can
+  now be inspected and updated through scriptable maintenance entry points
+  instead of hand-editing JSON.
 - Expanded `validate_template(...)` into a stronger schema pass that now also
   reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
   extended CLI `validate-template` parsing with `count=` / `min=` / `max=`
