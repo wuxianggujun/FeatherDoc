@@ -362,6 +362,7 @@ featherdoc_cli rebase-paragraph-style-based-on input.docx Heading2 Normal --outp
 featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
 featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
 featherdoc_cli ensure-numbering-definition input.docx --definition-name OutlineReview --numbering-level 0:decimal:1:%1. --output numbering.docx --json
+featherdoc_cli ensure-style-linked-numbering input.docx --definition-name HeadingReview --numbering-level 0:decimal:1:%1. --numbering-level 1:decimal:1:%1.%2. --style-link Heading1:0 --style-link Heading2:1 --output linked-style-numbering.docx --json
 featherdoc_cli set-paragraph-numbering input.docx 6 --definition 12 --level 0 --output numbered.docx --json
 featherdoc_cli set-paragraph-style-numbering input.docx Heading2 --definition-name HeadingReview --numbering-level 0:decimal:1:%1. --style-level 1 --output style-numbering.docx --json
 featherdoc_cli clear-paragraph-style-numbering input.docx Heading2 --output cleared-style-numbering.docx --json
@@ -533,7 +534,7 @@ int main() {
 - 做模板填充或书签校验：`list_bookmarks()`、`validate_template()`、`fill_bookmarks()`、`replace_bookmark_with_*()`、`body_template()` / `header_template()` / `footer_template()`
 - 处理图片和页码字段：`append_image()`、`append_floating_image()`、`replace_*image()`、`append_page_number_field()`、`append_total_pages_field()`
 - 处理分节、页眉页脚和页面设置：`inspect_sections()`、`get_section_page_setup()`、`set_section_page_setup()`、`ensure_*header*()`、`ensure_*footer*()`、`append_section()`、`insert_section()`、`move_section()`、`move_header_part()`、`move_footer_part()`
-- 处理样式、编号和语言元数据：`list_styles()`、`find_style()`、`ensure_*style()`、`ensure_numbering_definition()`、`set_paragraph_style_numbering()`、`default_run_*()`、`style_run_*()`、`resolve_style_properties()`、`materialize_style_run_properties()`、`rebase_character_style_based_on()`、`set_paragraph_style_based_on()`、`set_paragraph_style_next_style()`、`set_paragraph_style_outline_level()`、`rebase_paragraph_style_based_on()`
+- 处理样式、编号和语言元数据：`list_styles()`、`find_style()`、`ensure_*style()`、`ensure_numbering_definition()`、`ensure_style_linked_numbering()`、`set_paragraph_style_numbering()`、`default_run_*()`、`style_run_*()`、`resolve_style_properties()`、`materialize_style_run_properties()`、`rebase_character_style_based_on()`、`set_paragraph_style_based_on()`、`set_paragraph_style_next_style()`、`set_paragraph_style_outline_level()`、`rebase_paragraph_style_based_on()`
 - 想做脚本化检查或一次性改写：优先看 CLI 的 `inspect-*`、`validate-template`、`append-page-number-field`、`set-section-page-setup`
 
 如果你需要更完整的参数说明、可运行 sample 对照和边界行为说明，继续看

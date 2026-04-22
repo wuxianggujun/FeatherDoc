@@ -321,6 +321,7 @@ Additional representative command groups:
     featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
     featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
     featherdoc_cli ensure-numbering-definition input.docx --definition-name OutlineReview --numbering-level 0:decimal:1:%1. --output numbering.docx --json
+    featherdoc_cli ensure-style-linked-numbering input.docx --definition-name HeadingReview --numbering-level 0:decimal:1:%1. --numbering-level 1:decimal:1:%1.%2. --style-link Heading1:0 --style-link Heading2:1 --output linked-style-numbering.docx --json
     featherdoc_cli set-paragraph-numbering input.docx 6 --definition 12 --level 0 --output numbered.docx --json
     featherdoc_cli set-paragraph-style-numbering input.docx Heading2 --definition-name HeadingReview --numbering-level 0:decimal:1:%1. --style-level 1 --output style-numbering.docx --json
     featherdoc_cli clear-paragraph-style-numbering input.docx Heading2 --output cleared-style-numbering.docx --json
@@ -567,7 +568,8 @@ to :ref:`Task-Oriented Sample And CLI Map <featherdoc-sample-cli-map>`.
 - Work with styles, numbering, and language metadata:
   ``list_styles()``, ``find_style(...)``, ``ensure_*style(...)``,
   ``set_paragraph_style(...)``, ``set_run_style(...)``,
-  ``ensure_numbering_definition(...)``, ``set_paragraph_numbering(...)``,
+  ``ensure_numbering_definition(...)``, ``ensure_style_linked_numbering(...)``,
+  ``set_paragraph_numbering(...)``,
   ``set_paragraph_style_numbering(...)``, ``resolve_style_properties(...)``,
   ``materialize_style_run_properties(...)``,
   ``rebase_character_style_based_on(...)``,
@@ -2027,9 +2029,11 @@ Current Limitations
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences, and custom numbering definitions can now be
   created through ``ensure_numbering_definition(...)`` /
-  ``set_paragraph_numbering(...)``, and paragraph styles can now be linked to a
-  numbering definition through ``set_paragraph_style_numbering(...)``, but
-  there is still no higher-level numbering-style abstraction.
+  ``set_paragraph_numbering(...)``. Paragraph styles can now be linked to a
+  numbering definition through ``set_paragraph_style_numbering(...)``, and
+  multi-style shared outline linking is now available through
+  ``ensure_style_linked_numbering(...)``, but there is still no richer
+  numbering import/export or override-management layer.
 - Paragraph and run style references can now be attached and cleared, style
   catalogs can be inspected through ``list_styles()`` / ``find_style()``,
   effective inherited style properties can be inspected through

@@ -1356,6 +1356,160 @@ Document::find_numbering_instance(std::uint32_t instance_id) {
     return summary;
 }
 
+std::optional<std::uint32_t> Document::ensure_style_linked_numbering(
+    const featherdoc::numbering_definition &definition,
+    const std::vector<featherdoc::paragraph_style_numbering_link> &style_links) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style-linked numbering");
+        return std::nullopt;
+    }
+
+    auto validation_detail = std::string{};
+    if (!validate_numbering_definition(definition, validation_detail)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       std::move(validation_detail), std::string{numbering_xml_entry});
+        return std::nullopt;
+    }
+
+    if (style_links.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "expected at least one paragraph style link",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    for (std::size_t index = 0; index < style_links.size(); ++index) {
+        const auto &style_link = style_links[index];
+        if (style_link.style_id.empty()) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "style link style id must not be empty",
+                           std::string{styles_xml_entry});
+            return std::nullopt;
+        }
+
+        if (style_link.level > max_list_level) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "style link numbering level must be in the range [0, 8]",
+                           std::string{styles_xml_entry});
+            return std::nullopt;
+        }
+
+        for (std::size_t duplicate_index = index + 1U; duplicate_index < style_links.size();
+             ++duplicate_index) {
+            if (style_links[duplicate_index].style_id == style_link.style_id) {
+                set_last_error(this->last_error_info,
+                               std::make_error_code(std::errc::invalid_argument),
+                               "style id '" + style_link.style_id +
+                                   "' appears more than once in the style link list",
+                               std::string{styles_xml_entry});
+                return std::nullopt;
+            }
+        }
+    }
+
+    if (const auto error = this->ensure_styles_part_attached()) {
+        return std::nullopt;
+    }
+    if (const auto error = this->ensure_numbering_part_attached()) {
+        return std::nullopt;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    for (const auto &style_link : style_links) {
+        const auto style = find_style_node(styles_root, style_link.style_id);
+        if (style == pugi::xml_node{}) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "style id '" + style_link.style_id +
+                               "' was not found in word/styles.xml",
+                           std::string{styles_xml_entry});
+            return std::nullopt;
+        }
+
+        if (std::string_view{style.attribute("w:type").value()} != "paragraph") {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "style id '" + style_link.style_id +
+                               "' is not a paragraph style and cannot carry paragraph numbering",
+                           std::string{styles_xml_entry});
+            return std::nullopt;
+        }
+    }
+
+    const auto numbering_definition_id = this->ensure_numbering_definition(definition);
+    if (!numbering_definition_id.has_value()) {
+        return std::nullopt;
+    }
+
+    auto numbering_root = this->numbering.child("w:numbering");
+    if (numbering_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       document_errc::numbering_xml_parse_failed,
+                       "word/numbering.xml does not contain the expected w:numbering root",
+                       std::string{numbering_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto abstract_num =
+        find_abstract_numbering_by_id(numbering_root, *numbering_definition_id);
+    if (abstract_num == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "numbering definition id does not exist",
+                       std::string{numbering_xml_entry});
+        return std::nullopt;
+    }
+
+    for (const auto &style_link : style_links) {
+        if (find_level_definition(abstract_num, style_link.level) == pugi::xml_node{}) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "requested numbering level is not defined by the target definition",
+                           std::string{numbering_xml_entry});
+            return std::nullopt;
+        }
+    }
+
+    const auto num_id =
+        ensure_numbering_instance_for_abstract(numbering_root, *numbering_definition_id);
+    if (!num_id.has_value()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create or reuse a numbering instance for the target definition",
+                       std::string{numbering_xml_entry});
+        return std::nullopt;
+    }
+
+    styles_root = this->styles.child("w:styles");
+    for (const auto &style_link : style_links) {
+        const auto style = find_style_node(styles_root, style_link.style_id);
+        if (!apply_numbering_to_style(style, style_link.level, *num_id)) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to populate numbering metadata for the target style",
+                           std::string{styles_xml_entry});
+            return std::nullopt;
+        }
+    }
+
+    this->numbering_dirty = true;
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return numbering_definition_id;
+}
+
 bool Document::set_paragraph_numbering(Paragraph target_paragraph,
                                        std::uint32_t numbering_definition_id,
                                        std::uint32_t level) {

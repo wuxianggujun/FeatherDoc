@@ -58,6 +58,11 @@ performance.
   new parent while freezing the currently resolved inherited font/RTL fields
   that would otherwise drift, and extended the Word-backed ensure-style visual
   regression bundle with an inherited-run preservation case.
+- Added `ensure_style_linked_numbering()` and CLI
+  `ensure-style-linked-numbering` so one custom numbering definition can now be
+  created or refreshed and then bound to multiple paragraph styles in a single
+  shared outline-numbering workflow, and extended the Word-backed paragraph
+  style numbering visual regression bundle with a batched multi-style case.
 - Expanded `validate_template(...)` into a stronger schema pass that now also
   reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
   extended CLI `validate-template` parsing with `count=` / `min=` / `max=`

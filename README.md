@@ -573,6 +573,7 @@ featherdoc_cli rebase-paragraph-style-based-on input.docx Heading2 Normal --outp
 featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
 featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
 featherdoc_cli ensure-numbering-definition input.docx --definition-name OutlineReview --numbering-level 0:decimal:1:%1. --output numbering.docx --json
+featherdoc_cli ensure-style-linked-numbering input.docx --definition-name HeadingReview --numbering-level 0:decimal:1:%1. --numbering-level 1:decimal:1:%1.%2. --style-link Heading1:0 --style-link Heading2:1 --output linked-style-numbering.docx --json
 featherdoc_cli set-paragraph-numbering input.docx 6 --definition 12 --level 0 --output numbered.docx --json
 featherdoc_cli set-paragraph-style-numbering input.docx Heading2 --definition-name HeadingReview --numbering-level 0:decimal:1:%1. --style-level 1 --output style-numbering.docx --json
 featherdoc_cli clear-paragraph-style-numbering input.docx Heading2 --output cleared-style-numbering.docx --json
@@ -831,7 +832,8 @@ you want to get done:
   `move_footer_part()`
 - Work with styles, numbering, and language metadata:
   `list_styles()`, `find_style()`, `ensure_*style()`,
-  `ensure_numbering_definition()`, `set_paragraph_style_numbering()`,
+  `ensure_numbering_definition()`, `ensure_style_linked_numbering()`,
+  `set_paragraph_style_numbering()`,
   `default_run_*()`, `style_run_*()`, `resolve_style_properties()`,
   `materialize_style_run_properties()`,
   `rebase_character_style_based_on()`,
@@ -1969,8 +1971,10 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   restart managed list sequences. Custom numbering definitions and
   paragraph-style numbering are now supported through
   `ensure_numbering_definition(...)` and
-  `set_paragraph_style_numbering(...)`, but there is still no richer
-  import/export or override-management layer for existing numbering catalogs.
+  `set_paragraph_style_numbering(...)`, and multi-style shared outline linking
+  is now available through `ensure_style_linked_numbering(...)`, but there is
+  still no richer import/export or override-management layer for existing
+  numbering catalogs.
 - Paragraph and run style references can now be attached and cleared, and a
   minimal `word/styles.xml` is created automatically when needed. Style
   catalog inspection and minimal paragraph/character/table style definition

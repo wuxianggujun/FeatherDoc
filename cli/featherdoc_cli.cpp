@@ -309,6 +309,14 @@ struct set_paragraph_style_numbering_options {
     bool json_output = false;
 };
 
+struct ensure_style_linked_numbering_options {
+    std::optional<std::string> definition_name;
+    std::vector<featherdoc::numbering_level_definition> levels;
+    std::vector<featherdoc::paragraph_style_numbering_link> style_links;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
 struct clear_paragraph_style_numbering_options {
     std::optional<path_type> output_path;
     bool json_output = false;
@@ -1246,6 +1254,11 @@ void print_usage(std::ostream &stream) {
            " --name <name> [--based-on <style-id>] [--custom true|false]"
            " [--semi-hidden true|false] [--unhide-when-used true|false]"
            " [--quick-format true|false] [--output <path>] [--json]\n"
+        << "  featherdoc_cli ensure-style-linked-numbering <input.docx>"
+           " --definition-name <name>"
+           " --numbering-level <level>:<kind>:<start>:<text-pattern>"
+           " [--numbering-level ...] --style-link <style-id>:<level>"
+           " [--style-link ...] [--output <path>] [--json]\n"
         << "  featherdoc_cli set-paragraph-style-numbering <input.docx> <style-id>"
            " --definition-name <name>"
            " --numbering-level <level>:<kind>:<start>:<text-pattern>"
@@ -2348,6 +2361,38 @@ auto parse_numbering_level_definition(
     return true;
 }
 
+auto parse_paragraph_style_numbering_link(
+    std::string_view text, featherdoc::paragraph_style_numbering_link &style_link,
+    std::string &error_message) -> bool {
+    const auto separator = text.find(':');
+    if (separator == std::string_view::npos) {
+        error_message =
+            "invalid --style-link value: expected <style-id>:<level>";
+        return false;
+    }
+
+    const auto style_id = text.substr(0U, separator);
+    const auto level_text = text.substr(separator + 1U);
+    if (style_id.empty()) {
+        error_message = "invalid --style-link value: style id must not be empty";
+        return false;
+    }
+    if (level_text.empty()) {
+        error_message = "invalid --style-link value: level must not be empty";
+        return false;
+    }
+
+    std::uint32_t level = 0U;
+    if (!parse_uint32(level_text, level)) {
+        error_message = "invalid style link level: " + std::string(level_text);
+        return false;
+    }
+
+    style_link.style_id = std::string(style_id);
+    style_link.level = level;
+    return true;
+}
+
 auto parse_set_paragraph_style_numbering_options(
     const std::vector<std::string_view> &arguments, std::size_t start_index,
     set_paragraph_style_numbering_options &options, std::string &error_message)
@@ -2440,6 +2485,103 @@ auto parse_set_paragraph_style_numbering_options(
         error_message =
             "expected at least one --numbering-level "
             "<level>:<kind>:<start>:<text-pattern>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_ensure_style_linked_numbering_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    ensure_style_linked_numbering_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--definition-name") {
+            if (options.definition_name.has_value()) {
+                error_message = "duplicate --definition-name option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --definition-name";
+                return false;
+            }
+
+            options.definition_name = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--numbering-level") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --numbering-level";
+                return false;
+            }
+
+            featherdoc::numbering_level_definition definition;
+            if (!parse_numbering_level_definition(arguments[index + 1U], definition,
+                                                  error_message)) {
+                return false;
+            }
+
+            options.levels.push_back(std::move(definition));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--style-link") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --style-link";
+                return false;
+            }
+
+            featherdoc::paragraph_style_numbering_link style_link;
+            if (!parse_paragraph_style_numbering_link(arguments[index + 1U], style_link,
+                                                      error_message)) {
+                return false;
+            }
+
+            options.style_links.push_back(std::move(style_link));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.definition_name.has_value()) {
+        error_message = "missing --definition-name <name>";
+        return false;
+    }
+    if (options.levels.empty()) {
+        error_message =
+            "expected at least one --numbering-level "
+            "<level>:<kind>:<start>:<text-pattern>";
+        return false;
+    }
+    if (options.style_links.empty()) {
+        error_message = "expected at least one --style-link <style-id>:<level>";
         return false;
     }
 
@@ -11420,6 +11562,13 @@ void write_json_numbering_level_definition(
     stream << ",\"start\":" << definition.start << ",\"text_pattern\":";
     write_json_string(stream, definition.text_pattern);
     stream << '}';
+}
+
+void write_json_paragraph_style_numbering_link(
+    std::ostream &stream, const featherdoc::paragraph_style_numbering_link &style_link) {
+    stream << "{\"style_id\":";
+    write_json_string(stream, style_link.style_id);
+    stream << ",\"level\":" << style_link.level << '}';
 }
 
 void write_json_numbering_level_override_summary(
@@ -25841,6 +25990,75 @@ int main(int argc, char **argv) {
                             stream << ',';
                         }
                         write_json_string(stream, cleared_fields[index]);
+                    }
+                    stream << ']';
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "ensure-style-linked-numbering") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command,
+                              "ensure-style-linked-numbering expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        ensure_style_linked_numbering_options options;
+        std::string error_message;
+        if (!parse_ensure_style_linked_numbering_options(arguments, 2U, options,
+                                                         error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::numbering_definition definition;
+        definition.name = *options.definition_name;
+        definition.levels = options.levels;
+
+        const auto definition_id =
+            doc.ensure_style_linked_numbering(definition, options.style_links);
+        if (!definition_id.has_value()) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [definition_id, &definition, &options](std::ostream &stream) {
+                    stream << ",\"definition_id\":" << *definition_id
+                           << ",\"definition_name\":";
+                    write_json_string(stream, definition.name);
+                    stream << ",\"definition_levels\":";
+                    stream << '[';
+                    for (std::size_t index = 0; index < definition.levels.size(); ++index) {
+                        if (index != 0U) {
+                            stream << ',';
+                        }
+                        write_json_numbering_level_definition(stream,
+                                                              definition.levels[index]);
+                    }
+                    stream << "],\"style_links\":[";
+                    for (std::size_t index = 0; index < options.style_links.size(); ++index) {
+                        if (index != 0U) {
+                            stream << ',';
+                        }
+                        write_json_paragraph_style_numbering_link(stream,
+                                                                  options.style_links[index]);
                     }
                     stream << ']';
                 });

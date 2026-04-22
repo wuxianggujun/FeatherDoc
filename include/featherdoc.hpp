@@ -587,6 +587,11 @@ struct numbering_definition {
     std::vector<featherdoc::numbering_level_definition> levels;
 };
 
+struct paragraph_style_numbering_link {
+    std::string style_id;
+    std::uint32_t level{0U};
+};
+
 struct numbering_level_override_summary {
     std::uint32_t level{};
     std::optional<std::uint32_t> start_override;
@@ -1387,6 +1392,9 @@ class Document {
     [[nodiscard]] bool clear_style_run_bidi_language(std::string_view style_id);
     [[nodiscard]] bool clear_style_run_rtl(std::string_view style_id);
     [[nodiscard]] bool clear_style_paragraph_bidi(std::string_view style_id);
+    [[nodiscard]] std::optional<std::uint32_t> ensure_style_linked_numbering(
+        const featherdoc::numbering_definition &definition,
+        const std::vector<featherdoc::paragraph_style_numbering_link> &style_links);
     [[nodiscard]] bool set_paragraph_style_numbering(
         std::string_view style_id, std::uint32_t numbering_definition_id,
         std::uint32_t level = 0U);

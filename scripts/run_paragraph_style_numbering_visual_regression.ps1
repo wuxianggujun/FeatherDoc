@@ -266,6 +266,47 @@ function Assert-SetStyleNumberingResult {
         -Label $Label
 }
 
+function Assert-EnsureStyleLinkedNumberingResult {
+    param(
+        [string]$JsonPath,
+        [string]$ExpectedDefinitionName,
+        [object[]]$ExpectedLevels,
+        [object[]]$ExpectedStyleLinks,
+        [string]$Label
+    )
+
+    $payload = Read-JsonFile -Path $JsonPath
+    if ([string]$payload.command -ne "ensure-style-linked-numbering") {
+        throw "$Label expected command ensure-style-linked-numbering, got '$($payload.command)'."
+    }
+    if (-not [bool]$payload.ok) {
+        throw "$Label expected ok=true."
+    }
+    if ([string]$payload.definition_name -ne $ExpectedDefinitionName) {
+        throw "$Label expected definition_name '$ExpectedDefinitionName', got '$($payload.definition_name)'."
+    }
+
+    Assert-DefinitionLevels `
+        -ActualLevels $payload.definition_levels `
+        -ExpectedLevels $ExpectedLevels `
+        -Label $Label
+
+    if ($payload.style_links.Count -ne $ExpectedStyleLinks.Count) {
+        throw "$Label expected $($ExpectedStyleLinks.Count) style links, got $($payload.style_links.Count)."
+    }
+
+    for ($index = 0; $index -lt $ExpectedStyleLinks.Count; $index++) {
+        $actual = $payload.style_links[$index]
+        $expected = $ExpectedStyleLinks[$index]
+        if ([string]$actual.style_id -ne [string]$expected.style_id) {
+            throw "$Label expected style_id[$index] '$($expected.style_id)', got '$($actual.style_id)'."
+        }
+        if ([int]$actual.level -ne [int]$expected.level) {
+            throw "$Label expected level[$index] $($expected.level), got $($actual.level)."
+        }
+    }
+}
+
 function Assert-ClearStyleNumberingResult {
     param(
         [string]$JsonPath,
@@ -869,6 +910,57 @@ $caseDefinitions = @(
         )
     },
     [ordered]@{
+        id = "ensure-style-linked-numbering-nested-outline-visual"
+        mutation_steps = @(
+            [ordered]@{
+                command = "ensure-style-linked-numbering"
+                definition_name = "LegalHeadingNestedStyleOutlineBatchVisual"
+                definition_levels = $nestedLevels
+                style_links = @(
+                    [ordered]@{ style_id = "LegalHeading"; level = 0 },
+                    [ordered]@{ style_id = "LegalSubheading"; level = 1 }
+                )
+            }
+        )
+        expected_styles = @(
+            [ordered]@{
+                style_id = "LegalHeading"
+                name = "Legal Heading"
+                based_on = "Heading1"
+                expect_numbering = $true
+                level = 0
+                definition_name = "LegalHeadingNestedStyleOutlineBatchVisual"
+                override_count = 0
+                instance_group = "nested-outline-batch"
+            },
+            [ordered]@{
+                style_id = "LegalSubheading"
+                name = "Legal Subheading"
+                based_on = "Heading2"
+                expect_numbering = $true
+                level = 1
+                definition_name = "LegalHeadingNestedStyleOutlineBatchVisual"
+                override_count = 0
+                instance_group = "nested-outline-batch"
+            },
+            [ordered]@{
+                style_id = "BodyNumbered"
+                name = "Body Numbered"
+                based_on = "Normal"
+                expect_numbering = $true
+                level = 0
+                definition_name = "BodyStyleOutlineBaseline"
+                override_count = 0
+                compare_to_baseline = $true
+            }
+        )
+        expected_visual_cues = @(
+            "The LegalHeading paragraph gains a root marker that starts at (7).",
+            "The LegalSubheading paragraph renders as a nested child marker (7.1) under the same style-linked numbering instance even though the whole outline link is created in one CLI step.",
+            "The BodyNumbered clear target keeps its baseline [4] marker so the batched style-linking effect is isolated to the two heading styles."
+        )
+    },
+    [ordered]@{
         id = "clear-style-numbering-body-numbered-visual"
         mutation_steps = @(
             [ordered]@{
@@ -975,6 +1067,46 @@ foreach ($case in $caseDefinitions) {
                 -ExpectedDefinitionName $step.definition_name `
                 -ExpectedStyleLevel $step.style_level `
                 -ExpectedLevels $step.definition_levels `
+                -Label "$($case.id)-step-$($stepIndex + 1)"
+        } elseif ($step.command -eq "ensure-style-linked-numbering") {
+            $arguments = @(
+                "ensure-style-linked-numbering",
+                $currentInputDocx,
+                "--definition-name",
+                $step.definition_name
+            )
+
+            foreach ($definitionLevel in $step.definition_levels) {
+                $arguments += @(
+                    "--numbering-level",
+                    "$($definitionLevel.level):$($definitionLevel.kind):$($definitionLevel.start):$($definitionLevel.text_pattern)"
+                )
+            }
+
+            foreach ($styleLink in $step.style_links) {
+                $arguments += @(
+                    "--style-link",
+                    "$($styleLink.style_id):$($styleLink.level)"
+                )
+            }
+
+            $arguments += @(
+                "--output",
+                $stepOutputDocx,
+                "--json"
+            )
+
+            Invoke-Capture `
+                -Executable $cliExecutable `
+                -Arguments $arguments `
+                -OutputPath $stepJsonPath `
+                -FailureMessage "Failed to execute mutation step $($stepIndex + 1) for case '$($case.id)'."
+
+            Assert-EnsureStyleLinkedNumberingResult `
+                -JsonPath $stepJsonPath `
+                -ExpectedDefinitionName $step.definition_name `
+                -ExpectedLevels $step.definition_levels `
+                -ExpectedStyleLinks $step.style_links `
                 -Label "$($case.id)-step-$($stepIndex + 1)"
         } elseif ($step.command -eq "clear-paragraph-style-numbering") {
             $arguments = @(
