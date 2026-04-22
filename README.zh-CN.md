@@ -327,6 +327,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manife
 pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -SummaryJson .\output\project-template-smoke\summary.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
+pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson .\output\project-template-smoke\summary.json
 ```
 
 如果你要把多份真实项目模板放到同一条 smoke 流里统一检查，可以直接用
@@ -353,7 +354,13 @@ entry，而不是手改 JSON。常见场景直接传
 `-SchemaValidationFile` / `-SchemaBaselineFile` 就够了；如果你的
 `template_validations` 或 `schema_validation.targets` 比较复杂，也可以用
 `-TemplateValidationsFile` 和 `-SchemaValidationTargetsFile` 从 JSON 数组文
-件直接回填。
+件直接回填。如果后续人工修改了某个 visual smoke 生成的
+`review_result.json`，再跑一次
+`scripts/sync_project_template_smoke_visual_verdict.ps1`，就能把 entry 级
+`review_status` / `review_verdict`、顶层 `visual_verdict`，以及 pending /
+undetermined 计数同步回 `summary.json` 和 `summary.md`。现在
+`describe_project_template_smoke_manifest.ps1` 也会把这些最新的 visual
+verdict 字段一起带出来，方便维护时快速确认。
 
 `move-header-part` / `move-footer-part` 用来重排当前文档里已加载的
 header/footer part 索引顺序，同时保持各 section 继续指向原来的关系 id，

@@ -1619,6 +1619,9 @@ wrapper and records aggregate results in ``summary.json`` and ``summary.md``.
       -BuildDir build-codex-clang-compat \
       -OutputDir output/project-template-smoke
 
+    pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 \
+      -SummaryJson .\output\project-template-smoke\summary.json
+
 The sample manifest carries a local ``$schema`` reference to
 ``samples/project_template_smoke.manifest.schema.json``, and the runtime
 wrapper now performs the same manifest validation up front before it starts
@@ -1629,7 +1632,13 @@ prints the currently registered entries plus the latest per-entry smoke status,
 while ``register_project_template_smoke_manifest_entry.ps1`` updates one entry
 without hand-editing JSON. For more complex entry shapes, the register helper
 can also load ``template_validations`` and ``schema_validation.targets`` from
-JSON array files.
+JSON array files. After a reviewer edits any referenced
+``review_result.json``, rerun
+``sync_project_template_smoke_visual_verdict.ps1`` to refresh both
+``summary.json`` and ``summary.md`` with the latest entry-level visual review
+status, aggregate ``visual_verdict``, and pending or undetermined visual-review
+counts. ``describe_project_template_smoke_manifest.ps1`` now also surfaces
+those latest visual verdict fields in its maintenance output.
 
 .. code-block:: cpp
 

@@ -77,6 +77,13 @@ performance.
   `register_project_template_smoke_manifest_entry.ps1` so the same manifest can
   now be inspected and updated through scriptable maintenance entry points
   instead of hand-editing JSON.
+- Added `scripts/sync_project_template_smoke_visual_verdict.ps1` so manual
+  edits to project-template-smoke `review_result.json` files can now be folded
+  back into `summary.json` / `summary.md`, including refreshed per-entry
+  `review_status` and `review_verdict`, top-level `visual_verdict`, and
+  explicit pending or undetermined visual-review counts. The manifest describe
+  helper now surfaces the same latest visual verdict details in maintenance
+  output.
 - Expanded `validate_template(...)` into a stronger schema pass that now also
   reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
   extended CLI `validate-template` parsing with `count=` / `min=` / `max=`

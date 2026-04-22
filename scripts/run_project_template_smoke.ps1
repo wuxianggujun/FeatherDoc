@@ -125,6 +125,184 @@ function Get-OptionalObjectPropertyValue {
     return [string]$property.Value
 }
 
+function Get-OptionalObjectPropertyObject {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) {
+            return $Object[$Name]
+        }
+
+        return $null
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $null
+    }
+
+    return $property.Value
+}
+
+function Get-OptionalObjectArrayProperty {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $value = Get-OptionalObjectPropertyObject -Object $Object -Name $Name
+    if ($null -eq $value) {
+        return @()
+    }
+
+    if ($value -is [string]) {
+        return @($value)
+    }
+
+    if ($value -is [System.Collections.IEnumerable]) {
+        return @($value | Where-Object { $null -ne $_ })
+    }
+
+    return @($value)
+}
+
+function Normalize-ProjectTemplateSmokeVisualVerdict {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return "undecided"
+    }
+
+    switch ($Value.ToLowerInvariant()) {
+        "pass" { return "pass" }
+        "fail" { return "fail" }
+        "undetermined" { return "undetermined" }
+        "undecided" { return "undecided" }
+        "pending_manual_review" { return "pending_manual_review" }
+        "skipped" { return "skipped" }
+        default { return "undecided" }
+    }
+}
+
+function Get-ProjectTemplateSmokeVisualReviewState {
+    param(
+        [string]$ReviewStatus,
+        [string]$ReviewVerdict
+    )
+
+    $normalizedStatus = if ([string]::IsNullOrWhiteSpace($ReviewStatus)) {
+        "missing"
+    } else {
+        $ReviewStatus
+    }
+    $normalizedVerdict = Normalize-ProjectTemplateSmokeVisualVerdict -Value $ReviewVerdict
+
+    $failed = ($normalizedStatus -eq "failed" -or $normalizedVerdict -eq "fail")
+    $pending = (-not $failed) -and (
+        $normalizedStatus -eq "missing" -or
+        $normalizedStatus -eq "pending_review" -or
+        $normalizedVerdict -eq "undecided" -or
+        $normalizedVerdict -eq "pending_manual_review"
+    )
+    $undetermined = (-not $failed) -and (-not $pending) -and $normalizedVerdict -eq "undetermined"
+    $passed = (-not $failed) -and (-not $pending) -and (-not $undetermined) -and $normalizedVerdict -eq "pass"
+    $skipped = (-not $failed) -and (-not $pending) -and (-not $undetermined) -and (-not $passed) -and (
+        $normalizedStatus -eq "skipped" -or
+        $normalizedVerdict -eq "skipped"
+    )
+
+    return [pscustomobject]@{
+        review_status = $normalizedStatus
+        review_verdict = $normalizedVerdict
+        failed = $failed
+        manual_review_pending = $pending
+        review_undetermined = $undetermined
+        review_passed = $passed
+        skipped = $skipped
+    }
+}
+
+function Get-ProjectTemplateSmokeEntryStatus {
+    param(
+        [bool]$EntryPassed,
+        [bool]$ManualReviewPending,
+        [bool]$VisualReviewUndetermined
+    )
+
+    if (-not $EntryPassed) {
+        return "failed"
+    }
+    if ($ManualReviewPending) {
+        return "passed_with_pending_visual_review"
+    }
+    if ($VisualReviewUndetermined) {
+        return "passed_with_visual_review_undetermined"
+    }
+
+    return "passed"
+}
+
+function Get-ProjectTemplateSmokeOverallStatus {
+    param(
+        [bool]$SummaryPassed,
+        [int]$ManualReviewPendingCount,
+        [int]$VisualReviewUndeterminedCount
+    )
+
+    if (-not $SummaryPassed) {
+        return "failed"
+    }
+    if ($ManualReviewPendingCount -gt 0) {
+        return "passed_with_pending_visual_review"
+    }
+    if ($VisualReviewUndeterminedCount -gt 0) {
+        return "passed_with_visual_review_undetermined"
+    }
+
+    return "passed"
+}
+
+function Get-ProjectTemplateSmokeVisualVerdict {
+    param([object[]]$VisualSmokeResults)
+
+    if ($VisualSmokeResults.Count -eq 0) {
+        return "not_applicable"
+    }
+
+    $states = @(
+        foreach ($visualSmokeResult in $VisualSmokeResults) {
+            Get-ProjectTemplateSmokeVisualReviewState `
+                -ReviewStatus (Get-OptionalObjectPropertyValue -Object $visualSmokeResult -Name "review_status") `
+                -ReviewVerdict (Get-OptionalObjectPropertyValue -Object $visualSmokeResult -Name "review_verdict")
+        }
+    )
+
+    if (@($states | Where-Object { $_.failed }).Count -gt 0) {
+        return "fail"
+    }
+    if (@($states | Where-Object { $_.manual_review_pending }).Count -gt 0) {
+        return "pending_manual_review"
+    }
+    if (@($states | Where-Object { $_.review_undetermined }).Count -gt 0) {
+        return "undetermined"
+    }
+    if (@($states | Where-Object { $_.review_passed }).Count -gt 0) {
+        return "pass"
+    }
+    if (@($states | Where-Object { $_.skipped }).Count -eq $states.Count) {
+        return "skipped"
+    }
+
+    return "pending_manual_review"
+}
+
 function Resolve-ManifestPathValue {
     param(
         [string]$RepoRoot,
@@ -478,13 +656,20 @@ function Write-SummaryMarkdown {
     $lines.Add("# Project Template Smoke")
     $lines.Add("")
     $lines.Add("- Generated at: $($Summary.generated_at)")
+    $visualReviewSyncedAt = Get-OptionalObjectPropertyValue -Object $Summary -Name "visual_review_synced_at"
+    if (-not [string]::IsNullOrWhiteSpace($visualReviewSyncedAt)) {
+        $lines.Add("- Visual review synced at: $visualReviewSyncedAt")
+    }
     $lines.Add("- Manifest: $(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $Summary.manifest_path)")
     $lines.Add("- Output directory: $(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $Summary.output_dir)")
     $lines.Add("- Overall status: $($Summary.overall_status)")
     $lines.Add("- Passed flag: $($Summary.passed)")
     $lines.Add("- Entry count: $($Summary.entry_count)")
     $lines.Add("- Failed entries: $($Summary.failed_entry_count)")
+    $lines.Add("- Visual smoke entries: $($Summary.visual_entry_count)")
+    $lines.Add("- Visual verdict: $($Summary.visual_verdict)")
     $lines.Add("- Entries with pending visual review: $($Summary.manual_review_pending_count)")
+    $lines.Add("- Entries with undetermined visual review: $($Summary.visual_review_undetermined_count)")
     $lines.Add("")
 
     foreach ($entry in $Summary.entries) {
@@ -513,7 +698,11 @@ function Write-SummaryMarkdown {
         $visualSmoke = $entry.checks.visual_smoke
         if ($visualSmoke.enabled) {
             $contactSheet = Get-OptionalObjectPropertyValue -Object $visualSmoke -Name "contact_sheet"
-            $lines.Add("- Visual smoke: review_status=$($visualSmoke.review_status) contact_sheet=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $contactSheet)")
+            $findingsCount = Get-OptionalObjectPropertyValue -Object $visualSmoke -Name "findings_count"
+            if ([string]::IsNullOrWhiteSpace($findingsCount)) {
+                $findingsCount = "0"
+            }
+            $lines.Add("- Visual smoke: review_status=$($visualSmoke.review_status) review_verdict=$($visualSmoke.review_verdict) findings=$findingsCount contact_sheet=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $contactSheet)")
         }
 
         foreach ($issue in @($entry.issues)) {
@@ -564,7 +753,10 @@ if ($entries.Count -eq 0) {
         output_dir = $resolvedOutputDir
         entry_count = 0
         failed_entry_count = 0
+        visual_entry_count = 0
+        visual_verdict = "not_applicable"
         manual_review_pending_count = 0
+        visual_review_undetermined_count = 0
         passed = $true
         overall_status = "passed"
         entries = @()
@@ -619,6 +811,7 @@ foreach ($sampleTarget in $sampleTargets) {
 $results = New-Object 'System.Collections.Generic.List[object]'
 $failedEntryCount = 0
 $manualReviewPendingCount = 0
+$visualReviewUndeterminedCount = 0
 $entryIndex = 0
 
 foreach ($entry in $entries) {
@@ -644,6 +837,7 @@ foreach ($entry in $entries) {
     }
     $entryPassed = $true
     $manualReviewPending = $false
+    $visualReviewUndetermined = $false
     $resolvedInputDocx = ""
 
     Write-Step "Running entry '$name'"
@@ -847,6 +1041,8 @@ foreach ($entry in $entries) {
                 $visualSmokeResult.enabled = $true
                 if ($SkipVisualSmoke) {
                     $visualSmokeResult.review_status = "skipped"
+                    $visualSmokeResult.review_verdict = "skipped"
+                    $visualSmokeResult.findings_count = 0
                     $visualSmokeResult.reason = "Skipped by -SkipVisualSmoke."
                 } else {
                     try {
@@ -878,11 +1074,21 @@ foreach ($entry in $entries) {
                         $visualSmokeResult.contact_sheet = $result.ContactSheetPath
                         $visualSmokeResult.page_count = [int]$result.Summary.page_count
                         $visualSmokeResult.review_status = [string]$result.ReviewResult.status
-                        $visualSmokeResult.review_verdict = [string]$result.ReviewResult.verdict
-                        $manualReviewPending = $true
+                        $visualSmokeResult.review_verdict = Normalize-ProjectTemplateSmokeVisualVerdict -Value ([string]$result.ReviewResult.verdict)
+                        $visualSmokeResult.findings_count = @(Get-OptionalObjectArrayProperty -Object $result.ReviewResult -Name "findings").Count
+                        $visualReviewState = Get-ProjectTemplateSmokeVisualReviewState `
+                            -ReviewStatus $visualSmokeResult.review_status `
+                            -ReviewVerdict $visualSmokeResult.review_verdict
+                        if ($visualReviewState.failed) {
+                            $entryPassed = $false
+                        }
+                        $manualReviewPending = $visualReviewState.manual_review_pending
+                        $visualReviewUndetermined = $visualReviewState.review_undetermined
                     } catch {
                         $entryIssues.Add($_.Exception.Message) | Out-Null
                         $visualSmokeResult.review_status = "failed"
+                        $visualSmokeResult.review_verdict = "fail"
+                        $visualSmokeResult.findings_count = 0
                         $entryPassed = $false
                     }
                 }
@@ -890,19 +1096,19 @@ foreach ($entry in $entries) {
         }
     }
 
-    $status = if (-not $entryPassed) {
-        "failed"
-    } elseif ($manualReviewPending) {
-        "passed_with_pending_visual_review"
-    } else {
-        "passed"
-    }
+    $status = Get-ProjectTemplateSmokeEntryStatus `
+        -EntryPassed $entryPassed `
+        -ManualReviewPending $manualReviewPending `
+        -VisualReviewUndetermined $visualReviewUndetermined
 
     if (-not $entryPassed) {
         $failedEntryCount += 1
     }
     if ($manualReviewPending) {
         $manualReviewPendingCount += 1
+    }
+    if ($visualReviewUndetermined) {
+        $visualReviewUndeterminedCount += 1
     }
 
     $results.Add([pscustomobject]@{
@@ -923,13 +1129,21 @@ foreach ($entry in $entries) {
 }
 
 $summaryPassed = $failedEntryCount -eq 0
-$overallStatus = if (-not $summaryPassed) {
-    "failed"
-} elseif ($manualReviewPendingCount -gt 0) {
-    "passed_with_pending_visual_review"
-} else {
-    "passed"
-}
+$visualSmokeResults = @(
+    foreach ($result in $results) {
+        $checks = Get-OptionalObjectPropertyObject -Object $result -Name "checks"
+        $visualSmoke = Get-OptionalObjectPropertyObject -Object $checks -Name "visual_smoke"
+        if ($null -ne $visualSmoke -and [bool](Get-OptionalObjectPropertyObject -Object $visualSmoke -Name "enabled")) {
+            $visualSmoke
+        }
+    }
+)
+$visualEntryCount = $visualSmokeResults.Count
+$visualVerdict = Get-ProjectTemplateSmokeVisualVerdict -VisualSmokeResults $visualSmokeResults
+$overallStatus = Get-ProjectTemplateSmokeOverallStatus `
+    -SummaryPassed $summaryPassed `
+    -ManualReviewPendingCount $manualReviewPendingCount `
+    -VisualReviewUndeterminedCount $visualReviewUndeterminedCount
 
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
@@ -939,7 +1153,10 @@ $summary = [ordered]@{
     output_dir = $resolvedOutputDir
     entry_count = $results.Count
     failed_entry_count = $failedEntryCount
+    visual_entry_count = $visualEntryCount
+    visual_verdict = $visualVerdict
     manual_review_pending_count = $manualReviewPendingCount
+    visual_review_undetermined_count = $visualReviewUndeterminedCount
     passed = $summaryPassed
     overall_status = $overallStatus
     entries = $results

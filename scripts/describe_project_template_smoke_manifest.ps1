@@ -182,6 +182,12 @@ foreach ($entry in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Na
         latest_manual_review_pending = if ($null -eq $summaryEntry) { $null } else { [bool](Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "manual_review_pending") }
         latest_artifact_dir = if ($null -eq $summaryEntry) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summaryEntry -Name "artifact_dir" }
         latest_visual_review_status = if ($null -eq $summaryEntry) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "checks") -Name "visual_smoke") -Name "review_status" }
+        latest_visual_review_verdict = if ($null -eq $summaryEntry) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "checks") -Name "visual_smoke") -Name "review_verdict" }
+        latest_visual_findings_count = if ($null -eq $summaryEntry) { $null } else {
+            $visualSmokeSummary = Get-ProjectTemplateSmokeOptionalPropertyObject -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "checks") -Name "visual_smoke"
+            $visualFindingsCount = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $visualSmokeSummary -Name "findings_count"
+            if ([string]::IsNullOrWhiteSpace($visualFindingsCount)) { $null } else { [int]$visualFindingsCount }
+        }
         latest_contact_sheet = if ($null -eq $summaryEntry) { "" } else { Get-ProjectTemplateSmokeOptionalPropertyValue -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $summaryEntry -Name "checks") -Name "visual_smoke") -Name "contact_sheet" }
     }) | Out-Null
 }
@@ -193,9 +199,14 @@ $report = [ordered]@{
     build_dir = $resolvedBuildDir
     entry_count = $entries.Count
     latest_overall_status = if ($summary) { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summary -Name "overall_status" } else { "" }
+    latest_visual_verdict = if ($summary) { Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summary -Name "visual_verdict" } else { "" }
     latest_passed = if ($summary) { [bool]$summary.passed } else { $null }
     latest_failed_entry_count = if ($summary) { [int]$summary.failed_entry_count } else { $null }
     latest_manual_review_pending_count = if ($summary) { [int]$summary.manual_review_pending_count } else { $null }
+    latest_visual_review_undetermined_count = if ($summary) {
+        $visualUndeterminedCount = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $summary -Name "visual_review_undetermined_count"
+        if ([string]::IsNullOrWhiteSpace($visualUndeterminedCount)) { $null } else { [int]$visualUndeterminedCount }
+    } else { $null }
     entries = $entries.ToArray()
 }
 
@@ -226,9 +237,11 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 if ($summary) {
     [void]$lines.Add("Latest summary: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
     [void]$lines.Add("Latest status: $($report.latest_overall_status)")
+    [void]$lines.Add("Latest visual verdict: $($report.latest_visual_verdict)")
     [void]$lines.Add("Latest passed: $($report.latest_passed)")
     [void]$lines.Add("Latest failed entries: $($report.latest_failed_entry_count)")
     [void]$lines.Add("Latest pending visual reviews: $($report.latest_manual_review_pending_count)")
+    [void]$lines.Add("Latest undetermined visual reviews: $($report.latest_visual_review_undetermined_count)")
 } else {
     [void]$lines.Add("Latest summary: (not available)")
 }
@@ -282,6 +295,12 @@ foreach ($entry in $entries) {
         [void]$lines.Add("  latest_artifact_dir: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $entry.latest_artifact_dir)")
         if (-not [string]::IsNullOrWhiteSpace($entry.latest_visual_review_status)) {
             [void]$lines.Add("  latest_visual_review_status: $($entry.latest_visual_review_status)")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($entry.latest_visual_review_verdict)) {
+            [void]$lines.Add("  latest_visual_review_verdict: $($entry.latest_visual_review_verdict)")
+        }
+        if ($null -ne $entry.latest_visual_findings_count) {
+            [void]$lines.Add("  latest_visual_findings_count: $($entry.latest_visual_findings_count)")
         }
         if (-not [string]::IsNullOrWhiteSpace($entry.latest_contact_sheet)) {
             [void]$lines.Add("  latest_contact_sheet: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $entry.latest_contact_sheet)")

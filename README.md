@@ -531,6 +531,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manife
 pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -SummaryJson .\output\project-template-smoke\summary.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
+pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson .\output\project-template-smoke\summary.json
 ```
 
 For project-level smoke checks across several real templates, use
@@ -559,7 +560,13 @@ one entry without hand-editing JSON. `register_*` accepts direct
 `-SchemaValidationFile` / `-SchemaBaselineFile` flags for common cases and can
 also load complex `template_validations` or `schema_validation.targets` arrays
 from JSON files via `-TemplateValidationsFile` and
-`-SchemaValidationTargetsFile`.
+`-SchemaValidationTargetsFile`. When a reviewer later updates any referenced
+`review_result.json`, rerun
+`scripts/sync_project_template_smoke_visual_verdict.ps1` to refresh both
+`summary.json` and `summary.md` with the latest entry-level
+`review_status`/`review_verdict`, top-level `visual_verdict`, and pending or
+undetermined visual-review counts. The describe helper now surfaces those
+latest visual verdict fields as part of the maintenance view.
 
 `inspect-sections` prints the current section count together with per-section
 header/footer attachment flags for `default`, `first`, and `even` references.
