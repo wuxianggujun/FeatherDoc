@@ -84,6 +84,13 @@ performance.
   explicit pending or undetermined visual-review counts. The manifest describe
   helper now surfaces the same latest visual verdict details in maintenance
   output.
+- Extended `run_release_candidate_checks.ps1` with an optional
+  `-ProjectTemplateSmokeManifestPath` gate so release-preflight can now execute
+  `run_project_template_smoke.ps1`, record real-template smoke counts plus the
+  aggregated project-template `visual_verdict` in `report/summary.json`, and
+  thread the same status through generated release artifacts such as
+  `START_HERE.md`, `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`,
+  `release_handoff.md`, and `release_body.zh-CN.md`.
 - Expanded `validate_template(...)` into a stronger schema pass that now also
   reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
   extended CLI `validate-template` parsing with `count=` / `min=` / `max=`

@@ -417,6 +417,45 @@ $templateSchemaManifestOutputDir = Get-OptionalPropertyValue -Object $templateSc
 if ([string]::IsNullOrWhiteSpace($templateSchemaManifestOutputDir)) {
     $templateSchemaManifestOutputDir = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "output_dir"
 }
+$projectTemplateSmokeSummary = Get-OptionalPropertyObject -Object $summary -Name "project_template_smoke"
+$projectTemplateSmokeStep = Get-OptionalPropertyObject -Object $summary.steps -Name "project_template_smoke"
+$projectTemplateSmokeRequested = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "requested"
+$projectTemplateSmokeStatus = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "status"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeStatus)) {
+    $projectTemplateSmokeStatus = if ($projectTemplateSmokeRequested -eq "True") { "requested" } else { "not_requested" }
+}
+$projectTemplateSmokePassed = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "passed"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokePassed)) {
+    $projectTemplateSmokePassed = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "passed"
+}
+$projectTemplateSmokeEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "entry_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeEntryCount)) {
+    $projectTemplateSmokeEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "entry_count"
+}
+$projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "failed_entry_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeFailedEntryCount)) {
+    $projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "failed_entry_count"
+}
+$projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "visual_verdict"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeVisualVerdict)) {
+    $projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "visual_verdict"
+}
+$projectTemplateSmokePendingReviewCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "manual_review_pending_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokePendingReviewCount)) {
+    $projectTemplateSmokePendingReviewCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "manual_review_pending_count"
+}
+$projectTemplateSmokeManifestPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "manifest_path"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeManifestPath)) {
+    $projectTemplateSmokeManifestPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "manifest_path"
+}
+$projectTemplateSmokeSummaryPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "summary_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSummaryPath)) {
+    $projectTemplateSmokeSummaryPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "summary_json"
+}
+$projectTemplateSmokeOutputDir = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "output_dir"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeOutputDir)) {
+    $projectTemplateSmokeOutputDir = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "output_dir"
+}
 
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
@@ -529,6 +568,11 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Template schema manifest status: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
 [void]$handoffLines.Add("- Template schema manifest passed: $(Get-DisplayValue -Value $templateSchemaManifestPassed)")
 [void]$handoffLines.Add("- Template schema manifest entries / drifts: $(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
+[void]$handoffLines.Add("- Project template smoke status: $(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
+[void]$handoffLines.Add("- Project template smoke passed: $(Get-DisplayValue -Value $projectTemplateSmokePassed)")
+[void]$handoffLines.Add("- Project template smoke entries / failed: $(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount))")
+[void]$handoffLines.Add("- Project template smoke visual verdict: $(Get-DisplayValue -Value $projectTemplateSmokeVisualVerdict)")
+[void]$handoffLines.Add("- Project template smoke pending visual reviews: $(Get-DisplayValue -Value $projectTemplateSmokePendingReviewCount)")
 [void]$handoffLines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 [void]$handoffLines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$handoffLines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
@@ -542,6 +586,7 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Build: $($summary.steps.build.status)")
 [void]$handoffLines.Add("- Tests: $($summary.steps.tests.status)")
 [void]$handoffLines.Add("- Template schema manifest: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
+[void]$handoffLines.Add("- Project template smoke: $(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
 [void]$handoffLines.Add("- Install smoke: $($summary.steps.install_smoke.status)")
 [void]$handoffLines.Add("- Visual gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
@@ -567,6 +612,9 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Template schema manifest: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestPath)")
 [void]$handoffLines.Add("- Template schema manifest summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestSummaryPath)")
 [void]$handoffLines.Add("- Template schema manifest output dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestOutputDir)")
+[void]$handoffLines.Add("- Project template smoke manifest: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeManifestPath)")
+[void]$handoffLines.Add("- Project template smoke summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryPath)")
+[void]$handoffLines.Add("- Project template smoke output dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeOutputDir)")
 [void]$handoffLines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$handoffLines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$handoffLines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
@@ -691,6 +739,10 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add("- Template schema manifest: $(if ($templateSchemaManifestStatus) { $templateSchemaManifestStatus } else { '<completed|failed|not_requested>' })")
 [void]$handoffLines.Add("- Template schema manifest passed: $(if ($templateSchemaManifestPassed) { $templateSchemaManifestPassed } else { '<True|False>' })")
 [void]$handoffLines.Add("- Template schema manifest entries/drifts: $(if ($templateSchemaManifestEntryCount -or $templateSchemaManifestDriftCount) { '{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount } else { '<entry_count>/<drift_count>' })")
+[void]$handoffLines.Add("- Project template smoke: $(if ($projectTemplateSmokeStatus) { $projectTemplateSmokeStatus } else { '<completed|failed|not_requested>' })")
+[void]$handoffLines.Add("- Project template smoke passed: $(if ($projectTemplateSmokePassed) { $projectTemplateSmokePassed } else { '<True|False>' })")
+[void]$handoffLines.Add("- Project template smoke entries/failed: $(if ($projectTemplateSmokeEntryCount -or $projectTemplateSmokeFailedEntryCount) { '{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount } else { '<entry_count>/<failed_entry_count>' })")
+[void]$handoffLines.Add("- Project template smoke visual verdict: $(if ($projectTemplateSmokeVisualVerdict) { $projectTemplateSmokeVisualVerdict } else { '<pass|fail|pending_manual_review|not_applicable>' })")
 [void]$handoffLines.Add("- install + find_package smoke: $($summary.steps.install_smoke.status)")
 [void]$handoffLines.Add("- Word visual release gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- Visual verdict: $(if ($visualVerdict) { $visualVerdict } else { '<pass|fail|pending_manual_review>' })")
@@ -714,6 +766,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$handoffLines.Add("- $(if ($artifactGuidePath) { Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath } else { 'output/release-candidate-checks/report/ARTIFACT_GUIDE.md' })")
 [void]$handoffLines.Add("- $(if ($reviewerChecklistPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath } else { 'output/release-candidate-checks/report/REVIEWER_CHECKLIST.md' })")
 [void]$handoffLines.Add("- $(if ($templateSchemaManifestSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestSummaryPath } else { 'output/release-candidate-checks/report/template-schema-manifest-checks/summary.json' })")
+[void]$handoffLines.Add("- $(if ($projectTemplateSmokeSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryPath } else { 'output/release-candidate-checks/report/project-template-smoke/summary.json' })")
 [void]$handoffLines.Add("- $(if ($gateSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath } else { 'output/word-visual-release-gate/report/gate_summary.json' })")
 [void]$handoffLines.Add("- $(if ($gateFinalReviewPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath } else { 'output/word-visual-release-gate/report/gate_final_review.md' })")
 [void]$handoffLines.Add('```')

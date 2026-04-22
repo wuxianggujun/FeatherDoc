@@ -896,6 +896,37 @@ $templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $template
 if ([string]::IsNullOrWhiteSpace($templateSchemaManifestSummaryPath)) {
     $templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "summary_json"
 }
+$projectTemplateSmokeSummary = Get-OptionalPropertyObject -Object $summary -Name "project_template_smoke"
+$projectTemplateSmokeStep = Get-OptionalPropertyObject -Object $summary.steps -Name "project_template_smoke"
+$projectTemplateSmokeRequested = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "requested"
+$projectTemplateSmokeStatus = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "status"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeStatus)) {
+    $projectTemplateSmokeStatus = if ($projectTemplateSmokeRequested -eq "True") { "requested" } else { "not_requested" }
+}
+$projectTemplateSmokePassed = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "passed"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokePassed)) {
+    $projectTemplateSmokePassed = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "passed"
+}
+$projectTemplateSmokeEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "entry_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeEntryCount)) {
+    $projectTemplateSmokeEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "entry_count"
+}
+$projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "failed_entry_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeFailedEntryCount)) {
+    $projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "failed_entry_count"
+}
+$projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "visual_verdict"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeVisualVerdict)) {
+    $projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "visual_verdict"
+}
+$projectTemplateSmokePendingReviewCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "manual_review_pending_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokePendingReviewCount)) {
+    $projectTemplateSmokePendingReviewCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "manual_review_pending_count"
+}
+$projectTemplateSmokeSummaryPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "summary_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSummaryPath)) {
+    $projectTemplateSmokeSummaryPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "summary_json"
+}
 
 $visualVerdict = ""
 $readmeGalleryStatus = ""
@@ -1000,6 +1031,11 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- template schema manifest gate：$(Get-DisplayValue -Value $templateSchemaManifestStatus)")
 [void]$lines.Add("- template schema manifest passed：$(Get-DisplayValue -Value $templateSchemaManifestPassed)")
 [void]$lines.Add("- template schema manifest entries / drifts：$(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
+[void]$lines.Add("- project template smoke gate：$(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
+[void]$lines.Add("- project template smoke passed：$(Get-DisplayValue -Value $projectTemplateSmokePassed)")
+[void]$lines.Add("- project template smoke entries / failed：$(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount))")
+[void]$lines.Add("- project template smoke visual verdict：$(Get-DisplayValue -Value $projectTemplateSmokeVisualVerdict)")
+[void]$lines.Add("- project template smoke pending reviews：$(Get-DisplayValue -Value $projectTemplateSmokePendingReviewCount)")
 [void]$lines.Add("- install + find_package smoke：$($summary.steps.install_smoke.status)")
 [void]$lines.Add("- Word visual release gate：$($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict：$(if ($visualVerdict) { $visualVerdict } else { 'pending_manual_review' })")
@@ -1034,6 +1070,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$lines.Add("- Artifact guide：$(Get-DisplayValue -Value $publicArtifactGuidePath)")
 [void]$lines.Add("- Reviewer checklist：$(Get-DisplayValue -Value $publicReviewerChecklistPath)")
 [void]$lines.Add("- Template schema manifest summary：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $templateSchemaManifestSummaryPath))")
+[void]$lines.Add("- Project template smoke summary：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $projectTemplateSmokeSummaryPath))")
 [void]$lines.Add("- Visual gate summary：$(Get-DisplayValue -Value $publicGateSummaryPath)")
 [void]$lines.Add("- Visual gate final review：$(Get-DisplayValue -Value $publicGateFinalReviewPath)")
 [void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $publicReadmeGalleryAssetsDir)")

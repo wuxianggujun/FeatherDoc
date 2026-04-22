@@ -741,6 +741,14 @@ wrapper then runs `check_template_schema_manifest.ps1`, records the manifest
 status plus entry/drift counts in `report/summary.json`, and fails the whole
 preflight when any registered baseline drifts.
 
+If you also want release-preflight to exercise a real-template regression pack,
+pass `-ProjectTemplateSmokeManifestPath`. The wrapper then runs
+`run_project_template_smoke.ps1`, records the manifest path, summary path,
+entry counts, failed-entry count, and aggregated project-template
+`visual_verdict` in `report/summary.json`, and threads the same status through
+`START_HERE.md`, `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`, and
+`release_handoff.md`.
+
 When you want to add or refresh a repository-level baseline without manually
 editing `baselines/template-schema/manifest.json`, prefer
 `register_template_schema_manifest_entry.ps1`. It prepares a generated fixture

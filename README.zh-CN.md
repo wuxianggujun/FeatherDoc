@@ -90,6 +90,13 @@ preflight 失败。
 drift 数量一起写进 `report/summary.json`，只要其中任一 baseline 漂移就会让
 整条 preflight 失败。
 
+如果你还想把真实项目模板回归也并入这条发布前总检查，可以再传
+`-ProjectTemplateSmokeManifestPath`。脚本会调用
+`run_project_template_smoke.ps1`，把 manifest 路径、summary 路径、entry /
+failed 计数，以及聚合后的 project-template `visual_verdict` 一起写进
+`report/summary.json`，并同步带到 `START_HERE.md`、`ARTIFACT_GUIDE.md`、
+`REVIEWER_CHECKLIST.md` 和 `release_handoff.md`。
+
 如果你的目标不是做一次临时校验，而是把某份模板正式纳入仓库级 baseline，
 优先使用 `register_template_schema_manifest_entry.ps1`。它会在需要时先准备
 generated fixture，再冻结标准化 schema baseline，并把对应条目写入或更新到

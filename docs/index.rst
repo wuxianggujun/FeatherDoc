@@ -209,6 +209,11 @@ When you provide ``-TemplateSchemaInputDocx`` together with
 ``-TemplateSchemaSectionTargets`` / ``-TemplateSchemaResolvedSectionTargets``,
 the same wrapper also runs the template-schema baseline gate and records its
 result in the generated ``summary.json``.
+When you provide ``-ProjectTemplateSmokeManifestPath``, the same wrapper also
+runs ``run_project_template_smoke.ps1`` against a registered real-template
+regression pack and records the manifest path, summary path, entry counts,
+failed-entry count, and aggregated project-template ``visual_verdict`` in
+``summary.json`` plus the generated release-facing notes.
 The CI metadata artifact adds a root ``RELEASE_METADATA_START_HERE.md`` that
 points back into the same bundle.
 After a later manual visual verdict update, prefer

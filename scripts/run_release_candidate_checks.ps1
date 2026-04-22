@@ -61,6 +61,8 @@ param(
     [switch]$TemplateSchemaResolvedSectionTargets,
     [string]$TemplateSchemaManifestPath = "",
     [string]$TemplateSchemaManifestOutputDir = "",
+    [string]$ProjectTemplateSmokeManifestPath = "",
+    [string]$ProjectTemplateSmokeOutputDir = "",
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -438,6 +440,13 @@ function Parse-TemplateSchemaManifestSummary {
     return Get-Content -Raw -LiteralPath $SummaryPath | ConvertFrom-Json
 }
 
+function Parse-ProjectTemplateSmokeSummary {
+    param([string]$SummaryPath)
+
+    Assert-PathExists -Path $SummaryPath -Label "project template smoke summary"
+    return Get-Content -Raw -LiteralPath $SummaryPath | ConvertFrom-Json
+}
+
 $repoRoot = Resolve-RepoRoot
 $msvcBootstrap = Get-MsvcBootstrap
 
@@ -460,6 +469,7 @@ $startHerePath = Join-Path $resolvedSummaryOutputDir "START_HERE.md"
 $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smoke.ps1"
 $templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
 $templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
+$projectTemplateSmokeScript = Join-Path $repoRoot "scripts\run_project_template_smoke.ps1"
 $visualGateScript = Join-Path $repoRoot "scripts\run_word_visual_release_gate.ps1"
 $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
 
@@ -495,6 +505,26 @@ $resolvedTemplateSchemaManifestOutputDir = if ($templateSchemaManifestRequested)
 }
 $resolvedTemplateSchemaManifestSummaryPath = if ($templateSchemaManifestRequested) {
     Join-Path $resolvedTemplateSchemaManifestOutputDir "summary.json"
+} else {
+    ""
+}
+$resolvedProjectTemplateSmokeManifestPath = if ([string]::IsNullOrWhiteSpace($ProjectTemplateSmokeManifestPath)) {
+    ""
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $ProjectTemplateSmokeManifestPath
+}
+$projectTemplateSmokeRequested = -not [string]::IsNullOrWhiteSpace($resolvedProjectTemplateSmokeManifestPath)
+$resolvedProjectTemplateSmokeOutputDir = if ($projectTemplateSmokeRequested) {
+    if ([string]::IsNullOrWhiteSpace($ProjectTemplateSmokeOutputDir)) {
+        Join-Path $reportDir "project-template-smoke"
+    } else {
+        Resolve-FullPath -RepoRoot $repoRoot -InputPath $ProjectTemplateSmokeOutputDir
+    }
+} else {
+    ""
+}
+$resolvedProjectTemplateSmokeSummaryPath = if ($projectTemplateSmokeRequested) {
+    Join-Path $resolvedProjectTemplateSmokeOutputDir "summary.json"
 } else {
     ""
 }
@@ -540,6 +570,12 @@ $summary = [ordered]@{
         output_dir = $resolvedTemplateSchemaManifestOutputDir
         summary_json = $resolvedTemplateSchemaManifestSummaryPath
     }
+    project_template_smoke = [ordered]@{
+        requested = $projectTemplateSmokeRequested
+        manifest_path = $resolvedProjectTemplateSmokeManifestPath
+        output_dir = $resolvedProjectTemplateSmokeOutputDir
+        summary_json = $resolvedProjectTemplateSmokeSummaryPath
+    }
     readme_gallery = [ordered]@{
         status = if ($SkipVisualGate) { "visual_gate_skipped" } else { "pending" }
     }
@@ -549,6 +585,7 @@ $summary = [ordered]@{
         tests = [ordered]@{ status = if ($SkipTests) { "skipped" } else { "pending" } }
         template_schema = [ordered]@{ status = if ($templateSchemaRequested) { "pending" } else { "not_requested" } }
         template_schema_manifest = [ordered]@{ status = if ($templateSchemaManifestRequested) { "pending" } else { "not_requested" } }
+        project_template_smoke = [ordered]@{ status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" } }
         install_smoke = [ordered]@{ status = if ($SkipInstallSmoke) { "skipped" } else { "pending" } }
         visual_gate = [ordered]@{ status = if ($SkipVisualGate) { "skipped" } else { "pending" } }
     }
@@ -572,6 +609,10 @@ try {
     if ($templateSchemaManifestRequested -and -not (Test-Path -LiteralPath $resolvedTemplateSchemaManifestPath)) {
         $activeStep = "template_schema_manifest"
         throw "Template schema manifest does not exist: $resolvedTemplateSchemaManifestPath"
+    }
+    if ($projectTemplateSmokeRequested -and -not (Test-Path -LiteralPath $resolvedProjectTemplateSmokeManifestPath)) {
+        $activeStep = "project_template_smoke"
+        throw "Project template smoke manifest does not exist: $resolvedProjectTemplateSmokeManifestPath"
     }
 
     if ($RefreshReadmeAssets -and $SkipVisualGate) {
@@ -767,6 +808,76 @@ try {
         }
     }
 
+    if ($projectTemplateSmokeRequested) {
+        $activeStep = "project_template_smoke"
+        Write-Step "Running project template smoke"
+        Assert-PathExists -Path $resolvedProjectTemplateSmokeManifestPath -Label "project template smoke manifest"
+        New-Item -ItemType Directory -Path $resolvedProjectTemplateSmokeOutputDir -Force | Out-Null
+
+        $projectTemplateSmokeArgs = @(
+            "-ManifestPath"
+            $resolvedProjectTemplateSmokeManifestPath
+            "-BuildDir"
+            $resolvedBuildDir
+            "-OutputDir"
+            $resolvedProjectTemplateSmokeOutputDir
+            "-Dpi"
+            $Dpi.ToString()
+            "-SkipBuild"
+        )
+        if ($KeepWordOpen) {
+            $projectTemplateSmokeArgs += "-KeepWordOpen"
+        }
+        if ($VisibleWord) {
+            $projectTemplateSmokeArgs += "-VisibleWord"
+        }
+
+        $projectTemplateSmokeOutput = @(
+            & powershell.exe -ExecutionPolicy Bypass -File $projectTemplateSmokeScript @projectTemplateSmokeArgs 2>&1
+        )
+        $projectTemplateSmokeExitCode = $LASTEXITCODE
+        foreach ($line in $projectTemplateSmokeOutput) {
+            Write-Host $line
+        }
+        if ($projectTemplateSmokeExitCode -notin @(0, 1)) {
+            throw "Project template smoke failed."
+        }
+
+        $projectTemplateSmokeInfo = Parse-ProjectTemplateSmokeSummary -SummaryPath $resolvedProjectTemplateSmokeSummaryPath
+        $summary.steps.project_template_smoke.status = if ($projectTemplateSmokeExitCode -eq 0) {
+            "completed"
+        } else {
+            "failed"
+        }
+        $summary.steps.project_template_smoke.summary_json = $resolvedProjectTemplateSmokeSummaryPath
+        $summary.steps.project_template_smoke.manifest_path = [string]$projectTemplateSmokeInfo.manifest_path
+        $summary.steps.project_template_smoke.output_dir = [string]$resolvedProjectTemplateSmokeOutputDir
+        $summary.steps.project_template_smoke.passed = [bool]$projectTemplateSmokeInfo.passed
+        $summary.steps.project_template_smoke.entry_count = [int]$projectTemplateSmokeInfo.entry_count
+        $summary.steps.project_template_smoke.failed_entry_count = [int]$projectTemplateSmokeInfo.failed_entry_count
+        $summary.steps.project_template_smoke.visual_entry_count = [int]$projectTemplateSmokeInfo.visual_entry_count
+        $summary.steps.project_template_smoke.visual_verdict = [string]$projectTemplateSmokeInfo.visual_verdict
+        $summary.steps.project_template_smoke.manual_review_pending_count = [int]$projectTemplateSmokeInfo.manual_review_pending_count
+        $summary.steps.project_template_smoke.visual_review_undetermined_count = [int]$projectTemplateSmokeInfo.visual_review_undetermined_count
+        $summary.steps.project_template_smoke.overall_status = [string]$projectTemplateSmokeInfo.overall_status
+
+        $summary.project_template_smoke.summary_json = $resolvedProjectTemplateSmokeSummaryPath
+        $summary.project_template_smoke.manifest_path = [string]$projectTemplateSmokeInfo.manifest_path
+        $summary.project_template_smoke.output_dir = [string]$resolvedProjectTemplateSmokeOutputDir
+        $summary.project_template_smoke.passed = [bool]$projectTemplateSmokeInfo.passed
+        $summary.project_template_smoke.entry_count = [int]$projectTemplateSmokeInfo.entry_count
+        $summary.project_template_smoke.failed_entry_count = [int]$projectTemplateSmokeInfo.failed_entry_count
+        $summary.project_template_smoke.visual_entry_count = [int]$projectTemplateSmokeInfo.visual_entry_count
+        $summary.project_template_smoke.visual_verdict = [string]$projectTemplateSmokeInfo.visual_verdict
+        $summary.project_template_smoke.manual_review_pending_count = [int]$projectTemplateSmokeInfo.manual_review_pending_count
+        $summary.project_template_smoke.visual_review_undetermined_count = [int]$projectTemplateSmokeInfo.visual_review_undetermined_count
+        $summary.project_template_smoke.overall_status = [string]$projectTemplateSmokeInfo.overall_status
+
+        if ($projectTemplateSmokeExitCode -ne 0) {
+            throw "Project template smoke reported failing entries."
+        }
+    }
+
     if (-not $SkipInstallSmoke) {
         $activeStep = "install_smoke"
         Write-Step "Running install + find_package smoke"
@@ -895,6 +1006,9 @@ try {
     $templateSchemaManifestDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema_manifest.manifest_path
     $templateSchemaManifestSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema_manifest.summary_json
     $templateSchemaManifestOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema_manifest.output_dir
+    $projectTemplateSmokeManifestDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.manifest_path
+    $projectTemplateSmokeSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.summary_json
+    $projectTemplateSmokeOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.output_dir
     $releaseHandoffDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
     $releaseBodyDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseBodyZhCnPath
     $releaseSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseSummaryZhCnPath
@@ -935,6 +1049,7 @@ try {
 - Tests: $($summary.steps.tests.status)
 - Template schema: $($summary.steps.template_schema.status)
 - Template schema manifest: $($summary.steps.template_schema_manifest.status)
+- Project template smoke: $($summary.steps.project_template_smoke.status)
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
 $readmeGalleryStatusLine
@@ -951,6 +1066,9 @@ $readmeGalleryStatusLine
 - Template schema manifest: $templateSchemaManifestDisplay
 - Template schema manifest summary: $templateSchemaManifestSummaryDisplay
 - Template schema manifest output dir: $templateSchemaManifestOutputDirDisplay
+- Project template smoke manifest: $projectTemplateSmokeManifestDisplay
+- Project template smoke summary: $projectTemplateSmokeSummaryDisplay
+- Project template smoke output dir: $projectTemplateSmokeOutputDirDisplay
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath
