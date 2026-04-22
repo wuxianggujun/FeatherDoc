@@ -63,6 +63,12 @@ performance.
   created or refreshed and then bound to multiple paragraph styles in a single
   shared outline-numbering workflow, and extended the Word-backed paragraph
   style numbering visual regression bundle with a batched multi-style case.
+- Added `scripts/run_project_template_smoke.ps1` plus the runnable
+  `samples/project_template_smoke.manifest.json` example so a manifest can now
+  orchestrate project-level `validate-template`, `validate-template-schema`,
+  template-schema baseline drift checks, and optional Word-backed visual smoke
+  evidence across multiple templates while aggregating per-entry artifacts into
+  `summary.json` and `summary.md`.
 - Expanded `validate_template(...)` into a stronger schema pass that now also
   reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
   extended CLI `validate-template` parsing with `count=` / `min=` / `max=`

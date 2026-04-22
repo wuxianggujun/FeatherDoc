@@ -1,0 +1,41 @@
+{
+  "entries": [
+    {
+      "name": "part-template-validation-smoke",
+      "prepare_sample_target": "featherdoc_sample_part_template_validation",
+      "prepare_argument": "output/project-template-smoke-sample/part-template",
+      "input_docx": "output/project-template-smoke-sample/part-template/part_template_validation.docx",
+      "template_validations": [
+        {
+          "name": "default-section-header",
+          "part": "section-header",
+          "section": 0,
+          "kind": "default",
+          "slots": [
+            "header_title:text",
+            "header_note:block",
+            "header_rows:table_rows"
+          ]
+        }
+      ],
+      "visual_smoke": {
+        "enabled": true,
+        "output_dir": "output/project-template-smoke-sample/part-template-visual"
+      }
+    },
+    {
+      "name": "resolved-schema-baseline-smoke",
+      "prepare_sample_target": "featherdoc_sample_template_schema_manifest_fixture",
+      "prepare_argument": "output/project-template-smoke-sample/template_schema_resolved_fixture.docx",
+      "input_docx": "output/project-template-smoke-sample/template_schema_resolved_fixture.docx",
+      "schema_validation": {
+        "schema_file": "baselines/template-schema/template_schema_resolved_fixture.schema.json"
+      },
+      "schema_baseline": {
+        "schema_file": "baselines/template-schema/template_schema_resolved_fixture.schema.json",
+        "target_mode": "resolved-section-targets",
+        "generated_output": "output/project-template-smoke-sample/template_schema_resolved_fixture.generated.schema.json"
+      }
+    }
+  ]
+}

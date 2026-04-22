@@ -1586,6 +1586,20 @@ The same flow is also available from the CLI:
       --slot footer_summary:block \
       --json
 
+For project-level smoke coverage across several templates, run
+``scripts/run_project_template_smoke.ps1`` with a manifest. Each entry can use
+either a committed ``.docx`` or a prepared sample fixture, then opt into
+``template_validations``, ``schema_validation``, ``schema_baseline``, and an
+optional ``visual_smoke`` pass that reuses the existing Word-backed rendering
+wrapper and records aggregate results in ``summary.json`` and ``summary.md``.
+
+.. code-block:: sh
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 \
+      -ManifestPath .\samples\project_template_smoke.manifest.json \
+      -BuildDir build-codex-clang-compat \
+      -OutputDir output/project-template-smoke
+
 .. code-block:: cpp
 
     auto header_template = doc.section_header_template(0);

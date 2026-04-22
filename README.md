@@ -527,7 +527,18 @@ featherdoc_cli check-template-schema input.docx --schema-file committed-schema.j
 pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
+pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
 ```
+
+For project-level smoke checks across several real templates, use
+`scripts/run_project_template_smoke.ps1`. Each manifest entry can point at a
+committed `.docx` directly or prepare one first via `prepare_sample_target` /
+`prepare_argument`, then opt into any combination of `template_validations`,
+`schema_validation`, `schema_baseline`, and optional `visual_smoke`. The
+wrapper writes per-entry artifacts plus aggregate `summary.json` and
+`summary.md` so you can review a whole template pack in one place. See
+`samples/project_template_smoke.manifest.json` for a runnable repository
+example.
 
 `inspect-sections` prints the current section count together with per-section
 header/footer attachment flags for `default`, `first`, and `even` references.

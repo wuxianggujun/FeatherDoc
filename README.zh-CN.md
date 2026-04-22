@@ -323,7 +323,17 @@ featherdoc_cli check-template-schema input.docx --schema-file committed-schema.j
 pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
+pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
 ```
+
+如果你要把多份真实项目模板放到同一条 smoke 流里统一检查，可以直接用
+`scripts/run_project_template_smoke.ps1`。manifest 里的每个 entry 既可以直
+接指向仓库里的 `.docx`，也可以先通过 `prepare_sample_target` /
+`prepare_argument` 生成输入文档，然后按需组合
+`template_validations`、`schema_validation`、`schema_baseline`，以及可选
+的 `visual_smoke`。脚本会同时产出每个 entry 的明细产物和聚合后的
+`summary.json` / `summary.md`，便于一次性审阅整组模板。仓库内可直接运行
+的例子见 `samples/project_template_smoke.manifest.json`。
 
 `move-header-part` / `move-footer-part` 用来重排当前文档里已加载的
 header/footer part 索引顺序，同时保持各 section 继续指向原来的关系 id，
