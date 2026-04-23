@@ -63,6 +63,7 @@ param(
     [string]$TemplateSchemaManifestOutputDir = "",
     [string]$ProjectTemplateSmokeManifestPath = "",
     [string]$ProjectTemplateSmokeOutputDir = "",
+    [switch]$ProjectTemplateSmokeRequireFullCoverage,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -470,6 +471,7 @@ $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smok
 $templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
 $templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
 $projectTemplateSmokeScript = Join-Path $repoRoot "scripts\run_project_template_smoke.ps1"
+$projectTemplateSmokeDiscoverScript = Join-Path $repoRoot "scripts\discover_project_template_smoke_candidates.ps1"
 $visualGateScript = Join-Path $repoRoot "scripts\run_word_visual_release_gate.ps1"
 $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
 
@@ -528,6 +530,11 @@ $resolvedProjectTemplateSmokeSummaryPath = if ($projectTemplateSmokeRequested) {
 } else {
     ""
 }
+$resolvedProjectTemplateSmokeCandidateDiscoveryPath = if ($projectTemplateSmokeRequested) {
+    Join-Path $resolvedProjectTemplateSmokeOutputDir "candidate_discovery.json"
+} else {
+    ""
+}
 $templateSchemaRequested = -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaInputDocx) -or
     -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaBaseline)
 
@@ -575,6 +582,23 @@ $summary = [ordered]@{
         manifest_path = $resolvedProjectTemplateSmokeManifestPath
         output_dir = $resolvedProjectTemplateSmokeOutputDir
         summary_json = $resolvedProjectTemplateSmokeSummaryPath
+        require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
+        candidate_discovery_json = $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+        candidate_count = 0
+        registered_candidate_count = 0
+        registered_manifest_entry_count = 0
+        unregistered_candidate_count = 0
+        excluded_candidate_count = 0
+        candidate_coverage = [ordered]@{
+            status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
+            require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
+            candidate_discovery_json = $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+            candidate_count = 0
+            registered_candidate_count = 0
+            registered_manifest_entry_count = 0
+            unregistered_candidate_count = 0
+            excluded_candidate_count = 0
+        }
     }
     readme_gallery = [ordered]@{
         status = if ($SkipVisualGate) { "visual_gate_skipped" } else { "pending" }
@@ -585,7 +609,19 @@ $summary = [ordered]@{
         tests = [ordered]@{ status = if ($SkipTests) { "skipped" } else { "pending" } }
         template_schema = [ordered]@{ status = if ($templateSchemaRequested) { "pending" } else { "not_requested" } }
         template_schema_manifest = [ordered]@{ status = if ($templateSchemaManifestRequested) { "pending" } else { "not_requested" } }
-        project_template_smoke = [ordered]@{ status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" } }
+        project_template_smoke = [ordered]@{
+            status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
+            candidate_coverage = [ordered]@{
+                status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
+                require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
+                candidate_discovery_json = $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+                candidate_count = 0
+                registered_candidate_count = 0
+                registered_manifest_entry_count = 0
+                unregistered_candidate_count = 0
+                excluded_candidate_count = 0
+            }
+        }
         install_smoke = [ordered]@{ status = if ($SkipInstallSmoke) { "skipped" } else { "pending" } }
         visual_gate = [ordered]@{ status = if ($SkipVisualGate) { "skipped" } else { "pending" } }
     }
@@ -814,6 +850,56 @@ try {
         Assert-PathExists -Path $resolvedProjectTemplateSmokeManifestPath -Label "project template smoke manifest"
         New-Item -ItemType Directory -Path $resolvedProjectTemplateSmokeOutputDir -Force | Out-Null
 
+        $projectTemplateSmokeCoverageArgs = @(
+            "-ManifestPath"
+            $resolvedProjectTemplateSmokeManifestPath
+            "-BuildDir"
+            $resolvedBuildDir
+            "-OutputPath"
+            $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+            "-Json"
+            "-IncludeRegistered"
+            "-IncludeExcluded"
+        )
+        if ($ProjectTemplateSmokeRequireFullCoverage) {
+            $projectTemplateSmokeCoverageArgs += "-FailOnUnregistered"
+        }
+
+        $projectTemplateSmokeCoverageOutput = @(
+            & powershell.exe -ExecutionPolicy Bypass -File $projectTemplateSmokeDiscoverScript @projectTemplateSmokeCoverageArgs 2>&1
+        )
+        $projectTemplateSmokeCoverageExitCode = $LASTEXITCODE
+        foreach ($line in $projectTemplateSmokeCoverageOutput) {
+            Write-Host $line
+        }
+        if ($projectTemplateSmokeCoverageExitCode -notin @(0, 1)) {
+            throw "Project template smoke candidate discovery failed."
+        }
+
+        Assert-PathExists -Path $resolvedProjectTemplateSmokeCandidateDiscoveryPath -Label "project template smoke candidate discovery JSON"
+        $projectTemplateSmokeCoverageInfo = Get-Content -Raw -LiteralPath $resolvedProjectTemplateSmokeCandidateDiscoveryPath | ConvertFrom-Json
+        $summary.steps.project_template_smoke.candidate_coverage = [ordered]@{
+            status = if ($projectTemplateSmokeCoverageExitCode -eq 0) { "completed" } else { "failed" }
+            require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
+            candidate_discovery_json = $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+            candidate_count = [int]$projectTemplateSmokeCoverageInfo.candidate_count
+            registered_candidate_count = [int]$projectTemplateSmokeCoverageInfo.registered_candidate_count
+            registered_manifest_entry_count = [int]$projectTemplateSmokeCoverageInfo.registered_manifest_entry_count
+            unregistered_candidate_count = [int]$projectTemplateSmokeCoverageInfo.unregistered_candidate_count
+            excluded_candidate_count = [int]$projectTemplateSmokeCoverageInfo.excluded_candidate_count
+        }
+        $summary.project_template_smoke.candidate_coverage = $summary.steps.project_template_smoke.candidate_coverage
+        $summary.project_template_smoke.candidate_discovery_json = $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+        $summary.project_template_smoke.candidate_count = [int]$projectTemplateSmokeCoverageInfo.candidate_count
+        $summary.project_template_smoke.registered_candidate_count = [int]$projectTemplateSmokeCoverageInfo.registered_candidate_count
+        $summary.project_template_smoke.registered_manifest_entry_count = [int]$projectTemplateSmokeCoverageInfo.registered_manifest_entry_count
+        $summary.project_template_smoke.unregistered_candidate_count = [int]$projectTemplateSmokeCoverageInfo.unregistered_candidate_count
+        $summary.project_template_smoke.excluded_candidate_count = [int]$projectTemplateSmokeCoverageInfo.excluded_candidate_count
+
+        if ($ProjectTemplateSmokeRequireFullCoverage -and $projectTemplateSmokeCoverageExitCode -ne 0) {
+            throw "Project template smoke candidate coverage is incomplete."
+        }
+
         $projectTemplateSmokeArgs = @(
             "-ManifestPath"
             $resolvedProjectTemplateSmokeManifestPath
@@ -1009,6 +1095,7 @@ try {
     $projectTemplateSmokeManifestDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.manifest_path
     $projectTemplateSmokeSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.summary_json
     $projectTemplateSmokeOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.output_dir
+    $projectTemplateSmokeCandidateDiscoveryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.candidate_discovery_json
     $releaseHandoffDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
     $releaseBodyDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseBodyZhCnPath
     $releaseSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseSummaryZhCnPath
@@ -1069,6 +1156,8 @@ $readmeGalleryStatusLine
 - Project template smoke manifest: $projectTemplateSmokeManifestDisplay
 - Project template smoke summary: $projectTemplateSmokeSummaryDisplay
 - Project template smoke output dir: $projectTemplateSmokeOutputDirDisplay
+- Project template smoke candidate discovery: $projectTemplateSmokeCandidateDiscoveryDisplay
+- Project template smoke candidate coverage: $($summary.project_template_smoke.registered_candidate_count)/$($summary.project_template_smoke.unregistered_candidate_count)/$($summary.project_template_smoke.excluded_candidate_count) registered/unregistered/excluded
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath

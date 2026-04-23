@@ -213,7 +213,13 @@ When you provide ``-ProjectTemplateSmokeManifestPath``, the same wrapper also
 runs ``run_project_template_smoke.ps1`` against a registered real-template
 regression pack and records the manifest path, summary path, entry counts,
 failed-entry count, and aggregated project-template ``visual_verdict`` in
-``summary.json`` plus the generated release-facing notes.
+``summary.json`` plus the generated release-facing notes. Add
+``-ProjectTemplateSmokeRequireFullCoverage`` when the same preflight should
+fail on any tracked ``.docx`` / ``.dotx`` candidate that is neither registered
+in the smoke manifest nor listed under ``candidate_exclusions``; the wrapper
+writes the full scan to
+``project-template-smoke/candidate_discovery.json`` and surfaces the
+registered / unregistered / excluded counts in the release bundle.
 The CI metadata artifact adds a root ``RELEASE_METADATA_START_HERE.md`` that
 points back into the same bundle.
 After a later manual visual verdict update, prefer
@@ -1607,6 +1613,14 @@ wrapper and records aggregate results in ``summary.json`` and ``summary.md``.
 
     pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 \
       -ManifestPath .\samples\project_template_smoke.manifest.json
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 \
+      -ManifestPath .\samples\project_template_smoke.manifest.json \
+      -Json \
+      -IncludeRegistered \
+      -IncludeExcluded \
+      -OutputPath .\output\project-template-smoke\candidate_discovery.json \
+      -FailOnUnregistered
 
     pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 \
       -ManifestPath .\samples\project_template_smoke.manifest.json \

@@ -927,6 +927,34 @@ $projectTemplateSmokeSummaryPath = Get-OptionalPropertyValue -Object $projectTem
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSummaryPath)) {
     $projectTemplateSmokeSummaryPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "summary_json"
 }
+$projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeStep -Name "candidate_coverage"
+if ($null -eq $projectTemplateSmokeCandidateCoverage) {
+    $projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeSummary -Name "candidate_coverage"
+}
+$projectTemplateSmokeRequireFullCoverage = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "require_full_coverage"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeRequireFullCoverage)) {
+    $projectTemplateSmokeRequireFullCoverage = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "require_full_coverage"
+}
+$projectTemplateSmokeCandidateDiscoveryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "candidate_discovery_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeCandidateDiscoveryJson)) {
+    $projectTemplateSmokeCandidateDiscoveryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "candidate_discovery_json"
+}
+$projectTemplateSmokeCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeCandidateCount)) {
+    $projectTemplateSmokeCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "candidate_count"
+}
+$projectTemplateSmokeRegisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "registered_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeRegisteredCandidateCount)) {
+    $projectTemplateSmokeRegisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "registered_candidate_count"
+}
+$projectTemplateSmokeUnregisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "unregistered_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeUnregisteredCandidateCount)) {
+    $projectTemplateSmokeUnregisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "unregistered_candidate_count"
+}
+$projectTemplateSmokeExcludedCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "excluded_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeExcludedCandidateCount)) {
+    $projectTemplateSmokeExcludedCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "excluded_candidate_count"
+}
 
 $visualVerdict = ""
 $readmeGalleryStatus = ""
@@ -980,6 +1008,7 @@ $publicGateSummaryPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $gate
 $publicGateFinalReviewPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $gateFinalReviewPath
 $publicReadmeGalleryAssetsDir = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $readmeGalleryAssetsDir
 $publicConsumerDocument = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $consumerDocument
+$publicProjectTemplateSmokeCandidateDiscoveryJson = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $projectTemplateSmokeCandidateDiscoveryJson
 
 $validationNote = Get-ValidationNote `
     -ExecutionStatus $summary.execution_status `
@@ -1034,6 +1063,8 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- project template smoke gate：$(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
 [void]$lines.Add("- project template smoke passed：$(Get-DisplayValue -Value $projectTemplateSmokePassed)")
 [void]$lines.Add("- project template smoke entries / failed：$(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount))")
+[void]$lines.Add("- project template smoke candidates registered / unregistered / excluded：$(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount))")
+[void]$lines.Add("- project template smoke full coverage required：$(Get-DisplayValue -Value $projectTemplateSmokeRequireFullCoverage)")
 [void]$lines.Add("- project template smoke visual verdict：$(Get-DisplayValue -Value $projectTemplateSmokeVisualVerdict)")
 [void]$lines.Add("- project template smoke pending reviews：$(Get-DisplayValue -Value $projectTemplateSmokePendingReviewCount)")
 [void]$lines.Add("- install + find_package smoke：$($summary.steps.install_smoke.status)")
@@ -1071,6 +1102,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$lines.Add("- Reviewer checklist：$(Get-DisplayValue -Value $publicReviewerChecklistPath)")
 [void]$lines.Add("- Template schema manifest summary：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $templateSchemaManifestSummaryPath))")
 [void]$lines.Add("- Project template smoke summary：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $projectTemplateSmokeSummaryPath))")
+[void]$lines.Add("- Project template smoke candidate discovery：$(Get-DisplayValue -Value $publicProjectTemplateSmokeCandidateDiscoveryJson)")
 [void]$lines.Add("- Visual gate summary：$(Get-DisplayValue -Value $publicGateSummaryPath)")
 [void]$lines.Add("- Visual gate final review：$(Get-DisplayValue -Value $publicGateFinalReviewPath)")
 [void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $publicReadmeGalleryAssetsDir)")

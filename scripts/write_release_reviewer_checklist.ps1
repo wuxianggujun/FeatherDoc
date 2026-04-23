@@ -472,6 +472,35 @@ $projectTemplateSmokeOutputDir = Get-OptionalPropertyValue -Object $projectTempl
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeOutputDir)) {
     $projectTemplateSmokeOutputDir = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "output_dir"
 }
+$projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeStep -Name "candidate_coverage"
+if ($null -eq $projectTemplateSmokeCandidateCoverage) {
+    $projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeSummary -Name "candidate_coverage"
+}
+$projectTemplateSmokeRequireFullCoverage = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "require_full_coverage"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeRequireFullCoverage)) {
+    $projectTemplateSmokeRequireFullCoverage = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "require_full_coverage"
+}
+$projectTemplateSmokeCandidateDiscoveryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "candidate_discovery_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeCandidateDiscoveryJson)) {
+    $projectTemplateSmokeCandidateDiscoveryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "candidate_discovery_json"
+}
+$projectTemplateSmokeCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeCandidateCount)) {
+    $projectTemplateSmokeCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "candidate_count"
+}
+$projectTemplateSmokeRegisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "registered_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeRegisteredCandidateCount)) {
+    $projectTemplateSmokeRegisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "registered_candidate_count"
+}
+$projectTemplateSmokeUnregisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "unregistered_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeUnregisteredCandidateCount)) {
+    $projectTemplateSmokeUnregisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "unregistered_candidate_count"
+}
+$projectTemplateSmokeExcludedCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "excluded_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeExcludedCandidateCount)) {
+    $projectTemplateSmokeExcludedCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "excluded_candidate_count"
+}
+$projectTemplateSmokeHasUnregisteredCandidates = -not [string]::IsNullOrWhiteSpace($projectTemplateSmokeUnregisteredCandidateCount) -and $projectTemplateSmokeUnregisteredCandidateCount -ne "0"
 
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
@@ -559,6 +588,9 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Project template smoke visual verdict: $(Get-DisplayValue -Value $projectTemplateSmokeVisualVerdict)")
 [void]$lines.Add("- Project template smoke pending visual reviews: $(Get-DisplayValue -Value $projectTemplateSmokePendingReviewCount)")
 [void]$lines.Add("- Project template smoke manifest: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeManifestPath)")
+[void]$lines.Add("- Project template smoke full coverage required: $(Get-DisplayValue -Value $projectTemplateSmokeRequireFullCoverage)")
+[void]$lines.Add("- Project template smoke candidates registered / unregistered / excluded: $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount))")
+[void]$lines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
 [void]$lines.Add("- Visual gate status: $($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict: $visualVerdict")
 [void]$lines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
@@ -618,11 +650,20 @@ if ($projectTemplateSmokeRequested -eq "True" -or $projectTemplateSmokeStatus -n
     Add-CheckboxLine -Lines $lines -Text ('Confirm the project template smoke manifest matches the intended real-template regression set: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeManifestPath))
     Add-CheckboxLine -Lines $lines -Text ('Open the project template smoke summary when you need per-entry smoke status, visual verdicts, and artifact links: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryJson))
     Add-CheckboxLine -Lines $lines -Text ('Inspect the project template smoke output directory when a real-template artifact needs deeper review: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeOutputDir))
+    Add-CheckboxLine -Lines $lines -Text ('Open the project template smoke candidate discovery JSON and confirm the repository DOCX/DOTX coverage is intentional: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson))
 
     if ($projectTemplateSmokePassed -eq "True") {
         Add-CheckboxLine -Lines $lines -Text ('Confirm the project template smoke gate stays green and the failed entry count remains `0` across the registered real-template set.')
     } elseif ($projectTemplateSmokePassed -eq "False") {
         Add-CheckboxLine -Lines $lines -Text ('Stop here until every failing project template smoke entry is fixed or intentionally removed from the registered release-candidate set.')
+    }
+
+    if ($projectTemplateSmokeRequireFullCoverage -eq "True" -and $projectTemplateSmokeHasUnregisteredCandidates) {
+        Add-CheckboxLine -Lines $lines -Text ('Stop here until project template smoke candidate coverage has zero unregistered DOCX/DOTX files; current unregistered count is `{0}`.' -f $projectTemplateSmokeUnregisteredCandidateCount)
+    } elseif ($projectTemplateSmokeHasUnregisteredCandidates) {
+        Add-CheckboxLine -Lines $lines -Text ('Confirm every unregistered project template smoke candidate is intentionally deferred or add it to the manifest before release; current unregistered count is `{0}`.' -f $projectTemplateSmokeUnregisteredCandidateCount)
+    } elseif ($projectTemplateSmokeRequireFullCoverage -eq "True") {
+        Add-CheckboxLine -Lines $lines -Text ('Confirm strict project template smoke candidate coverage is enabled and reports zero unregistered DOCX/DOTX files.')
     }
 
     if ($projectTemplateSmokeVisualVerdict -in @("pass", "not_applicable")) {

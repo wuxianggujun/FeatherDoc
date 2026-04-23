@@ -528,6 +528,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
 pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -Json -IncludeRegistered -IncludeExcluded -OutputPath .\output\project-template-smoke\candidate_discovery.json -FailOnUnregistered
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -CheckPaths
 pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -SummaryJson .\output\project-template-smoke\summary.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting
@@ -763,7 +764,12 @@ pass `-ProjectTemplateSmokeManifestPath`. The wrapper then runs
 entry counts, failed-entry count, and aggregated project-template
 `visual_verdict` in `report/summary.json`, and threads the same status through
 `START_HERE.md`, `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`, and
-`release_handoff.md`.
+`release_handoff.md`. Add `-ProjectTemplateSmokeRequireFullCoverage` when the
+same preflight should also fail on any tracked `.docx` / `.dotx` candidate that
+is neither registered in the smoke manifest nor listed under
+`candidate_exclusions`; the wrapper writes the full scan to
+`project-template-smoke/candidate_discovery.json` and surfaces the
+registered/unregistered/excluded counts in the release bundle.
 
 When you want to add or refresh a repository-level baseline without manually
 editing `baselines/template-schema/manifest.json`, prefer

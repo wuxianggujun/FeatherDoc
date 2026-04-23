@@ -95,7 +95,11 @@ drift 数量一起写进 `report/summary.json`，只要其中任一 baseline 漂
 `run_project_template_smoke.ps1`，把 manifest 路径、summary 路径、entry /
 failed 计数，以及聚合后的 project-template `visual_verdict` 一起写进
 `report/summary.json`，并同步带到 `START_HERE.md`、`ARTIFACT_GUIDE.md`、
-`REVIEWER_CHECKLIST.md` 和 `release_handoff.md`。
+`REVIEWER_CHECKLIST.md` 和 `release_handoff.md`。如果希望发布前强制确认
+仓库里所有已跟踪 `.docx` / `.dotx` 都已纳入 smoke manifest，或已经明确写进
+`candidate_exclusions`，再加 `-ProjectTemplateSmokeRequireFullCoverage`。
+脚本会把完整扫描写到 `project-template-smoke/candidate_discovery.json`，并把
+registered / unregistered / excluded 计数同步进发布包。
 
 如果你的目标不是做一次临时校验，而是把某份模板正式纳入仓库级 baseline，
 优先使用 `register_template_schema_manifest_entry.ps1`。它会在需要时先准备
@@ -331,6 +335,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
 pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -Json -IncludeRegistered -IncludeExcluded -OutputPath .\output\project-template-smoke\candidate_discovery.json -FailOnUnregistered
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -CheckPaths
 pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -SummaryJson .\output\project-template-smoke\summary.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting

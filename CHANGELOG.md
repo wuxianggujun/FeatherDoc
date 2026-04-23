@@ -92,7 +92,11 @@ performance.
   aggregated project-template `visual_verdict` in `report/summary.json`, and
   thread the same status through generated release artifacts such as
   `START_HERE.md`, `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`,
-  `release_handoff.md`, and `release_body.zh-CN.md`.
+  `release_handoff.md`, and `release_body.zh-CN.md`. The same gate now also
+  supports `-ProjectTemplateSmokeRequireFullCoverage`, which writes
+  `project-template-smoke/candidate_discovery.json`, records
+  registered/unregistered/excluded DOCX/DOTX candidate counts, and fails the
+  release preflight when strict coverage finds an unregistered candidate.
 - Added `scripts/discover_project_template_smoke_candidates.ps1` so tracked
   repository `.docx` / `.dotx` files can be compared against the current
   project-template-smoke manifest before real-template onboarding. The report
