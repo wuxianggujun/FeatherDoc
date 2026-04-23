@@ -16,7 +16,8 @@ param(
     [string]$OutputPath = "",
     [switch]$Json,
     [switch]$IncludeGenerated,
-    [switch]$IncludeRegistered
+    [switch]$IncludeRegistered,
+    [switch]$FailOnUnregistered
 )
 
 Set-StrictMode -Version Latest
@@ -318,6 +319,7 @@ $report = [ordered]@{
     search_root_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSearchRoot
     include_generated = [bool]$IncludeGenerated
     include_registered = [bool]$IncludeRegistered
+    fail_on_unregistered = [bool]$FailOnUnregistered
     registered_manifest_entry_count = $registeredEntries.Count
     candidate_count = $candidates.Count
     registered_candidate_count = @($candidates | Where-Object { $_.registered }).Count
@@ -344,6 +346,10 @@ if ($Json) {
         $jsonText | Set-Content -LiteralPath $resolvedOutputPath -Encoding UTF8
         Write-Host "[project-template-smoke-discover] Wrote JSON report to $resolvedOutputPath"
     }
+    if ($FailOnUnregistered -and $report.unregistered_candidate_count -gt 0) {
+        exit 1
+    }
+
     exit 0
 }
 
@@ -354,6 +360,7 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("Registered manifest entries: $($report.registered_manifest_entry_count)")
 [void]$lines.Add("Candidates shown: $($report.candidate_count)")
 [void]$lines.Add("Unregistered candidates: $($report.unregistered_candidate_count)")
+[void]$lines.Add("Fail on unregistered: $($report.fail_on_unregistered)")
 [void]$lines.Add("")
 
 foreach ($candidate in $candidates) {
@@ -382,4 +389,8 @@ if ([string]::IsNullOrWhiteSpace($resolvedOutputPath)) {
     }
     $text | Set-Content -LiteralPath $resolvedOutputPath -Encoding UTF8
     Write-Host "[project-template-smoke-discover] Wrote text report to $resolvedOutputPath"
+}
+
+if ($FailOnUnregistered -and $report.unregistered_candidate_count -gt 0) {
+    exit 1
 }

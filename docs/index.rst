@@ -1643,7 +1643,10 @@ can also load ``template_validations`` and ``schema_validation.targets`` from
 JSON array files. Before registering real templates, run
 ``discover_project_template_smoke_candidates.ps1`` to list tracked ``.docx`` /
 ``.dotx`` candidates that are not yet registered and emit ready-to-run register
-commands with unique suggested entry names. The sample manifest now registers
+commands with unique suggested entry names. Add ``-FailOnUnregistered`` when
+the same scan should act as a coverage gate and return a non-zero exit code
+while any tracked template candidate remains missing from the manifest. The
+sample manifest now registers
 the committed ``samples/chinese_invoice_template.docx`` as a real-template entry
 with schema validation, schema-baseline checking, and Word visual smoke. After a reviewer edits any referenced
 ``review_result.json``, rerun
