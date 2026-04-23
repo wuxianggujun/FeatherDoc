@@ -527,6 +527,7 @@ featherdoc_cli check-template-schema input.docx --schema-file committed-schema.j
 pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
+pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -CheckPaths
 pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -SummaryJson .\output\project-template-smoke\summary.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting
@@ -560,7 +561,11 @@ one entry without hand-editing JSON. `register_*` accepts direct
 `-SchemaValidationFile` / `-SchemaBaselineFile` flags for common cases and can
 also load complex `template_validations` or `schema_validation.targets` arrays
 from JSON files via `-TemplateValidationsFile` and
-`-SchemaValidationTargetsFile`. When a reviewer later updates any referenced
+`-SchemaValidationTargetsFile`. Before adding real templates, run
+`scripts/discover_project_template_smoke_candidates.ps1` to list tracked
+`.docx` / `.dotx` candidates that are not yet registered and print ready-to-run
+`register_project_template_smoke_manifest_entry.ps1` commands with unique
+suggested entry names. When a reviewer later updates any referenced
 `review_result.json`, rerun
 `scripts/sync_project_template_smoke_visual_verdict.ps1` to refresh both
 `summary.json` and `summary.md` with the latest entry-level

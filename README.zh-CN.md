@@ -330,6 +330,7 @@ featherdoc_cli check-template-schema input.docx --schema-file committed-schema.j
 pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
+pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -CheckPaths
 pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -SummaryJson .\output\project-template-smoke\summary.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting
@@ -361,7 +362,10 @@ entry，而不是手改 JSON。常见场景直接传
 `-SchemaValidationFile` / `-SchemaBaselineFile` 就够了；如果你的
 `template_validations` 或 `schema_validation.targets` 比较复杂，也可以用
 `-TemplateValidationsFile` 和 `-SchemaValidationTargetsFile` 从 JSON 数组文
-件直接回填。如果后续人工修改了某个 visual smoke 生成的
+件直接回填。真正接入项目模板前，可以先跑
+`scripts/discover_project_template_smoke_candidates.ps1`，它会列出仓库里已
+跟踪但还没登记的 `.docx` / `.dotx` 候选，并给出带唯一 entry 名的
+`register_project_template_smoke_manifest_entry.ps1` 命令。如果后续人工修改了某个 visual smoke 生成的
 `review_result.json`，再跑一次
 `scripts/sync_project_template_smoke_visual_verdict.ps1`，就能把 entry 级
 `review_status` / `review_verdict`、顶层 `visual_verdict`，以及 pending /

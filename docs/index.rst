@@ -1605,6 +1605,9 @@ wrapper and records aggregate results in ``summary.json`` and ``summary.md``.
       -BuildDir build-codex-clang-compat \
       -CheckPaths
 
+    pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 \
+      -ManifestPath .\samples\project_template_smoke.manifest.json
+
     pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_manifest.ps1 \
       -ManifestPath .\samples\project_template_smoke.manifest.json \
       -SummaryJson .\output\project-template-smoke\summary.json \
@@ -1637,7 +1640,10 @@ prints the currently registered entries plus the latest per-entry smoke status,
 while ``register_project_template_smoke_manifest_entry.ps1`` updates one entry
 without hand-editing JSON. For more complex entry shapes, the register helper
 can also load ``template_validations`` and ``schema_validation.targets`` from
-JSON array files. After a reviewer edits any referenced
+JSON array files. Before registering real templates, run
+``discover_project_template_smoke_candidates.ps1`` to list tracked ``.docx`` /
+``.dotx`` candidates that are not yet registered and emit ready-to-run register
+commands with unique suggested entry names. After a reviewer edits any referenced
 ``review_result.json``, rerun
 ``sync_project_template_smoke_visual_verdict.ps1`` to refresh both
 ``summary.json`` and ``summary.md`` with the latest entry-level visual review

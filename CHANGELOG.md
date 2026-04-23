@@ -93,6 +93,12 @@ performance.
   thread the same status through generated release artifacts such as
   `START_HERE.md`, `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`,
   `release_handoff.md`, and `release_body.zh-CN.md`.
+- Added `scripts/discover_project_template_smoke_candidates.ps1` so tracked
+  repository `.docx` / `.dotx` files can be compared against the current
+  project-template-smoke manifest before real-template onboarding. The report
+  marks already registered inputs, filters generated build/output documents by
+  default, and emits ready-to-run registration commands with unique suggested
+  entry names for unregistered candidates.
 - Expanded `validate_template(...)` into a stronger schema pass that now also
   reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
   extended CLI `validate-template` parsing with `count=` / `min=` / `max=`
