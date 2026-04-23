@@ -99,6 +99,10 @@ performance.
   marks already registered inputs, filters generated build/output documents by
   default, and emits ready-to-run registration commands with unique suggested
   entry names for unregistered candidates.
+- Registered `samples/chinese_invoice_template.docx` in
+  `samples/project_template_smoke.manifest.json` as the first committed
+  real-template smoke entry, combining schema validation, schema-baseline
+  checking, and Word-backed visual smoke evidence.
 - Expanded `validate_template(...)` into a stronger schema pass that now also
   reports unexpected bookmarks, kind mismatches, and occurrence mismatches,
   extended CLI `validate-template` parsing with `count=` / `min=` / `max=`

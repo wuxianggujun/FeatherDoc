@@ -365,7 +365,9 @@ entry，而不是手改 JSON。常见场景直接传
 件直接回填。真正接入项目模板前，可以先跑
 `scripts/discover_project_template_smoke_candidates.ps1`，它会列出仓库里已
 跟踪但还没登记的 `.docx` / `.dotx` 候选，并给出带唯一 entry 名的
-`register_project_template_smoke_manifest_entry.ps1` 命令。如果后续人工修改了某个 visual smoke 生成的
+`register_project_template_smoke_manifest_entry.ps1` 命令。示例 manifest 现在
+已经把已提交的 `samples/chinese_invoice_template.docx` 作为真实模板 entry
+接入，并启用了 schema validation、schema baseline 和 Word visual smoke。如果后续人工修改了某个 visual smoke 生成的
 `review_result.json`，再跑一次
 `scripts/sync_project_template_smoke_visual_verdict.ps1`，就能把 entry 级
 `review_status` / `review_verdict`、顶层 `visual_verdict`，以及 pending /
