@@ -17,6 +17,7 @@ param(
     [switch]$Json,
     [switch]$IncludeGenerated,
     [switch]$IncludeRegistered,
+    [switch]$IncludeExcluded,
     [switch]$FailOnUnregistered
 )
 
@@ -257,6 +258,25 @@ foreach ($entry in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Na
     }) | Out-Null
 }
 
+$exclusionLookup = @{}
+$excludedEntries = New-Object 'System.Collections.Generic.List[object]'
+foreach ($exclusion in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Name "candidate_exclusions")) {
+    $path = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $exclusion -Name "path"
+    $reason = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $exclusion -Name "reason"
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        continue
+    }
+
+    $resolvedPath = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $path -AllowMissing
+    $lookupKey = [System.IO.Path]::GetFullPath($resolvedPath).ToLowerInvariant()
+    $exclusionLookup[$lookupKey] = $reason
+    $excludedEntries.Add([pscustomobject]@{
+        path = $resolvedPath
+        display_path = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedPath
+        reason = $reason
+    }) | Out-Null
+}
+
 $candidateFiles = Get-TrackedWordTemplateFiles -RepoRoot $repoRoot -ResolvedSearchRoot $resolvedSearchRoot |
     ForEach-Object { Get-Item -LiteralPath $_ } |
     Where-Object {
@@ -284,8 +304,16 @@ foreach ($file in $candidateFiles) {
     }
 
     $displayPath = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $fullPath
+    $excluded = $exclusionLookup.ContainsKey($lookupKey)
+    $exclusionReason = if ($excluded) { [string]$exclusionLookup[$lookupKey] } else { "" }
+    if ($excluded -and -not $IncludeExcluded) {
+        continue
+    }
+
     $baseSuggestedName = Convert-ToSafeManifestName -Value $file.Name
     $suggestedName = if ($registered) {
+        ""
+    } elseif ($excluded) {
         ""
     } else {
         Get-UniqueSuggestedName -BaseName $baseSuggestedName -DisplayPath $displayPath -UsedNames $usedManifestNames
@@ -299,8 +327,10 @@ foreach ($file in $candidateFiles) {
         last_write_time = $file.LastWriteTime.ToString("s")
         registered = $registered
         registered_entry_names = [string[]]@($registeredNames)
+        excluded = $excluded
+        exclusion_reason = $exclusionReason
         suggested_name = $suggestedName
-        suggested_register_command = if ($registered) {
+        suggested_register_command = if ($registered -or $excluded) {
             ""
         } else {
             New-RegisterCommand `
@@ -319,12 +349,16 @@ $report = [ordered]@{
     search_root_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSearchRoot
     include_generated = [bool]$IncludeGenerated
     include_registered = [bool]$IncludeRegistered
+    include_excluded = [bool]$IncludeExcluded
     fail_on_unregistered = [bool]$FailOnUnregistered
     registered_manifest_entry_count = $registeredEntries.Count
     candidate_count = $candidates.Count
     registered_candidate_count = @($candidates | Where-Object { $_.registered }).Count
-    unregistered_candidate_count = @($candidates | Where-Object { -not $_.registered }).Count
+    excluded_candidate_count = $excludedEntries.Count
+    visible_excluded_candidate_count = @($candidates | Where-Object { $_.excluded }).Count
+    unregistered_candidate_count = @($candidates | Where-Object { -not $_.registered -and -not $_.excluded }).Count
     registered_entries = $registeredEntries.ToArray()
+    candidate_exclusions = $excludedEntries.ToArray()
     candidates = $candidates.ToArray()
 }
 
@@ -358,6 +392,7 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("Manifest: $manifestDisplayPath")
 [void]$lines.Add("Search root: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSearchRoot)")
 [void]$lines.Add("Registered manifest entries: $($report.registered_manifest_entry_count)")
+[void]$lines.Add("Manifest exclusions: $($report.excluded_candidate_count)")
 [void]$lines.Add("Candidates shown: $($report.candidate_count)")
 [void]$lines.Add("Unregistered candidates: $($report.unregistered_candidate_count)")
 [void]$lines.Add("Fail on unregistered: $($report.fail_on_unregistered)")
@@ -366,8 +401,11 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 foreach ($candidate in $candidates) {
     [void]$lines.Add("- $($candidate.display_path)")
     [void]$lines.Add("  registered: $($candidate.registered)")
+    [void]$lines.Add("  excluded: $($candidate.excluded)")
     if ($candidate.registered) {
         [void]$lines.Add("  entry_names: $($candidate.registered_entry_names -join ', ')")
+    } elseif ($candidate.excluded) {
+        [void]$lines.Add("  reason: $($candidate.exclusion_reason)")
     } else {
         [void]$lines.Add("  suggested_name: $($candidate.suggested_name)")
         [void]$lines.Add("  register_command: $($candidate.suggested_register_command)")

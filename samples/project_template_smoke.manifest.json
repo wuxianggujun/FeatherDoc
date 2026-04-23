@@ -1,5 +1,15 @@
 ﻿{
     "$schema":  "./project_template_smoke.manifest.schema.json",
+    "candidate_exclusions":  [
+                                 {
+                                     "path":  "samples/my_test.docx",
+                                     "reason":  "Generic test fixture duplicate; not a project template smoke target."
+                                 },
+                                 {
+                                     "path":  "test/my_test.docx",
+                                     "reason":  "Generic test fixture duplicate; not a project template smoke target."
+                                 }
+                             ],
     "entries":  [
                     {
                         "name":  "part-template-validation-smoke",

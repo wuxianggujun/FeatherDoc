@@ -1645,7 +1645,8 @@ JSON array files. Before registering real templates, run
 ``.dotx`` candidates that are not yet registered and emit ready-to-run register
 commands with unique suggested entry names. Add ``-FailOnUnregistered`` when
 the same scan should act as a coverage gate and return a non-zero exit code
-while any tracked template candidate remains missing from the manifest. The
+while any tracked template candidate remains missing from the manifest;
+intentional non-template fixtures can be listed under ``candidate_exclusions``. The
 sample manifest now registers
 the committed ``samples/chinese_invoice_template.docx`` as a real-template entry
 with schema validation, schema-baseline checking, and Word visual smoke. After a reviewer edits any referenced

@@ -567,7 +567,8 @@ from JSON files via `-TemplateValidationsFile` and
 `register_project_template_smoke_manifest_entry.ps1` commands with unique
 suggested entry names. Add `-FailOnUnregistered` when you want the same scan to
 act as a coverage gate and return a non-zero exit code while any tracked
-template candidate is still missing from the manifest. The sample manifest now includes the committed
+template candidate is still missing from the manifest; intentional non-template
+fixtures can be listed under `candidate_exclusions`. The sample manifest now includes the committed
 `samples/chinese_invoice_template.docx` as a real-template entry with schema
 validation, schema-baseline checking, and Word visual smoke. When a reviewer later updates any referenced
 `review_result.json`, rerun

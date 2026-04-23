@@ -99,7 +99,9 @@ performance.
   marks already registered inputs, filters generated build/output documents by
   default, and emits ready-to-run registration commands with unique suggested
   entry names for unregistered candidates. It also supports
-  `-FailOnUnregistered` for CI-style coverage gating.
+  `-FailOnUnregistered` for CI-style coverage gating and manifest-level
+  `candidate_exclusions` for tracked DOCX fixtures that should be intentionally
+  excluded from real-template smoke coverage.
 - Registered `samples/chinese_invoice_template.docx` in
   `samples/project_template_smoke.manifest.json` as the first committed
   real-template smoke entry, combining schema validation, schema-baseline
