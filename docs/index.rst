@@ -1611,6 +1611,10 @@ wrapper and records aggregate results in ``summary.json`` and ``summary.md``.
       -BuildDir build-codex-clang-compat \
       -CheckPaths
 
+    pwsh -ExecutionPolicy Bypass -File .\scripts\new_project_template_smoke_onboarding_plan.ps1 \
+      -ManifestPath .\samples\project_template_smoke.manifest.json \
+      -BuildDir build-codex-clang-compat
+
     pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 \
       -ManifestPath .\samples\project_template_smoke.manifest.json
 
@@ -1655,6 +1659,14 @@ while ``register_project_template_smoke_manifest_entry.ps1`` updates one entry
 without hand-editing JSON. For more complex entry shapes, the register helper
 can also load ``template_validations`` and ``schema_validation.targets`` from
 JSON array files. Before registering real templates, run
+``new_project_template_smoke_onboarding_plan.ps1`` for a non-mutating plan that
+combines candidate discovery with ready-to-run
+``freeze_template_schema_baseline.ps1`` and
+``register_project_template_smoke_manifest_entry.ps1`` commands. The plan
+writes ``plan.json``, ``plan.md``, and ``candidate_discovery.json`` under
+``output/`` so schema baseline paths, visual smoke output directories, and the
+final strict-preflight command can be reviewed before the manifest is touched.
+You can also run
 ``discover_project_template_smoke_candidates.ps1`` to list tracked ``.docx`` /
 ``.dotx`` candidates that are not yet registered and emit ready-to-run register
 commands with unique suggested entry names. Add ``-FailOnUnregistered`` when

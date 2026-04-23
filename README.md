@@ -527,6 +527,7 @@ featherdoc_cli check-template-schema input.docx --schema-file committed-schema.j
 pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
+pwsh -ExecutionPolicy Bypass -File .\scripts\new_project_template_smoke_onboarding_plan.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -Json -IncludeRegistered -IncludeExcluded -OutputPath .\output\project-template-smoke\candidate_discovery.json -FailOnUnregistered
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -CheckPaths
@@ -563,6 +564,13 @@ one entry without hand-editing JSON. `register_*` accepts direct
 also load complex `template_validations` or `schema_validation.targets` arrays
 from JSON files via `-TemplateValidationsFile` and
 `-SchemaValidationTargetsFile`. Before adding real templates, run
+`scripts/new_project_template_smoke_onboarding_plan.ps1` for a non-mutating
+onboarding plan that combines candidate discovery with per-template
+`freeze_template_schema_baseline.ps1` and
+`register_project_template_smoke_manifest_entry.ps1` commands. The plan writes
+`plan.json`, `plan.md`, and `candidate_discovery.json` under `output/` so you
+can review schema baseline paths, visual smoke output directories, and final
+strict-preflight commands before touching the manifest. You can also run
 `scripts/discover_project_template_smoke_candidates.ps1` to list tracked
 `.docx` / `.dotx` candidates that are not yet registered and print ready-to-run
 `register_project_template_smoke_manifest_entry.ps1` commands with unique

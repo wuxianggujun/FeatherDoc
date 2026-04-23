@@ -334,6 +334,7 @@ featherdoc_cli check-template-schema input.docx --schema-file committed-schema.j
 pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
+pwsh -ExecutionPolicy Bypass -File .\scripts\new_project_template_smoke_onboarding_plan.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -Json -IncludeRegistered -IncludeExcluded -OutputPath .\output\project-template-smoke\candidate_discovery.json -FailOnUnregistered
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_project_template_smoke_manifest.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -CheckPaths
@@ -368,6 +369,13 @@ entry，而不是手改 JSON。常见场景直接传
 `template_validations` 或 `schema_validation.targets` 比较复杂，也可以用
 `-TemplateValidationsFile` 和 `-SchemaValidationTargetsFile` 从 JSON 数组文
 件直接回填。真正接入项目模板前，可以先跑
+`scripts/new_project_template_smoke_onboarding_plan.ps1` 生成一份不改 manifest
+的接入计划。它会把候选发现、每个模板的
+`freeze_template_schema_baseline.ps1` 命令、
+`register_project_template_smoke_manifest_entry.ps1` 命令，以及最后的 smoke /
+strict preflight 命令统一写到 `plan.json`、`plan.md` 和
+`candidate_discovery.json`，方便先审阅 schema baseline 路径和 visual smoke
+输出目录，再决定是否真正登记。也可以单独跑
 `scripts/discover_project_template_smoke_candidates.ps1`，它会列出仓库里已
 跟踪但还没登记的 `.docx` / `.dotx` 候选，并给出带唯一 entry 名的
 `register_project_template_smoke_manifest_entry.ps1` 命令。如果要把它当覆盖率闸门，

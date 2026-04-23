@@ -106,6 +106,11 @@ performance.
   `-FailOnUnregistered` for CI-style coverage gating and manifest-level
   `candidate_exclusions` for tracked DOCX fixtures that should be intentionally
   excluded from real-template smoke coverage.
+- Added `scripts/new_project_template_smoke_onboarding_plan.ps1` so real
+  project-template onboarding can start from a non-mutating `plan.json` /
+  `plan.md` bundle that combines candidate discovery with schema-baseline
+  freeze commands, manifest registration commands, smoke rerun commands, and a
+  strict release-preflight command.
 - Registered `samples/chinese_invoice_template.docx` in
   `samples/project_template_smoke.manifest.json` as the first committed
   real-template smoke entry, combining schema validation, schema-baseline
