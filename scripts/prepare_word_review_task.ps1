@@ -53,6 +53,31 @@ function Resolve-DocumentPath {
     return $resolved
 }
 
+function Get-OptionalMemberValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object -or [string]::IsNullOrWhiteSpace($Name)) {
+        return ""
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) {
+            return $Object[$Name]
+        }
+
+        return ""
+    }
+
+    if ($Object.PSObject.Properties.Name -contains $Name) {
+        return $Object.$Name
+    }
+
+    return ""
+}
+
 function Resolve-BundleAggregateContactSheetPath {
     param(
         [string]$AggregateEvidenceDir,
@@ -1075,7 +1100,7 @@ $templateValues = @{
         ""
     }
     "{{TASK_BUNDLE_AGGREGATE_EVIDENCE_DIR}}" = if ($bundleLocalInfo) {
-        $bundleLocalInfo.AggregateEvidenceDir
+        Get-OptionalMemberValue -Object $bundleLocalInfo -Name "AggregateEvidenceDir"
     } else {
         ""
     }
@@ -1305,8 +1330,9 @@ if ($bundleInfo) {
     if (-not [string]::IsNullOrWhiteSpace($bundleLocalInfo.ReviewManifestPath)) {
         Write-Host "Bundle review manifest copy: $($bundleLocalInfo.ReviewManifestPath)"
     }
-    if (-not [string]::IsNullOrWhiteSpace($bundleLocalInfo.AggregateEvidenceDir)) {
-        Write-Host "Bundle aggregate evidence copy: $($bundleLocalInfo.AggregateEvidenceDir)"
+    $bundleAggregateEvidenceDir = Get-OptionalMemberValue -Object $bundleLocalInfo -Name "AggregateEvidenceDir"
+    if (-not [string]::IsNullOrWhiteSpace($bundleAggregateEvidenceDir)) {
+        Write-Host "Bundle aggregate evidence copy: $bundleAggregateEvidenceDir"
     }
     Write-Host "Bundle aggregate contact sheet copy: $($bundleLocalInfo.AggregateContactSheetPath)"
 } elseif ($documentLocalInfo) {
