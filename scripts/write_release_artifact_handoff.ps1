@@ -552,12 +552,12 @@ if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath)) {
 }
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
 $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
-$packageAssetsCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
-    $summaryCommandPath
-$packageAndUploadCommand = ""
-if ($projectVersion) {
-    $packageAndUploadCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
+$packageAssetsCommand = if ($projectVersion) {
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -ReleaseVersion "{1}"' -f `
         $summaryCommandPath, $projectVersion
+} else {
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
+        $summaryCommandPath
 }
 $syncReleaseNotesCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_github_release_notes.ps1 -SummaryJson "{0}"' -f `
     $summaryCommandPath
@@ -734,14 +734,12 @@ if (-not [string]::IsNullOrWhiteSpace($syncExplicitCommand)) {
 [void]$handoffLines.Add($packageAssetsCommand)
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
-if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
-    [void]$handoffLines.Add("Upload or refresh the GitHub Release attachments with:")
-    [void]$handoffLines.Add("")
-    [void]$handoffLines.Add('```powershell')
-    [void]$handoffLines.Add($packageAndUploadCommand)
-    [void]$handoffLines.Add('```')
-    [void]$handoffLines.Add("")
-}
+[void]$handoffLines.Add("Refresh GitHub Release ZIP assets and audited notes without changing draft/public state:")
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add('```powershell')
+[void]$handoffLines.Add($publishWorkflowCommand)
+[void]$handoffLines.Add('```')
+[void]$handoffLines.Add("")
 [void]$handoffLines.Add('Sync the audited `release_body.zh-CN.md` into the GitHub Release notes with:')
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
@@ -760,7 +758,7 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add($publishWorkflowCommand)
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
-[void]$handoffLines.Add("When that same one-shot flow should also publish the GitHub Release:")
+[void]$handoffLines.Add("When the GitHub publish flow should also make the Release public:")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
 [void]$handoffLines.Add($publishWorkflowFinalCommand)

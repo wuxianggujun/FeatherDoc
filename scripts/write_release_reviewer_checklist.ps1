@@ -557,7 +557,7 @@ if (-not [string]::IsNullOrWhiteSpace($taskOutputRoot)) {
 }
 $releaseVersion = Get-OptionalPropertyValue -Object $summary -Name "release_version"
 $packageAssetsCommand = if ($releaseVersion) {
-    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -ReleaseVersion "{1}"' -f `
         $summaryCommandPath, $releaseVersion
 } else {
     'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
@@ -730,10 +730,10 @@ if ($readmeGalleryStatus -eq "completed") {
 [void]$lines.Add("")
 Add-CheckboxLine -Lines $lines -Text 'Use `release_summary.zh-CN.md` for the GitHub Release first-screen bullets.'
 Add-CheckboxLine -Lines $lines -Text 'Use `release_body.zh-CN.md` for the full release notes or translated handoff notes.'
-Add-CheckboxLine -Lines $lines -Text ('Generate or refresh the public release ZIP files before publishing: `{0}`' -f $packageAssetsCommand)
+Add-CheckboxLine -Lines $lines -Text ('Generate or refresh the local public release ZIP files before publishing: `{0}`' -f $packageAssetsCommand)
 Add-CheckboxLine -Lines $lines -Text ('Sync the audited full release body into the GitHub Release notes: `{0}`' -f $syncReleaseNotesCommand)
 Add-CheckboxLine -Lines $lines -Text ('When all gates pass and the GitHub Release is ready to go live, publish it with: `{0}`' -f $publishReleaseCommand)
-Add-CheckboxLine -Lines $lines -Text ('Use the one-shot wrapper when you want ZIP upload plus note sync together: `{0}`' -f $publishWorkflowCommand)
+Add-CheckboxLine -Lines $lines -Text ('Use the GitHub refresh flow to update ZIP assets plus audited notes without changing draft/public state: `{0}`' -f $publishWorkflowCommand)
 Add-CheckboxLine -Lines $lines -Text ('Use the same wrapper with final publish enabled when the release is ready to go live: `{0}`' -f $publishWorkflowFinalCommand)
 Add-CheckboxLine -Lines $lines -Text ('If a self-hosted Windows runner already carries the validated bundle, use GitHub Actions `{0}` (`{1}`) for ZIP upload plus note sync without publishing.' -f $refreshWorkflowName, $refreshWorkflowFile)
 Add-CheckboxLine -Lines $lines -Text ('Use GitHub Actions `{0}` (`{1}`) only after final local Word signoff when the GitHub Release should go live publicly.' -f $publishWorkflowName, $publishWorkflowFile)

@@ -480,12 +480,12 @@ $assetOutputDir = if ($releaseVersion) {
 } else {
     "output\release-assets\v<version>"
 }
-$packageAssetsCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
-    $summaryCommandPath
-$packageAndUploadCommand = ""
-if ($releaseVersion) {
-    $packageAndUploadCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
+$packageAssetsCommand = if ($releaseVersion) {
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -ReleaseVersion "{1}"' -f `
         $summaryCommandPath, $releaseVersion
+} else {
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
+        $summaryCommandPath
 }
 $syncReleaseNotesCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_github_release_notes.ps1 -SummaryJson "{0}"' -f `
     $summaryCommandPath
@@ -583,14 +583,12 @@ if ($curatedVisualReviewEntries.Count -gt 0) {
 [void]$lines.Add($packageAssetsCommand)
 [void]$lines.Add('```')
 [void]$lines.Add("")
-if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
-    [void]$lines.Add("To upload the generated ZIP files to the matching GitHub Release:")
-    [void]$lines.Add("")
-    [void]$lines.Add('```powershell')
-    [void]$lines.Add($packageAndUploadCommand)
-    [void]$lines.Add('```')
-    [void]$lines.Add("")
-}
+[void]$lines.Add("To refresh GitHub Release ZIP assets and audited notes without changing draft/public state:")
+[void]$lines.Add("")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($publishWorkflowCommand)
+[void]$lines.Add('```')
+[void]$lines.Add("")
 [void]$lines.Add("To sync the audited `release_body.zh-CN.md` into the matching GitHub Release notes:")
 [void]$lines.Add("")
 [void]$lines.Add('```powershell')
@@ -609,7 +607,7 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$lines.Add($publishWorkflowCommand)
 [void]$lines.Add('```')
 [void]$lines.Add("")
-[void]$lines.Add("When that same one-shot flow should also publish the GitHub Release:")
+[void]$lines.Add("When the GitHub publish flow should also make the Release public:")
 [void]$lines.Add("")
 [void]$lines.Add('```powershell')
 [void]$lines.Add($publishWorkflowFinalCommand)

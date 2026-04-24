@@ -1126,11 +1126,6 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$lines.Add("- Visual gate final review：$(Get-DisplayValue -Value $publicGateFinalReviewPath)")
 [void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $publicReadmeGalleryAssetsDir)")
 [void]$lines.Add("- install smoke consumer docx：$(Get-DisplayValue -Value $publicConsumerDocument)")
-[void]$lines.Add("")
-[void]$lines.Add("## 补充说明")
-[void]$lines.Add('- 如果 `Visual verdict` 不是 `pass`，请先完成本地 Word 截图级复核，再对外发布。')
-[void]$lines.Add("- 如果这份结果来自 CI，请结合本地 Windows preflight 的最终结论后再对外发布。")
-
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedShortOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8
