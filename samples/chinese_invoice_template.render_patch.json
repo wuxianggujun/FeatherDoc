@@ -1,0 +1,49 @@
+{
+  "$schema": "./template_render_plan.schema.json",
+  "bookmark_text": [
+    {
+      "bookmark_name": "customer_name",
+      "text": "上海羽文档科技有限公司"
+    },
+    {
+      "bookmark_name": "invoice_number",
+      "text": "报价单-2026-0410"
+    },
+    {
+      "bookmark_name": "issue_date",
+      "text": "2026年4月10日"
+    }
+  ],
+  "bookmark_table_rows": [
+    {
+      "bookmark_name": "line_item_row",
+      "rows": [
+        [
+          "需求梳理",
+          "核对模板槽位、书签位置与最终交付约束",
+          "3,200.00"
+        ],
+        [
+          "文档生成",
+          "落地段落替换、表格扩展与自动填充流程",
+          "6,800.00"
+        ],
+        [
+          "验收交付",
+          "整理使用说明并支持一次业务终验联调",
+          "2,800.00"
+        ]
+      ]
+    }
+  ],
+  "bookmark_paragraphs": [
+    {
+      "bookmark_name": "note_lines",
+      "paragraphs": [
+        "1. 当成品文档同时包含中文与英文标签时，建议显式保留 East Asia 字体设置。",
+        "2. 明细行来自单个书签模板行，因此报价单与发票版式都可以复用同一份模板。",
+        "3. 后续如需扩展审批意见、页眉页脚或附加说明，可以继续沿用同一份渲染计划。"
+      ]
+    }
+  ]
+}

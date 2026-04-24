@@ -707,6 +707,7 @@ function Get-ShortSummaryBullets {
         [string]$TemplateSchemaManifestPassed,
         [string]$TemplateSchemaManifestEntryCount,
         [string]$TemplateSchemaManifestDriftCount,
+        [string]$ProjectTemplateSmokeDirtySchemaBaselineCount,
         [string]$SectionPageSetupVerdict,
         [string]$PageNumberFieldsVerdict,
         [object[]]$CuratedVisualReviewEntries
@@ -781,6 +782,14 @@ function Get-ShortSummaryBullets {
                     $TemplateSchemaManifestEntryCount, $TemplateSchemaManifestDriftCount
             )
         }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ProjectTemplateSmokeDirtySchemaBaselineCount) -and
+        $ProjectTemplateSmokeDirtySchemaBaselineCount -ne "0") {
+        Add-UniqueLine -Lines $bullets -Line (
+            'project template smoke 当前发现 {0} 份 schema baseline lint 未清理，发布前需先 repair 或重新登记 baseline。' -f `
+                $ProjectTemplateSmokeDirtySchemaBaselineCount
+        )
     }
 
     $visualValidationDetailBullet = Get-VisualValidationDetailBullet `
@@ -915,6 +924,14 @@ $projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $proje
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeFailedEntryCount)) {
     $projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "failed_entry_count"
 }
+$projectTemplateSmokeDirtySchemaBaselineCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "dirty_schema_baseline_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeDirtySchemaBaselineCount)) {
+    $projectTemplateSmokeDirtySchemaBaselineCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "dirty_schema_baseline_count"
+}
+$projectTemplateSmokeSchemaBaselineDriftCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_baseline_drift_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaBaselineDriftCount)) {
+    $projectTemplateSmokeSchemaBaselineDriftCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_baseline_drift_count"
+}
 $projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "visual_verdict"
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeVisualVerdict)) {
     $projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "visual_verdict"
@@ -1032,6 +1049,7 @@ $shortSummaryBullets = Get-ShortSummaryBullets `
     -TemplateSchemaManifestPassed $templateSchemaManifestPassed `
     -TemplateSchemaManifestEntryCount $templateSchemaManifestEntryCount `
     -TemplateSchemaManifestDriftCount $templateSchemaManifestDriftCount `
+    -ProjectTemplateSmokeDirtySchemaBaselineCount $projectTemplateSmokeDirtySchemaBaselineCount `
     -SectionPageSetupVerdict $sectionPageSetupVerdict `
     -PageNumberFieldsVerdict $pageNumberFieldsVerdict `
     -CuratedVisualReviewEntries $curatedVisualReviewEntries
@@ -1063,6 +1081,7 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- project template smoke gate：$(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
 [void]$lines.Add("- project template smoke passed：$(Get-DisplayValue -Value $projectTemplateSmokePassed)")
 [void]$lines.Add("- project template smoke entries / failed：$(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount))")
+[void]$lines.Add("- project template smoke schema baseline dirty / drift：$(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeDirtySchemaBaselineCount, $projectTemplateSmokeSchemaBaselineDriftCount))")
 [void]$lines.Add("- project template smoke candidates registered / unregistered / excluded：$(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount))")
 [void]$lines.Add("- project template smoke full coverage required：$(Get-DisplayValue -Value $projectTemplateSmokeRequireFullCoverage)")
 [void]$lines.Add("- project template smoke visual verdict：$(Get-DisplayValue -Value $projectTemplateSmokeVisualVerdict)")

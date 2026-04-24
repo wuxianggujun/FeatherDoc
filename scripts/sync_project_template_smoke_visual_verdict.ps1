@@ -287,9 +287,15 @@ function Get-ProjectTemplateSmokeEntryDerivedState {
 
     $schemaBaseline = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $checks -Name "schema_baseline"
     if ($null -ne $schemaBaseline -and
-        [bool](Get-ProjectTemplateSmokeOptionalPropertyObject -Object $schemaBaseline -Name "enabled") -and
-        -not [bool](Get-ProjectTemplateSmokeOptionalPropertyObject -Object $schemaBaseline -Name "matches")) {
-        $entryFailed = $true
+        [bool](Get-ProjectTemplateSmokeOptionalPropertyObject -Object $schemaBaseline -Name "enabled")) {
+        if (-not [bool](Get-ProjectTemplateSmokeOptionalPropertyObject -Object $schemaBaseline -Name "matches")) {
+            $entryFailed = $true
+        }
+
+        $schemaLintClean = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "schema_lint_clean"
+        if (-not [string]::IsNullOrWhiteSpace($schemaLintClean) -and $schemaLintClean -ne "True") {
+            $entryFailed = $true
+        }
     }
 
     $visualSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $checks -Name "visual_smoke"
@@ -339,6 +345,11 @@ function Write-SummaryMarkdown {
     [void]$lines.Add("- Passed flag: $($Summary.passed)")
     [void]$lines.Add("- Entry count: $($Summary.entry_count)")
     [void]$lines.Add("- Failed entries: $($Summary.failed_entry_count)")
+    $dirtySchemaBaselineCount = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name "dirty_schema_baseline_count"
+    if ([string]::IsNullOrWhiteSpace($dirtySchemaBaselineCount)) {
+        $dirtySchemaBaselineCount = "0"
+    }
+    [void]$lines.Add("- Dirty schema baselines: $dirtySchemaBaselineCount")
     [void]$lines.Add("- Visual smoke entries: $($Summary.visual_entry_count)")
     [void]$lines.Add("- Visual verdict: $($Summary.visual_verdict)")
     [void]$lines.Add("- Entries with pending visual review: $($Summary.manual_review_pending_count)")
@@ -364,7 +375,13 @@ function Write-SummaryMarkdown {
 
         $schemaBaseline = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $checks -Name "schema_baseline"
         if ($null -ne $schemaBaseline -and [bool](Get-ProjectTemplateSmokeOptionalPropertyObject -Object $schemaBaseline -Name "enabled")) {
-            [void]$lines.Add("- Schema baseline: matches=$($schemaBaseline.matches) log=$(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "log_path"))")
+            $schemaLintClean = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "schema_lint_clean"
+            $schemaLintIssueCount = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "schema_lint_issue_count"
+            $repairedSchemaOutputPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "repaired_schema_output_path"
+            [void]$lines.Add("- Schema baseline: matches=$($schemaBaseline.matches) lint_clean=$schemaLintClean lint_issues=$schemaLintIssueCount log=$(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "log_path"))")
+            if (-not [string]::IsNullOrWhiteSpace($repairedSchemaOutputPath)) {
+                [void]$lines.Add("- Repaired schema candidate: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $repairedSchemaOutputPath)")
+            }
         }
 
         $visualSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $checks -Name "visual_smoke"
@@ -413,6 +430,8 @@ function New-ReleaseCandidateFinalReviewContent {
     $projectTemplateSmokeSummaryPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $projectTemplateSmoke -Name "summary_json"
     $projectTemplateSmokeManifestPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $projectTemplateSmoke -Name "manifest_path"
     $projectTemplateSmokeOutputDir = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $projectTemplateSmoke -Name "output_dir"
+    $projectTemplateSmokeDirtySchemaBaselineCount = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $projectTemplateSmoke -Name "dirty_schema_baseline_count"
+    $projectTemplateSmokeSchemaBaselineDriftCount = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $projectTemplateSmoke -Name "schema_baseline_drift_count"
 
     return @"
 # Release Candidate Checks
@@ -448,6 +467,8 @@ $readmeGalleryStatusLine
 - Project template smoke manifest: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $projectTemplateSmokeManifestPath)
 - Project template smoke summary: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $projectTemplateSmokeSummaryPath)
 - Project template smoke output dir: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $projectTemplateSmokeOutputDir)
+- Project template smoke dirty schema baselines: $projectTemplateSmokeDirtySchemaBaselineCount
+- Project template smoke schema baseline drifts: $projectTemplateSmokeSchemaBaselineDriftCount
 - Release handoff: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'release_handoff'))
 - Release body: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'release_body_zh_cn'))
 - Release summary: $(Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Summary -Name 'release_summary_zh_cn'))
@@ -481,11 +502,29 @@ $summary = Get-Content -Raw -LiteralPath $resolvedSummaryJson | ConvertFrom-Json
 $entries = @(Get-ProjectTemplateSmokeArrayProperty -Object $summary -Name "entries")
 $visualSmokeResults = New-Object 'System.Collections.Generic.List[object]'
 $failedEntryCount = 0
+$dirtySchemaBaselineCount = 0
+$schemaBaselineDriftCount = 0
 $manualReviewPendingCount = 0
 $visualReviewUndeterminedCount = 0
 
 foreach ($entry in $entries) {
     $checks = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "checks"
+    $schemaBaseline = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $checks -Name "schema_baseline"
+    if ($null -ne $schemaBaseline -and [bool](Get-ProjectTemplateSmokeOptionalPropertyObject -Object $schemaBaseline -Name "enabled")) {
+        $schemaBaselineMatches = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "matches"
+        $schemaBaselineResult = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $schemaBaseline -Name "result"
+        if (-not [string]::IsNullOrWhiteSpace($schemaBaselineMatches) -and
+            $schemaBaselineMatches -ne "True" -and
+            $null -ne $schemaBaselineResult) {
+            $schemaBaselineDriftCount += 1
+        }
+
+        $schemaLintClean = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "schema_lint_clean"
+        if (-not [string]::IsNullOrWhiteSpace($schemaLintClean) -and $schemaLintClean -ne "True") {
+            $dirtySchemaBaselineCount += 1
+        }
+    }
+
     $visualSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $checks -Name "visual_smoke"
     if ($null -ne $visualSmoke -and [bool](Get-ProjectTemplateSmokeOptionalPropertyObject -Object $visualSmoke -Name "enabled")) {
         $reviewResultPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $visualSmoke -Name "review_result_json"
@@ -541,6 +580,8 @@ $visualVerdict = Get-ProjectTemplateSmokeVisualVerdict -VisualSmokeResults $visu
 Set-ProjectTemplateSmokePropertyValue -Object $summary -Name "visual_review_synced_at" -Value (Get-Date).ToString("s")
 Set-ProjectTemplateSmokePropertyValue -Object $summary -Name "entry_count" -Value $entries.Count
 Set-ProjectTemplateSmokePropertyValue -Object $summary -Name "failed_entry_count" -Value $failedEntryCount
+Set-ProjectTemplateSmokePropertyValue -Object $summary -Name "dirty_schema_baseline_count" -Value $dirtySchemaBaselineCount
+Set-ProjectTemplateSmokePropertyValue -Object $summary -Name "schema_baseline_drift_count" -Value $schemaBaselineDriftCount
 Set-ProjectTemplateSmokePropertyValue -Object $summary -Name "visual_entry_count" -Value $visualEntryCount
 Set-ProjectTemplateSmokePropertyValue -Object $summary -Name "visual_verdict" -Value $visualVerdict
 Set-ProjectTemplateSmokePropertyValue -Object $summary -Name "manual_review_pending_count" -Value $manualReviewPendingCount
@@ -575,6 +616,8 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "passed" -Value $summaryPassed
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "entry_count" -Value $entries.Count
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "failed_entry_count" -Value $failedEntryCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "dirty_schema_baseline_count" -Value $dirtySchemaBaselineCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "schema_baseline_drift_count" -Value $schemaBaselineDriftCount
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "visual_entry_count" -Value $visualEntryCount
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "visual_verdict" -Value $visualVerdict
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeStep -Name "manual_review_pending_count" -Value $manualReviewPendingCount
@@ -587,6 +630,8 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "passed" -Value $summaryPassed
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "entry_count" -Value $entries.Count
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "failed_entry_count" -Value $failedEntryCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "dirty_schema_baseline_count" -Value $dirtySchemaBaselineCount
+    Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "schema_baseline_drift_count" -Value $schemaBaselineDriftCount
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "visual_entry_count" -Value $visualEntryCount
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "visual_verdict" -Value $visualVerdict
     Set-ProjectTemplateSmokePropertyValue -Object $projectTemplateSmokeSummary -Name "manual_review_pending_count" -Value $manualReviewPendingCount

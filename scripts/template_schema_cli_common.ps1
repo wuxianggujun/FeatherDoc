@@ -151,3 +151,34 @@ function Invoke-TemplateSchemaCli {
         Text = ($lines -join [System.Environment]::NewLine)
     }
 }
+
+function Get-TemplateSchemaCommandJsonLine {
+    param(
+        [string[]]$Lines,
+        [string]$Command
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Command)) {
+        throw "Template schema command name must not be empty."
+    }
+
+    $pattern = '^\{"command":"' + [regex]::Escape($Command) + '",'
+    $jsonLine = $Lines |
+        Where-Object { $_ -match $pattern } |
+        Select-Object -Last 1
+
+    if ([string]::IsNullOrWhiteSpace([string]$jsonLine)) {
+        throw "Template schema command '$Command' did not emit a JSON result."
+    }
+
+    return [string]$jsonLine
+}
+
+function Get-TemplateSchemaCommandJsonObject {
+    param(
+        [string[]]$Lines,
+        [string]$Command
+    )
+
+    return (Get-TemplateSchemaCommandJsonLine -Lines $Lines -Command $Command) | ConvertFrom-Json
+}

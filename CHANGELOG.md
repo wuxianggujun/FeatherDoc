@@ -8,8 +8,58 @@ performance.
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-04-24
+
 ### Added
 
+- Added direct existing-document edit workflows through
+  `scripts/edit_document_from_plan.ps1`, letting JSON edit plans apply ordered
+  changes to a real `.docx` and write a new `.docx` plus machine-readable
+  summary without converting the whole document into JSON.
+- Added direct-edit coverage for common Word editing needs: bookmark text,
+  bookmark paragraphs, bookmark table rows, ordinary text replacement,
+  paragraph alignment and spacing, run style metadata, table cell text, row
+  height, column width, vertical/horizontal cell alignment, fill color, borders,
+  and table cell merge/unmerge operations.
+- Added `scripts/run_edit_document_from_plan_visual_regression.ps1` so the
+  direct-edit workflow can be verified through Microsoft Word PDF export,
+  rendered PNG pages, and a before/after contact sheet.
+- Added template render-data workspace scripts and samples so users can prepare
+  an editable JSON data workspace from a template `.docx`, validate the edited
+  data/mapping contract, and render the final business `.docx` from
+  `-WorkspaceDir`; prepared workspaces now include `START_HERE.zh-CN.md`.
+- Added a complete render-data mapping pipeline through
+  `scripts/export_render_data_mapping_draft.ps1`,
+  `scripts/export_render_data_skeleton.ps1`,
+  `scripts/lint_render_data_mapping.ps1`,
+  `scripts/validate_render_data_mapping.ps1`,
+  `scripts/convert_render_data_to_patch_plan.ps1`,
+  `scripts/render_template_document_from_data.ps1`, and
+  `scripts/render_template_document_from_workspace.ps1`, so business JSON can
+  drive template rendering without hand-authoring raw render-plan patches.
+- Added focused PowerShell regression coverage for render-data mapping,
+  generated patch plans, workspace-backed rendering, and direct existing-
+  document editing so the new template-data toolchain stays release-ready.
+
+- Added CLI `merge-template-schema` so multiple reusable template-schema JSON
+  files can now be combined into one normalized contract, with later files
+  upserting matching targets and replacing same-bookmark slot definitions
+  before the merged result is written or printed.
+- Added CLI `lint-template-schema` so committed template-schema JSON can now be
+  gated for duplicate target identities, duplicate slot names,
+  non-canonical ordering, and leaked `entry_name` metadata during review or CI.
+- Added CLI `repair-template-schema` so those canonical template-schema
+  maintenance issues can now be rewritten automatically by stripping
+  `entry_name`, merging duplicate target identities, folding duplicate slot
+  names, and normalizing the final schema.
+- Added CLI `patch-template-schema` so a committed template-schema JSON can now
+  be maintained through explicit `upsert_targets`, `remove_targets`,
+  `remove_slots`, and `rename_slots` operations before the patched result is
+  normalized and written back out.
+- Added CLI `build-template-schema-patch` so a reviewed left/right schema pair
+  can now be converted into a reusable patch JSON, including `{}` no-op output
+  for already-equivalent schemas and slot-level `remove_slots` /
+  `rename_slots` generation when a target keeps the same full identity.
 - Added floating-image anchor z-order control through
   `floating_image_options::z_order`, threaded that metadata through image
   inspection, CLI append/replace flows, and round-trip parsing of

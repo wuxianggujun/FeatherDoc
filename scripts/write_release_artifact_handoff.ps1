@@ -436,6 +436,14 @@ $projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $proje
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeFailedEntryCount)) {
     $projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "failed_entry_count"
 }
+$projectTemplateSmokeDirtySchemaBaselineCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "dirty_schema_baseline_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeDirtySchemaBaselineCount)) {
+    $projectTemplateSmokeDirtySchemaBaselineCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "dirty_schema_baseline_count"
+}
+$projectTemplateSmokeSchemaBaselineDriftCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_baseline_drift_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaBaselineDriftCount)) {
+    $projectTemplateSmokeSchemaBaselineDriftCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_baseline_drift_count"
+}
 $projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "visual_verdict"
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeVisualVerdict)) {
     $projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "visual_verdict"
@@ -605,6 +613,7 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Project template smoke status: $(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
 [void]$handoffLines.Add("- Project template smoke passed: $(Get-DisplayValue -Value $projectTemplateSmokePassed)")
 [void]$handoffLines.Add("- Project template smoke entries / failed: $(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount))")
+[void]$handoffLines.Add("- Project template smoke schema baseline dirty / drift: $(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeDirtySchemaBaselineCount, $projectTemplateSmokeSchemaBaselineDriftCount))")
 [void]$handoffLines.Add("- Project template smoke visual verdict: $(Get-DisplayValue -Value $projectTemplateSmokeVisualVerdict)")
 [void]$handoffLines.Add("- Project template smoke pending visual reviews: $(Get-DisplayValue -Value $projectTemplateSmokePendingReviewCount)")
 [void]$handoffLines.Add("- Project template smoke full coverage required: $(Get-DisplayValue -Value $projectTemplateSmokeRequireFullCoverage)")
@@ -624,6 +633,7 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Template schema manifest: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
 [void]$handoffLines.Add("- Project template smoke: $(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
 [void]$handoffLines.Add("- Project template smoke candidate coverage: $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount)) registered/unregistered/excluded")
+[void]$handoffLines.Add("- Project template smoke schema baseline dirty / drift: $(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeDirtySchemaBaselineCount, $projectTemplateSmokeSchemaBaselineDriftCount))")
 [void]$handoffLines.Add("- Install smoke: $($summary.steps.install_smoke.status)")
 [void]$handoffLines.Add("- Visual gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
@@ -782,6 +792,7 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add("- Project template smoke: $(if ($projectTemplateSmokeStatus) { $projectTemplateSmokeStatus } else { '<completed|failed|not_requested>' })")
 [void]$handoffLines.Add("- Project template smoke passed: $(if ($projectTemplateSmokePassed) { $projectTemplateSmokePassed } else { '<True|False>' })")
 [void]$handoffLines.Add("- Project template smoke entries/failed: $(if ($projectTemplateSmokeEntryCount -or $projectTemplateSmokeFailedEntryCount) { '{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount } else { '<entry_count>/<failed_entry_count>' })")
+[void]$handoffLines.Add("- Project template smoke schema baseline dirty/drift: $(if ($projectTemplateSmokeDirtySchemaBaselineCount -or $projectTemplateSmokeSchemaBaselineDriftCount) { '{0}/{1}' -f $projectTemplateSmokeDirtySchemaBaselineCount, $projectTemplateSmokeSchemaBaselineDriftCount } else { '<dirty_schema_baseline_count>/<schema_baseline_drift_count>' })")
 [void]$handoffLines.Add("- Project template smoke candidates registered/unregistered/excluded: $(if ($projectTemplateSmokeRegisteredCandidateCount -or $projectTemplateSmokeUnregisteredCandidateCount -or $projectTemplateSmokeExcludedCandidateCount) { '{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount } else { '<registered>/<unregistered>/<excluded>' })")
 [void]$handoffLines.Add("- Project template smoke visual verdict: $(if ($projectTemplateSmokeVisualVerdict) { $projectTemplateSmokeVisualVerdict } else { '<pass|fail|pending_manual_review|not_applicable>' })")
 [void]$handoffLines.Add("- install + find_package smoke: $($summary.steps.install_smoke.status)")

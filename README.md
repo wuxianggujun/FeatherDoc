@@ -521,11 +521,17 @@ featherdoc_cli export-template-schema input.docx --output template-schema.json -
 featherdoc_cli export-template-schema input.docx --section-targets --output section-template-schema.json --json
 featherdoc_cli export-template-schema input.docx --resolved-section-targets --output resolved-section-template-schema.json --json
 featherdoc_cli normalize-template-schema template-schema.json --output normalized-template-schema.json --json
+featherdoc_cli lint-template-schema template-schema.json --json
+featherdoc_cli repair-template-schema template-schema.json --output repaired-template-schema.json --json
+featherdoc_cli merge-template-schema shared-template-schema.json invoice-template-schema.json --output merged-template-schema.json --json
+featherdoc_cli patch-template-schema committed-template-schema.json --patch-file schema.patch.json --output patched-template-schema.json --json
+featherdoc_cli build-template-schema-patch committed-schema.json generated-schema.json --output schema.patch.json --json
 featherdoc_cli diff-template-schema old-template-schema.json new-template-schema.json --json
 featherdoc_cli diff-template-schema committed-schema.json generated-schema.json --fail-on-diff --json
 featherdoc_cli check-template-schema input.docx --schema-file committed-schema.json --resolved-section-targets --output generated-schema.json --json
 pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
-pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json -RepairedSchemaOutput .\repaired-template.schema.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_manifest.ps1 -ManifestPath .\baselines\template-schema\manifest.json -BuildDir build-codex-clang-compat -RepairedSchemaOutputDir .\output\template-schema-manifest-repairs
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
 pwsh -ExecutionPolicy Bypass -File .\scripts\new_project_template_smoke_onboarding_plan.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json
@@ -535,6 +541,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_man
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson .\output\project-template-smoke\summary.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
 For project-level smoke checks across several real templates, use
@@ -545,7 +552,9 @@ committed `.docx` directly or prepare one first via `prepare_sample_target` /
 wrapper writes per-entry artifacts plus aggregate `summary.json` and
 `summary.md` so you can review a whole template pack in one place. See
 `samples/project_template_smoke.manifest.json` for a runnable repository
-example.
+example. `schema_baseline` results now also record whether the committed schema
+is lint-clean, how many lint issues were found, and any repaired candidate path
+emitted by the baseline gate.
 
 To validate the manifest contract before running the full harness, use
 `scripts/check_project_template_smoke_manifest.ps1`. The sample manifest now
@@ -592,6 +601,287 @@ the sync script so it also rewrites the release-candidate `summary.json`,
 `final_review.md`, `START_HERE.md`, `ARTIFACT_GUIDE.md`,
 `REVIEWER_CHECKLIST.md`, and `release_handoff.md` without rerunning the full
 preflight.
+
+When you want a single-template render entrypoint instead of a repository-level
+smoke manifest, use `scripts/render_template_document.ps1`. It reads one JSON
+plan and chains `fill-bookmarks`, `replace-bookmark-paragraphs`,
+`replace-bookmark-table-rows`, and `apply-bookmark-block-visibility` into one
+repeatable `.docx` render flow. The script treats missing bookmarks as a hard
+failure so template drift is caught early, and it can emit a machine-readable
+summary JSON for CI or review tooling. See
+`samples/template_render_plan.schema.json` and
+`samples/chinese_invoice_template.render_plan.json` for a runnable example.
+
+If you do not want to hand-author the first render plan, start with
+`scripts/export_template_render_plan.ps1`. It inspects body, header-part, and
+footer-part bookmarks, classifies `text`, `block`, `table_rows`, and
+`block_range` bookmarks into the four render-plan arrays, and writes a draft
+JSON that can be edited and then fed back into
+`render_template_document.ps1`. The draft uses `TODO: <bookmark_name>`
+placeholders for text and paragraph slots, keeps table-row drafts empty, and
+defaults block-visibility entries to `visible: true`.
+
+If you want to keep business data separate from the exported draft, follow with
+`scripts/patch_template_render_plan.ps1`. It reads one base render plan plus a
+patch document, matches patch entries by `bookmark_name` plus optional
+`part/index/section/kind` selectors, and overwrites only the payload fields in
+the base plan. When a bookmark name is unique, the patch can stay minimal and
+only provide `bookmark_name` plus `text`, `paragraphs`, `rows`, or `visible`.
+Pass `-RequireComplete` when you want the script to fail on leftover `TODO`
+placeholders or empty table-row drafts before rendering. See
+`samples/chinese_invoice_template.render_patch.json` for a runnable example.
+
+If you want one command that starts from a template plus a patch JSON and ends
+with a final `.docx`, use `scripts/render_template_document_from_patch.ps1`.
+It runs export, patch, and render in order, resolves `featherdoc_cli` once for
+the whole pipeline, enables `-RequireComplete` on the patch step by default,
+and can optionally keep the exported draft plus the patched render plan for
+review.
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_patch.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PatchPlanPath .\samples\chinese_invoice_template.render_patch.json -OutputDocx .\output\rendered\invoice.from-patch.docx -SummaryJson .\output\rendered\invoice.from-patch.summary.json -DraftPlanOutput .\output\rendered\invoice.draft.render-plan.json -PatchedPlanOutput .\output\rendered\invoice.filled.render-plan.json -BuildDir build-codex-clang-compat -SkipBuild
+```
+
+If you want to keep the edit surface at the business-data level instead of
+hand-editing patch JSON, use
+`scripts/convert_render_data_to_patch_plan.ps1` together with
+`samples/template_render_data_mapping.schema.json`. The mapping file binds one
+JSON `source` path to each `bookmark_text`, `bookmark_paragraphs`,
+`bookmark_table_rows`, or `bookmark_block_visibility` entry, so the generated
+patch stays reproducible while business data remains schema-shaped.
+
+If you already have a render-plan draft and want a starting mapping file instead
+of writing one from scratch, run
+`scripts/export_render_data_mapping_draft.ps1`. It copies bookmark targets plus
+optional part/index/section/kind selectors and fills each `source` with an
+editable path derived from the bookmark name.
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\export_render_data_mapping_draft.ps1 -InputPlan .\samples\chinese_invoice_template.render_plan.json -OutputMapping .\output\rendered\invoice.render_data_mapping.draft.json -SummaryJson .\output\rendered\invoice.render_data_mapping.draft.summary.json -SourceRoot data
+```
+
+If you want a ready-to-edit data workspace directly from a `.docx` template,
+run `scripts/prepare_template_render_data_workspace.ps1`. It chains
+`export_template_render_plan`, `export_render_data_mapping_draft`,
+`export_render_data_skeleton`, and `lint_render_data_mapping` into one entry
+point, producing a render plan, mapping draft, editable data skeleton, and a
+workspace summary. This is the most direct setup when users should edit JSON
+business data first and render the final document later. The prepared
+workspace now also includes a `START_HERE.zh-CN.md` guide that points users to
+the JSON file they should edit first, the validation command that confirms the
+edited data is complete, and the render command they should run next.
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_template_render_data_workspace.ps1 -InputDocx .\samples\chinese_invoice_template.docx -WorkspaceDir .\output\rendered\invoice.workspace -SummaryJson .\output\rendered\invoice.workspace\summary.json -BuildDir build-codex-clang-compat -SkipBuild
+```
+
+After the workspace is prepared, use
+`scripts/render_template_document_from_workspace.ps1` as the matching wrapper.
+It resolves the template, mapping, and data JSON from the workspace summary or
+workspace directory, so the user-facing flow becomes:
+
+1. edit the data JSON,
+2. run `validate_render_data_mapping.ps1 -WorkspaceDir ... -RequireComplete` and
+   confirm `status=completed` plus `remaining_placeholder_count=0`,
+3. render the final `.docx` from the workspace.
+
+If the data file still contains scaffold placeholders such as `TODO:`, the
+wrapper reports that directly instead of surfacing a lower-level patch/render
+error first. Pass `-ReportMarkdown` to also write a human-readable report, so
+users can open the `.md` file for the verdict and remaining slots before reading
+the JSON summary. Remaining-slot entries also use the mapping to point back to
+the data JSON fields users should inspect.
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\validate_render_data_mapping.ps1 -WorkspaceDir .\output\rendered\invoice.workspace -SummaryJson .\output\rendered\invoice.workspace\validation.summary.json -ReportMarkdown .\output\rendered\invoice.workspace\validation.report.md -BuildDir build-codex-clang-compat -SkipBuild -RequireComplete
+```
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_workspace.ps1 -WorkspaceDir .\output\rendered\invoice.workspace -OutputDocx .\output\rendered\invoice.final.docx -SummaryJson .\output\rendered\invoice.workspace\render.summary.json
+```
+
+For direct edits to an existing `.docx`, use
+`scripts/edit_document_from_plan.ps1`. The JSON file is an **edit instruction
+plan**, not a JSON copy of the whole Word document: the script applies the
+operations to the original `.docx` in order, then writes a new `.docx` plus a
+summary. This is the matching workflow for “existing document + edit
+instructions = new document”.
+
+```json
+{
+  "operations": [
+    {
+      "op": "replace_bookmark_text",
+      "bookmark": "customer_name",
+      "text": "FeatherDoc Co."
+    },
+    {
+      "op": "replace_bookmark_paragraphs",
+      "bookmark": "note_lines",
+      "paragraphs": ["First paragraph", "Second paragraph"]
+    },
+    {
+      "op": "replace_bookmark_table_rows",
+      "bookmark": "line_item_row",
+      "rows": [["Service", "Description", "Amount"]]
+    },
+    {
+      "op": "set_table_cell_text",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "text": "4,000.00"
+    },
+    {
+      "op": "set_table_cell_fill",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "background_color": "FFF2CC"
+    },
+    {
+      "op": "set_table_cell_border",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "edge": "right",
+      "style": "single",
+      "thickness": 16,
+      "color": "FF0000"
+    },
+    {
+      "op": "set_table_row_height",
+      "table_index": 0,
+      "row_index": 3,
+      "height_twips": 720,
+      "rule": "exact"
+    },
+    {
+      "op": "set_table_cell_vertical_alignment",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "alignment": "center"
+    },
+    {
+      "op": "set_table_cell_horizontal_alignment",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "alignment": "right"
+    },
+    {
+      "op": "replace_text",
+      "find": "old term",
+      "replace": "new term"
+    },
+    {
+      "op": "set_text_style",
+      "text_contains": "new term",
+      "bold": true,
+      "font_family": "Segoe UI",
+      "east_asia_font_family": "Microsoft YaHei",
+      "language": "en-US",
+      "east_asia_language": "zh-CN",
+      "color": "C00000",
+      "font_size_points": 14
+    },
+    {
+      "op": "delete_paragraph_contains",
+      "text_contains": "optional note"
+    },
+    {
+      "op": "set_paragraph_horizontal_alignment",
+      "text_contains": "First paragraph",
+      "alignment": "center"
+    },
+    {
+      "op": "set_paragraph_spacing",
+      "text_contains": "First paragraph",
+      "before_twips": 120,
+      "after_twips": 240,
+      "line_twips": 360,
+      "line_rule": "exact"
+    },
+    {
+      "op": "set_table_column_width",
+      "table_index": 0,
+      "column_index": 1,
+      "width_twips": 5200
+    },
+    {
+      "op": "merge_table_cells",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 0,
+      "direction": "right",
+      "count": 2
+    }
+  ]
+}
+```
+
+Table-cell vertical alignment supports `top` / `center` / `bottom` / `both`;
+table-cell and normal body-paragraph horizontal alignment both support `left` /
+`center` / `right` / `both`. Table layout edits include column width and
+cell merge/unmerge in the `right` or `down` direction. Cell appearance edits
+include background fill, single-edge border style, border
+thickness, and border color. Text style edits include bold, text color, font size,
+Latin font, CJK font, primary language, and East Asian language metadata.
+Paragraph layout edits include spacing before, spacing after, and line spacing.
+Body paragraphs can be targeted by `paragraph_index` or by `text_contains`.
+If a document has no bookmarks, use `replace_text` for ordinary
+body text replacement; it searches the merged visible paragraph text, so it
+handles common Word run splitting. For vertical centering to be visible in Word,
+pair it with `set_table_row_height` so the row has an explicit height.
+Use `merge_table_cells` to merge table cells and `unmerge_table_cells` to split
+an existing merge; `count` controls how many cells the merge spans.
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\edit_document_from_plan.ps1 -InputDocx .\samples\chinese_invoice_template.docx -EditPlan .\output\rendered\invoice.edit_plan.json -OutputDocx .\output\rendered\invoice.edited.docx -SummaryJson .\output\rendered\invoice.edit.summary.json -BuildDir build-codex-clang-compat -SkipBuild
+```
+
+To verify that the direct-edit output also looks right after Word renders it,
+run the focused visual regression. It creates the edited DOCX, exports the
+baseline and edited documents through Microsoft Word, renders PNG evidence, and
+writes a before/after contact sheet:
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\run_edit_document_from_plan_visual_regression.ps1 -BuildDir build-codex-clang-compat -SkipBuild
+```
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\convert_render_data_to_patch_plan.ps1 -DataPath .\samples\chinese_invoice_template.render_data.json -MappingPath .\samples\chinese_invoice_template.render_data_mapping.json -OutputPatch .\output\rendered\invoice.generated.render_patch.json -SummaryJson .\output\rendered\invoice.generated.render_patch.summary.json
+```
+
+For faster feedback while editing mappings, run
+`scripts/lint_render_data_mapping.ps1` before template export or rendering. It
+checks selector shape, duplicate targets inside each category, and optional
+business-data `source` paths without opening the `.docx` template.
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\lint_render_data_mapping.ps1 -MappingPath .\samples\chinese_invoice_template.render_data_mapping.json -DataPath .\samples\chinese_invoice_template.render_data.json -SummaryJson .\output\rendered\invoice.mapping.lint.summary.json
+```
+
+Before rendering, you can validate the whole `template + mapping + data`
+contract with `scripts/validate_render_data_mapping.ps1`. The wrapper exports a
+draft render plan, converts business data into a patch, and replays that patch
+onto the draft so missing mappings, invalid `source` paths, duplicate targets,
+or leftover placeholders fail before the final `.docx` step.
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\validate_render_data_mapping.ps1 -InputDocx .\samples\chinese_invoice_template.docx -MappingPath .\samples\chinese_invoice_template.render_data_mapping.json -DataPath .\samples\chinese_invoice_template.render_data.json -SummaryJson .\output\rendered\invoice.validation.summary.json -DraftPlanOutput .\output\rendered\invoice.validation.draft.render-plan.json -GeneratedPatchOutput .\output\rendered\invoice.validation.generated.render_patch.json -PatchedPlanOutput .\output\rendered\invoice.validation.patched.render-plan.json -BuildDir build-codex-clang-compat -SkipBuild -RequireComplete
+```
+
+For the full `.docx + business JSON + mapping = final .docx` workflow, use
+`scripts/render_template_document_from_data.ps1`. It runs export, convert,
+patch, and render as one direct pipeline, keeps `-RequireComplete` semantics on
+the patch step by default, and still lets you preserve the generated patch plus
+draft / patched render plans when needed.
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_data.ps1 -InputDocx .\samples\chinese_invoice_template.docx -DataPath .\samples\chinese_invoice_template.render_data.json -MappingPath .\samples\chinese_invoice_template.render_data_mapping.json -OutputDocx .\output\rendered\invoice.from-data.docx -SummaryJson .\output\rendered\invoice.from-data.summary.json -PatchPlanOutput .\output\rendered\invoice.generated.render_patch.json -DraftPlanOutput .\output\rendered\invoice.draft.render-plan.json -PatchedPlanOutput .\output\rendered\invoice.filled.render-plan.json -BuildDir build-codex-clang-compat -SkipBuild
+```
 
 `inspect-sections` prints the current section count together with per-section
 header/footer attachment flags for `default`, `first`, and `even` references.
@@ -652,9 +942,12 @@ featherdoc_cli inspect-template-table-rows input.docx 0 --row 1 --json
 featherdoc_cli inspect-template-table-cells input.docx 0 --row 1 --cell 1 --json
 featherdoc_cli replace-bookmark-text input.docx customer_name --text "Ada Lovelace" --output bookmark-text.docx --json
 featherdoc_cli fill-bookmarks input.docx --set customer_name "Ada Lovelace" --set invoice_no INV-001 --output filled.docx --json
+featherdoc_cli fill-bookmarks input.docx --set-file customer_name customer_name.txt --set-file invoice_no invoice_no.txt --output filled-from-files.docx --json
 featherdoc_cli replace-bookmark-paragraphs input.docx notes --paragraph "Line one" --paragraph "Line two" --output bookmark-paragraphs.docx --json
+featherdoc_cli replace-bookmark-paragraphs input.docx notes --paragraph-file note-1.txt --paragraph-file note-2.txt --output bookmark-paragraphs-files.docx --json
 featherdoc_cli replace-bookmark-table input.docx line_items --row "SKU-1" --cell "2" --cell "$10" --output bookmark-table.docx --json
 featherdoc_cli replace-bookmark-table-rows input.docx line_items --row "SKU-2" --cell "4" --cell "$20" --output bookmark-table-rows.docx --json
+featherdoc_cli replace-bookmark-table-rows input.docx line_items --row-file sku.txt --cell-file qty.txt --cell-file price.txt --output bookmark-table-rows-files.docx --json
 featherdoc_cli remove-bookmark-block input.docx optional_section --output bookmark-block-removed.docx --json
 featherdoc_cli set-bookmark-block-visibility input.docx optional_section --visible false --output bookmark-hidden.docx --json
 featherdoc_cli apply-bookmark-block-visibility input.docx --hide optional_section --show totals --output bookmark-visibility.docx --json
@@ -758,13 +1051,16 @@ If you also want release-preflight to gate a template DOCX against a committed
 schema baseline, pass `-TemplateSchemaInputDocx`, `-TemplateSchemaBaseline`,
 and one of `-TemplateSchemaSectionTargets` /
 `-TemplateSchemaResolvedSectionTargets`. The wrapper then records that check in
-`report/summary.json` and fails the whole preflight on schema drift.
+`report/summary.json`, including whether the committed schema is lint-clean,
+and fails the whole preflight on either schema drift or schema-maintenance
+issues.
 
 If you want the same preflight to gate every repository-registered template
 schema baseline at once, pass `-TemplateSchemaManifestPath` instead. The
 wrapper then runs `check_template_schema_manifest.ps1`, records the manifest
-status plus entry/drift counts in `report/summary.json`, and fails the whole
-preflight when any registered baseline drifts.
+status plus entry/drift/dirty-baseline counts in `report/summary.json`, and
+fails the whole preflight when any registered baseline drifts or any committed
+schema baseline needs repair.
 
 If you also want release-preflight to exercise a real-template regression pack,
 pass `-ProjectTemplateSmokeManifestPath`. The wrapper then runs
@@ -783,7 +1079,9 @@ When you want to add or refresh a repository-level baseline without manually
 editing `baselines/template-schema/manifest.json`, prefer
 `register_template_schema_manifest_entry.ps1`. It prepares a generated fixture
 when needed, freezes the normalized schema baseline, and writes or updates the
-matching manifest entry in one step.
+matching manifest entry in one step. Before writing the manifest, it now runs
+the same baseline gate used by CI, so dirty schemas or document/schema drift are
+rejected at registration time unless you explicitly pass `-SkipBaselineCheck`.
 
 The same workflow now also uploads a separate `windows-msvc-release-metadata`
 artifact containing `build-msvc-install/share/FeatherDoc/**`, a root-level
@@ -1635,15 +1933,117 @@ serialize representable bookmark kinds using the same lightweight
 classification returned by `list_bookmarks()`. If you need a stable schema file
 for reviews or commits, run `normalize-template-schema`; if you need to compare
 two revisions, use `diff-template-schema` to get added / removed / changed
-targets directly. Add `--fail-on-diff` when you want the diff command to behave
-like a CI gate and return a non-zero exit code on schema drift. If you want a
-single command that exports, normalizes, compares, and gates against a committed
-baseline, use `check-template-schema`; it returns `0` on match and `1` on drift,
-and can optionally write the normalized generated schema with `--output`. If you
-prefer a higher-level repository entrypoint, the wrapper scripts
+targets directly. If you need to gate a committed schema in review or CI, use
+`lint-template-schema`; it returns `0` for clean schemas and `1` when it finds
+duplicate target identities, duplicate slot names, non-canonical ordering, or
+leaked `entry_name` metadata. If you want the safe canonical rewrite for those
+maintenance issues, run `repair-template-schema`; it strips `entry_name`,
+merges duplicate target identities using later-definition-wins semantics, folds
+duplicate slot names, and then normalizes target / slot order. If you need to
+compose a shared schema with a
+document-specific overlay, use `merge-template-schema`; later files upsert
+matching targets and replace same-bookmark slot definitions before the merged
+result is normalized. If you need to maintain a committed schema in place, use
+`patch-template-schema` with a patch file that can `upsert_targets`,
+`remove_targets`, `remove_slots`, and `rename_slots`; the patched result is
+normalized before it is printed or written. If you already have a reviewed left
+and right schema pair and want a reusable patch file, use
+`build-template-schema-patch`; it stays correctness-first, but when a target
+keeps the same full identity it prefers slot-level `remove_slots`,
+`rename_slots`, and partial `upsert_targets`. Only identity changes fall back
+to whole-target `remove_targets` plus `upsert_targets`, so applying the patch
+to the left schema still reproduces the normalized right schema.
+Add `--fail-on-diff` when you want the diff command to behave like a CI gate
+and return a non-zero exit code on schema drift. If you want a single command
+that exports, normalizes, compares, and gates against a committed baseline, use
+`check-template-schema`; it returns `0` on match and `1` on drift, and can
+optionally write the normalized generated schema with `--output`. If you prefer
+a higher-level repository entrypoint, the wrapper scripts
 `scripts/freeze_template_schema_baseline.ps1` and
 `scripts/check_template_schema_baseline.ps1` provide the same workflow with
-optional CLI auto-build/reuse logic.
+optional CLI auto-build/reuse logic. The baseline wrapper now runs
+`lint-template-schema` before the document-vs-baseline comparison and can write
+an optional repaired candidate with `-RepairedSchemaOutput` when the committed
+schema needs cleanup. `scripts/check_template_schema_manifest.ps1` applies the
+same gate across the repository manifest, reports `dirty_baseline_count` in its
+`summary.json`, and can emit per-entry repaired candidates with
+`-RepairedSchemaOutputDir`.
+
+A `patch-template-schema` patch file is a JSON object with zero or more of these
+arrays:
+
+- `upsert_targets`: regular exported schema targets, merged with the same
+  target and slot-replacement rules as `merge-template-schema`
+- `remove_targets`: target selectors matched by full target identity, including
+  `part`, `index` / `part_index`, `section`, `kind`,
+  `resolved_from_section`, and `linked_to_previous`
+- `remove_slots`: the same selector fields plus `bookmark` or
+  `bookmark_name`; matching slots are removed and empty targets are pruned
+- `rename_slots`: the same selector fields plus `bookmark` /
+  `bookmark_name` for the old slot name and `new_bookmark` /
+  `new_bookmark_name` for the new slot name
+- `entry_name` is ignored in selectors, so exported JSON can be copied into a
+  patch file after trimming unrelated fields
+- `{}` is also valid and represents a no-op patch; that is what
+  `build-template-schema-patch` emits when two schemas are already equivalent
+- `build-template-schema-patch` only emits `rename_slots` when the left/right
+  target identity is unchanged and the old/new slot shapes match uniquely; if
+  that confidence is missing, it falls back to remove/add style patch entries
+
+Example patch file:
+
+```json
+{
+  "remove_targets": [
+    {
+      "part": "section-footer",
+      "section": 1,
+      "kind": "default"
+    }
+  ],
+  "remove_slots": [
+    {
+      "part": "body",
+      "bookmark": "summary_block"
+    },
+    {
+      "part": "section-header",
+      "section": 1,
+      "kind": "default",
+      "resolved_from_section": 0,
+      "linked_to_previous": true,
+      "bookmark_name": "legacy_header_note"
+    }
+  ],
+  "rename_slots": [
+    {
+      "part": "section-header",
+      "section": 1,
+      "kind": "default",
+      "resolved_from_section": 0,
+      "linked_to_previous": true,
+      "bookmark": "header_title",
+      "new_bookmark": "document_title"
+    }
+  ],
+  "upsert_targets": [
+    {
+      "part": "body",
+      "slots": [
+        {
+          "bookmark": "customer",
+          "kind": "text",
+          "count": 2
+        },
+        {
+          "bookmark": "invoice_no",
+          "kind": "text"
+        }
+      ]
+    }
+  ]
+}
+```
 
 `append_paragraph(...)` appends a new paragraph to the existing body/header/footer
 part and returns the appended `Paragraph`, so you can immediately continue
@@ -2127,8 +2527,7 @@ reason about and extend independently.
 - Changelog: `CHANGELOG.md`
 - Sphinx docs entry: `docs/index.rst`
 - Project identity guide: `docs/project_identity_zh.rst`
-- Initial audit notes: `docs/project_audit_zh.rst`
-- Upstream issue triage: `docs/upstream_issue_triage_zh.rst`
+- Current direction guide (Chinese): `docs/current_direction_zh.rst`
 - Release policy guide: `docs/release_policy_zh.rst`
 - Chinese license guide: `docs/licensing_zh.rst`
 - Repository legal notes: `LEGAL.md`
@@ -2139,6 +2538,8 @@ reason about and extend independently.
 FeatherDoc should be treated as its own actively-shaped fork rather than a
 passive mirror of the historical upstream project.
 
+- The product goal is a `.docx` engine for formal document workflows, covering
+  document processing, structured editing, generation, and verification.
 - Modern C++ and clearer API semantics take priority over preserving obsolete
   compatibility patterns.
 - MSVC buildability is a real support target, not a best-effort afterthought.
@@ -2146,6 +2547,9 @@ passive mirror of the historical upstream project.
   class concerns.
 - Project positioning, licensing, documentation, and repository metadata follow
   the current FeatherDoc direction.
+
+If you need the current planning document that explains what to build next, see
+`docs/current_direction_zh.rst`.
 
 ## Sponsor
 

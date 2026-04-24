@@ -192,10 +192,13 @@ foreach ($entry in @($manifest.entries)) {
         generated_output = Resolve-OptionalManifestPropertyValue -Entry $entry -Name "generated_output"
         latest_available = ($null -ne $summaryEntry)
         latest_matches = if ($null -eq $summaryEntry) { $null } else { [bool]$summaryEntry.matches }
+        latest_schema_lint_clean = if ($null -eq $summaryEntry) { $null } else { [bool]$summaryEntry.schema_lint_clean }
+        latest_schema_lint_issue_count = if ($null -eq $summaryEntry) { $null } else { [int]$summaryEntry.schema_lint_issue_count }
         latest_added_target_count = if ($null -eq $summaryEntry) { $null } else { [int]$summaryEntry.added_target_count }
         latest_removed_target_count = if ($null -eq $summaryEntry) { $null } else { [int]$summaryEntry.removed_target_count }
         latest_changed_target_count = if ($null -eq $summaryEntry) { $null } else { [int]$summaryEntry.changed_target_count }
         latest_generated_output_path = if ($null -eq $summaryEntry) { "" } else { [string]$summaryEntry.generated_output_path }
+        latest_repaired_schema_output_path = if ($null -eq $summaryEntry) { "" } else { [string]$summaryEntry.repaired_schema_output_path }
     }) | Out-Null
 }
 
@@ -207,6 +210,12 @@ $report = [ordered]@{
     entry_count = $entries.Count
     latest_passed = if ($summary) { [bool]$summary.passed } else { $null }
     latest_drift_count = if ($summary) { [int]$summary.drift_count } else { $null }
+    latest_dirty_baseline_count = if ($summary -and
+        $null -ne $summary.PSObject.Properties["dirty_baseline_count"]) {
+        [int]$summary.dirty_baseline_count
+    } else {
+        $null
+    }
     entries = $entries
 }
 
@@ -233,7 +242,12 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("Registered baselines: $($entries.Count)")
 if ($summary) {
     [void]$lines.Add("Latest summary: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
-    [void]$lines.Add("Latest gate result: passed=$([string]$summary.passed) drift_count=$([int]$summary.drift_count)")
+    $dirtyBaselineCount = if ($null -ne $summary.PSObject.Properties["dirty_baseline_count"]) {
+        [int]$summary.dirty_baseline_count
+    } else {
+        0
+    }
+    [void]$lines.Add("Latest gate result: passed=$([string]$summary.passed) drift_count=$([int]$summary.drift_count) dirty_baseline_count=$dirtyBaselineCount")
 } else {
     [void]$lines.Add("Latest summary: (not available)")
 }
@@ -262,8 +276,13 @@ foreach ($entry in $entries) {
     }
     if ($entry.latest_available) {
         [void]$lines.Add("  latest_matches: $($entry.latest_matches)")
+        [void]$lines.Add("  latest_schema_lint_clean: $($entry.latest_schema_lint_clean)")
+        [void]$lines.Add("  latest_schema_lint_issue_count: $($entry.latest_schema_lint_issue_count)")
         [void]$lines.Add("  latest_drift_counts: $($entry.latest_added_target_count)/$($entry.latest_removed_target_count)/$($entry.latest_changed_target_count)")
         [void]$lines.Add("  latest_generated_output_path: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $entry.latest_generated_output_path)")
+        if (-not [string]::IsNullOrWhiteSpace($entry.latest_repaired_schema_output_path)) {
+            [void]$lines.Add("  latest_repaired_schema_output_path: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $entry.latest_repaired_schema_output_path)")
+        }
     } else {
         [void]$lines.Add("  latest_matches: (not available)")
     }

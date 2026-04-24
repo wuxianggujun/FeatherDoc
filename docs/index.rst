@@ -15,11 +15,9 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    :hidden:
 
    project_identity_zh
+   current_direction_zh
    release_policy_zh
-   release_history_backfill_playbook_zh
    v1_7_roadmap_zh
-   project_audit_zh
-   upstream_issue_triage_zh
    licensing_zh
    automation/word_visual_workflow_zh
 
@@ -294,6 +292,14 @@ setup, bookmarks, images, and template parts.
     featherdoc_cli set-template-table-from-json report.docx --bookmark line_items_table --patch-file row_patch.json --output report-updated.docx --json
     featherdoc_cli set-template-tables-from-json report.docx --patch-file multi_table_patch.json --output report-updated.docx --json
     featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
+    featherdoc_cli validate-template-schema input.docx --schema-file template-schema.json --json
+    featherdoc_cli export-template-schema input.docx --output template-schema.json --json
+    featherdoc_cli normalize-template-schema template-schema.json --output normalized-template-schema.json --json
+    featherdoc_cli lint-template-schema template-schema.json --json
+    featherdoc_cli repair-template-schema template-schema.json --output repaired-template-schema.json --json
+    featherdoc_cli merge-template-schema shared-template-schema.json invoice-template-schema.json --output merged-template-schema.json --json
+    featherdoc_cli patch-template-schema committed-template-schema.json --patch-file schema.patch.json --output patched-template-schema.json --json
+    featherdoc_cli build-template-schema-patch committed-schema.json generated-schema.json --output schema.patch.json --json
     featherdoc_cli validate-template input.docx --part header --index 0 --slot header_title:text --slot header_rows:table_rows --json
     featherdoc_cli validate-template input.docx --part section-footer --section 1 --kind first --slot footer_company:text --slot footer_note:block:optional
 
@@ -301,6 +307,105 @@ The command block above is representative rather than exhaustive. Keep reading
 this page when you need the broader CLI surface, including table inspection and
 mutation commands, template-table row/cell edits, image extraction and
 replacement, or per-section page-setup rewrites.
+
+``lint-template-schema`` is the maintenance gate for committed schema JSON. It
+returns ``0`` for clean files and ``1`` when it finds duplicate target
+identities, duplicate slot names, non-canonical ordering, or
+leftover ``entry_name`` metadata that should not survive review.
+
+``repair-template-schema`` is the safe canonical rewrite for those maintenance
+problems. It strips ``entry_name``, merges duplicate target identities using
+later-definition-wins semantics, folds duplicate slot names the same way, and
+then normalizes target and slot ordering before writing or printing the repaired
+schema JSON.
+
+For repository-level gating, ``scripts/check_template_schema_baseline.ps1``
+wraps the same flow, runs ``lint-template-schema`` before
+``check-template-schema``, and can write a repaired candidate with
+``-RepairedSchemaOutput`` when a committed schema needs cleanup.
+``scripts/check_template_schema_manifest.ps1`` applies that gate across the
+repository manifest, reports ``dirty_baseline_count`` in its ``summary.json``,
+and can emit per-entry repaired candidates with
+``-RepairedSchemaOutputDir``.
+
+When adding a repository baseline,
+``scripts/register_template_schema_manifest_entry.ps1`` now runs the same gate
+before writing ``manifest.json`` and refuses dirty or drifting entries unless
+``-SkipBaselineCheck`` is passed explicitly.
+
+``patch-template-schema`` expects a JSON object with zero or more of
+``upsert_targets``, ``remove_targets``, ``remove_slots``, and
+``rename_slots``. ``upsert_targets`` reuses the regular exported target format
+and follows the same merge semantics as ``merge-template-schema``.
+``remove_targets`` matches the full target identity, including ``part``,
+``index`` / ``part_index``, ``section``, ``kind``,
+``resolved_from_section``, and ``linked_to_previous``. ``remove_slots`` uses
+the same selector fields plus ``bookmark`` or ``bookmark_name``; matching
+slots are deleted, and empty targets are pruned. ``rename_slots`` uses the
+same selector fields plus ``bookmark`` / ``bookmark_name`` for the old slot
+name and ``new_bookmark`` / ``new_bookmark_name`` for the new slot name.
+Selector ``entry_name`` values are ignored, so exported JSON fragments can be
+trimmed and reused directly in patch files. ``{}`` is also valid and represents
+a no-op patch; that is what ``build-template-schema-patch`` emits when two
+schemas are already equivalent.
+``build-template-schema-patch`` stays correctness-first, but when a target keeps
+the same full identity it prefers slot-level ``remove_slots``,
+``rename_slots``, and partial ``upsert_targets``. It only falls back to
+whole-target ``remove_targets`` plus ``upsert_targets`` when the target
+identity changes or a rename match is ambiguous.
+
+.. code-block:: json
+
+    {
+      "remove_targets": [
+        {
+          "part": "section-footer",
+          "section": 1,
+          "kind": "default"
+        }
+      ],
+      "remove_slots": [
+        {
+          "part": "body",
+          "bookmark": "summary_block"
+        },
+        {
+          "part": "section-header",
+          "section": 1,
+          "kind": "default",
+          "resolved_from_section": 0,
+          "linked_to_previous": true,
+          "bookmark_name": "legacy_header_note"
+        }
+      ],
+      "rename_slots": [
+        {
+          "part": "section-header",
+          "section": 1,
+          "kind": "default",
+          "resolved_from_section": 0,
+          "linked_to_previous": true,
+          "bookmark": "header_title",
+          "new_bookmark": "document_title"
+        }
+      ],
+      "upsert_targets": [
+        {
+          "part": "body",
+          "slots": [
+            {
+              "bookmark": "customer",
+              "kind": "text",
+              "count": 2
+            },
+            {
+              "bookmark": "invoice_no",
+              "kind": "text"
+            }
+          ]
+        }
+      ]
+    }
 
 Additional representative command groups:
 
@@ -383,9 +488,12 @@ Additional representative command groups:
     featherdoc_cli unmerge-template-table-cells input.docx 0 1 0 --direction right --output template-unmerged.docx --json
     featherdoc_cli replace-bookmark-text input.docx customer_name --text "Ada Lovelace" --output bookmark-text.docx --json
     featherdoc_cli fill-bookmarks input.docx --set customer_name "Ada Lovelace" --set invoice_no INV-001 --output filled.docx --json
+    featherdoc_cli fill-bookmarks input.docx --set-file customer_name customer_name.txt --set-file invoice_no invoice_no.txt --output filled-from-files.docx --json
     featherdoc_cli replace-bookmark-paragraphs input.docx notes --paragraph "Line one" --paragraph "Line two" --output bookmark-paragraphs.docx --json
+    featherdoc_cli replace-bookmark-paragraphs input.docx notes --paragraph-file note-1.txt --paragraph-file note-2.txt --output bookmark-paragraphs-files.docx --json
     featherdoc_cli replace-bookmark-table input.docx line_items --row "SKU-1" --cell "2" --cell "$10" --output bookmark-table.docx --json
     featherdoc_cli replace-bookmark-table-rows input.docx line_items --row "SKU-2" --cell "4" --cell "$20" --output bookmark-table-rows.docx --json
+    featherdoc_cli replace-bookmark-table-rows input.docx line_items --row-file sku.txt --cell-file qty.txt --cell-file price.txt --output bookmark-table-rows-files.docx --json
     featherdoc_cli remove-bookmark-block input.docx optional_section --output bookmark-block-removed.docx --json
     featherdoc_cli set-bookmark-block-visibility input.docx optional_section --visible false --output bookmark-hidden.docx --json
     featherdoc_cli apply-bookmark-block-visibility input.docx --hide optional_section --show totals --output bookmark-visibility.docx --json
@@ -1520,6 +1628,72 @@ For a runnable Chinese business example, build
 expands a bookmarked table row into a three-column quote table, and writes a
 finished output document.
 
+When you want the same multi-step workflow from scripts instead of C++, use
+``scripts/render_template_document.ps1``. It reads one JSON render plan and
+chains ``fill-bookmarks``, ``replace-bookmark-paragraphs``,
+``replace-bookmark-table-rows``, and
+``apply-bookmark-block-visibility`` into one repeatable ``.docx`` render
+flow. The wrapper treats missing bookmarks as a hard failure so template drift
+is caught early, and it can emit a summary JSON for CI or reviewer tooling.
+See ``samples/template_render_plan.schema.json`` and
+``samples/chinese_invoice_template.render_plan.json`` for a runnable example.
+
+If you do not want to hand-author the first render plan, use
+``scripts/export_template_render_plan.ps1`` first. The script inspects body,
+header-part, and footer-part bookmarks, classifies ``text``, ``block``,
+``table_rows``, and ``block_range`` bookmarks into the four render-plan
+arrays, and writes a draft JSON that can be edited and then fed back into
+``render_template_document.ps1``. Text and paragraph slots get
+``TODO: <bookmark_name>`` placeholders, table-row slots start as empty arrays,
+and block-visibility entries default to ``visible: true``.
+
+If you want to keep business data in a separate JSON file, follow with
+``scripts/patch_template_render_plan.ps1``. It reads a base render plan plus a
+patch document, matches patch entries by ``bookmark_name`` plus optional
+``part/index/section/kind`` selectors, and overwrites only the payload members
+in the base plan. When a bookmark name is unique, the patch can stay minimal
+and only provide ``bookmark_name`` plus ``text``, ``paragraphs``, ``rows``, or
+``visible``. Pass ``-RequireComplete`` to fail on leftover ``TODO``
+placeholders or empty table-row drafts before rendering. See
+``samples/chinese_invoice_template.render_patch.json`` for a runnable example.
+
+If you want one wrapper that starts from ``.docx + patch JSON`` and ends with a
+final document, use ``scripts/render_template_document_from_patch.ps1``. The
+script runs export, patch, and render in sequence, resolves
+``featherdoc_cli`` once for the full pipeline, enables ``-RequireComplete`` on
+the patch step by default, and can optionally keep the exported draft plus the
+patched render plan via ``-DraftPlanOutput`` and ``-PatchedPlanOutput``.
+
+If you want business data to remain in its own JSON document, use
+``scripts/convert_render_data_to_patch_plan.ps1`` together with
+``samples/template_render_data_mapping.schema.json``. The mapping file binds a
+JSON ``source`` path to each render-patch target, so text, paragraph, table,
+and block-visibility payloads can be regenerated from business data rather than
+hand-edited patch JSON.
+
+If you already have a render-plan draft and want a starting mapping file, run
+``scripts/export_render_data_mapping_draft.ps1``. It preserves bookmark targets
+plus optional part/index/section/kind selectors and fills each ``source`` with
+an editable path derived from the bookmark name.
+
+For faster feedback while editing mappings, run
+``scripts/lint_render_data_mapping.ps1`` before template export or rendering.
+It checks selector shape, duplicate targets inside each category, and optional
+business-data ``source`` paths without opening the ``.docx`` template.
+
+Before rendering, you can validate the whole ``template + mapping + data``
+contract with ``scripts/validate_render_data_mapping.ps1``. The wrapper exports
+a draft render plan, converts business data into a patch, and replays that
+patch onto the draft so missing mappings, invalid ``source`` paths, duplicate
+targets, or leftover placeholders can fail before the final ``.docx`` step.
+
+For the full ``.docx + business JSON + mapping = final .docx`` flow, use
+``scripts/render_template_document_from_data.ps1``. It runs export, convert,
+patch, and render as one direct pipeline, keeping the patch step's
+``-RequireComplete`` semantics by default. Optional
+``-PatchPlanOutput``, ``-DraftPlanOutput``, and ``-PatchedPlanOutput`` flags
+keep intermediate artifacts for review.
+
 ``replace_bookmark_with_table(...)`` replaces a bookmark that occupies its own
 paragraph with a generated table block.
 
@@ -1603,6 +1777,8 @@ either a committed ``.docx`` or a prepared sample fixture, then opt into
 ``template_validations``, ``schema_validation``, ``schema_baseline``, and an
 optional ``visual_smoke`` pass that reuses the existing Word-backed rendering
 wrapper and records aggregate results in ``summary.json`` and ``summary.md``.
+Schema-baseline entries also capture lint cleanliness, lint issue counts, and
+any repaired candidate path emitted by the baseline gate.
 
 .. code-block:: sh
 
@@ -2223,25 +2399,6 @@ Release Policy
 Chinese release and versioning notes for the current FeatherDoc fork:
 
 :doc:`release_policy_zh`
-
-Release History Backfill
-------------------------
-Chinese internal playbook for historical GitHub Release body cleanup,
-artifact rebuilding, and sanitized re-upload workflow:
-
-:doc:`release_history_backfill_playbook_zh`
-
-Project Audit
---------------
-Chinese audit and modernization notes for the current fork:
-
-:doc:`project_audit_zh`
-
-Upstream Issue Triage
----------------------
-Chinese notes mapping relevant DuckX issues onto the current FeatherDoc status:
-
-:doc:`upstream_issue_triage_zh`
 
 License Guide
 -------------

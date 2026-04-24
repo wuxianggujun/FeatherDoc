@@ -515,15 +515,19 @@ function Invoke-CliJsonCommand {
     }
 }
 
-function Parse-CheckTemplateSchemaJsonLine {
-    param([string[]]$Lines)
+function Get-OptionalTemplateSchemaCommandJsonObject {
+    param(
+        [string[]]$Lines,
+        [string]$Command
+    )
 
+    $pattern = '^\{"command":"' + [regex]::Escape($Command) + '",'
     $jsonLine = $Lines |
-        Where-Object { $_ -match '^\{"command":"check-template-schema",' } |
+        Where-Object { $_ -match $pattern } |
         Select-Object -Last 1
 
-    if ([string]::IsNullOrWhiteSpace($jsonLine)) {
-        throw "check-template-schema wrapper did not emit a JSON result."
+    if ([string]::IsNullOrWhiteSpace([string]$jsonLine)) {
+        return $null
     }
 
     return $jsonLine | ConvertFrom-Json
@@ -535,6 +539,7 @@ function Invoke-BaselineCheck {
         [string]$InputDocx,
         [string]$SchemaFile,
         [string]$GeneratedSchemaOutput,
+        [string]$RepairedSchemaOutput,
         [string]$BuildDir,
         [string]$TargetMode,
         [bool]$SkipBuildRequested,
@@ -551,6 +556,12 @@ function Invoke-BaselineCheck {
         "-BuildDir"
         $BuildDir
     )
+    if (-not [string]::IsNullOrWhiteSpace($RepairedSchemaOutput)) {
+        $scriptArgs += @(
+            "-RepairedSchemaOutput"
+            $RepairedSchemaOutput
+        )
+    }
     if ($SkipBuildRequested) {
         $scriptArgs += "-SkipBuild"
     }
@@ -577,10 +588,22 @@ function Invoke-BaselineCheck {
         throw "check_template_schema_baseline.ps1 failed with exit code $exitCode. Output:`n$joined"
     }
 
+    $lintJson = Get-TemplateSchemaCommandJsonObject `
+        -Lines $lines `
+        -Command "lint-template-schema"
+    $checkJson = Get-TemplateSchemaCommandJsonObject `
+        -Lines $lines `
+        -Command "check-template-schema"
+    $repairJson = Get-OptionalTemplateSchemaCommandJsonObject `
+        -Lines $lines `
+        -Command "repair-template-schema"
+
     return [pscustomobject]@{
         ExitCode = $exitCode
         Output = $lines
-        Json = Parse-CheckTemplateSchemaJsonLine -Lines $lines
+        Json = $checkJson
+        LintJson = $lintJson
+        RepairJson = $repairJson
     }
 }
 
@@ -666,6 +689,11 @@ function Write-SummaryMarkdown {
     $lines.Add("- Passed flag: $($Summary.passed)")
     $lines.Add("- Entry count: $($Summary.entry_count)")
     $lines.Add("- Failed entries: $($Summary.failed_entry_count)")
+    $dirtySchemaBaselineCount = Get-OptionalObjectPropertyValue -Object $Summary -Name "dirty_schema_baseline_count"
+    if ([string]::IsNullOrWhiteSpace($dirtySchemaBaselineCount)) {
+        $dirtySchemaBaselineCount = "0"
+    }
+    $lines.Add("- Dirty schema baselines: $dirtySchemaBaselineCount")
     $lines.Add("- Visual smoke entries: $($Summary.visual_entry_count)")
     $lines.Add("- Visual verdict: $($Summary.visual_verdict)")
     $lines.Add("- Entries with pending visual review: $($Summary.manual_review_pending_count)")
@@ -692,7 +720,19 @@ function Write-SummaryMarkdown {
         $schemaBaseline = $entry.checks.schema_baseline
         if ($schemaBaseline.enabled) {
             $schemaBaselineLog = Get-OptionalObjectPropertyValue -Object $schemaBaseline -Name "log_path"
-            $lines.Add("- Schema baseline: matches=$($schemaBaseline.matches) log=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $schemaBaselineLog)")
+            $schemaLintClean = Get-OptionalObjectPropertyValue -Object $schemaBaseline -Name "schema_lint_clean"
+            $schemaLintIssueCount = Get-OptionalObjectPropertyValue -Object $schemaBaseline -Name "schema_lint_issue_count"
+            if ([string]::IsNullOrWhiteSpace($schemaLintClean)) {
+                $schemaLintClean = "(not available)"
+            }
+            if ([string]::IsNullOrWhiteSpace($schemaLintIssueCount)) {
+                $schemaLintIssueCount = "(not available)"
+            }
+            $lines.Add("- Schema baseline: matches=$($schemaBaseline.matches) schema_lint_clean=$schemaLintClean schema_lint_issue_count=$schemaLintIssueCount log=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $schemaBaselineLog)")
+            $repairedSchemaOutputPath = Get-OptionalObjectPropertyValue -Object $schemaBaseline -Name "repaired_schema_output_path"
+            if (-not [string]::IsNullOrWhiteSpace($repairedSchemaOutputPath)) {
+                $lines.Add("- Schema baseline repaired candidate: $(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $repairedSchemaOutputPath)")
+            }
         }
 
         $visualSmoke = $entry.checks.visual_smoke
@@ -753,6 +793,7 @@ if ($entries.Count -eq 0) {
         output_dir = $resolvedOutputDir
         entry_count = 0
         failed_entry_count = 0
+        dirty_schema_baseline_count = 0
         visual_entry_count = 0
         visual_verdict = "not_applicable"
         manual_review_pending_count = 0
@@ -810,6 +851,7 @@ foreach ($sampleTarget in $sampleTargets) {
 
 $results = New-Object 'System.Collections.Generic.List[object]'
 $failedEntryCount = 0
+$dirtySchemaBaselineCount = 0
 $manualReviewPendingCount = 0
 $visualReviewUndeterminedCount = 0
 $entryIndex = 0
@@ -992,6 +1034,24 @@ foreach ($entry in $entries) {
                     -InputPath $generatedOutput `
                     -AllowMissing
                 Ensure-PathParent -Path $resolvedGeneratedOutput
+                $repairedOutput = Resolve-OptionalManifestPropertyValue -Entry $schemaBaselineBlock -Name "repaired_output"
+                if ([string]::IsNullOrWhiteSpace($repairedOutput)) {
+                    $generatedOutputDirectory = [System.IO.Path]::GetDirectoryName($resolvedGeneratedOutput)
+                    $generatedOutputStem = [System.IO.Path]::GetFileNameWithoutExtension($resolvedGeneratedOutput)
+                    if ([string]::IsNullOrWhiteSpace($generatedOutputDirectory)) {
+                        $generatedOutputDirectory = $entryDir
+                    }
+                    if ([string]::IsNullOrWhiteSpace($generatedOutputStem)) {
+                        $generatedOutputStem = "generated_template_schema"
+                    }
+                    $resolvedRepairedOutput = Join-Path $generatedOutputDirectory ($generatedOutputStem + ".repaired.schema.json")
+                } else {
+                    $resolvedRepairedOutput = Resolve-ManifestPathValue `
+                        -RepoRoot $repoRoot `
+                        -InputPath $repairedOutput `
+                        -AllowMissing
+                }
+                Ensure-PathParent -Path $resolvedRepairedOutput
 
                 $targetMode = Resolve-OptionalManifestPropertyValue -Entry $schemaBaselineBlock -Name "target_mode"
                 if ([string]::IsNullOrWhiteSpace($targetMode)) {
@@ -1004,6 +1064,7 @@ foreach ($entry in $entries) {
                     -InputDocx $resolvedInputDocx `
                     -SchemaFile $resolvedSchemaFile `
                     -GeneratedSchemaOutput $resolvedGeneratedOutput `
+                    -RepairedSchemaOutput $resolvedRepairedOutput `
                     -BuildDir $BuildDir `
                     -TargetMode $targetMode `
                     -SkipBuildRequested ([bool]$SkipBuild.IsPresent) `
@@ -1011,11 +1072,34 @@ foreach ($entry in $entries) {
 
                 $schemaBaselineResult.schema_file = $resolvedSchemaFile
                 $schemaBaselineResult.generated_output = $resolvedGeneratedOutput
+                $schemaBaselineResult.repaired_output = $resolvedRepairedOutput
                 $schemaBaselineResult.target_mode = $targetMode
+                $schemaBaselineResult.exit_code = [int]$result.ExitCode
                 $schemaBaselineResult.matches = [bool]$result.Json.matches
+                $schemaBaselineResult.schema_lint_clean = [bool]$result.LintJson.clean
+                $schemaBaselineResult.schema_lint_issue_count = [int]$result.LintJson.issue_count
+                $schemaBaselineResult.schema_lint_duplicate_target_count = [int]$result.LintJson.duplicate_target_count
+                $schemaBaselineResult.schema_lint_duplicate_slot_count = [int]$result.LintJson.duplicate_slot_count
+                $schemaBaselineResult.schema_lint_target_order_issue_count = [int]$result.LintJson.target_order_issue_count
+                $schemaBaselineResult.schema_lint_slot_order_issue_count = [int]$result.LintJson.slot_order_issue_count
+                $schemaBaselineResult.schema_lint_entry_name_issue_count = [int]$result.LintJson.entry_name_issue_count
+                $schemaBaselineResult.repaired_schema_output_path = if ($null -ne $result.RepairJson) {
+                    [string]$result.RepairJson.output_path
+                } else {
+                    ""
+                }
                 $schemaBaselineResult.log_path = $logPath
                 $schemaBaselineResult.result = $result.Json
+                $schemaBaselineResult.lint_result = $result.LintJson
+                if ($null -ne $result.RepairJson) {
+                    $schemaBaselineResult.repair_result = $result.RepairJson
+                }
                 if (-not [bool]$result.Json.matches) {
+                    $entryIssues.Add("Schema baseline drift detected.") | Out-Null
+                    $entryPassed = $false
+                }
+                if (-not [bool]$result.LintJson.clean) {
+                    $entryIssues.Add("Schema baseline lint failed with $([int]$result.LintJson.issue_count) issue(s).") | Out-Null
                     $entryPassed = $false
                 }
             } catch {
@@ -1104,6 +1188,11 @@ foreach ($entry in $entries) {
     if (-not $entryPassed) {
         $failedEntryCount += 1
     }
+    if ([bool](Get-OptionalObjectPropertyObject -Object $schemaBaselineResult -Name "enabled") -and
+        $null -ne (Get-OptionalObjectPropertyObject -Object $schemaBaselineResult -Name "schema_lint_clean") -and
+        -not [bool](Get-OptionalObjectPropertyObject -Object $schemaBaselineResult -Name "schema_lint_clean")) {
+        $dirtySchemaBaselineCount += 1
+    }
     if ($manualReviewPending) {
         $manualReviewPendingCount += 1
     }
@@ -1153,6 +1242,7 @@ $summary = [ordered]@{
     output_dir = $resolvedOutputDir
     entry_count = $results.Count
     failed_entry_count = $failedEntryCount
+    dirty_schema_baseline_count = $dirtySchemaBaselineCount
     visual_entry_count = $visualEntryCount
     visual_verdict = $visualVerdict
     manual_review_pending_count = $manualReviewPendingCount

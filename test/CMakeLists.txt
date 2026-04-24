@@ -340,6 +340,66 @@ if(WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/find_superseded_review_tasks_curated_visual_bundle
         )
 
+        add_test(
+            NAME
+            convert_render_data_to_patch_plan
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/convert_render_data_to_patch_plan_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/convert_render_data_to_patch_plan
+        )
+
+        add_test(
+            NAME
+            lint_render_data_mapping
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/lint_render_data_mapping_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/lint_render_data_mapping
+        )
+
+        add_test(
+            NAME
+            export_render_data_mapping_draft
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/export_render_data_mapping_draft_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/export_render_data_mapping_draft
+        )
+
+        add_test(
+            NAME
+            export_render_data_skeleton
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/export_render_data_skeleton_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/export_render_data_skeleton
+        )
+
         if(FEATHERDOC_PYTHON_EXECUTABLE)
             add_test(
                 NAME
@@ -449,6 +509,161 @@ if(WIN32)
             )
         endif()
 
+        if(TARGET featherdoc_cli AND TARGET featherdoc_sample_bookmark_block_visibility_visual)
+            add_test(
+                NAME
+                template_render_plan
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/template_render_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/template_render_plan
+            )
+
+            add_test(
+                NAME
+                export_template_render_plan
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/export_template_render_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/export_template_render_plan
+            )
+
+            add_test(
+                NAME
+                prepare_template_render_data_workspace
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/prepare_template_render_data_workspace_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/prepare_template_render_data_workspace
+            )
+
+            add_test(
+                NAME
+                render_template_document_from_workspace
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/render_template_document_from_workspace_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_workspace
+            )
+
+            add_test(
+                NAME
+                validate_render_data_mapping
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/validate_render_data_mapping_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/validate_render_data_mapping
+            )
+
+            add_test(
+                NAME
+                edit_document_from_plan
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan
+            )
+
+            add_test(
+                NAME
+                patch_template_render_plan
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/patch_template_render_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/patch_template_render_plan
+            )
+
+            add_test(
+                NAME
+                render_template_document_from_patch
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/render_template_document_from_patch_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_patch
+            )
+
+            add_test(
+                NAME
+                render_template_document_from_data
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/render_template_document_from_data_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/render_template_document_from_data
+            )
+        endif()
+
     endif()
 endif()
 
@@ -462,6 +677,9 @@ if(TARGET featherdoc_cli)
         cli_tests
         PRIVATE FeatherDoc::FeatherDoc
     )
+    if(MSVC)
+        target_compile_options(cli_tests PRIVATE /utf-8)
+    endif()
     featherdoc_copy_runtime_dlls(cli_tests)
 
     add_dependencies(cli_tests featherdoc_cli)

@@ -452,6 +452,14 @@ $projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $proje
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeFailedEntryCount)) {
     $projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "failed_entry_count"
 }
+$projectTemplateSmokeDirtySchemaBaselineCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "dirty_schema_baseline_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeDirtySchemaBaselineCount)) {
+    $projectTemplateSmokeDirtySchemaBaselineCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "dirty_schema_baseline_count"
+}
+$projectTemplateSmokeSchemaBaselineDriftCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_baseline_drift_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaBaselineDriftCount)) {
+    $projectTemplateSmokeSchemaBaselineDriftCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_baseline_drift_count"
+}
 $projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "visual_verdict"
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeVisualVerdict)) {
     $projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "visual_verdict"
@@ -501,6 +509,8 @@ if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeExcludedCandidateCount)) {
     $projectTemplateSmokeExcludedCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "excluded_candidate_count"
 }
 $projectTemplateSmokeHasUnregisteredCandidates = -not [string]::IsNullOrWhiteSpace($projectTemplateSmokeUnregisteredCandidateCount) -and $projectTemplateSmokeUnregisteredCandidateCount -ne "0"
+$projectTemplateSmokeHasDirtySchemaBaselines = -not [string]::IsNullOrWhiteSpace($projectTemplateSmokeDirtySchemaBaselineCount) -and $projectTemplateSmokeDirtySchemaBaselineCount -ne "0"
+$projectTemplateSmokeHasSchemaBaselineDrifts = -not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaBaselineDriftCount) -and $projectTemplateSmokeSchemaBaselineDriftCount -ne "0"
 
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
@@ -585,6 +595,7 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Project template smoke status: $(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
 [void]$lines.Add("- Project template smoke passed: $(Get-DisplayValue -Value $projectTemplateSmokePassed)")
 [void]$lines.Add("- Project template smoke entries / failed: $(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount))")
+[void]$lines.Add("- Project template smoke schema baseline dirty / drift: $(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeDirtySchemaBaselineCount, $projectTemplateSmokeSchemaBaselineDriftCount))")
 [void]$lines.Add("- Project template smoke visual verdict: $(Get-DisplayValue -Value $projectTemplateSmokeVisualVerdict)")
 [void]$lines.Add("- Project template smoke pending visual reviews: $(Get-DisplayValue -Value $projectTemplateSmokePendingReviewCount)")
 [void]$lines.Add("- Project template smoke manifest: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeManifestPath)")
@@ -656,6 +667,16 @@ if ($projectTemplateSmokeRequested -eq "True" -or $projectTemplateSmokeStatus -n
         Add-CheckboxLine -Lines $lines -Text ('Confirm the project template smoke gate stays green and the failed entry count remains `0` across the registered real-template set.')
     } elseif ($projectTemplateSmokePassed -eq "False") {
         Add-CheckboxLine -Lines $lines -Text ('Stop here until every failing project template smoke entry is fixed or intentionally removed from the registered release-candidate set.')
+    }
+
+    if ($projectTemplateSmokeHasDirtySchemaBaselines) {
+        Add-CheckboxLine -Lines $lines -Text ('Stop here until project template smoke reports zero dirty schema baselines; current dirty count is `{0}`.' -f $projectTemplateSmokeDirtySchemaBaselineCount)
+    } elseif ($projectTemplateSmokeStatus -ne "not_requested") {
+        Add-CheckboxLine -Lines $lines -Text ('Confirm project template smoke schema baselines are lint-clean and dirty count remains `0`.')
+    }
+
+    if ($projectTemplateSmokeHasSchemaBaselineDrifts) {
+        Add-CheckboxLine -Lines $lines -Text ('Stop here until project template smoke reports zero schema baseline drifts; current drift count is `{0}`.' -f $projectTemplateSmokeSchemaBaselineDriftCount)
     }
 
     if ($projectTemplateSmokeRequireFullCoverage -eq "True" -and $projectTemplateSmokeHasUnregisteredCandidates) {
@@ -739,6 +760,7 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
 [void]$lines.Add('- Do not approve for public release when a requested template schema gate does not report `matches = true`.')
 [void]$lines.Add('- Do not approve for public release when a requested template schema manifest gate does not report `passed = true`.')
 [void]$lines.Add('- Do not approve for public release when a requested project template smoke gate does not report `passed = true`.')
+[void]$lines.Add('- Do not approve for public release when requested project template smoke reports non-zero dirty schema baselines.')
 [void]$lines.Add('- Do not approve for public release when a requested project template smoke visual verdict is neither `pass` nor `not_applicable`.')
 [void]$lines.Add('- Do not approve for public release when the final local visual verdict is not `pass`.')
 [void]$lines.Add("- Do not treat a CI-only artifact with visual gate = skipped as the final screenshot-backed release signoff.")

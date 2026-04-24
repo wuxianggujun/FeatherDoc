@@ -35,6 +35,32 @@ struct normalize_template_schema_options {
     bool json_output = false;
 };
 
+struct lint_template_schema_options {
+    bool json_output = false;
+};
+
+struct repair_template_schema_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct merge_template_schema_options {
+    std::vector<path_type> schema_paths;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct patch_template_schema_options {
+    std::optional<path_type> patch_path;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct build_template_schema_patch_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
 struct diff_template_schema_options {
     bool json_output = false;
     bool fail_on_diff = false;
@@ -94,6 +120,16 @@ struct table_cell_text_options {
     std::optional<std::string> text;
     std::optional<path_type> text_file;
     bool json_output = false;
+};
+
+struct cli_text_source_options {
+    std::optional<std::string> text;
+    std::optional<path_type> text_file;
+};
+
+struct bookmark_text_binding_source {
+    std::string bookmark_name;
+    cli_text_source_options source;
 };
 
 enum class table_merge_direction {
@@ -598,7 +634,7 @@ struct replace_bookmark_paragraphs_options {
     std::optional<std::size_t> section_index;
     featherdoc::section_reference_kind reference_kind =
         featherdoc::section_reference_kind::default_reference;
-    std::vector<std::string> paragraphs;
+    std::vector<cli_text_source_options> paragraph_sources;
     std::optional<path_type> output_path;
     bool has_part = false;
     bool has_kind = false;
@@ -612,6 +648,7 @@ struct bookmark_table_replacement_options {
     featherdoc::section_reference_kind reference_kind =
         featherdoc::section_reference_kind::default_reference;
     std::vector<std::vector<std::string>> rows;
+    std::vector<std::vector<cli_text_source_options>> row_sources;
     std::optional<path_type> output_path;
     bool empty_rows = false;
     bool has_part = false;
@@ -722,7 +759,7 @@ struct fill_bookmarks_options {
     std::optional<std::size_t> section_index;
     featherdoc::section_reference_kind reference_kind =
         featherdoc::section_reference_kind::default_reference;
-    std::vector<featherdoc::bookmark_text_binding> bindings;
+    std::vector<bookmark_text_binding_source> binding_sources;
     std::optional<path_type> output_path;
     bool has_part = false;
     bool has_kind = false;
@@ -887,6 +924,84 @@ struct exported_template_schema_result {
         }
         return total;
     }
+};
+
+struct template_schema_patch_target_selector {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    std::optional<featherdoc::section_reference_kind> reference_kind;
+    std::optional<std::size_t> resolved_from_section_index;
+    bool linked_to_previous = false;
+};
+
+struct template_schema_patch_remove_slot {
+    template_schema_patch_target_selector target{};
+    std::string bookmark_name;
+};
+
+struct template_schema_patch_rename_slot {
+    template_schema_patch_target_selector target{};
+    std::string bookmark_name;
+    std::string new_bookmark_name;
+};
+
+struct template_schema_patch_document {
+    std::vector<exported_template_schema_target> upsert_targets;
+    std::vector<template_schema_patch_target_selector> remove_targets;
+    std::vector<template_schema_patch_remove_slot> remove_slots;
+    std::vector<template_schema_patch_rename_slot> rename_slots;
+};
+
+enum class template_schema_lint_issue_kind {
+    target_order,
+    slot_order,
+    duplicate_target_identity,
+    duplicate_slot_name,
+    entry_name_present,
+};
+
+struct template_schema_lint_issue {
+    template_schema_lint_issue_kind kind =
+        template_schema_lint_issue_kind::target_order;
+    std::size_t target_index = 0U;
+    template_schema_patch_target_selector target{};
+    std::optional<std::size_t> previous_target_index;
+    std::optional<std::size_t> slot_index;
+    std::optional<std::size_t> previous_slot_index;
+    std::string bookmark_name;
+    std::string previous_bookmark_name;
+    std::string entry_name;
+};
+
+struct template_schema_lint_result {
+    std::size_t target_count = 0U;
+    std::size_t slot_count = 0U;
+    std::vector<template_schema_lint_issue> issues;
+
+    [[nodiscard]] bool clean() const noexcept {
+        return this->issues.empty();
+    }
+
+    [[nodiscard]] std::size_t issue_count(
+        const template_schema_lint_issue_kind kind) const noexcept {
+        return static_cast<std::size_t>(std::count_if(
+            this->issues.begin(), this->issues.end(),
+            [&](const template_schema_lint_issue &issue) {
+                return issue.kind == kind;
+            }));
+    }
+};
+
+struct repaired_template_schema_summary {
+    std::size_t input_target_count = 0U;
+    std::size_t input_slot_count = 0U;
+    std::size_t merged_duplicate_target_count = 0U;
+    std::size_t deduplicated_target_count = 0U;
+    std::size_t deduplicated_slot_count = 0U;
+    std::size_t stripped_entry_name_count = 0U;
+    std::size_t replaced_slot_count = 0U;
+    bool changed = false;
 };
 
 struct changed_template_schema_target {
@@ -1300,22 +1415,29 @@ void print_usage(std::ostream &stream) {
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--output <path>] [--json]\n"
         << "  featherdoc_cli fill-bookmarks <input.docx>"
-           " (--set <bookmark-name> <text>)+"
+           " ((--set <bookmark-name> <text>) |"
+           " (--set-file <bookmark-name> <path>))+"
            " [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--output <path>] [--json]\n"
         << "  featherdoc_cli replace-bookmark-paragraphs <input.docx>"
-           " <bookmark-name> --paragraph <text> [--paragraph <text> ...]"
+           " <bookmark-name>"
+           " (--paragraph <text> | --paragraph-file <path>)"
+           " [(--paragraph <text> | --paragraph-file <path>) ...]"
            " [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--output <path>] [--json]\n"
         << "  featherdoc_cli replace-bookmark-table <input.docx>"
-           " <bookmark-name> (--row <text> [--cell <text> ...])+"
+           " <bookmark-name>"
+           " ((--row <text> | --row-file <path>)"
+           " [(--cell <text> | --cell-file <path>) ...])+"
            " [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--output <path>] [--json]\n"
         << "  featherdoc_cli replace-bookmark-table-rows <input.docx>"
-           " <bookmark-name> ((--row <text> [--cell <text> ...])+ | --empty)"
+           " <bookmark-name>"
+           " (((--row <text> | --row-file <path>)"
+           " [(--cell <text> | --cell-file <path>) ...])+ | --empty)"
            " [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--output <path>] [--json]\n"
@@ -1455,6 +1577,16 @@ void print_usage(std::ostream &stream) {
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli normalize-template-schema <schema.json>"
            " [--output <path>] [--json]\n"
+        << "  featherdoc_cli lint-template-schema <schema.json> [--json]\n"
+        << "  featherdoc_cli repair-template-schema <schema.json>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli merge-template-schema <schema-a.json>"
+           " <schema-b.json> [<schema-c.json> ...]"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli patch-template-schema <schema.json>"
+           " --patch-file <patch.json> [--output <path>] [--json]\n"
+        << "  featherdoc_cli build-template-schema-patch <left-schema.json>"
+           " <right-schema.json> [--output <path>] [--json]\n"
         << "  featherdoc_cli diff-template-schema <left-schema.json>"
            " <right-schema.json> [--fail-on-diff] [--json]\n"
         << "  featherdoc_cli check-template-schema <input.docx>"
@@ -1859,6 +1991,149 @@ auto parse_normalize_template_schema_options(
     return true;
 }
 
+auto parse_lint_template_schema_options(const std::vector<std::string_view> &arguments,
+                                        std::size_t start_index,
+                                        lint_template_schema_options &options,
+                                        std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_repair_template_schema_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    repair_template_schema_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_merge_template_schema_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    merge_template_schema_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        if (argument.starts_with("--")) {
+            error_message = "unknown option: " + std::string(argument);
+            return false;
+        }
+
+        options.schema_paths.emplace_back(std::string(argument));
+    }
+
+    if (options.schema_paths.size() < 2U) {
+        error_message = "merge-template-schema expects at least two schema paths";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_patch_template_schema_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    patch_template_schema_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--patch-file") {
+            if (options.patch_path.has_value()) {
+                error_message = "duplicate --patch-file option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --patch-file";
+                return false;
+            }
+
+            options.patch_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.patch_path.has_value()) {
+        error_message = "missing required --patch-file <path> option";
+        return false;
+    }
+
+    return true;
+}
+
 auto parse_diff_template_schema_options(
     const std::vector<std::string_view> &arguments, std::size_t start_index,
     diff_template_schema_options &options, std::string &error_message) -> bool {
@@ -1866,6 +2141,39 @@ auto parse_diff_template_schema_options(
         const auto argument = arguments[index];
         if (argument == "--fail-on-diff") {
             options.fail_on_diff = true;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_build_template_schema_patch_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    build_template_schema_patch_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
             continue;
         }
 
@@ -8845,7 +9153,22 @@ auto parse_replace_bookmark_paragraphs_options(
                 return false;
             }
 
-            options.paragraphs.emplace_back(arguments[index + 1U]);
+            cli_text_source_options source;
+            source.text = std::string(arguments[index + 1U]);
+            options.paragraph_sources.push_back(std::move(source));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--paragraph-file") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --paragraph-file";
+                return false;
+            }
+
+            cli_text_source_options source;
+            source.text_file = path_type(std::string(arguments[index + 1U]));
+            options.paragraph_sources.push_back(std::move(source));
             ++index;
             continue;
         }
@@ -8874,8 +9197,9 @@ auto parse_replace_bookmark_paragraphs_options(
         return false;
     }
 
-    if (options.paragraphs.empty()) {
-        error_message = "expected at least one --paragraph <text>";
+    if (options.paragraph_sources.empty()) {
+        error_message =
+            "expected at least one --paragraph <text> or --paragraph-file <path>";
         return false;
     }
 
@@ -8982,7 +9306,28 @@ auto parse_bookmark_table_replacement_options(
                 return false;
             }
 
-            options.rows.push_back({std::string(arguments[index + 1U])});
+            cli_text_source_options source;
+            source.text = std::string(arguments[index + 1U]);
+            options.row_sources.push_back({});
+            options.row_sources.back().push_back(std::move(source));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--row-file") {
+            if (options.empty_rows) {
+                error_message = "--row-file cannot be combined with --empty";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --row-file";
+                return false;
+            }
+
+            cli_text_source_options source;
+            source.text_file = path_type(std::string(arguments[index + 1U]));
+            options.row_sources.push_back({});
+            options.row_sources.back().push_back(std::move(source));
             ++index;
             continue;
         }
@@ -8992,7 +9337,7 @@ auto parse_bookmark_table_replacement_options(
                 error_message = "--cell cannot be combined with --empty";
                 return false;
             }
-            if (options.rows.empty()) {
+            if (options.row_sources.empty()) {
                 error_message = "--cell requires --row";
                 return false;
             }
@@ -9001,7 +9346,30 @@ auto parse_bookmark_table_replacement_options(
                 return false;
             }
 
-            options.rows.back().push_back(std::string(arguments[index + 1U]));
+            cli_text_source_options source;
+            source.text = std::string(arguments[index + 1U]);
+            options.row_sources.back().push_back(std::move(source));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--cell-file") {
+            if (options.empty_rows) {
+                error_message = "--cell-file cannot be combined with --empty";
+                return false;
+            }
+            if (options.row_sources.empty()) {
+                error_message = "--cell-file requires --row or --row-file";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --cell-file";
+                return false;
+            }
+
+            cli_text_source_options source;
+            source.text_file = path_type(std::string(arguments[index + 1U]));
+            options.row_sources.back().push_back(std::move(source));
             ++index;
             continue;
         }
@@ -9015,8 +9383,9 @@ auto parse_bookmark_table_replacement_options(
                 error_message = "duplicate --empty option";
                 return false;
             }
-            if (!options.rows.empty()) {
-                error_message = "--empty cannot be combined with --row/--cell";
+            if (!options.row_sources.empty()) {
+                error_message =
+                    "--empty cannot be combined with --row/--row-file/--cell/--cell-file";
                 return false;
             }
 
@@ -9048,10 +9417,11 @@ auto parse_bookmark_table_replacement_options(
         return false;
     }
 
-    if (!options.empty_rows && options.rows.empty()) {
-        error_message = allow_empty_rows
-                            ? "expected (--row <text> [--cell <text> ...])+ or --empty"
-                            : "expected at least one --row <text>";
+    if (!options.empty_rows && options.row_sources.empty()) {
+        error_message =
+            allow_empty_rows
+                ? "expected at least one --row <text> or --row-file <path>, or --empty"
+                : "expected at least one --row <text> or --row-file <path>";
         return false;
     }
 
@@ -9652,8 +10022,31 @@ auto parse_fill_bookmarks_options(const std::vector<std::string_view> &arguments
                 return false;
             }
 
-            options.bindings.push_back(
-                {bookmark_name, std::string(arguments[index + 2U])});
+            bookmark_text_binding_source binding;
+            binding.bookmark_name = bookmark_name;
+            binding.source.text = std::string(arguments[index + 2U]);
+            options.binding_sources.push_back(std::move(binding));
+            index += 2U;
+            continue;
+        }
+
+        if (argument == "--set-file") {
+            if (index + 2U >= arguments.size()) {
+                error_message = "missing value after --set-file";
+                return false;
+            }
+
+            const auto bookmark_name = std::string(arguments[index + 1U]);
+            if (bookmark_name.empty()) {
+                error_message = "bookmark name must not be empty";
+                return false;
+            }
+
+            bookmark_text_binding_source binding;
+            binding.bookmark_name = bookmark_name;
+            binding.source.text_file =
+                path_type(std::string(arguments[index + 2U]));
+            options.binding_sources.push_back(std::move(binding));
             index += 2U;
             continue;
         }
@@ -9682,8 +10075,9 @@ auto parse_fill_bookmarks_options(const std::vector<std::string_view> &arguments
         return false;
     }
 
-    if (options.bindings.empty()) {
-        error_message = "expected at least one --set <bookmark-name> <text>";
+    if (options.binding_sources.empty()) {
+        error_message =
+            "expected at least one --set <bookmark-name> <text> or --set-file <bookmark-name> <path>";
         return false;
     }
 
@@ -15507,22 +15901,24 @@ void inspect_sections(featherdoc::Document &doc, bool json_output) {
     }
 }
 
-auto read_text_source(const section_text_options &options, std::string &text,
-                      std::string &error_message) -> bool {
-    if (options.text.has_value()) {
-        text = *options.text;
+auto read_text_source_value(const std::optional<std::string> &inline_text,
+                            const std::optional<path_type> &text_file,
+                            std::string_view expected_message,
+                            std::string &text,
+                            std::string &error_message) -> bool {
+    if (inline_text.has_value()) {
+        text = *inline_text;
         return true;
     }
 
-    if (!options.text_file.has_value()) {
-        error_message = "expected --text <text> or --text-file <path>";
+    if (!text_file.has_value()) {
+        error_message = std::string(expected_message);
         return false;
     }
 
-    std::ifstream stream(*options.text_file, std::ios::binary);
+    std::ifstream stream(*text_file, std::ios::binary);
     if (!stream.good()) {
-        error_message =
-            "failed to read text file: " + options.text_file->string();
+        error_message = "failed to read text file: " + text_file->string();
         return false;
     }
 
@@ -15531,27 +15927,84 @@ auto read_text_source(const section_text_options &options, std::string &text,
     return true;
 }
 
+auto read_text_source(const cli_text_source_options &options, std::string &text,
+                      std::string &error_message) -> bool {
+    return read_text_source_value(options.text, options.text_file,
+                                  "expected text input", text, error_message);
+}
+
+auto read_text_source(const section_text_options &options, std::string &text,
+                      std::string &error_message) -> bool {
+    return read_text_source_value(options.text, options.text_file,
+                                  "expected --text <text> or --text-file <path>",
+                                  text, error_message);
+}
+
 auto read_text_source(const table_cell_text_options &options, std::string &text,
                       std::string &error_message) -> bool {
-    if (options.text.has_value()) {
-        text = *options.text;
-        return true;
+    return read_text_source_value(options.text, options.text_file,
+                                  "expected --text <text> or --text-file <path>",
+                                  text, error_message);
+}
+
+auto resolve_text_sources(const std::vector<cli_text_source_options> &sources,
+                          std::vector<std::string> &texts,
+                          std::string &error_message) -> bool {
+    texts.clear();
+    texts.reserve(sources.size());
+
+    for (const auto &source : sources) {
+        std::string text;
+        if (!read_text_source(source, text, error_message)) {
+            return false;
+        }
+        texts.push_back(std::move(text));
     }
 
-    if (!options.text_file.has_value()) {
-        error_message = "expected --text <text> or --text-file <path>";
-        return false;
+    return true;
+}
+
+auto resolve_bookmark_table_row_sources(
+    const bookmark_table_replacement_options &options,
+    std::vector<std::vector<std::string>> &rows, std::string &error_message)
+    -> bool {
+    rows.clear();
+    rows.reserve(options.row_sources.size());
+
+    for (const auto &row_sources : options.row_sources) {
+        std::vector<std::string> row;
+        row.reserve(row_sources.size());
+
+        for (const auto &source : row_sources) {
+            std::string text;
+            if (!read_text_source(source, text, error_message)) {
+                return false;
+            }
+            row.push_back(std::move(text));
+        }
+
+        rows.push_back(std::move(row));
     }
 
-    std::ifstream stream(*options.text_file, std::ios::binary);
-    if (!stream.good()) {
-        error_message =
-            "failed to read text file: " + options.text_file->string();
-        return false;
+    return true;
+}
+
+auto resolve_fill_bookmark_bindings(
+    const fill_bookmarks_options &options,
+    std::vector<featherdoc::bookmark_text_binding> &bindings,
+    std::string &error_message) -> bool {
+    bindings.clear();
+    bindings.reserve(options.binding_sources.size());
+
+    for (const auto &binding_source : options.binding_sources) {
+        std::string text;
+        if (!read_text_source(binding_source.source, text, error_message)) {
+            return false;
+        }
+
+        bindings.push_back({binding_source.bookmark_name, std::move(text)});
     }
 
-    text.assign(std::istreambuf_iterator<char>(stream),
-                std::istreambuf_iterator<char>());
     return true;
 }
 
@@ -16835,6 +17288,7 @@ auto parse_template_schema_json_target(
     std::optional<featherdoc::section_reference_kind> kind_value;
     std::optional<std::size_t> resolved_from_section_value;
     std::optional<bool> linked_to_previous_value;
+    std::optional<std::string> entry_name_value;
     bool saw_slots = false;
     std::vector<featherdoc::template_slot_requirement> slots;
 
@@ -16945,9 +17399,14 @@ auto parse_template_schema_json_target(
                 }
                 resolved_from_section_value = parsed_value;
             } else if (member_name == "entry_name") {
-                std::string ignored;
+                if (entry_name_value.has_value()) {
+                    error_message = "JSON schema member 'entry_name' must not be duplicated";
+                    return false;
+                }
                 skip_json_patch_whitespace(content, index);
-                if (!parse_json_patch_string(content, index, ignored, error_message)) {
+                entry_name_value.emplace();
+                if (!parse_json_patch_string(content, index, *entry_name_value,
+                                             error_message)) {
                     return false;
                 }
             } else {
@@ -16998,6 +17457,7 @@ auto parse_template_schema_json_target(
     target.part_index = index_value;
     target.section_index = section_value;
     target.requirements = std::move(slots);
+    target.entry_name = entry_name_value.value_or(std::string{});
     target.reference_kind = kind_value;
     target.resolved_from_section_index = resolved_from_section_value;
     target.linked_to_previous = linked_to_previous_value.value_or(false);
@@ -17006,6 +17466,989 @@ auto parse_template_schema_json_target(
                                             target.section_index,
                                             target.reference_kind.has_value(),
                                             "schema validation", error_message);
+}
+
+void rewrite_template_schema_patch_error(std::string &error_message) {
+    constexpr std::string_view schema_prefix = "JSON schema ";
+    constexpr std::string_view patch_prefix = "JSON schema patch ";
+    std::size_t position = 0U;
+    while ((position = error_message.find(schema_prefix, position)) !=
+           std::string::npos) {
+        error_message.replace(position, schema_prefix.size(), patch_prefix);
+        position += patch_prefix.size();
+    }
+}
+
+auto finalize_template_schema_patch_selector(
+    const std::optional<std::string> &part_value,
+    const std::optional<std::size_t> &index_value,
+    const std::optional<std::size_t> &part_index_value,
+    const std::optional<std::size_t> &section_value,
+    const std::optional<featherdoc::section_reference_kind> &kind_value,
+    const std::optional<std::size_t> &resolved_from_section_value,
+    const std::optional<bool> &linked_to_previous_value,
+    template_schema_patch_target_selector &selector, std::string &error_message)
+    -> bool {
+    if (!part_value.has_value()) {
+        error_message = "JSON schema patch selector must contain 'part'";
+        return false;
+    }
+
+    selector = {};
+    if (!parse_validation_part(*part_value, selector.part)) {
+        error_message =
+            "JSON schema patch member 'part' must be one of "
+            "'body', 'header', 'footer', 'section-header', or 'section-footer'";
+        return false;
+    }
+
+    std::optional<std::size_t> resolved_part_index;
+    if (!resolve_json_patch_index_member(index_value, part_index_value, "index",
+                                         "part_index", resolved_part_index,
+                                         error_message)) {
+        return false;
+    }
+
+    selector.part_index = resolved_part_index;
+    selector.section_index = section_value;
+    selector.reference_kind = kind_value;
+    selector.resolved_from_section_index = resolved_from_section_value;
+    selector.linked_to_previous = linked_to_previous_value.value_or(false);
+
+    return validate_template_part_selection(selector.part, selector.part_index,
+                                            selector.section_index,
+                                            selector.reference_kind.has_value(),
+                                            "schema patch selection",
+                                            error_message);
+}
+
+auto parse_template_schema_patch_target_selector(
+    std::string_view content, std::size_t &index,
+    template_schema_patch_target_selector &selector, std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected selector object", error_message);
+    }
+
+    std::optional<std::string> part_value;
+    std::optional<std::size_t> index_value;
+    std::optional<std::size_t> part_index_value;
+    std::optional<std::size_t> section_value;
+    std::optional<featherdoc::section_reference_kind> kind_value;
+    std::optional<std::size_t> resolved_from_section_value;
+    std::optional<bool> linked_to_previous_value;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "expected ':' after object member",
+                                               error_message);
+            }
+
+            ++index;
+            if (member_name == "part") {
+                if (part_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'part' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                part_value.emplace();
+                if (!parse_json_patch_string(content, index, *part_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "index") {
+                if (index_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index, "index",
+                                                  error_message)) {
+                    return false;
+                }
+                index_value = parsed_index;
+            } else if (member_name == "part_index") {
+                if (part_index_value.has_value()) {
+                    error_message = "JSON schema patch member 'part_index' must "
+                                    "not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "part_index", error_message)) {
+                    return false;
+                }
+                part_index_value = parsed_index;
+            } else if (member_name == "section") {
+                if (section_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "section", error_message)) {
+                    return false;
+                }
+                section_value = parsed_index;
+            } else if (member_name == "kind") {
+                if (kind_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'kind' must not be duplicated";
+                    return false;
+                }
+                featherdoc::section_reference_kind parsed_kind{};
+                if (!parse_json_patch_reference_kind_value(content, index,
+                                                           parsed_kind,
+                                                           error_message)) {
+                    return false;
+                }
+                kind_value = parsed_kind;
+            } else if (member_name == "linked_to_previous") {
+                if (linked_to_previous_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'linked_to_previous' must not be duplicated";
+                    return false;
+                }
+                bool parsed_value = false;
+                if (!parse_json_patch_bool_member_value(content, index, parsed_value,
+                                                        "linked_to_previous",
+                                                        error_message)) {
+                    return false;
+                }
+                linked_to_previous_value = parsed_value;
+            } else if (member_name == "resolved_from_section") {
+                if (resolved_from_section_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'resolved_from_section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_value = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_value,
+                                                  "resolved_from_section",
+                                                  error_message)) {
+                    return false;
+                }
+                resolved_from_section_value = parsed_value;
+            } else if (member_name == "entry_name") {
+                std::string ignored;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, ignored, error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "unknown selector member",
+                                               error_message);
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_input_error("JSON schema patch file", index,
+                                           "expected ',' or '}' after object member",
+                                           error_message);
+        }
+    }
+
+    return finalize_template_schema_patch_selector(
+        part_value, index_value, part_index_value, section_value, kind_value,
+        resolved_from_section_value, linked_to_previous_value, selector,
+        error_message);
+}
+
+auto parse_template_schema_patch_remove_slot(
+    std::string_view content, std::size_t &index,
+    template_schema_patch_remove_slot &operation, std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected remove-slot object", error_message);
+    }
+
+    std::optional<std::string> part_value;
+    std::optional<std::size_t> index_value;
+    std::optional<std::size_t> part_index_value;
+    std::optional<std::size_t> section_value;
+    std::optional<featherdoc::section_reference_kind> kind_value;
+    std::optional<std::size_t> resolved_from_section_value;
+    std::optional<bool> linked_to_previous_value;
+    std::optional<std::string> bookmark_value;
+    std::optional<std::string> bookmark_name_value;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "expected ':' after object member",
+                                               error_message);
+            }
+
+            ++index;
+            if (member_name == "part") {
+                if (part_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'part' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                part_value.emplace();
+                if (!parse_json_patch_string(content, index, *part_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "index") {
+                if (index_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index, "index",
+                                                  error_message)) {
+                    return false;
+                }
+                index_value = parsed_index;
+            } else if (member_name == "part_index") {
+                if (part_index_value.has_value()) {
+                    error_message = "JSON schema patch member 'part_index' must "
+                                    "not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "part_index", error_message)) {
+                    return false;
+                }
+                part_index_value = parsed_index;
+            } else if (member_name == "section") {
+                if (section_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "section", error_message)) {
+                    return false;
+                }
+                section_value = parsed_index;
+            } else if (member_name == "kind") {
+                if (kind_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'kind' must not be duplicated";
+                    return false;
+                }
+                featherdoc::section_reference_kind parsed_kind{};
+                if (!parse_json_patch_reference_kind_value(content, index,
+                                                           parsed_kind,
+                                                           error_message)) {
+                    return false;
+                }
+                kind_value = parsed_kind;
+            } else if (member_name == "linked_to_previous") {
+                if (linked_to_previous_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'linked_to_previous' must not be duplicated";
+                    return false;
+                }
+                bool parsed_value = false;
+                if (!parse_json_patch_bool_member_value(content, index, parsed_value,
+                                                        "linked_to_previous",
+                                                        error_message)) {
+                    return false;
+                }
+                linked_to_previous_value = parsed_value;
+            } else if (member_name == "resolved_from_section") {
+                if (resolved_from_section_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'resolved_from_section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_value = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_value,
+                                                  "resolved_from_section",
+                                                  error_message)) {
+                    return false;
+                }
+                resolved_from_section_value = parsed_value;
+            } else if (member_name == "bookmark") {
+                if (bookmark_value.has_value()) {
+                    error_message = "JSON schema patch member 'bookmark' must not "
+                                    "be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                bookmark_value.emplace();
+                if (!parse_json_patch_string(content, index, *bookmark_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "bookmark_name") {
+                if (bookmark_name_value.has_value()) {
+                    error_message = "JSON schema patch member 'bookmark_name' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                bookmark_name_value.emplace();
+                if (!parse_json_patch_string(content, index, *bookmark_name_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "entry_name") {
+                std::string ignored;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, ignored, error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "unknown remove-slot member",
+                                               error_message);
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_input_error("JSON schema patch file", index,
+                                           "expected ',' or '}' after object member",
+                                           error_message);
+        }
+    }
+
+    operation = {};
+    if (!finalize_template_schema_patch_selector(
+            part_value, index_value, part_index_value, section_value, kind_value,
+            resolved_from_section_value, linked_to_previous_value, operation.target,
+            error_message)) {
+        return false;
+    }
+
+    std::optional<std::string> resolved_bookmark_name;
+    if (!resolve_json_patch_string_member(bookmark_value, bookmark_name_value,
+                                          "bookmark", "bookmark_name",
+                                          resolved_bookmark_name, error_message)) {
+        return false;
+    }
+    if (!resolved_bookmark_name.has_value() || resolved_bookmark_name->empty()) {
+        error_message =
+            "JSON schema patch remove-slot object must contain 'bookmark' or "
+            "'bookmark_name'";
+        return false;
+    }
+    operation.bookmark_name = *resolved_bookmark_name;
+    return true;
+}
+
+auto parse_template_schema_patch_target_selectors_array(
+    std::string_view content, std::size_t &index,
+    std::vector<template_schema_patch_target_selector> &selectors,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected selector array", error_message);
+    }
+
+    selectors.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        template_schema_patch_target_selector selector;
+        if (!parse_template_schema_patch_target_selector(content, index, selector,
+                                                         error_message)) {
+            return false;
+        }
+        selectors.push_back(std::move(selector));
+
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size()) {
+            break;
+        }
+        if (content[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(content, index);
+            continue;
+        }
+        if (content[index] == ']') {
+            ++index;
+            return true;
+        }
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected ',' or ']' after selector entry",
+                                       error_message);
+    }
+
+    return report_json_input_error("JSON schema patch file", index,
+                                   "unterminated selector array", error_message);
+}
+
+auto parse_template_schema_patch_remove_slots_array(
+    std::string_view content, std::size_t &index,
+    std::vector<template_schema_patch_remove_slot> &operations,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected remove_slots array",
+                                       error_message);
+    }
+
+    operations.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        template_schema_patch_remove_slot operation;
+        if (!parse_template_schema_patch_remove_slot(content, index, operation,
+                                                     error_message)) {
+            return false;
+        }
+        operations.push_back(std::move(operation));
+
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size()) {
+            break;
+        }
+        if (content[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(content, index);
+            continue;
+        }
+        if (content[index] == ']') {
+            ++index;
+            return true;
+        }
+        return report_json_input_error(
+            "JSON schema patch file", index,
+            "expected ',' or ']' after remove-slot entry", error_message);
+    }
+
+    return report_json_input_error("JSON schema patch file", index,
+                                   "unterminated remove_slots array",
+                                   error_message);
+}
+
+auto parse_template_schema_patch_rename_slot(
+    std::string_view content, std::size_t &index,
+    template_schema_patch_rename_slot &operation, std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected rename-slot object", error_message);
+    }
+
+    std::optional<std::string> part_value;
+    std::optional<std::size_t> index_value;
+    std::optional<std::size_t> part_index_value;
+    std::optional<std::size_t> section_value;
+    std::optional<featherdoc::section_reference_kind> kind_value;
+    std::optional<std::size_t> resolved_from_section_value;
+    std::optional<bool> linked_to_previous_value;
+    std::optional<std::string> bookmark_value;
+    std::optional<std::string> bookmark_name_value;
+    std::optional<std::string> new_bookmark_value;
+    std::optional<std::string> new_bookmark_name_value;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "expected ':' after object member",
+                                               error_message);
+            }
+
+            ++index;
+            if (member_name == "part") {
+                if (part_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'part' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                part_value.emplace();
+                if (!parse_json_patch_string(content, index, *part_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "index") {
+                if (index_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index, "index",
+                                                  error_message)) {
+                    return false;
+                }
+                index_value = parsed_index;
+            } else if (member_name == "part_index") {
+                if (part_index_value.has_value()) {
+                    error_message = "JSON schema patch member 'part_index' must "
+                                    "not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "part_index", error_message)) {
+                    return false;
+                }
+                part_index_value = parsed_index;
+            } else if (member_name == "section") {
+                if (section_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "section", error_message)) {
+                    return false;
+                }
+                section_value = parsed_index;
+            } else if (member_name == "kind") {
+                if (kind_value.has_value()) {
+                    error_message =
+                        "JSON schema patch member 'kind' must not be duplicated";
+                    return false;
+                }
+                featherdoc::section_reference_kind parsed_kind{};
+                if (!parse_json_patch_reference_kind_value(content, index,
+                                                           parsed_kind,
+                                                           error_message)) {
+                    return false;
+                }
+                kind_value = parsed_kind;
+            } else if (member_name == "linked_to_previous") {
+                if (linked_to_previous_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'linked_to_previous' must not be duplicated";
+                    return false;
+                }
+                bool parsed_value = false;
+                if (!parse_json_patch_bool_member_value(content, index, parsed_value,
+                                                        "linked_to_previous",
+                                                        error_message)) {
+                    return false;
+                }
+                linked_to_previous_value = parsed_value;
+            } else if (member_name == "resolved_from_section") {
+                if (resolved_from_section_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'resolved_from_section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_value = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_value,
+                                                  "resolved_from_section",
+                                                  error_message)) {
+                    return false;
+                }
+                resolved_from_section_value = parsed_value;
+            } else if (member_name == "bookmark") {
+                if (bookmark_value.has_value()) {
+                    error_message = "JSON schema patch member 'bookmark' must not "
+                                    "be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                bookmark_value.emplace();
+                if (!parse_json_patch_string(content, index, *bookmark_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "bookmark_name") {
+                if (bookmark_name_value.has_value()) {
+                    error_message = "JSON schema patch member 'bookmark_name' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                bookmark_name_value.emplace();
+                if (!parse_json_patch_string(content, index, *bookmark_name_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "new_bookmark") {
+                if (new_bookmark_value.has_value()) {
+                    error_message = "JSON schema patch member 'new_bookmark' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                new_bookmark_value.emplace();
+                if (!parse_json_patch_string(content, index, *new_bookmark_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "new_bookmark_name") {
+                if (new_bookmark_name_value.has_value()) {
+                    error_message = "JSON schema patch member "
+                                    "'new_bookmark_name' must not be duplicated";
+                    return false;
+                }
+                skip_json_patch_whitespace(content, index);
+                new_bookmark_name_value.emplace();
+                if (!parse_json_patch_string(content, index,
+                                             *new_bookmark_name_value,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "entry_name") {
+                std::string ignored;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, ignored, error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "unknown rename-slot member",
+                                               error_message);
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_input_error("JSON schema patch file", index,
+                                           "expected ',' or '}' after object member",
+                                           error_message);
+        }
+    }
+
+    operation = {};
+    if (!finalize_template_schema_patch_selector(
+            part_value, index_value, part_index_value, section_value, kind_value,
+            resolved_from_section_value, linked_to_previous_value, operation.target,
+            error_message)) {
+        return false;
+    }
+
+    std::optional<std::string> resolved_bookmark_name;
+    if (!resolve_json_patch_string_member(bookmark_value, bookmark_name_value,
+                                          "bookmark", "bookmark_name",
+                                          resolved_bookmark_name, error_message)) {
+        return false;
+    }
+    if (!resolved_bookmark_name.has_value() || resolved_bookmark_name->empty()) {
+        error_message =
+            "JSON schema patch rename-slot object must contain 'bookmark' or "
+            "'bookmark_name'";
+        return false;
+    }
+
+    std::optional<std::string> resolved_new_bookmark_name;
+    if (!resolve_json_patch_string_member(new_bookmark_value,
+                                          new_bookmark_name_value, "new_bookmark",
+                                          "new_bookmark_name",
+                                          resolved_new_bookmark_name,
+                                          error_message)) {
+        return false;
+    }
+    if (!resolved_new_bookmark_name.has_value() ||
+        resolved_new_bookmark_name->empty()) {
+        error_message =
+            "JSON schema patch rename-slot object must contain "
+            "'new_bookmark' or 'new_bookmark_name'";
+        return false;
+    }
+
+    operation.bookmark_name = *resolved_bookmark_name;
+    operation.new_bookmark_name = *resolved_new_bookmark_name;
+    return true;
+}
+
+auto parse_template_schema_patch_rename_slots_array(
+    std::string_view content, std::size_t &index,
+    std::vector<template_schema_patch_rename_slot> &operations,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected rename_slots array",
+                                       error_message);
+    }
+
+    operations.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        template_schema_patch_rename_slot operation;
+        if (!parse_template_schema_patch_rename_slot(content, index, operation,
+                                                     error_message)) {
+            return false;
+        }
+        operations.push_back(std::move(operation));
+
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size()) {
+            break;
+        }
+        if (content[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(content, index);
+            continue;
+        }
+        if (content[index] == ']') {
+            ++index;
+            return true;
+        }
+        return report_json_input_error(
+            "JSON schema patch file", index,
+            "expected ',' or ']' after rename-slot entry", error_message);
+    }
+
+    return report_json_input_error("JSON schema patch file", index,
+                                   "unterminated rename_slots array",
+                                   error_message);
+}
+
+auto read_template_schema_patch_file(const path_type &patch_path,
+                                     template_schema_patch_document &patch,
+                                     std::string &error_message) -> bool {
+    std::string content;
+    std::size_t index = 0U;
+    if (!read_template_table_json_content(patch_path, content, index,
+                                          error_message)) {
+        if (error_message.rfind("failed to read JSON patch file:", 0U) == 0U) {
+            error_message.replace(0U, std::string("failed to read JSON patch file:").size(),
+                                  "failed to read JSON schema patch file:");
+        }
+        return false;
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "root must be an object", error_message);
+    }
+
+    patch = {};
+    bool saw_upsert_targets = false;
+    bool saw_remove_targets = false;
+    bool saw_remove_slots = false;
+    bool saw_rename_slots = false;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "expected ':' after object member",
+                                               error_message);
+            }
+
+            ++index;
+            if (member_name == "upsert_targets") {
+                if (saw_upsert_targets) {
+                    error_message = "JSON schema patch member 'upsert_targets' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                saw_upsert_targets = true;
+
+                skip_json_patch_whitespace(content, index);
+                if (index >= content.size() || content[index] != '[') {
+                    return report_json_input_error("JSON schema patch file", index,
+                                                   "expected upsert_targets array",
+                                                   error_message);
+                }
+
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                if (index < content.size() && content[index] == ']') {
+                    ++index;
+                } else {
+                    while (index < content.size()) {
+                        exported_template_schema_target target;
+                        if (!parse_template_schema_json_target(content, index, target,
+                                                               error_message)) {
+                            rewrite_template_schema_patch_error(error_message);
+                            return false;
+                        }
+                        patch.upsert_targets.push_back(std::move(target));
+
+                        skip_json_patch_whitespace(content, index);
+                        if (index >= content.size()) {
+                            break;
+                        }
+                        if (content[index] == ',') {
+                            ++index;
+                            skip_json_patch_whitespace(content, index);
+                            continue;
+                        }
+                        if (content[index] == ']') {
+                            ++index;
+                            break;
+                        }
+                        return report_json_input_error(
+                            "JSON schema patch file", index,
+                            "expected ',' or ']' after upsert target entry",
+                            error_message);
+                    }
+                }
+            } else if (member_name == "remove_targets") {
+                if (saw_remove_targets) {
+                    error_message = "JSON schema patch member 'remove_targets' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                saw_remove_targets = true;
+                if (!parse_template_schema_patch_target_selectors_array(
+                        content, index, patch.remove_targets, error_message)) {
+                    return false;
+                }
+            } else if (member_name == "remove_slots") {
+                if (saw_remove_slots) {
+                    error_message = "JSON schema patch member 'remove_slots' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                saw_remove_slots = true;
+                if (!parse_template_schema_patch_remove_slots_array(
+                        content, index, patch.remove_slots, error_message)) {
+                    return false;
+                }
+            } else if (member_name == "rename_slots") {
+                if (saw_rename_slots) {
+                    error_message = "JSON schema patch member 'rename_slots' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                saw_rename_slots = true;
+                if (!parse_template_schema_patch_rename_slots_array(
+                        content, index, patch.rename_slots, error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "unknown root member",
+                                               error_message);
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_input_error("JSON schema patch file", index,
+                                           "expected ',' or '}' after object member",
+                                           error_message);
+        }
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index != content.size()) {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "unexpected trailing content",
+                                       error_message);
+    }
+
+    return true;
 }
 
 auto read_template_schema_file(const path_type &schema_path,
@@ -18530,6 +19973,26 @@ auto compare_template_slot_requirement(
     return compare_optional_index(left.max_occurrences, right.max_occurrences);
 }
 
+auto compare_template_slot_requirement_shape(
+    const featherdoc::template_slot_requirement &left,
+    const featherdoc::template_slot_requirement &right) -> int {
+    if (static_cast<int>(left.kind) < static_cast<int>(right.kind)) {
+        return -1;
+    }
+    if (static_cast<int>(right.kind) < static_cast<int>(left.kind)) {
+        return 1;
+    }
+    if (left.required != right.required) {
+        return left.required ? 1 : -1;
+    }
+    if (const auto min_compare =
+            compare_optional_index(left.min_occurrences, right.min_occurrences);
+        min_compare != 0) {
+        return min_compare;
+    }
+    return compare_optional_index(left.max_occurrences, right.max_occurrences);
+}
+
 auto compare_template_schema_target_selector(
     const exported_template_schema_target &left,
     const exported_template_schema_target &right) -> int {
@@ -18587,6 +20050,43 @@ auto compare_template_schema_target(const exported_template_schema_target &left,
     return 0;
 }
 
+auto compare_template_schema_target_identity(
+    const exported_template_schema_target &left,
+    const exported_template_schema_target &right) -> int {
+    if (const auto selector_compare =
+            compare_template_schema_target_selector(left, right);
+        selector_compare != 0) {
+        return selector_compare;
+    }
+    if (const auto resolved_compare = compare_optional_index(
+            left.resolved_from_section_index, right.resolved_from_section_index);
+        resolved_compare != 0) {
+        return resolved_compare;
+    }
+    if (left.linked_to_previous != right.linked_to_previous) {
+        return left.linked_to_previous ? 1 : -1;
+    }
+    return 0;
+}
+
+auto template_schema_lint_issue_name(const template_schema_lint_issue_kind kind)
+    -> std::string_view {
+    switch (kind) {
+    case template_schema_lint_issue_kind::target_order:
+        return "target_order";
+    case template_schema_lint_issue_kind::slot_order:
+        return "slot_order";
+    case template_schema_lint_issue_kind::duplicate_target_identity:
+        return "duplicate_target_identity";
+    case template_schema_lint_issue_kind::duplicate_slot_name:
+        return "duplicate_slot_name";
+    case template_schema_lint_issue_kind::entry_name_present:
+        return "entry_name_present";
+    }
+
+    return "unknown";
+}
+
 void normalize_template_schema_result(exported_template_schema_result &result) {
     for (auto &target : result.targets) {
         std::sort(target.requirements.begin(), target.requirements.end(),
@@ -18602,6 +20102,467 @@ void normalize_template_schema_result(exported_template_schema_result &result) {
                  const exported_template_schema_target &right) {
                   return compare_template_schema_target(left, right) < 0;
               });
+}
+
+struct merged_template_schema_summary {
+    std::size_t input_count = 0U;
+    std::size_t updated_target_count = 0U;
+    std::size_t replaced_slot_count = 0U;
+};
+
+void merge_template_schema_result(exported_template_schema_result &base,
+                                  const exported_template_schema_result &overlay,
+                                  merged_template_schema_summary &summary) {
+    ++summary.input_count;
+    for (const auto &overlay_target : overlay.targets) {
+        auto existing_it =
+            std::find_if(base.targets.begin(), base.targets.end(),
+                         [&](const exported_template_schema_target &candidate) {
+                             return compare_template_schema_target_identity(
+                                        candidate, overlay_target) == 0;
+                         });
+        if (existing_it == base.targets.end()) {
+            base.targets.push_back(overlay_target);
+            existing_it = base.targets.end() - 1;
+            existing_it->requirements.clear();
+        } else {
+            ++summary.updated_target_count;
+        }
+
+        if (!overlay_target.entry_name.empty()) {
+            existing_it->entry_name = overlay_target.entry_name;
+        }
+
+        for (const auto &requirement : overlay_target.requirements) {
+            auto requirement_it = std::find_if(
+                existing_it->requirements.begin(), existing_it->requirements.end(),
+                [&](const featherdoc::template_slot_requirement &candidate) {
+                    return candidate.bookmark_name == requirement.bookmark_name;
+                });
+            if (requirement_it == existing_it->requirements.end()) {
+                existing_it->requirements.push_back(requirement);
+                continue;
+            }
+
+            if (compare_template_slot_requirement(*requirement_it, requirement) != 0) {
+                ++summary.replaced_slot_count;
+                *requirement_it = requirement;
+            }
+        }
+    }
+}
+
+struct patched_template_schema_summary {
+    std::size_t upsert_target_count = 0U;
+    std::size_t remove_target_count = 0U;
+    std::size_t remove_slot_count = 0U;
+    std::size_t rename_slot_count = 0U;
+    std::size_t updated_target_count = 0U;
+    std::size_t replaced_slot_count = 0U;
+    std::size_t applied_remove_target_count = 0U;
+    std::size_t applied_remove_slot_count = 0U;
+    std::size_t applied_rename_slot_count = 0U;
+    std::size_t pruned_empty_target_count = 0U;
+};
+
+struct built_template_schema_patch_summary {
+    std::size_t added_target_count = 0U;
+    std::size_t removed_target_count = 0U;
+    std::size_t changed_target_count = 0U;
+    std::size_t generated_remove_target_count = 0U;
+    std::size_t generated_remove_slot_count = 0U;
+    std::size_t generated_rename_slot_count = 0U;
+    std::size_t generated_upsert_target_count = 0U;
+
+    [[nodiscard]] bool empty_patch() const noexcept {
+        return this->generated_remove_target_count == 0U &&
+               this->generated_remove_slot_count == 0U &&
+               this->generated_rename_slot_count == 0U &&
+               this->generated_upsert_target_count == 0U;
+    }
+};
+
+auto template_schema_patch_selector_matches_target(
+    const template_schema_patch_target_selector &selector,
+    const exported_template_schema_target &target) -> bool {
+    return selector.part == target.part &&
+           selector.part_index == target.part_index &&
+           selector.section_index == target.section_index &&
+           selector.reference_kind == target.reference_kind &&
+           selector.resolved_from_section_index ==
+               target.resolved_from_section_index &&
+           selector.linked_to_previous == target.linked_to_previous;
+}
+
+void apply_template_schema_patch(exported_template_schema_result &result,
+                                 const template_schema_patch_document &patch,
+                                 patched_template_schema_summary &summary) {
+    summary.upsert_target_count = patch.upsert_targets.size();
+    summary.remove_target_count = patch.remove_targets.size();
+    summary.remove_slot_count = patch.remove_slots.size();
+    summary.rename_slot_count = patch.rename_slots.size();
+
+    for (const auto &selector : patch.remove_targets) {
+        const auto previous_size = result.targets.size();
+        result.targets.erase(
+            std::remove_if(result.targets.begin(), result.targets.end(),
+                           [&](const exported_template_schema_target &target) {
+                               return template_schema_patch_selector_matches_target(
+                                   selector, target);
+                           }),
+            result.targets.end());
+        summary.applied_remove_target_count += previous_size - result.targets.size();
+    }
+
+    for (const auto &remove_slot : patch.remove_slots) {
+        for (auto target_it = result.targets.begin(); target_it != result.targets.end();) {
+            if (!template_schema_patch_selector_matches_target(remove_slot.target,
+                                                               *target_it)) {
+                ++target_it;
+                continue;
+            }
+
+            const auto previous_slot_count = target_it->requirements.size();
+            target_it->requirements.erase(
+                std::remove_if(target_it->requirements.begin(),
+                               target_it->requirements.end(),
+                               [&](const featherdoc::template_slot_requirement &requirement) {
+                                   return requirement.bookmark_name ==
+                                          remove_slot.bookmark_name;
+                               }),
+                target_it->requirements.end());
+            summary.applied_remove_slot_count +=
+                previous_slot_count - target_it->requirements.size();
+
+            if (target_it->requirements.empty()) {
+                target_it = result.targets.erase(target_it);
+                ++summary.pruned_empty_target_count;
+                continue;
+            }
+
+            ++target_it;
+        }
+    }
+
+    for (const auto &rename_slot : patch.rename_slots) {
+        for (auto &target : result.targets) {
+            if (!template_schema_patch_selector_matches_target(rename_slot.target,
+                                                               target)) {
+                continue;
+            }
+
+            for (auto &requirement : target.requirements) {
+                if (requirement.bookmark_name != rename_slot.bookmark_name ||
+                    requirement.bookmark_name == rename_slot.new_bookmark_name) {
+                    continue;
+                }
+                requirement.bookmark_name = rename_slot.new_bookmark_name;
+                ++summary.applied_rename_slot_count;
+            }
+        }
+    }
+
+    if (!patch.upsert_targets.empty()) {
+        exported_template_schema_result overlay{};
+        overlay.targets = patch.upsert_targets;
+        merged_template_schema_summary merge_summary{};
+        merge_template_schema_result(result, overlay, merge_summary);
+        summary.updated_target_count = merge_summary.updated_target_count;
+        summary.replaced_slot_count = merge_summary.replaced_slot_count;
+    }
+}
+
+auto make_template_schema_patch_target_selector(
+    const exported_template_schema_target &target)
+    -> template_schema_patch_target_selector {
+    template_schema_patch_target_selector selector{};
+    selector.part = target.part;
+    selector.part_index = target.part_index;
+    selector.section_index = target.section_index;
+    selector.reference_kind = target.reference_kind;
+    selector.resolved_from_section_index = target.resolved_from_section_index;
+    selector.linked_to_previous = target.linked_to_previous;
+    return selector;
+}
+
+auto lint_template_schema(const exported_template_schema_result &result)
+    -> template_schema_lint_result {
+    template_schema_lint_result lint{};
+    lint.target_count = result.targets.size();
+    lint.slot_count = result.slot_count();
+
+    for (std::size_t target_index = 0U; target_index < result.targets.size();
+         ++target_index) {
+        const auto &target = result.targets[target_index];
+        const auto selector = make_template_schema_patch_target_selector(target);
+
+        if (target_index != 0U &&
+            compare_template_schema_target(result.targets[target_index - 1U], target) > 0) {
+            template_schema_lint_issue issue{};
+            issue.kind = template_schema_lint_issue_kind::target_order;
+            issue.target_index = target_index;
+            issue.target = selector;
+            issue.previous_target_index = target_index - 1U;
+            lint.issues.push_back(std::move(issue));
+        }
+
+        if (!target.entry_name.empty()) {
+            template_schema_lint_issue issue{};
+            issue.kind = template_schema_lint_issue_kind::entry_name_present;
+            issue.target_index = target_index;
+            issue.target = selector;
+            issue.entry_name = target.entry_name;
+            lint.issues.push_back(std::move(issue));
+        }
+
+        for (std::size_t previous_target_index = 0U;
+             previous_target_index < target_index; ++previous_target_index) {
+            if (compare_template_schema_target_identity(
+                    result.targets[previous_target_index], target) != 0) {
+                continue;
+            }
+
+            template_schema_lint_issue issue{};
+            issue.kind = template_schema_lint_issue_kind::duplicate_target_identity;
+            issue.target_index = target_index;
+            issue.target = selector;
+            issue.previous_target_index = previous_target_index;
+            lint.issues.push_back(std::move(issue));
+            break;
+        }
+
+        for (std::size_t slot_index = 1U; slot_index < target.requirements.size();
+             ++slot_index) {
+            if (compare_template_slot_requirement(target.requirements[slot_index - 1U],
+                                                  target.requirements[slot_index]) <= 0) {
+                continue;
+            }
+
+            template_schema_lint_issue issue{};
+            issue.kind = template_schema_lint_issue_kind::slot_order;
+            issue.target_index = target_index;
+            issue.target = selector;
+            issue.slot_index = slot_index;
+            issue.previous_slot_index = slot_index - 1U;
+            issue.bookmark_name = target.requirements[slot_index].bookmark_name;
+            issue.previous_bookmark_name =
+                target.requirements[slot_index - 1U].bookmark_name;
+            lint.issues.push_back(std::move(issue));
+        }
+
+        for (std::size_t slot_index = 0U; slot_index < target.requirements.size();
+             ++slot_index) {
+            for (std::size_t previous_slot_index = 0U;
+                 previous_slot_index < slot_index; ++previous_slot_index) {
+                if (target.requirements[previous_slot_index].bookmark_name !=
+                    target.requirements[slot_index].bookmark_name) {
+                    continue;
+                }
+
+                template_schema_lint_issue issue{};
+                issue.kind = template_schema_lint_issue_kind::duplicate_slot_name;
+                issue.target_index = target_index;
+                issue.target = selector;
+                issue.slot_index = slot_index;
+                issue.previous_slot_index = previous_slot_index;
+                issue.bookmark_name = target.requirements[slot_index].bookmark_name;
+                lint.issues.push_back(std::move(issue));
+                break;
+            }
+        }
+    }
+
+    return lint;
+}
+
+auto exported_template_schema_results_equal_exact(
+    const exported_template_schema_result &left,
+    const exported_template_schema_result &right) -> bool {
+    if (left.targets.size() != right.targets.size()) {
+        return false;
+    }
+
+    for (std::size_t index = 0U; index < left.targets.size(); ++index) {
+        if (compare_template_schema_target(left.targets[index], right.targets[index]) != 0 ||
+            left.targets[index].entry_name != right.targets[index].entry_name) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void repair_template_schema_result(const exported_template_schema_result &input,
+                                   exported_template_schema_result &result,
+                                   repaired_template_schema_summary &summary) {
+    summary = {};
+    summary.input_target_count = input.targets.size();
+    summary.input_slot_count = input.slot_count();
+    summary.stripped_entry_name_count = static_cast<std::size_t>(std::count_if(
+        input.targets.begin(), input.targets.end(),
+        [](const exported_template_schema_target &target) {
+            return !target.entry_name.empty();
+        }));
+
+    result = {};
+    merged_template_schema_summary merge_summary{};
+    merge_template_schema_result(result, input, merge_summary);
+    normalize_template_schema_result(result);
+
+    summary.merged_duplicate_target_count = merge_summary.updated_target_count;
+    summary.replaced_slot_count = merge_summary.replaced_slot_count;
+    summary.deduplicated_target_count =
+        summary.input_target_count - result.targets.size();
+    summary.deduplicated_slot_count =
+        summary.input_slot_count - result.slot_count();
+    summary.changed = !exported_template_schema_results_equal_exact(input, result);
+}
+
+void append_changed_target_template_schema_patch(
+    const exported_template_schema_target &left,
+    const exported_template_schema_target &right, template_schema_patch_document &patch) {
+    const auto selector = make_template_schema_patch_target_selector(left);
+    if (compare_template_schema_target_identity(left, right) != 0) {
+        patch.remove_targets.push_back(selector);
+        patch.upsert_targets.push_back(right);
+        return;
+    }
+
+    std::vector<const featherdoc::template_slot_requirement *> removed_requirements;
+    std::vector<const featherdoc::template_slot_requirement *> added_requirements;
+    exported_template_schema_target upsert_target = right;
+    upsert_target.requirements.clear();
+
+    std::vector<bool> right_matched(right.requirements.size(), false);
+    for (const auto &left_requirement : left.requirements) {
+        const auto right_it = std::find_if(
+            right.requirements.begin(), right.requirements.end(),
+            [&](const featherdoc::template_slot_requirement &candidate) {
+                return candidate.bookmark_name == left_requirement.bookmark_name;
+            });
+        if (right_it == right.requirements.end()) {
+            removed_requirements.push_back(&left_requirement);
+            continue;
+        }
+
+        const auto right_index =
+            static_cast<std::size_t>(std::distance(right.requirements.begin(), right_it));
+        right_matched[right_index] = true;
+        if (compare_template_slot_requirement(left_requirement, *right_it) != 0) {
+            upsert_target.requirements.push_back(*right_it);
+        }
+    }
+
+    for (std::size_t right_index = 0U; right_index < right.requirements.size();
+         ++right_index) {
+        if (!right_matched[right_index]) {
+            added_requirements.push_back(&right.requirements[right_index]);
+        }
+    }
+
+    std::vector<bool> removed_consumed(removed_requirements.size(), false);
+    std::vector<bool> added_consumed(added_requirements.size(), false);
+    for (std::size_t removed_index = 0U; removed_index < removed_requirements.size();
+         ++removed_index) {
+        std::optional<std::size_t> matched_added_index;
+        std::size_t matched_added_count = 0U;
+        for (std::size_t added_index = 0U; added_index < added_requirements.size();
+             ++added_index) {
+            if (added_consumed[added_index] ||
+                compare_template_slot_requirement_shape(
+                    *removed_requirements[removed_index],
+                    *added_requirements[added_index]) != 0) {
+                continue;
+            }
+            matched_added_index = added_index;
+            ++matched_added_count;
+        }
+        if (matched_added_count != 1U || !matched_added_index.has_value()) {
+            continue;
+        }
+
+        std::size_t matched_removed_count = 0U;
+        for (std::size_t candidate_removed_index = 0U;
+             candidate_removed_index < removed_requirements.size();
+             ++candidate_removed_index) {
+            if (removed_consumed[candidate_removed_index] ||
+                compare_template_slot_requirement_shape(
+                    *removed_requirements[candidate_removed_index],
+                    *added_requirements[*matched_added_index]) != 0) {
+                continue;
+            }
+            ++matched_removed_count;
+        }
+        if (matched_removed_count != 1U) {
+            continue;
+        }
+
+        template_schema_patch_rename_slot rename_slot{};
+        rename_slot.target = selector;
+        rename_slot.bookmark_name =
+            removed_requirements[removed_index]->bookmark_name;
+        rename_slot.new_bookmark_name =
+            added_requirements[*matched_added_index]->bookmark_name;
+        patch.rename_slots.push_back(std::move(rename_slot));
+        removed_consumed[removed_index] = true;
+        added_consumed[*matched_added_index] = true;
+    }
+
+    for (std::size_t removed_index = 0U; removed_index < removed_requirements.size();
+         ++removed_index) {
+        if (removed_consumed[removed_index]) {
+            continue;
+        }
+        template_schema_patch_remove_slot remove_slot{};
+        remove_slot.target = selector;
+        remove_slot.bookmark_name =
+            removed_requirements[removed_index]->bookmark_name;
+        patch.remove_slots.push_back(std::move(remove_slot));
+    }
+
+    for (std::size_t added_index = 0U; added_index < added_requirements.size();
+         ++added_index) {
+        if (added_consumed[added_index]) {
+            continue;
+        }
+        upsert_target.requirements.push_back(*added_requirements[added_index]);
+    }
+
+    if (!upsert_target.requirements.empty()) {
+        patch.upsert_targets.push_back(std::move(upsert_target));
+    }
+}
+
+auto build_template_schema_patch_document(
+    const template_schema_diff_result &diff, built_template_schema_patch_summary &summary)
+    -> template_schema_patch_document {
+    template_schema_patch_document patch;
+    summary = {};
+    summary.added_target_count = diff.added_targets.size();
+    summary.removed_target_count = diff.removed_targets.size();
+    summary.changed_target_count = diff.changed_targets.size();
+
+    patch.remove_targets.reserve(diff.removed_targets.size() +
+                                 diff.changed_targets.size());
+    patch.upsert_targets.reserve(diff.added_targets.size() +
+                                 diff.changed_targets.size());
+    for (const auto &target : diff.removed_targets) {
+        patch.remove_targets.push_back(
+            make_template_schema_patch_target_selector(target));
+    }
+    for (const auto &target_pair : diff.changed_targets) {
+        append_changed_target_template_schema_patch(target_pair.left, target_pair.right,
+                                                   patch);
+    }
+
+    patch.upsert_targets.insert(patch.upsert_targets.end(), diff.added_targets.begin(),
+                                diff.added_targets.end());
+
+    summary.generated_remove_target_count = patch.remove_targets.size();
+    summary.generated_remove_slot_count = patch.remove_slots.size();
+    summary.generated_rename_slot_count = patch.rename_slots.size();
+    summary.generated_upsert_target_count = patch.upsert_targets.size();
+    return patch;
 }
 
 auto diff_template_schema_results(const exported_template_schema_result &left,
@@ -18729,6 +20690,186 @@ void write_json_exported_template_schema(std::ostream &stream,
         write_json_exported_template_schema_target(stream, result.targets[target_index]);
     }
     stream << "]}\n";
+}
+
+void write_json_template_schema_patch_selector(
+    std::ostream &stream, const template_schema_patch_target_selector &selector) {
+    stream << "{\"part\":";
+    write_json_string(stream, validation_part_name(selector.part));
+    if (selector.part_index.has_value()) {
+        stream << ",\"index\":" << *selector.part_index;
+    }
+    if (selector.section_index.has_value()) {
+        stream << ",\"section\":" << *selector.section_index;
+    }
+    if (selector.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selector.reference_kind));
+    }
+    if (selector.resolved_from_section_index.has_value()) {
+        stream << ",\"resolved_from_section\":"
+               << *selector.resolved_from_section_index;
+    }
+    if (selector.linked_to_previous) {
+        stream << ",\"linked_to_previous\":true";
+    }
+    stream << '}';
+}
+
+void write_json_template_schema_patch_remove_slot(
+    std::ostream &stream, const template_schema_patch_remove_slot &operation) {
+    stream << "{\"part\":";
+    write_json_string(stream, validation_part_name(operation.target.part));
+    if (operation.target.part_index.has_value()) {
+        stream << ",\"index\":" << *operation.target.part_index;
+    }
+    if (operation.target.section_index.has_value()) {
+        stream << ",\"section\":" << *operation.target.section_index;
+    }
+    if (operation.target.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(
+            stream,
+            featherdoc::to_xml_reference_type(*operation.target.reference_kind));
+    }
+    if (operation.target.resolved_from_section_index.has_value()) {
+        stream << ",\"resolved_from_section\":"
+               << *operation.target.resolved_from_section_index;
+    }
+    if (operation.target.linked_to_previous) {
+        stream << ",\"linked_to_previous\":true";
+    }
+    stream << ",\"bookmark\":";
+    write_json_string(stream, operation.bookmark_name);
+    stream << '}';
+}
+
+void write_json_template_schema_patch_rename_slot(
+    std::ostream &stream, const template_schema_patch_rename_slot &operation) {
+    stream << "{\"part\":";
+    write_json_string(stream, validation_part_name(operation.target.part));
+    if (operation.target.part_index.has_value()) {
+        stream << ",\"index\":" << *operation.target.part_index;
+    }
+    if (operation.target.section_index.has_value()) {
+        stream << ",\"section\":" << *operation.target.section_index;
+    }
+    if (operation.target.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(
+            stream,
+            featherdoc::to_xml_reference_type(*operation.target.reference_kind));
+    }
+    if (operation.target.resolved_from_section_index.has_value()) {
+        stream << ",\"resolved_from_section\":"
+               << *operation.target.resolved_from_section_index;
+    }
+    if (operation.target.linked_to_previous) {
+        stream << ",\"linked_to_previous\":true";
+    }
+    stream << ",\"bookmark\":";
+    write_json_string(stream, operation.bookmark_name);
+    stream << ",\"new_bookmark\":";
+    write_json_string(stream, operation.new_bookmark_name);
+    stream << '}';
+}
+
+void write_json_template_schema_patch_document(
+    std::ostream &stream, const template_schema_patch_document &patch) {
+    bool wrote_member = false;
+    stream << '{';
+
+    const auto write_separator = [&]() {
+        if (wrote_member) {
+            stream << ',';
+        }
+        wrote_member = true;
+    };
+
+    if (!patch.remove_targets.empty()) {
+        write_separator();
+        stream << "\"remove_targets\":[";
+        for (std::size_t index = 0U; index < patch.remove_targets.size(); ++index) {
+            if (index != 0U) {
+                stream << ',';
+            }
+            write_json_template_schema_patch_selector(stream,
+                                                      patch.remove_targets[index]);
+        }
+        stream << ']';
+    }
+
+    if (!patch.remove_slots.empty()) {
+        write_separator();
+        stream << "\"remove_slots\":[";
+        for (std::size_t index = 0U; index < patch.remove_slots.size(); ++index) {
+            if (index != 0U) {
+                stream << ',';
+            }
+            write_json_template_schema_patch_remove_slot(stream,
+                                                         patch.remove_slots[index]);
+        }
+        stream << ']';
+    }
+
+    if (!patch.rename_slots.empty()) {
+        write_separator();
+        stream << "\"rename_slots\":[";
+        for (std::size_t index = 0U; index < patch.rename_slots.size(); ++index) {
+            if (index != 0U) {
+                stream << ',';
+            }
+            write_json_template_schema_patch_rename_slot(stream,
+                                                         patch.rename_slots[index]);
+        }
+        stream << ']';
+    }
+
+    if (!patch.upsert_targets.empty()) {
+        write_separator();
+        stream << "\"upsert_targets\":[";
+        for (std::size_t index = 0U; index < patch.upsert_targets.size(); ++index) {
+            if (index != 0U) {
+                stream << ',';
+            }
+            write_json_exported_template_schema_target(stream,
+                                                       patch.upsert_targets[index]);
+        }
+        stream << ']';
+    }
+
+    stream << "}\n";
+}
+
+void write_json_template_schema_lint_issue(std::ostream &stream,
+                                           const template_schema_lint_issue &issue) {
+    stream << "{\"issue\":";
+    write_json_string(stream, template_schema_lint_issue_name(issue.kind));
+    stream << ",\"target_index\":" << issue.target_index << ",\"target\":";
+    write_json_template_schema_patch_selector(stream, issue.target);
+    if (issue.previous_target_index.has_value()) {
+        stream << ",\"previous_target_index\":" << *issue.previous_target_index;
+    }
+    if (issue.slot_index.has_value()) {
+        stream << ",\"slot_index\":" << *issue.slot_index;
+    }
+    if (issue.previous_slot_index.has_value()) {
+        stream << ",\"previous_slot_index\":" << *issue.previous_slot_index;
+    }
+    if (!issue.bookmark_name.empty()) {
+        stream << ",\"bookmark\":";
+        write_json_string(stream, issue.bookmark_name);
+    }
+    if (!issue.previous_bookmark_name.empty()) {
+        stream << ",\"previous_bookmark\":";
+        write_json_string(stream, issue.previous_bookmark_name);
+    }
+    if (!issue.entry_name.empty()) {
+        stream << ",\"entry_name\":";
+        write_json_string(stream, issue.entry_name);
+    }
+    stream << '}';
 }
 
 void write_json_exported_template_schema_skipped_bookmark(
@@ -18895,6 +21036,272 @@ void print_normalized_template_schema_summary(
     }
     std::cout << "target_count: " << result.targets.size() << '\n'
               << "slot_count: " << result.slot_count() << '\n';
+}
+
+void print_template_schema_patch_selector_summary(
+    std::ostream &stream, const template_schema_patch_target_selector &selector) {
+    stream << "part=" << validation_part_name(selector.part);
+    if (selector.part_index.has_value()) {
+        stream << " index=" << *selector.part_index;
+    }
+    if (selector.section_index.has_value()) {
+        stream << " section=" << *selector.section_index;
+    }
+    if (selector.reference_kind.has_value()) {
+        stream << " kind="
+               << featherdoc::to_xml_reference_type(*selector.reference_kind);
+    }
+    if (selector.resolved_from_section_index.has_value()) {
+        stream << " resolved_from_section="
+               << *selector.resolved_from_section_index;
+    }
+    if (selector.linked_to_previous) {
+        stream << " linked_to_previous=yes";
+    }
+}
+
+void print_linted_template_schema_result(const template_schema_lint_result &result,
+                                         bool json_output) {
+    const auto duplicate_target_count =
+        result.issue_count(template_schema_lint_issue_kind::duplicate_target_identity);
+    const auto duplicate_slot_count =
+        result.issue_count(template_schema_lint_issue_kind::duplicate_slot_name);
+    const auto target_order_issue_count =
+        result.issue_count(template_schema_lint_issue_kind::target_order);
+    const auto slot_order_issue_count =
+        result.issue_count(template_schema_lint_issue_kind::slot_order);
+    const auto entry_name_issue_count =
+        result.issue_count(template_schema_lint_issue_kind::entry_name_present);
+
+    if (json_output) {
+        std::cout << "{\"command\":\"lint-template-schema\",\"ok\":true,"
+                  << "\"clean\":" << json_bool(result.clean())
+                  << ",\"target_count\":" << result.target_count
+                  << ",\"slot_count\":" << result.slot_count
+                  << ",\"issue_count\":" << result.issues.size()
+                  << ",\"duplicate_target_count\":" << duplicate_target_count
+                  << ",\"duplicate_slot_count\":" << duplicate_slot_count
+                  << ",\"target_order_issue_count\":" << target_order_issue_count
+                  << ",\"slot_order_issue_count\":" << slot_order_issue_count
+                  << ",\"entry_name_issue_count\":" << entry_name_issue_count
+                  << ",\"issues\":[";
+        for (std::size_t index = 0U; index < result.issues.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_template_schema_lint_issue(std::cout, result.issues[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "clean: " << yes_no(result.clean()) << '\n'
+              << "target_count: " << result.target_count << '\n'
+              << "slot_count: " << result.slot_count << '\n'
+              << "issue_count: " << result.issues.size() << '\n'
+              << "duplicate_target_count: " << duplicate_target_count << '\n'
+              << "duplicate_slot_count: " << duplicate_slot_count << '\n'
+              << "target_order_issue_count: " << target_order_issue_count << '\n'
+              << "slot_order_issue_count: " << slot_order_issue_count << '\n'
+              << "entry_name_issue_count: " << entry_name_issue_count << '\n';
+    if (result.issues.empty()) {
+        std::cout << "issues: none\n";
+        return;
+    }
+
+    for (std::size_t index = 0U; index < result.issues.size(); ++index) {
+        const auto &issue = result.issues[index];
+        std::cout << "issue[" << index << "]: issue="
+                  << template_schema_lint_issue_name(issue.kind)
+                  << " target_index=" << issue.target_index << ' ';
+        print_template_schema_patch_selector_summary(std::cout, issue.target);
+        if (issue.previous_target_index.has_value()) {
+            std::cout << " previous_target_index=" << *issue.previous_target_index;
+        }
+        if (issue.slot_index.has_value()) {
+            std::cout << " slot_index=" << *issue.slot_index;
+        }
+        if (issue.previous_slot_index.has_value()) {
+            std::cout << " previous_slot_index=" << *issue.previous_slot_index;
+        }
+        if (!issue.bookmark_name.empty()) {
+            std::cout << " bookmark=" << issue.bookmark_name;
+        }
+        if (!issue.previous_bookmark_name.empty()) {
+            std::cout << " previous_bookmark=" << issue.previous_bookmark_name;
+        }
+        if (!issue.entry_name.empty()) {
+            std::cout << " entry_name=" << issue.entry_name;
+        }
+        std::cout << '\n';
+    }
+}
+
+void print_repaired_template_schema_summary(
+    const exported_template_schema_result &result,
+    const repaired_template_schema_summary &summary,
+    const std::optional<path_type> &output_path, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"repair-template-schema\",\"ok\":true";
+        if (output_path.has_value()) {
+            std::cout << ",\"output_path\":";
+            write_json_string(std::cout, output_path->string());
+        }
+        std::cout << ",\"input_target_count\":" << summary.input_target_count
+                  << ",\"input_slot_count\":" << summary.input_slot_count
+                  << ",\"target_count\":" << result.targets.size()
+                  << ",\"slot_count\":" << result.slot_count()
+                  << ",\"merged_duplicate_target_count\":"
+                  << summary.merged_duplicate_target_count
+                  << ",\"deduplicated_target_count\":"
+                  << summary.deduplicated_target_count
+                  << ",\"deduplicated_slot_count\":"
+                  << summary.deduplicated_slot_count
+                  << ",\"stripped_entry_name_count\":"
+                  << summary.stripped_entry_name_count
+                  << ",\"replaced_slot_count\":"
+                  << summary.replaced_slot_count
+                  << ",\"changed\":" << json_bool(summary.changed) << "}\n";
+        return;
+    }
+
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    }
+    std::cout << "input_target_count: " << summary.input_target_count << '\n'
+              << "input_slot_count: " << summary.input_slot_count << '\n'
+              << "target_count: " << result.targets.size() << '\n'
+              << "slot_count: " << result.slot_count() << '\n'
+              << "merged_duplicate_target_count: "
+              << summary.merged_duplicate_target_count << '\n'
+              << "deduplicated_target_count: "
+              << summary.deduplicated_target_count << '\n'
+              << "deduplicated_slot_count: "
+              << summary.deduplicated_slot_count << '\n'
+              << "stripped_entry_name_count: "
+              << summary.stripped_entry_name_count << '\n'
+              << "replaced_slot_count: " << summary.replaced_slot_count << '\n'
+              << "changed: " << yes_no(summary.changed) << '\n';
+}
+
+void print_merged_template_schema_summary(
+    const exported_template_schema_result &result,
+    const merged_template_schema_summary &summary,
+    const std::optional<path_type> &output_path, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"merge-template-schema\",\"ok\":true";
+        if (output_path.has_value()) {
+            std::cout << ",\"output_path\":";
+            write_json_string(std::cout, output_path->string());
+        }
+        std::cout << ",\"input_count\":" << summary.input_count
+                  << ",\"target_count\":" << result.targets.size()
+                  << ",\"slot_count\":" << result.slot_count()
+                  << ",\"updated_target_count\":" << summary.updated_target_count
+                  << ",\"replaced_slot_count\":" << summary.replaced_slot_count
+                  << "}\n";
+        return;
+    }
+
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    }
+    std::cout << "input_count: " << summary.input_count << '\n'
+              << "target_count: " << result.targets.size() << '\n'
+              << "slot_count: " << result.slot_count() << '\n'
+              << "updated_target_count: " << summary.updated_target_count << '\n'
+              << "replaced_slot_count: " << summary.replaced_slot_count << '\n';
+}
+
+void print_patched_template_schema_summary(
+    const exported_template_schema_result &result,
+    const patched_template_schema_summary &summary,
+    const std::optional<path_type> &output_path, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"patch-template-schema\",\"ok\":true";
+        if (output_path.has_value()) {
+            std::cout << ",\"output_path\":";
+            write_json_string(std::cout, output_path->string());
+        }
+        std::cout << ",\"target_count\":" << result.targets.size()
+                  << ",\"slot_count\":" << result.slot_count()
+                  << ",\"upsert_target_count\":" << summary.upsert_target_count
+                  << ",\"remove_target_count\":" << summary.remove_target_count
+                  << ",\"remove_slot_count\":" << summary.remove_slot_count
+                  << ",\"rename_slot_count\":" << summary.rename_slot_count
+                  << ",\"updated_target_count\":" << summary.updated_target_count
+                  << ",\"replaced_slot_count\":" << summary.replaced_slot_count
+                  << ",\"applied_remove_target_count\":"
+                  << summary.applied_remove_target_count
+                  << ",\"applied_remove_slot_count\":"
+                  << summary.applied_remove_slot_count
+                  << ",\"applied_rename_slot_count\":"
+                  << summary.applied_rename_slot_count
+                  << ",\"pruned_empty_target_count\":"
+                  << summary.pruned_empty_target_count << "}\n";
+        return;
+    }
+
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    }
+    std::cout << "target_count: " << result.targets.size() << '\n'
+              << "slot_count: " << result.slot_count() << '\n'
+              << "upsert_target_count: " << summary.upsert_target_count << '\n'
+              << "remove_target_count: " << summary.remove_target_count << '\n'
+              << "remove_slot_count: " << summary.remove_slot_count << '\n'
+              << "rename_slot_count: " << summary.rename_slot_count << '\n'
+              << "updated_target_count: " << summary.updated_target_count << '\n'
+              << "replaced_slot_count: " << summary.replaced_slot_count << '\n'
+              << "applied_remove_target_count: "
+              << summary.applied_remove_target_count << '\n'
+              << "applied_remove_slot_count: "
+              << summary.applied_remove_slot_count << '\n'
+              << "applied_rename_slot_count: "
+              << summary.applied_rename_slot_count << '\n'
+              << "pruned_empty_target_count: "
+              << summary.pruned_empty_target_count << '\n';
+}
+
+void print_built_template_schema_patch_summary(
+    const built_template_schema_patch_summary &summary,
+    const std::optional<path_type> &output_path, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"build-template-schema-patch\",\"ok\":true";
+        if (output_path.has_value()) {
+            std::cout << ",\"output_path\":";
+            write_json_string(std::cout, output_path->string());
+        }
+        std::cout << ",\"added_target_count\":" << summary.added_target_count
+                  << ",\"removed_target_count\":" << summary.removed_target_count
+                  << ",\"changed_target_count\":" << summary.changed_target_count
+                  << ",\"generated_remove_target_count\":"
+                  << summary.generated_remove_target_count
+                  << ",\"generated_remove_slot_count\":"
+                  << summary.generated_remove_slot_count
+                  << ",\"generated_rename_slot_count\":"
+                  << summary.generated_rename_slot_count
+                  << ",\"generated_upsert_target_count\":"
+                  << summary.generated_upsert_target_count
+                  << ",\"empty_patch\":" << json_bool(summary.empty_patch()) << "}\n";
+        return;
+    }
+
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    }
+    std::cout << "added_target_count: " << summary.added_target_count << '\n'
+              << "removed_target_count: " << summary.removed_target_count << '\n'
+              << "changed_target_count: " << summary.changed_target_count << '\n'
+              << "generated_remove_target_count: "
+              << summary.generated_remove_target_count << '\n'
+              << "generated_remove_slot_count: "
+              << summary.generated_remove_slot_count << '\n'
+              << "generated_rename_slot_count: "
+              << summary.generated_rename_slot_count << '\n'
+              << "generated_upsert_target_count: "
+              << summary.generated_upsert_target_count << '\n'
+              << "empty_patch: " << yes_no(summary.empty_patch()) << '\n';
 }
 
 void write_json_template_schema_diff_result(
@@ -19114,6 +21521,24 @@ auto write_exported_template_schema_file(
     write_json_exported_template_schema(stream, result);
     if (!stream.good()) {
         error_message = "failed to write schema output path: " + output_path.string();
+        return false;
+    }
+
+    return true;
+}
+
+auto write_template_schema_patch_file(const path_type &output_path,
+                                      const template_schema_patch_document &patch,
+                                      std::string &error_message) -> bool {
+    std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
+    if (!stream.good()) {
+        error_message = "failed to open patch output path: " + output_path.string();
+        return false;
+    }
+
+    write_json_template_schema_patch_document(stream, patch);
+    if (!stream.good()) {
+        error_message = "failed to write patch output path: " + output_path.string();
         return false;
     }
 
@@ -26791,6 +29216,18 @@ int main(int argc, char **argv) {
             return 2;
         }
 
+        std::vector<std::string> paragraphs;
+        if (!resolve_text_sources(options.paragraph_sources, paragraphs,
+                                  error_message)) {
+            if (options.json_output) {
+                write_json_command_error(std::cerr, command, "input",
+                                         error_message);
+            } else {
+                std::cerr << error_message << '\n';
+            }
+            return 1;
+        }
+
         if (!open_document(path_type(std::string(arguments[1])), doc, command,
                            options.json_output)) {
             return 1;
@@ -26814,7 +29251,7 @@ int main(int argc, char **argv) {
         const auto bookmark_summary = *bookmark;
 
         const auto replaced = selected.part.replace_bookmark_with_paragraphs(
-            bookmark_name, options.paragraphs);
+            bookmark_name, paragraphs);
         if (replaced == 0U) {
             report_document_error(command, "mutate", doc.last_error(),
                                   options.json_output);
@@ -26829,15 +29266,14 @@ int main(int argc, char **argv) {
             write_json_mutation_result(
                 command, doc, options.output_path,
                 [&selected, &bookmark_summary, replaced,
-                 &options](std::ostream &stream) {
+                 &paragraphs](std::ostream &stream) {
                     write_json_bookmark_paragraphs_result(
-                        stream, selected, bookmark_summary, options.paragraphs,
-                        replaced);
+                        stream, selected, bookmark_summary, paragraphs, replaced);
                 });
         } else {
             print_bookmark_paragraphs_result(selected, bookmark_summary,
-                                             options.paragraphs,
-                                             options.output_path, replaced);
+                                             paragraphs, options.output_path,
+                                             replaced);
         }
 
         return 0;
@@ -26871,6 +29307,17 @@ int main(int argc, char **argv) {
             return 2;
         }
 
+        std::vector<std::vector<std::string>> rows;
+        if (!resolve_bookmark_table_row_sources(options, rows, error_message)) {
+            if (options.json_output) {
+                write_json_command_error(std::cerr, command, "input",
+                                         error_message);
+            } else {
+                std::cerr << error_message << '\n';
+            }
+            return 1;
+        }
+
         if (!open_document(path_type(std::string(arguments[1])), doc, command,
                            options.json_output)) {
             return 1;
@@ -26895,10 +29342,9 @@ int main(int argc, char **argv) {
 
         const auto replaced =
             command == "replace-bookmark-table"
-                ? selected.part.replace_bookmark_with_table(bookmark_name,
-                                                            options.rows)
+                ? selected.part.replace_bookmark_with_table(bookmark_name, rows)
                 : selected.part.replace_bookmark_with_table_rows(bookmark_name,
-                                                                 options.rows);
+                                                                 rows);
         if (replaced == 0U) {
             report_document_error(command, "mutate", doc.last_error(),
                                   options.json_output);
@@ -26912,14 +29358,13 @@ int main(int argc, char **argv) {
         if (options.json_output) {
             write_json_mutation_result(
                 command, doc, options.output_path,
-                [&selected, &bookmark_summary, &options,
+                [&selected, &bookmark_summary, &rows,
                  replaced](std::ostream &stream) {
                     write_json_bookmark_table_result(
-                        stream, selected, bookmark_summary, options.rows,
-                        replaced);
+                        stream, selected, bookmark_summary, rows, replaced);
                 });
         } else {
-            print_bookmark_table_result(selected, bookmark_summary, options.rows,
+            print_bookmark_table_result(selected, bookmark_summary, rows,
                                         options.output_path, replaced);
         }
 
@@ -27092,6 +29537,17 @@ int main(int argc, char **argv) {
             return 2;
         }
 
+        std::vector<featherdoc::bookmark_text_binding> bindings;
+        if (!resolve_fill_bookmark_bindings(options, bindings, error_message)) {
+            if (options.json_output) {
+                write_json_command_error(std::cerr, command, "input",
+                                         error_message);
+            } else {
+                std::cerr << error_message << '\n';
+            }
+            return 1;
+        }
+
         if (!open_document(path_type(std::string(arguments[1])), doc, command,
                            options.json_output)) {
             return 1;
@@ -27106,7 +29562,7 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        const auto result = selected.part.fill_bookmarks(options.bindings);
+        const auto result = selected.part.fill_bookmarks(bindings);
         if (doc.last_error().code) {
             report_document_error(command, "mutate", doc.last_error(),
                                   options.json_output);
@@ -27120,13 +29576,13 @@ int main(int argc, char **argv) {
         if (options.json_output) {
             write_json_mutation_result(
                 command, doc, options.output_path,
-                [&selected, &options, &result](std::ostream &stream) {
-                    write_json_bookmark_fill_result(stream, selected,
-                                                    options.bindings, result);
+                [&selected, &bindings, &result](std::ostream &stream) {
+                    write_json_bookmark_fill_result(stream, selected, bindings,
+                                                    result);
                 });
         } else {
-            print_bookmark_fill_result(selected, options.bindings,
-                                       options.output_path, result);
+            print_bookmark_fill_result(selected, bindings, options.output_path,
+                                       result);
         }
 
         return 0;
@@ -28872,6 +31328,252 @@ int main(int argc, char **argv) {
 
         print_normalized_template_schema_summary(result, options.output_path,
                                                  options.json_output);
+        return 0;
+    }
+
+    if (command == "lint-template-schema") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(command, "lint-template-schema expects a schema path",
+                              json_output);
+            return 2;
+        }
+
+        lint_template_schema_options options;
+        std::string error_message;
+        if (!parse_lint_template_schema_options(arguments, 2U, options,
+                                                error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        exported_template_schema_result result;
+        if (!read_template_schema_file(path_type(std::string(arguments[1])), result,
+                                       error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        const auto lint = lint_template_schema(result);
+        print_linted_template_schema_result(lint, options.json_output);
+        if (!lint.clean()) {
+            return 1;
+        }
+        return 0;
+    }
+
+    if (command == "repair-template-schema") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(command, "repair-template-schema expects a schema path",
+                              json_output);
+            return 2;
+        }
+
+        repair_template_schema_options options;
+        std::string error_message;
+        if (!parse_repair_template_schema_options(arguments, 2U, options,
+                                                  error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        exported_template_schema_result input;
+        if (!read_template_schema_file(path_type(std::string(arguments[1])), input,
+                                       error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        exported_template_schema_result result;
+        repaired_template_schema_summary summary{};
+        repair_template_schema_result(input, result, summary);
+
+        if (!options.output_path.has_value()) {
+            write_json_exported_template_schema(std::cout, result);
+            return 0;
+        }
+
+        if (!write_exported_template_schema_file(*options.output_path, result,
+                                                 error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write repaired schema output",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        print_repaired_template_schema_summary(result, summary, options.output_path,
+                                               options.json_output);
+        return 0;
+    }
+
+    if (command == "merge-template-schema") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(command,
+                              "merge-template-schema expects at least two schema paths",
+                              json_output);
+            return 2;
+        }
+
+        merge_template_schema_options options;
+        std::string error_message;
+        if (!parse_merge_template_schema_options(arguments, 1U, options,
+                                                 error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        exported_template_schema_result result;
+        merged_template_schema_summary summary;
+        for (const auto &schema_path : options.schema_paths) {
+            exported_template_schema_result input;
+            if (!read_template_schema_file(schema_path, input, error_message)) {
+                print_parse_error(command, error_message, options.json_output);
+                return 2;
+            }
+            merge_template_schema_result(result, input, summary);
+        }
+        normalize_template_schema_result(result);
+
+        if (!options.output_path.has_value()) {
+            write_json_exported_template_schema(std::cout, result);
+            return 0;
+        }
+
+        if (!write_exported_template_schema_file(*options.output_path, result,
+                                                 error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write merged schema output",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        print_merged_template_schema_summary(result, summary, options.output_path,
+                                             options.json_output);
+        return 0;
+    }
+
+    if (command == "patch-template-schema") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command,
+                              "patch-template-schema expects a schema path and "
+                              "--patch-file <path>",
+                              json_output);
+            return 2;
+        }
+
+        patch_template_schema_options options;
+        std::string error_message;
+        if (!parse_patch_template_schema_options(arguments, 2U, options,
+                                                 error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        exported_template_schema_result result;
+        if (!read_template_schema_file(path_type(std::string(arguments[1])), result,
+                                       error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        template_schema_patch_document patch;
+        if (!read_template_schema_patch_file(*options.patch_path, patch,
+                                             error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        patched_template_schema_summary summary;
+        apply_template_schema_patch(result, patch, summary);
+        normalize_template_schema_result(result);
+
+        if (!options.output_path.has_value()) {
+            write_json_exported_template_schema(std::cout, result);
+            return 0;
+        }
+
+        if (!write_exported_template_schema_file(*options.output_path, result,
+                                                 error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write patched schema output",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        print_patched_template_schema_summary(result, summary, options.output_path,
+                                              options.json_output);
+        return 0;
+    }
+
+    if (command == "build-template-schema-patch") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U || arguments[1].starts_with("--") ||
+            arguments[2].starts_with("--")) {
+            print_parse_error(
+                command,
+                "build-template-schema-patch expects left and right schema paths",
+                json_output);
+            return 2;
+        }
+
+        build_template_schema_patch_options options;
+        std::string error_message;
+        if (!parse_build_template_schema_patch_options(arguments, 3U, options,
+                                                       error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        exported_template_schema_result left;
+        if (!read_template_schema_file(path_type(std::string(arguments[1])), left,
+                                       error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        exported_template_schema_result right;
+        if (!read_template_schema_file(path_type(std::string(arguments[2])), right,
+                                       error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        normalize_template_schema_result(left);
+        normalize_template_schema_result(right);
+        const auto diff = diff_template_schema_results(left, right);
+        built_template_schema_patch_summary summary{};
+        const auto patch = build_template_schema_patch_document(diff, summary);
+
+        if (!options.output_path.has_value()) {
+            write_json_template_schema_patch_document(std::cout, patch);
+            return 0;
+        }
+
+        if (!write_template_schema_patch_file(*options.output_path, patch,
+                                              error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write generated patch output",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        print_built_template_schema_patch_summary(summary, options.output_path,
+                                                  options.json_output);
         return 0;
     }
 

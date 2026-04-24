@@ -5,13 +5,15 @@ Checks every registered template schema baseline from a repository manifest.
 .DESCRIPTION
 Reads `baselines/template-schema/manifest.json`, resolves each entry relative to
 the repository root, then runs `check_template_schema_baseline.ps1` for every
-registered template baseline. The script returns `0` when every entry matches
-and `1` when any entry drifts.
+registered template baseline. The script returns `0` only when every entry
+matches and every committed schema baseline is lint-clean; it returns `1` on
+schema drift or baseline lint failures.
 
 .EXAMPLE
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_manifest.ps1 `
     -ManifestPath .\baselines\template-schema\manifest.json `
     -BuildDir build-codex-clang-column-visual-verify `
+    -RepairedSchemaOutputDir .\output\template-schema-manifest-repairs `
     -SkipBuild
 #>
 param(
@@ -19,6 +21,7 @@ param(
     [string]$BuildDir = "",
     [string]$Generator = "NMake Makefiles",
     [string]$OutputDir = "output/template-schema-manifest-checks",
+    [string]$RepairedSchemaOutputDir = "",
     [switch]$SkipBuild
 )
 
@@ -88,6 +91,26 @@ function Resolve-ManifestInputDocxPath {
     return Resolve-TemplateSchemaPath -RepoRoot $RepoRoot -InputPath $repoRelativePath
 }
 
+function Get-ManifestArtifactStem {
+    param([string]$Name)
+
+    $invalidFileNameChars = [System.IO.Path]::GetInvalidFileNameChars()
+    $sanitizedChars = foreach ($char in $Name.ToCharArray()) {
+        if ($invalidFileNameChars -contains $char) {
+            '-'
+        } else {
+            $char
+        }
+    }
+
+    $sanitized = (-join $sanitizedChars).Trim().Trim('.')
+    if ([string]::IsNullOrWhiteSpace($sanitized)) {
+        return "template-schema-baseline"
+    }
+
+    return $sanitized
+}
+
 function Invoke-ManifestSamplePreparation {
     param(
         [string]$Name,
@@ -138,7 +161,15 @@ $resolvedBuildDir = if ([string]::IsNullOrWhiteSpace($BuildDir)) {
 } else {
     Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $BuildDir -AllowMissing
 }
+$resolvedRepairedSchemaOutputDir = if ([string]::IsNullOrWhiteSpace($RepairedSchemaOutputDir)) {
+    ""
+} else {
+    Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $RepairedSchemaOutputDir -AllowMissing
+}
 New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
+if (-not [string]::IsNullOrWhiteSpace($resolvedRepairedSchemaOutputDir)) {
+    New-Item -ItemType Directory -Path $resolvedRepairedSchemaOutputDir -Force | Out-Null
+}
 
 $manifest = Get-Content -Raw -LiteralPath $resolvedManifestPath | ConvertFrom-Json
 $entries = @($manifest.entries)
@@ -149,6 +180,7 @@ if ($entries.Count -eq 0) {
 
 $results = New-Object 'System.Collections.Generic.List[object]'
 $hasDrift = $false
+$hasDirtyBaseline = $false
 
 foreach ($entry in $entries) {
     $name = [string]$entry.name
@@ -176,6 +208,12 @@ foreach ($entry in $entries) {
         New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     }
 
+    $repairedOutput = if ([string]::IsNullOrWhiteSpace($resolvedRepairedSchemaOutputDir)) {
+        ""
+    } else {
+        Join-Path $resolvedRepairedSchemaOutputDir ((Get-ManifestArtifactStem -Name $name) + ".repaired.schema.json")
+    }
+
     Write-Step "Checking baseline '$name'"
     $scriptArgs = @(
         "-InputDocx"
@@ -187,6 +225,12 @@ foreach ($entry in $entries) {
         "-BuildDir"
         $BuildDir
     )
+    if (-not [string]::IsNullOrWhiteSpace($repairedOutput)) {
+        $scriptArgs += @(
+            "-RepairedSchemaOutput"
+            $repairedOutput
+        )
+    }
     if ($SkipBuild) {
         $scriptArgs += "-SkipBuild"
     }
@@ -203,25 +247,42 @@ foreach ($entry in $entries) {
         throw "Baseline '$name' failed with unexpected exit code $exitCode."
     }
 
-    $jsonLine = $lines | Where-Object { $_ -match '^\{"command":"check-template-schema",' } | Select-Object -Last 1
-    if ([string]::IsNullOrWhiteSpace($jsonLine)) {
-        throw "Baseline '$name' did not emit a check-template-schema JSON result."
+    $lintParsed = Get-TemplateSchemaCommandJsonObject `
+        -Lines $lines `
+        -Command "lint-template-schema"
+    $checkParsed = Get-TemplateSchemaCommandJsonObject `
+        -Lines $lines `
+        -Command "check-template-schema"
+    $repairParsed = $null
+    if (-not [bool]$lintParsed.clean -and -not [string]::IsNullOrWhiteSpace($repairedOutput)) {
+        $repairParsed = Get-TemplateSchemaCommandJsonObject `
+            -Lines $lines `
+            -Command "repair-template-schema"
     }
-
-    $parsed = $jsonLine | ConvertFrom-Json
     $results.Add([pscustomobject]@{
         name = $name
         input_docx = $inputDocx
-        matches = [bool]$parsed.matches
-        schema_file = [string]$parsed.schema_file
-        generated_output_path = [string]$parsed.generated_output_path
-        added_target_count = [int]$parsed.added_target_count
-        removed_target_count = [int]$parsed.removed_target_count
-        changed_target_count = [int]$parsed.changed_target_count
+        matches = [bool]$checkParsed.matches
+        schema_file = [string]$checkParsed.schema_file
+        schema_lint_clean = [bool]$lintParsed.clean
+        schema_lint_issue_count = [int]$lintParsed.issue_count
+        schema_lint_duplicate_target_count = [int]$lintParsed.duplicate_target_count
+        schema_lint_duplicate_slot_count = [int]$lintParsed.duplicate_slot_count
+        schema_lint_target_order_issue_count = [int]$lintParsed.target_order_issue_count
+        schema_lint_slot_order_issue_count = [int]$lintParsed.slot_order_issue_count
+        schema_lint_entry_name_issue_count = [int]$lintParsed.entry_name_issue_count
+        generated_output_path = [string]$checkParsed.generated_output_path
+        repaired_schema_output_path = if ($repairParsed) { [string]$repairParsed.output_path } else { "" }
+        added_target_count = [int]$checkParsed.added_target_count
+        removed_target_count = [int]$checkParsed.removed_target_count
+        changed_target_count = [int]$checkParsed.changed_target_count
     }) | Out-Null
 
-    if ($exitCode -ne 0) {
+    if (-not [bool]$checkParsed.matches) {
         $hasDrift = $true
+    }
+    if (-not [bool]$lintParsed.clean) {
+        $hasDirtyBaseline = $true
     }
 }
 
@@ -231,15 +292,17 @@ $summary = [ordered]@{
     manifest_path = $resolvedManifestPath
     workspace = $repoRoot
     build_dir = $resolvedBuildDir
+    repaired_schema_output_dir = $resolvedRepairedSchemaOutputDir
     entry_count = $results.Count
     drift_count = @($results | Where-Object { -not $_.matches }).Count
-    passed = (-not $hasDrift)
+    dirty_baseline_count = @($results | Where-Object { -not $_.schema_lint_clean }).Count
+    passed = (-not $hasDrift) -and (-not $hasDirtyBaseline)
     entries = $results
 }
 
 ($summary | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 Write-Step "Manifest summary: $summaryPath"
 
-if ($hasDrift) {
+if ($hasDrift -or $hasDirtyBaseline) {
     exit 1
 }

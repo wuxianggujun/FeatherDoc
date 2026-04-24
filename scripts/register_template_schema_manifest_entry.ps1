@@ -5,7 +5,8 @@ Freezes a template schema baseline and registers or updates a manifest entry.
 .DESCRIPTION
 Resolves one repository DOCX or one build-relative generated fixture, optionally
 prepares the fixture by running a sample target, freezes a normalized schema
-baseline, then writes or updates the matching entry in
+baseline, verifies that the committed schema is lint-clean and matches the
+DOCX, then writes or updates the matching entry in
 `baselines/template-schema/manifest.json`.
 
 .EXAMPLE
@@ -35,6 +36,7 @@ param(
     [string]$Generator = "NMake Makefiles",
     [switch]$SkipBuild,
     [switch]$SkipFreeze,
+    [switch]$SkipBaselineCheck,
     [switch]$ReplaceExisting
 )
 
@@ -183,6 +185,83 @@ function Ensure-SampleFixture {
     }
 }
 
+function Resolve-TargetModeArgs {
+    param([string]$TargetMode)
+
+    switch ($TargetMode) {
+        "default" { return @() }
+        "section-targets" { return @("-SectionTargets") }
+        "resolved-section-targets" { return @("-ResolvedSectionTargets") }
+        default { throw "Unsupported target mode '$TargetMode'." }
+    }
+}
+
+function Invoke-BaselineGate {
+    param(
+        [string]$InputDocx,
+        [string]$SchemaFile,
+        [string]$GeneratedOutput,
+        [string]$RepairedOutput,
+        [string]$BuildDir,
+        [string]$TargetMode,
+        [switch]$SkipBuild
+    )
+
+    $scriptArgs = @(
+        "-InputDocx"
+        $InputDocx
+        "-SchemaFile"
+        $SchemaFile
+        "-GeneratedSchemaOutput"
+        $GeneratedOutput
+        "-RepairedSchemaOutput"
+        $RepairedOutput
+        "-BuildDir"
+        $BuildDir
+    )
+    if ($SkipBuild) {
+        $scriptArgs += "-SkipBuild"
+    }
+    $scriptArgs += @(Resolve-TargetModeArgs -TargetMode $TargetMode)
+
+    Write-Step "Verifying frozen schema baseline before manifest write"
+    $checkOutput = @(& powershell.exe -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "check_template_schema_baseline.ps1") @scriptArgs 2>&1)
+    $checkExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+    $checkLines = @($checkOutput | ForEach-Object { $_.ToString() })
+    foreach ($line in $checkLines) {
+        Write-Host $line
+    }
+
+    if ($checkExitCode -notin @(0, 1)) {
+        throw "check_template_schema_baseline.ps1 failed with unexpected exit code $checkExitCode."
+    }
+
+    $lintSummary = Get-TemplateSchemaCommandJsonObject `
+        -Lines $checkLines `
+        -Command "lint-template-schema"
+    $checkSummary = Get-TemplateSchemaCommandJsonObject `
+        -Lines $checkLines `
+        -Command "check-template-schema"
+
+    if ($checkExitCode -ne 0) {
+        if (-not [bool]$lintSummary.clean -and -not [bool]$checkSummary.matches) {
+            throw "Refusing to write manifest entry because the schema baseline has lint issues and drift."
+        }
+        if (-not [bool]$lintSummary.clean) {
+            throw "Refusing to write manifest entry because the schema baseline has lint issues."
+        }
+        if (-not [bool]$checkSummary.matches) {
+            throw "Refusing to write manifest entry because the schema baseline drifts from the DOCX."
+        }
+        throw "Refusing to write manifest entry because the schema baseline check failed."
+    }
+
+    return [pscustomobject]@{
+        Lint = $lintSummary
+        Check = $checkSummary
+    }
+}
+
 $repoRoot = Resolve-TemplateSchemaRepoRoot -ScriptRoot $PSScriptRoot
 $resolvedManifestPath = Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $ManifestPath -AllowMissing
 $resolvedBuildDir = if ([string]::IsNullOrWhiteSpace($BuildDir)) {
@@ -225,6 +304,12 @@ $resolvedGeneratedOutput = if ([string]::IsNullOrWhiteSpace($GeneratedOutput)) {
 } else {
     Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $GeneratedOutput -AllowMissing
 }
+$generatedOutputDirectory = [System.IO.Path]::GetDirectoryName($resolvedGeneratedOutput)
+$resolvedRepairedOutput = if ([string]::IsNullOrWhiteSpace($generatedOutputDirectory)) {
+    Join-Path $repoRoot ("output/template-schema-manifest-checks/{0}.repaired.schema.json" -f $fileStem)
+} else {
+    Join-Path $generatedOutputDirectory ("{0}.repaired.schema.json" -f $fileStem)
+}
 
 if (-not $SkipFreeze) {
     Write-Step "Freezing schema baseline"
@@ -257,6 +342,18 @@ if (-not $SkipFreeze) {
 
 if (-not (Test-Path -LiteralPath $resolvedSchemaFile)) {
     throw "Schema file does not exist after registration flow: $resolvedSchemaFile"
+}
+
+$baselineGate = $null
+if (-not $SkipBaselineCheck) {
+    $baselineGate = Invoke-BaselineGate `
+        -InputDocx $inputSelection.resolved_input_docx `
+        -SchemaFile $resolvedSchemaFile `
+        -GeneratedOutput $resolvedGeneratedOutput `
+        -RepairedOutput $resolvedRepairedOutput `
+        -BuildDir $BuildDir `
+        -TargetMode $TargetMode `
+        -SkipBuild:$SkipBuild
 }
 
 $manifestDirectory = Split-Path -Parent $resolvedManifestPath
@@ -324,4 +421,9 @@ Write-Host "resolved_input_docx: $($inputSelection.resolved_input_docx)"
 Write-Host "schema_file: $resolvedSchemaFile"
 Write-Host "target_mode: $TargetMode"
 Write-Host "generated_output: $resolvedGeneratedOutput"
+if ($baselineGate) {
+    Write-Host "baseline_check_matches: $($baselineGate.Check.matches)"
+    Write-Host "baseline_schema_lint_clean: $($baselineGate.Lint.clean)"
+    Write-Host "baseline_schema_lint_issue_count: $($baselineGate.Lint.issue_count)"
+}
 Write-Host "manifest_path: $resolvedManifestPath"

@@ -79,6 +79,11 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_e
     -InputDocx .\template.docx
 ```
 
+   Registration freezes the schema when needed and then runs the same baseline
+   gate used by CI before it writes `manifest.json`. If the schema has lint
+   issues or drifts from the DOCX, the script stops without writing the entry.
+   Use `-SkipBaselineCheck` only for temporary local experiments.
+
    For generated fixtures, switch to `-InputDocxBuildRelative` and
    `-PrepareSampleTarget`:
 
@@ -109,6 +114,10 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_manifest.ps1
 ```powershell
 pwsh -ExecutionPolicy Bypass -File .\scripts\describe_template_schema_manifest.ps1
 ```
+
+   When a manifest-check summary is available, the description includes both
+   drift counts and schema-lint status, so dirty baselines are visible without
+   opening `summary.json` by hand.
 
 If another script or CI step needs machine-readable output, add `-Json`:
 

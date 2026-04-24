@@ -415,6 +415,7 @@ function Test-ProjectTemplateSmokeManifest {
             $configuredChecks.Add("schema_baseline") | Out-Null
             $schemaFile = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "schema_file"
             $targetMode = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "target_mode"
+            $repairedOutput = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "repaired_output"
 
             if ([string]::IsNullOrWhiteSpace($schemaFile)) {
                 Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.schema_baseline.schema_file" -Message "must be a non-empty string"
@@ -427,6 +428,10 @@ function Test-ProjectTemplateSmokeManifest {
 
             if (-not [string]::IsNullOrWhiteSpace($targetMode) -and $targetMode -notin @("default", "section-targets", "resolved-section-targets")) {
                 Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.schema_baseline.target_mode" -Message "must be one of: default, section-targets, resolved-section-targets"
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($repairedOutput)) {
+                [void](Resolve-ProjectTemplateSmokePath -RepoRoot $RepoRoot -InputPath $repairedOutput -AllowMissing)
             }
         }
 

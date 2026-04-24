@@ -203,7 +203,34 @@ void append_windows_command_line_argument(std::wstring_view argument,
 #endif
 
 auto cli_binary_path() -> fs::path {
-    static const fs::path executable_path = test_binary_directory() / cli_binary_name();
+    static const fs::path executable_path = []() {
+        const fs::path binary_directory = test_binary_directory();
+        const fs::path local_candidate = binary_directory / cli_binary_name();
+        const fs::path parent_candidate = binary_directory.parent_path() / cli_binary_name();
+
+        std::error_code local_error;
+        const bool has_local = fs::exists(local_candidate, local_error) && !local_error;
+        std::error_code parent_error;
+        const bool has_parent =
+            fs::exists(parent_candidate, parent_error) && !parent_error;
+
+        if (!has_local) {
+            return parent_candidate;
+        }
+        if (!has_parent) {
+            return local_candidate;
+        }
+
+        std::error_code local_time_error;
+        const auto local_time = fs::last_write_time(local_candidate, local_time_error);
+        std::error_code parent_time_error;
+        const auto parent_time =
+            fs::last_write_time(parent_candidate, parent_time_error);
+        if (!local_time_error && !parent_time_error && parent_time > local_time) {
+            return parent_candidate;
+        }
+        return local_candidate;
+    }();
     return executable_path;
 }
 
@@ -14102,8 +14129,64 @@ TEST_CASE("cli replace-bookmark-paragraphs requires at least one paragraph") {
         std::string{
             "{\"command\":\"replace-bookmark-paragraphs\",\"ok\":false,"
             "\"stage\":\"parse\",\"message\":\"expected at least one "
-            "--paragraph <text>\"}\n"});
+            "--paragraph <text> or --paragraph-file <path>\"}\n"});
 
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli replace-bookmark-paragraphs reads UTF-8 paragraphs from files") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_replace_bookmark_paragraphs_file_source.docx";
+    const fs::path paragraph_one =
+        working_directory / "cli_replace_bookmark_paragraphs_file_one.txt";
+    const fs::path paragraph_two =
+        working_directory / "cli_replace_bookmark_paragraphs_file_two.txt";
+    const fs::path updated =
+        working_directory / "cli_replace_bookmark_paragraphs_file_updated.docx";
+    const fs::path output =
+        working_directory / "cli_replace_bookmark_paragraphs_file.json";
+
+    remove_if_exists(source);
+    remove_if_exists(paragraph_one);
+    remove_if_exists(paragraph_two);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_bookmark_image_fixture(source);
+    write_binary_file(paragraph_one, std::string{"第一行：项目范围确认"});
+    write_binary_file(paragraph_two, std::string{"第二行：交付物复核"});
+
+    CHECK_EQ(run_cli({"replace-bookmark-paragraphs",
+                      source.string(),
+                      "body_logo",
+                      "--paragraph-file",
+                      paragraph_one.string(),
+                      "--paragraph-file",
+                      paragraph_two.string(),
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"replace-bookmark-paragraphs\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"paragraph_count\":2"), std::string::npos);
+    CHECK_NE(
+        json.find("\"paragraphs\":[\"第一行：项目范围确认\",\"第二行：交付物复核\"]"),
+        std::string::npos);
+
+    featherdoc::Document reopened(updated);
+    REQUIRE_FALSE(reopened.open());
+    CHECK_EQ(collect_non_empty_document_text(reopened),
+             std::string{"before\n第一行：项目范围确认\n第二行：交付物复核\nafter\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(paragraph_one);
+    remove_if_exists(paragraph_two);
+    remove_if_exists(updated);
     remove_if_exists(output);
 }
 
@@ -14242,6 +14325,76 @@ TEST_CASE("cli replace-bookmark-table-rows expands a template row inside a body 
     CHECK_FALSE(body_template.find_bookmark("item_row").has_value());
 
     remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli replace-bookmark-table-rows reads UTF-8 rows from files") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_replace_bookmark_table_rows_file_source.docx";
+    const fs::path row_one_name =
+        working_directory / "cli_replace_bookmark_table_rows_file_one_name.txt";
+    const fs::path row_one_qty =
+        working_directory / "cli_replace_bookmark_table_rows_file_one_qty.txt";
+    const fs::path row_two_name =
+        working_directory / "cli_replace_bookmark_table_rows_file_two_name.txt";
+    const fs::path row_two_qty =
+        working_directory / "cli_replace_bookmark_table_rows_file_two_qty.txt";
+    const fs::path updated =
+        working_directory / "cli_replace_bookmark_table_rows_file_updated.docx";
+    const fs::path output =
+        working_directory / "cli_replace_bookmark_table_rows_file.json";
+
+    remove_if_exists(source);
+    remove_if_exists(row_one_name);
+    remove_if_exists(row_one_qty);
+    remove_if_exists(row_two_name);
+    remove_if_exists(row_two_qty);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_bookmark_table_rows_fixture(source);
+    write_binary_file(row_one_name, std::string{"苹果"});
+    write_binary_file(row_one_qty, std::string{"2"});
+    write_binary_file(row_two_name, std::string{"梨"});
+    write_binary_file(row_two_qty, std::string{"5"});
+
+    CHECK_EQ(run_cli({"replace-bookmark-table-rows",
+                      source.string(),
+                      "item_row",
+                      "--row-file",
+                      row_one_name.string(),
+                      "--cell-file",
+                      row_one_qty.string(),
+                      "--row-file",
+                      row_two_name.string(),
+                      "--cell-file",
+                      row_two_qty.string(),
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"replace-bookmark-table-rows\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"row_count\":2"), std::string::npos);
+    CHECK_NE(json.find("\"rows\":[[\"苹果\",\"2\"],[\"梨\",\"5\"]]"),
+             std::string::npos);
+
+    featherdoc::Document reopened(updated);
+    REQUIRE_FALSE(reopened.open());
+    const auto tables = reopened.inspect_tables();
+    REQUIRE_EQ(tables.size(), 1U);
+    CHECK_EQ(tables[0].text, "Name\tQty\n苹果\t2\n梨\t5\nTotal\t7");
+
+    remove_if_exists(source);
+    remove_if_exists(row_one_name);
+    remove_if_exists(row_one_qty);
+    remove_if_exists(row_two_name);
+    remove_if_exists(row_two_qty);
     remove_if_exists(updated);
     remove_if_exists(output);
 }
@@ -14768,6 +14921,63 @@ TEST_CASE("cli fill-bookmarks rewrites multiple body bookmarks and reports misse
     CHECK(body_template.find_bookmark("invoice").has_value());
 
     remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli fill-bookmarks reads UTF-8 values from files") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_fill_bookmarks_file_source.docx";
+    const fs::path customer_text =
+        working_directory / "cli_fill_bookmarks_customer.txt";
+    const fs::path invoice_text =
+        working_directory / "cli_fill_bookmarks_invoice.txt";
+    const fs::path updated =
+        working_directory / "cli_fill_bookmarks_file_updated.docx";
+    const fs::path output =
+        working_directory / "cli_fill_bookmarks_file.json";
+
+    remove_if_exists(source);
+    remove_if_exists(customer_text);
+    remove_if_exists(invoice_text);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_fill_bookmarks_fixture(source);
+    write_binary_file(customer_text, std::string{"上海羽文科技"});
+    write_binary_file(invoice_text, std::string{"发票-2026-甲"});
+
+    CHECK_EQ(run_cli({"fill-bookmarks",
+                      source.string(),
+                      "--set-file",
+                      "customer",
+                      customer_text.string(),
+                      "--set-file",
+                      "invoice",
+                      invoice_text.string(),
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"fill-bookmarks\""), std::string::npos);
+    CHECK_NE(json.find("\"complete\":true"), std::string::npos);
+    CHECK_NE(json.find("\"matched\":2"), std::string::npos);
+    CHECK_NE(json.find("\"replaced\":2"), std::string::npos);
+    CHECK_NE(json.find("\"text\":\"上海羽文科技\""), std::string::npos);
+    CHECK_NE(json.find("\"text\":\"发票-2026-甲\""), std::string::npos);
+
+    featherdoc::Document reopened(updated);
+    REQUIRE_FALSE(reopened.open());
+    CHECK_EQ(collect_non_empty_document_text(reopened),
+             std::string{"Customer: 上海羽文科技\nInvoice: 发票-2026-甲\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(customer_text);
+    remove_if_exists(invoice_text);
     remove_if_exists(updated);
     remove_if_exists(output);
 }
@@ -16318,6 +16528,842 @@ TEST_CASE("cli normalize-template-schema writes canonical schema file and summar
 
     remove_if_exists(schema_input);
     remove_if_exists(schema_output);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli lint-template-schema reports clean normalized schemas") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema_input =
+        working_directory / "cli_lint_template_schema_clean_input.json";
+    const fs::path output =
+        working_directory / "cli_lint_template_schema_clean_output.json";
+
+    remove_if_exists(schema_input);
+    remove_if_exists(output);
+
+    write_binary_file(schema_input,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"invoice_no\",\"kind\":\"text\"}"
+                          "]}]}\n"});
+
+    CHECK_EQ(run_cli({"lint-template-schema", schema_input.string(), "--json"}, output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"lint-template-schema\",\"ok\":true,"
+                 "\"clean\":true,\"target_count\":1,\"slot_count\":2,"
+                 "\"issue_count\":0,\"duplicate_target_count\":0,"
+                 "\"duplicate_slot_count\":0,\"target_order_issue_count\":0,"
+                 "\"slot_order_issue_count\":0,"
+                 "\"entry_name_issue_count\":0,\"issues\":[]}\n"});
+
+    remove_if_exists(schema_input);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli lint-template-schema reports structural issues as json") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema_input =
+        working_directory / "cli_lint_template_schema_dirty_input.json";
+    const fs::path output =
+        working_directory / "cli_lint_template_schema_dirty_output.json";
+
+    remove_if_exists(schema_input);
+    remove_if_exists(output);
+
+    write_binary_file(schema_input,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"section-header\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"entry_name\":\"word/header1.xml\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"zeta\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"alpha\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"alpha\",\"kind\":\"text\"}"
+                          "]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":[{\"bookmark\":\"account_id\",\"kind\":\"text\"}]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":[{\"bookmark\":\"customer\",\"kind\":\"text\"}]"
+                          "}"
+                          "]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"lint-template-schema", schema_input.string(), "--json"}, output),
+             1);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"lint-template-schema\",\"ok\":true,"
+            "\"clean\":false,\"target_count\":3,\"slot_count\":5,"
+            "\"issue_count\":5,\"duplicate_target_count\":1,"
+            "\"duplicate_slot_count\":1,\"target_order_issue_count\":1,"
+            "\"slot_order_issue_count\":1,"
+            "\"entry_name_issue_count\":1,\"issues\":["
+            "{\"issue\":\"entry_name_present\",\"target_index\":0,"
+            "\"target\":{\"part\":\"section-header\",\"section\":1,"
+            "\"kind\":\"default\"},\"entry_name\":\"word/header1.xml\"},"
+            "{\"issue\":\"slot_order\",\"target_index\":0,"
+            "\"target\":{\"part\":\"section-header\",\"section\":1,"
+            "\"kind\":\"default\"},\"slot_index\":1,\"previous_slot_index\":0,"
+            "\"bookmark\":\"alpha\",\"previous_bookmark\":\"zeta\"},"
+            "{\"issue\":\"duplicate_slot_name\",\"target_index\":0,"
+            "\"target\":{\"part\":\"section-header\",\"section\":1,"
+            "\"kind\":\"default\"},\"slot_index\":2,\"previous_slot_index\":1,"
+            "\"bookmark\":\"alpha\"},"
+            "{\"issue\":\"target_order\",\"target_index\":1,"
+            "\"target\":{\"part\":\"body\"},\"previous_target_index\":0},"
+            "{\"issue\":\"duplicate_target_identity\",\"target_index\":2,"
+            "\"target\":{\"part\":\"body\"},\"previous_target_index\":1}]}\n"});
+
+    remove_if_exists(schema_input);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli lint-template-schema reports parse errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema_input =
+        working_directory / "cli_lint_template_schema_parse_input.json";
+    const fs::path output =
+        working_directory / "cli_lint_template_schema_parse_output.json";
+
+    remove_if_exists(schema_input);
+    remove_if_exists(output);
+
+    write_binary_file(schema_input,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"}]}]}\n"});
+
+    CHECK_EQ(run_cli({"lint-template-schema", "--json"}, output), 2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"lint-template-schema\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"lint-template-schema "
+                 "expects a schema path\"}\n"});
+
+    CHECK_EQ(run_cli({"lint-template-schema",
+                      schema_input.string(),
+                      "--json",
+                      "--bad-option"},
+                     output),
+             2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"lint-template-schema\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"unknown option: "
+                 "--bad-option\"}\n"});
+
+    remove_if_exists(schema_input);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli repair-template-schema canonicalizes and deduplicates schema") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema_input =
+        working_directory / "cli_repair_template_schema_input.json";
+    const fs::path schema_output =
+        working_directory / "cli_repair_template_schema_output.json";
+    const fs::path output =
+        working_directory / "cli_repair_template_schema_summary.json";
+
+    remove_if_exists(schema_input);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+
+    write_binary_file(schema_input,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"section-header\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"entry_name\":\"word/header1.xml\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"zeta\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"alpha\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"alpha\",\"kind\":\"text\",\"count\":2}"
+                          "]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":[{\"bookmark\":\"invoice_no\",\"kind\":\"text\"}]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"entry_name\":\"word/document.xml\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"invoice_no\",\"kind\":\"text\",\"count\":2}"
+                          "]"
+                          "}"
+                          "]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"repair-template-schema",
+                      schema_input.string(),
+                      "--output",
+                      schema_output.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"repair-template-schema\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(schema_output.string()) +
+                 "\",\"input_target_count\":3,\"input_slot_count\":6,"
+                 "\"target_count\":2,\"slot_count\":4,"
+                 "\"merged_duplicate_target_count\":1,"
+                 "\"deduplicated_target_count\":1,"
+                 "\"deduplicated_slot_count\":2,"
+                 "\"stripped_entry_name_count\":2,"
+                 "\"replaced_slot_count\":2,\"changed\":true}\n"});
+    CHECK_EQ(read_text_file(schema_output),
+             std::string{
+                 "{\"targets\":["
+                 "{\"part\":\"body\",\"slots\":["
+                 "{\"bookmark\":\"customer\",\"kind\":\"text\"},"
+                 "{\"bookmark\":\"invoice_no\",\"kind\":\"text\",\"count\":2}]},"
+                 "{\"part\":\"section-header\",\"section\":1,"
+                 "\"kind\":\"default\",\"slots\":["
+                 "{\"bookmark\":\"alpha\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"zeta\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(schema_input);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli repair-template-schema reports parse errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema_input =
+        working_directory / "cli_repair_template_schema_parse_input.json";
+    const fs::path output =
+        working_directory / "cli_repair_template_schema_parse_output.json";
+
+    remove_if_exists(schema_input);
+    remove_if_exists(output);
+
+    write_binary_file(schema_input,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"}]}]}\n"});
+
+    CHECK_EQ(run_cli({"repair-template-schema", "--json"}, output), 2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"repair-template-schema\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"repair-template-schema "
+                 "expects a schema path\"}\n"});
+
+    CHECK_EQ(run_cli({"repair-template-schema",
+                      schema_input.string(),
+                      "--json",
+                      "--bad-option"},
+                     output),
+             2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"repair-template-schema\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"unknown option: "
+                 "--bad-option\"}\n"});
+
+    remove_if_exists(schema_input);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli merge-template-schema merges targets and replaces later slot definitions") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left_schema =
+        working_directory / "cli_merge_template_schema_left.json";
+    const fs::path right_schema =
+        working_directory / "cli_merge_template_schema_right.json";
+    const fs::path merged_schema =
+        working_directory / "cli_merge_template_schema_output.json";
+    const fs::path output =
+        working_directory / "cli_merge_template_schema_summary.json";
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(merged_schema);
+    remove_if_exists(output);
+
+    write_binary_file(left_schema,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"section-header\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"resolved_from_section\":0,"
+                          "\"linked_to_previous\":true,"
+                          "\"slots\":[{\"bookmark\":\"header_title\",\"kind\":\"text\"}]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"summary_block\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"}"
+                          "]"
+                          "}"
+                          "]"
+                          "}"});
+    write_binary_file(right_schema,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"section-footer\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"slots\":[{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2},"
+                          "{\"bookmark\":\"invoice_no\",\"kind\":\"text\"}"
+                          "]"
+                          "}"
+                          "]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"merge-template-schema",
+                      left_schema.string(),
+                      right_schema.string(),
+                      "--output",
+                      merged_schema.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"merge-template-schema\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(merged_schema.string()) +
+                 "\",\"input_count\":2,\"target_count\":3,\"slot_count\":5,"
+                 "\"updated_target_count\":1,\"replaced_slot_count\":1}\n"});
+    CHECK_EQ(read_text_file(merged_schema),
+             std::string{
+                 "{\"targets\":["
+                 "{\"part\":\"body\",\"slots\":["
+                 "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2},"
+                 "{\"bookmark\":\"invoice_no\",\"kind\":\"text\"},"
+                 "{\"bookmark\":\"summary_block\",\"kind\":\"text\"}]},"
+                 "{\"part\":\"section-header\",\"section\":1,"
+                 "\"kind\":\"default\",\"resolved_from_section\":0,"
+                 "\"linked_to_previous\":true,\"slots\":[{\"bookmark\":"
+                 "\"header_title\",\"kind\":\"text\"}]},"
+                 "{\"part\":\"section-footer\",\"section\":1,"
+                 "\"kind\":\"default\",\"slots\":[{\"bookmark\":"
+                 "\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(merged_schema);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli merge-template-schema reports parse errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema =
+        working_directory / "cli_merge_template_schema_parse_schema.json";
+    const fs::path output =
+        working_directory / "cli_merge_template_schema_parse_output.json";
+
+    remove_if_exists(schema);
+    remove_if_exists(output);
+
+    write_binary_file(schema,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"}]}]}\n"});
+
+    CHECK_EQ(run_cli({"merge-template-schema", schema.string(), "--json"}, output), 2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"merge-template-schema\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"merge-template-schema "
+                 "expects at least two schema paths\"}\n"});
+
+    remove_if_exists(schema);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli patch-template-schema applies upserts removals and slot pruning") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema_input =
+        working_directory / "cli_patch_template_schema_input.json";
+    const fs::path patch_input =
+        working_directory / "cli_patch_template_schema_patch.json";
+    const fs::path schema_output =
+        working_directory / "cli_patch_template_schema_output.json";
+    const fs::path output =
+        working_directory / "cli_patch_template_schema_summary.json";
+
+    remove_if_exists(schema_input);
+    remove_if_exists(patch_input);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+
+    write_binary_file(schema_input,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"section-header\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"resolved_from_section\":0,"
+                          "\"linked_to_previous\":true,"
+                          "\"slots\":[{\"bookmark\":\"header_title\",\"kind\":\"text\"}]"
+                          "},"
+                          "{"
+                          "\"part\":\"section-footer\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"slots\":[{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"summary_block\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"}"
+                          "]"
+                          "}"
+                          "]"
+                          "}"});
+    write_binary_file(patch_input,
+                      std::string{
+                          "{"
+                          "\"remove_targets\":[{"
+                          "\"part\":\"section-footer\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\""
+                          "}],"
+                          "\"remove_slots\":[{"
+                          "\"part\":\"body\","
+                          "\"bookmark\":\"summary_block\""
+                          "}],"
+                          "\"rename_slots\":[{"
+                          "\"part\":\"section-header\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"resolved_from_section\":0,"
+                          "\"linked_to_previous\":true,"
+                          "\"bookmark\":\"header_title\","
+                          "\"new_bookmark\":\"document_title\""
+                          "}],"
+                          "\"upsert_targets\":[{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2},"
+                          "{\"bookmark\":\"invoice_no\",\"kind\":\"text\"}"
+                          "]"
+                          "}]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      schema_input.string(),
+                      "--patch-file",
+                      patch_input.string(),
+                      "--output",
+                      schema_output.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"patch-template-schema\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(schema_output.string()) +
+                 "\",\"target_count\":2,\"slot_count\":3,"
+                 "\"upsert_target_count\":1,\"remove_target_count\":1,"
+                 "\"remove_slot_count\":1,\"rename_slot_count\":1,"
+                 "\"updated_target_count\":1,\"replaced_slot_count\":1,"
+                 "\"applied_remove_target_count\":1,"
+                 "\"applied_remove_slot_count\":1,"
+                 "\"applied_rename_slot_count\":1,"
+                 "\"pruned_empty_target_count\":0}\n"});
+    CHECK_EQ(read_text_file(schema_output),
+             std::string{
+                 "{\"targets\":["
+                 "{\"part\":\"body\",\"slots\":["
+                 "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2},"
+                  "{\"bookmark\":\"invoice_no\",\"kind\":\"text\"}]},"
+                 "{\"part\":\"section-header\",\"section\":1,"
+                  "\"kind\":\"default\",\"resolved_from_section\":0,"
+                  "\"linked_to_previous\":true,\"slots\":[{\"bookmark\":"
+                 "\"document_title\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(schema_input);
+    remove_if_exists(patch_input);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli patch-template-schema reports parse errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema_input =
+        working_directory / "cli_patch_template_schema_parse_input.json";
+    const fs::path patch_input =
+        working_directory / "cli_patch_template_schema_parse_patch.json";
+    const fs::path output =
+        working_directory / "cli_patch_template_schema_parse_output.json";
+
+    remove_if_exists(schema_input);
+    remove_if_exists(patch_input);
+    remove_if_exists(output);
+
+    write_binary_file(schema_input,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"}]}]}\n"});
+
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      schema_input.string(),
+                      "--json"},
+                     output),
+             2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"patch-template-schema\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"missing required "
+                 "--patch-file <path> option\"}\n"});
+
+    write_binary_file(patch_input, std::string{"{}\n"});
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      schema_input.string(),
+                      "--patch-file",
+                      patch_input.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"targets\":[{\"part\":\"body\",\"slots\":[{\"bookmark\":"
+                 "\"customer\",\"kind\":\"text\"}]}]}\n"});
+
+    write_binary_file(patch_input,
+                      std::string{"{\"remove_targets\":[],\"remove_targets\":[]}\n"});
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      schema_input.string(),
+                      "--patch-file",
+                      patch_input.string(),
+                      "--json"},
+                     output),
+             2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"patch-template-schema\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"JSON schema patch member "
+                 "'remove_targets' must not be duplicated\"}\n"});
+
+    write_binary_file(patch_input,
+                      std::string{"{\"rename_slots\":[{\"part\":\"body\","
+                                  "\"bookmark\":\"customer\"}]}\n"});
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      schema_input.string(),
+                      "--patch-file",
+                      patch_input.string(),
+                      "--json"},
+                     output),
+             2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"patch-template-schema\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"JSON schema patch "
+                 "rename-slot object must contain 'new_bookmark' or "
+                 "'new_bookmark_name'\"}\n"});
+
+    remove_if_exists(schema_input);
+    remove_if_exists(patch_input);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli build-template-schema-patch generates reusable patch output") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left_schema =
+        working_directory / "cli_build_template_schema_patch_left.json";
+    const fs::path right_schema =
+        working_directory / "cli_build_template_schema_patch_right.json";
+    const fs::path patch_output =
+        working_directory / "cli_build_template_schema_patch_output.json";
+    const fs::path build_output =
+        working_directory / "cli_build_template_schema_patch_summary.json";
+    const fs::path applied_schema =
+        working_directory / "cli_build_template_schema_patch_applied.json";
+    const fs::path apply_output =
+        working_directory / "cli_build_template_schema_patch_apply_summary.json";
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(patch_output);
+    remove_if_exists(build_output);
+    remove_if_exists(applied_schema);
+    remove_if_exists(apply_output);
+
+    write_binary_file(left_schema,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"section-footer\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"slots\":[{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]"
+                          "},"
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"summary_block\",\"kind\":\"text\"}"
+                          "]"
+                          "}"
+                          "]"
+                          "}"});
+    write_binary_file(right_schema,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2},"
+                          "{\"bookmark\":\"invoice_no\",\"kind\":\"text\"}"
+                          "]"
+                          "},"
+                          "{"
+                          "\"part\":\"section-header\","
+                          "\"section\":1,"
+                          "\"kind\":\"default\","
+                          "\"resolved_from_section\":0,"
+                          "\"linked_to_previous\":true,"
+                          "\"slots\":[{\"bookmark\":\"header_title\",\"kind\":\"text\"}]"
+                          "}"
+                          "]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"build-template-schema-patch",
+                      left_schema.string(),
+                      right_schema.string(),
+                      "--output",
+                      patch_output.string(),
+                      "--json"},
+                     build_output),
+             0);
+    CHECK_EQ(read_text_file(build_output),
+             std::string{
+                 "{\"command\":\"build-template-schema-patch\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(patch_output.string()) +
+                 "\",\"added_target_count\":1,\"removed_target_count\":1,"
+                 "\"changed_target_count\":1,\"generated_remove_target_count\":1,"
+                 "\"generated_remove_slot_count\":0,"
+                 "\"generated_rename_slot_count\":1,"
+                 "\"generated_upsert_target_count\":2,"
+                 "\"empty_patch\":false}\n"});
+    CHECK_EQ(read_text_file(patch_output),
+             std::string{
+                 "{\"remove_targets\":["
+                 "{\"part\":\"section-footer\",\"section\":1,\"kind\":\"default\"}],"
+                 "\"rename_slots\":["
+                 "{\"part\":\"body\",\"bookmark\":\"summary_block\","
+                 "\"new_bookmark\":\"invoice_no\"}],"
+                 "\"upsert_targets\":["
+                 "{\"part\":\"body\",\"slots\":["
+                 "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2}]},"
+                 "{\"part\":\"section-header\",\"section\":1,\"kind\":\"default\","
+                 "\"resolved_from_section\":0,\"linked_to_previous\":true,"
+                 "\"slots\":[{\"bookmark\":\"header_title\",\"kind\":\"text\"}]}]}\n"});
+
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      left_schema.string(),
+                      "--patch-file",
+                      patch_output.string(),
+                      "--output",
+                      applied_schema.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    CHECK_EQ(read_text_file(applied_schema), read_text_file(right_schema) + "\n");
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(patch_output);
+    remove_if_exists(build_output);
+    remove_if_exists(applied_schema);
+    remove_if_exists(apply_output);
+}
+
+TEST_CASE("cli build-template-schema-patch emits slot-level rename and removal") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left_schema =
+        working_directory / "cli_build_template_schema_patch_slot_ops_left.json";
+    const fs::path right_schema =
+        working_directory / "cli_build_template_schema_patch_slot_ops_right.json";
+    const fs::path patch_output =
+        working_directory / "cli_build_template_schema_patch_slot_ops_output.json";
+    const fs::path build_output =
+        working_directory / "cli_build_template_schema_patch_slot_ops_summary.json";
+    const fs::path applied_schema =
+        working_directory / "cli_build_template_schema_patch_slot_ops_applied.json";
+    const fs::path apply_output =
+        working_directory / "cli_build_template_schema_patch_slot_ops_apply_summary.json";
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(patch_output);
+    remove_if_exists(build_output);
+    remove_if_exists(applied_schema);
+    remove_if_exists(apply_output);
+
+    write_binary_file(left_schema,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"obsolete_note\",\"kind\":\"block\","
+                          "\"required\":false},"
+                          "{\"bookmark\":\"summary_block\",\"kind\":\"text\"}"
+                          "]"
+                          "}"
+                          "]"
+                          "}"});
+    write_binary_file(right_schema,
+                      std::string{
+                          "{"
+                          "\"targets\":["
+                          "{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"},"
+                          "{\"bookmark\":\"invoice_no\",\"kind\":\"text\"}"
+                          "]"
+                          "}"
+                          "]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"build-template-schema-patch",
+                      left_schema.string(),
+                      right_schema.string(),
+                      "--output",
+                      patch_output.string(),
+                      "--json"},
+                     build_output),
+             0);
+    CHECK_EQ(read_text_file(build_output),
+             std::string{
+                 "{\"command\":\"build-template-schema-patch\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(patch_output.string()) +
+                 "\",\"added_target_count\":0,\"removed_target_count\":0,"
+                 "\"changed_target_count\":1,\"generated_remove_target_count\":0,"
+                 "\"generated_remove_slot_count\":1,"
+                 "\"generated_rename_slot_count\":1,"
+                 "\"generated_upsert_target_count\":0,"
+                 "\"empty_patch\":false}\n"});
+    CHECK_EQ(read_text_file(patch_output),
+             std::string{
+                 "{\"remove_slots\":[{\"part\":\"body\",\"bookmark\":"
+                 "\"obsolete_note\"}],"
+                 "\"rename_slots\":[{\"part\":\"body\",\"bookmark\":"
+                 "\"summary_block\",\"new_bookmark\":\"invoice_no\"}]}\n"});
+
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      left_schema.string(),
+                      "--patch-file",
+                      patch_output.string(),
+                      "--output",
+                      applied_schema.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    CHECK_EQ(read_text_file(applied_schema), read_text_file(right_schema) + "\n");
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(patch_output);
+    remove_if_exists(build_output);
+    remove_if_exists(applied_schema);
+    remove_if_exists(apply_output);
+}
+
+TEST_CASE("cli build-template-schema-patch emits empty patch for equivalent schemas") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left_schema =
+        working_directory / "cli_build_template_schema_patch_equal_left.json";
+    const fs::path right_schema =
+        working_directory / "cli_build_template_schema_patch_equal_right.json";
+    const fs::path output =
+        working_directory / "cli_build_template_schema_patch_equal_output.json";
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(output);
+
+    write_binary_file(left_schema,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"}]}]}\n"});
+    write_binary_file(right_schema,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"}]}]}\n"});
+
+    CHECK_EQ(run_cli({"build-template-schema-patch",
+                      left_schema.string(),
+                      right_schema.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output), std::string{"{}\n"});
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli build-template-schema-patch reports parse errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema =
+        working_directory / "cli_build_template_schema_patch_parse_schema.json";
+    const fs::path output =
+        working_directory / "cli_build_template_schema_patch_parse_output.json";
+
+    remove_if_exists(schema);
+    remove_if_exists(output);
+
+    write_binary_file(schema,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\"}]}]}\n"});
+
+    CHECK_EQ(
+        run_cli({"build-template-schema-patch", schema.string(), "--json"}, output), 2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"build-template-schema-patch\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"build-template-schema-patch "
+                 "expects left and right schema paths\"}\n"});
+
+    remove_if_exists(schema);
     remove_if_exists(output);
 }
 

@@ -81,13 +81,15 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
 `-TemplateSchemaInputDocx`、`-TemplateSchemaBaseline`，以及
 `-TemplateSchemaSectionTargets` /
 `-TemplateSchemaResolvedSectionTargets` 其中之一。这样脚本会把 template
-schema gate 结果写进 `report/summary.json`，一旦发现 schema 漂移就会让整条
-preflight 失败。
+schema gate 结果写进 `report/summary.json`，包括 committed schema 是否 lint
+干净；一旦发现 schema 漂移，或者 baseline 本身存在需要修复的维护问题，就会让
+整条 preflight 失败。
 
 如果你想把仓库里已经登记到 manifest 的多份 template schema baseline 一次性
 并入这条发布前总检查，则改传 `-TemplateSchemaManifestPath`。脚本会转而调用
-`check_template_schema_manifest.ps1`，把 manifest gate 的状态、entry 数量和
-drift 数量一起写进 `report/summary.json`，只要其中任一 baseline 漂移就会让
+`check_template_schema_manifest.ps1`，把 manifest gate 的状态、entry 数量、
+drift 数量，以及 dirty baseline 数量一起写进 `report/summary.json`；只要其中
+任一 baseline 漂移，或者任何 committed schema baseline 需要 repair，就会让
 整条 preflight 失败。
 
 如果你还想把真实项目模板回归也并入这条发布前总检查，可以再传
@@ -104,7 +106,10 @@ registered / unregistered / excluded 计数同步进发布包。
 如果你的目标不是做一次临时校验，而是把某份模板正式纳入仓库级 baseline，
 优先使用 `register_template_schema_manifest_entry.ps1`。它会在需要时先准备
 generated fixture，再冻结标准化 schema baseline，并把对应条目写入或更新到
-`baselines/template-schema/manifest.json`，省掉手工改 manifest 的步骤。
+`baselines/template-schema/manifest.json`，省掉手工改 manifest 的步骤。写入
+manifest 前，它现在还会跑同一套 baseline gate；只要 schema 维护质量不干净，
+或者文档与 schema 存在漂移，就会拒绝登记，除非你明确传入
+`-SkipBaselineCheck`。
 
 如果截图级 review 结论是在后续补写的，优先执行最短同步命令，把最终
 visual verdict 一次性回写到 gate summary、release summary 和 release note
@@ -328,11 +333,17 @@ featherdoc_cli export-template-schema input.docx --output template-schema.json -
 featherdoc_cli export-template-schema input.docx --section-targets --output section-template-schema.json --json
 featherdoc_cli export-template-schema input.docx --resolved-section-targets --output resolved-section-template-schema.json --json
 featherdoc_cli normalize-template-schema template-schema.json --output normalized-template-schema.json --json
+featherdoc_cli lint-template-schema template-schema.json --json
+featherdoc_cli repair-template-schema template-schema.json --output repaired-template-schema.json --json
+featherdoc_cli merge-template-schema shared-template-schema.json invoice-template-schema.json --output merged-template-schema.json --json
+featherdoc_cli patch-template-schema committed-template-schema.json --patch-file schema.patch.json --output patched-template-schema.json --json
+featherdoc_cli build-template-schema-patch committed-schema.json generated-schema.json --output schema.patch.json --json
 featherdoc_cli diff-template-schema old-template-schema.json new-template-schema.json --json
 featherdoc_cli diff-template-schema committed-schema.json generated-schema.json --fail-on-diff --json
 featherdoc_cli check-template-schema input.docx --schema-file committed-schema.json --resolved-section-targets --output generated-schema.json --json
 pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaOutput .\template.schema.json -ResolvedSectionTargets
-pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json -RepairedSchemaOutput .\repaired-template.schema.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_manifest.ps1 -ManifestPath .\baselines\template-schema\manifest.json -BuildDir build-codex-clang-compat -RepairedSchemaOutputDir .\output\template-schema-manifest-repairs
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
 pwsh -ExecutionPolicy Bypass -File .\scripts\new_project_template_smoke_onboarding_plan.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json
@@ -342,6 +353,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_man
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson .\output\project-template-smoke\summary.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
 如果你要把多份真实项目模板放到同一条 smoke 流里统一检查，可以直接用
@@ -351,7 +363,9 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_
 `template_validations`、`schema_validation`、`schema_baseline`，以及可选
 的 `visual_smoke`。脚本会同时产出每个 entry 的明细产物和聚合后的
 `summary.json` / `summary.md`，便于一次性审阅整组模板。仓库内可直接运行
-的例子见 `samples/project_template_smoke.manifest.json`。
+的例子见 `samples/project_template_smoke.manifest.json`。其中
+`schema_baseline` 结果现在还会额外记录 committed schema 是否 lint 干净、
+lint issue 数量，以及 baseline gate 生成的 repair 候选路径。
 
 如果你想先单独校验 manifest 契约，再决定要不要真正跑完整 smoke，可先
 执行 `scripts/check_project_template_smoke_manifest.ps1`。示例 manifest 现
@@ -394,6 +408,274 @@ verdict 字段一起带出来，方便维护时快速确认。如果这份 smoke
 还可以顺手把 release-candidate 的 `summary.json`、`final_review.md`、
 `START_HERE.md`、`ARTIFACT_GUIDE.md`、`REVIEWER_CHECKLIST.md` 和
 `release_handoff.md` 一起刷新掉，不需要重跑整条 preflight。
+
+如果你要的是“单份模板 + 一份 JSON 数据计划 = 一份最终 docx”的入口，而不是
+仓库级 manifest smoke，那么直接用 `scripts/render_template_document.ps1`。
+它会把 `fill-bookmarks`、`replace-bookmark-paragraphs`、
+`replace-bookmark-table-rows` 和 `apply-bookmark-block-visibility` 串成一
+条可复现的渲染链路；只要计划里引用了不存在的书签，脚本就会直接失败，避免
+模板漂移被静默吞掉。可直接参考
+`samples/template_render_plan.schema.json` 和
+`samples/chinese_invoice_template.render_plan.json`。
+
+如果你不想手写第一版 render plan，可以先跑
+`scripts/export_template_render_plan.ps1`。它会检查正文、header part、footer
+part 的书签，把 `text` / `block` / `table_rows` / `block_range` 自动归类到
+`bookmark_text`、`bookmark_paragraphs`、`bookmark_table_rows`、
+`bookmark_block_visibility`，然后写出一份可直接编辑的草稿 JSON。默认占位值
+会写成 `TODO: <bookmark_name>`，表格行草稿默认导出为空数组，方便你后续补业务
+数据而不是从零拼结构。
+
+如果你希望把业务数据和 render plan 草稿分开维护，可以再接
+`scripts/patch_template_render_plan.ps1`。它会读取一份 base plan 和一份 patch
+plan，并按 `bookmark_name` 加可选的 `part/index/section/kind` 选择器，把 patch
+里的 `text`、`paragraphs`、`rows`、`visible` 覆盖到 base plan 对应条目上。
+当书签名在草稿里唯一时，patch 可以只写 `bookmark_name + payload`；如果你传
+`-RequireComplete`，脚本还会检查导出草稿里剩下的 `TODO` 和空表格行占位，避免
+半成品 plan 被继续流到渲染阶段。可以直接参考
+`samples/chinese_invoice_template.render_patch.json`。
+
+如果你希望把“模板 + patch JSON = 最终 docx”压成一条命令，可以直接用
+`scripts/render_template_document_from_patch.ps1`。它会顺序执行导出草稿、
+套用 patch、渲染文档三步，并且只解析一次 `featherdoc_cli` 构建结果。patch
+阶段默认开启 `-RequireComplete`，避免残留 `TODO` 或空表格行直接流入最终文
+档；如果你还想保留中间产物做排查，也可以额外传
+`-DraftPlanOutput` 和 `-PatchedPlanOutput`。
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_patch.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PatchPlanPath .\samples\chinese_invoice_template.render_patch.json -OutputDocx .\output\rendered\invoice.from-patch.docx -SummaryJson .\output\rendered\invoice.from-patch.summary.json -DraftPlanOutput .\output\rendered\invoice.draft.render-plan.json -PatchedPlanOutput .\output\rendered\invoice.filled.render-plan.json -BuildDir build-codex-clang-compat -SkipBuild
+```
+
+如果你希望把编辑面继续往上抬，不再直接改 patch JSON，而是维护一份业务数据
+JSON，可以用 `scripts/convert_render_data_to_patch_plan.ps1`。它会读取业务数
+据和一份 mapping 文件，把每个 `source` 路径映射到
+`bookmark_text`、`bookmark_paragraphs`、`bookmark_table_rows`、
+`bookmark_block_visibility` 里的目标条目。mapping 文件可直接参考
+`samples/template_render_data_mapping.schema.json` 和
+`samples/chinese_invoice_template.render_data_mapping.json`。
+
+如果你已经有 render plan 草稿，但不想从零手写 mapping，也可以先跑
+`scripts/export_render_data_mapping_draft.ps1`。它会保留书签目标和可选的
+`part/index/section/kind` selector，并把每个 `source` 先生成为一个可编辑的
+书签名路径草稿。
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\export_render_data_mapping_draft.ps1 -InputPlan .\samples\chinese_invoice_template.render_plan.json -OutputMapping .\output\rendered\invoice.render_data_mapping.draft.json -SummaryJson .\output\rendered\invoice.render_data_mapping.draft.summary.json -SourceRoot data
+```
+
+如果你想从 `.docx` 模板直接得到一个“可编辑数据工作区”，可以用
+`scripts/prepare_template_render_data_workspace.ps1`。它会一次串起
+`export_template_render_plan`、`export_render_data_mapping_draft`、
+`export_render_data_skeleton` 和 `lint_render_data_mapping`，产出 render plan、
+mapping 草稿、可填写的 data skeleton，以及总 summary。这个入口适合先让用户
+编辑 JSON 数据，再用 `render_template_document_from_data.ps1` 生成最终文档。
+现在 workspace 目录里还会自动附带一份 `START_HERE.zh-CN.md`，直接告诉使用者
+应该先改哪个 JSON、如何先校验自己改对了，以及下一条该跑什么渲染命令。
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_template_render_data_workspace.ps1 -InputDocx .\samples\chinese_invoice_template.docx -WorkspaceDir .\output\rendered\invoice.workspace -SummaryJson .\output\rendered\invoice.workspace\summary.json -BuildDir build-codex-clang-compat -SkipBuild
+```
+
+准备完 workspace 之后，可以直接用
+`scripts/render_template_document_from_workspace.ps1`。它会从 workspace summary
+或 workspace 目录里自动找到模板、mapping 和数据 JSON，把用户侧流程收敛成：
+
+1. 先改 data JSON
+2. 再用 `validate_render_data_mapping.ps1 -WorkspaceDir ... -RequireComplete` 确认
+   `status=completed` 且 `remaining_placeholder_count=0`
+3. 最后从 workspace 渲染最终 docx
+
+如果 data JSON 里还保留脚手架生成的 `TODO:` 占位，它会先给出更直白的提示，
+而不是直接抛底层 patch/render 错误。校验命令还可以通过 `-ReportMarkdown`
+额外写一份人类可读报告，让使用者先打开 `.md` 看结论和未补完的槽位，
+不必一开始就读 JSON summary；报告里的未补完槽位还会尽量反查 mapping，提示
+建议检查的 data JSON 字段。
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\validate_render_data_mapping.ps1 -WorkspaceDir .\output\rendered\invoice.workspace -SummaryJson .\output\rendered\invoice.workspace\validation.summary.json -ReportMarkdown .\output\rendered\invoice.workspace\validation.report.md -BuildDir build-codex-clang-compat -SkipBuild -RequireComplete
+```
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_workspace.ps1 -WorkspaceDir .\output\rendered\invoice.workspace -OutputDocx .\output\rendered\invoice.final.docx -SummaryJson .\output\rendered\invoice.workspace\render.summary.json
+```
+
+如果你的目标不是“用固定模板批量生成文档”，而是直接修改一个已有 `.docx`，
+可以使用 `scripts/edit_document_from_plan.ps1`。它读取的是一份 **修改指令 JSON**，
+不是把整份 Word 文档转换成 JSON；脚本会按顺序修改原始 `.docx`，最后输出新的
+`.docx` 与 summary。这条路径更适合“已有文档 + 修改指令 = 新文档”。
+
+```json
+{
+  "operations": [
+    {
+      "op": "replace_bookmark_text",
+      "bookmark": "customer_name",
+      "text": "上海羽文档科技有限公司"
+    },
+    {
+      "op": "replace_bookmark_paragraphs",
+      "bookmark": "note_lines",
+      "paragraphs": ["第一段", "第二段"]
+    },
+    {
+      "op": "replace_bookmark_table_rows",
+      "bookmark": "line_item_row",
+      "rows": [["服务", "说明", "金额"]]
+    },
+    {
+      "op": "set_table_cell_text",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "text": "4,000.00"
+    },
+    {
+      "op": "set_table_cell_fill",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "background_color": "FFF2CC"
+    },
+    {
+      "op": "set_table_cell_border",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "edge": "right",
+      "style": "single",
+      "thickness": 16,
+      "color": "FF0000"
+    },
+    {
+      "op": "set_table_row_height",
+      "table_index": 0,
+      "row_index": 3,
+      "height_twips": 720,
+      "rule": "exact"
+    },
+    {
+      "op": "set_table_cell_vertical_alignment",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "alignment": "center"
+    },
+    {
+      "op": "set_table_cell_horizontal_alignment",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "alignment": "right"
+    },
+    {
+      "op": "replace_text",
+      "find": "旧文本",
+      "replace": "新文本"
+    },
+    {
+      "op": "set_text_style",
+      "text_contains": "新文本",
+      "bold": true,
+      "font_family": "Segoe UI",
+      "east_asia_font_family": "Microsoft YaHei",
+      "language": "en-US",
+      "east_asia_language": "zh-CN",
+      "color": "C00000",
+      "font_size_points": 14
+    },
+    {
+      "op": "delete_paragraph_contains",
+      "text_contains": "临时说明"
+    },
+    {
+      "op": "set_paragraph_horizontal_alignment",
+      "text_contains": "第一段",
+      "alignment": "center"
+    },
+    {
+      "op": "set_paragraph_spacing",
+      "text_contains": "第一段",
+      "before_twips": 120,
+      "after_twips": 240,
+      "line_twips": 360,
+      "line_rule": "exact"
+    },
+    {
+      "op": "set_table_column_width",
+      "table_index": 0,
+      "column_index": 1,
+      "width_twips": 5200
+    },
+    {
+      "op": "merge_table_cells",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 0,
+      "direction": "right",
+      "count": 2
+    }
+  ]
+}
+```
+
+其中，单元格垂直对齐支持 `top` / `center` / `bottom` / `both`；
+单元格和普通正文段落的水平对齐支持 `left` / `center` / `right` / `both`。
+表格版式可以设置列宽，也可以按 `right` / `down` 方向合并或取消合并单元格；
+单元格外观可以设置背景色、单边框样式、边框粗细、边框颜色；
+文本样式可以设置加粗、字体颜色、字号、英文字体、中文字体和语言标签；
+段落排版可以设置段前距、段后距和行距。
+普通段落可以用 `paragraph_index` 精确定位，也可以用 `text_contains` 找到包含指定文本的段落。
+如果文档没有书签，可以用 `replace_text` 做
+普通正文替换；它按段落合并可见文字后查找，能覆盖 Word 把文字拆成多个 run 的常见情况。
+如果要让“垂直居中”在 Word 里更明显，通常还要配合 `set_table_row_height` 给行一个明确高度。
+单元格合并使用 `merge_table_cells`，取消合并使用 `unmerge_table_cells`；合并可通过 `count` 指定跨几个单元格。
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\edit_document_from_plan.ps1 -InputDocx .\samples\chinese_invoice_template.docx -EditPlan .\output\rendered\invoice.edit_plan.json -OutputDocx .\output\rendered\invoice.edited.docx -SummaryJson .\output\rendered\invoice.edit.summary.json -BuildDir build-codex-clang-compat -SkipBuild
+```
+
+如果要确认修改后的 `.docx` 不是“XML 里变了但页面效果没看过”，可以跑直接编辑流的
+Word 可视化回归。它会先生成 edited DOCX，再用 Microsoft Word 导出 PDF、渲染 PNG，
+并生成编辑前 / 编辑后的对比图：
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\run_edit_document_from_plan_visual_regression.ps1 -BuildDir build-codex-clang-compat -SkipBuild
+```
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\convert_render_data_to_patch_plan.ps1 -DataPath .\samples\chinese_invoice_template.render_data.json -MappingPath .\samples\chinese_invoice_template.render_data_mapping.json -OutputPatch .\output\rendered\invoice.generated.render_patch.json -SummaryJson .\output\rendered\invoice.generated.render_patch.summary.json
+```
+
+编辑 mapping 时，如果想要更快反馈，可以先跑
+`scripts/lint_render_data_mapping.ps1`。它不打开 `.docx` 模板，只检查
+selector 组合、同一 category 内的重复目标，以及可选业务数据里的 `source`
+路径和表格列路径是否能解析。
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\lint_render_data_mapping.ps1 -MappingPath .\samples\chinese_invoice_template.render_data_mapping.json -DataPath .\samples\chinese_invoice_template.render_data.json -SummaryJson .\output\rendered\invoice.mapping.lint.summary.json
+```
+
+在真正渲染之前，还可以先用
+`scripts/validate_render_data_mapping.ps1` 校验整条
+`template + mapping + data` 契约。这个脚本会先导出 render plan 草稿，再把
+业务数据转换成 patch，最后把 patch 回放到草稿上；因此书签没映射、`source`
+路径写错、重复命中同一槽位，或者 `-RequireComplete` 下仍然残留占位内容，都会在
+生成最终 docx 之前直接失败。
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\validate_render_data_mapping.ps1 -InputDocx .\samples\chinese_invoice_template.docx -MappingPath .\samples\chinese_invoice_template.render_data_mapping.json -DataPath .\samples\chinese_invoice_template.render_data.json -SummaryJson .\output\rendered\invoice.validation.summary.json -DraftPlanOutput .\output\rendered\invoice.validation.draft.render-plan.json -GeneratedPatchOutput .\output\rendered\invoice.validation.generated.render_patch.json -PatchedPlanOutput .\output\rendered\invoice.validation.patched.render-plan.json -BuildDir build-codex-clang-compat -SkipBuild -RequireComplete
+```
+
+如果你想直接走“模板 + 业务数据 JSON + mapping = 最终 docx”，可以再用
+`scripts/render_template_document_from_data.ps1`。它会按
+“导出草稿 -> 生成 patch -> 回放 patch -> 渲染文档”这四步直接跑完整条链路，
+并且默认沿用 patch 阶段的 `-RequireComplete` 语义；需要时也能通过
+`-PatchPlanOutput`、`-DraftPlanOutput`、`-PatchedPlanOutput`
+把中间产物保留下来。
+
+```bash
+pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_data.ps1 -InputDocx .\samples\chinese_invoice_template.docx -DataPath .\samples\chinese_invoice_template.render_data.json -MappingPath .\samples\chinese_invoice_template.render_data_mapping.json -OutputDocx .\output\rendered\invoice.from-data.docx -SummaryJson .\output\rendered\invoice.from-data.summary.json -PatchPlanOutput .\output\rendered\invoice.generated.render_patch.json -DraftPlanOutput .\output\rendered\invoice.draft.render-plan.json -PatchedPlanOutput .\output\rendered\invoice.filled.render-plan.json -BuildDir build-codex-clang-compat -SkipBuild
+```
 
 `move-header-part` / `move-footer-part` 用来重排当前文档里已加载的
 header/footer part 索引顺序，同时保持各 section 继续指向原来的关系 id，
@@ -488,9 +770,12 @@ featherdoc_cli merge-template-table-cells input.docx 0 1 0 --direction right --c
 featherdoc_cli unmerge-template-table-cells input.docx 0 1 0 --direction right --output template-unmerged.docx --json
 featherdoc_cli replace-bookmark-text input.docx customer_name --text "Ada Lovelace" --output bookmark-text.docx --json
 featherdoc_cli fill-bookmarks input.docx --set customer_name "Ada Lovelace" --set invoice_no INV-001 --output filled.docx --json
+featherdoc_cli fill-bookmarks input.docx --set-file customer_name customer_name.txt --set-file invoice_no invoice_no.txt --output filled-from-files.docx --json
 featherdoc_cli replace-bookmark-paragraphs input.docx notes --paragraph "Line one" --paragraph "Line two" --output bookmark-paragraphs.docx --json
+featherdoc_cli replace-bookmark-paragraphs input.docx notes --paragraph-file note-1.txt --paragraph-file note-2.txt --output bookmark-paragraphs-files.docx --json
 featherdoc_cli replace-bookmark-table input.docx line_items --row "SKU-1" --cell "2" --cell "$10" --output bookmark-table.docx --json
 featherdoc_cli replace-bookmark-table-rows input.docx line_items --row "SKU-2" --cell "4" --cell "$20" --output bookmark-table-rows.docx --json
+featherdoc_cli replace-bookmark-table-rows input.docx line_items --row-file sku.txt --cell-file qty.txt --cell-file price.txt --output bookmark-table-rows-files.docx --json
 featherdoc_cli remove-bookmark-block input.docx optional_section --output bookmark-block-removed.docx --json
 featherdoc_cli set-bookmark-block-visibility input.docx optional_section --visible false --output bookmark-hidden.docx --json
 featherdoc_cli apply-bookmark-block-visibility input.docx --hide optional_section --show totals --output bookmark-visibility.docx --json
@@ -722,14 +1007,116 @@ featherdoc_cli validate-template-schema input.docx --schema-file template-schema
 `list_bookmarks()` 当前暴露的轻量书签分类来序列化可表示的 slot。如果你想
 把 schema 文件整理成稳定顺序，方便提交或 review，可以再跑一遍
 `normalize-template-schema`；如果要比较两个 schema 版本的差异，可以直接用
-`diff-template-schema` 查看 added / removed / changed targets。如果想把它直接
-接进 CI，当发现 schema 漂移时返回非零退出码，可以加 `--fail-on-diff`。如果
-你希望把“导出 + 规范化 + 对比 + gate” 合成一步，可以直接用
+`diff-template-schema` 查看 added / removed / changed targets。如果你希望在
+review 或 CI 里先把 schema 维护质量 gate 住，可以直接用
+`lint-template-schema`；它在 schema 干净时返回 `0`，发现重复 target 身份、
+重复 slot 名、非规范顺序或残留 `entry_name` 元数据时返回 `1`。
+如果你想把这些维护问题按安全、确定性的规则直接收敛掉，可以继续用
+`repair-template-schema`；它会去掉 `entry_name`，按“后出现定义覆盖前出现定义”
+的规则合并重复 target 身份与重复 slot 名，然后再把 target / slot 顺序规范化。
+如果你需要把
+一份共享 schema 和文档专用 schema 叠加成一个可提交结果，可以直接用
+`merge-template-schema`；后面的文件会按 target 合并，并覆盖同一 bookmark 的
+slot 定义，然后再输出规范化后的 schema。如果你需要在已提交的 schema 上做增删
+改，可以直接用 `patch-template-schema`，通过 patch 文件里的
+`upsert_targets`、`remove_targets`、`remove_slots` 和 `rename_slots`
+来维护结果。如果你手里已经有一份 reviewed 的 left / right schema，希望自动整理
+出一个可提交的 patch 文件，可以直接用 `build-template-schema-patch`；它仍然以
+结果正确为第一优先级，但当某个 target 的完整身份保持不变时，会优先生成
+slot 级的 `remove_slots`、`rename_slots` 和局部 `upsert_targets`。只有 target
+身份发生变化时，才会退回到整 target 的 `remove_targets + upsert_targets`，
+这样把 patch 回放到左侧 schema 上，依然能得到规范化后的右侧 schema。
+如果想把它直接接进 CI，当发现 schema 漂移时返回非零退出码，可以加
+`--fail-on-diff`。如果你希望把“导出 + 规范化 + 对比 + gate” 合成一步，可以直接用
 `check-template-schema`；它在完全匹配时返回 `0`，发现漂移时返回 `1`，并且
 可以通过 `--output` 额外写出规范化后的 generated schema。如果你更希望用仓库
 级脚本入口，可以直接用
 `scripts/freeze_template_schema_baseline.ps1` 和
 `scripts/check_template_schema_baseline.ps1`，它们会负责 CLI 的复用或构建。
+其中 baseline wrapper 现在会先跑 `lint-template-schema`，再做文档与 baseline
+的比对；如果 committed schema 需要清理，还可以用 `-RepairedSchemaOutput`
+额外写出一份候选修复文件。`scripts/check_template_schema_manifest.ps1` 会把同样
+的 gate 批量应用到 manifest 里的所有 entry 上，在 `summary.json` 里汇总
+`dirty_baseline_count`，并且支持用 `-RepairedSchemaOutputDir` 输出逐条目的
+repair 候选文件。
+
+`patch-template-schema` 的 patch 文件本质上是一个 JSON 对象，可以包含下面这些
+数组中的任意组合：
+
+- `upsert_targets`：就是普通的 exported schema target，合并规则和
+  `merge-template-schema` 一致，会按 target upsert，并覆盖同一 bookmark 的
+  slot 定义
+- `remove_targets`：按 target 的完整身份字段匹配并删除，匹配时会一起看
+  `part`、`index` / `part_index`、`section`、`kind`、
+  `resolved_from_section`、`linked_to_previous`
+- `remove_slots`：和上面相同的 target 选择字段，再额外带
+  `bookmark` 或 `bookmark_name`；命中的 slot 会被删除，如果某个 target 被删空，
+  会自动从结果里 prune 掉
+- `rename_slots`：也是同样的 target 选择字段，再带旧名字
+  `bookmark` / `bookmark_name`，以及新名字
+  `new_bookmark` / `new_bookmark_name`
+- 选择器里的 `entry_name` 会被忽略，所以你可以把导出的 schema JSON 片段裁剪后
+  直接拿来写 patch
+- `{}` 也是合法的，表示 no-op patch；当两个 schema 已经等价时，
+  `build-template-schema-patch` 就会输出它
+- `build-template-schema-patch` 只有在 left / right target 身份完全一致，且
+  旧 slot 与新 slot 的 shape 可以唯一对应时，才会输出 `rename_slots`；
+  只要存在歧义，就会保守地退回删除 / 新增风格的 patch
+
+一个可直接照抄的 patch 示例：
+
+```json
+{
+  "remove_targets": [
+    {
+      "part": "section-footer",
+      "section": 1,
+      "kind": "default"
+    }
+  ],
+  "remove_slots": [
+    {
+      "part": "body",
+      "bookmark": "summary_block"
+    },
+    {
+      "part": "section-header",
+      "section": 1,
+      "kind": "default",
+      "resolved_from_section": 0,
+      "linked_to_previous": true,
+      "bookmark_name": "legacy_header_note"
+    }
+  ],
+  "rename_slots": [
+    {
+      "part": "section-header",
+      "section": 1,
+      "kind": "default",
+      "resolved_from_section": 0,
+      "linked_to_previous": true,
+      "bookmark": "header_title",
+      "new_bookmark": "document_title"
+    }
+  ],
+  "upsert_targets": [
+    {
+      "part": "body",
+      "slots": [
+        {
+          "bookmark": "customer",
+          "kind": "text",
+          "count": 2
+        },
+        {
+          "bookmark": "invoice_no",
+          "kind": "text"
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## 当前能力范围
 
@@ -765,7 +1152,7 @@ featherdoc_cli validate-template-schema input.docx --schema-file template-schema
 - 中文 README：[README.zh-CN.md](README.zh-CN.md)
 - Sphinx 文档首页：`docs/index.rst`
 - 项目定位：`docs/project_identity_zh.rst`
-- 项目审计记录：`docs/project_audit_zh.rst`
+- 当前推进方向：`docs/current_direction_zh.rst`
 - 版本与发布策略：`docs/release_policy_zh.rst`
 - Word 可视化工作流：`docs/automation/word_visual_workflow_zh.rst`
 - 许可说明：`docs/licensing_zh.rst`
@@ -775,10 +1162,14 @@ featherdoc_cli validate-template-schema input.docx --schema-file template-schema
 
 FeatherDoc 现在应被视为一个持续演进的独立分支，而不是对历史上游项目的被动镜像。
 
+- 产品目标是：围绕正式文档场景，提供 `.docx` 的处理、编辑、修改、生成与验证闭环
 - 现代 C++ 与更清晰的 API 语义优先
 - MSVC 可构建性是正式支持目标
 - 错误诊断、`open()` / `save()` 行为和核心路径性能是一等公民
 - 文档、仓库元数据、许可与验证流程都按当前项目方向维护
+
+如果你要判断“这个库下一步该继续推进什么能力”，请先看
+`docs/current_direction_zh.rst`。
 
 ## 赞助
 
