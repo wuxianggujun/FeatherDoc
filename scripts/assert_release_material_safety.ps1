@@ -118,7 +118,7 @@ if ($scanFiles.Count -eq 0) {
 $rules = @(
     (New-Rule `
         -Label "draft wording" `
-        -Pattern '(?i)发布说明草稿|请在发布前补齐|release body draft|release-note drafts|release drafts|public release drafts|草稿|\bdraft\w*\b')
+        -Pattern '(?i)发布说明草稿|请在发布前补齐|草稿|release body draft|release-note drafts|release drafts|public release drafts|draft release notes|still drafting')
     (New-Rule `
         -Label "local absolute path" `
         -Pattern '(?i)\b[a-z]:(?:\\\\|\\)[^\s"''`<>|]+|(?<!\w)/(?:Users|home)/[^\s"''`<>|]+')

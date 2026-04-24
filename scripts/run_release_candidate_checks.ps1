@@ -1141,17 +1141,59 @@ try {
     if (-not $SkipVisualGate) {
         $activeStep = "visual_gate"
         Write-Step "Running Word visual release gate"
+        $visualGateBuildDirArguments = @(
+            "-SmokeBuildDir",
+            "-FixedGridBuildDir",
+            "-SectionPageSetupBuildDir",
+            "-PageNumberFieldsBuildDir",
+            "-BookmarkFloatingImageBuildDir",
+            "-BookmarkImageBuildDir",
+            "-BookmarkBlockVisibilityBuildDir",
+            "-TemplateBookmarkParagraphsBuildDir",
+            "-BookmarkTableReplacementBuildDir",
+            "-ParagraphListBuildDir",
+            "-ParagraphNumberingBuildDir",
+            "-ParagraphRunStyleBuildDir",
+            "-ParagraphStyleNumberingBuildDir",
+            "-FillBookmarksBuildDir",
+            "-AppendImageBuildDir",
+            "-FloatingImageZOrderBuildDir",
+            "-TableRowBuildDir",
+            "-TableRowHeightBuildDir",
+            "-TableRowCantSplitBuildDir",
+            "-TableRowRepeatHeaderBuildDir",
+            "-TableCellFillBuildDir",
+            "-TableCellBorderBuildDir",
+            "-TableCellWidthBuildDir",
+            "-TableCellMarginBuildDir",
+            "-TableCellVerticalAlignmentBuildDir",
+            "-TableCellTextDirectionBuildDir",
+            "-TableCellMergeBuildDir",
+            "-TemplateBookmarkMultilineBuildDir",
+            "-SectionTextMultilineBuildDir",
+            "-RemoveBookmarkBlockBuildDir",
+            "-TemplateBookmarkParagraphsPaginationBuildDir",
+            "-SectionOrderBuildDir",
+            "-SectionPartRefsBuildDir",
+            "-RunFontLanguageBuildDir",
+            "-EnsureStyleBuildDir",
+            "-TemplateTableCliBookmarkBuildDir",
+            "-TemplateTableCliColumnBuildDir",
+            "-TemplateTableCliDirectColumnBuildDir",
+            "-TemplateTableCliBuildDir",
+            "-TemplateTableCliMergeUnmergeBuildDir",
+            "-TemplateTableCliDirectBuildDir",
+            "-TemplateTableCliDirectMergeUnmergeBuildDir",
+            "-TemplateTableCliSectionKindBuildDir",
+            "-TemplateTableCliSectionKindRowBuildDir",
+            "-TemplateTableCliSectionKindColumnBuildDir",
+            "-TemplateTableCliSectionKindMergeUnmergeBuildDir",
+            "-TemplateTableCliSelectorBuildDir",
+            "-ReplaceRemoveImageBuildDir"
+        )
         $visualGateArgs = @(
             "-GateOutputDir"
             $resolvedGateOutputDir
-            "-SmokeBuildDir"
-            $resolvedBuildDir
-            "-FixedGridBuildDir"
-            $resolvedBuildDir
-            "-SectionPageSetupBuildDir"
-            $resolvedBuildDir
-            "-PageNumberFieldsBuildDir"
-            $resolvedBuildDir
             "-TaskOutputRoot"
             $resolvedTaskOutputRoot
             "-ReviewMode"
@@ -1160,6 +1202,12 @@ try {
             $Dpi.ToString()
             "-SkipBuild"
         )
+        foreach ($argumentName in $visualGateBuildDirArguments) {
+            $visualGateArgs += @(
+                $argumentName
+                $resolvedBuildDir
+            )
+        }
         if ($SkipReviewTasks) {
             $visualGateArgs += "-SkipReviewTasks"
         }

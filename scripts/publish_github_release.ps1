@@ -168,6 +168,59 @@ function Get-ResolvedReleaseVersion {
     return Get-ProjectVersion -RepoRoot $RepoRoot
 }
 
+function Update-UploadedAssetManifest {
+    param(
+        [string]$RepoRoot,
+        [string]$OutputRoot,
+        [string]$ReleaseVersion,
+        [string]$ReleaseTag
+    )
+
+    $resolvedOutputRoot = if (-not [string]::IsNullOrWhiteSpace($OutputRoot)) {
+        Resolve-FullPath -RepoRoot $RepoRoot -InputPath $OutputRoot
+    } else {
+        Join-Path $RepoRoot "output\release-assets"
+    }
+    $manifestPath = Join-Path (Join-Path $resolvedOutputRoot ("v{0}" -f $ReleaseVersion)) "release_assets_manifest.json"
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
+        return
+    }
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        return
+    }
+
+    $releaseViewJson = & gh release view $ReleaseTag --json url,assets
+    if ($LASTEXITCODE -ne 0) {
+        throw "gh release view failed while refreshing release asset manifest."
+    }
+
+    $releaseView = $releaseViewJson | ConvertFrom-Json
+    $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+    if ($null -eq $manifest.PSObject.Properties["upload"]) {
+        Add-Member -InputObject $manifest -NotePropertyName upload -NotePropertyValue ([pscustomobject]@{})
+    }
+    $manifest.upload.requested_tag = $ReleaseTag
+    $manifest.upload.uploaded = $true
+    $manifest.upload.release_url = Get-OptionalPropertyValue -Object $releaseView -Name "url"
+
+    $remoteAssets = @()
+    foreach ($asset in @($manifest.assets)) {
+        $assetName = Split-Path -Leaf ([string]$asset.path)
+        $remote = @($releaseView.assets | Where-Object { $_.name -eq $assetName }) | Select-Object -First 1
+        if ($null -ne $remote) {
+            $remoteAssets += [ordered]@{
+                name = $remote.name
+                url = $remote.url
+                size_bytes = $remote.size
+                download_count = $remote.downloadCount
+            }
+        }
+    }
+    $manifest.upload.remote_assets = $remoteAssets
+    ($manifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+    Write-Step "Refreshed uploaded asset manifest from GitHub release view"
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryJson
 Assert-PathExists -Path $resolvedSummaryPath -Label "release summary JSON"
@@ -236,6 +289,12 @@ Write-Step "Uploading release assets to GitHub release $resolvedReleaseTag"
 
 Write-Step "Syncing audited GitHub release notes to $resolvedReleaseTag"
 & $resolvedSyncNotesScriptPath @syncArgs
+
+Update-UploadedAssetManifest `
+    -RepoRoot $repoRoot `
+    -OutputRoot $OutputRoot `
+    -ReleaseVersion $resolvedReleaseVersion `
+    -ReleaseTag $resolvedReleaseTag
 
 Write-Host "Release tag: $resolvedReleaseTag"
 Write-Host "Release version: $resolvedReleaseVersion"
