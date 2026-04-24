@@ -66,5 +66,6 @@ tmp-word-com.txt
 # vim swap files
 **/*.swp
 .ace-tool/
+.codex-temp/
 __pycache__/
 *.py[cod]
