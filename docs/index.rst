@@ -16,6 +16,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
 
    project_identity_zh
    current_direction_zh
+   feature_gap_analysis_zh
    release_policy_zh
    v1_7_roadmap_zh
    licensing_zh

@@ -462,18 +462,18 @@ if (-not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSummaryJson)) {
         $summaryCommandPath
 }
 $packageAssetsCommand = if ($releaseVersion) {
-    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -ReleaseVersion "{1}"' -f `
         $summaryCommandPath, $releaseVersion
 } else {
     'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
         $summaryCommandPath
 }
-$publishWorkflowCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -SummaryJson "{0}"' -f `
+$githubRefreshCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 -SummaryJson "{0}"' -f `
     $summaryCommandPath
 if ($releaseVersion) {
-    $publishWorkflowCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
+    $githubRefreshCommand += (' -ReleaseTag "v{0}"' -f $releaseVersion)
 }
-$publishWorkflowFinalCommand = $publishWorkflowCommand + " -Publish"
+$githubPublishCommand = $githubRefreshCommand + " -Publish"
 $refreshWorkflowName = "Release Refresh"
 $refreshWorkflowFile = ".github/workflows/release-refresh.yml"
 $publishWorkflowName = "Release Publish"
@@ -587,35 +587,46 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add("Use that command locally after the screenshot-backed manual review changes the final visual verdict. It will sync the detected latest task verdict back into the gate summary and refresh the release bundle.")
 [void]$lines.Add("If project template smoke also carries manual visual review, use the second command to sync its refreshed verdict back into the smoke summary and the same release bundle.")
 [void]$lines.Add("")
-[void]$lines.Add("## Package The Public Release Assets")
+[void]$lines.Add("## Publish Checklist")
+[void]$lines.Add("")
+[void]$lines.Add('- Confirm `Execution status`, `Visual verdict`, and project-template visual verdict are all `pass`.')
+[void]$lines.Add("- Run the local packaging command first; it regenerates ZIP files and does not contact GitHub.")
+[void]$lines.Add("- Use GitHub refresh to upload ZIP assets and sync audited release notes without flipping a draft release public.")
+[void]$lines.Add("- Use GitHub publish only after final signoff, because it can make the target release public.")
+[void]$lines.Add("")
+[void]$lines.Add("## Package Public Release Assets (Local Only)")
 [void]$lines.Add("")
 [void]$lines.Add('```powershell')
 [void]$lines.Add($packageAssetsCommand)
 [void]$lines.Add('```')
 [void]$lines.Add("")
-[void]$lines.Add("Run that command after the release notes are finalized so the install ZIP, visual gallery ZIP, and release-evidence ZIP are regenerated from the current summary.")
+[void]$lines.Add('Run this after the release notes are finalized. It creates the install ZIP, visual gallery ZIP, release-evidence ZIP, and manifest under `output/release-assets/v<version>`.')
 [void]$lines.Add("")
-[void]$lines.Add("## One-Shot GitHub Release Refresh")
-[void]$lines.Add("")
-[void]$lines.Add('```powershell')
-[void]$lines.Add($publishWorkflowCommand)
-[void]$lines.Add('```')
-[void]$lines.Add("")
-[void]$lines.Add("Use that command when you want the ZIP upload plus audited GitHub release-note sync in one step.")
-[void]$lines.Add("")
-[void]$lines.Add("When the release is ready to go live and the final local signoff is already complete:")
+[void]$lines.Add("## GitHub Release Refresh (Upload Assets + Sync Notes)")
 [void]$lines.Add("")
 [void]$lines.Add('```powershell')
-[void]$lines.Add($publishWorkflowFinalCommand)
+[void]$lines.Add($githubRefreshCommand)
 [void]$lines.Add('```')
 [void]$lines.Add("")
-[void]$lines.Add(("If the validated bundle already exists in a self-hosted Windows runner workspace, you may trigger GitHub Actions `{0}` (`{1}`) for a safe refresh, or `{2}` (`{3}`) for the final public release, instead of running the wrapper locally." -f $refreshWorkflowName, $refreshWorkflowFile, $publishWorkflowName, $publishWorkflowFile))
+[void]$lines.Add('Use this when the target GitHub Release should receive refreshed ZIP assets plus the audited `release_body.zh-CN.md` notes. If the target release is a draft, it remains a draft; if it is already public, this updates public assets and notes.')
+[void]$lines.Add("")
+[void]$lines.Add("## GitHub Release Publish (Final Public Step)")
+[void]$lines.Add("")
+[void]$lines.Add("Run this only when the release is ready to go live and final local signoff is complete:")
+[void]$lines.Add("")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($githubPublishCommand)
+[void]$lines.Add('```')
+[void]$lines.Add("")
+[void]$lines.Add('This command uploads the ZIPs, syncs audited notes, and passes `-Publish` through so the target GitHub Release can become public.')
+[void]$lines.Add("")
+[void]$lines.Add(('If the validated bundle already exists in a self-hosted Windows runner workspace, you may trigger GitHub Actions `{0}` (`{1}`) for a safe refresh, or `{2}` (`{3}`) for the final public release, instead of running the wrapper locally.' -f $refreshWorkflowName, $refreshWorkflowFile, $publishWorkflowName, $publishWorkflowFile))
 [void]$lines.Add("")
 [void]$lines.Add("### GitHub Web UI: 4-Step Runbook")
 [void]$lines.Add("")
-[void]$lines.Add(("1. Open the repository `Actions` tab and choose `{0}` for a safe refresh, or `{1}` for the final public release." -f $refreshWorkflowName, $publishWorkflowName))
-[void]$lines.Add("2. Pick the branch that already contains this validated release bundle in the self-hosted runner workspace and click `Run workflow`.")
-[void]$lines.Add("3. No additional form input is required; wait for the job to finish, then inspect the uploaded artifact (`release-refresh-output` or `release-publish-output`) if you need the packaged ZIPs.")
+[void]$lines.Add(('1. Open the repository `Actions` tab and choose `{0}` for a safe refresh, or `{1}` for the final public release.' -f $refreshWorkflowName, $publishWorkflowName))
+[void]$lines.Add('2. Pick the branch that already contains this validated release bundle in the self-hosted runner workspace and click `Run workflow`.')
+[void]$lines.Add('3. No additional form input is required; wait for the job to finish, then inspect the uploaded artifact (`release-refresh-output` or `release-publish-output`) if you need the packaged ZIPs.')
 [void]$lines.Add("4. Check the GitHub Release page. Use the refresh workflow for note/asset updates that should stay private, and the publish workflow only after final local Word signoff is complete.")
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
