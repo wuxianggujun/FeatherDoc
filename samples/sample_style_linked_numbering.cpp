@@ -104,18 +104,12 @@ int main(int argc, char **argv) {
             featherdoc::list_kind::decimal, 1U, 1U, "%1.%2."},
     };
 
-    const auto numbering_id = doc.ensure_numbering_definition(numbering_definition);
+    const auto numbering_id = doc.ensure_style_linked_numbering(
+        numbering_definition,
+        {featherdoc::paragraph_style_numbering_link{"LegalHeading1", 0U},
+         featherdoc::paragraph_style_numbering_link{"LegalHeading2", 1U}});
     if (!numbering_id.has_value()) {
-        print_document_error(doc, "ensure_numbering_definition");
-        return 1;
-    }
-
-    if (!doc.set_paragraph_style_numbering("LegalHeading1", *numbering_id, 0U)) {
-        print_document_error(doc, "set_paragraph_style_numbering(LegalHeading1)");
-        return 1;
-    }
-    if (!doc.set_paragraph_style_numbering("LegalHeading2", *numbering_id, 1U)) {
-        print_document_error(doc, "set_paragraph_style_numbering(LegalHeading2)");
+        print_document_error(doc, "ensure_style_linked_numbering");
         return 1;
     }
 

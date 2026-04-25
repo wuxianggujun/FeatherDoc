@@ -54,9 +54,18 @@ cli_*.json
 cli_*.txt
 cli_*_fixture_image.png
 vc140.pdb
+build_*.log
+ctest_*.log
+release_candidate.log
+sync_visual.log
+syntax_*.log
+syntax_*.err
+targeted_direction_language_tests.log
+tmp-word-com.txt
 
 # vim swap files
 **/*.swp
 .ace-tool/
+.codex-temp/
 __pycache__/
 *.py[cod]

@@ -3,6 +3,10 @@ param(
     [string]$FixedGridRegressionRoot = "",
     [string]$SectionPageSetupRegressionRoot = "",
     [string]$PageNumberFieldsRegressionRoot = "",
+    [string]$VisualRegressionBundleRoot = "",
+    [string]$VisualRegressionBundleLabel = "",
+    [string]$VisualRegressionBundleKey = "",
+    [string]$VisualRegressionRefreshCommand = "",
     [ValidateSet("review-only", "review-and-repair")]
     [string]$Mode = "review-only",
     [string]$TaskOutputRoot = "output/word-visual-smoke/tasks",
@@ -47,6 +51,47 @@ function Resolve-DocumentPath {
     }
 
     return $resolved
+}
+
+function Get-OptionalMemberValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object -or [string]::IsNullOrWhiteSpace($Name)) {
+        return ""
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) {
+            return $Object[$Name]
+        }
+
+        return ""
+    }
+
+    if ($Object.PSObject.Properties.Name -contains $Name) {
+        return $Object.$Name
+    }
+
+    return ""
+}
+
+function Resolve-BundleAggregateContactSheetPath {
+    param(
+        [string]$AggregateEvidenceDir,
+        [string]$BundleLabel
+    )
+
+    foreach ($fileName in @("before_after_contact_sheet.png", "contact_sheet.png")) {
+        $candidate = Join-Path $AggregateEvidenceDir $fileName
+        if (Test-Path $candidate) {
+            return (Resolve-Path $candidate).Path
+        }
+    }
+
+    throw "$BundleLabel is incomplete, missing an aggregate contact sheet under: $AggregateEvidenceDir"
 }
 
 function Resolve-FixedGridRegressionBundle {
@@ -202,6 +247,56 @@ function Resolve-PageNumberFieldsRegressionBundle {
         AggregateEvidenceDir = (Resolve-Path $aggregateEvidenceDir).Path
         AggregateContactSheetPath = (Resolve-Path $aggregateContactSheetPath).Path
         AggregateContactSheetsDir = (Resolve-Path $aggregateContactSheetsDir).Path
+    }
+}
+
+function Resolve-VisualRegressionBundle {
+    param(
+        [string]$RepoRoot,
+        [string]$InputPath
+    )
+
+    $resolvedRoot = Resolve-ExistingPath -RepoRoot $RepoRoot -InputPath $InputPath
+    if (-not (Test-Path $resolvedRoot -PathType Container)) {
+        throw "Visual regression bundle root must be a directory: $resolvedRoot"
+    }
+
+    $summaryPath = Join-Path $resolvedRoot "summary.json"
+    $reviewManifestPath = Join-Path $resolvedRoot "review_manifest.json"
+    $reviewChecklistPath = Join-Path $resolvedRoot "review_checklist.md"
+    $finalReviewPath = Join-Path $resolvedRoot "final_review.md"
+    $aggregateEvidenceDir = Join-Path $resolvedRoot "aggregate-evidence"
+
+    foreach ($requiredPath in @($summaryPath, $aggregateEvidenceDir)) {
+        if (-not (Test-Path $requiredPath)) {
+            throw "Visual regression bundle is incomplete, missing: $requiredPath"
+        }
+    }
+
+    $aggregateContactSheetPath = Resolve-BundleAggregateContactSheetPath `
+        -AggregateEvidenceDir $aggregateEvidenceDir `
+        -BundleLabel "Visual regression bundle"
+
+    return [ordered]@{
+        Root = $resolvedRoot
+        SummaryPath = (Resolve-Path $summaryPath).Path
+        ReviewManifestPath = if (Test-Path $reviewManifestPath) {
+            (Resolve-Path $reviewManifestPath).Path
+        } else {
+            ""
+        }
+        ReviewChecklistPath = if (Test-Path $reviewChecklistPath) {
+            (Resolve-Path $reviewChecklistPath).Path
+        } else {
+            ""
+        }
+        FinalReviewPath = if (Test-Path $finalReviewPath) {
+            (Resolve-Path $finalReviewPath).Path
+        } else {
+            ""
+        }
+        AggregateEvidenceDir = (Resolve-Path $aggregateEvidenceDir).Path
+        AggregateContactSheetPath = $aggregateContactSheetPath
     }
 }
 
@@ -369,6 +464,12 @@ function Get-TemplatePath {
         }
         "page-number-fields-regression-bundle|review-and-repair" {
             "task_prompt_page_number_fields_review_and_repair_template.md"
+        }
+        "visual-regression-bundle|review-only" {
+            "task_prompt_visual_regression_bundle_review_only_template.md"
+        }
+        "visual-regression-bundle|review-and-repair" {
+            "task_prompt_visual_regression_bundle_review_and_repair_template.md"
         }
         default {
             throw "Unsupported task source '$SourceKind' and mode '$Mode'."
@@ -660,6 +761,59 @@ function Copy-PageNumberFieldsBundleSupportFiles {
     }
 }
 
+function Copy-VisualRegressionBundleSupportFiles {
+    param(
+        $BundleInfo,
+        [string]$TaskDir,
+        [string]$EvidenceDir,
+        [string]$ReportDir
+    )
+
+    $summaryCopyPath = Join-Path $TaskDir "bundle_summary.json"
+    $aggregateEvidenceCopyDir = Join-Path $EvidenceDir "aggregate-evidence"
+    $aggregateContactSheetCopyPath = Join-Path $aggregateEvidenceCopyDir `
+        ([System.IO.Path]::GetFileName($BundleInfo.AggregateContactSheetPath))
+    $reviewManifestCopyPath = Join-Path $TaskDir "bundle_review_manifest.json"
+    $sourceChecklistCopyPath = Join-Path $ReportDir "source_bundle_review_checklist.md"
+    $sourceFinalReviewCopyPath = Join-Path $ReportDir "source_bundle_final_review.md"
+
+    Copy-PathIfExists -SourcePath $BundleInfo.SummaryPath -DestinationPath $summaryCopyPath | Out-Null
+    Copy-DirectoryContentsIfExists -SourceDir $BundleInfo.AggregateEvidenceDir `
+        -DestinationDir $aggregateEvidenceCopyDir | Out-Null
+    Copy-PathIfExists -SourcePath $BundleInfo.ReviewManifestPath -DestinationPath $reviewManifestCopyPath | Out-Null
+    Copy-PathIfExists -SourcePath $BundleInfo.ReviewChecklistPath -DestinationPath $sourceChecklistCopyPath | Out-Null
+    Copy-PathIfExists -SourcePath $BundleInfo.FinalReviewPath -DestinationPath $sourceFinalReviewCopyPath | Out-Null
+
+    return [ordered]@{
+        SummaryPath = $summaryCopyPath
+        ReviewManifestPath = if (Test-Path $reviewManifestCopyPath) {
+            $reviewManifestCopyPath
+        } else {
+            ""
+        }
+        AggregateEvidenceDir = if (Test-Path $aggregateEvidenceCopyDir) {
+            $aggregateEvidenceCopyDir
+        } else {
+            ""
+        }
+        AggregateContactSheetPath = if (Test-Path $aggregateContactSheetCopyPath) {
+            $aggregateContactSheetCopyPath
+        } else {
+            ""
+        }
+        SourceChecklistPath = if (Test-Path $sourceChecklistCopyPath) {
+            $sourceChecklistCopyPath
+        } else {
+            ""
+        }
+        SourceFinalReviewPath = if (Test-Path $sourceFinalReviewCopyPath) {
+            $sourceFinalReviewCopyPath
+        } else {
+            ""
+        }
+    }
+}
+
 function Write-LatestTaskPointers {
     param(
         [string]$RepoRoot,
@@ -711,20 +865,23 @@ $hasDocxPath = -not [string]::IsNullOrWhiteSpace($DocxPath)
 $hasFixedGridBundle = -not [string]::IsNullOrWhiteSpace($FixedGridRegressionRoot)
 $hasSectionPageSetupBundle = -not [string]::IsNullOrWhiteSpace($SectionPageSetupRegressionRoot)
 $hasPageNumberFieldsBundle = -not [string]::IsNullOrWhiteSpace($PageNumberFieldsRegressionRoot)
+$hasVisualRegressionBundle = -not [string]::IsNullOrWhiteSpace($VisualRegressionBundleRoot)
 
 $selectedSourceCount = (@(
         $hasDocxPath,
         $hasFixedGridBundle,
         $hasSectionPageSetupBundle,
-        $hasPageNumberFieldsBundle
+        $hasPageNumberFieldsBundle,
+        $hasVisualRegressionBundle
     ) |
     Where-Object { $_ } |
     Measure-Object).Count
 if ($selectedSourceCount -ne 1) {
-    throw "Specify exactly one of -DocxPath, -FixedGridRegressionRoot, -SectionPageSetupRegressionRoot, or -PageNumberFieldsRegressionRoot."
+    throw "Specify exactly one of -DocxPath, -FixedGridRegressionRoot, -SectionPageSetupRegressionRoot, -PageNumberFieldsRegressionRoot, or -VisualRegressionBundleRoot."
 }
 
 $sourceKind = ""
+$sourceKindPointerKey = ""
 $sourceLabel = ""
 $sourcePath = ""
 $resolvedDocxPath = ""
@@ -738,6 +895,7 @@ if ($hasDocxPath) {
     $documentName = [System.IO.Path]::GetFileName($resolvedDocxPath)
     $documentStem = [System.IO.Path]::GetFileNameWithoutExtension($resolvedDocxPath)
     $sourceKind = "document"
+    $sourceKindPointerKey = $sourceKind
     $sourceLabel = "Target document"
     $sourcePath = $resolvedDocxPath
     $documentVisualInfo = Resolve-DocumentSourceVisualArtifacts -DocumentPath $resolvedDocxPath
@@ -747,6 +905,7 @@ if ($hasDocxPath) {
     $documentName = [System.IO.Path]::GetFileName($bundleInfo.Root)
     $documentStem = $documentName
     $sourceKind = "fixed-grid-regression-bundle"
+    $sourceKindPointerKey = $sourceKind
     $sourceLabel = "Fixed-grid regression bundle"
     $sourcePath = $bundleInfo.Root
 } elseif ($hasSectionPageSetupBundle) {
@@ -755,15 +914,35 @@ if ($hasDocxPath) {
     $documentName = [System.IO.Path]::GetFileName($bundleInfo.Root)
     $documentStem = $documentName
     $sourceKind = "section-page-setup-regression-bundle"
+    $sourceKindPointerKey = $sourceKind
     $sourceLabel = "Section page setup regression bundle"
     $sourcePath = $bundleInfo.Root
-} else {
+} elseif ($hasPageNumberFieldsBundle) {
     $bundleInfo = Resolve-PageNumberFieldsRegressionBundle -RepoRoot $repoRoot `
         -InputPath $PageNumberFieldsRegressionRoot
     $documentName = [System.IO.Path]::GetFileName($bundleInfo.Root)
     $documentStem = $documentName
     $sourceKind = "page-number-fields-regression-bundle"
+    $sourceKindPointerKey = $sourceKind
     $sourceLabel = "Page number fields regression bundle"
+    $sourcePath = $bundleInfo.Root
+} else {
+    $bundleInfo = Resolve-VisualRegressionBundle -RepoRoot $repoRoot `
+        -InputPath $VisualRegressionBundleRoot
+    $documentName = [System.IO.Path]::GetFileName($bundleInfo.Root)
+    $documentStem = $documentName
+    $sourceKind = "visual-regression-bundle"
+    $sourceKindPointerKey = if ([string]::IsNullOrWhiteSpace($VisualRegressionBundleKey)) {
+        $sourceKind
+    } else {
+        $VisualRegressionBundleKey
+    }
+    $resolvedBundleLabel = if ([string]::IsNullOrWhiteSpace($VisualRegressionBundleLabel)) {
+        "Visual regression"
+    } else {
+        $VisualRegressionBundleLabel
+    }
+    $sourceLabel = "$resolvedBundleLabel bundle"
     $sourcePath = $bundleInfo.Root
 }
 
@@ -813,7 +992,7 @@ $documentRefreshCommand = if ($resolvedDocxPath) {
 } else {
     ""
 }
-$latestTaskPointerPaths = Get-LatestTaskPointerPaths -TaskRoot $taskRoot -SourceKind $sourceKind
+$latestTaskPointerPaths = Get-LatestTaskPointerPaths -TaskRoot $taskRoot -SourceKind $sourceKindPointerKey
 
 if ($sourceKind -eq "document") {
     $documentLocalInfo = Copy-DocumentSupportFiles -DocumentArtifacts $documentVisualInfo `
@@ -848,13 +1027,13 @@ if ($sourceKind -eq "document") {
         $taskRelativeDir, "repair", "fix-01", "bundle-regression").Replace("/", "\")
     $bundleRefreshCommand = @(
         "powershell -ExecutionPolicy Bypass -File"
-        "`"$repoRoot\scripts\run_section_page_setup_regression.ps1`""
+        "`"$repoRoot\scripts\run_section_page_setup_visual_regression.ps1`""
         "-OutputDir"
         "`"$bundleRefreshOutputRelative`""
     ) -join " "
     $bundleRepairCommandExample = @(
         "powershell -ExecutionPolicy Bypass -File"
-        "`"$repoRoot\scripts\run_section_page_setup_regression.ps1`""
+        "`"$repoRoot\scripts\run_section_page_setup_visual_regression.ps1`""
         "-OutputDir"
         "`"$bundleRepairOutputRelativeExample`""
     ) -join " "
@@ -868,16 +1047,20 @@ if ($sourceKind -eq "document") {
         $taskRelativeDir, "repair", "fix-01", "bundle-regression").Replace("/", "\")
     $bundleRefreshCommand = @(
         "powershell -ExecutionPolicy Bypass -File"
-        "`"$repoRoot\scripts\run_page_number_fields_regression.ps1`""
+        "`"$repoRoot\scripts\run_page_number_fields_visual_regression.ps1`""
         "-OutputDir"
         "`"$bundleRefreshOutputRelative`""
     ) -join " "
     $bundleRepairCommandExample = @(
         "powershell -ExecutionPolicy Bypass -File"
-        "`"$repoRoot\scripts\run_page_number_fields_regression.ps1`""
+        "`"$repoRoot\scripts\run_page_number_fields_visual_regression.ps1`""
         "-OutputDir"
         "`"$bundleRepairOutputRelativeExample`""
     ) -join " "
+} elseif ($sourceKind -eq "visual-regression-bundle") {
+    $bundleLocalInfo = Copy-VisualRegressionBundleSupportFiles -BundleInfo $bundleInfo `
+        -TaskDir $taskDir -EvidenceDir $evidenceDir -ReportDir $reportDir
+    $bundleRefreshCommand = $VisualRegressionRefreshCommand
 }
 
 $templateValues = @{
@@ -895,6 +1078,11 @@ $templateValues = @{
     "{{SOURCE_KIND}}" = $sourceKind
     "{{SOURCE_LABEL}}" = $sourceLabel
     "{{SOURCE_PATH}}" = $sourcePath
+    "{{VISUAL_BUNDLE_LABEL}}" = if ([string]::IsNullOrWhiteSpace($VisualRegressionBundleLabel)) {
+        "Visual regression"
+    } else {
+        $VisualRegressionBundleLabel
+    }
     "{{BUNDLE_ROOT}}" = if ($bundleInfo) { $bundleInfo.Root } else { "" }
     "{{TASK_BUNDLE_SUMMARY_PATH}}" = if ($bundleLocalInfo) {
         $bundleLocalInfo.SummaryPath
@@ -908,6 +1096,11 @@ $templateValues = @{
     }
     "{{TASK_BUNDLE_AGGREGATE_CONTACT_SHEET}}" = if ($bundleLocalInfo) {
         $bundleLocalInfo.AggregateContactSheetPath
+    } else {
+        ""
+    }
+    "{{TASK_BUNDLE_AGGREGATE_EVIDENCE_DIR}}" = if ($bundleLocalInfo) {
+        Get-OptionalMemberValue -Object $bundleLocalInfo -Name "AggregateEvidenceDir"
     } else {
         ""
     }
@@ -926,6 +1119,11 @@ $templateValues = @{
     }
     "{{TASK_BUNDLE_SOURCE_CHECKLIST_PATH}}" = if ($bundleLocalInfo) {
         $bundleLocalInfo.SourceChecklistPath
+    } else {
+        ""
+    }
+    "{{TASK_BUNDLE_SOURCE_REVIEW_MANIFEST_PATH}}" = if ($bundleLocalInfo) {
+        $bundleLocalInfo.ReviewManifestPath
     } else {
         ""
     }
@@ -1007,6 +1205,15 @@ if ($bundleInfo) {
         $bundleManifest.source_aggregate_contact_sheets_dir = $bundleInfo.AggregateContactSheetsDir
         $bundleManifest.copied_aggregate_contact_sheets_dir = $bundleLocalInfo.AggregateContactSheetsDir
         $manifest.page_number_fields_bundle = $bundleManifest
+    } elseif ($sourceKind -eq "visual-regression-bundle") {
+        $bundleManifest.label = if ([string]::IsNullOrWhiteSpace($VisualRegressionBundleLabel)) {
+            "Visual regression"
+        } else {
+            $VisualRegressionBundleLabel
+        }
+        $bundleManifest.source_aggregate_evidence_dir = $bundleInfo.AggregateEvidenceDir
+        $bundleManifest.copied_aggregate_evidence_dir = $bundleLocalInfo.AggregateEvidenceDir
+        $manifest.visual_regression_bundle = $bundleManifest
     }
 }
 
@@ -1045,6 +1252,13 @@ $manifest.recommended_next_steps = if ($bundleInfo) {
         @(
             "Open task_prompt.md and send the full contents to the AI agent.",
             "Tell the AI to inspect evidence\aggregate_contact_sheet.png first, then use bundle_review_manifest.json and each case field_summary.json to review the api-sample and cli-append cases.",
+            "If any bundle artifact is missing or stale, tell the AI to rerun: $bundleRefreshCommand",
+            "If the mode is review-and-repair, allow iterative fixes and reruns under repair\fix-XX\bundle-regression."
+        )
+    } elseif ($sourceKind -eq "visual-regression-bundle") {
+        @(
+            "Open task_prompt.md and send the full contents to the AI agent.",
+            "Tell the AI to inspect evidence\aggregate-evidence\ first, then use bundle_summary.json cases[*].expected_visual_cues and visual_artifacts to review each case.",
             "If any bundle artifact is missing or stale, tell the AI to rerun: $bundleRefreshCommand",
             "If the mode is review-and-repair, allow iterative fixes and reruns under repair\fix-XX\bundle-regression."
         )
@@ -1113,7 +1327,13 @@ Write-Host "Review result: $reviewResultPath"
 Write-Host "Final review: $finalReviewPath"
 Write-Host "Repair: $repairDir"
 if ($bundleInfo) {
-    Write-Host "Bundle review manifest copy: $($bundleLocalInfo.ReviewManifestPath)"
+    if (-not [string]::IsNullOrWhiteSpace($bundleLocalInfo.ReviewManifestPath)) {
+        Write-Host "Bundle review manifest copy: $($bundleLocalInfo.ReviewManifestPath)"
+    }
+    $bundleAggregateEvidenceDir = Get-OptionalMemberValue -Object $bundleLocalInfo -Name "AggregateEvidenceDir"
+    if (-not [string]::IsNullOrWhiteSpace($bundleAggregateEvidenceDir)) {
+        Write-Host "Bundle aggregate evidence copy: $bundleAggregateEvidenceDir"
+    }
     Write-Host "Bundle aggregate contact sheet copy: $($bundleLocalInfo.AggregateContactSheetPath)"
 } elseif ($documentLocalInfo) {
     if ($documentLocalInfo.SummaryPath) {

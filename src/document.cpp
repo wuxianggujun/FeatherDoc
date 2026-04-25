@@ -337,6 +337,20 @@ auto find_section_reference(pugi::xml_node section_properties, const char *refer
     return {};
 }
 
+auto read_on_off_value(pugi::xml_node node) -> std::optional<bool> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto attribute = node.attribute("w:val");
+    if (attribute == pugi::xml_attribute{} || attribute.value()[0] == '\0') {
+        return true;
+    }
+
+    const auto value = std::string_view{attribute.value()};
+    return value != "0" && value != "false" && value != "off";
+}
+
 auto append_section_reference(pugi::xml_node section_properties, const char *reference_name)
     -> pugi::xml_node {
     const auto reference_name_view = std::string_view{reference_name};
@@ -2265,6 +2279,169 @@ std::size_t Document::header_count() const noexcept { return this->header_parts.
 
 std::size_t Document::footer_count() const noexcept { return this->footer_parts.size(); }
 
+std::optional<bool> Document::inspect_even_and_odd_headers_enabled() {
+    const auto previous_error = this->last_error_info;
+    if (this->ensure_settings_loaded()) {
+        this->last_error_info = previous_error;
+        return std::nullopt;
+    }
+
+    const auto settings_root = this->settings.child("w:settings");
+    if (settings_root == pugi::xml_node{}) {
+        this->last_error_info = previous_error;
+        return std::nullopt;
+    }
+
+    const auto enabled =
+        read_on_off_value(settings_root.child("w:evenAndOddHeaders")).value_or(false);
+    this->last_error_info = previous_error;
+    return enabled;
+}
+
+featherdoc::sections_inspection_summary Document::inspect_sections() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting sections",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    auto summary = featherdoc::sections_inspection_summary{};
+    summary.section_count = this->section_count();
+    summary.header_count = this->header_count();
+    summary.footer_count = this->footer_count();
+    summary.even_and_odd_headers_enabled = this->inspect_even_and_odd_headers_enabled();
+    summary.sections.reserve(summary.section_count);
+    for (std::size_t section_index = 0U; section_index < summary.section_count;
+         ++section_index) {
+        if (auto section = this->inspect_section(section_index); section.has_value()) {
+            section->even_and_odd_headers_enabled = summary.even_and_odd_headers_enabled;
+            summary.sections.push_back(std::move(*section));
+        }
+    }
+
+    this->last_error_info.clear();
+    return summary;
+}
+
+std::optional<featherdoc::section_inspection_summary>
+Document::inspect_section(std::size_t section_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting sections",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    if (section_index >= this->section_count()) {
+        this->last_error_info.clear();
+        return std::nullopt;
+    }
+
+    auto summary = featherdoc::section_inspection_summary{};
+    summary.index = section_index;
+    summary.even_and_odd_headers_enabled = this->inspect_even_and_odd_headers_enabled();
+    const auto section_properties = this->section_properties(section_index);
+    summary.different_first_page_enabled =
+        read_on_off_value(section_properties.child("w:titlePg")).value_or(false);
+
+    const auto inspect_part =
+        [this, section_index](featherdoc::section_part_inspection_summary &part_summary,
+                              featherdoc::section_reference_kind reference_kind,
+                              std::vector<std::unique_ptr<xml_part_state>> &parts,
+                              const char *reference_name) {
+            const auto *part = this->section_related_part_state(section_index, reference_kind,
+                                                                parts, reference_name);
+            if (reference_kind == featherdoc::section_reference_kind::default_reference) {
+                part_summary.has_default = part != nullptr;
+                if (part != nullptr) {
+                    part_summary.default_entry_name = part->entry_name;
+                }
+                return;
+            }
+
+            if (reference_kind == featherdoc::section_reference_kind::first_page) {
+                part_summary.has_first = part != nullptr;
+                if (part != nullptr) {
+                    part_summary.first_entry_name = part->entry_name;
+                }
+                return;
+            }
+
+            part_summary.has_even = part != nullptr;
+            if (part != nullptr) {
+                part_summary.even_entry_name = part->entry_name;
+            }
+        };
+    const auto inspect_resolved_part =
+        [this, section_index](featherdoc::section_part_inspection_summary &part_summary,
+                              featherdoc::section_reference_kind reference_kind,
+                              std::vector<std::unique_ptr<xml_part_state>> &parts,
+                              const char *reference_name) {
+            for (std::size_t source_section_index = section_index + 1U;
+                 source_section_index > 0U; --source_section_index) {
+                const auto resolved_section_index = source_section_index - 1U;
+                const auto *part =
+                    this->section_related_part_state(resolved_section_index, reference_kind,
+                                                     parts, reference_name);
+                if (part == nullptr) {
+                    continue;
+                }
+
+                const auto linked_to_previous = resolved_section_index != section_index;
+                if (reference_kind ==
+                    featherdoc::section_reference_kind::default_reference) {
+                    part_summary.default_linked_to_previous = linked_to_previous;
+                    part_summary.resolved_default_entry_name = part->entry_name;
+                    part_summary.resolved_default_section_index = resolved_section_index;
+                    return;
+                }
+
+                if (reference_kind == featherdoc::section_reference_kind::first_page) {
+                    part_summary.first_linked_to_previous = linked_to_previous;
+                    part_summary.resolved_first_entry_name = part->entry_name;
+                    part_summary.resolved_first_section_index = resolved_section_index;
+                    return;
+                }
+
+                part_summary.even_linked_to_previous = linked_to_previous;
+                part_summary.resolved_even_entry_name = part->entry_name;
+                part_summary.resolved_even_section_index = resolved_section_index;
+                return;
+            }
+        };
+
+    inspect_part(summary.header, featherdoc::section_reference_kind::default_reference,
+                 this->header_parts, "w:headerReference");
+    inspect_part(summary.header, featherdoc::section_reference_kind::first_page,
+                 this->header_parts, "w:headerReference");
+    inspect_part(summary.header, featherdoc::section_reference_kind::even_page,
+                 this->header_parts, "w:headerReference");
+    inspect_part(summary.footer, featherdoc::section_reference_kind::default_reference,
+                 this->footer_parts, "w:footerReference");
+    inspect_part(summary.footer, featherdoc::section_reference_kind::first_page,
+                 this->footer_parts, "w:footerReference");
+    inspect_part(summary.footer, featherdoc::section_reference_kind::even_page,
+                 this->footer_parts, "w:footerReference");
+    inspect_resolved_part(summary.header,
+                          featherdoc::section_reference_kind::default_reference,
+                          this->header_parts, "w:headerReference");
+    inspect_resolved_part(summary.header, featherdoc::section_reference_kind::first_page,
+                          this->header_parts, "w:headerReference");
+    inspect_resolved_part(summary.header, featherdoc::section_reference_kind::even_page,
+                          this->header_parts, "w:headerReference");
+    inspect_resolved_part(summary.footer,
+                          featherdoc::section_reference_kind::default_reference,
+                          this->footer_parts, "w:footerReference");
+    inspect_resolved_part(summary.footer, featherdoc::section_reference_kind::first_page,
+                          this->footer_parts, "w:footerReference");
+    inspect_resolved_part(summary.footer, featherdoc::section_reference_kind::even_page,
+                          this->footer_parts, "w:footerReference");
+
+    this->last_error_info.clear();
+    return summary;
+}
+
 std::optional<section_page_setup> Document::get_section_page_setup(
     std::size_t section_index) const {
     this->last_error_info.clear();
@@ -3569,6 +3746,92 @@ bool Document::remove_related_part(
     return true;
 }
 
+bool Document::move_related_part(
+    std::size_t source_index, std::size_t target_index,
+    std::vector<std::unique_ptr<xml_part_state>> &parts, const char *relationship_type) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reordering header/footer parts");
+        return false;
+    }
+
+    if (source_index >= parts.size() || target_index >= parts.size()) {
+        set_last_error(this->last_error_info, std::make_error_code(std::errc::invalid_argument),
+                       "header/footer part index is out of range for reordering",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    if (source_index == target_index) {
+        this->last_error_info.clear();
+        return true;
+    }
+
+    auto relationships = this->document_relationships.child("Relationships");
+    if (relationships == pugi::xml_node{} &&
+        !initialize_empty_relationships_document(this->document_relationships)) {
+        set_last_error(this->last_error_info,
+                       document_errc::relationships_xml_parse_failed,
+                       "failed to initialize relationships XML for header/footer reordering",
+                       std::string{document_relationships_xml_entry});
+        return false;
+    }
+    relationships = this->document_relationships.child("Relationships");
+
+    const auto source_relationship_id = parts[source_index]->relationship_id;
+    const auto target_relationship_id = parts[target_index]->relationship_id;
+
+    auto source_relationship = pugi::xml_node{};
+    auto target_relationship = pugi::xml_node{};
+    for (auto relationship = relationships.child("Relationship");
+         relationship != pugi::xml_node{};
+         relationship = relationship.next_sibling("Relationship")) {
+        if (std::string_view{relationship.attribute("Type").value()} != relationship_type) {
+            continue;
+        }
+
+        const auto relationship_id =
+            std::string_view{relationship.attribute("Id").value()};
+        if (relationship_id == source_relationship_id) {
+            source_relationship = relationship;
+        } else if (relationship_id == target_relationship_id) {
+            target_relationship = relationship;
+        }
+    }
+
+    if (source_relationship == pugi::xml_node{} ||
+        target_relationship == pugi::xml_node{}) {
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            "failed to resolve the requested header/footer relationship in document.xml.rels",
+            std::string{document_relationships_xml_entry});
+        return false;
+    }
+
+    const auto moved_relationship =
+        source_index < target_index
+            ? relationships.insert_move_after(source_relationship, target_relationship)
+            : relationships.insert_move_before(source_relationship, target_relationship);
+    if (moved_relationship == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to reorder the requested header/footer relationship",
+                       std::string{document_relationships_xml_entry});
+        return false;
+    }
+
+    auto moved_part = std::move(parts[source_index]);
+    parts.erase(parts.begin() + static_cast<std::ptrdiff_t>(source_index));
+    parts.insert(parts.begin() + static_cast<std::ptrdiff_t>(target_index),
+                 std::move(moved_part));
+
+    this->has_document_relationships_part = true;
+    this->document_relationships_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::copy_section_related_part_references(
     std::size_t source_section_index, std::size_t target_section_index,
     const char *reference_name) {
@@ -3735,6 +3998,16 @@ bool Document::remove_header_part(std::size_t index) {
 
 bool Document::remove_footer_part(std::size_t index) {
     return this->remove_related_part(index, this->footer_parts, "w:footerReference");
+}
+
+bool Document::move_header_part(std::size_t source_index, std::size_t target_index) {
+    return this->move_related_part(source_index, target_index, this->header_parts,
+                                   header_relationship_type.data());
+}
+
+bool Document::move_footer_part(std::size_t source_index, std::size_t target_index) {
+    return this->move_related_part(source_index, target_index, this->footer_parts,
+                                   footer_relationship_type.data());
 }
 
 bool Document::copy_section_header_references(std::size_t source_section_index,

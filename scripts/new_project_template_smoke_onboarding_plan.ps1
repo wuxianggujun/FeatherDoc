@@ -1,0 +1,427 @@
+<#
+.SYNOPSIS
+Creates an onboarding plan for unregistered project-template-smoke DOCX/DOTX candidates.
+
+.DESCRIPTION
+Runs the repository template-candidate discovery pass, then writes a JSON and
+Markdown plan with ready-to-run commands for freezing schema baselines,
+registering project-template-smoke manifest entries, running the smoke harness,
+and enforcing strict release-preflight coverage.
+
+The script is intentionally non-mutating for the manifest and schema baselines:
+it only writes plan artifacts under OutputDir. Review the generated plan, then
+run the listed commands when each template is ready to become a real regression
+target.
+#>
+param(
+    [string]$ManifestPath = "samples/project_template_smoke.manifest.json",
+    [string]$SearchRoot = ".",
+    [string]$BuildDir = "",
+    [string]$OutputDir = "output/project-template-smoke-onboarding-plan",
+    [string]$SchemaBaselineDir = "baselines/template-schema",
+    [string]$VisualSmokeOutputRoot = "output/project-template-smoke",
+    [ValidateSet("default", "section-targets", "resolved-section-targets")]
+    [string]$SchemaTargetMode = "default",
+    [switch]$IncludeGenerated
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+. (Join-Path $PSScriptRoot "project_template_smoke_manifest_common.ps1")
+
+function Write-Step {
+    param([string]$Message)
+    Write-Host "[project-template-smoke-onboard] $Message"
+}
+
+function Resolve-RepoRoot {
+    return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+}
+
+function Resolve-RepoPath {
+    param(
+        [string]$RepoRoot,
+        [string]$InputPath,
+        [switch]$AllowMissing
+    )
+
+    return Resolve-ProjectTemplateSmokePath `
+        -RepoRoot $RepoRoot `
+        -InputPath $InputPath `
+        -AllowMissing:$AllowMissing
+}
+
+function Get-RepoRelativeDisplayPath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return ""
+    }
+
+    $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if ($resolvedPath.StartsWith($resolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $resolvedPath.Substring($resolvedRepoRoot.Length).TrimStart('\', '/')
+        if ([string]::IsNullOrWhiteSpace($relative)) {
+            return "."
+        }
+
+        return ".\" + ($relative -replace '/', '\')
+    }
+
+    return $resolvedPath
+}
+
+function Quote-CommandValue {
+    param([string]$Value)
+
+    return '"' + ($Value -replace '"', '\"') + '"'
+}
+
+function Get-CommandPath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    $displayPath = Get-RepoRelativeDisplayPath -RepoRoot $RepoRoot -Path $Path
+    if ([string]::IsNullOrWhiteSpace($displayPath)) {
+        return ""
+    }
+
+    return $displayPath
+}
+
+function Join-Command {
+    param([string[]]$Parts)
+
+    return ($Parts | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
+}
+
+function Get-FreezeSchemaModeFlag {
+    param([string]$Mode)
+
+    switch ($Mode) {
+        "section-targets" { return "-SectionTargets" }
+        "resolved-section-targets" { return "-ResolvedSectionTargets" }
+        default { return "" }
+    }
+}
+
+function New-FreezeSchemaCommand {
+    param(
+        [string]$RepoRoot,
+        [string]$InputDocx,
+        [string]$SchemaOutput,
+        [string]$BuildDir,
+        [string]$SchemaTargetMode
+    )
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    $parts.Add("pwsh") | Out-Null
+    $parts.Add("-ExecutionPolicy Bypass") | Out-Null
+    $parts.Add("-File .\scripts\freeze_template_schema_baseline.ps1") | Out-Null
+    $parts.Add("-InputDocx") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $InputDocx))) | Out-Null
+    $parts.Add("-SchemaOutput") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $SchemaOutput))) | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace($BuildDir)) {
+        $parts.Add("-SkipBuild") | Out-Null
+        $parts.Add("-BuildDir") | Out-Null
+        $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $BuildDir))) | Out-Null
+    }
+    $modeFlag = Get-FreezeSchemaModeFlag -Mode $SchemaTargetMode
+    if (-not [string]::IsNullOrWhiteSpace($modeFlag)) {
+        $parts.Add($modeFlag) | Out-Null
+    }
+
+    return Join-Command -Parts $parts.ToArray()
+}
+
+function New-RegisterCommand {
+    param(
+        [string]$RepoRoot,
+        [string]$Name,
+        [string]$ManifestPath,
+        [string]$InputDocx,
+        [string]$SchemaFile,
+        [string]$GeneratedSchemaOutput,
+        [string]$VisualSmokeOutputDir,
+        [string]$SchemaTargetMode
+    )
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    $parts.Add("pwsh") | Out-Null
+    $parts.Add("-ExecutionPolicy Bypass") | Out-Null
+    $parts.Add("-File .\scripts\register_project_template_smoke_manifest_entry.ps1") | Out-Null
+    $parts.Add("-Name") | Out-Null
+    $parts.Add((Quote-CommandValue -Value $Name)) | Out-Null
+    $parts.Add("-ManifestPath") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $ManifestPath))) | Out-Null
+    $parts.Add("-InputDocx") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $InputDocx))) | Out-Null
+    $parts.Add("-SchemaValidationFile") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $SchemaFile))) | Out-Null
+    $parts.Add("-SchemaBaselineFile") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $SchemaFile))) | Out-Null
+    $parts.Add("-SchemaBaselineTargetMode") | Out-Null
+    $parts.Add((Quote-CommandValue -Value $SchemaTargetMode)) | Out-Null
+    $parts.Add("-SchemaBaselineGeneratedOutput") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $GeneratedSchemaOutput))) | Out-Null
+    $parts.Add("-VisualSmokeOutputDir") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $VisualSmokeOutputDir))) | Out-Null
+    $parts.Add("-ReplaceExisting") | Out-Null
+
+    return Join-Command -Parts $parts.ToArray()
+}
+
+function New-CheckManifestCommand {
+    param(
+        [string]$RepoRoot,
+        [string]$ManifestPath,
+        [string]$BuildDir
+    )
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    $parts.Add("pwsh") | Out-Null
+    $parts.Add("-ExecutionPolicy Bypass") | Out-Null
+    $parts.Add("-File .\scripts\check_project_template_smoke_manifest.ps1") | Out-Null
+    $parts.Add("-ManifestPath") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $ManifestPath))) | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace($BuildDir)) {
+        $parts.Add("-BuildDir") | Out-Null
+        $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $BuildDir))) | Out-Null
+    }
+    $parts.Add("-CheckPaths") | Out-Null
+
+    return Join-Command -Parts $parts.ToArray()
+}
+
+function New-RunSmokeCommand {
+    param(
+        [string]$RepoRoot,
+        [string]$ManifestPath,
+        [string]$BuildDir,
+        [string]$OutputDir
+    )
+
+    $smokeOutputDir = Join-Path $OutputDir "smoke"
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    $parts.Add("pwsh") | Out-Null
+    $parts.Add("-ExecutionPolicy Bypass") | Out-Null
+    $parts.Add("-File .\scripts\run_project_template_smoke.ps1") | Out-Null
+    $parts.Add("-ManifestPath") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $ManifestPath))) | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace($BuildDir)) {
+        $parts.Add("-BuildDir") | Out-Null
+        $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $BuildDir))) | Out-Null
+        $parts.Add("-SkipBuild") | Out-Null
+    }
+    $parts.Add("-OutputDir") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $smokeOutputDir))) | Out-Null
+
+    return Join-Command -Parts $parts.ToArray()
+}
+
+function New-StrictPreflightCommand {
+    param(
+        [string]$RepoRoot,
+        [string]$ManifestPath,
+        [string]$BuildDir
+    )
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    $parts.Add("pwsh") | Out-Null
+    $parts.Add("-ExecutionPolicy Bypass") | Out-Null
+    $parts.Add("-File .\scripts\run_release_candidate_checks.ps1") | Out-Null
+    $parts.Add("-ProjectTemplateSmokeManifestPath") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $ManifestPath))) | Out-Null
+    $parts.Add("-ProjectTemplateSmokeRequireFullCoverage") | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace($BuildDir)) {
+        $parts.Add("-BuildDir") | Out-Null
+        $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $BuildDir))) | Out-Null
+    }
+
+    return Join-Command -Parts $parts.ToArray()
+}
+
+$repoRoot = Resolve-RepoRoot
+$resolvedManifestPath = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $ManifestPath
+$resolvedSearchRoot = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $SearchRoot
+$resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir -AllowMissing
+$resolvedSchemaBaselineDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $SchemaBaselineDir -AllowMissing
+$resolvedVisualSmokeOutputRoot = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $VisualSmokeOutputRoot -AllowMissing
+$resolvedBuildDir = if ([string]::IsNullOrWhiteSpace($BuildDir)) {
+    ""
+} else {
+    Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir -AllowMissing
+}
+
+New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
+
+$candidateDiscoveryPath = Join-Path $resolvedOutputDir "candidate_discovery.json"
+$planJsonPath = Join-Path $resolvedOutputDir "plan.json"
+$planMarkdownPath = Join-Path $resolvedOutputDir "plan.md"
+$discoverScript = Join-Path $repoRoot "scripts\discover_project_template_smoke_candidates.ps1"
+
+$discoverArgs = @(
+    "-ManifestPath"
+    $resolvedManifestPath
+    "-SearchRoot"
+    $resolvedSearchRoot
+    "-OutputPath"
+    $candidateDiscoveryPath
+    "-Json"
+    "-IncludeRegistered"
+    "-IncludeExcluded"
+)
+if (-not [string]::IsNullOrWhiteSpace($resolvedBuildDir)) {
+    $discoverArgs += @("-BuildDir", $resolvedBuildDir)
+}
+if ($IncludeGenerated) {
+    $discoverArgs += "-IncludeGenerated"
+}
+
+Write-Step "Discovering template candidates"
+$discoverOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $discoverScript @discoverArgs 2>&1)
+$discoverExitCode = $LASTEXITCODE
+foreach ($line in $discoverOutput) {
+    Write-Host $line
+}
+if ($discoverExitCode -ne 0) {
+    throw "Template candidate discovery failed."
+}
+
+$candidateDiscovery = Get-Content -Raw -LiteralPath $candidateDiscoveryPath | ConvertFrom-Json
+$unregisteredCandidates = @(
+    $candidateDiscovery.candidates |
+        Where-Object { -not $_.registered -and -not $_.excluded }
+)
+
+$entries = New-Object 'System.Collections.Generic.List[object]'
+foreach ($candidate in $unregisteredCandidates) {
+    $entryName = [string]$candidate.suggested_name
+    if ([string]::IsNullOrWhiteSpace($entryName)) {
+        $entryName = [System.IO.Path]::GetFileNameWithoutExtension([string]$candidate.file_name)
+    }
+
+    $inputDocx = [string]$candidate.path
+    $schemaBaselinePath = Join-Path $resolvedSchemaBaselineDir ("{0}.schema.json" -f $entryName)
+    $generatedSchemaOutput = Join-Path $resolvedOutputDir ("{0}.generated.schema.json" -f $entryName)
+    $visualSmokeOutputDir = Join-Path $resolvedVisualSmokeOutputRoot ("{0}-visual" -f $entryName)
+
+    $entries.Add([pscustomobject]@{
+        name = $entryName
+        input_docx = $inputDocx
+        input_docx_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $inputDocx
+        schema_baseline = $schemaBaselinePath
+        schema_baseline_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $schemaBaselinePath
+        generated_schema_output = $generatedSchemaOutput
+        generated_schema_output_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $generatedSchemaOutput
+        visual_smoke_output_dir = $visualSmokeOutputDir
+        visual_smoke_output_dir_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $visualSmokeOutputDir
+        commands = [ordered]@{
+            freeze_schema_baseline = New-FreezeSchemaCommand `
+                -RepoRoot $repoRoot `
+                -InputDocx $inputDocx `
+                -SchemaOutput $schemaBaselinePath `
+                -BuildDir $resolvedBuildDir `
+                -SchemaTargetMode $SchemaTargetMode
+            register_manifest_entry = New-RegisterCommand `
+                -RepoRoot $repoRoot `
+                -Name $entryName `
+                -ManifestPath $resolvedManifestPath `
+                -InputDocx $inputDocx `
+                -SchemaFile $schemaBaselinePath `
+                -GeneratedSchemaOutput $generatedSchemaOutput `
+                -VisualSmokeOutputDir $visualSmokeOutputDir `
+                -SchemaTargetMode $SchemaTargetMode
+        }
+    }) | Out-Null
+}
+
+$plan = [ordered]@{
+    generated_at = (Get-Date).ToString("s")
+    manifest_path = $resolvedManifestPath
+    manifest_path_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedManifestPath
+    search_root = $resolvedSearchRoot
+    search_root_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSearchRoot
+    build_dir = $resolvedBuildDir
+    build_dir_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedBuildDir
+    output_dir = $resolvedOutputDir
+    output_dir_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedOutputDir
+    schema_baseline_dir = $resolvedSchemaBaselineDir
+    schema_baseline_dir_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSchemaBaselineDir
+    visual_smoke_output_root = $resolvedVisualSmokeOutputRoot
+    visual_smoke_output_root_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedVisualSmokeOutputRoot
+    schema_target_mode = $SchemaTargetMode
+    candidate_discovery_json = $candidateDiscoveryPath
+    candidate_discovery_json_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $candidateDiscoveryPath
+    registered_candidate_count = [int]$candidateDiscovery.registered_candidate_count
+    unregistered_candidate_count = [int]$candidateDiscovery.unregistered_candidate_count
+    excluded_candidate_count = [int]$candidateDiscovery.excluded_candidate_count
+    onboarding_entry_count = $entries.Count
+    entries = $entries.ToArray()
+    commands = [ordered]@{
+        check_manifest = New-CheckManifestCommand -RepoRoot $repoRoot -ManifestPath $resolvedManifestPath -BuildDir $resolvedBuildDir
+        run_project_template_smoke = New-RunSmokeCommand -RepoRoot $repoRoot -ManifestPath $resolvedManifestPath -BuildDir $resolvedBuildDir -OutputDir $resolvedOutputDir
+        strict_release_preflight = New-StrictPreflightCommand -RepoRoot $repoRoot -ManifestPath $resolvedManifestPath -BuildDir $resolvedBuildDir
+    }
+}
+
+($plan | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $planJsonPath -Encoding UTF8
+
+$lines = New-Object 'System.Collections.Generic.List[string]'
+[void]$lines.Add("# Project Template Smoke Onboarding Plan")
+[void]$lines.Add("")
+[void]$lines.Add("- Generated at: $($plan.generated_at)")
+[void]$lines.Add("- Manifest: $($plan.manifest_path_display)")
+[void]$lines.Add("- Search root: $($plan.search_root_display)")
+[void]$lines.Add("- Candidate discovery JSON: $($plan.candidate_discovery_json_display)")
+[void]$lines.Add("- Registered / unregistered / excluded candidates: $($plan.registered_candidate_count)/$($plan.unregistered_candidate_count)/$($plan.excluded_candidate_count)")
+[void]$lines.Add("- Onboarding entries to add: $($plan.onboarding_entry_count)")
+[void]$lines.Add("- Schema target mode: $($plan.schema_target_mode)")
+[void]$lines.Add("")
+[void]$lines.Add("## Entry Commands")
+[void]$lines.Add("")
+if ($entries.Count -eq 0) {
+    [void]$lines.Add("- No unregistered DOCX/DOTX candidates require onboarding.")
+    [void]$lines.Add("")
+} else {
+    foreach ($entry in $entries) {
+        [void]$lines.Add("### $($entry.name)")
+        [void]$lines.Add("")
+        [void]$lines.Add("- Input DOCX: $($entry.input_docx_display)")
+        [void]$lines.Add("- Schema baseline: $($entry.schema_baseline_display)")
+        [void]$lines.Add("- Generated schema output: $($entry.generated_schema_output_display)")
+        [void]$lines.Add("- Visual smoke output dir: $($entry.visual_smoke_output_dir_display)")
+        [void]$lines.Add("")
+        [void]$lines.Add('```powershell')
+        [void]$lines.Add($entry.commands.freeze_schema_baseline)
+        [void]$lines.Add($entry.commands.register_manifest_entry)
+        [void]$lines.Add('```')
+        [void]$lines.Add("")
+    }
+}
+
+[void]$lines.Add("## Final Checks")
+[void]$lines.Add("")
+[void]$lines.Add("Run these after reviewing and executing the entry commands above:")
+[void]$lines.Add("")
+[void]$lines.Add('```powershell')
+[void]$lines.Add($plan.commands.check_manifest)
+[void]$lines.Add($plan.commands.run_project_template_smoke)
+[void]$lines.Add($plan.commands.strict_release_preflight)
+[void]$lines.Add('```')
+[void]$lines.Add("")
+[void]$lines.Add('If a tracked DOCX/DOTX file is intentionally not a project template, add it to `candidate_exclusions` in the manifest instead of registering it.')
+
+($lines -join [Environment]::NewLine) | Set-Content -LiteralPath $planMarkdownPath -Encoding UTF8
+
+Write-Step "Plan JSON: $planJsonPath"
+Write-Step "Plan Markdown: $planMarkdownPath"
+Write-Step "Onboarding entries: $($entries.Count)"

@@ -326,6 +326,140 @@ auto read_paragraph_bidi(pugi::xml_node paragraph_properties) -> std::optional<b
     return read_on_off_value(paragraph_properties.child("w:bidi"));
 }
 
+auto read_paragraph_style_id(pugi::xml_node paragraph_properties) -> std::optional<std::string> {
+    return read_language_attribute(paragraph_properties.child("w:pStyle"), "w:val");
+}
+
+auto parse_u32_attribute_value(const char *text) -> std::optional<std::uint32_t>;
+
+auto summarize_paragraph_numbering(pugi::xml_node paragraph_properties)
+    -> std::optional<featherdoc::paragraph_inspection_summary::numbering_summary> {
+    const auto numbering_properties = paragraph_properties.child("w:numPr");
+    if (numbering_properties == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    auto summary = featherdoc::paragraph_inspection_summary::numbering_summary{};
+    summary.level = parse_u32_attribute_value(
+        numbering_properties.child("w:ilvl").attribute("w:val").value());
+    summary.num_id = parse_u32_attribute_value(
+        numbering_properties.child("w:numId").attribute("w:val").value());
+    return summary;
+}
+
+auto summarize_paragraph_node(pugi::xml_node paragraph_node, std::size_t paragraph_index)
+    -> featherdoc::paragraph_inspection_summary {
+    auto summary = featherdoc::paragraph_inspection_summary{};
+    summary.index = paragraph_index;
+
+    const auto paragraph_properties = paragraph_node.child("w:pPr");
+    summary.style_id = read_paragraph_style_id(paragraph_properties);
+    summary.bidi = read_paragraph_bidi(paragraph_properties);
+    summary.numbering = summarize_paragraph_numbering(paragraph_properties);
+
+    auto paragraph_handle = featherdoc::Paragraph{paragraph_node.parent(), paragraph_node};
+    for (auto run = paragraph_handle.runs(); run.has_next(); run.next()) {
+        ++summary.run_count;
+        summary.text += run.get_text();
+    }
+
+    return summary;
+}
+
+auto summarize_table_handle(featherdoc::Table table_handle, std::size_t table_index)
+    -> featherdoc::table_inspection_summary {
+    auto summary = featherdoc::table_inspection_summary{};
+    summary.index = table_index;
+    summary.style_id = table_handle.style_id();
+    summary.width_twips = table_handle.width_twips();
+
+    bool first_row = true;
+    for (auto row = table_handle.rows(); row.has_next(); row.next()) {
+        ++summary.row_count;
+
+        std::size_t row_column_count = 0U;
+        bool first_cell = true;
+        for (auto cell = row.cells(); cell.has_next(); cell.next()) {
+            row_column_count += cell.column_span();
+
+            if (!first_row) {
+                if (first_cell) {
+                    summary.text.push_back('\n');
+                } else {
+                    summary.text.push_back('\t');
+                }
+            } else if (!first_cell) {
+                summary.text.push_back('\t');
+            }
+
+            summary.text += cell.get_text();
+            first_cell = false;
+        }
+
+        summary.column_count = std::max(summary.column_count, row_column_count);
+        first_row = false;
+    }
+
+    summary.column_widths.reserve(summary.column_count);
+    for (std::size_t column_index = 0U; column_index < summary.column_count; ++column_index) {
+        summary.column_widths.push_back(table_handle.column_width_twips(column_index));
+    }
+
+    return summary;
+}
+
+auto summarize_table_cell_handle(featherdoc::TableCell cell_handle, std::size_t row_index,
+                                 std::size_t cell_index, std::size_t column_index)
+    -> featherdoc::table_cell_inspection_summary {
+    auto summary = featherdoc::table_cell_inspection_summary{};
+    summary.row_index = row_index;
+    summary.cell_index = cell_index;
+    summary.column_index = column_index;
+    summary.column_span = cell_handle.column_span();
+    summary.width_twips = cell_handle.width_twips();
+    summary.vertical_alignment = cell_handle.vertical_alignment();
+    summary.text_direction = cell_handle.text_direction();
+    summary.text = cell_handle.get_text();
+
+    for (auto paragraph = cell_handle.paragraphs(); paragraph.has_next(); paragraph.next()) {
+        ++summary.paragraph_count;
+    }
+
+    return summary;
+}
+
+auto collect_table_cell_summaries(featherdoc::Table table_handle)
+    -> std::vector<featherdoc::table_cell_inspection_summary> {
+    auto summaries = std::vector<featherdoc::table_cell_inspection_summary>{};
+    auto row = table_handle.rows();
+    for (std::size_t row_index = 0U; row.has_next(); ++row_index, row.next()) {
+        std::size_t column_index = 0U;
+        auto cell = row.cells();
+        for (std::size_t cell_index = 0U; cell.has_next(); ++cell_index, cell.next()) {
+            auto summary = summarize_table_cell_handle(cell, row_index, cell_index, column_index);
+            column_index += summary.column_span;
+            summaries.push_back(std::move(summary));
+        }
+    }
+
+    return summaries;
+}
+
+auto summarize_run_handle(const featherdoc::Run &run_handle, std::size_t run_index)
+    -> featherdoc::run_inspection_summary {
+    auto summary = featherdoc::run_inspection_summary{};
+    summary.index = run_index;
+    summary.text = run_handle.get_text();
+    summary.style_id = run_handle.style_id();
+    summary.font_family = run_handle.font_family();
+    summary.east_asia_font_family = run_handle.east_asia_font_family();
+    summary.language = run_handle.language();
+    summary.east_asia_language = run_handle.east_asia_language();
+    summary.bidi_language = run_handle.bidi_language();
+    summary.rtl = run_handle.rtl();
+    return summary;
+}
+
 auto ensure_paragraph_properties_node(pugi::xml_node paragraph) -> pugi::xml_node {
     if (paragraph == pugi::xml_node{}) {
         return {};
@@ -696,6 +830,85 @@ auto find_style_node(pugi::xml_node styles_root, std::string_view style_id) -> p
     return {};
 }
 
+auto style_node_id(pugi::xml_node style) -> std::string_view {
+    return style.attribute("w:styleId").value();
+}
+
+auto build_style_inheritance_chain(pugi::xml_node styles_root, pugi::xml_node style,
+                                   featherdoc::document_error_info &last_error_info,
+                                   std::vector<pugi::xml_node> &chain)
+    -> bool {
+    chain.clear();
+    while (style != pugi::xml_node{}) {
+        const auto current_style_id = style_node_id(style);
+        for (const auto &visited_style : chain) {
+            if (style_node_id(visited_style) == current_style_id) {
+                set_last_error(last_error_info,
+                               std::make_error_code(std::errc::invalid_argument),
+                               "style inheritance cycle detected at style '" +
+                                   std::string{current_style_id} + "'",
+                               std::string{styles_xml_entry});
+                return false;
+            }
+        }
+
+        chain.push_back(style);
+
+        const auto based_on =
+            std::string_view{style.child("w:basedOn").attribute("w:val").value()};
+        if (based_on.empty()) {
+            return true;
+        }
+
+        const auto parent_style = find_style_node(styles_root, based_on);
+        if (parent_style == pugi::xml_node{}) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "style id '" + std::string{current_style_id} +
+                               "' references missing basedOn style '" +
+                               std::string{based_on} + "'",
+                           std::string{styles_xml_entry});
+            return false;
+        }
+
+        style = parent_style;
+    }
+
+    return true;
+}
+
+template <typename Reader>
+auto resolve_style_string_property(const std::vector<pugi::xml_node> &chain,
+                                   Reader &&reader)
+    -> featherdoc::resolved_style_string_property {
+    for (const auto &style : chain) {
+        if (const auto value = reader(style); value.has_value()) {
+            featherdoc::resolved_style_string_property property{};
+            property.value = value;
+            property.source_style_id = std::string{style_node_id(style)};
+            return property;
+        }
+    }
+
+    return {};
+}
+
+template <typename Reader>
+auto resolve_style_bool_property(const std::vector<pugi::xml_node> &chain,
+                                 Reader &&reader)
+    -> featherdoc::resolved_style_bool_property {
+    for (const auto &style : chain) {
+        if (const auto value = reader(style); value.has_value()) {
+            featherdoc::resolved_style_bool_property property{};
+            property.value = value;
+            property.source_style_id = std::string{style_node_id(style)};
+            return property;
+        }
+    }
+
+    return {};
+}
+
 auto read_on_off_attribute(pugi::xml_node node, const char *attribute_name) -> bool {
     if (node == pugi::xml_node{}) {
         return false;
@@ -996,6 +1209,22 @@ auto clear_font_family_attributes(pugi::xml_node run_properties) -> bool {
     return removed;
 }
 
+auto clear_font_family_attribute(pugi::xml_node run_properties,
+                                 const char *attribute_name) -> bool {
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto run_fonts = run_properties.child("w:rFonts");
+    if (run_fonts == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto removed = run_fonts.remove_attribute(attribute_name);
+    remove_empty_run_fonts_node(run_properties);
+    return removed;
+}
+
 auto clear_language_attributes(pugi::xml_node run_properties) -> bool {
     if (run_properties == pugi::xml_node{}) {
         return false;
@@ -1010,6 +1239,22 @@ auto clear_language_attributes(pugi::xml_node run_properties) -> bool {
     removed = run_language.remove_attribute("w:val") || removed;
     removed = run_language.remove_attribute("w:eastAsia") || removed;
     removed = run_language.remove_attribute("w:bidi") || removed;
+    remove_empty_run_language_node(run_properties);
+    return removed;
+}
+
+auto clear_language_attribute(pugi::xml_node run_properties,
+                              const char *attribute_name) -> bool {
+    if (run_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto run_language = run_properties.child("w:lang");
+    if (run_language == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto removed = run_language.remove_attribute(attribute_name);
     remove_empty_run_language_node(run_properties);
     return removed;
 }
@@ -1543,6 +1788,87 @@ std::optional<featherdoc::style_summary> Document::find_style(std::string_view s
             summary.numbering->instance = lookup->instance;
         }
     }
+
+    this->last_error_info.clear();
+    return summary;
+}
+
+std::optional<featherdoc::resolved_style_properties_summary> Document::resolve_style_properties(
+    std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before resolving style properties",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when resolving style properties",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    std::vector<pugi::xml_node> chain;
+    if (!build_style_inheritance_chain(styles_root, style, this->last_error_info, chain)) {
+        return std::nullopt;
+    }
+
+    featherdoc::resolved_style_properties_summary summary{};
+    summary.style_id = std::string{style_id};
+    summary.type_name = style.attribute("w:type").value();
+    summary.kind = decode_style_kind(summary.type_name);
+    if (const auto based_on = style.child("w:basedOn").attribute("w:val");
+        based_on != pugi::xml_attribute{} && based_on.value()[0] != '\0') {
+        summary.based_on = std::string{based_on.value()};
+    }
+
+    summary.inheritance_chain.reserve(chain.size());
+    for (const auto &visited_style : chain) {
+        summary.inheritance_chain.emplace_back(std::string{style_node_id(visited_style)});
+    }
+
+    summary.run_font_family = resolve_style_string_property(
+        chain, [](pugi::xml_node node) { return read_primary_font_family(node.child("w:rPr")); });
+    summary.run_east_asia_font_family =
+        resolve_style_string_property(chain, [](pugi::xml_node node) {
+            return read_east_asia_font_family(node.child("w:rPr"));
+        });
+    summary.run_language = resolve_style_string_property(
+        chain, [](pugi::xml_node node) { return read_primary_language(node.child("w:rPr")); });
+    summary.run_east_asia_language =
+        resolve_style_string_property(chain, [](pugi::xml_node node) {
+            return read_east_asia_language(node.child("w:rPr"));
+        });
+    summary.run_bidi_language = resolve_style_string_property(
+        chain, [](pugi::xml_node node) { return read_bidi_language(node.child("w:rPr")); });
+    summary.run_rtl = resolve_style_bool_property(
+        chain, [](pugi::xml_node node) { return read_run_rtl(node.child("w:rPr")); });
+    summary.paragraph_bidi = resolve_style_bool_property(
+        chain, [](pugi::xml_node node) { return read_paragraph_bidi(node.child("w:pPr")); });
 
     this->last_error_info.clear();
     return summary;
@@ -2591,6 +2917,65 @@ bool Document::clear_default_run_font_family() {
     return true;
 }
 
+bool Document::clear_default_run_east_asia_font_family() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run fonts");
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_font_family_attribute(
+            styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"),
+            "w:eastAsia")) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_default_run_primary_language() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_language_attribute(
+            styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"),
+            "w:val")) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::clear_default_run_language() {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
@@ -2613,6 +2998,66 @@ bool Document::clear_default_run_language() {
 
     if (clear_language_attributes(
             styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"))) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_default_run_east_asia_language() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_language_attribute(
+            styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"),
+            "w:eastAsia")) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_default_run_bidi_language() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing default run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (clear_language_attribute(
+            styles_root.child("w:docDefaults").child("w:rPrDefault").child("w:rPr"),
+            "w:bidi")) {
         this->styles_dirty = true;
     }
 
@@ -2970,6 +3415,970 @@ std::optional<bool> Document::style_paragraph_bidi(std::string_view style_id) {
 
     this->last_error_info.clear();
     return read_paragraph_bidi(style.child("w:pPr"));
+}
+
+std::optional<std::string> Document::paragraph_style_next_style(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading paragraph style next style",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when reading paragraph style next style",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "paragraph") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a paragraph style",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto next = style.child("w:next").attribute("w:val");
+        next != pugi::xml_attribute{} && next.value()[0] != '\0') {
+        this->last_error_info.clear();
+        return std::string{next.value()};
+    }
+
+    this->last_error_info.clear();
+    return std::nullopt;
+}
+
+std::optional<std::uint32_t> Document::paragraph_style_outline_level(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading paragraph style outline level",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when reading paragraph style outline level",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "paragraph") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a paragraph style",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    this->last_error_info.clear();
+    return parse_u32_attribute_value(
+        style.child("w:pPr").child("w:outlineLvl").attribute("w:val").value());
+}
+
+bool Document::materialize_style_run_properties(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before materializing style run properties",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when materializing style run properties",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto resolved = this->resolve_style_properties(style_id);
+    if (!resolved.has_value()) {
+        return false;
+    }
+
+    if (resolved->kind != featherdoc::style_kind::paragraph &&
+        resolved->kind != featherdoc::style_kind::character) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' with type '" +
+                           resolved->type_name +
+                           "' does not support style run property materialization",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto style_id_string = std::string{style_id};
+    const auto materialize_string = [&](const featherdoc::resolved_style_string_property &property,
+                                        auto setter) -> bool {
+        if (!property.value.has_value() || !property.source_style_id.has_value() ||
+            *property.source_style_id == style_id_string) {
+            return true;
+        }
+
+        return (this->*setter)(style_id_string, *property.value);
+    };
+
+    const auto materialize_bool = [&](const featherdoc::resolved_style_bool_property &property,
+                                      auto setter) -> bool {
+        if (!property.value.has_value() || !property.source_style_id.has_value() ||
+            *property.source_style_id == style_id_string) {
+            return true;
+        }
+
+        return (this->*setter)(style_id_string, *property.value);
+    };
+
+    if (!materialize_string(resolved->run_font_family,
+                            &Document::set_style_run_font_family) ||
+        !materialize_string(resolved->run_east_asia_font_family,
+                            &Document::set_style_run_east_asia_font_family) ||
+        !materialize_string(resolved->run_language,
+                            &Document::set_style_run_language) ||
+        !materialize_string(resolved->run_east_asia_language,
+                            &Document::set_style_run_east_asia_language) ||
+        !materialize_string(resolved->run_bidi_language,
+                            &Document::set_style_run_bidi_language) ||
+        !materialize_bool(resolved->run_rtl, &Document::set_style_run_rtl)) {
+        return false;
+    }
+
+    if (resolved->kind == featherdoc::style_kind::paragraph &&
+        !materialize_bool(resolved->paragraph_bidi, &Document::set_style_paragraph_bidi)) {
+        return false;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::rebase_character_style_based_on(std::string_view style_id,
+                                               std::string_view based_on) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before rebasing character styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when rebasing character styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (based_on.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "character style basedOn must not be empty",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id == based_on) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "character style basedOn must not reference the same style id",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "character") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a character style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto parent_style = find_style_node(styles_root, based_on);
+    if (parent_style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "basedOn style id '" + std::string{based_on} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto parent_type_name =
+        std::string_view{parent_style.attribute("w:type").value()};
+    if (!parent_type_name.empty() && parent_type_name != "character") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "basedOn style id '" + std::string{based_on} +
+                           "' is not a character style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!this->materialize_style_run_properties(style_id)) {
+        return false;
+    }
+
+    if (!this->set_character_style_based_on(style_id, based_on)) {
+        return false;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::set_character_style_based_on(std::string_view style_id,
+                                            std::string_view based_on) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing character style metadata");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing character style metadata",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (based_on.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "character style basedOn must not be empty",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (based_on == style_id) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "character style basedOn must not reference the same style id",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "character") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a character style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto parent_style = find_style_node(styles_root, based_on);
+    if (parent_style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "basedOn style id '" + std::string{based_on} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto parent_type_name =
+        std::string_view{parent_style.attribute("w:type").value()};
+    if (!parent_type_name.empty() && parent_type_name != "character") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "basedOn style id '" + std::string{based_on} +
+                           "' is not a character style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!this->has_styles_part) {
+        if (const auto error = this->ensure_styles_part_attached()) {
+            return false;
+        }
+        styles_root = this->styles.child("w:styles");
+        style = find_style_node(styles_root, style_id);
+    }
+
+    if (!set_style_string_node(style, "w:basedOn", std::string{based_on})) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to update basedOn for character style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_character_style_based_on(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing character style metadata");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing character style metadata",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "character") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a character style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!set_style_string_node(style, "w:basedOn", std::nullopt)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to clear basedOn for character style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::rebase_paragraph_style_based_on(std::string_view style_id,
+                                               std::string_view based_on) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before rebasing paragraph styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when rebasing paragraph styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (based_on.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "paragraph style basedOn must not be empty",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id == based_on) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "paragraph style basedOn must not reference the same style id",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "paragraph") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a paragraph style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto parent_style = find_style_node(styles_root, based_on);
+    if (parent_style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "basedOn style id '" + std::string{based_on} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto parent_type_name =
+        std::string_view{parent_style.attribute("w:type").value()};
+    if (!parent_type_name.empty() && parent_type_name != "paragraph") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "basedOn style id '" + std::string{based_on} +
+                           "' is not a paragraph style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!this->materialize_style_run_properties(style_id)) {
+        return false;
+    }
+
+    if (!this->set_paragraph_style_based_on(style_id, based_on)) {
+        return false;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::set_paragraph_style_based_on(std::string_view style_id,
+                                            std::string_view based_on) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing paragraph style metadata");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing paragraph style metadata",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (based_on.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "paragraph style basedOn must not be empty",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (based_on == style_id) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "paragraph style basedOn must not reference the same style id",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "paragraph") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a paragraph style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!this->has_styles_part) {
+        if (const auto error = this->ensure_styles_part_attached()) {
+            return false;
+        }
+        styles_root = this->styles.child("w:styles");
+        style = find_style_node(styles_root, style_id);
+    }
+
+    if (!set_style_string_node(style, "w:basedOn", std::string{based_on})) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to update basedOn for paragraph style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_paragraph_style_based_on(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing paragraph style metadata");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing paragraph style metadata",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "paragraph") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a paragraph style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!set_style_string_node(style, "w:basedOn", std::nullopt)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to clear basedOn for paragraph style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::set_paragraph_style_next_style(std::string_view style_id,
+                                              std::string_view next_style) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing paragraph style metadata");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing paragraph style metadata",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (next_style.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "paragraph style next style must not be empty",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "paragraph") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a paragraph style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!this->has_styles_part) {
+        if (const auto error = this->ensure_styles_part_attached()) {
+            return false;
+        }
+        styles_root = this->styles.child("w:styles");
+        style = find_style_node(styles_root, style_id);
+    }
+
+    if (!set_style_string_node(style, "w:next", std::string{next_style})) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to update next style for paragraph style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_paragraph_style_next_style(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing paragraph style metadata");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing paragraph style metadata",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "paragraph") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a paragraph style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!set_style_string_node(style, "w:next", std::nullopt)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to clear next style for paragraph style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::set_paragraph_style_outline_level(std::string_view style_id,
+                                                 std::uint32_t outline_level) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing paragraph style metadata");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing paragraph style metadata",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (outline_level > 8U) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "paragraph style outline level must be between 0 and 8",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "paragraph") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a paragraph style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!this->has_styles_part) {
+        if (const auto error = this->ensure_styles_part_attached()) {
+            return false;
+        }
+        styles_root = this->styles.child("w:styles");
+        style = find_style_node(styles_root, style_id);
+    }
+
+    if (!set_style_outline_level(style, outline_level)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to update outline level for paragraph style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_paragraph_style_outline_level(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing paragraph style metadata");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing paragraph style metadata",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto type_name = std::string_view{style.attribute("w:type").value()};
+    if (!type_name.empty() && type_name != "paragraph") {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} + "' is not a paragraph style",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (!set_style_outline_level(style, std::nullopt)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to clear outline level for paragraph style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
 }
 
 bool Document::set_style_run_font_family(std::string_view style_id,
@@ -3557,6 +4966,107 @@ bool Document::clear_style_run_font_family(std::string_view style_id) {
     return true;
 }
 
+bool Document::clear_style_run_east_asia_font_family(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run fonts");
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run fonts",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (clear_font_family_attribute(run_properties, "w:eastAsia")) {
+        if (run_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(run_properties)) {
+            style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_primary_language(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (clear_language_attribute(run_properties, "w:val")) {
+        if (run_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(run_properties)) {
+            style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::clear_style_run_language(std::string_view style_id) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
@@ -3597,6 +5107,108 @@ bool Document::clear_style_run_language(std::string_view style_id) {
 
     auto run_properties = style.child("w:rPr");
     if (clear_language_attributes(run_properties)) {
+        if (run_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(run_properties)) {
+            style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_east_asia_language(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (clear_language_attribute(run_properties, "w:eastAsia")) {
+        if (run_properties.first_child() == pugi::xml_node{} &&
+            !node_has_attributes(run_properties)) {
+            style.remove_child(run_properties);
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_bidi_language(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run language",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    auto run_properties = style.child("w:rPr");
+    if (clear_language_attribute(run_properties, "w:bidi")) {
         if (run_properties.first_child() == pugi::xml_node{} &&
             !node_has_attributes(run_properties)) {
             style.remove_child(run_properties);
@@ -3874,6 +5486,219 @@ bool Document::clear_run_style(Run run_handle) {
 
     this->last_error_info.clear();
     return true;
+}
+
+std::vector<featherdoc::table_inspection_summary> Document::inspect_tables() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting tables",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    auto summaries = std::vector<featherdoc::table_inspection_summary>{};
+    auto table_handle = this->tables();
+    for (std::size_t table_index = 0U; table_handle.has_next();
+         ++table_index, table_handle.next()) {
+        summaries.push_back(summarize_table_handle(table_handle, table_index));
+    }
+
+    this->last_error_info.clear();
+    return summaries;
+}
+
+std::optional<featherdoc::table_inspection_summary>
+Document::inspect_table(std::size_t table_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting tables",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    auto table_handle = this->tables();
+    for (std::size_t current_index = 0U;
+         current_index < table_index && table_handle.has_next(); ++current_index) {
+        table_handle.next();
+    }
+
+    if (!table_handle.has_next()) {
+        this->last_error_info.clear();
+        return std::nullopt;
+    }
+
+    auto summary = summarize_table_handle(table_handle, table_index);
+    this->last_error_info.clear();
+    return summary;
+}
+
+std::vector<featherdoc::table_cell_inspection_summary>
+Document::inspect_table_cells(std::size_t table_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting table cells",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    auto table_handle = this->tables();
+    for (std::size_t current_index = 0U;
+         current_index < table_index && table_handle.has_next(); ++current_index) {
+        table_handle.next();
+    }
+
+    if (!table_handle.has_next()) {
+        this->last_error_info.clear();
+        return {};
+    }
+
+    auto summaries = collect_table_cell_summaries(table_handle);
+    this->last_error_info.clear();
+    return summaries;
+}
+
+std::optional<featherdoc::table_cell_inspection_summary>
+Document::inspect_table_cell(std::size_t table_index, std::size_t row_index,
+                             std::size_t cell_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting table cells",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto cells = this->inspect_table_cells(table_index);
+    for (const auto &cell : cells) {
+        if (cell.row_index == row_index && cell.cell_index == cell_index) {
+            this->last_error_info.clear();
+            return cell;
+        }
+    }
+
+    this->last_error_info.clear();
+    return std::nullopt;
+}
+
+std::vector<featherdoc::paragraph_inspection_summary> Document::inspect_paragraphs() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting paragraphs",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    auto summaries = std::vector<featherdoc::paragraph_inspection_summary>{};
+    auto paragraph_handle = this->paragraphs();
+    auto numbering_lookup_resolved = false;
+    auto numbering_lookup_ready = false;
+    for (std::size_t paragraph_index = 0U; paragraph_handle.has_next();
+         ++paragraph_index, paragraph_handle.next()) {
+        auto summary = summarize_paragraph_node(paragraph_handle.current, paragraph_index);
+        if (summary.numbering.has_value() && summary.numbering->num_id.has_value()) {
+            if (!numbering_lookup_resolved) {
+                numbering_lookup_ready =
+                    !this->ensure_numbering_loaded() &&
+                    this->numbering.child("w:numbering") != pugi::xml_node{};
+                numbering_lookup_resolved = true;
+            }
+
+            if (numbering_lookup_ready) {
+                const auto lookup = this->find_numbering_instance(*summary.numbering->num_id);
+                if (lookup.has_value()) {
+                    summary.numbering->definition_id = lookup->definition_id;
+                    if (!lookup->definition_name.empty()) {
+                        summary.numbering->definition_name = lookup->definition_name;
+                    }
+                }
+            }
+        }
+
+        summaries.push_back(std::move(summary));
+    }
+
+    this->last_error_info.clear();
+    return summaries;
+}
+
+std::optional<featherdoc::paragraph_inspection_summary>
+Document::inspect_paragraph(std::size_t paragraph_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting paragraphs",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    auto paragraph_handle = this->paragraphs();
+    for (std::size_t current_index = 0U;
+         current_index < paragraph_index && paragraph_handle.has_next(); ++current_index) {
+        paragraph_handle.next();
+    }
+
+    if (!paragraph_handle.has_next()) {
+        this->last_error_info.clear();
+        return std::nullopt;
+    }
+
+    auto summary = summarize_paragraph_node(paragraph_handle.current, paragraph_index);
+    if (summary.numbering.has_value() && summary.numbering->num_id.has_value()) {
+        const auto numbering_lookup_ready =
+            !this->ensure_numbering_loaded() &&
+            this->numbering.child("w:numbering") != pugi::xml_node{};
+        if (numbering_lookup_ready) {
+            const auto lookup = this->find_numbering_instance(*summary.numbering->num_id);
+            if (lookup.has_value()) {
+                summary.numbering->definition_id = lookup->definition_id;
+                if (!lookup->definition_name.empty()) {
+                    summary.numbering->definition_name = lookup->definition_name;
+                }
+            }
+        }
+    }
+
+    this->last_error_info.clear();
+    return summary;
+}
+
+std::vector<featherdoc::run_inspection_summary>
+Document::inspect_paragraph_runs(std::size_t paragraph_index) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before inspecting paragraph runs",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    auto paragraph_handle = this->paragraphs();
+    for (std::size_t current_index = 0U;
+         current_index < paragraph_index && paragraph_handle.has_next(); ++current_index) {
+        paragraph_handle.next();
+    }
+
+    if (!paragraph_handle.has_next()) {
+        this->last_error_info.clear();
+        return {};
+    }
+
+    auto summaries = std::vector<featherdoc::run_inspection_summary>{};
+    auto run = paragraph_handle.runs();
+    for (std::size_t run_index = 0U; run.has_next(); ++run_index, run.next()) {
+        summaries.push_back(summarize_run_handle(run, run_index));
+    }
+
+    this->last_error_info.clear();
+    return summaries;
+}
+
+std::optional<featherdoc::run_inspection_summary>
+Document::inspect_paragraph_run(std::size_t paragraph_index, std::size_t run_index) {
+    const auto runs = this->inspect_paragraph_runs(paragraph_index);
+    if (run_index >= runs.size()) {
+        this->last_error_info.clear();
+        return std::nullopt;
+    }
+
+    return runs[run_index];
 }
 
 } // namespace featherdoc

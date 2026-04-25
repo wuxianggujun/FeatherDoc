@@ -7,6 +7,13 @@ v1.7.x 路线图（中文）
 本文基于当前仓库状态整理，目标不是一次性把所有 Word 能力都做全，而是优先补齐
 正式文档生成场景里最常用、最缺高层 API 的几块能力。
 
+补充说明：这份路线图成文后，仓库已经继续落地了一批第一版 API，包括
+``list_styles()`` / ``find_style_usage()`` / ``ensure_*_style()``、
+``ensure_numbering_definition()`` / ``set_paragraph_style_numbering()``、
+``validate_template()``、``get_section_page_setup()`` 以及页码字段相关接口。
+阅读本文时，建议把重点放在这些方向的“深化和补齐”，而不是把它们理解成仍然
+完全未开始的能力。
+
 
 当前判断
 --------
@@ -221,6 +228,28 @@ v1.7.1: 模板校验与页面设置 / 字段
 2. section page setup API
 3. 最小字段 API，优先覆盖页码和总页数，而不是一开始就做完整 field system
 
+当前状态补记
+^^^^^^^^^^^^
+
+- ``validate_template(...)`` 已经覆盖 slot 声明、缺失、重复、意外书签、
+  kind 不匹配和 occurrence 约束。
+- 文档级 ``validate_template_schema(...)`` 也已经落地，并支持 body /
+  header / footer / section-header / section-footer 多目标聚合校验。
+- CLI 侧已经补上 ``validate-template-schema`` 和
+  ``export-template-schema``，样例可参考
+  ``samples/sample_template_schema_validation.cpp``；其中
+  ``--section-targets`` 表示 direct section reference 视角，
+  ``--resolved-section-targets`` 表示 linked-to-previous 解析后的实际生效视角。
+- 继续完善 CLI schema 工具链时，可以把 ``normalize-template-schema`` /
+  ``diff-template-schema`` 作为补齐项，用来稳定 schema 文件顺序以及比较版本差异。
+- 再往前一层可以补 ``check-template-schema`` 这种 gate 命令，把导出、
+  规范化、对比和非零退出码检查收敛成一步，方便直接接 CI。
+- 仓库级 ``baselines/template-schema/manifest.json`` 现在也已经落地，并支持
+  静态模板与 generated fixture 混合登记、``prepare_sample_target`` 自动准备、
+  ``register_template_schema_manifest_entry.ps1`` 一步登记、以及
+  ``describe_template_schema_manifest.ps1`` 的维护视图；同一份 manifest gate
+  也已经接入 release preflight 和生成的 release metadata bundle。
+
 建议的最小 API 草案
 ^^^^^^^^^^^^^^^^^^^
 
@@ -312,14 +341,15 @@ v1.7.2: 图片高级布局与 CLI 扩展
 
 这一版建议补“可交付文档的细节能力”和“批处理入口”。
 
-当前 floating image 已有基本锚点和偏移，但还缺更高层的包围方式、裁剪和更强的
-脚本化入口。正式文档里，logo、印章、角标、签章区域都经常依赖这些能力。
+当前 floating image 已有基本锚点和偏移，wrap / crop / z-order 这些正式文档
+常见布局参数也已经补上。这个阶段更适合继续把这些能力沉淀成稳定的 CLI 入口和
+可视化回归，而不是停留在仅有底层 API。
 
 建议交付内容
 ^^^^^^^^^^^^
 
-1. 扩展 ``floating_image_options``
-2. 暴露 wrap / crop / distance 等常见布局能力
+1. 巩固 ``floating_image_options`` 的可交付布局语义
+2. 让 wrap / crop / distance / z-order 在 CLI 与 visual regression 中可稳定复用
 3. 把前两版补出的 inspection 与 mutation 能力映射到 CLI
 
 建议的最小 API 草案

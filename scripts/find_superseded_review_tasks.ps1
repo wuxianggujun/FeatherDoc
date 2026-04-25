@@ -5,8 +5,9 @@ Finds superseded review tasks under a task root without deleting anything.
 .DESCRIPTION
 Scans task_manifest.json files under a review-task root, groups tasks by
 source kind plus source path, identifies the newest task in each group, and
-marks older siblings as superseded. When the latest source-kind pointer exists,
-the report also shows whether it still points at the newest task in that group.
+marks older siblings as superseded. When a latest pointer exists for that
+source group, the report also shows whether it still points at the newest task
+in that group.
 #>
 param(
     [string]$TaskOutputRoot = "output/word-visual-smoke/tasks",
@@ -82,18 +83,6 @@ function Get-OptionalPropertyObject {
     return $property.Value
 }
 
-function Get-LatestPointerName {
-    param([string]$SourceKind)
-
-    switch ($SourceKind) {
-        "document" { return "latest_document_task.json" }
-        "fixed-grid-regression-bundle" { return "latest_fixed-grid-regression-bundle_task.json" }
-        "section-page-setup-regression-bundle" { return "latest_section-page-setup-regression-bundle_task.json" }
-        "page-number-fields-regression-bundle" { return "latest_page-number-fields-regression-bundle_task.json" }
-        default { return "" }
-    }
-}
-
 function Read-JsonFile {
     param([string]$Path)
 
@@ -157,32 +146,31 @@ foreach ($manifestPath in $manifestPaths) {
 }
 
 $latestPointers = @{}
-foreach ($sourceKind in @(
-        "document",
-        "fixed-grid-regression-bundle",
-        "section-page-setup-regression-bundle",
-        "page-number-fields-regression-bundle"
-    )) {
-    $pointerName = Get-LatestPointerName -SourceKind $sourceKind
-    if ([string]::IsNullOrWhiteSpace($pointerName)) {
-        continue
-    }
+$pointerPaths = @(Get-ChildItem -Path $resolvedTaskOutputRoot -File |
+    Where-Object {
+        $_.Name -like "latest_*_task.json" -and $_.Name -ne "latest_task.json"
+    } |
+    Select-Object -ExpandProperty FullName)
 
-    $pointerPath = Join-Path $resolvedTaskOutputRoot $pointerName
-    if (-not (Test-Path -LiteralPath $pointerPath)) {
-        continue
-    }
-
+foreach ($pointerPath in $pointerPaths) {
     $pointer = Read-JsonFile -Path $pointerPath
     $source = Get-OptionalPropertyObject -Object $pointer -Name "source"
+    $sourceKind = Get-OptionalPropertyValue -Object $source -Name "kind"
     $pointerSourcePathValue = Get-OptionalPropertyValue -Object $source -Name "path"
     $pointerTaskDirValue = Get-OptionalPropertyValue -Object $pointer -Name "task_dir"
-    if ([string]::IsNullOrWhiteSpace($pointerSourcePathValue) -or [string]::IsNullOrWhiteSpace($pointerTaskDirValue)) {
+    if ([string]::IsNullOrWhiteSpace($sourceKind) -or
+        [string]::IsNullOrWhiteSpace($pointerSourcePathValue) -or
+        [string]::IsNullOrWhiteSpace($pointerTaskDirValue)) {
         continue
     }
 
     $pointerSourcePath = [System.IO.Path]::GetFullPath($pointerSourcePathValue)
-    $latestPointers["$sourceKind|$pointerSourcePath"] = [pscustomobject]@{
+    $groupKey = "$sourceKind|$pointerSourcePath"
+    if (-not $latestPointers.ContainsKey($groupKey)) {
+        $latestPointers[$groupKey] = @()
+    }
+
+    $latestPointers[$groupKey] += [pscustomobject]@{
         task_id = Get-OptionalPropertyValue -Object $pointer -Name "task_id"
         task_dir = [System.IO.Path]::GetFullPath($pointerTaskDirValue)
         pointer_path = $pointerPath
@@ -206,7 +194,19 @@ foreach ($group in ($taskEntries | Group-Object group_key)) {
     } else {
         @()
     }
-    $pointer = $latestPointers[$group.Name]
+    $pointersForGroup = @($latestPointers[$group.Name])
+    $pointer = if ($pointersForGroup.Count -gt 0) {
+        $matchingPointer = $pointersForGroup |
+            Where-Object { [System.StringComparer]::OrdinalIgnoreCase.Equals($_.task_dir, $latestTask.task_dir) } |
+            Select-Object -First 1
+        if ($null -ne $matchingPointer) {
+            $matchingPointer
+        } else {
+            $pointersForGroup[0]
+        }
+    } else {
+        $null
+    }
     $pointerMatches = $false
     if ($null -ne $pointer) {
         $pointerMatches = [System.StringComparer]::OrdinalIgnoreCase.Equals($pointer.task_dir, $latestTask.task_dir)

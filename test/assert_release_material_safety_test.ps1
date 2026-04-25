@@ -25,6 +25,16 @@ Set-Content -LiteralPath $passFile -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passFile
 
+$passCliReferenceFile = Join-Path $passDir "cli_reference.md"
+Set-Content -LiteralPath $passCliReferenceFile -Encoding UTF8 -Value @"
+# CLI reference
+
+- The template render wrappers expose ``-DraftPlanOutput``, ``-PatchedPlanOutput``, and ``-PatchPlanOutput`` options.
+- These are stable option names for render-plan artifacts, not release-note draft markers.
+"@
+
+& $auditScript -Path $passCliReferenceFile
+
 $badDraftFile = Join-Path $failDir "bad_draft.md"
 Set-Content -LiteralPath $badDraftFile -Encoding UTF8 -Value @"
 # FeatherDoc v1.6.4 发布说明草稿

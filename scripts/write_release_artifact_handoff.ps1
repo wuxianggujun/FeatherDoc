@@ -154,6 +154,160 @@ function Get-VisualTaskVerdict {
     return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
 }
 
+function Get-OptionalPropertyArray {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $propertyValue = Get-OptionalPropertyObject -Object $Object -Name $Name
+    if ($null -eq $propertyValue) {
+        return @()
+    }
+
+    return @($propertyValue)
+}
+
+function Get-OrCreateCuratedVisualReviewEntry {
+    param(
+        [hashtable]$EntryMap,
+        [System.Collections.Generic.List[string]]$EntryOrder,
+        $Source,
+        [int]$FallbackIndex
+    )
+
+    $id = Get-OptionalPropertyValue -Object $Source -Name "id"
+    $displayLabel = Get-OptionalPropertyValue -Object $Source -Name "display_label"
+    $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
+        $displayLabel
+    } else {
+        Get-OptionalPropertyValue -Object $Source -Name "label"
+    }
+
+    $key = if (-not [string]::IsNullOrWhiteSpace($id)) {
+        $id
+    } elseif (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
+        $label
+    } else {
+        "__curated_{0}" -f $FallbackIndex
+    }
+
+    if (-not $EntryMap.ContainsKey($key)) {
+        $EntryMap[$key] = [ordered]@{
+            id = ""
+            label = ""
+            verdict = ""
+            task_dir = ""
+            review_result_path = ""
+            final_review_path = ""
+        }
+        [void]$EntryOrder.Add($key)
+    }
+
+    return $EntryMap[$key]
+}
+
+function Merge-CuratedVisualReviewEntry {
+    param(
+        $Entry,
+        $Source
+    )
+
+    if ($null -eq $Source) {
+        return
+    }
+
+    $id = Get-OptionalPropertyValue -Object $Source -Name "id"
+    if (-not [string]::IsNullOrWhiteSpace($id)) {
+        $Entry.id = $id
+    }
+
+    $displayLabel = Get-OptionalPropertyValue -Object $Source -Name "display_label"
+    $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
+        $displayLabel
+    } else {
+        Get-OptionalPropertyValue -Object $Source -Name "label"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
+        $Entry.label = $label
+    }
+
+    $verdict = Get-OptionalPropertyValue -Object $Source -Name "verdict"
+    if (-not [string]::IsNullOrWhiteSpace($verdict)) {
+        $Entry.verdict = $verdict
+    }
+
+    $taskInfo = Get-OptionalPropertyObject -Object $Source -Name "task"
+    if ($null -eq $taskInfo) {
+        $taskInfo = $Source
+    }
+
+    $taskDir = Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
+    if (-not [string]::IsNullOrWhiteSpace($taskDir)) {
+        $Entry.task_dir = $taskDir
+    }
+
+    $reviewResultPath = Get-OptionalPropertyValue -Object $taskInfo -Name "review_result_path"
+    if (-not [string]::IsNullOrWhiteSpace($reviewResultPath)) {
+        $Entry.review_result_path = $reviewResultPath
+    }
+
+    $finalReviewPath = Get-OptionalPropertyValue -Object $taskInfo -Name "final_review_path"
+    if (-not [string]::IsNullOrWhiteSpace($finalReviewPath)) {
+        $Entry.final_review_path = $finalReviewPath
+    }
+}
+
+function Get-CuratedVisualReviewEntries {
+    param(
+        $VisualGateSummary,
+        $GateSummary
+    )
+
+    $entryMap = @{}
+    $entryOrder = New-Object 'System.Collections.Generic.List[string]'
+    $fallbackIndex = 0
+
+    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
+    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
+    $manualTasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
+
+    $sources = @(
+        (Get-OptionalPropertyArray -Object $VisualGateSummary -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $reviewTasks -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $manualTasks -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $GateSummary -Name "curated_visual_regressions")
+    )
+
+    foreach ($sourceGroup in $sources) {
+        foreach ($source in $sourceGroup) {
+            $fallbackIndex += 1
+            $entry = Get-OrCreateCuratedVisualReviewEntry `
+                -EntryMap $entryMap `
+                -EntryOrder $entryOrder `
+                -Source $source `
+                -FallbackIndex $fallbackIndex
+            Merge-CuratedVisualReviewEntry -Entry $entry -Source $source
+        }
+    }
+
+    $entries = @()
+    foreach ($key in $entryOrder) {
+        $entry = $entryMap[$key]
+        if ([string]::IsNullOrWhiteSpace($entry.label)) {
+            if (-not [string]::IsNullOrWhiteSpace($entry.id)) {
+                $entry.label = $entry.id
+            } else {
+                $entry.label = "Curated visual regression bundle"
+            }
+        }
+
+        $entries += [pscustomobject]$entry
+    }
+
+    return $entries
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$RepoRoot,
@@ -236,6 +390,108 @@ if ([string]::IsNullOrWhiteSpace($reviewerChecklistPath)) {
     $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 }
 $taskOutputRoot = Get-OptionalPropertyValue -Object $summary -Name "task_output_root"
+$templateSchemaManifestSummary = Get-OptionalPropertyObject -Object $summary -Name "template_schema_manifest"
+$templateSchemaManifestStep = Get-OptionalPropertyObject -Object $summary.steps -Name "template_schema_manifest"
+$templateSchemaManifestStatus = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "status"
+$templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "passed"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestPassed)) {
+    $templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "passed"
+}
+$templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "entry_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestEntryCount)) {
+    $templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "entry_count"
+}
+$templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "drift_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestDriftCount)) {
+    $templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "drift_count"
+}
+$templateSchemaManifestPath = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "manifest_path"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestPath)) {
+    $templateSchemaManifestPath = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "manifest_path"
+}
+$templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "summary_json"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestSummaryPath)) {
+    $templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "summary_json"
+}
+$templateSchemaManifestOutputDir = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "output_dir"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestOutputDir)) {
+    $templateSchemaManifestOutputDir = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "output_dir"
+}
+$projectTemplateSmokeSummary = Get-OptionalPropertyObject -Object $summary -Name "project_template_smoke"
+$projectTemplateSmokeStep = Get-OptionalPropertyObject -Object $summary.steps -Name "project_template_smoke"
+$projectTemplateSmokeRequested = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "requested"
+$projectTemplateSmokeStatus = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "status"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeStatus)) {
+    $projectTemplateSmokeStatus = if ($projectTemplateSmokeRequested -eq "True") { "requested" } else { "not_requested" }
+}
+$projectTemplateSmokePassed = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "passed"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokePassed)) {
+    $projectTemplateSmokePassed = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "passed"
+}
+$projectTemplateSmokeEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "entry_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeEntryCount)) {
+    $projectTemplateSmokeEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "entry_count"
+}
+$projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "failed_entry_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeFailedEntryCount)) {
+    $projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "failed_entry_count"
+}
+$projectTemplateSmokeDirtySchemaBaselineCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "dirty_schema_baseline_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeDirtySchemaBaselineCount)) {
+    $projectTemplateSmokeDirtySchemaBaselineCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "dirty_schema_baseline_count"
+}
+$projectTemplateSmokeSchemaBaselineDriftCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_baseline_drift_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaBaselineDriftCount)) {
+    $projectTemplateSmokeSchemaBaselineDriftCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_baseline_drift_count"
+}
+$projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "visual_verdict"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeVisualVerdict)) {
+    $projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "visual_verdict"
+}
+$projectTemplateSmokePendingReviewCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "manual_review_pending_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokePendingReviewCount)) {
+    $projectTemplateSmokePendingReviewCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "manual_review_pending_count"
+}
+$projectTemplateSmokeManifestPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "manifest_path"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeManifestPath)) {
+    $projectTemplateSmokeManifestPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "manifest_path"
+}
+$projectTemplateSmokeSummaryPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "summary_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSummaryPath)) {
+    $projectTemplateSmokeSummaryPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "summary_json"
+}
+$projectTemplateSmokeOutputDir = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "output_dir"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeOutputDir)) {
+    $projectTemplateSmokeOutputDir = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "output_dir"
+}
+$projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeStep -Name "candidate_coverage"
+if ($null -eq $projectTemplateSmokeCandidateCoverage) {
+    $projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeSummary -Name "candidate_coverage"
+}
+$projectTemplateSmokeRequireFullCoverage = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "require_full_coverage"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeRequireFullCoverage)) {
+    $projectTemplateSmokeRequireFullCoverage = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "require_full_coverage"
+}
+$projectTemplateSmokeCandidateDiscoveryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "candidate_discovery_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeCandidateDiscoveryJson)) {
+    $projectTemplateSmokeCandidateDiscoveryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "candidate_discovery_json"
+}
+$projectTemplateSmokeCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeCandidateCount)) {
+    $projectTemplateSmokeCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "candidate_count"
+}
+$projectTemplateSmokeRegisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "registered_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeRegisteredCandidateCount)) {
+    $projectTemplateSmokeRegisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "registered_candidate_count"
+}
+$projectTemplateSmokeUnregisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "unregistered_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeUnregisteredCandidateCount)) {
+    $projectTemplateSmokeUnregisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "unregistered_candidate_count"
+}
+$projectTemplateSmokeExcludedCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "excluded_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeExcludedCandidateCount)) {
+    $projectTemplateSmokeExcludedCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "excluded_candidate_count"
+}
 
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
@@ -260,6 +516,7 @@ $sectionPageSetupTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep 
 $pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
 $supersededReviewTasksReportPath = Get-SupersededReviewTasksReportPath -Summary $summary -VisualGateSummary $visualGateStep
 if ([string]::IsNullOrWhiteSpace($taskOutputRoot) -and -not [string]::IsNullOrWhiteSpace($supersededReviewTasksReportPath)) {
     $taskOutputRoot = Split-Path -Parent $supersededReviewTasksReportPath
@@ -281,6 +538,12 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
 }
 
 $syncLatestCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1"
+$syncProjectTemplateSmokeCommand = ""
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSummaryPath)) {
+    $syncProjectTemplateSmokeCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson "{0}" -ReleaseCandidateSummaryJson "{1}" -RefreshReleaseBundle' -f `
+        (Get-RepoRelativePath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryPath),
+        $summaryCommandPath
+}
 $syncExplicitCommand = ""
 if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath)) {
     $gateSummaryCommandPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $gateSummaryPath
@@ -289,12 +552,12 @@ if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath)) {
 }
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
 $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
-$packageAssetsCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
-    $summaryCommandPath
-$packageAndUploadCommand = ""
-if ($projectVersion) {
-    $packageAndUploadCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -UploadReleaseTag "v{1}"' -f `
+$packageAssetsCommand = if ($projectVersion) {
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}" -ReleaseVersion "{1}"' -f `
         $summaryCommandPath, $projectVersion
+} else {
+    'pwsh -ExecutionPolicy Bypass -File .\scripts\package_release_assets.ps1 -SummaryJson "{0}"' -f `
+        $summaryCommandPath
 }
 $syncReleaseNotesCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\sync_github_release_notes.ps1 -SummaryJson "{0}"' -f `
     $summaryCommandPath
@@ -321,6 +584,14 @@ if (-not [string]::IsNullOrWhiteSpace($taskOutputRoot)) {
     $findSupersededTasksCommand = 'pwsh -ExecutionPolicy Bypass -File .\scripts\find_superseded_review_tasks.ps1 -TaskOutputRoot "{0}"' -f `
         (Get-RepoRelativePath -RepoRoot $repoRoot -Path $taskOutputRoot)
 }
+$openCuratedVisualTaskCommands = @(
+    $curatedVisualReviewEntries |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_.id) } |
+        ForEach-Object {
+            'pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind {0}-visual-regression-bundle -PrintPrompt' -f `
+                $_.id
+        }
+)
 
 $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 
@@ -336,9 +607,21 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
 [void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath)")
 [void]$handoffLines.Add("- Execution status: $($summary.execution_status)")
+[void]$handoffLines.Add("- Template schema manifest status: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
+[void]$handoffLines.Add("- Template schema manifest passed: $(Get-DisplayValue -Value $templateSchemaManifestPassed)")
+[void]$handoffLines.Add("- Template schema manifest entries / drifts: $(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
+[void]$handoffLines.Add("- Project template smoke status: $(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
+[void]$handoffLines.Add("- Project template smoke passed: $(Get-DisplayValue -Value $projectTemplateSmokePassed)")
+[void]$handoffLines.Add("- Project template smoke entries / failed: $(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount))")
+[void]$handoffLines.Add("- Project template smoke schema baseline dirty / drift: $(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeDirtySchemaBaselineCount, $projectTemplateSmokeSchemaBaselineDriftCount))")
+[void]$handoffLines.Add("- Project template smoke visual verdict: $(Get-DisplayValue -Value $projectTemplateSmokeVisualVerdict)")
+[void]$handoffLines.Add("- Project template smoke pending visual reviews: $(Get-DisplayValue -Value $projectTemplateSmokePendingReviewCount)")
+[void]$handoffLines.Add("- Project template smoke full coverage required: $(Get-DisplayValue -Value $projectTemplateSmokeRequireFullCoverage)")
+[void]$handoffLines.Add("- Project template smoke candidates registered / unregistered / excluded: $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount))")
 [void]$handoffLines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 [void]$handoffLines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$handoffLines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
+[void]$handoffLines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
 [void]$handoffLines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
 [void]$handoffLines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
 [void]$handoffLines.Add("")
@@ -347,6 +630,10 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Configure: $($summary.steps.configure.status)")
 [void]$handoffLines.Add("- Build: $($summary.steps.build.status)")
 [void]$handoffLines.Add("- Tests: $($summary.steps.tests.status)")
+[void]$handoffLines.Add("- Template schema manifest: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
+[void]$handoffLines.Add("- Project template smoke: $(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
+[void]$handoffLines.Add("- Project template smoke candidate coverage: $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount)) registered/unregistered/excluded")
+[void]$handoffLines.Add("- Project template smoke schema baseline dirty / drift: $(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeDirtySchemaBaselineCount, $projectTemplateSmokeSchemaBaselineDriftCount))")
 [void]$handoffLines.Add("- Install smoke: $($summary.steps.install_smoke.status)")
 [void]$handoffLines.Add("- Visual gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
@@ -369,6 +656,13 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Release summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $releaseSummaryPath)")
 [void]$handoffLines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
 [void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath)")
+[void]$handoffLines.Add("- Template schema manifest: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestPath)")
+[void]$handoffLines.Add("- Template schema manifest summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestSummaryPath)")
+[void]$handoffLines.Add("- Template schema manifest output dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestOutputDir)")
+[void]$handoffLines.Add("- Project template smoke manifest: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeManifestPath)")
+[void]$handoffLines.Add("- Project template smoke summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryPath)")
+[void]$handoffLines.Add("- Project template smoke output dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeOutputDir)")
+[void]$handoffLines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
 [void]$handoffLines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$handoffLines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$handoffLines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
@@ -378,6 +672,21 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Section page setup review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
 [void]$handoffLines.Add("- Page number fields review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
 [void]$handoffLines.Add("")
+[void]$handoffLines.Add("## Curated Visual Regression Bundles")
+[void]$handoffLines.Add("")
+if ($curatedVisualReviewEntries.Count -gt 0) {
+    foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
+        [void]$handoffLines.Add("- $($curatedVisualReview.label) verdict: $(Get-DisplayValue -Value $curatedVisualReview.verdict)")
+        [void]$handoffLines.Add("- $($curatedVisualReview.label) review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.task_dir)")
+        if (-not [string]::IsNullOrWhiteSpace($curatedVisualReview.id)) {
+            [void]$handoffLines.Add("- $($curatedVisualReview.label) open-latest command: pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind $($curatedVisualReview.id)-visual-regression-bundle -PrintPrompt")
+        }
+        [void]$handoffLines.Add("")
+    }
+} else {
+    [void]$handoffLines.Add("- Curated visual regression bundles: (not available)")
+    [void]$handoffLines.Add("")
+}
 [void]$handoffLines.Add("## Reproduction Commands")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
@@ -388,15 +697,20 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add($openFixedGridTaskCommand)
 [void]$handoffLines.Add($openSectionPageSetupTaskCommand)
 [void]$handoffLines.Add($openPageNumberFieldsTaskCommand)
+foreach ($openCuratedVisualTaskCommand in $openCuratedVisualTaskCommands) {
+    [void]$handoffLines.Add($openCuratedVisualTaskCommand)
+}
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("If the visual verdict changes after screenshot-backed manual review, rerun the shortest verdict sync first:")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
 [void]$handoffLines.Add($syncLatestCommand)
+[void]$handoffLines.Add($(if (-not [string]::IsNullOrWhiteSpace($syncProjectTemplateSmokeCommand)) { $syncProjectTemplateSmokeCommand } else { "" }))
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("That command auto-detects the latest review task, syncs the final verdict back into the gate summary, and refreshes the detected release bundle.")
+[void]$handoffLines.Add("If project template smoke also carries a later manual visual verdict, use the second command to sync its smoke summary and refresh the same release bundle.")
 [void]$handoffLines.Add("")
 if (-not [string]::IsNullOrWhiteSpace($findSupersededTasksCommand)) {
     [void]$handoffLines.Add("Rerun the stale-task audit directly when you need to inspect older preserved task directories:")
@@ -420,14 +734,12 @@ if (-not [string]::IsNullOrWhiteSpace($syncExplicitCommand)) {
 [void]$handoffLines.Add($packageAssetsCommand)
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
-if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
-    [void]$handoffLines.Add("Upload or refresh the GitHub Release attachments with:")
-    [void]$handoffLines.Add("")
-    [void]$handoffLines.Add('```powershell')
-    [void]$handoffLines.Add($packageAndUploadCommand)
-    [void]$handoffLines.Add('```')
-    [void]$handoffLines.Add("")
-}
+[void]$handoffLines.Add("Refresh GitHub Release ZIP assets and audited notes without changing draft/public state:")
+[void]$handoffLines.Add("")
+[void]$handoffLines.Add('```powershell')
+[void]$handoffLines.Add($publishWorkflowCommand)
+[void]$handoffLines.Add('```')
+[void]$handoffLines.Add("")
 [void]$handoffLines.Add('Sync the audited `release_body.zh-CN.md` into the GitHub Release notes with:')
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
@@ -446,7 +758,7 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add($publishWorkflowCommand)
 [void]$handoffLines.Add('```')
 [void]$handoffLines.Add("")
-[void]$handoffLines.Add("When that same one-shot flow should also publish the GitHub Release:")
+[void]$handoffLines.Add("When the GitHub publish flow should also make the Release public:")
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add('```powershell')
 [void]$handoffLines.Add($publishWorkflowFinalCommand)
@@ -472,11 +784,23 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add("## Validation")
 [void]$handoffLines.Add("- MSVC configure/build: $($summary.steps.configure.status) / $($summary.steps.build.status)")
 [void]$handoffLines.Add("- ctest: $($summary.steps.tests.status)")
+[void]$handoffLines.Add("- Template schema manifest: $(if ($templateSchemaManifestStatus) { $templateSchemaManifestStatus } else { '<completed|failed|not_requested>' })")
+[void]$handoffLines.Add("- Template schema manifest passed: $(if ($templateSchemaManifestPassed) { $templateSchemaManifestPassed } else { '<True|False>' })")
+[void]$handoffLines.Add("- Template schema manifest entries/drifts: $(if ($templateSchemaManifestEntryCount -or $templateSchemaManifestDriftCount) { '{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount } else { '<entry_count>/<drift_count>' })")
+[void]$handoffLines.Add("- Project template smoke: $(if ($projectTemplateSmokeStatus) { $projectTemplateSmokeStatus } else { '<completed|failed|not_requested>' })")
+[void]$handoffLines.Add("- Project template smoke passed: $(if ($projectTemplateSmokePassed) { $projectTemplateSmokePassed } else { '<True|False>' })")
+[void]$handoffLines.Add("- Project template smoke entries/failed: $(if ($projectTemplateSmokeEntryCount -or $projectTemplateSmokeFailedEntryCount) { '{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount } else { '<entry_count>/<failed_entry_count>' })")
+[void]$handoffLines.Add("- Project template smoke schema baseline dirty/drift: $(if ($projectTemplateSmokeDirtySchemaBaselineCount -or $projectTemplateSmokeSchemaBaselineDriftCount) { '{0}/{1}' -f $projectTemplateSmokeDirtySchemaBaselineCount, $projectTemplateSmokeSchemaBaselineDriftCount } else { '<dirty_schema_baseline_count>/<schema_baseline_drift_count>' })")
+[void]$handoffLines.Add("- Project template smoke candidates registered/unregistered/excluded: $(if ($projectTemplateSmokeRegisteredCandidateCount -or $projectTemplateSmokeUnregisteredCandidateCount -or $projectTemplateSmokeExcludedCandidateCount) { '{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount } else { '<registered>/<unregistered>/<excluded>' })")
+[void]$handoffLines.Add("- Project template smoke visual verdict: $(if ($projectTemplateSmokeVisualVerdict) { $projectTemplateSmokeVisualVerdict } else { '<pass|fail|pending_manual_review|not_applicable>' })")
 [void]$handoffLines.Add("- install + find_package smoke: $($summary.steps.install_smoke.status)")
 [void]$handoffLines.Add("- Word visual release gate: $($summary.steps.visual_gate.status)")
 [void]$handoffLines.Add("- Visual verdict: $(if ($visualVerdict) { $visualVerdict } else { '<pass|fail|pending_manual_review>' })")
 [void]$handoffLines.Add("- Section page setup verdict: $(if ($sectionPageSetupVerdict) { $sectionPageSetupVerdict } else { '<pass|fail|pending_manual_review>' })")
 [void]$handoffLines.Add("- Page number fields verdict: $(if ($pageNumberFieldsVerdict) { $pageNumberFieldsVerdict } else { '<pass|fail|pending_manual_review>' })")
+foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
+    [void]$handoffLines.Add("- $($curatedVisualReview.label) verdict: $(if ($curatedVisualReview.verdict) { $curatedVisualReview.verdict } else { '<pass|fail|pending_manual_review>' })")
+}
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Installed Package Entry Points")
 [void]$handoffLines.Add("- $(if ($installedQuickstartZh) { Get-DisplayPath -RepoRoot $repoRoot -Path $installedQuickstartZh } else { 'share/FeatherDoc/VISUAL_VALIDATION_QUICKSTART.zh-CN.md' })")
@@ -491,6 +815,9 @@ if (-not [string]::IsNullOrWhiteSpace($packageAndUploadCommand)) {
 [void]$handoffLines.Add("- $(if ($releaseSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $releaseSummaryPath } else { 'output/release-candidate-checks/report/release_summary.zh-CN.md' })")
 [void]$handoffLines.Add("- $(if ($artifactGuidePath) { Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath } else { 'output/release-candidate-checks/report/ARTIFACT_GUIDE.md' })")
 [void]$handoffLines.Add("- $(if ($reviewerChecklistPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath } else { 'output/release-candidate-checks/report/REVIEWER_CHECKLIST.md' })")
+[void]$handoffLines.Add("- $(if ($templateSchemaManifestSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $templateSchemaManifestSummaryPath } else { 'output/release-candidate-checks/report/template-schema-manifest-checks/summary.json' })")
+[void]$handoffLines.Add("- $(if ($projectTemplateSmokeSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryPath } else { 'output/release-candidate-checks/report/project-template-smoke/summary.json' })")
+[void]$handoffLines.Add("- $(if ($projectTemplateSmokeCandidateDiscoveryJson) { Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson } else { 'output/release-candidate-checks/report/project-template-smoke/candidate_discovery.json' })")
 [void]$handoffLines.Add("- $(if ($gateSummaryPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath } else { 'output/word-visual-release-gate/report/gate_summary.json' })")
 [void]$handoffLines.Add("- $(if ($gateFinalReviewPath) { Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath } else { 'output/word-visual-release-gate/report/gate_final_review.md' })")
 [void]$handoffLines.Add('```')

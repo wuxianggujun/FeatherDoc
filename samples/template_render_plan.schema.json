@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/featherdoc/template_render_plan.schema.json",
+  "title": "FeatherDoc Template Render Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "bookmark_text": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bookmarkTextEntry"
+      }
+    },
+    "bookmark_paragraphs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bookmarkParagraphsEntry"
+      }
+    },
+    "bookmark_table_rows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bookmarkTableRowsEntry"
+      }
+    },
+    "bookmark_block_visibility": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bookmarkVisibilityEntry"
+      }
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "bookmark_text"
+      ]
+    },
+    {
+      "required": [
+        "bookmark_paragraphs"
+      ]
+    },
+    {
+      "required": [
+        "bookmark_table_rows"
+      ]
+    },
+    {
+      "required": [
+        "bookmark_block_visibility"
+      ]
+    }
+  ],
+  "$defs": {
+    "part": {
+      "type": "string",
+      "enum": [
+        "body",
+        "header",
+        "footer",
+        "section-header",
+        "section-footer"
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "default",
+        "first",
+        "even"
+      ]
+    },
+    "tableRow": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "bookmarkTextEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bookmark_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bookmark": {
+          "type": "string",
+          "minLength": 1
+        },
+        "part": {
+          "$ref": "#/$defs/part"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "bookmark_name"
+          ]
+        },
+        {
+          "required": [
+            "bookmark"
+          ]
+        }
+      ]
+    },
+    "bookmarkParagraphsEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bookmark_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bookmark": {
+          "type": "string",
+          "minLength": 1
+        },
+        "part": {
+          "$ref": "#/$defs/part"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "paragraphs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "paragraphs"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "bookmark_name"
+          ]
+        },
+        {
+          "required": [
+            "bookmark"
+          ]
+        }
+      ]
+    },
+    "bookmarkTableRowsEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bookmark_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bookmark": {
+          "type": "string",
+          "minLength": 1
+        },
+        "part": {
+          "$ref": "#/$defs/part"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tableRow"
+          }
+        }
+      },
+      "required": [
+        "rows"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "bookmark_name"
+          ]
+        },
+        {
+          "required": [
+            "bookmark"
+          ]
+        }
+      ]
+    },
+    "bookmarkVisibilityEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bookmark_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bookmark": {
+          "type": "string",
+          "minLength": 1
+        },
+        "part": {
+          "$ref": "#/$defs/part"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "section": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "visible": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "visible"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "bookmark_name"
+          ]
+        },
+        {
+          "required": [
+            "bookmark"
+          ]
+        }
+      ]
+    }
+  }
+}

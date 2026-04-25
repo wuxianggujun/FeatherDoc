@@ -59,7 +59,9 @@
 5. MSVC 构建、测试、样例运行通过。
 6. ``cmake --install`` 之后，外部最小工程可以 ``find_package(FeatherDoc CONFIG REQUIRED)`` 并成功链接运行。
 7. 本地 Word visual release gate 已执行，至少覆盖常规 smoke 与
-   fixed-grid merge/unmerge quartet，可在真实 Word 渲染下排查明显回归。
+   fixed-grid merge/unmerge quartet，以及本轮涉及的 section page setup、
+   page number fields 和 curated visual regression bundles，可在真实 Word
+   渲染下排查明显回归。
 8. 公开 API 变更已经反映到样例、测试和文档中。
 9. 完成以上检查后再打 tag / 创建 release。
 
@@ -103,11 +105,19 @@
 
 1. ``run_release_candidate_checks.ps1`` 会把 ``MSVC configure/build``、
    ``ctest``、``install + find_package smoke``、以及
-   ``run_word_visual_release_gate.ps1`` 串成一条本地发布前总检查。
+   ``run_word_visual_release_gate.ps1`` 串成一条本地发布前总检查。若同时提供
+   ``-TemplateSchemaInputDocx`` 与 ``-TemplateSchemaBaseline``，还会把
+   template schema baseline gate 一起纳入 summary；若改为提供
+   ``-TemplateSchemaManifestPath``，则会把仓库级 template schema manifest gate
+   一起纳入 summary，并在任一已登记 baseline 漂移时让整条 preflight 失败。
+   如果本次发布准备同时需要新增或刷新某个仓库级 baseline，优先先跑
+   ``register_template_schema_manifest_entry.ps1``，再进入这条总检查。
 2. GitHub 云端 CI 仍适合做构建、单测和样例 ``.docx`` 结构验证，但不应代替
    依赖本机 ``Microsoft Word`` 的最终视觉 gate。
-3. ``run_word_visual_release_gate.ps1`` 会继续拆成 document task 和
-   fixed-grid bundle task，便于后续把截图级人工/AI 复核接到发布流程里。
+3. ``run_word_visual_release_gate.ps1`` 会继续拆成 document task、
+   fixed-grid bundle task、section page setup task、page number fields task，
+   以及按 bundle key 分流的 curated visual bundle task，便于后续把截图级
+   人工/AI 复核接到发布流程里。
 
 
 依赖升级策略
@@ -144,9 +154,10 @@
 ``REVIEWER_CHECKLIST.md``、``release_handoff.md``、``release_body.zh-CN.md``
 和 ``release_summary.zh-CN.md``。
 如果你后来又把 visual verdict 从 ``pending_manual_review`` 回写成
-``pass``，优先执行最短的一键同步命令，把最新 document task /
-fixed-grid task 的结论回灌进 gate summary、release-preflight summary，
-并顺手重刷整套 report：
+``pass``，优先执行最短的一键同步命令，把最新 document task、
+fixed-grid task，以及同一 task root 下的 curated visual bundle task
+结论回灌进 gate summary、release-preflight summary，并顺手重刷整套
+report：
 
 .. code-block:: powershell
 
@@ -167,6 +178,13 @@ fixed-grid task 的结论回灌进 gate summary、release-preflight summary，
 提供一份中文正文，``release_summary.zh-CN.md`` 则适合作为 GitHub Release
 首屏短摘要。后两者都会优先从 ``CHANGELOG.md`` 的 ``Unreleased`` 区块自动
 抽取“核心变化”要点。
+这些入口页现在也会同步展示 Word visual gate 的细粒度结论：除了总
+``visual verdict`` 外，还会写出 ``section page setup``、
+``page number fields`` 以及每个 curated visual regression bundle 的
+verdict；``release_handoff.md``、``ARTIFACT_GUIDE.md`` 和
+``REVIEWER_CHECKLIST.md`` 还会继续给出对应 review task 路径，以及
+``open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle``
+这类 bundle-specific 打开命令。
 如果只想单独复跑 fixed-grid merge/unmerge 四件套，并生成可截图签收的
 review task，可另外执行：
 
@@ -190,25 +208,6 @@ GitHub Actions 的 ``windows-msvc.yml`` 现在也会上传一个
 不过 CI 没有真实 Word 渲染环境，因此这里只会生成 visual gate 为
 ``skipped`` 的 handoff；正式发版前，仍然要用本地 Windows preflight
 补齐最终截图级结论。
-
-
-历史 Release 回补
------------------
-
-如果你处理的不是“即将发布的新版本”，而是已经公开过的历史 GitHub Release
-回补、正文修订或附件重传，不要直接复用这里的正式发版叙述去套旧版本。
-
-历史回补应额外遵循下面几条约束：
-
-1. 公开正文和附件里不得出现 ``draft``、``草稿`` 或本机绝对路径。
-2. 旧版本只能引用当时真实存在的安装入口、视觉证据和脚本产物。
-3. ``v1.0.0`` 到 ``v1.1.0`` 的视觉证据只能按样本文档重建，不得冒充后期
-   release gate。
-4. 上传前必须先做正文扫描、附件脱敏和远端状态复核。
-
-具体分层策略、脚本用途和执行顺序，见
-:doc:`release_history_backfill_playbook_zh`。
-
 
 CHANGELOG 维护建议
 --------------------

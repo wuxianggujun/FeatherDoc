@@ -1,0 +1,45 @@
+{
+  "targets": [
+    {
+      "part": "section-header",
+      "section": 0,
+      "kind": "default",
+      "slots": [
+        {
+          "bookmark": "header_title",
+          "kind": "text"
+        },
+        {
+          "bookmark_name": "header_note",
+          "kind": "block",
+          "required": true
+        },
+        {
+          "bookmark": "header_rows",
+          "kind": "table_rows",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "part": "section-footer",
+      "section": 0,
+      "kind": "default",
+      "slots": [
+        {
+          "bookmark": "footer_company",
+          "kind": "text"
+        },
+        {
+          "bookmark": "footer_summary",
+          "kind": "block"
+        },
+        {
+          "bookmark": "footer_signature",
+          "kind": "text",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

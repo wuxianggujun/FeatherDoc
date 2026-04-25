@@ -29,8 +29,8 @@ Optional explicit README gallery directory override. Defaults to
 summary.readme_gallery.assets_dir or docs/assets/readme.
 
 .PARAMETER UploadReleaseTag
-Optional GitHub release tag. When set, the generated ZIP files are uploaded via
-gh release upload --clobber.
+Optional GitHub release tag. When set, existing same-name assets on that release
+are deleted first and the generated ZIP files are uploaded.
 
 .PARAMETER AllowIncomplete
 Allows packaging even when execution_status / visual_verdict are not pass.
@@ -663,10 +663,70 @@ if (-not [string]::IsNullOrWhiteSpace($UploadReleaseTag)) {
         throw "GitHub CLI 'gh' is required when -UploadReleaseTag is used."
     }
 
-    Write-Step "Uploading ZIP archives to GitHub release $UploadReleaseTag"
-    & gh release upload $UploadReleaseTag --clobber $installZipPath $galleryZipPath $evidenceZipPath
+    $assetPaths = @($installZipPath, $galleryZipPath, $evidenceZipPath)
+    $existingReleaseViewJson = & gh release view $UploadReleaseTag --json assets
     if ($LASTEXITCODE -ne 0) {
-        throw "gh release upload failed with exit code ${LASTEXITCODE}."
+        throw "gh release view failed before upload."
+    }
+
+    $existingReleaseView = $existingReleaseViewJson | ConvertFrom-Json
+    $assetNames = @($assetPaths | ForEach-Object { Split-Path -Leaf $_ })
+    foreach ($assetPath in $assetPaths) {
+        $assetName = Split-Path -Leaf $assetPath
+        $existingAsset = @($existingReleaseView.assets | Where-Object { $_.name -eq $assetName }) | Select-Object -First 1
+        if ($null -ne $existingAsset) {
+            Write-Step "Deleting existing GitHub release asset $assetName"
+            & gh release delete-asset $UploadReleaseTag $assetName -y
+            if ($LASTEXITCODE -ne 0) {
+                throw "gh release delete-asset failed for $assetName."
+            }
+        }
+    }
+
+    for ($deleteWaitAttempt = 1; $deleteWaitAttempt -le 10; $deleteWaitAttempt++) {
+        $postDeleteViewJson = & gh release view $UploadReleaseTag --json assets
+        if ($LASTEXITCODE -ne 0) {
+            throw "gh release view failed while waiting for deleted assets."
+        }
+        $postDeleteView = $postDeleteViewJson | ConvertFrom-Json
+        $remainingAssetNames = @($postDeleteView.assets | Where-Object { $assetNames -contains $_.name } | ForEach-Object { $_.name })
+        if ($remainingAssetNames.Count -eq 0) {
+            break
+        }
+        if ($deleteWaitAttempt -eq 10) {
+            throw "GitHub release assets were still present after delete: $($remainingAssetNames -join ', ')"
+        }
+        Start-Sleep -Seconds 2
+    }
+
+    Write-Step "Uploading ZIP archives to GitHub release $UploadReleaseTag"
+    foreach ($assetPath in $assetPaths) {
+        $assetName = Split-Path -Leaf $assetPath
+        $uploadedAsset = $false
+        for ($uploadAttempt = 1; $uploadAttempt -le 3; $uploadAttempt++) {
+            & gh release upload $UploadReleaseTag $assetPath
+            if ($LASTEXITCODE -eq 0) {
+                $uploadedAsset = $true
+                break
+            }
+
+            $retryViewJson = & gh release view $UploadReleaseTag --json assets
+            if ($LASTEXITCODE -eq 0) {
+                $retryView = $retryViewJson | ConvertFrom-Json
+                $duplicateAsset = @($retryView.assets | Where-Object { $_.name -eq $assetName }) | Select-Object -First 1
+                if ($null -ne $duplicateAsset) {
+                    Write-Step "Deleting duplicate GitHub release asset $assetName before retry"
+                    & gh release delete-asset $UploadReleaseTag $assetName -y
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "gh release delete-asset failed for duplicate $assetName."
+                    }
+                    Start-Sleep -Seconds 2
+                }
+            }
+        }
+        if (-not $uploadedAsset) {
+            throw "gh release upload failed for $assetName."
+        }
     }
 
     $releaseViewJson = & gh release view $UploadReleaseTag --json tagName,url,assets

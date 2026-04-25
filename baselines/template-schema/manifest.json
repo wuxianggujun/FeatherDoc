@@ -1,0 +1,27 @@
+{
+  "entries": [
+    {
+      "name": "chinese-invoice-template",
+      "input_docx": "samples/chinese_invoice_template.docx",
+      "schema_file": "baselines/template-schema/chinese_invoice_template.schema.json",
+      "target_mode": "default",
+      "generated_output": "output/template-schema-manifest-checks/chinese_invoice_template.generated.schema.json"
+    },
+    {
+      "name": "fill-bookmarks-visual-baseline",
+      "input_docx_build_relative": "output/template-schema-manifest/fill_bookmarks_visual_baseline.docx",
+      "prepare_sample_target": "featherdoc_sample_fill_bookmarks_visual",
+      "schema_file": "baselines/template-schema/fill_bookmarks_visual_baseline.schema.json",
+      "target_mode": "default",
+      "generated_output": "output/template-schema-manifest-checks/fill_bookmarks_visual_baseline.generated.schema.json"
+    },
+    {
+      "name": "resolved-template-fixture",
+      "input_docx_build_relative": "output/template-schema-manifest/template_schema_resolved_fixture.docx",
+      "prepare_sample_target": "featherdoc_sample_template_schema_manifest_fixture",
+      "schema_file": "baselines/template-schema/template_schema_resolved_fixture.schema.json",
+      "target_mode": "resolved-section-targets",
+      "generated_output": "output/template-schema-manifest-checks/resolved-template-fixture.generated.schema.json"
+    }
+  ]
+}

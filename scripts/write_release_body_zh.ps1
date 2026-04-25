@@ -67,6 +67,20 @@ function Get-OptionalPropertyObject {
     return $property.Value
 }
 
+function Get-OptionalPropertyArray {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $propertyValue = Get-OptionalPropertyObject -Object $Object -Name $Name
+    if ($null -eq $propertyValue) {
+        return @()
+    }
+
+    return @($propertyValue)
+}
+
 function Get-DisplayValue {
     param([string]$Value)
 
@@ -150,6 +164,102 @@ function Get-PublicArtifactPath {
     }
 
     return Split-Path -Leaf $Value
+}
+
+function Get-VisualTaskVerdict {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryVerdict = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_verdict" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryVerdict)) {
+        return $summaryVerdict
+    }
+
+    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
+    $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
+    $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
+    return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
+}
+
+function Get-CuratedVisualReviewEntries {
+    param(
+        $VisualGateSummary,
+        $GateSummary
+    )
+
+    $entryMap = @{}
+    $entryOrder = New-Object 'System.Collections.Generic.List[string]'
+    $fallbackIndex = 0
+
+    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
+    $manualTasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
+
+    $sources = @(
+        (Get-OptionalPropertyArray -Object $VisualGateSummary -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $manualTasks -Name "curated_visual_regressions"),
+        (Get-OptionalPropertyArray -Object $GateSummary -Name "curated_visual_regressions")
+    )
+
+    foreach ($sourceGroup in $sources) {
+        foreach ($source in $sourceGroup) {
+            $fallbackIndex += 1
+
+            $id = Get-OptionalPropertyValue -Object $source -Name "id"
+            $displayLabel = Get-OptionalPropertyValue -Object $source -Name "display_label"
+            $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
+                $displayLabel
+            } else {
+                Get-OptionalPropertyValue -Object $source -Name "label"
+            }
+            $key = if (-not [string]::IsNullOrWhiteSpace($id)) {
+                $id
+            } elseif (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
+                $label
+            } else {
+                "__curated_{0}" -f $fallbackIndex
+            }
+
+            if (-not $entryMap.ContainsKey($key)) {
+                $entryMap[$key] = [ordered]@{
+                    id = ""
+                    label = ""
+                    verdict = ""
+                }
+                [void]$entryOrder.Add($key)
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($id)) {
+                $entryMap[$key].id = $id
+            }
+            if (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
+                $entryMap[$key].label = $label
+            }
+
+            $verdict = Get-OptionalPropertyValue -Object $source -Name "verdict"
+            if (-not [string]::IsNullOrWhiteSpace($verdict)) {
+                $entryMap[$key].verdict = $verdict
+            }
+        }
+    }
+
+    $entries = @()
+    foreach ($key in $entryOrder) {
+        $entry = $entryMap[$key]
+        if ([string]::IsNullOrWhiteSpace($entry.label)) {
+            if (-not [string]::IsNullOrWhiteSpace($entry.id)) {
+                $entry.label = $entry.id
+            } else {
+                $entry.label = "Curated visual regression bundle"
+            }
+        }
+
+        $entries += [pscustomobject]$entry
+    }
+
+    return $entries
 }
 
 function Get-CommandPathDisplayValue {
@@ -545,6 +655,42 @@ function Get-ValidationSummaryBullet {
     return ('release-preflight 当前已完成，但 visual verdict 仍为 `{0}`；对外发布前还需要补齐最终人工复核。' -f $resolvedVerdict)
 }
 
+function Get-VisualValidationDetailBullet {
+    param(
+        [string]$SectionPageSetupVerdict,
+        [string]$PageNumberFieldsVerdict,
+        [object[]]$CuratedVisualReviewEntries
+    )
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+
+    if (-not [string]::IsNullOrWhiteSpace($SectionPageSetupVerdict)) {
+        [void]$parts.Add('section page setup=`{0}`' -f $SectionPageSetupVerdict)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PageNumberFieldsVerdict)) {
+        [void]$parts.Add('page number fields=`{0}`' -f $PageNumberFieldsVerdict)
+    }
+
+    $curatedWithVerdicts = @(
+        $CuratedVisualReviewEntries |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_.verdict) }
+    )
+    $takeCount = [Math]::Min($curatedWithVerdicts.Count, 3)
+    for ($index = 0; $index -lt $takeCount; $index++) {
+        $entry = $curatedWithVerdicts[$index]
+        [void]$parts.Add(('{0}=`{1}`' -f $entry.label, $entry.verdict))
+    }
+    if ($curatedWithVerdicts.Count -gt $takeCount) {
+        [void]$parts.Add('其余 {0} 个 curated bundle 见 `release_body.zh-CN.md`' -f ($curatedWithVerdicts.Count - $takeCount))
+    }
+
+    if ($parts.Count -eq 0) {
+        return ""
+    }
+
+    return 'Word visual gate 细分结论：{0}。' -f ($parts -join '，')
+}
+
 function Get-ShortSummaryBullets {
     param(
         $Sections,
@@ -556,7 +702,15 @@ function Get-ShortSummaryBullets {
         [string]$InstallSmokeStatus,
         [string]$VisualGateStatus,
         [string]$VisualVerdict,
-        [string]$InstalledDataDir
+        [string]$InstalledDataDir,
+        [string]$TemplateSchemaManifestStatus,
+        [string]$TemplateSchemaManifestPassed,
+        [string]$TemplateSchemaManifestEntryCount,
+        [string]$TemplateSchemaManifestDriftCount,
+        [string]$ProjectTemplateSmokeDirtySchemaBaselineCount,
+        [string]$SectionPageSetupVerdict,
+        [string]$PageNumberFieldsVerdict,
+        [object[]]$CuratedVisualReviewEntries
     )
 
     $bullets = New-Object 'System.Collections.Generic.List[string]'
@@ -615,9 +769,44 @@ function Get-ShortSummaryBullets {
         -VisualGateStatus $VisualGateStatus `
         -VisualVerdict $VisualVerdict)
 
-    if ($bullets.Count -gt 8) {
-        while ($bullets.Count -gt 8) {
-            $bullets.RemoveAt($bullets.Count - 2)
+    if (-not [string]::IsNullOrWhiteSpace($TemplateSchemaManifestStatus) -and
+        $TemplateSchemaManifestStatus -ne "not_requested") {
+        if ($TemplateSchemaManifestPassed -eq "True") {
+            Add-UniqueLine -Lines $bullets -Line (
+                '仓库级 template schema manifest 当前覆盖 {0} 份 baseline，漂移数为 {1}，并已纳入 release preflight。' -f `
+                    $TemplateSchemaManifestEntryCount, $TemplateSchemaManifestDriftCount
+            )
+        } else {
+            Add-UniqueLine -Lines $bullets -Line (
+                '仓库级 template schema manifest 当前覆盖 {0} 份 baseline，但仍有 {1} 份漂移待处理。' -f `
+                    $TemplateSchemaManifestEntryCount, $TemplateSchemaManifestDriftCount
+            )
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ProjectTemplateSmokeDirtySchemaBaselineCount) -and
+        $ProjectTemplateSmokeDirtySchemaBaselineCount -ne "0") {
+        Add-UniqueLine -Lines $bullets -Line (
+            'project template smoke 当前发现 {0} 份 schema baseline lint 未清理，发布前需先 repair 或重新登记 baseline。' -f `
+                $ProjectTemplateSmokeDirtySchemaBaselineCount
+        )
+    }
+
+    $visualValidationDetailBullet = Get-VisualValidationDetailBullet `
+        -SectionPageSetupVerdict $SectionPageSetupVerdict `
+        -PageNumberFieldsVerdict $PageNumberFieldsVerdict `
+        -CuratedVisualReviewEntries $CuratedVisualReviewEntries
+    Add-UniqueLine -Lines $bullets -Line $visualValidationDetailBullet
+
+    $preservedTailCount = 1
+    if (-not [string]::IsNullOrWhiteSpace($visualValidationDetailBullet)) {
+        $preservedTailCount = 2
+    }
+    $maxBulletCount = 7 + $preservedTailCount
+    if ($bullets.Count -gt $maxBulletCount) {
+        while ($bullets.Count -gt $maxBulletCount) {
+            $removalIndex = [Math]::Max(0, $bullets.Count - $preservedTailCount - 1)
+            $bullets.RemoveAt($removalIndex)
         }
     }
 
@@ -697,10 +886,97 @@ $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke 
 $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
 $gateSummaryPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "summary_json"
 $gateFinalReviewPath = Get-OptionalPropertyValue -Object $summary.steps.visual_gate -Name "final_review"
+$templateSchemaManifestSummary = Get-OptionalPropertyObject -Object $summary -Name "template_schema_manifest"
+$templateSchemaManifestStep = Get-OptionalPropertyObject -Object $summary.steps -Name "template_schema_manifest"
+$templateSchemaManifestStatus = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "status"
+$templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "passed"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestPassed)) {
+    $templateSchemaManifestPassed = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "passed"
+}
+$templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "entry_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestEntryCount)) {
+    $templateSchemaManifestEntryCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "entry_count"
+}
+$templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "drift_count"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestDriftCount)) {
+    $templateSchemaManifestDriftCount = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "drift_count"
+}
+$templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestSummary -Name "summary_json"
+if ([string]::IsNullOrWhiteSpace($templateSchemaManifestSummaryPath)) {
+    $templateSchemaManifestSummaryPath = Get-OptionalPropertyValue -Object $templateSchemaManifestStep -Name "summary_json"
+}
+$projectTemplateSmokeSummary = Get-OptionalPropertyObject -Object $summary -Name "project_template_smoke"
+$projectTemplateSmokeStep = Get-OptionalPropertyObject -Object $summary.steps -Name "project_template_smoke"
+$projectTemplateSmokeRequested = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "requested"
+$projectTemplateSmokeStatus = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "status"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeStatus)) {
+    $projectTemplateSmokeStatus = if ($projectTemplateSmokeRequested -eq "True") { "requested" } else { "not_requested" }
+}
+$projectTemplateSmokePassed = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "passed"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokePassed)) {
+    $projectTemplateSmokePassed = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "passed"
+}
+$projectTemplateSmokeEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "entry_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeEntryCount)) {
+    $projectTemplateSmokeEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "entry_count"
+}
+$projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "failed_entry_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeFailedEntryCount)) {
+    $projectTemplateSmokeFailedEntryCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "failed_entry_count"
+}
+$projectTemplateSmokeDirtySchemaBaselineCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "dirty_schema_baseline_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeDirtySchemaBaselineCount)) {
+    $projectTemplateSmokeDirtySchemaBaselineCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "dirty_schema_baseline_count"
+}
+$projectTemplateSmokeSchemaBaselineDriftCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_baseline_drift_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaBaselineDriftCount)) {
+    $projectTemplateSmokeSchemaBaselineDriftCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_baseline_drift_count"
+}
+$projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "visual_verdict"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeVisualVerdict)) {
+    $projectTemplateSmokeVisualVerdict = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "visual_verdict"
+}
+$projectTemplateSmokePendingReviewCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "manual_review_pending_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokePendingReviewCount)) {
+    $projectTemplateSmokePendingReviewCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "manual_review_pending_count"
+}
+$projectTemplateSmokeSummaryPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "summary_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSummaryPath)) {
+    $projectTemplateSmokeSummaryPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "summary_json"
+}
+$projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeStep -Name "candidate_coverage"
+if ($null -eq $projectTemplateSmokeCandidateCoverage) {
+    $projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeSummary -Name "candidate_coverage"
+}
+$projectTemplateSmokeRequireFullCoverage = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "require_full_coverage"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeRequireFullCoverage)) {
+    $projectTemplateSmokeRequireFullCoverage = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "require_full_coverage"
+}
+$projectTemplateSmokeCandidateDiscoveryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "candidate_discovery_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeCandidateDiscoveryJson)) {
+    $projectTemplateSmokeCandidateDiscoveryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "candidate_discovery_json"
+}
+$projectTemplateSmokeCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeCandidateCount)) {
+    $projectTemplateSmokeCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "candidate_count"
+}
+$projectTemplateSmokeRegisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "registered_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeRegisteredCandidateCount)) {
+    $projectTemplateSmokeRegisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "registered_candidate_count"
+}
+$projectTemplateSmokeUnregisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "unregistered_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeUnregisteredCandidateCount)) {
+    $projectTemplateSmokeUnregisteredCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "unregistered_candidate_count"
+}
+$projectTemplateSmokeExcludedCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeCandidateCoverage -Name "excluded_candidate_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeExcludedCandidateCount)) {
+    $projectTemplateSmokeExcludedCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "excluded_candidate_count"
+}
 
 $visualVerdict = ""
 $readmeGalleryStatus = ""
 $readmeGalleryAssetsDir = ""
+$gateSummary = $null
 if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -LiteralPath $gateSummaryPath)) {
     $gateSummary = Get-Content -Raw $gateSummaryPath | ConvertFrom-Json
     $visualVerdict = Get-OptionalPropertyValue -Object $gateSummary -Name "visual_verdict"
@@ -708,6 +984,9 @@ if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -Literal
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
     $readmeGalleryAssetsDir = Get-OptionalPropertyValue -Object $readmeGallery -Name "assets_dir"
 }
+$sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "page_number_fields"
+$curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary)
 
 $installedDataDir = ""
 $installedQuickstartZh = ""
@@ -746,6 +1025,7 @@ $publicGateSummaryPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $gate
 $publicGateFinalReviewPath = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $gateFinalReviewPath
 $publicReadmeGalleryAssetsDir = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $readmeGalleryAssetsDir
 $publicConsumerDocument = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $consumerDocument
+$publicProjectTemplateSmokeCandidateDiscoveryJson = Get-PublicArtifactPath -RepoRoot $repoRoot -Value $projectTemplateSmokeCandidateDiscoveryJson
 
 $validationNote = Get-ValidationNote `
     -ExecutionStatus $summary.execution_status `
@@ -764,7 +1044,15 @@ $shortSummaryBullets = Get-ShortSummaryBullets `
     -InstallSmokeStatus $summary.steps.install_smoke.status `
     -VisualGateStatus $summary.steps.visual_gate.status `
     -VisualVerdict $visualVerdict `
-    -InstalledDataDir $installedDataDir
+    -InstalledDataDir $installedDataDir `
+    -TemplateSchemaManifestStatus $templateSchemaManifestStatus `
+    -TemplateSchemaManifestPassed $templateSchemaManifestPassed `
+    -TemplateSchemaManifestEntryCount $templateSchemaManifestEntryCount `
+    -TemplateSchemaManifestDriftCount $templateSchemaManifestDriftCount `
+    -ProjectTemplateSmokeDirtySchemaBaselineCount $projectTemplateSmokeDirtySchemaBaselineCount `
+    -SectionPageSetupVerdict $sectionPageSetupVerdict `
+    -PageNumberFieldsVerdict $pageNumberFieldsVerdict `
+    -CuratedVisualReviewEntries $curatedVisualReviewEntries
 
 $releaseChecksCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1"
 $releaseGateCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1"
@@ -787,9 +1075,26 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- 执行状态：$($summary.execution_status)")
 [void]$lines.Add("- MSVC configure/build：$($summary.steps.configure.status) / $($summary.steps.build.status)")
 [void]$lines.Add("- ctest：$($summary.steps.tests.status)")
+[void]$lines.Add("- template schema manifest gate：$(Get-DisplayValue -Value $templateSchemaManifestStatus)")
+[void]$lines.Add("- template schema manifest passed：$(Get-DisplayValue -Value $templateSchemaManifestPassed)")
+[void]$lines.Add("- template schema manifest entries / drifts：$(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
+[void]$lines.Add("- project template smoke gate：$(Get-DisplayValue -Value $projectTemplateSmokeStatus)")
+[void]$lines.Add("- project template smoke passed：$(Get-DisplayValue -Value $projectTemplateSmokePassed)")
+[void]$lines.Add("- project template smoke entries / failed：$(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeEntryCount, $projectTemplateSmokeFailedEntryCount))")
+[void]$lines.Add("- project template smoke schema baseline dirty / drift：$(Get-DisplayValue -Value ('{0}/{1}' -f $projectTemplateSmokeDirtySchemaBaselineCount, $projectTemplateSmokeSchemaBaselineDriftCount))")
+[void]$lines.Add("- project template smoke candidates registered / unregistered / excluded：$(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount))")
+[void]$lines.Add("- project template smoke full coverage required：$(Get-DisplayValue -Value $projectTemplateSmokeRequireFullCoverage)")
+[void]$lines.Add("- project template smoke visual verdict：$(Get-DisplayValue -Value $projectTemplateSmokeVisualVerdict)")
+[void]$lines.Add("- project template smoke pending reviews：$(Get-DisplayValue -Value $projectTemplateSmokePendingReviewCount)")
 [void]$lines.Add("- install + find_package smoke：$($summary.steps.install_smoke.status)")
 [void]$lines.Add("- Word visual release gate：$($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict：$(if ($visualVerdict) { $visualVerdict } else { 'pending_manual_review' })")
+[void]$lines.Add("- Section page setup verdict：$(Get-DisplayValue -Value $sectionPageSetupVerdict)")
+[void]$lines.Add("- Page number fields verdict：$(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
+[void]$lines.Add("- Curated visual regression bundles：$($curatedVisualReviewEntries.Count)")
+foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
+    [void]$lines.Add("- $($curatedVisualReview.label) verdict：$(Get-DisplayValue -Value $curatedVisualReview.verdict)")
+}
 [void]$lines.Add("- README 展示图刷新：$(if ($readmeGalleryStatus) { $readmeGalleryStatus } else { 'unknown' })")
 [void]$lines.Add("- 说明：$validationNote")
 [void]$lines.Add("")
@@ -814,15 +1119,13 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- Release short summary：$(Get-DisplayValue -Value $publicShortOutputPath)")
 [void]$lines.Add("- Artifact guide：$(Get-DisplayValue -Value $publicArtifactGuidePath)")
 [void]$lines.Add("- Reviewer checklist：$(Get-DisplayValue -Value $publicReviewerChecklistPath)")
+[void]$lines.Add("- Template schema manifest summary：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $templateSchemaManifestSummaryPath))")
+[void]$lines.Add("- Project template smoke summary：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $projectTemplateSmokeSummaryPath))")
+[void]$lines.Add("- Project template smoke candidate discovery：$(Get-DisplayValue -Value $publicProjectTemplateSmokeCandidateDiscoveryJson)")
 [void]$lines.Add("- Visual gate summary：$(Get-DisplayValue -Value $publicGateSummaryPath)")
 [void]$lines.Add("- Visual gate final review：$(Get-DisplayValue -Value $publicGateFinalReviewPath)")
 [void]$lines.Add("- README 展示图目录：$(Get-DisplayValue -Value $publicReadmeGalleryAssetsDir)")
 [void]$lines.Add("- install smoke consumer docx：$(Get-DisplayValue -Value $publicConsumerDocument)")
-[void]$lines.Add("")
-[void]$lines.Add("## 补充说明")
-[void]$lines.Add('- 如果 `Visual verdict` 不是 `pass`，请先完成本地 Word 截图级复核，再对外发布。')
-[void]$lines.Add("- 如果这份结果来自 CI，请结合本地 Windows preflight 的最终结论后再对外发布。")
-
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutputPath) -Force | Out-Null
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedShortOutputPath) -Force | Out-Null
 ($lines -join [Environment]::NewLine) | Set-Content -Path $resolvedOutputPath -Encoding UTF8

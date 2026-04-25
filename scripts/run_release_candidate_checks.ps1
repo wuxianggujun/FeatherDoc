@@ -5,7 +5,8 @@ Runs the local FeatherDoc release-candidate preflight.
 .DESCRIPTION
 Builds and verifies the local MSVC release candidate pipeline, including
 ctest, install/find_package smoke, the Word visual gate, and optional
-repository README gallery refresh.
+repository README gallery refresh. It can also optionally verify a template
+DOCX against a committed template-schema baseline.
 
 .PARAMETER RefreshReadmeAssets
 Refreshes docs/assets/readme from the latest screenshot-backed Word visual
@@ -25,6 +26,15 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 `
     -TaskOutputRoot output/word-visual-smoke/tasks-release-checks `
     -SummaryOutputDir output/release-candidate-checks `
     -RefreshReadmeAssets
+
+.EXAMPLE
+pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 `
+    -SkipConfigure `
+    -SkipBuild `
+    -BuildDir build-codex-clang-column-visual-verify `
+    -TemplateSchemaInputDocx output\template-schema-validation-smoke\template_schema_validation_two_sections.docx `
+    -TemplateSchemaBaseline output\template-schema-validation-smoke\script_frozen_template_schema.json `
+    -TemplateSchemaResolvedSectionTargets
 #>
 param(
     [string]$BuildDir = "build-msvc-nmake",
@@ -44,6 +54,16 @@ param(
     [switch]$SkipVisualGate,
     [switch]$SkipSectionPageSetup,
     [switch]$SkipPageNumberFields,
+    [string]$TemplateSchemaInputDocx = "",
+    [string]$TemplateSchemaBaseline = "",
+    [string]$TemplateSchemaGeneratedOutput = "",
+    [switch]$TemplateSchemaSectionTargets,
+    [switch]$TemplateSchemaResolvedSectionTargets,
+    [string]$TemplateSchemaManifestPath = "",
+    [string]$TemplateSchemaManifestOutputDir = "",
+    [string]$ProjectTemplateSmokeManifestPath = "",
+    [string]$ProjectTemplateSmokeOutputDir = "",
+    [switch]$ProjectTemplateSmokeRequireFullCoverage,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -305,6 +325,81 @@ function Get-OptionalPropertyValue {
     return $property.Value
 }
 
+function Convert-OptionalBoolean {
+    param(
+        [AllowNull()]$Value,
+        [bool]$DefaultValue = $false
+    )
+
+    if ($null -eq $Value) {
+        return $DefaultValue
+    }
+
+    if ($Value -is [bool]) {
+        return [bool]$Value
+    }
+
+    if ($Value -is [string]) {
+        if ([string]::IsNullOrWhiteSpace($Value)) {
+            return $DefaultValue
+        }
+
+        return $Value.Equals("true", [System.StringComparison]::OrdinalIgnoreCase)
+    }
+
+    return [bool]$Value
+}
+
+function Get-ProjectTemplateSmokeSchemaBaselineCounts {
+    param([AllowNull()]$Summary)
+
+    $counts = [ordered]@{
+        dirty = 0
+        drift = 0
+    }
+
+    foreach ($entry in @(Get-OptionalPropertyValue -Object $Summary -Name "entries")) {
+        $checks = Get-OptionalPropertyValue -Object $entry -Name "checks"
+        $schemaBaseline = Get-OptionalPropertyValue -Object $checks -Name "schema_baseline"
+        if ($null -eq $schemaBaseline) {
+            continue
+        }
+
+        if (-not (Convert-OptionalBoolean -Value (Get-OptionalPropertyValue -Object $schemaBaseline -Name "enabled"))) {
+            continue
+        }
+
+        $matches = Convert-OptionalBoolean `
+            -Value (Get-OptionalPropertyValue -Object $schemaBaseline -Name "matches") `
+            -DefaultValue $true
+        $baselineResult = Get-OptionalPropertyValue -Object $schemaBaseline -Name "result"
+        if (-not $matches -and $null -ne $baselineResult) {
+            $counts.drift += 1
+        }
+
+        $schemaLintClean = Convert-OptionalBoolean `
+            -Value (Get-OptionalPropertyValue -Object $schemaBaseline -Name "schema_lint_clean") `
+            -DefaultValue $true
+        if (-not $schemaLintClean) {
+            $counts.dirty += 1
+        }
+    }
+
+    return [pscustomobject]$counts
+}
+
+function Get-ProjectTemplateSmokeDirtySchemaBaselineCount {
+    param([AllowNull()]$Summary)
+
+    $value = Get-OptionalPropertyValue -Object $Summary -Name "dirty_schema_baseline_count"
+    if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
+        return [int]$value
+    }
+
+    $counts = Get-ProjectTemplateSmokeSchemaBaselineCounts -Summary $Summary
+    return [int]$counts.dirty
+}
+
 function Parse-InstallSmokeOutput {
     param([string[]]$Lines)
 
@@ -401,6 +496,53 @@ function Parse-VisualGateOutput {
     return $result
 }
 
+function Parse-TemplateSchemaCommandOutput {
+    param(
+        [string[]]$Lines,
+        [string]$Command
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Command)) {
+        throw "Template schema command name must not be empty."
+    }
+
+    $pattern = '^\{"command":"' + [regex]::Escape($Command) + '",'
+    $jsonLine = $Lines |
+        Where-Object { $_ -match $pattern } |
+        Select-Object -Last 1
+    if ([string]::IsNullOrWhiteSpace([string]$jsonLine)) {
+        throw "Template schema command '$Command' did not emit a JSON result line."
+    }
+
+    return $jsonLine | ConvertFrom-Json
+}
+
+function Parse-TemplateSchemaCheckOutput {
+    param([string[]]$Lines)
+
+    return Parse-TemplateSchemaCommandOutput -Lines $Lines -Command "check-template-schema"
+}
+
+function Parse-TemplateSchemaLintOutput {
+    param([string[]]$Lines)
+
+    return Parse-TemplateSchemaCommandOutput -Lines $Lines -Command "lint-template-schema"
+}
+
+function Parse-TemplateSchemaManifestSummary {
+    param([string]$SummaryPath)
+
+    Assert-PathExists -Path $SummaryPath -Label "template schema manifest summary"
+    return Get-Content -Raw -LiteralPath $SummaryPath | ConvertFrom-Json
+}
+
+function Parse-ProjectTemplateSmokeSummary {
+    param([string]$SummaryPath)
+
+    Assert-PathExists -Path $SummaryPath -Label "project template smoke summary"
+    return Get-Content -Raw -LiteralPath $SummaryPath | ConvertFrom-Json
+}
+
 $repoRoot = Resolve-RepoRoot
 $msvcBootstrap = Get-MsvcBootstrap
 
@@ -421,8 +563,75 @@ $artifactGuidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $startHerePath = Join-Path $resolvedSummaryOutputDir "START_HERE.md"
 $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smoke.ps1"
+$templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
+$templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
+$projectTemplateSmokeScript = Join-Path $repoRoot "scripts\run_project_template_smoke.ps1"
+$projectTemplateSmokeDiscoverScript = Join-Path $repoRoot "scripts\discover_project_template_smoke_candidates.ps1"
 $visualGateScript = Join-Path $repoRoot "scripts\run_word_visual_release_gate.ps1"
 $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
+
+$resolvedTemplateSchemaInputDocx = if ([string]::IsNullOrWhiteSpace($TemplateSchemaInputDocx)) {
+    ""
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $TemplateSchemaInputDocx
+}
+$resolvedTemplateSchemaBaseline = if ([string]::IsNullOrWhiteSpace($TemplateSchemaBaseline)) {
+    ""
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $TemplateSchemaBaseline
+}
+$resolvedTemplateSchemaGeneratedOutput = if ([string]::IsNullOrWhiteSpace($TemplateSchemaGeneratedOutput)) {
+    Join-Path $reportDir "generated_template_schema.json"
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $TemplateSchemaGeneratedOutput
+}
+$resolvedTemplateSchemaManifestPath = if ([string]::IsNullOrWhiteSpace($TemplateSchemaManifestPath)) {
+    ""
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $TemplateSchemaManifestPath
+}
+$templateSchemaManifestRequested = -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaManifestPath)
+$resolvedTemplateSchemaManifestOutputDir = if ($templateSchemaManifestRequested) {
+    if ([string]::IsNullOrWhiteSpace($TemplateSchemaManifestOutputDir)) {
+        Join-Path $reportDir "template-schema-manifest-checks"
+    } else {
+        Resolve-FullPath -RepoRoot $repoRoot -InputPath $TemplateSchemaManifestOutputDir
+    }
+} else {
+    ""
+}
+$resolvedTemplateSchemaManifestSummaryPath = if ($templateSchemaManifestRequested) {
+    Join-Path $resolvedTemplateSchemaManifestOutputDir "summary.json"
+} else {
+    ""
+}
+$resolvedProjectTemplateSmokeManifestPath = if ([string]::IsNullOrWhiteSpace($ProjectTemplateSmokeManifestPath)) {
+    ""
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $ProjectTemplateSmokeManifestPath
+}
+$projectTemplateSmokeRequested = -not [string]::IsNullOrWhiteSpace($resolvedProjectTemplateSmokeManifestPath)
+$resolvedProjectTemplateSmokeOutputDir = if ($projectTemplateSmokeRequested) {
+    if ([string]::IsNullOrWhiteSpace($ProjectTemplateSmokeOutputDir)) {
+        Join-Path $reportDir "project-template-smoke"
+    } else {
+        Resolve-FullPath -RepoRoot $repoRoot -InputPath $ProjectTemplateSmokeOutputDir
+    }
+} else {
+    ""
+}
+$resolvedProjectTemplateSmokeSummaryPath = if ($projectTemplateSmokeRequested) {
+    Join-Path $resolvedProjectTemplateSmokeOutputDir "summary.json"
+} else {
+    ""
+}
+$resolvedProjectTemplateSmokeCandidateDiscoveryPath = if ($projectTemplateSmokeRequested) {
+    Join-Path $resolvedProjectTemplateSmokeOutputDir "candidate_discovery.json"
+} else {
+    ""
+}
+$templateSchemaRequested = -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaInputDocx) -or
+    -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaBaseline)
 
 New-Item -ItemType Directory -Path $resolvedSummaryOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
@@ -451,6 +660,43 @@ $summary = [ordered]@{
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
+    template_schema = [ordered]@{
+        requested = $templateSchemaRequested
+        baseline = $resolvedTemplateSchemaBaseline
+        input_docx = $resolvedTemplateSchemaInputDocx
+        generated_output = if ($templateSchemaRequested) { $resolvedTemplateSchemaGeneratedOutput } else { "" }
+    }
+    template_schema_manifest = [ordered]@{
+        requested = $templateSchemaManifestRequested
+        manifest_path = $resolvedTemplateSchemaManifestPath
+        output_dir = $resolvedTemplateSchemaManifestOutputDir
+        summary_json = $resolvedTemplateSchemaManifestSummaryPath
+    }
+    project_template_smoke = [ordered]@{
+        requested = $projectTemplateSmokeRequested
+        manifest_path = $resolvedProjectTemplateSmokeManifestPath
+        output_dir = $resolvedProjectTemplateSmokeOutputDir
+        summary_json = $resolvedProjectTemplateSmokeSummaryPath
+        require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
+        candidate_discovery_json = $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+        candidate_count = 0
+        registered_candidate_count = 0
+        registered_manifest_entry_count = 0
+        unregistered_candidate_count = 0
+        excluded_candidate_count = 0
+        dirty_schema_baseline_count = 0
+        schema_baseline_drift_count = 0
+        candidate_coverage = [ordered]@{
+            status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
+            require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
+            candidate_discovery_json = $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+            candidate_count = 0
+            registered_candidate_count = 0
+            registered_manifest_entry_count = 0
+            unregistered_candidate_count = 0
+            excluded_candidate_count = 0
+        }
+    }
     readme_gallery = [ordered]@{
         status = if ($SkipVisualGate) { "visual_gate_skipped" } else { "pending" }
     }
@@ -458,6 +704,23 @@ $summary = [ordered]@{
         configure = [ordered]@{ status = if ($SkipConfigure) { "skipped" } else { "pending" } }
         build = [ordered]@{ status = if ($SkipBuild) { "skipped" } else { "pending" } }
         tests = [ordered]@{ status = if ($SkipTests) { "skipped" } else { "pending" } }
+        template_schema = [ordered]@{ status = if ($templateSchemaRequested) { "pending" } else { "not_requested" } }
+        template_schema_manifest = [ordered]@{ status = if ($templateSchemaManifestRequested) { "pending" } else { "not_requested" } }
+        project_template_smoke = [ordered]@{
+            status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
+            dirty_schema_baseline_count = 0
+            schema_baseline_drift_count = 0
+            candidate_coverage = [ordered]@{
+                status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
+                require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
+                candidate_discovery_json = $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+                candidate_count = 0
+                registered_candidate_count = 0
+                registered_manifest_entry_count = 0
+                unregistered_candidate_count = 0
+                excluded_candidate_count = 0
+            }
+        }
         install_smoke = [ordered]@{ status = if ($SkipInstallSmoke) { "skipped" } else { "pending" } }
         visual_gate = [ordered]@{ status = if ($SkipVisualGate) { "skipped" } else { "pending" } }
     }
@@ -466,6 +729,27 @@ $summary = [ordered]@{
 $activeStep = ""
 
 try {
+    if ($TemplateSchemaSectionTargets -and $TemplateSchemaResolvedSectionTargets) {
+        $activeStep = "template_schema"
+        throw "Template schema checking forbids using -TemplateSchemaSectionTargets and -TemplateSchemaResolvedSectionTargets together."
+    }
+    if ($templateSchemaRequested -and [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaBaseline)) {
+        $activeStep = "template_schema"
+        throw "Template schema checking requires -TemplateSchemaBaseline when template schema options are requested."
+    }
+    if ($templateSchemaRequested -and [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaInputDocx)) {
+        $activeStep = "template_schema"
+        throw "Template schema checking requires -TemplateSchemaInputDocx when template schema options are requested."
+    }
+    if ($templateSchemaManifestRequested -and -not (Test-Path -LiteralPath $resolvedTemplateSchemaManifestPath)) {
+        $activeStep = "template_schema_manifest"
+        throw "Template schema manifest does not exist: $resolvedTemplateSchemaManifestPath"
+    }
+    if ($projectTemplateSmokeRequested -and -not (Test-Path -LiteralPath $resolvedProjectTemplateSmokeManifestPath)) {
+        $activeStep = "project_template_smoke"
+        throw "Project template smoke manifest does not exist: $resolvedProjectTemplateSmokeManifestPath"
+    }
+
     if ($RefreshReadmeAssets -and $SkipVisualGate) {
         $activeStep = "visual_gate"
         throw "README gallery refresh requires the visual gate. Re-run without -SkipVisualGate."
@@ -547,6 +831,289 @@ try {
         $summary.steps.tests.status = "completed"
     }
 
+    if ($templateSchemaRequested) {
+        $activeStep = "template_schema"
+        Write-Step "Running template schema baseline check"
+        Assert-PathExists -Path $resolvedTemplateSchemaInputDocx -Label "template schema input DOCX"
+        Assert-PathExists -Path $resolvedTemplateSchemaBaseline -Label "template schema baseline"
+
+        $templateSchemaArgs = @(
+            "-InputDocx"
+            $resolvedTemplateSchemaInputDocx
+            "-SchemaFile"
+            $resolvedTemplateSchemaBaseline
+            "-GeneratedSchemaOutput"
+            $resolvedTemplateSchemaGeneratedOutput
+            "-SkipBuild"
+            "-BuildDir"
+            $resolvedBuildDir
+        )
+        if ($TemplateSchemaSectionTargets) {
+            $templateSchemaArgs += "-SectionTargets"
+        } elseif ($TemplateSchemaResolvedSectionTargets) {
+            $templateSchemaArgs += "-ResolvedSectionTargets"
+        }
+
+        $templateSchemaOutput = @(
+            & powershell.exe -ExecutionPolicy Bypass -File $templateSchemaCheckScript @templateSchemaArgs 2>&1
+        )
+        $templateSchemaExitCode = $LASTEXITCODE
+        foreach ($line in $templateSchemaOutput) {
+            Write-Host $line
+        }
+        if ($templateSchemaExitCode -notin @(0, 1)) {
+            throw "Template schema baseline check failed."
+        }
+
+        $templateSchemaLines = @($templateSchemaOutput | ForEach-Object { $_.ToString() })
+        $templateSchemaLintInfo = Parse-TemplateSchemaLintOutput -Lines $templateSchemaLines
+        $templateSchemaInfo = Parse-TemplateSchemaCheckOutput -Lines $templateSchemaLines
+        $summary.steps.template_schema.status = if ($templateSchemaExitCode -eq 0) {
+            "completed"
+        } else {
+            "failed"
+        }
+        $summary.steps.template_schema.schema_lint_clean = [bool]$templateSchemaLintInfo.clean
+        $summary.steps.template_schema.schema_lint_issue_count = [int]$templateSchemaLintInfo.issue_count
+        $summary.steps.template_schema.matches = [bool]$templateSchemaInfo.matches
+        $summary.steps.template_schema.schema_file = [string]$templateSchemaInfo.schema_file
+        if (-not [string]::IsNullOrWhiteSpace([string]$templateSchemaInfo.generated_output_path)) {
+            $summary.steps.template_schema.generated_output_path = [string]$templateSchemaInfo.generated_output_path
+        }
+        $summary.steps.template_schema.added_target_count = [int]$templateSchemaInfo.added_target_count
+        $summary.steps.template_schema.removed_target_count = [int]$templateSchemaInfo.removed_target_count
+        $summary.steps.template_schema.changed_target_count = [int]$templateSchemaInfo.changed_target_count
+        $summary.template_schema.schema_lint_clean = [bool]$templateSchemaLintInfo.clean
+        $summary.template_schema.schema_lint_issue_count = [int]$templateSchemaLintInfo.issue_count
+        $summary.template_schema.matches = [bool]$templateSchemaInfo.matches
+        $summary.template_schema.added_target_count = [int]$templateSchemaInfo.added_target_count
+        $summary.template_schema.removed_target_count = [int]$templateSchemaInfo.removed_target_count
+        $summary.template_schema.changed_target_count = [int]$templateSchemaInfo.changed_target_count
+
+        if ($templateSchemaExitCode -ne 0) {
+            if (-not [bool]$templateSchemaInfo.matches -and -not [bool]$templateSchemaLintInfo.clean) {
+                throw "Template schema baseline drift and lint failures detected."
+            }
+            if (-not [bool]$templateSchemaInfo.matches) {
+                throw "Template schema baseline drift detected."
+            }
+            if (-not [bool]$templateSchemaLintInfo.clean) {
+                throw "Template schema baseline lint failed."
+            }
+            throw "Template schema baseline check failed."
+        }
+    }
+
+    if ($templateSchemaManifestRequested) {
+        $activeStep = "template_schema_manifest"
+        Write-Step "Running template schema manifest check"
+        Assert-PathExists -Path $resolvedTemplateSchemaManifestPath -Label "template schema manifest"
+        New-Item -ItemType Directory -Path $resolvedTemplateSchemaManifestOutputDir -Force | Out-Null
+
+        $templateSchemaManifestArgs = @(
+            "-ManifestPath"
+            $resolvedTemplateSchemaManifestPath
+            "-BuildDir"
+            $resolvedBuildDir
+            "-OutputDir"
+            $resolvedTemplateSchemaManifestOutputDir
+            "-SkipBuild"
+        )
+
+        $templateSchemaManifestOutput = @(
+            & powershell.exe -ExecutionPolicy Bypass -File $templateSchemaManifestScript @templateSchemaManifestArgs 2>&1
+        )
+        $templateSchemaManifestExitCode = $LASTEXITCODE
+        foreach ($line in $templateSchemaManifestOutput) {
+            Write-Host $line
+        }
+        if ($templateSchemaManifestExitCode -notin @(0, 1)) {
+            throw "Template schema manifest check failed."
+        }
+
+        $templateSchemaManifestInfo = Parse-TemplateSchemaManifestSummary -SummaryPath $resolvedTemplateSchemaManifestSummaryPath
+        $summary.steps.template_schema_manifest.status = if ($templateSchemaManifestExitCode -eq 0) {
+            "completed"
+        } else {
+            "failed"
+        }
+        $summary.steps.template_schema_manifest.summary_json = $resolvedTemplateSchemaManifestSummaryPath
+        $summary.steps.template_schema_manifest.manifest_path = [string]$templateSchemaManifestInfo.manifest_path
+        $summary.steps.template_schema_manifest.output_dir = [string]$resolvedTemplateSchemaManifestOutputDir
+        $summary.steps.template_schema_manifest.passed = [bool]$templateSchemaManifestInfo.passed
+        $summary.steps.template_schema_manifest.entry_count = [int]$templateSchemaManifestInfo.entry_count
+        $summary.steps.template_schema_manifest.drift_count = [int]$templateSchemaManifestInfo.drift_count
+        $summary.steps.template_schema_manifest.dirty_baseline_count = [int]$templateSchemaManifestInfo.dirty_baseline_count
+
+        $summary.template_schema_manifest.summary_json = $resolvedTemplateSchemaManifestSummaryPath
+        $summary.template_schema_manifest.manifest_path = [string]$templateSchemaManifestInfo.manifest_path
+        $summary.template_schema_manifest.output_dir = [string]$resolvedTemplateSchemaManifestOutputDir
+        $summary.template_schema_manifest.passed = [bool]$templateSchemaManifestInfo.passed
+        $summary.template_schema_manifest.entry_count = [int]$templateSchemaManifestInfo.entry_count
+        $summary.template_schema_manifest.drift_count = [int]$templateSchemaManifestInfo.drift_count
+        $summary.template_schema_manifest.dirty_baseline_count = [int]$templateSchemaManifestInfo.dirty_baseline_count
+
+        if ($templateSchemaManifestExitCode -ne 0) {
+            if ([int]$templateSchemaManifestInfo.drift_count -gt 0 -and
+                [int]$templateSchemaManifestInfo.dirty_baseline_count -gt 0) {
+                throw "Template schema manifest drift and lint failures detected."
+            }
+            if ([int]$templateSchemaManifestInfo.drift_count -gt 0) {
+                throw "Template schema manifest drift detected."
+            }
+            if ([int]$templateSchemaManifestInfo.dirty_baseline_count -gt 0) {
+                throw "Template schema manifest lint failed."
+            }
+            throw "Template schema manifest check failed."
+        }
+    }
+
+    if ($projectTemplateSmokeRequested) {
+        $activeStep = "project_template_smoke"
+        Write-Step "Running project template smoke"
+        Assert-PathExists -Path $resolvedProjectTemplateSmokeManifestPath -Label "project template smoke manifest"
+        New-Item -ItemType Directory -Path $resolvedProjectTemplateSmokeOutputDir -Force | Out-Null
+
+        $projectTemplateSmokeCoverageArgs = @(
+            "-ManifestPath"
+            $resolvedProjectTemplateSmokeManifestPath
+            "-BuildDir"
+            $resolvedBuildDir
+            "-OutputPath"
+            $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+            "-Json"
+            "-IncludeRegistered"
+            "-IncludeExcluded"
+        )
+        if ($ProjectTemplateSmokeRequireFullCoverage) {
+            $projectTemplateSmokeCoverageArgs += "-FailOnUnregistered"
+        }
+
+        $projectTemplateSmokeCoverageOutput = @(
+            & powershell.exe -ExecutionPolicy Bypass -File $projectTemplateSmokeDiscoverScript @projectTemplateSmokeCoverageArgs 2>&1
+        )
+        $projectTemplateSmokeCoverageExitCode = $LASTEXITCODE
+        foreach ($line in $projectTemplateSmokeCoverageOutput) {
+            Write-Host $line
+        }
+        if ($projectTemplateSmokeCoverageExitCode -notin @(0, 1)) {
+            throw "Project template smoke candidate discovery failed."
+        }
+
+        Assert-PathExists -Path $resolvedProjectTemplateSmokeCandidateDiscoveryPath -Label "project template smoke candidate discovery JSON"
+        $projectTemplateSmokeCoverageInfo = Get-Content -Raw -LiteralPath $resolvedProjectTemplateSmokeCandidateDiscoveryPath | ConvertFrom-Json
+        $summary.steps.project_template_smoke.candidate_coverage = [ordered]@{
+            status = if ($projectTemplateSmokeCoverageExitCode -eq 0) { "completed" } else { "failed" }
+            require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
+            candidate_discovery_json = $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+            candidate_count = [int]$projectTemplateSmokeCoverageInfo.candidate_count
+            registered_candidate_count = [int]$projectTemplateSmokeCoverageInfo.registered_candidate_count
+            registered_manifest_entry_count = [int]$projectTemplateSmokeCoverageInfo.registered_manifest_entry_count
+            unregistered_candidate_count = [int]$projectTemplateSmokeCoverageInfo.unregistered_candidate_count
+            excluded_candidate_count = [int]$projectTemplateSmokeCoverageInfo.excluded_candidate_count
+        }
+        $summary.project_template_smoke.candidate_coverage = $summary.steps.project_template_smoke.candidate_coverage
+        $summary.project_template_smoke.candidate_discovery_json = $resolvedProjectTemplateSmokeCandidateDiscoveryPath
+        $summary.project_template_smoke.candidate_count = [int]$projectTemplateSmokeCoverageInfo.candidate_count
+        $summary.project_template_smoke.registered_candidate_count = [int]$projectTemplateSmokeCoverageInfo.registered_candidate_count
+        $summary.project_template_smoke.registered_manifest_entry_count = [int]$projectTemplateSmokeCoverageInfo.registered_manifest_entry_count
+        $summary.project_template_smoke.unregistered_candidate_count = [int]$projectTemplateSmokeCoverageInfo.unregistered_candidate_count
+        $summary.project_template_smoke.excluded_candidate_count = [int]$projectTemplateSmokeCoverageInfo.excluded_candidate_count
+
+        if ($ProjectTemplateSmokeRequireFullCoverage -and $projectTemplateSmokeCoverageExitCode -ne 0) {
+            throw "Project template smoke candidate coverage is incomplete."
+        }
+
+        $projectTemplateSmokeArgs = @(
+            "-ManifestPath"
+            $resolvedProjectTemplateSmokeManifestPath
+            "-BuildDir"
+            $resolvedBuildDir
+            "-OutputDir"
+            $resolvedProjectTemplateSmokeOutputDir
+            "-Dpi"
+            $Dpi.ToString()
+            "-SkipBuild"
+        )
+        if ($KeepWordOpen) {
+            $projectTemplateSmokeArgs += "-KeepWordOpen"
+        }
+        if ($VisibleWord) {
+            $projectTemplateSmokeArgs += "-VisibleWord"
+        }
+
+        $projectTemplateSmokeOutput = @(
+            & powershell.exe -ExecutionPolicy Bypass -File $projectTemplateSmokeScript @projectTemplateSmokeArgs 2>&1
+        )
+        $projectTemplateSmokeExitCode = $LASTEXITCODE
+        foreach ($line in $projectTemplateSmokeOutput) {
+            Write-Host $line
+        }
+        if ($projectTemplateSmokeExitCode -notin @(0, 1)) {
+            throw "Project template smoke failed."
+        }
+
+        $projectTemplateSmokeInfo = Parse-ProjectTemplateSmokeSummary -SummaryPath $resolvedProjectTemplateSmokeSummaryPath
+        $projectTemplateSmokeSchemaBaselineCounts = Get-ProjectTemplateSmokeSchemaBaselineCounts -Summary $projectTemplateSmokeInfo
+        $projectTemplateSmokeDirtySchemaBaselineCount = Get-ProjectTemplateSmokeDirtySchemaBaselineCount -Summary $projectTemplateSmokeInfo
+        $projectTemplateSmokeSchemaBaselineDriftCount = [int]$projectTemplateSmokeSchemaBaselineCounts.drift
+        $summary.steps.project_template_smoke.status = if ($projectTemplateSmokeExitCode -eq 0) {
+            "completed"
+        } else {
+            "failed"
+        }
+        $summary.steps.project_template_smoke.summary_json = $resolvedProjectTemplateSmokeSummaryPath
+        $summary.steps.project_template_smoke.manifest_path = [string]$projectTemplateSmokeInfo.manifest_path
+        $summary.steps.project_template_smoke.output_dir = [string]$resolvedProjectTemplateSmokeOutputDir
+        $summary.steps.project_template_smoke.passed = [bool]$projectTemplateSmokeInfo.passed
+        $summary.steps.project_template_smoke.entry_count = [int]$projectTemplateSmokeInfo.entry_count
+        $summary.steps.project_template_smoke.failed_entry_count = [int]$projectTemplateSmokeInfo.failed_entry_count
+        $summary.steps.project_template_smoke.dirty_schema_baseline_count = $projectTemplateSmokeDirtySchemaBaselineCount
+        $summary.steps.project_template_smoke.schema_baseline_drift_count = $projectTemplateSmokeSchemaBaselineDriftCount
+        $summary.steps.project_template_smoke.visual_entry_count = [int]$projectTemplateSmokeInfo.visual_entry_count
+        $summary.steps.project_template_smoke.visual_verdict = [string]$projectTemplateSmokeInfo.visual_verdict
+        $summary.steps.project_template_smoke.manual_review_pending_count = [int]$projectTemplateSmokeInfo.manual_review_pending_count
+        $summary.steps.project_template_smoke.visual_review_undetermined_count = [int]$projectTemplateSmokeInfo.visual_review_undetermined_count
+        $summary.steps.project_template_smoke.overall_status = [string]$projectTemplateSmokeInfo.overall_status
+
+        $summary.project_template_smoke.summary_json = $resolvedProjectTemplateSmokeSummaryPath
+        $summary.project_template_smoke.manifest_path = [string]$projectTemplateSmokeInfo.manifest_path
+        $summary.project_template_smoke.output_dir = [string]$resolvedProjectTemplateSmokeOutputDir
+        $summary.project_template_smoke.passed = [bool]$projectTemplateSmokeInfo.passed
+        $summary.project_template_smoke.entry_count = [int]$projectTemplateSmokeInfo.entry_count
+        $summary.project_template_smoke.failed_entry_count = [int]$projectTemplateSmokeInfo.failed_entry_count
+        $summary.project_template_smoke.dirty_schema_baseline_count = $projectTemplateSmokeDirtySchemaBaselineCount
+        $summary.project_template_smoke.schema_baseline_drift_count = $projectTemplateSmokeSchemaBaselineDriftCount
+        $summary.project_template_smoke.visual_entry_count = [int]$projectTemplateSmokeInfo.visual_entry_count
+        $summary.project_template_smoke.visual_verdict = [string]$projectTemplateSmokeInfo.visual_verdict
+        $summary.project_template_smoke.manual_review_pending_count = [int]$projectTemplateSmokeInfo.manual_review_pending_count
+        $summary.project_template_smoke.visual_review_undetermined_count = [int]$projectTemplateSmokeInfo.visual_review_undetermined_count
+        $summary.project_template_smoke.overall_status = [string]$projectTemplateSmokeInfo.overall_status
+
+        if ($projectTemplateSmokeExitCode -ne 0) {
+            $failedEntryCount = [int]$projectTemplateSmokeInfo.failed_entry_count
+            if ($projectTemplateSmokeDirtySchemaBaselineCount -gt 0 -and
+                $projectTemplateSmokeSchemaBaselineDriftCount -gt 0) {
+                throw "Project template smoke schema baseline lint and drift failures detected."
+            }
+            if ($projectTemplateSmokeDirtySchemaBaselineCount -gt 0 -and
+                $failedEntryCount -gt $projectTemplateSmokeDirtySchemaBaselineCount) {
+                throw "Project template smoke schema baseline lint and entry failures detected."
+            }
+            if ($projectTemplateSmokeDirtySchemaBaselineCount -gt 0) {
+                throw "Project template smoke schema baseline lint failed."
+            }
+            if ($projectTemplateSmokeSchemaBaselineDriftCount -gt 0) {
+                throw "Project template smoke schema baseline drift detected."
+            }
+            if ($failedEntryCount -gt 0) {
+                throw "Project template smoke reported failing entries."
+            }
+
+            throw "Project template smoke failed."
+        }
+    }
+
     if (-not $SkipInstallSmoke) {
         $activeStep = "install_smoke"
         Write-Step "Running install + find_package smoke"
@@ -574,17 +1141,59 @@ try {
     if (-not $SkipVisualGate) {
         $activeStep = "visual_gate"
         Write-Step "Running Word visual release gate"
+        $visualGateBuildDirArguments = @(
+            "-SmokeBuildDir",
+            "-FixedGridBuildDir",
+            "-SectionPageSetupBuildDir",
+            "-PageNumberFieldsBuildDir",
+            "-BookmarkFloatingImageBuildDir",
+            "-BookmarkImageBuildDir",
+            "-BookmarkBlockVisibilityBuildDir",
+            "-TemplateBookmarkParagraphsBuildDir",
+            "-BookmarkTableReplacementBuildDir",
+            "-ParagraphListBuildDir",
+            "-ParagraphNumberingBuildDir",
+            "-ParagraphRunStyleBuildDir",
+            "-ParagraphStyleNumberingBuildDir",
+            "-FillBookmarksBuildDir",
+            "-AppendImageBuildDir",
+            "-FloatingImageZOrderBuildDir",
+            "-TableRowBuildDir",
+            "-TableRowHeightBuildDir",
+            "-TableRowCantSplitBuildDir",
+            "-TableRowRepeatHeaderBuildDir",
+            "-TableCellFillBuildDir",
+            "-TableCellBorderBuildDir",
+            "-TableCellWidthBuildDir",
+            "-TableCellMarginBuildDir",
+            "-TableCellVerticalAlignmentBuildDir",
+            "-TableCellTextDirectionBuildDir",
+            "-TableCellMergeBuildDir",
+            "-TemplateBookmarkMultilineBuildDir",
+            "-SectionTextMultilineBuildDir",
+            "-RemoveBookmarkBlockBuildDir",
+            "-TemplateBookmarkParagraphsPaginationBuildDir",
+            "-SectionOrderBuildDir",
+            "-SectionPartRefsBuildDir",
+            "-RunFontLanguageBuildDir",
+            "-EnsureStyleBuildDir",
+            "-TemplateTableCliBookmarkBuildDir",
+            "-TemplateTableCliColumnBuildDir",
+            "-TemplateTableCliDirectColumnBuildDir",
+            "-TemplateTableCliBuildDir",
+            "-TemplateTableCliMergeUnmergeBuildDir",
+            "-TemplateTableCliDirectBuildDir",
+            "-TemplateTableCliDirectMergeUnmergeBuildDir",
+            "-TemplateTableCliSectionKindBuildDir",
+            "-TemplateTableCliSectionKindRowBuildDir",
+            "-TemplateTableCliSectionKindColumnBuildDir",
+            "-TemplateTableCliSectionKindMergeUnmergeBuildDir",
+            "-TemplateTableCliSelectorBuildDir",
+            "-ReplaceRemoveImageBuildDir"
+        )
         $visualGateArgs = @(
             "-GateOutputDir"
             $resolvedGateOutputDir
-            "-SmokeBuildDir"
-            $resolvedBuildDir
-            "-FixedGridBuildDir"
-            $resolvedBuildDir
-            "-SectionPageSetupBuildDir"
-            $resolvedBuildDir
-            "-PageNumberFieldsBuildDir"
-            $resolvedBuildDir
             "-TaskOutputRoot"
             $resolvedTaskOutputRoot
             "-ReviewMode"
@@ -593,6 +1202,12 @@ try {
             $Dpi.ToString()
             "-SkipBuild"
         )
+        foreach ($argumentName in $visualGateBuildDirArguments) {
+            $visualGateArgs += @(
+                $argumentName
+                $resolvedBuildDir
+            )
+        }
         if ($SkipReviewTasks) {
             $visualGateArgs += "-SkipReviewTasks"
         }
@@ -670,6 +1285,15 @@ try {
     $consumerBuildDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedConsumerBuildDir
     $gateOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedGateOutputDir
     $taskOutputRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedTaskOutputRoot
+    $templateSchemaBaselineDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema.baseline
+    $templateSchemaGeneratedDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema.generated_output
+    $templateSchemaManifestDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema_manifest.manifest_path
+    $templateSchemaManifestSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema_manifest.summary_json
+    $templateSchemaManifestOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.template_schema_manifest.output_dir
+    $projectTemplateSmokeManifestDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.manifest_path
+    $projectTemplateSmokeSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.summary_json
+    $projectTemplateSmokeOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.output_dir
+    $projectTemplateSmokeCandidateDiscoveryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.candidate_discovery_json
     $releaseHandoffDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
     $releaseBodyDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseBodyZhCnPath
     $releaseSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseSummaryZhCnPath
@@ -708,6 +1332,9 @@ try {
 - Configure: $($summary.steps.configure.status)
 - Build: $($summary.steps.build.status)
 - Tests: $($summary.steps.tests.status)
+- Template schema: $($summary.steps.template_schema.status)
+- Template schema manifest: $($summary.steps.template_schema_manifest.status)
+- Project template smoke: $($summary.steps.project_template_smoke.status)
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
 $readmeGalleryStatusLine
@@ -719,6 +1346,18 @@ $readmeGalleryStatusLine
 - Consumer build directory: $consumerBuildDirDisplay
 - Visual gate output: $gateOutputDirDisplay
 - Review task root: $taskOutputRootDisplay
+- Template schema baseline: $templateSchemaBaselineDisplay
+- Template schema generated output: $templateSchemaGeneratedDisplay
+- Template schema manifest: $templateSchemaManifestDisplay
+- Template schema manifest summary: $templateSchemaManifestSummaryDisplay
+- Template schema manifest output dir: $templateSchemaManifestOutputDirDisplay
+- Project template smoke manifest: $projectTemplateSmokeManifestDisplay
+- Project template smoke summary: $projectTemplateSmokeSummaryDisplay
+- Project template smoke output dir: $projectTemplateSmokeOutputDirDisplay
+- Project template smoke candidate discovery: $projectTemplateSmokeCandidateDiscoveryDisplay
+- Project template smoke candidate coverage: $($summary.project_template_smoke.registered_candidate_count)/$($summary.project_template_smoke.unregistered_candidate_count)/$($summary.project_template_smoke.excluded_candidate_count) registered/unregistered/excluded
+- Project template smoke dirty schema baselines: $($summary.project_template_smoke.dirty_schema_baseline_count)
+- Project template smoke schema baseline drifts: $($summary.project_template_smoke.schema_baseline_drift_count)
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath

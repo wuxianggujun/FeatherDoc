@@ -1,0 +1,1 @@
+{"targets":[{"part":"body","slots":[{"bookmark":"customer_name","kind":"text"},{"bookmark":"invoice_number","kind":"text"},{"bookmark":"issue_date","kind":"text"},{"bookmark":"line_item_row","kind":"table_rows"},{"bookmark":"note_lines","kind":"block"}]}]}

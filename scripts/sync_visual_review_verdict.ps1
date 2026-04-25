@@ -181,12 +181,16 @@ function Resolve-TaskReviewPaths {
 function Read-TaskReview {
     param(
         [string]$Label,
+        [string]$DisplayLabel = "",
+        [string]$Id = "",
         $TaskInfo
     )
 
     $paths = Resolve-TaskReviewPaths -TaskInfo $TaskInfo
     $result = [ordered]@{
         label = $Label
+        display_label = if ([string]::IsNullOrWhiteSpace($DisplayLabel)) { $Label } else { $DisplayLabel }
+        id = $Id
         task_id = Get-OptionalPropertyValue -Object $TaskInfo -Name "task_id"
         task_dir = Get-OptionalPropertyValue -Object $TaskInfo -Name "task_dir"
         review_result_path = $paths.review_result_path
@@ -263,6 +267,11 @@ function New-GateFinalReviewContent {
     $fixedGridFlow = Get-OptionalPropertyObject -Object $GateSummary -Name "fixed_grid"
     $sectionPageSetupFlow = Get-OptionalPropertyObject -Object $GateSummary -Name "section_page_setup"
     $pageNumberFieldsFlow = Get-OptionalPropertyObject -Object $GateSummary -Name "page_number_fields"
+    $curatedFlows = @()
+    $curatedFlowsProperty = Get-OptionalPropertyObject -Object $GateSummary -Name "curated_visual_regressions"
+    if ($null -ne $curatedFlowsProperty) {
+        $curatedFlows = @($curatedFlowsProperty)
+    }
 
     $smokeStatusLine = if ((Get-OptionalPropertyValue -Object $smokeFlow -Name "status") -eq "completed") {
         "- Smoke flow: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $smokeFlow -Name 'docx_path')))"
@@ -285,6 +294,17 @@ function New-GateFinalReviewContent {
     } else {
         "- Page number fields flow: skipped"
     }
+    $curatedVisualStatusLines = if ($curatedFlows.Count -gt 0) {
+        ($curatedFlows | ForEach-Object {
+                if ((Get-OptionalPropertyValue -Object $_ -Name "status") -eq "completed") {
+                    "- $($_.label) flow: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $_ -Name 'summary_json')))"
+                } else {
+                    "- $($_.label) flow: $(Get-OptionalPropertyValue -Object $_ -Name 'status')"
+                }
+            }) -join [Environment]::NewLine
+    } else {
+        "- Curated visual regression bundles: not requested"
+    }
 
     $readmeGallery = Get-OptionalPropertyObject -Object $GateSummary -Name "readme_gallery"
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
@@ -297,10 +317,16 @@ function New-GateFinalReviewContent {
         "- README gallery refresh: $readmeGalleryStatus"
     }
 
-    $documentTask = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks") -Name "document"
-    $fixedGridTask = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks") -Name "fixed_grid"
-    $sectionPageSetupTask = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks") -Name "section_page_setup"
-    $pageNumberFieldsTask = Get-OptionalPropertyObject -Object (Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks") -Name "page_number_fields"
+    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
+    $documentTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "document"
+    $fixedGridTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "fixed_grid"
+    $sectionPageSetupTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "section_page_setup"
+    $pageNumberFieldsTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "page_number_fields"
+    $curatedReviewTasks = @()
+    $curatedReviewTasksProperty = Get-OptionalPropertyObject -Object $reviewTasks -Name "curated_visual_regressions"
+    if ($null -ne $curatedReviewTasksProperty) {
+        $curatedReviewTasks = @($curatedReviewTasksProperty)
+    }
     $documentReview = $Reviews | Where-Object { $_.label -eq "document" } | Select-Object -First 1
     $fixedGridReview = $Reviews | Where-Object { $_.label -eq "fixed_grid" } | Select-Object -First 1
     $sectionPageSetupReview = $Reviews | Where-Object { $_.label -eq "section_page_setup" } | Select-Object -First 1
@@ -351,11 +377,40 @@ function New-GateFinalReviewContent {
     } else {
         "- Page number fields review task: not available"
     }
+    $curatedVisualTaskSummary = if ($curatedReviewTasks.Count -gt 0) {
+        ($curatedReviewTasks | ForEach-Object {
+                $bundleId = Get-OptionalPropertyValue -Object $_ -Name "id"
+                $bundleLabel = Get-OptionalPropertyValue -Object $_ -Name "label"
+                $bundleTask = Get-OptionalPropertyObject -Object $_ -Name "task"
+                $bundleReview = $Reviews | Where-Object { $_.label -eq "curated:$bundleId" } | Select-Object -First 1
+                $bundleVerdict = if ($null -ne $bundleReview) { $bundleReview.verdict } else { "undecided" }
+                $bundleReviewResultPath = if ($null -ne $bundleReview) {
+                    $bundleReview.review_result_path
+                } else {
+                    Get-OptionalPropertyValue -Object $bundleTask -Name "review_result_path"
+                }
+                $bundleFinalReviewPath = if ($null -ne $bundleReview) {
+                    $bundleReview.final_review_path
+                } else {
+                    Get-OptionalPropertyValue -Object $bundleTask -Name "final_review_path"
+                }
+
+                @(
+                    "- $bundleLabel task id: $(Get-OptionalPropertyValue -Object $bundleTask -Name 'task_id')"
+                    "- $bundleLabel task dir: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $bundleTask -Name 'task_dir'))"
+                    "- $bundleLabel verdict: $bundleVerdict"
+                    "- $bundleLabel review result: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $bundleReviewResultPath)"
+                    "- $bundleLabel final review: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $bundleFinalReviewPath)"
+                ) -join [Environment]::NewLine
+            }) -join [Environment]::NewLine
+    } else {
+        "- Curated visual regression review tasks: not available"
+    }
 
     $nextSteps = switch (Get-OptionalPropertyValue -Object $GateSummary -Name "visual_verdict") {
         "pass" {
             @(
-                "1. Screenshot-backed document, fixed-grid, section page setup, and page number fields reviews are signed off as pass."
+                "1. All screenshot-backed visual reviews, including curated regression bundles, are signed off as pass."
                 "2. If any evidence is regenerated later, rerun this sync script before shipping."
             ) -join [Environment]::NewLine
         }
@@ -395,6 +450,7 @@ $smokeStatusLine
 $fixedGridStatusLine
 $sectionPageSetupStatusLine
 $pageNumberFieldsStatusLine
+$curatedVisualStatusLines
 $readmeGalleryStatusLine
 
 ## Review tasks
@@ -403,6 +459,7 @@ $documentTaskSummary
 $fixedGridTaskSummary
 $sectionPageSetupTaskSummary
 $pageNumberFieldsTaskSummary
+$curatedVisualTaskSummary
 
 ## Next steps
 
@@ -506,6 +563,11 @@ $documentTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "document"
 $fixedGridTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "fixed_grid"
 $sectionPageSetupTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "section_page_setup"
 $pageNumberFieldsTask = Get-OptionalPropertyObject -Object $reviewTasks -Name "page_number_fields"
+$curatedVisualReviewTasks = @()
+$curatedVisualReviewTasksProperty = Get-OptionalPropertyObject -Object $reviewTasks -Name "curated_visual_regressions"
+if ($null -ne $curatedVisualReviewTasksProperty) {
+    $curatedVisualReviewTasks = @($curatedVisualReviewTasksProperty)
+}
 $reviews = @()
 if ($null -ne $documentTask) {
     $reviews += Read-TaskReview -Label "document" -TaskInfo $documentTask
@@ -518,6 +580,14 @@ if ($null -ne $sectionPageSetupTask) {
 }
 if ($null -ne $pageNumberFieldsTask) {
     $reviews += Read-TaskReview -Label "page_number_fields" -TaskInfo $pageNumberFieldsTask
+}
+foreach ($curatedBundleTask in $curatedVisualReviewTasks) {
+    $bundleId = Get-OptionalPropertyValue -Object $curatedBundleTask -Name "id"
+    $bundleLabel = Get-OptionalPropertyValue -Object $curatedBundleTask -Name "label"
+    $taskInfo = Get-OptionalPropertyObject -Object $curatedBundleTask -Name "task"
+    if ($null -ne $taskInfo) {
+        $reviews += Read-TaskReview -Label "curated:$bundleId" -DisplayLabel $bundleLabel -Id $bundleId -TaskInfo $taskInfo
+    }
 }
 if ($reviews.Count -eq 0) {
     throw "Gate summary does not contain review-task metadata. Re-run the gate without -SkipReviewTasks."
@@ -534,6 +604,7 @@ $manualReviewSummary = [pscustomobject]@{
         fixed_grid = $reviews | Where-Object { $_.label -eq "fixed_grid" } | Select-Object -First 1
         section_page_setup = $reviews | Where-Object { $_.label -eq "section_page_setup" } | Select-Object -First 1
         page_number_fields = $reviews | Where-Object { $_.label -eq "page_number_fields" } | Select-Object -First 1
+        curated_visual_regressions = @($reviews | Where-Object { $_.label -like "curated:*" })
     }
 }
 
@@ -558,6 +629,7 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
     $fixedGridReview = $reviews | Where-Object { $_.label -eq "fixed_grid" } | Select-Object -First 1
     $sectionPageSetupReview = $reviews | Where-Object { $_.label -eq "section_page_setup" } | Select-Object -First 1
     $pageNumberFieldsReview = $reviews | Where-Object { $_.label -eq "page_number_fields" } | Select-Object -First 1
+    $curatedVisualReviews = @($reviews | Where-Object { $_.label -like "curated:*" })
     if ($null -ne $documentReview) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "document_verdict" -Value $documentReview.verdict
     }
@@ -569,6 +641,21 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
     }
     if ($null -ne $pageNumberFieldsReview) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "page_number_fields_verdict" -Value $pageNumberFieldsReview.verdict
+    }
+    if ($curatedVisualReviews.Count -gt 0) {
+        Set-PropertyValue -Object $summary.steps.visual_gate -Name "curated_visual_regressions" -Value @(
+            $curatedVisualReviews | ForEach-Object {
+                [pscustomobject]@{
+                    id = $_.id
+                    label = $_.display_label
+                    verdict = $_.verdict
+                    task_id = $_.task_id
+                    task_dir = $_.task_dir
+                    review_result_path = $_.review_result_path
+                    final_review_path = $_.final_review_path
+                }
+            }
+        )
     }
 
     ($summary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $resolvedReleaseSummaryPath -Encoding UTF8

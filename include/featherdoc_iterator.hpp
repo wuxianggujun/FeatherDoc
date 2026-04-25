@@ -11,12 +11,26 @@
 
 #include <cstddef>
 #include <iterator>
+#include <type_traits>
+#include <utility>
 
 namespace pugi {
 class xml_node;
 }
 
 namespace featherdoc {
+template <class T, class = void> struct is_iterator_handle : std::false_type {};
+
+template <class T>
+struct is_iterator_handle<
+    T, std::void_t<
+           decltype(std::declval<T &>().set_parent(std::declval<pugi::xml_node>())),
+           decltype(std::declval<T &>().set_current(std::declval<pugi::xml_node>()))>>
+    : std::true_type {};
+
+template <class T>
+inline constexpr bool is_iterator_handle_v = is_iterator_handle<T>::value;
+
 template <class T, class P, class C = P> class Iterator {
   private:
     using ParentType = P;
@@ -67,26 +81,27 @@ template <class T, class P, class C = P> class Iterator {
 };
 
 class IteratorHelper {
-  private:
+  public:
     using P = pugi::xml_node;
-    template <class T> static auto make_begin(T const &obj) -> Iterator<T, P> {
+    template <class T, std::enable_if_t<is_iterator_handle_v<T>, int> = 0>
+    static auto make_begin(T const &obj) -> Iterator<T, P> {
         return Iterator<T, P>(obj.parent, obj.current);
     }
 
-    template <class T> static auto make_end(T const &obj) -> Iterator<T, P> {
+    template <class T, std::enable_if_t<is_iterator_handle_v<T>, int> = 0>
+    static auto make_end(T const &obj) -> Iterator<T, P> {
         return Iterator<T, P>(obj.parent, decltype(obj.current){});
     }
-
-    template <class T> friend auto begin(T const &) -> Iterator<T, P>;
-    template <class T> friend auto end(T const &) -> Iterator<T, P>;
 };
 
 // Entry point
-template <class T> auto begin(T const &obj) -> Iterator<T, pugi::xml_node> {
+template <class T, std::enable_if_t<is_iterator_handle_v<T>, int> = 0>
+auto begin(T const &obj) -> Iterator<T, pugi::xml_node> {
     return IteratorHelper::make_begin(obj);
 }
 
-template <class T> auto end(T const &obj) -> Iterator<T, pugi::xml_node> {
+template <class T, std::enable_if_t<is_iterator_handle_v<T>, int> = 0>
+auto end(T const &obj) -> Iterator<T, pugi::xml_node> {
     return IteratorHelper::make_end(obj);
 }
 } // namespace featherdoc
