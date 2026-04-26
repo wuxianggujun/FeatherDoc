@@ -15064,7 +15064,8 @@ void inspect_style_refactor_restore_result(
 
 void inspect_style_refactor_plan(
     const featherdoc::style_refactor_plan &plan, bool json_output,
-    std::string_view command_name = "plan-style-refactor");
+    std::string_view command_name = "plan-style-refactor",
+    std::optional<bool> fail_on_suggestion = std::nullopt);
 
 void inspect_style_refactor_apply_result(
     const featherdoc::style_refactor_apply_result &result, bool json_output) {
@@ -15109,11 +15110,20 @@ void inspect_style_refactor_apply_result(
 
 void inspect_style_refactor_plan(const featherdoc::style_refactor_plan &plan,
                                  bool json_output,
-                                 std::string_view command_name) {
+                                 std::string_view command_name,
+                                 std::optional<bool> fail_on_suggestion) {
+    const auto suggestion_gate_failed =
+        fail_on_suggestion.value_or(false) && plan.operation_count != 0U;
     if (json_output) {
         std::cout << "{\"command\":";
         write_json_string(std::cout, command_name);
         std::cout << ',';
+        if (fail_on_suggestion.has_value()) {
+            std::cout << "\"fail_on_suggestion\":"
+                      << json_bool(*fail_on_suggestion)
+                      << ",\"suggestion_gate_failed\":"
+                      << json_bool(suggestion_gate_failed) << ',';
+        }
         write_json_style_refactor_plan_fields(std::cout, plan);
         std::cout << "}\n";
         return;
@@ -15122,8 +15132,14 @@ void inspect_style_refactor_plan(const featherdoc::style_refactor_plan &plan,
     const auto confidence_summary = plan.suggestion_confidence_summary();
     std::cout << "operations: " << plan.operation_count << '\n'
               << "applyable_operations: " << plan.applyable_count << '\n'
-              << "issues: " << plan.issue_count << '\n'
-              << "suggestions: " << confidence_summary.suggestion_count << '\n'
+              << "issues: " << plan.issue_count << '\n';
+    if (fail_on_suggestion.has_value()) {
+        std::cout << "fail_on_suggestion: " << yes_no(*fail_on_suggestion)
+                  << '\n'
+                  << "suggestion_gate_failed: "
+                  << yes_no(suggestion_gate_failed) << '\n';
+    }
+    std::cout << "suggestions: " << confidence_summary.suggestion_count << '\n'
               << "suggestion_exact_xml_matches: "
               << confidence_summary.exact_xml_match_count << '\n'
               << "suggestion_xml_differences: "
@@ -27807,7 +27823,8 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        inspect_style_refactor_plan(*plan, options.json_output, command);
+        inspect_style_refactor_plan(*plan, options.json_output, command,
+                                     options.fail_on_suggestion);
         const auto suggestion_gate_failed =
             options.fail_on_suggestion && plan->operation_count != 0U;
         return plan->clean() && !suggestion_gate_failed ? 0 : 1;

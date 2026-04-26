@@ -2557,7 +2557,8 @@ unique same-name relink, and catalog import pre-repairs.
   `--confidence-profile recommended|strict|review|exploratory` presets or custom
   `--min-confidence <0-100>` thresholds for stricter automation gates;
   add `--fail-on-suggestion` when CI should fail after filtered suggestions
-  remain.
+  remain. JSON output includes `fail_on_suggestion` and
+  `suggestion_gate_failed` for gate diagnostics.
   Confidence calibration against real-world corpora and richer batch restore
   selection remain future work.
 - Bookmark-based template filling now works across body, header, and footer

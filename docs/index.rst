@@ -2437,7 +2437,8 @@ Current Limitations
   ``--confidence-profile recommended|strict|review|exploratory`` presets or custom
   ``--min-confidence <0-100>`` thresholds before review or automation;
   ``--fail-on-suggestion`` turns remaining filtered suggestions into a CI gate
-  failure. The XML
+  failure and JSON output includes ``fail_on_suggestion`` plus
+  ``suggestion_gate_failed`` diagnostics. The XML
   comparison ignores style identity and display name before ranking exact
   definition matches more highly. Unreachable
   custom styles can be planned and pruned through

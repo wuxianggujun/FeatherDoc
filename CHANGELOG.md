@@ -19,8 +19,8 @@ performance.
   reporting safer command templates and post-apply cleanliness.
 - Added style refactor governance features for duplicate-style merge plans:
   `suggest-style-merges --confidence-profile recommended|strict|review|exploratory`,
-  `--min-confidence <0-100>`, `--fail-on-suggestion`, top-level
-  `suggestion_confidence_summary`,
+  `--min-confidence <0-100>`, `--fail-on-suggestion`, gate diagnostic
+  JSON fields, top-level `suggestion_confidence_summary`,
   `recommended_min_confidence`, merge restore
   dry-run / plan-only auditing, repeated `--entry`, source/target rollback
   filters, actionable restore suggestions, and issue summaries.
@@ -44,7 +44,7 @@ performance.
 - Added unit and CLI coverage for numbering catalog import/export, catalog
   patch/lint/diff/check flows, style-numbering repair with catalog preload,
   duplicate-style suggestion confidence summaries, recommended confidence
-  profile, min-confidence filtering, suggestion gate exit-code behavior,
+  profile, min-confidence filtering, suggestion gate exit-code and JSON diagnostic behavior,
   merge restore dry-run/selection behavior, and the
   new PowerShell catalog and
   onboarding-plan scripts.

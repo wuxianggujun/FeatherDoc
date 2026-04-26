@@ -3727,6 +3727,10 @@ TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
     const auto suggestion_json = read_text_file(output);
     CHECK_NE(suggestion_json.find(R"("command":"suggest-style-merges")"),
              std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("fail_on_suggestion":false)"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("suggestion_gate_failed":false)"),
+             std::string::npos);
     CHECK_NE(suggestion_json.find(R"("operation_count":1)"), std::string::npos);
     CHECK_NE(suggestion_json.find(R"("action":"merge")"), std::string::npos);
     CHECK_NE(suggestion_json.find(R"("source_style_id":"DuplicateBodyB")"),
@@ -3766,6 +3770,10 @@ TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
     const auto gate_json = read_text_file(gate_output);
     CHECK_NE(gate_json.find(R"("command":"suggest-style-merges")"),
              std::string::npos);
+    CHECK_NE(gate_json.find(R"("fail_on_suggestion":true)"),
+             std::string::npos);
+    CHECK_NE(gate_json.find(R"("suggestion_gate_failed":true)"),
+             std::string::npos);
     CHECK_NE(gate_json.find(R"("clean":true)"), std::string::npos);
     CHECK_NE(gate_json.find(R"("operation_count":1)"), std::string::npos);
     CHECK_NE(gate_json.find(R"("source_style_id":"DuplicateBodyB")"),
@@ -3782,6 +3790,8 @@ TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
     CHECK_NE(plan_json.find(R"("confidence":95)"), std::string::npos);
     CHECK_NE(plan_json.find(R"("recommended_min_confidence":95)"),
              std::string::npos);
+    CHECK_EQ(plan_json.find(R"("fail_on_suggestion")"), std::string::npos);
+    CHECK_EQ(plan_json.find(R"("suggestion_gate_failed")"), std::string::npos);
 
     CHECK_EQ(run_cli({"suggest-style-merges",
                       source.string(),
@@ -3818,6 +3828,10 @@ TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
                      filtered_gate_output),
              0);
     const auto filtered_gate_json = read_text_file(filtered_gate_output);
+    CHECK_NE(filtered_gate_json.find(R"("fail_on_suggestion":true)"),
+             std::string::npos);
+    CHECK_NE(filtered_gate_json.find(R"("suggestion_gate_failed":false)"),
+             std::string::npos);
     CHECK_NE(filtered_gate_json.find(R"("operation_count":0)"),
              std::string::npos);
     CHECK_NE(filtered_gate_json.find(R"("operations":[])"), std::string::npos);
