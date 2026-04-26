@@ -17,6 +17,10 @@ performance.
 - Added style-numbering audit and repair improvements so CLI workflows can
   inspect, gate, plan, apply, and catalog-preload style numbering fixes while
   reporting safer command templates and post-apply cleanliness.
+- Added content-control inspection APIs and CLI support with
+  `list_content_controls()` / `TemplatePart::list_content_controls()` and
+  `inspect-content-controls --tag/--alias` filters for body/header/footer
+  template parts.
 - Added style refactor governance features for duplicate-style merge plans:
   `suggest-style-merges --confidence-profile recommended|strict|review|exploratory`,
   `--min-confidence <0-100>`, source/target suggestion filters,
@@ -36,16 +40,18 @@ performance.
 ### Changed
 
 - Updated README, Chinese README, Sphinx docs, current-direction notes, and
-  feature-gap analysis to describe numbering catalog governance, style refactor
-  confidence filtering, source/target suggestion filtering, and the remaining
-  real-corpus confidence calibration work.
+  feature-gap analysis to describe numbering catalog governance, content
+  control inspection, style refactor confidence filtering, source/target
+  suggestion filtering, and the remaining real-corpus confidence calibration
+  work.
 
 ### Tests
 
 - Added unit and CLI coverage for numbering catalog import/export, catalog
   patch/lint/diff/check flows, style-numbering repair with catalog preload,
-  duplicate-style suggestion confidence summaries, recommended confidence
-  profile, min-confidence filtering, source/target suggestion filtering,
+  content-control API/CLI inspection, duplicate-style suggestion confidence
+  summaries, recommended confidence profile, min-confidence filtering,
+  source/target suggestion filtering,
   suggestion gate exit-code and JSON diagnostic behavior,
   merge restore dry-run/selection behavior, and the
   new PowerShell catalog and

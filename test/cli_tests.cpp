@@ -820,6 +820,113 @@ void create_cli_schema_v2_template_validation_fixture(const fs::path &path) {
     zip_close(archive);
 }
 
+
+void create_cli_content_controls_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:sdt>
+      <w:sdtPr>
+        <w:alias w:val="Customer Name"/>
+        <w:tag w:val="customer_name"/>
+        <w:id w:val="42"/>
+      </w:sdtPr>
+      <w:sdtContent>
+        <w:p><w:r><w:t>Ada Lovelace</w:t></w:r></w:p>
+      </w:sdtContent>
+    </w:sdt>
+    <w:p>
+      <w:r><w:t>Order: </w:t></w:r>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Order Number"/>
+          <w:tag w:val="order_no"/>
+          <w:id w:val="43"/>
+          <w:showingPlcHdr/>
+        </w:sdtPr>
+        <w:sdtContent><w:r><w:t>INV-001</w:t></w:r></w:sdtContent>
+      </w:sdt>
+    </w:p>
+    <w:tbl>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Line Items"/>
+          <w:tag w:val="line_items"/>
+          <w:id w:val="44"/>
+        </w:sdtPr>
+        <w:sdtContent>
+          <w:tr>
+            <w:tc><w:p><w:r><w:t>SKU-1</w:t></w:r></w:p></w:tc>
+          </w:tr>
+        </w:sdtContent>
+      </w:sdt>
+    </w:tbl>
+    <w:sectPr><w:headerReference w:type="default" r:id="rId2"/></w:sectPr>
+  </w:body>
+</w:document>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+</Relationships>
+)";
+    constexpr auto header_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:sdt>
+    <w:sdtPr>
+      <w:alias w:val="Header Review"/>
+      <w:tag w:val="header_review"/>
+      <w:id w:val="45"/>
+    </w:sdtPr>
+    <w:sdtContent>
+      <w:p><w:r><w:t>Reviewed by QA</w:t></w:r></w:p>
+    </w:sdtContent>
+  </w:sdt>
+</w:hdr>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/header1.xml", header_xml));
+    zip_close(archive);
+}
+
 void create_cli_bookmark_image_fixture(const fs::path &path) {
     remove_if_exists(path);
 
@@ -16512,6 +16619,108 @@ TEST_CASE("cli inspect-bookmarks supports single-bookmark text output and errors
     remove_if_exists(source);
     remove_if_exists(bookmark_output);
     remove_if_exists(missing_output);
+}
+
+
+TEST_CASE("cli inspect-content-controls lists and filters content controls") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_content_controls_source.docx";
+    const fs::path body_output = working_directory / "cli_content_controls_body.json";
+    const fs::path tag_output = working_directory / "cli_content_controls_tag.json";
+    const fs::path header_output =
+        working_directory / "cli_content_controls_header.json";
+    const fs::path missing_output =
+        working_directory / "cli_content_controls_missing.json";
+    const fs::path parse_output =
+        working_directory / "cli_content_controls_parse.json";
+
+    remove_if_exists(source);
+    remove_if_exists(body_output);
+    remove_if_exists(tag_output);
+    remove_if_exists(header_output);
+    remove_if_exists(missing_output);
+    remove_if_exists(parse_output);
+
+    create_cli_content_controls_fixture(source);
+
+    CHECK_EQ(run_cli({"inspect-content-controls", source.string(), "--json"},
+                     body_output),
+             0);
+    const auto body_json = read_text_file(body_output);
+    CHECK_NE(body_json.find(R"("part":"body")"), std::string::npos);
+    CHECK_NE(body_json.find(R"("count":3)"), std::string::npos);
+    CHECK_NE(body_json.find(R"("tag":"customer_name")"), std::string::npos);
+    CHECK_NE(body_json.find(R"("alias":"Customer Name")"), std::string::npos);
+    CHECK_NE(body_json.find(R"("kind":"block")"), std::string::npos);
+    CHECK_NE(body_json.find(R"("tag":"order_no")"), std::string::npos);
+    CHECK_NE(body_json.find(R"("showing_placeholder":true)"),
+             std::string::npos);
+    CHECK_NE(body_json.find(R"("kind":"table_row")"), std::string::npos);
+    CHECK_NE(body_json.find(R"("text":"SKU-1")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-content-controls",
+                      source.string(),
+                      "--tag",
+                      "order_no",
+                      "--json"},
+                     tag_output),
+             0);
+    const auto tag_json = read_text_file(tag_output);
+    CHECK_NE(tag_json.find(R"("filters":{"tag":"order_no","alias":null})"),
+             std::string::npos);
+    CHECK_NE(tag_json.find(R"("count":1)"), std::string::npos);
+    CHECK_NE(tag_json.find(R"("tag":"order_no")"), std::string::npos);
+    CHECK_EQ(tag_json.find(R"("tag":"customer_name")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-content-controls",
+                      source.string(),
+                      "--part",
+                      "header",
+                      "--index",
+                      "0",
+                      "--alias",
+                      "Header Review",
+                      "--json"},
+                     header_output),
+             0);
+    const auto header_json = read_text_file(header_output);
+    CHECK_NE(header_json.find(R"("part":"header")"), std::string::npos);
+    CHECK_NE(header_json.find(R"("part_index":0)"), std::string::npos);
+    CHECK_NE(header_json.find(R"("entry_name":"word/header1.xml")"),
+             std::string::npos);
+    CHECK_NE(header_json.find(R"("tag":"header_review")"),
+             std::string::npos);
+    CHECK_NE(header_json.find(R"("text":"Reviewed by QA")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-content-controls",
+                      source.string(),
+                      "--tag",
+                      "missing",
+                      "--json"},
+                     missing_output),
+             0);
+    CHECK_NE(read_text_file(missing_output).find(R"("count":0)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-content-controls",
+                      source.string(),
+                      "--tag",
+                      "customer_name",
+                      "--tag",
+                      "order_no",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output).find("duplicate --tag option"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(body_output);
+    remove_if_exists(tag_output);
+    remove_if_exists(header_output);
+    remove_if_exists(missing_output);
+    remove_if_exists(parse_output);
 }
 
 TEST_CASE("cli inspect-images lists selected body drawing images as json") {

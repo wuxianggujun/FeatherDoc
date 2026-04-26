@@ -976,6 +976,122 @@ auto find_bookmark_in_part(featherdoc::document_error_info &last_error_info,
     return std::nullopt;
 }
 
+auto content_control_kind_from_node(pugi::xml_node content_control)
+    -> featherdoc::content_control_kind {
+    const auto parent = content_control.parent();
+    const auto parent_name = std::string_view{parent.name()};
+    if (parent_name == "w:p") {
+        return featherdoc::content_control_kind::run;
+    }
+    if (parent_name == "w:tbl") {
+        return featherdoc::content_control_kind::table_row;
+    }
+    if (parent_name == "w:tr") {
+        return featherdoc::content_control_kind::table_cell;
+    }
+    if (parent_name == "w:body" || parent_name == "w:hdr" ||
+        parent_name == "w:ftr" || parent_name == "w:tc" ||
+        parent_name == "w:sdtContent") {
+        return featherdoc::content_control_kind::block;
+    }
+
+    return featherdoc::content_control_kind::unknown;
+}
+
+auto optional_child_attribute(pugi::xml_node parent, const char *child_name,
+                              const char *attribute_name)
+    -> std::optional<std::string> {
+    const auto child = parent.child(child_name);
+    if (child == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto value = std::string_view{child.attribute(attribute_name).value()};
+    if (value.empty()) {
+        return std::nullopt;
+    }
+
+    return std::string{value};
+}
+
+void collect_content_controls_in_order(
+    pugi::xml_node node, std::vector<pugi::xml_node> &content_controls) {
+    for (auto child = node.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::string_view{child.name()} == "w:sdt") {
+            content_controls.push_back(child);
+        }
+        collect_content_controls_in_order(child, content_controls);
+    }
+}
+
+auto summarize_content_control(pugi::xml_node content_control,
+                               std::size_t index)
+    -> featherdoc::content_control_summary {
+    auto summary = featherdoc::content_control_summary{};
+    summary.index = index;
+    summary.kind = content_control_kind_from_node(content_control);
+
+    const auto properties = content_control.child("w:sdtPr");
+    summary.tag = optional_child_attribute(properties, "w:tag", "w:val");
+    summary.alias = optional_child_attribute(properties, "w:alias", "w:val");
+    summary.id = optional_child_attribute(properties, "w:id", "w:val");
+    summary.showing_placeholder =
+        properties.child("w:showingPlcHdr") != pugi::xml_node{};
+
+    const auto content = content_control.child("w:sdtContent");
+    summary.text = featherdoc::detail::collect_plain_text_from_xml(
+        content != pugi::xml_node{} ? content : content_control);
+    return summary;
+}
+
+auto summarize_content_controls_in_part(
+    featherdoc::document_error_info &last_error_info,
+    pugi::xml_document &document)
+    -> std::vector<featherdoc::content_control_summary> {
+    std::vector<pugi::xml_node> content_control_nodes;
+    collect_content_controls_in_order(document, content_control_nodes);
+
+    auto summaries = std::vector<featherdoc::content_control_summary>{};
+    summaries.reserve(content_control_nodes.size());
+    for (std::size_t index = 0; index < content_control_nodes.size();
+         ++index) {
+        summaries.push_back(
+            summarize_content_control(content_control_nodes[index], index));
+    }
+
+    last_error_info.clear();
+    return summaries;
+}
+
+auto filter_content_controls_by_tag_or_alias(
+    featherdoc::document_error_info &last_error_info,
+    pugi::xml_document &document, std::string_view entry_name,
+    std::string_view value, bool match_tag)
+    -> std::vector<featherdoc::content_control_summary> {
+    if (value.empty()) {
+        set_last_error(
+            last_error_info, std::make_error_code(std::errc::invalid_argument),
+            match_tag ? "content control tag must not be empty"
+                      : "content control alias must not be empty",
+            std::string{entry_name});
+        return {};
+    }
+
+    const auto summaries = summarize_content_controls_in_part(last_error_info,
+                                                             document);
+    auto matches = std::vector<featherdoc::content_control_summary>{};
+    for (const auto &summary : summaries) {
+        const auto &candidate = match_tag ? summary.tag : summary.alias;
+        if (candidate.has_value() && *candidate == value) {
+            matches.push_back(summary);
+        }
+    }
+
+    last_error_info.clear();
+    return matches;
+}
+
 auto collect_block_bookmark_placeholders(featherdoc::document_error_info &last_error_info,
                                          pugi::xml_document &document,
                                          std::string_view entry_name,
@@ -2974,6 +3090,56 @@ std::optional<featherdoc::bookmark_summary> TemplatePart::find_bookmark(
                                  this->entry_name_storage, bookmark_name);
 }
 
+std::vector<featherdoc::content_control_summary>
+TemplatePart::list_content_controls() const {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    return summarize_content_controls_in_part(*this->last_error_info,
+                                              *this->xml_document);
+}
+
+std::vector<featherdoc::content_control_summary>
+TemplatePart::find_content_controls_by_tag(std::string_view tag) const {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    return filter_content_controls_by_tag_or_alias(
+        *this->last_error_info, *this->xml_document, this->entry_name_storage,
+        tag, true);
+}
+
+std::vector<featherdoc::content_control_summary>
+TemplatePart::find_content_controls_by_alias(std::string_view alias) const {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return {};
+    }
+
+    return filter_content_controls_by_tag_or_alias(
+        *this->last_error_info, *this->xml_document, this->entry_name_storage,
+        alias, false);
+}
+
 std::optional<std::size_t> TemplatePart::find_table_index_by_bookmark(
     std::string_view bookmark_name) const {
     if (this->xml_document == nullptr || this->last_error_info == nullptr) {
@@ -3438,6 +3604,47 @@ std::optional<featherdoc::bookmark_summary> Document::find_bookmark(
     return find_bookmark_in_part(this->last_error_info,
                                  const_cast<pugi::xml_document &>(this->document),
                                  document_xml_entry, bookmark_name);
+}
+
+std::vector<featherdoc::content_control_summary>
+Document::list_content_controls() const {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before listing content controls",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    return summarize_content_controls_in_part(
+        this->last_error_info, const_cast<pugi::xml_document &>(this->document));
+}
+
+std::vector<featherdoc::content_control_summary>
+Document::find_content_controls_by_tag(std::string_view tag) const {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading content controls",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    return filter_content_controls_by_tag_or_alias(
+        this->last_error_info, const_cast<pugi::xml_document &>(this->document),
+        document_xml_entry, tag, true);
+}
+
+std::vector<featherdoc::content_control_summary>
+Document::find_content_controls_by_alias(std::string_view alias) const {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading content controls",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    return filter_content_controls_by_tag_or_alias(
+        this->last_error_info, const_cast<pugi::xml_document &>(this->document),
+        document_xml_entry, alias, false);
 }
 
 template_validation_result Document::validate_template(

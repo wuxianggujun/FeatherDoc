@@ -379,6 +379,32 @@ struct bookmark_summary {
     }
 };
 
+enum class content_control_kind : std::uint8_t {
+    block = 0U,
+    run,
+    table_row,
+    table_cell,
+    unknown,
+};
+
+struct content_control_summary {
+    std::size_t index{};
+    featherdoc::content_control_kind kind{featherdoc::content_control_kind::unknown};
+    std::optional<std::string> tag;
+    std::optional<std::string> alias;
+    std::optional<std::string> id;
+    bool showing_placeholder{false};
+    std::string text;
+
+    [[nodiscard]] bool has_tag() const noexcept {
+        return this->tag.has_value() && !this->tag->empty();
+    }
+
+    [[nodiscard]] bool has_alias() const noexcept {
+        return this->alias.has_value() && !this->alias->empty();
+    }
+};
+
 enum class template_slot_kind : std::uint8_t {
     text = 0U,
     table_rows,
@@ -1238,6 +1264,12 @@ class TemplatePart {
     [[nodiscard]] std::vector<bookmark_summary> list_bookmarks() const;
     [[nodiscard]] std::optional<bookmark_summary> find_bookmark(
         std::string_view bookmark_name) const;
+    [[nodiscard]] std::vector<content_control_summary>
+    list_content_controls() const;
+    [[nodiscard]] std::vector<content_control_summary>
+    find_content_controls_by_tag(std::string_view tag) const;
+    [[nodiscard]] std::vector<content_control_summary>
+    find_content_controls_by_alias(std::string_view alias) const;
     [[nodiscard]] std::optional<std::size_t> find_table_index_by_bookmark(
         std::string_view bookmark_name) const;
     [[nodiscard]] std::optional<std::size_t> find_table_index(
@@ -1577,6 +1609,12 @@ class Document {
     [[nodiscard]] std::vector<bookmark_summary> list_bookmarks() const;
     [[nodiscard]] std::optional<bookmark_summary> find_bookmark(
         std::string_view bookmark_name) const;
+    [[nodiscard]] std::vector<content_control_summary>
+    list_content_controls() const;
+    [[nodiscard]] std::vector<content_control_summary>
+    find_content_controls_by_tag(std::string_view tag) const;
+    [[nodiscard]] std::vector<content_control_summary>
+    find_content_controls_by_alias(std::string_view alias) const;
     [[nodiscard]] template_validation_result validate_template(
         std::span<const template_slot_requirement> requirements) const;
     [[nodiscard]] template_validation_result validate_template(

@@ -7244,6 +7244,110 @@ TEST_CASE("validate_template_schema rejects invalid selectors") {
     fs::remove(target);
 }
 
+
+TEST_CASE("content controls can be listed and filtered by tag or alias") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "content_controls_inspect.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:sdt>
+      <w:sdtPr>
+        <w:alias w:val="Customer Name"/>
+        <w:tag w:val="customer_name"/>
+        <w:id w:val="42"/>
+      </w:sdtPr>
+      <w:sdtContent>
+        <w:p><w:r><w:t>Ada Lovelace</w:t></w:r></w:p>
+      </w:sdtContent>
+    </w:sdt>
+    <w:p>
+      <w:r><w:t>Order: </w:t></w:r>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Order Number"/>
+          <w:tag w:val="order_no"/>
+          <w:id w:val="43"/>
+          <w:showingPlcHdr/>
+        </w:sdtPr>
+        <w:sdtContent><w:r><w:t>INV-001</w:t></w:r></w:sdtContent>
+      </w:sdt>
+    </w:p>
+    <w:tbl>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Line Items"/>
+          <w:tag w:val="line_items"/>
+          <w:id w:val="44"/>
+        </w:sdtPr>
+        <w:sdtContent>
+          <w:tr>
+            <w:tc><w:p><w:r><w:t>SKU-1</w:t></w:r></w:p></w:tc>
+          </w:tr>
+        </w:sdtContent>
+      </w:sdt>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto content_controls = doc.list_content_controls();
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(content_controls.size() == 3U);
+    CHECK_EQ(content_controls[0].index, 0U);
+    CHECK_EQ(content_controls[0].kind, featherdoc::content_control_kind::block);
+    REQUIRE(content_controls[0].tag.has_value());
+    CHECK_EQ(*content_controls[0].tag, "customer_name");
+    REQUIRE(content_controls[0].alias.has_value());
+    CHECK_EQ(*content_controls[0].alias, "Customer Name");
+    REQUIRE(content_controls[0].id.has_value());
+    CHECK_EQ(*content_controls[0].id, "42");
+    CHECK_FALSE(content_controls[0].showing_placeholder);
+    CHECK_EQ(content_controls[0].text, "Ada Lovelace");
+    CHECK(content_controls[0].has_tag());
+    CHECK(content_controls[0].has_alias());
+
+    CHECK_EQ(content_controls[1].kind, featherdoc::content_control_kind::run);
+    CHECK(content_controls[1].showing_placeholder);
+    CHECK_EQ(content_controls[1].text, "INV-001");
+    CHECK_EQ(content_controls[2].kind, featherdoc::content_control_kind::table_row);
+    CHECK_EQ(content_controls[2].text, "SKU-1");
+
+    const auto order_controls = doc.find_content_controls_by_tag("order_no");
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(order_controls.size() == 1U);
+    CHECK_EQ(order_controls.front().index, 1U);
+    REQUIRE(order_controls.front().alias.has_value());
+    CHECK_EQ(*order_controls.front().alias, "Order Number");
+
+    const auto line_item_controls =
+        doc.body_template().find_content_controls_by_alias("Line Items");
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(line_item_controls.size() == 1U);
+    CHECK_EQ(line_item_controls.front().kind,
+             featherdoc::content_control_kind::table_row);
+
+    const auto missing_controls = doc.find_content_controls_by_tag("missing");
+    CHECK_FALSE(doc.last_error());
+    CHECK(missing_controls.empty());
+
+    const auto invalid_controls = doc.find_content_controls_by_tag("");
+    CHECK(invalid_controls.empty());
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().detail, "content control tag must not be empty");
+    CHECK_EQ(doc.last_error().entry_name, test_document_xml_entry);
+
+    fs::remove(target);
+}
+
 TEST_CASE("validate_template reports missing required bookmarks") {
     namespace fs = std::filesystem;
 

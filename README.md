@@ -504,6 +504,7 @@ featherdoc_cli diff-numbering-catalog numbering-catalog.json numbering-catalog.p
 featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-catalog.patched.json --output target-numbering.docx --json
 featherdoc_cli inspect-page-setup input.docx --section 1 --json
 featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
+featherdoc_cli inspect-content-controls input.docx --tag customer_name --json
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --json
 featherdoc_cli ensure-table-style input.docx ReportTable --name "Report Table" --based-on TableGrid --output styled.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
@@ -980,6 +981,7 @@ featherdoc_cli clear-paragraph-list input.docx 10 --output cleared-list.docx --j
 
 # Template inspection and bookmark-driven edits
 featherdoc_cli inspect-template-paragraphs input.docx --part header --index 0 --paragraph 0 --json
+featherdoc_cli inspect-content-controls input.docx --part body --alias "Customer Name" --json
 featherdoc_cli inspect-template-tables input.docx --part body --table 0 --json
 featherdoc_cli inspect-template-table-rows input.docx 0 --row 1 --json
 featherdoc_cli inspect-template-table-cells input.docx 0 --row 1 --cell 1 --json
@@ -2572,7 +2574,11 @@ unique same-name relink, and catalog import pre-repairs.
   `apply_bookmark_block_visibility(...)`, and `validate_template(...)` now
   covers slot declarations, missing required slots, duplicate names,
   malformed placeholders, unexpected bookmarks, kind mismatches, and
-  occurrence constraints. Document-level multi-part schema validation is now
+  occurrence constraints. Content controls can now be enumerated through
+  `list_content_controls()` / `TemplatePart::list_content_controls()` and
+  filtered by tag or alias through the `inspect-content-controls` CLI, but
+  content-control replacement and schema integration are still future work.
+  Document-level multi-part schema validation is now
   available through `validate_template_schema(...)` plus
   `featherdoc_cli validate-template-schema`, and reusable JSON schema files can
   now be fed through `--schema-file`. In-memory schema mutation helpers are now

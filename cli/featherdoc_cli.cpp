@@ -785,6 +785,18 @@ struct inspect_bookmarks_options {
     bool json_output = false;
 };
 
+struct inspect_content_controls_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::string> tag;
+    std::optional<std::string> alias;
+    bool has_kind = false;
+    bool json_output = false;
+};
+
 struct inspect_images_options {
     validation_part_family part = validation_part_family::body;
     std::optional<std::size_t> part_index;
@@ -1645,6 +1657,11 @@ void print_usage(std::ostream &stream) {
            " [--part body|header|footer|section-header|section-footer]"
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--bookmark <name>] [--json]\n"
+        << "  featherdoc_cli inspect-content-controls <input.docx>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--tag <tag>] [--alias <alias>]"
+           " [--json]\n"
         << "  featherdoc_cli replace-bookmark-text <input.docx>"
            " <bookmark-name> --text <text>"
            " [--part body|header|footer|section-header|section-footer]"
@@ -7422,6 +7439,133 @@ auto parse_inspect_bookmarks_options(
                                             "inspection", error_message);
 }
 
+auto parse_inspect_content_controls_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    inspect_content_controls_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--tag") {
+            if (options.tag.has_value()) {
+                error_message = "duplicate --tag option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --tag";
+                return false;
+            }
+            auto tag = std::string(arguments[index + 1U]);
+            if (tag.empty()) {
+                error_message = "--tag expects a non-empty value";
+                return false;
+            }
+            options.tag = std::move(tag);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--alias") {
+            if (options.alias.has_value()) {
+                error_message = "duplicate --alias option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --alias";
+                return false;
+            }
+            auto alias = std::string(arguments[index + 1U]);
+            if (alias.empty()) {
+                error_message = "--alias expects a non-empty value";
+                return false;
+            }
+            options.alias = std::move(alias);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "inspection", error_message);
+}
+
 auto parse_inspect_images_options(
     const std::vector<std::string_view> &arguments, std::size_t start_index,
     inspect_images_options &options, std::string &error_message) -> bool {
@@ -11567,6 +11711,24 @@ auto bookmark_kind_name(featherdoc::bookmark_kind kind) -> const char * {
     return "mixed";
 }
 
+auto content_control_kind_name(featherdoc::content_control_kind kind)
+    -> const char * {
+    switch (kind) {
+    case featherdoc::content_control_kind::block:
+        return "block";
+    case featherdoc::content_control_kind::run:
+        return "run";
+    case featherdoc::content_control_kind::table_row:
+        return "table_row";
+    case featherdoc::content_control_kind::table_cell:
+        return "table_cell";
+    case featherdoc::content_control_kind::unknown:
+        return "unknown";
+    }
+
+    return "unknown";
+}
+
 auto template_slot_kind_name(featherdoc::template_slot_kind kind) -> const char * {
     switch (kind) {
     case featherdoc::template_slot_kind::text:
@@ -13801,6 +13963,24 @@ void write_json_bookmark_summary(std::ostream &stream,
     stream << ",\"is_duplicate\":" << json_bool(bookmark.is_duplicate()) << '}';
 }
 
+void write_json_content_control_summary(
+    std::ostream &stream,
+    const featherdoc::content_control_summary &content_control) {
+    stream << "{\"index\":" << content_control.index << ",\"kind\":";
+    write_json_string(stream, content_control_kind_name(content_control.kind));
+    stream << ",\"tag\":";
+    write_json_optional_string(stream, content_control.tag);
+    stream << ",\"alias\":";
+    write_json_optional_string(stream, content_control.alias);
+    stream << ",\"id\":";
+    write_json_optional_string(stream, content_control.id);
+    stream << ",\"showing_placeholder\":"
+           << json_bool(content_control.showing_placeholder)
+           << ",\"text\":";
+    write_json_string(stream, content_control.text);
+    stream << '}';
+}
+
 void write_json_floating_image_crop(
     std::ostream &stream, const featherdoc::floating_image_crop &crop) {
     stream << "{\"left_per_mille\":" << crop.left_per_mille
@@ -13888,6 +14068,24 @@ void print_bookmark_summary(std::ostream &stream,
            << " occurrences=" << bookmark.occurrence_count
            << " kind=" << bookmark_kind_name(bookmark.kind)
            << " duplicate=" << yes_no(bookmark.is_duplicate());
+}
+
+auto optional_display_value(const std::optional<std::string> &value)
+    -> std::string {
+    return value.has_value() ? *value : std::string{"-"};
+}
+
+void print_content_control_summary(
+    std::ostream &stream,
+    const featherdoc::content_control_summary &content_control) {
+    stream << "index=" << content_control.index
+           << " kind=" << content_control_kind_name(content_control.kind)
+           << " tag=" << optional_display_value(content_control.tag)
+           << " alias=" << optional_display_value(content_control.alias)
+           << " id=" << optional_display_value(content_control.id)
+           << " showing_placeholder="
+           << yes_no(content_control.showing_placeholder) << " text=";
+    write_json_string(stream, content_control.text);
 }
 
 void print_drawing_image_summary(std::ostream &stream,
@@ -16902,6 +17100,96 @@ void inspect_bookmark(const selected_template_part &selected,
     std::cout << "occurrence_count: " << bookmark.occurrence_count << '\n';
     std::cout << "kind: " << bookmark_kind_name(bookmark.kind) << '\n';
     std::cout << "duplicate: " << yes_no(bookmark.is_duplicate()) << '\n';
+}
+
+auto filter_content_controls(
+    const std::vector<featherdoc::content_control_summary> &content_controls,
+    const inspect_content_controls_options &options)
+    -> std::vector<featherdoc::content_control_summary> {
+    auto filtered = std::vector<featherdoc::content_control_summary>{};
+    filtered.reserve(content_controls.size());
+    for (const auto &content_control : content_controls) {
+        if (options.tag.has_value() &&
+            (!content_control.tag.has_value() ||
+             *content_control.tag != *options.tag)) {
+            continue;
+        }
+        if (options.alias.has_value() &&
+            (!content_control.alias.has_value() ||
+             *content_control.alias != *options.alias)) {
+            continue;
+        }
+        filtered.push_back(content_control);
+    }
+    return filtered;
+}
+
+void inspect_content_controls(
+    const selected_template_part &selected,
+    const std::vector<featherdoc::content_control_summary> &content_controls,
+    const inspect_content_controls_options &options, bool json_output) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    if (json_output) {
+        std::cout << "{\"part\":";
+        write_json_string(std::cout, validation_part_name(selected.family));
+        if (selected.part_index.has_value()) {
+            std::cout << ",\"part_index\":" << *selected.part_index;
+        }
+        if (selected.section_index.has_value()) {
+            std::cout << ",\"section\":" << *selected.section_index;
+        }
+        if (selected.reference_kind.has_value()) {
+            std::cout << ",\"kind\":";
+            write_json_string(std::cout,
+                              featherdoc::to_xml_reference_type(*selected.reference_kind));
+        }
+        std::cout << ",\"entry_name\":";
+        write_json_string(std::cout, entry_name);
+        if (options.tag.has_value() || options.alias.has_value()) {
+            std::cout << ",\"filters\":{\"tag\":";
+            write_json_optional_string(std::cout, options.tag);
+            std::cout << ",\"alias\":";
+            write_json_optional_string(std::cout, options.alias);
+            std::cout << '}';
+        }
+        std::cout << ",\"count\":" << content_controls.size()
+                  << ",\"content_controls\":[";
+        for (std::size_t index = 0; index < content_controls.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_content_control_summary(std::cout,
+                                               content_controls[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    if (options.tag.has_value()) {
+        std::cout << "filter_tag: " << *options.tag << '\n';
+    }
+    if (options.alias.has_value()) {
+        std::cout << "filter_alias: " << *options.alias << '\n';
+    }
+    std::cout << "content_controls: " << content_controls.size() << '\n';
+    for (std::size_t index = 0; index < content_controls.size(); ++index) {
+        std::cout << "content_control[" << index << "]: ";
+        print_content_control_summary(std::cout, content_controls[index]);
+        std::cout << '\n';
+    }
 }
 
 void inspect_images(const selected_template_part &selected,
@@ -36133,6 +36421,51 @@ int main(int argc, char **argv) {
         }
 
         inspect_bookmarks(selected, bookmarks, options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-content-controls") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(
+                command, "inspect-content-controls expects an input path",
+                json_output);
+            return 2;
+        }
+
+        inspect_content_controls_options options;
+        std::string error_message;
+        if (!parse_inspect_content_controls_options(arguments, 2U, options,
+                                                    error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "inspect", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto content_controls = selected.part.list_content_controls();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto filtered_content_controls =
+            filter_content_controls(content_controls, options);
+        inspect_content_controls(selected, filtered_content_controls, options,
+                                 options.json_output);
         return 0;
     }
 

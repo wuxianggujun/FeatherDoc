@@ -222,13 +222,15 @@ README 已经明确当前没有高层公式 API。这个缺口是真实存在的
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 当前模板能力主要围绕书签。Word 真实业务模板中也常见 content control。
+现在已经先补了 ``list_content_controls()`` / ``inspect-content-controls``
+这条基础 inspection 链路，可以枚举 ``w:sdt`` 并按 tag / alias 过滤。
 
-建议补齐：
+建议继续补齐：
 
-- 枚举 ``w:sdt`` 内容控件
-- 按 tag / alias 定位控件
+- 将内容控件纳入 template schema slot 导出 / 校验
+- 按 tag / alias 定位后执行受控替换
 - 替换文本、段落、表格、图片内容
-- 把 content control 纳入 template schema
+- 提供与书签模板同级的可视化回归 fixture
 
 价值：
 

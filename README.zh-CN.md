@@ -320,6 +320,7 @@ featherdoc_cli diff-numbering-catalog numbering-catalog.json numbering-catalog.p
 featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-catalog.patched.json --output target-numbering.docx --json
 featherdoc_cli inspect-page-setup input.docx --section 1 --json
 featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
+featherdoc_cli inspect-content-controls input.docx --tag customer_name --json
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --json
 featherdoc_cli ensure-table-style input.docx ReportTable --name "Report Table" --based-on TableGrid --output styled.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
@@ -795,6 +796,7 @@ featherdoc_cli unmerge-table-cells input.docx 0 0 0 --direction right --output u
 
 # 模板部件、模板表格、书签、图片、页码字段
 featherdoc_cli inspect-template-paragraphs input.docx --part header --index 0 --paragraph 0 --json
+featherdoc_cli inspect-content-controls input.docx --part body --alias "Customer Name" --json
 featherdoc_cli inspect-template-tables input.docx --part body --table 0 --json
 featherdoc_cli inspect-template-table-rows input.docx 0 --row 1 --json
 featherdoc_cli inspect-template-table-cells input.docx 0 --row 1 --cell 1 --json
@@ -1187,7 +1189,7 @@ repair 候选文件。
   `template_schema_patch` / `apply_template_schema_patch(...)` /
   `build_template_schema_patch(...)` 这组内存级 schema 变更 API，
   但还没有独立 schema 管理工具链
-- 现在已经可以做继承感知的样式属性检查、单样式 / 全量 style usage report、基础 style id 重命名、同类型 style merge、批量 rename / merge 非破坏性计划、带 reason / confidence / evidence / differences 的重复样式保守 merge 建议、顶层 `suggestion_confidence_summary`（含 min/max confidence、exact XML 数量、XML difference 数量与 `recommended_min_confidence`）、可用 `--source-style` / `--target-style` 将建议收敛到具体样式对，再用 `--confidence-profile recommended|strict|review|exploratory` 或 `--min-confidence <0-100>` 过滤、并可用 `--fail-on-suggestion` 作为 CI gate、JSON 输出带 `fail_on_suggestion` / `suggestion_gate_failed` 诊断字段的 CLI 输出 / 持久化 plan 文件、受控 apply 与 rollback 记录、基于 rollback JSON 的 merge restore dry-run（也可用 `--plan-only`）审计 / 正式恢复，并支持重复 `--entry` 或 `--source-style` / `--target-style` 选择 rollback 项，restore issue 也会输出可操作 `suggestion` 以及顶层 `issue_count` / `issue_summary`，以及保守的未使用 custom style 清理计划 / 应用；merge restore 会插回捕获的 source style XML，并只按 `node_ordinal` 恢复原 source usage hits，避免误改既有 target 引用；重复建议的 XML 比较会忽略 `styleId` 和显示名；后续还缺基于真实语料的置信度校准与更丰富的批量恢复选择策略
+- 现在已经可以做 content control 的基础枚举与 `--tag` / `--alias` 过滤（`list_content_controls` / `inspect-content-controls`），后续还缺替换内容和纳入 template schema；现在也已经可以做继承感知的样式属性检查、单样式 / 全量 style usage report、基础 style id 重命名、同类型 style merge、批量 rename / merge 非破坏性计划、带 reason / confidence / evidence / differences 的重复样式保守 merge 建议、顶层 `suggestion_confidence_summary`（含 min/max confidence、exact XML 数量、XML difference 数量与 `recommended_min_confidence`）、可用 `--source-style` / `--target-style` 将建议收敛到具体样式对，再用 `--confidence-profile recommended|strict|review|exploratory` 或 `--min-confidence <0-100>` 过滤、并可用 `--fail-on-suggestion` 作为 CI gate、JSON 输出带 `fail_on_suggestion` / `suggestion_gate_failed` 诊断字段的 CLI 输出 / 持久化 plan 文件、受控 apply 与 rollback 记录、基于 rollback JSON 的 merge restore dry-run（也可用 `--plan-only`）审计 / 正式恢复，并支持重复 `--entry` 或 `--source-style` / `--target-style` 选择 rollback 项，restore issue 也会输出可操作 `suggestion` 以及顶层 `issue_count` / `issue_summary`，以及保守的未使用 custom style 清理计划 / 应用；merge restore 会插回捕获的 source style XML，并只按 `node_ordinal` 恢复原 source usage hits，避免误改既有 target 引用；重复建议的 XML 比较会忽略 `styleId` 和显示名；后续还缺基于真实语料的置信度校准与更丰富的批量恢复选择策略
 
 更细的限制列表请看 [README.md](README.md) 里的 `Current Limitations`。
 

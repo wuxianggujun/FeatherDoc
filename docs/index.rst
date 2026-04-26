@@ -278,6 +278,7 @@ setup, bookmarks, images, and template parts.
     featherdoc_cli set-section-page-setup input.docx 1 --orientation landscape --width 15840 --height 12240 --margin-top 720 --output rotated.docx --json
     featherdoc_cli inspect-bookmarks input.docx
     featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
+    featherdoc_cli inspect-content-controls input.docx --tag customer_name --json
     featherdoc_cli inspect-images input.docx
     featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
     featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
@@ -514,6 +515,7 @@ Additional representative command groups:
 
     # Template parts, template tables, bookmarks, and images
     featherdoc_cli inspect-template-paragraphs input.docx --part header --index 0 --paragraph 0 --json
+    featherdoc_cli inspect-content-controls input.docx --part body --alias "Customer Name" --json
     featherdoc_cli inspect-template-runs input.docx 1 --part body --run 0 --json
     featherdoc_cli inspect-template-tables input.docx --part body --table 0 --json
     featherdoc_cli inspect-template-table-rows input.docx 0 --row 1 --json
@@ -2455,8 +2457,13 @@ Current Limitations
   ``section_header_template()``, and ``section_footer_template()``.
   Conditional block visibility is now supported through
   ``set_bookmark_block_visibility(...)`` and
-  ``apply_bookmark_block_visibility(...)``. Structured multi-part template
-  schema validation and in-memory schema mutation helpers are now available,
+  ``apply_bookmark_block_visibility(...)``. Content controls can now be
+  enumerated through ``list_content_controls()`` /
+  ``TemplatePart::list_content_controls()`` and filtered by tag or alias
+  through the ``inspect-content-controls`` CLI, but content-control
+  replacement and schema integration are still future work. Structured
+  multi-part template schema validation and in-memory schema mutation
+  helpers are now available,
   but there is still no standalone schema-management toolchain beyond the
   library API, CLI, and repository scripts.
 - Images can now be appended as inline body drawings, enumerated through
@@ -2490,8 +2497,8 @@ staying in one large translation unit:
 - ``src/xml_helpers.cpp`` / ``src/xml_helpers.hpp``: shared internal XML helper utilities
 - ``src/constants.cpp``: exported constants and error-category plumbing
 - ``cli/featherdoc_cli.cpp``: scriptable inspection and editing utility for
-  sections, styles, numbering, page setup, bookmarks, images, and template
-  parts
+  sections, styles, numbering, page setup, bookmarks, content controls,
+  images, and template parts
 
 This keeps archive I/O, XML navigation, and public API behavior easier to
 extend independently.
