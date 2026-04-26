@@ -3677,6 +3677,10 @@ TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
     const fs::path output = working_directory / "cli_suggest_style_merges_output.json";
     const fs::path filtered_output =
         working_directory / "cli_suggest_style_merges_filtered.json";
+    const fs::path gate_output =
+        working_directory / "cli_suggest_style_merges_gate.json";
+    const fs::path filtered_gate_output =
+        working_directory / "cli_suggest_style_merges_filtered_gate.json";
     const fs::path plan_file =
         working_directory / "cli_suggest_style_merges_plan.json";
     const fs::path filtered_plan_file =
@@ -3698,6 +3702,8 @@ TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
     remove_if_exists(source);
     remove_if_exists(output);
     remove_if_exists(filtered_output);
+    remove_if_exists(gate_output);
+    remove_if_exists(filtered_gate_output);
     remove_if_exists(plan_file);
     remove_if_exists(filtered_plan_file);
     remove_if_exists(applied);
@@ -3751,6 +3757,20 @@ TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
              std::string::npos);
     CHECK_NE(suggestion_json.find("automation gates"), std::string::npos);
 
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--fail-on-suggestion",
+                      "--json"},
+                     gate_output),
+             1);
+    const auto gate_json = read_text_file(gate_output);
+    CHECK_NE(gate_json.find(R"("command":"suggest-style-merges")"),
+             std::string::npos);
+    CHECK_NE(gate_json.find(R"("clean":true)"), std::string::npos);
+    CHECK_NE(gate_json.find(R"("operation_count":1)"), std::string::npos);
+    CHECK_NE(gate_json.find(R"("source_style_id":"DuplicateBodyB")"),
+             std::string::npos);
+
     const auto plan_json = read_text_file(plan_file);
     CHECK_NE(plan_json.find(R"("command":"suggest-style-merges")"),
              std::string::npos);
@@ -3788,6 +3808,20 @@ TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
     CHECK_NE(filtered_json.find(R"("operations":[])"), std::string::npos);
     CHECK_EQ(filtered_json.find(R"("source_style_id":"DuplicateBodyB")"),
              std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--min-confidence",
+                      "96",
+                      "--fail-on-suggestion",
+                      "--json"},
+                     filtered_gate_output),
+             0);
+    const auto filtered_gate_json = read_text_file(filtered_gate_output);
+    CHECK_NE(filtered_gate_json.find(R"("operation_count":0)"),
+             std::string::npos);
+    CHECK_NE(filtered_gate_json.find(R"("operations":[])"), std::string::npos);
+
     const auto filtered_plan_json = read_text_file(filtered_plan_file);
     CHECK_NE(filtered_plan_json.find(R"("operation_count":0)"),
              std::string::npos);
@@ -3952,6 +3986,8 @@ TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
     remove_if_exists(source);
     remove_if_exists(output);
     remove_if_exists(filtered_output);
+    remove_if_exists(gate_output);
+    remove_if_exists(filtered_gate_output);
     remove_if_exists(plan_file);
     remove_if_exists(filtered_plan_file);
     remove_if_exists(applied);

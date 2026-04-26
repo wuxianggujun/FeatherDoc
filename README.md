@@ -939,7 +939,7 @@ featherdoc_cli rename-style input.docx LegacyBody ReviewBody --output renamed-st
 featherdoc_cli merge-style input.docx LegacyBody ReviewBody --output merged-style.docx --json
 featherdoc_cli plan-style-refactor input.docx --rename LegacyBody:ReviewBody --merge OldBody:Normal --output-plan style-refactor.plan.json --json
 featherdoc_cli suggest-style-merges input.docx --output-plan style-merge-suggestions.json --json
-featherdoc_cli suggest-style-merges input.docx --confidence-profile recommended --output-plan style-merge-suggestions.recommended.json --json
+featherdoc_cli suggest-style-merges input.docx --confidence-profile recommended --fail-on-suggestion --output-plan style-merge-suggestions.recommended.json --json
 featherdoc_cli suggest-style-merges input.docx --min-confidence 90 --output-plan style-merge-suggestions.custom.json --json
 featherdoc_cli apply-style-refactor input.docx --plan-file style-refactor.plan.json --rollback-plan style-refactor.rollback.json --output refactored-styles.docx --json
 featherdoc_cli apply-style-refactor input.docx --plan-file style-merge-suggestions.json --rollback-plan style-merge.rollback.json --output merged-styles.docx --json
@@ -2555,7 +2555,9 @@ unique same-name relink, and catalog import pre-repairs.
   visually equivalent duplicates can still be ranked highly. CLI output and
   persisted suggestion plans can be narrowed with the named
   `--confidence-profile recommended|strict|review|exploratory` presets or custom
-  `--min-confidence <0-100>` thresholds for stricter automation gates.
+  `--min-confidence <0-100>` thresholds for stricter automation gates;
+  add `--fail-on-suggestion` when CI should fail after filtered suggestions
+  remain.
   Confidence calibration against real-world corpora and richer batch restore
   selection remain future work.
 - Bookmark-based template filling now works across body, header, and footer

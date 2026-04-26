@@ -116,6 +116,7 @@ struct style_merge_suggestion_options {
     std::optional<path_type> output_plan_path;
     std::optional<std::uint32_t> min_confidence;
     std::optional<std::string> confidence_profile;
+    bool fail_on_suggestion = false;
     bool json_output = false;
 };
 
@@ -1264,7 +1265,8 @@ void print_usage(std::ostream &stream) {
            " [--output-plan <path>] [--json]\n"
         << "  featherdoc_cli suggest-style-merges <input.docx>"
            " [--confidence-profile recommended|strict|review|exploratory]"
-           " [--min-confidence <0-100>] [--output-plan <path>] [--json]\n"
+           " [--min-confidence <0-100>] [--fail-on-suggestion]"
+           " [--output-plan <path>] [--json]\n"
         << "  featherdoc_cli apply-style-refactor <input.docx>"
            " [--plan-file <path> | --rename <old:new> | --merge <source:target>]"
            " [--rollback-plan <path>] [--output <path>] [--json]\n"
@@ -3140,6 +3142,11 @@ auto parse_style_merge_suggestion_options(
             }
             options.confidence_profile = profile;
             ++index;
+            continue;
+        }
+
+        if (argument == "--fail-on-suggestion") {
+            options.fail_on_suggestion = true;
             continue;
         }
 
@@ -27801,7 +27808,9 @@ int main(int argc, char **argv) {
         }
 
         inspect_style_refactor_plan(*plan, options.json_output, command);
-        return plan->clean() ? 0 : 1;
+        const auto suggestion_gate_failed =
+            options.fail_on_suggestion && plan->operation_count != 0U;
+        return plan->clean() && !suggestion_gate_failed ? 0 : 1;
     }
 
     if (command == "apply-style-refactor") {
