@@ -138,7 +138,7 @@
 - style id 重命名，并同步 body / header / footer 内 paragraph、run、table 引用（rename_style / rename-style）
 - 同类型 style merge，并同步引用后移除源样式（merge_style / merge-style）
 - 批量 style rename / merge 的非破坏性计划、审计、持久化 JSON plan、受控 apply 与 rollback 记录，并输出 source usage、issue 与 command_template；merge rollback 会捕获被删除 source style XML 与原 source usage hits，restore dry-run 可无输出文件审计恢复计划，且可重复 `--entry` 或用 `--source-style` / `--target-style` 选择 rollback 项，restore issue 会输出可操作 suggestion 与顶层 issue_count / issue_summary，正式 restore 会按 `node_ordinal` 只恢复原 source hits（plan_style_refactor / plan-style-refactor / apply_style_refactor / apply-style-refactor / plan_style_refactor_restore / restore_style_refactor / restore-style-merge --dry-run / restore-style-merge --plan-only / restore-style-merge）
-- 重复 custom paragraph / character style 的保守 merge 建议，并输出可审阅 / 可持久化 JSON plan，包含 reason / confidence / evidence / differences 元数据与顶层 suggestion_confidence_summary；CLI 可用 `--confidence-profile strict|review|exploratory` 或 `--min-confidence <0-100>` 过滤更保守的自动化 plan；XML 对比会忽略 styleId 与显示名（suggest_style_merges / suggest-style-merges）
+- 重复 custom paragraph / character style 的保守 merge 建议，并输出可审阅 / 可持久化 JSON plan，包含 reason / confidence / evidence / differences 元数据与顶层 suggestion_confidence_summary；CLI 可用 `--confidence-profile recommended|strict|review|exploratory` 或 `--min-confidence <0-100>` 过滤更保守的自动化 plan；XML 对比会忽略 styleId 与显示名（suggest_style_merges / suggest-style-merges）
 - 未使用 custom style 的保守 plan / prune，并保护默认 / 内置样式与 basedOn / next / link 依赖（plan_prune_unused_styles / plan-prune-unused-styles / prune_unused_styles / prune-unused-styles）
 - numbering catalog 的 CLI JSON import/export
 - numbering catalog JSON definition level upsert 与 override 批量 upsert/remove

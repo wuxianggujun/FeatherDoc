@@ -1263,7 +1263,7 @@ void print_usage(std::ostream &stream) {
            " [--rename <old:new>] [--merge <source:target>]"
            " [--output-plan <path>] [--json]\n"
         << "  featherdoc_cli suggest-style-merges <input.docx>"
-           " [--confidence-profile strict|review|exploratory]"
+           " [--confidence-profile recommended|strict|review|exploratory]"
            " [--min-confidence <0-100>] [--output-plan <path>] [--json]\n"
         << "  featherdoc_cli apply-style-refactor <input.docx>"
            " [--plan-file <path> | --rename <old:new> | --merge <source:target>]"
@@ -3077,6 +3077,13 @@ auto style_merge_suggestion_confidence_profile_min_confidence(
     return std::nullopt;
 }
 
+auto style_merge_suggestion_confidence_profile_is_valid(
+    std::string_view profile) -> bool {
+    return profile == "recommended" ||
+           style_merge_suggestion_confidence_profile_min_confidence(profile)
+               .has_value();
+}
+
 auto parse_style_merge_suggestion_options(
     const std::vector<std::string_view> &arguments, std::size_t start_index,
     style_merge_suggestion_options &options, std::string &error_message) -> bool {
@@ -3126,10 +3133,9 @@ auto parse_style_merge_suggestion_options(
                 return false;
             }
             const auto profile = std::string(arguments[index + 1U]);
-            if (!style_merge_suggestion_confidence_profile_min_confidence(profile)
-                     .has_value()) {
+            if (!style_merge_suggestion_confidence_profile_is_valid(profile)) {
                 error_message =
-                    "--confidence-profile expects strict, review, or exploratory";
+                    "--confidence-profile expects recommended, strict, review, or exploratory";
                 return false;
             }
             options.confidence_profile = profile;
@@ -27769,8 +27775,13 @@ int main(int argc, char **argv) {
         auto min_confidence = options.min_confidence;
         if (!min_confidence.has_value() &&
             options.confidence_profile.has_value()) {
-            min_confidence = style_merge_suggestion_confidence_profile_min_confidence(
-                *options.confidence_profile);
+            if (*options.confidence_profile == "recommended") {
+                min_confidence =
+                    plan->suggestion_confidence_summary().recommended_min_confidence;
+            } else {
+                min_confidence = style_merge_suggestion_confidence_profile_min_confidence(
+                    *options.confidence_profile);
+            }
         }
         if (min_confidence.has_value()) {
             plan = filter_style_refactor_plan_by_min_confidence(std::move(*plan),

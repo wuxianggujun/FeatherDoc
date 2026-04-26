@@ -3967,6 +3967,8 @@ TEST_CASE("cli suggest-style-merges applies confidence profiles") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =
         working_directory / "cli_suggest_style_merges_profiles_source.docx";
+    const fs::path recommended_output =
+        working_directory / "cli_suggest_style_merges_profiles_recommended.json";
     const fs::path strict_output =
         working_directory / "cli_suggest_style_merges_profiles_strict.json";
     const fs::path review_output =
@@ -3975,11 +3977,31 @@ TEST_CASE("cli suggest-style-merges applies confidence profiles") {
         working_directory / "cli_suggest_style_merges_profiles_parse.json";
 
     remove_if_exists(source);
+    remove_if_exists(recommended_output);
     remove_if_exists(strict_output);
     remove_if_exists(review_output);
     remove_if_exists(parse_output);
 
     create_cli_duplicate_style_profile_fixture(source);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--confidence-profile",
+                      "recommended",
+                      "--json"},
+                     recommended_output),
+             0);
+    const auto recommended_json = read_text_file(recommended_output);
+    CHECK_NE(recommended_json.find(R"("operation_count":1)"), std::string::npos);
+    CHECK_NE(recommended_json.find(R"("source_style_id":"DuplicateBodyB")"),
+             std::string::npos);
+    CHECK_EQ(recommended_json.find(R"("source_style_id":"DuplicateBodyC")"),
+             std::string::npos);
+    CHECK_NE(recommended_json.find(R"("min_confidence":95)"),
+             std::string::npos);
+    CHECK_NE(recommended_json.find(R"("recommended_min_confidence":95)"),
+             std::string::npos);
+    CHECK_NE(recommended_json.find("automation gates"), std::string::npos);
 
     CHECK_EQ(run_cli({"suggest-style-merges",
                       source.string(),
@@ -4045,10 +4067,11 @@ TEST_CASE("cli suggest-style-merges applies confidence profiles") {
                      parse_output),
              2);
     CHECK_NE(read_text_file(parse_output)
-                 .find("--confidence-profile expects strict, review, or exploratory"),
+                 .find("--confidence-profile expects recommended, strict, review, or exploratory"),
              std::string::npos);
 
     remove_if_exists(source);
+    remove_if_exists(recommended_output);
     remove_if_exists(strict_output);
     remove_if_exists(review_output);
     remove_if_exists(parse_output);
