@@ -310,6 +310,7 @@ setup, bookmarks, images, and template parts.
     featherdoc_cli set-template-tables-from-json report.docx --patch-file multi_table_patch.json --output report-updated.docx --json
     featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
     featherdoc_cli validate-template-schema input.docx --schema-file template-schema.json --json
+    featherdoc_cli validate-template-schema input.docx --target body --slot content_control_tag=order_no:text --json
     featherdoc_cli export-template-schema input.docx --output template-schema.json --json
     featherdoc_cli normalize-template-schema template-schema.json --output normalized-template-schema.json --json
     featherdoc_cli lint-template-schema template-schema.json --json
@@ -2466,12 +2467,13 @@ Current Limitations
   ``replace-content-control-text``, and rewritten as plain text through
   ``replace_content_control_text_by_tag(...)`` /
   ``replace_content_control_text_by_alias(...)`` on ``Document`` or
-  ``TemplatePart``. Structured content replacement and schema integration are
-  still future work. Structured
-  multi-part template schema validation and in-memory schema mutation
-  helpers are now available,
-  but there is still no standalone schema-management toolchain beyond the
-  library API, CLI, and repository scripts.
+  ``TemplatePart``. Content controls can also participate in template schema
+  export and validation through ``content_control_tag`` /
+  ``content_control_alias`` slot selectors. Structured rich-content replacement
+  is still future work. Structured multi-part template schema validation,
+  content-control schema slots, and in-memory schema mutation helpers are now
+  available, but there is still no standalone interactive schema-management
+  tool beyond the library API, CLI, and repository scripts.
 - Images can now be appended as inline body drawings, enumerated through
   ``inline_images()`` or the broader ``drawing_images()``, extracted through
   ``extract_inline_image(...)`` / ``extract_drawing_image(...)``, removed

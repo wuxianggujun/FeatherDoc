@@ -97,7 +97,7 @@
 
 - ``validate_template(...)``
 - ``validate_template_schema(...)``
-- ``export-template-schema``
+- ``export-template-schema``（已覆盖书签与 content control slot）
 - ``normalize-template-schema``
 - ``diff-template-schema``
 - ``check-template-schema``
@@ -187,7 +187,7 @@
 1. 加密或密码保护 ``.docx`` 的支持
 2. 完整的 ``OMML`` 公式写入器
 3. 批注、修订、审阅痕迹的完整 typed API
-4. content control 的富内容替换、schema 集成和复杂表单系统
+4. content control 的富内容替换和复杂表单系统
 5. 纯粹为了命令数量好看而继续堆 CLI 子命令
 6. 为历史兼容性长期保留低价值旧接口
 

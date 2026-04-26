@@ -17,14 +17,15 @@ performance.
 - Added style-numbering audit and repair improvements so CLI workflows can
   inspect, gate, plan, apply, and catalog-preload style numbering fixes while
   reporting safer command templates and post-apply cleanliness.
-- Added content-control inspection and plain-text replacement APIs / CLI
-  support with `list_content_controls()` /
+- Added content-control inspection, plain-text replacement, and template-schema
+  slot support with `list_content_controls()` /
   `TemplatePart::list_content_controls()`,
   `replace_content_control_text_by_tag(...)` /
   `replace_content_control_text_by_alias(...)`,
-  `inspect-content-controls --tag/--alias`, and
-  `replace-content-control-text --tag/--alias` for body/header/footer
-  template parts.
+  `inspect-content-controls --tag/--alias`,
+  `replace-content-control-text --tag/--alias`, and
+  `content_control_tag` / `content_control_alias` slots for schema
+  export/validation/patch workflows across body/header/footer template parts.
 - Added style refactor governance features for duplicate-style merge plans:
   `suggest-style-merges --confidence-profile recommended|strict|review|exploratory`,
   `--min-confidence <0-100>`, source/target suggestion filters,

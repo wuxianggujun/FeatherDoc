@@ -16,7 +16,7 @@ FeatherDoc is a modernized C++ library for reading and writing Microsoft Word
 - Scriptable `featherdoc_cli` workflows for inspection, one-shot rewrites,
   numbering catalog governance, style refactor plans, and visual validation
 - Template schema validation, bookmark filling, content-control inspection,
-  and content-control plain-text replacement by tag or alias
+  and content-control schema slots / plain-text replacement by tag or alias
 - MSVC-safe XML parsing on `open()` and streamed ZIP rewrite on `save()`
 
 ## Build
@@ -1959,7 +1959,9 @@ The schema-file flow accepts either compact string slots such as
       "slots": [
         { "bookmark": "header_title", "kind": "text" },
         { "bookmark_name": "header_note", "kind": "block", "required": true },
-        { "bookmark": "header_rows", "kind": "table_rows", "count": 1 }
+        { "bookmark": "header_rows", "kind": "table_rows", "count": 1 },
+        { "content_control_tag": "order_no", "kind": "text" },
+        { "content_control_alias": "Line Items", "kind": "table_rows" }
       ]
     }
   ]
@@ -1967,7 +1969,12 @@ The schema-file flow accepts either compact string slots such as
 ```
 
 A ready-to-run example lives at
-`samples/template_schema_validation.schema.json`.
+`samples/template_schema_validation.schema.json`. Slot selectors can target
+bookmarks with `bookmark` / `bookmark_name`, content controls by tag with
+`content_control_tag`, or content controls by alias with `content_control_alias`.
+The compact CLI `--slot` form keeps bookmark slots as `name:kind` and accepts
+`content_control_tag=order_no:text` / `content_control_alias=Line Items:table_rows`
+for content-control contracts.
 
 If you do not want to hand-author the first schema, start from an existing
 template:
@@ -1986,7 +1993,8 @@ references; that export also includes metadata such as
 `resolved_from_section` / `linked_to_previous`, and the JSON can still be fed
 back into `validate-template-schema --schema-file ...`. All three modes
 serialize representable bookmark kinds using the same lightweight
-classification returned by `list_bookmarks()`. If you need a stable schema file
+classification returned by `list_bookmarks()`, and also export content controls
+by tag when present or by alias when no tag exists. If you need a stable schema file
 for reviews or commits, run `normalize-template-schema`; if you need to compare
 two revisions, use `diff-template-schema` to get added / removed / changed
 targets directly. If you need to gate a committed schema in review or CI, use
@@ -2038,11 +2046,13 @@ arrays:
 - `remove_targets`: target selectors matched by full target identity, including
   `part`, `index` / `part_index`, `section`, `kind`,
   `resolved_from_section`, and `linked_to_previous`
-- `remove_slots`: the same selector fields plus `bookmark` or
-  `bookmark_name`; matching slots are removed and empty targets are pruned
+- `remove_slots`: the same selector fields plus `bookmark` /
+  `bookmark_name`, `content_control_tag`, or `content_control_alias`; matching
+  slots are removed and empty targets are pruned
 - `rename_slots`: the same selector fields plus `bookmark` /
-  `bookmark_name` for the old slot name and `new_bookmark` /
-  `new_bookmark_name` for the new slot name
+  `bookmark_name`, `content_control_tag`, or `content_control_alias` for the old
+  slot name, and the matching `new_bookmark` / `new_bookmark_name`,
+  `new_content_control_tag`, or `new_content_control_alias` for the new slot name
 - `entry_name` is ignored in selectors, so exported JSON can be copied into a
   patch file after trimming unrelated fields
 - `{}` is also valid and represents a no-op patch; that is what
@@ -2068,6 +2078,10 @@ Example patch file:
       "bookmark": "summary_block"
     },
     {
+      "part": "body",
+      "content_control_alias": "Legacy Form Row"
+    },
+    {
       "part": "section-header",
       "section": 1,
       "kind": "default",
@@ -2085,6 +2099,11 @@ Example patch file:
       "linked_to_previous": true,
       "bookmark": "header_title",
       "new_bookmark": "document_title"
+    },
+    {
+      "part": "body",
+      "content_control_tag": "order_no",
+      "new_content_control_tag": "order_id"
     }
   ],
   "upsert_targets": [
@@ -2585,15 +2604,17 @@ unique same-name relink, and catalog import pre-repairs.
   rewritten from the CLI through `replace-content-control-text`, and rewritten
   as plain text through `replace_content_control_text_by_tag(...)` /
   `replace_content_control_text_by_alias(...)` on `Document` or `TemplatePart`.
-  Structured content replacement and schema integration are still future work.
-  Document-level multi-part schema validation is now
-  available through `validate_template_schema(...)` plus
+  Content controls can also participate in template schema export and validation
+  through `content_control_tag` / `content_control_alias` slot selectors.
+  Structured rich-content replacement is still future work. Document-level
+  multi-part schema validation is now available through
+  `validate_template_schema(...)` plus
   `featherdoc_cli validate-template-schema`, and reusable JSON schema files can
   now be fed through `--schema-file`. In-memory schema mutation helpers are now
   available through `template_schema_patch`, `normalize_template_schema(...)`,
   `merge_template_schema(...)`, `apply_template_schema_patch(...)`, and
-  `build_template_schema_patch(...)`, but there is still no external
-  schema-management toolchain.
+  `build_template_schema_patch(...)`, but there is still no standalone
+  interactive schema-management tool.
 - Images can now be appended as inline body drawings, enumerated through
   `inline_images()` or the broader `drawing_images()`, extracted through
   `extract_inline_image(...)` / `extract_drawing_image(...)`, removed through

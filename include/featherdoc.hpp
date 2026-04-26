@@ -414,12 +414,20 @@ enum class template_slot_kind : std::uint8_t {
     block,
 };
 
+enum class template_slot_source_kind : std::uint8_t {
+    bookmark = 0U,
+    content_control_tag,
+    content_control_alias,
+};
+
 struct template_slot_requirement {
     std::string bookmark_name;
     featherdoc::template_slot_kind kind{featherdoc::template_slot_kind::text};
     bool required{true};
     std::optional<std::size_t> min_occurrences;
     std::optional<std::size_t> max_occurrences;
+    featherdoc::template_slot_source_kind source{
+        featherdoc::template_slot_source_kind::bookmark};
 };
 
 struct template_kind_mismatch {
@@ -483,6 +491,8 @@ struct template_schema {
 struct template_schema_slot_selector {
     featherdoc::template_schema_part_selector target{};
     std::string bookmark_name;
+    featherdoc::template_slot_source_kind source{
+        featherdoc::template_slot_source_kind::bookmark};
 };
 
 struct template_schema_slot_rename {

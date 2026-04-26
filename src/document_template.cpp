@@ -1741,6 +1741,10 @@ auto fill_bookmarks_in_part(featherdoc::document_error_info &last_error_info,
 auto validate_placeholder_requirement(
     pugi::xml_document &document, std::string_view entry_name,
     const featherdoc::template_slot_requirement &requirement) -> bool {
+    if (requirement.source != featherdoc::template_slot_source_kind::bookmark) {
+        return true;
+    }
+
     featherdoc::document_error_info validation_error_info;
 
     switch (requirement.kind) {
@@ -1775,6 +1779,84 @@ auto effective_max_occurrences(
     const featherdoc::template_slot_requirement &requirement)
     -> std::optional<std::size_t> {
     return requirement.max_occurrences;
+}
+
+auto template_slot_source_prefix(featherdoc::template_slot_source_kind source)
+    -> std::string_view {
+    switch (source) {
+    case featherdoc::template_slot_source_kind::bookmark:
+        return "bookmark";
+    case featherdoc::template_slot_source_kind::content_control_tag:
+        return "content_control_tag";
+    case featherdoc::template_slot_source_kind::content_control_alias:
+        return "content_control_alias";
+    }
+
+    return "bookmark";
+}
+
+auto template_slot_key(const featherdoc::template_slot_requirement &requirement)
+    -> std::string {
+    if (requirement.source == featherdoc::template_slot_source_kind::bookmark) {
+        return requirement.bookmark_name;
+    }
+
+    auto key = std::string{template_slot_source_prefix(requirement.source)};
+    key.push_back(':');
+    key += requirement.bookmark_name;
+    return key;
+}
+
+auto template_slot_key(featherdoc::template_slot_source_kind source,
+                       std::string_view name) -> std::string {
+    if (source == featherdoc::template_slot_source_kind::bookmark) {
+        return std::string{name};
+    }
+
+    auto key = std::string{template_slot_source_prefix(source)};
+    key.push_back(':');
+    key += name;
+    return key;
+}
+
+auto content_control_kind_to_template_slot_kind(
+    featherdoc::content_control_kind kind)
+    -> featherdoc::template_slot_kind {
+    switch (kind) {
+    case featherdoc::content_control_kind::run:
+        return featherdoc::template_slot_kind::text;
+    case featherdoc::content_control_kind::table_row:
+        return featherdoc::template_slot_kind::table_rows;
+    case featherdoc::content_control_kind::block:
+    case featherdoc::content_control_kind::table_cell:
+    case featherdoc::content_control_kind::unknown:
+        return featherdoc::template_slot_kind::block;
+    }
+
+    return featherdoc::template_slot_kind::block;
+}
+
+auto content_control_kind_to_bookmark_kind(
+    featherdoc::content_control_kind kind) -> featherdoc::bookmark_kind {
+    switch (kind) {
+    case featherdoc::content_control_kind::run:
+        return featherdoc::bookmark_kind::text;
+    case featherdoc::content_control_kind::table_row:
+        return featherdoc::bookmark_kind::table_rows;
+    case featherdoc::content_control_kind::block:
+    case featherdoc::content_control_kind::table_cell:
+        return featherdoc::bookmark_kind::block;
+    case featherdoc::content_control_kind::unknown:
+        return featherdoc::bookmark_kind::malformed;
+    }
+
+    return featherdoc::bookmark_kind::malformed;
+}
+
+auto requirement_matches_content_control_kind(
+    const featherdoc::template_slot_requirement &requirement,
+    featherdoc::content_control_kind actual_kind) -> bool {
+    return requirement.kind == content_control_kind_to_template_slot_kind(actual_kind);
 }
 
 auto template_schema_selector_equals(
@@ -1839,6 +1921,12 @@ auto compare_template_schema_selector(
 auto compare_template_slot_requirement(
     const featherdoc::template_slot_requirement &left,
     const featherdoc::template_slot_requirement &right) -> int {
+    if (static_cast<int>(left.source) < static_cast<int>(right.source)) {
+        return -1;
+    }
+    if (static_cast<int>(right.source) < static_cast<int>(left.source)) {
+        return 1;
+    }
     if (left.bookmark_name < right.bookmark_name) {
         return -1;
     }
@@ -1865,6 +1953,12 @@ auto compare_template_slot_requirement(
 auto compare_template_slot_requirement_shape(
     const featherdoc::template_slot_requirement &left,
     const featherdoc::template_slot_requirement &right) -> int {
+    if (static_cast<int>(left.source) < static_cast<int>(right.source)) {
+        return -1;
+    }
+    if (static_cast<int>(right.source) < static_cast<int>(left.source)) {
+        return 1;
+    }
     if (static_cast<int>(left.kind) < static_cast<int>(right.kind)) {
         return -1;
     }
@@ -1934,10 +2028,11 @@ auto template_schema_entry_less(const featherdoc::template_schema_entry &left,
 auto find_template_schema_slot(
     std::vector<featherdoc::template_schema_entry> &entries,
     const featherdoc::template_schema_part_selector &target,
-    std::string_view bookmark_name) {
+    featherdoc::template_slot_source_kind source, std::string_view bookmark_name) {
     return std::find_if(entries.begin(), entries.end(),
                         [&](const featherdoc::template_schema_entry &entry) {
                             return template_schema_selector_equals(entry.target, target) &&
+                                   entry.requirement.source == source &&
                                    entry.requirement.bookmark_name == bookmark_name;
                         });
 }
@@ -2006,9 +2101,10 @@ auto make_unavailable_part_validation(
     featherdoc::template_validation_result result;
     std::unordered_set<std::string> missing_seen;
     for (const auto &requirement : requirements) {
+        const auto slot_key = template_slot_key(requirement);
         if (effective_min_occurrences(requirement) > 0U &&
-            missing_seen.emplace(requirement.bookmark_name).second) {
-            result.missing_required.push_back(requirement.bookmark_name);
+            missing_seen.emplace(slot_key).second) {
+            result.missing_required.push_back(slot_key);
         }
     }
 
@@ -2060,6 +2156,11 @@ auto validate_template_in_part(
     if (last_error_info.code) {
         return result;
     }
+    const auto content_control_summaries =
+        summarize_content_controls_in_part(last_error_info, document);
+    if (last_error_info.code) {
+        return result;
+    }
 
     std::unordered_map<std::string, featherdoc::bookmark_summary> bookmarks_by_name;
     bookmarks_by_name.reserve(bookmark_summaries.size());
@@ -2067,6 +2168,24 @@ auto validate_template_in_part(
         bookmarks_by_name.emplace(summary.bookmark_name, summary);
     }
 
+    std::unordered_map<std::string, std::vector<featherdoc::content_control_summary>>
+        content_controls_by_selector;
+    for (const auto &summary : content_control_summaries) {
+        if (summary.tag.has_value()) {
+            content_controls_by_selector[template_slot_key(
+                                             featherdoc::template_slot_source_kind::content_control_tag,
+                                             *summary.tag)]
+                .push_back(summary);
+        }
+        if (summary.alias.has_value()) {
+            content_controls_by_selector[template_slot_key(
+                                             featherdoc::template_slot_source_kind::content_control_alias,
+                                             *summary.alias)]
+                .push_back(summary);
+        }
+    }
+
+    std::unordered_set<std::string> declared_slots;
     std::unordered_set<std::string> declared_bookmarks;
     std::unordered_set<std::string> missing_seen;
     std::unordered_set<std::string> duplicates_seen;
@@ -2074,22 +2193,30 @@ auto validate_template_in_part(
     std::unordered_set<std::string> kind_mismatch_seen;
     std::unordered_set<std::string> occurrence_mismatch_seen;
     for (const auto &requirement : requirements) {
+        const auto slot_key = template_slot_key(requirement);
         if (requirement.bookmark_name.empty()) {
+            const auto *message =
+                requirement.source == featherdoc::template_slot_source_kind::bookmark
+                    ? "template slot bookmark name must not be empty"
+                    : "template slot name must not be empty";
             set_last_error(last_error_info,
                            std::make_error_code(std::errc::invalid_argument),
-                           "template slot bookmark name must not be empty",
+                           message, std::string{entry_name});
+            return result;
+        }
+
+        const auto [_, inserted] = declared_slots.emplace(slot_key);
+        if (!inserted) {
+            set_last_error(last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "duplicate template slot requirement for slot '" +
+                               slot_key + "'",
                            std::string{entry_name});
             return result;
         }
 
-        const auto [_, inserted] = declared_bookmarks.emplace(requirement.bookmark_name);
-        if (!inserted) {
-            set_last_error(last_error_info,
-                           std::make_error_code(std::errc::invalid_argument),
-                           "duplicate template slot requirement for bookmark '" +
-                               requirement.bookmark_name + "'",
-                           std::string{entry_name});
-            return result;
+        if (requirement.source == featherdoc::template_slot_source_kind::bookmark) {
+            declared_bookmarks.emplace(requirement.bookmark_name);
         }
 
         const auto min_occurrences = effective_min_occurrences(requirement);
@@ -2097,10 +2224,57 @@ auto validate_template_in_part(
         if (max_occurrences.has_value() && *max_occurrences < min_occurrences) {
             set_last_error(last_error_info,
                            std::make_error_code(std::errc::invalid_argument),
-                           "template slot occurrence range is invalid for bookmark '" +
-                               requirement.bookmark_name + "'",
+                           "template slot occurrence range is invalid for slot '" +
+                               slot_key + "'",
                            std::string{entry_name});
             return result;
+        }
+
+        if (requirement.source != featherdoc::template_slot_source_kind::bookmark) {
+            const auto control_it = content_controls_by_selector.find(slot_key);
+            const auto content_control_count =
+                control_it == content_controls_by_selector.end()
+                    ? 0U
+                    : control_it->second.size();
+
+            if (min_occurrences > 0U && content_control_count == 0U &&
+                missing_seen.emplace(slot_key).second) {
+                result.missing_required.push_back(slot_key);
+            }
+
+            if (content_control_count > 1U &&
+                (!max_occurrences.has_value() || *max_occurrences <= 1U) &&
+                duplicates_seen.emplace(slot_key).second) {
+                result.duplicate_bookmarks.push_back(slot_key);
+            }
+
+            if (content_control_count == 0U) {
+                continue;
+            }
+
+            if ((content_control_count < min_occurrences ||
+                 (max_occurrences.has_value() &&
+                  content_control_count > *max_occurrences)) &&
+                occurrence_mismatch_seen.emplace(slot_key).second) {
+                result.occurrence_mismatches.push_back(
+                    {slot_key, content_control_count, min_occurrences,
+                     max_occurrences});
+            }
+
+            const auto mismatch_it = std::find_if(
+                control_it->second.begin(), control_it->second.end(),
+                [&](const featherdoc::content_control_summary &summary) {
+                    return !requirement_matches_content_control_kind(requirement,
+                                                                     summary.kind);
+                });
+            if (mismatch_it != control_it->second.end() &&
+                kind_mismatch_seen.emplace(slot_key).second) {
+                result.kind_mismatches.push_back(
+                    {slot_key, requirement.kind,
+                     content_control_kind_to_bookmark_kind(mismatch_it->kind),
+                     content_control_count});
+            }
+            continue;
         }
 
         const auto summary_it = bookmarks_by_name.find(requirement.bookmark_name);
@@ -2108,13 +2282,13 @@ auto validate_template_in_part(
             summary_it == bookmarks_by_name.end() ? 0U : summary_it->second.occurrence_count;
 
         if (min_occurrences > 0U && bookmark_count == 0U &&
-            missing_seen.emplace(requirement.bookmark_name).second) {
-            result.missing_required.push_back(requirement.bookmark_name);
+            missing_seen.emplace(slot_key).second) {
+            result.missing_required.push_back(slot_key);
         }
 
         if (bookmark_count > 1U && (!max_occurrences.has_value() || *max_occurrences <= 1U) &&
-            duplicates_seen.emplace(requirement.bookmark_name).second) {
-            result.duplicate_bookmarks.push_back(requirement.bookmark_name);
+            duplicates_seen.emplace(slot_key).second) {
+            result.duplicate_bookmarks.push_back(slot_key);
         }
 
         if (bookmark_count == 0U) {
@@ -2123,23 +2297,21 @@ auto validate_template_in_part(
 
         if ((bookmark_count < min_occurrences ||
              (max_occurrences.has_value() && bookmark_count > *max_occurrences)) &&
-            !(bookmark_count == 0U && min_occurrences > 0U) &&
-            occurrence_mismatch_seen.emplace(requirement.bookmark_name).second) {
+            occurrence_mismatch_seen.emplace(slot_key).second) {
             result.occurrence_mismatches.push_back(
-                {requirement.bookmark_name, bookmark_count, min_occurrences,
-                 max_occurrences});
+                {slot_key, bookmark_count, min_occurrences, max_occurrences});
         }
 
         if (!validate_placeholder_requirement(document, entry_name, requirement) &&
-            malformed_seen.emplace(requirement.bookmark_name).second) {
-            result.malformed_placeholders.push_back(requirement.bookmark_name);
+            malformed_seen.emplace(slot_key).second) {
+            result.malformed_placeholders.push_back(slot_key);
             continue;
         }
 
         if (!requirement_matches_named_bookmark_kinds(document, requirement.bookmark_name,
                                                       requirement) &&
-            kind_mismatch_seen.emplace(requirement.bookmark_name).second) {
-            result.kind_mismatches.push_back({requirement.bookmark_name, requirement.kind,
+            kind_mismatch_seen.emplace(slot_key).second) {
+            result.kind_mismatches.push_back({slot_key, requirement.kind,
                                               summary_it->second.kind,
                                               summary_it->second.occurrence_count});
         }
@@ -2430,7 +2602,8 @@ template_schema_normalization_summary normalize_template_schema(
     for (auto entry : schema.entries) {
         entry.target = canonical_template_schema_selector(entry.target);
         const auto existing_it = find_template_schema_slot(
-            normalized_entries, entry.target, entry.requirement.bookmark_name);
+            normalized_entries, entry.target, entry.requirement.source,
+            entry.requirement.bookmark_name);
         if (existing_it == normalized_entries.end()) {
             normalized_entries.push_back(std::move(entry));
             continue;
@@ -2459,7 +2632,8 @@ template_schema_patch_summary merge_template_schema(
 
     for (const auto &overlay_entry : normalized_overlay.entries) {
         const auto existing_it = find_template_schema_slot(
-            base.entries, overlay_entry.target, overlay_entry.requirement.bookmark_name);
+            base.entries, overlay_entry.target, overlay_entry.requirement.source,
+            overlay_entry.requirement.bookmark_name);
         if (existing_it == base.entries.end()) {
             base.entries.push_back(overlay_entry);
             ++summary.inserted_slots;
@@ -2502,7 +2676,8 @@ template_schema_patch_summary apply_template_schema_patch(
             std::remove_if(schema.entries.begin(), schema.entries.end(),
                            [&](const featherdoc::template_schema_entry &entry) {
                                return template_schema_selector_equals(entry.target, target) &&
-                                      entry.requirement.bookmark_name ==
+                                      entry.requirement.source == remove_slot.source &&
+                                       entry.requirement.bookmark_name ==
                                           remove_slot.bookmark_name;
                            }),
             schema.entries.end());
@@ -2513,6 +2688,7 @@ template_schema_patch_summary apply_template_schema_patch(
         const auto target = canonical_template_schema_selector(rename_slot.slot.target);
         for (auto &entry : schema.entries) {
             if (!template_schema_selector_equals(entry.target, target) ||
+                entry.requirement.source != rename_slot.slot.source ||
                 entry.requirement.bookmark_name != rename_slot.slot.bookmark_name ||
                 entry.requirement.bookmark_name == rename_slot.new_bookmark_name) {
                 continue;
@@ -2560,7 +2736,8 @@ template_schema_patch build_template_schema_patch(
         }
 
         const auto right_it = find_template_schema_slot(
-            normalized_right.entries, left_entry.target, left_entry.requirement.bookmark_name);
+            normalized_right.entries, left_entry.target, left_entry.requirement.source,
+            left_entry.requirement.bookmark_name);
         if (right_it == normalized_right.entries.end()) {
             removed_entries.push_back(left_entry);
             continue;
@@ -2577,7 +2754,8 @@ template_schema_patch build_template_schema_patch(
         }
 
         const auto left_it = find_template_schema_slot(
-            normalized_left.entries, right_entry.target, right_entry.requirement.bookmark_name);
+            normalized_left.entries, right_entry.target, right_entry.requirement.source,
+            right_entry.requirement.bookmark_name);
         if (left_it == normalized_left.entries.end()) {
             added_entries.push_back(right_entry);
         }

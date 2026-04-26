@@ -7245,6 +7245,112 @@ TEST_CASE("validate_template_schema rejects invalid selectors") {
 }
 
 
+TEST_CASE("validate_template_schema supports content control tag and alias slots") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "template_schema_content_controls.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:sdt>
+      <w:sdtPr>
+        <w:alias w:val="Customer Name"/>
+        <w:tag w:val="customer_name"/>
+        <w:id w:val="42"/>
+      </w:sdtPr>
+      <w:sdtContent>
+        <w:p><w:r><w:t>Ada Lovelace</w:t></w:r></w:p>
+      </w:sdtContent>
+    </w:sdt>
+    <w:p>
+      <w:r><w:t>Order: </w:t></w:r>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Order Number"/>
+          <w:tag w:val="order_no"/>
+          <w:id w:val="43"/>
+        </w:sdtPr>
+        <w:sdtContent><w:r><w:t>INV-001</w:t></w:r></w:sdtContent>
+      </w:sdt>
+    </w:p>
+    <w:tbl>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Line Items"/>
+          <w:tag w:val="line_items"/>
+          <w:id w:val="44"/>
+        </w:sdtPr>
+        <w:sdtContent>
+          <w:tr>
+            <w:tc><w:p><w:r><w:t>SKU-1</w:t></w:r></w:p></w:tc>
+          </w:tr>
+        </w:sdtContent>
+      </w:sdt>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto make_requirement =
+        [](std::string name, featherdoc::template_slot_kind kind,
+           featherdoc::template_slot_source_kind source) {
+            featherdoc::template_slot_requirement requirement{};
+            requirement.bookmark_name = std::move(name);
+            requirement.kind = kind;
+            requirement.source = source;
+            return requirement;
+        };
+
+    const featherdoc::template_schema schema{{
+        {{}, make_requirement("customer_name", featherdoc::template_slot_kind::block,
+                              featherdoc::template_slot_source_kind::content_control_tag)},
+        {{}, make_requirement("order_no", featherdoc::template_slot_kind::text,
+                              featherdoc::template_slot_source_kind::content_control_tag)},
+        {{}, make_requirement("Line Items", featherdoc::template_slot_kind::table_rows,
+                              featherdoc::template_slot_source_kind::content_control_alias)},
+    }};
+    const auto result = doc.validate_template_schema(schema);
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(result.part_results.size() == 1U);
+    CHECK(static_cast<bool>(result.part_results.front()));
+    CHECK(static_cast<bool>(result));
+
+    const featherdoc::template_schema missing_schema{{
+        {{}, make_requirement("missing", featherdoc::template_slot_kind::text,
+                              featherdoc::template_slot_source_kind::content_control_tag)},
+    }};
+    const auto missing_result = doc.validate_template_schema(missing_schema);
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(missing_result.part_results.size() == 1U);
+    REQUIRE(missing_result.part_results.front().validation.missing_required.size() == 1U);
+    CHECK_EQ(missing_result.part_results.front().validation.missing_required.front(),
+             "content_control_tag:missing");
+
+    const featherdoc::template_schema mismatch_schema{{
+        {{}, make_requirement("order_no", featherdoc::template_slot_kind::table_rows,
+                              featherdoc::template_slot_source_kind::content_control_tag)},
+    }};
+    const auto mismatch_result = doc.validate_template_schema(mismatch_schema);
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(mismatch_result.part_results.size() == 1U);
+    REQUIRE(mismatch_result.part_results.front().validation.kind_mismatches.size() == 1U);
+    const auto &mismatch =
+        mismatch_result.part_results.front().validation.kind_mismatches.front();
+    CHECK_EQ(mismatch.bookmark_name, "content_control_tag:order_no");
+    CHECK_EQ(mismatch.expected_kind, featherdoc::template_slot_kind::table_rows);
+    CHECK_EQ(mismatch.actual_kind, featherdoc::bookmark_kind::text);
+    CHECK_EQ(mismatch.occurrence_count, 1U);
+
+    fs::remove(target);
+}
+
 TEST_CASE("content controls can be listed and filtered by tag or alias") {
     namespace fs = std::filesystem;
 

@@ -227,10 +227,12 @@ README 已经明确当前没有高层公式 API。这个缺口是真实存在的
 同时也提供了 ``replace_content_control_text_by_tag(...)`` /
 ``replace_content_control_text_by_alias(...)`` 这组 C++ 层纯文本替换入口，
 以及 ``replace-content-control-text`` 这条 CLI 一次性纯文本替换命令。
+现在内容控件也已经可以通过 ``content_control_tag`` /
+``content_control_alias`` 进入 template schema slot 导出、校验、normalize、
+patch 与 diff 工作流。
 
 建议继续补齐：
 
-- 将内容控件纳入 template schema slot 导出 / 校验
 - 继续扩展段落、表格、图片等富内容替换
 - 提供与书签模板同级的可视化回归 fixture
 
@@ -349,7 +351,7 @@ P2：可以后置的能力
 
 - custom table style definition editing
 - 通用字段 API
-- content controls
+- content control 富内容替换
 - 轻量 OMML inspection / insert / replace
 - 批注和修订 inspection
 

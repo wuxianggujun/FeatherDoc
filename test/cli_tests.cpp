@@ -19565,6 +19565,85 @@ TEST_CASE("cli validate-template-schema reads structured slot objects from a sch
     remove_if_exists(output);
 }
 
+TEST_CASE("cli validate-template-schema accepts content control slots") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_validate_template_schema_content_controls.docx";
+    const fs::path schema_file =
+        working_directory / "cli_validate_template_schema_content_controls.json";
+    const fs::path slot_output =
+        working_directory / "cli_validate_template_schema_content_controls_slot.json";
+    const fs::path schema_output =
+        working_directory / "cli_validate_template_schema_content_controls_file.json";
+    const fs::path missing_output =
+        working_directory / "cli_validate_template_schema_content_controls_missing.json";
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(slot_output);
+    remove_if_exists(schema_output);
+    remove_if_exists(missing_output);
+
+    create_cli_content_controls_fixture(source);
+
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--target",
+                      "body",
+                      "--slot",
+                      "content_control_tag=order_no:text",
+                      "--slot",
+                      "content_control_alias=Line Items:table_rows",
+                      "--json"},
+                     slot_output),
+             0);
+    const auto slot_json = read_text_file(slot_output);
+    CHECK_NE(slot_json.find(R"("passed":true)"), std::string::npos);
+    CHECK_NE(slot_json.find(R"("missing_required":[])"), std::string::npos);
+
+    write_binary_file(schema_file,
+                      std::string{
+                          "{"
+                          "\"targets\":[{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"content_control_tag\":\"order_no\",\"kind\":\"text\"},"
+                          "{\"content_control_alias\":\"Line Items\","
+                          "\"kind\":\"table_rows\"}"
+                          "]"
+                          "}]"
+                          "}"});
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--schema-file",
+                      schema_file.string(),
+                      "--json"},
+                     schema_output),
+             0);
+    const auto schema_json = read_text_file(schema_output);
+    CHECK_NE(schema_json.find(R"("passed":true)"), std::string::npos);
+    CHECK_NE(schema_json.find(R"("kind_mismatches":[])"), std::string::npos);
+
+    CHECK_EQ(run_cli({"validate-template-schema",
+                      source.string(),
+                      "--target",
+                      "body",
+                      "--slot",
+                      "content_control_tag=missing:text",
+                      "--json"},
+                     missing_output),
+             0);
+    CHECK_NE(read_text_file(missing_output).find(
+                 R"("missing_required":["content_control_tag:missing"])"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(schema_file);
+    remove_if_exists(slot_output);
+    remove_if_exists(schema_output);
+    remove_if_exists(missing_output);
+}
+
 TEST_CASE("cli validate-template-schema reports parse errors") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =
@@ -19687,6 +19766,37 @@ TEST_CASE("cli export-template-schema prints reusable schema json") {
                  "{\"part\":\"footer\",\"index\":0,\"slots\":["
                  "{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
                  "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli export-template-schema includes content control slots") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_export_template_schema_content_controls.docx";
+    const fs::path output =
+        working_directory / "cli_export_template_schema_content_controls.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    create_cli_content_controls_fixture(source);
+
+    CHECK_EQ(run_cli({"export-template-schema", source.string()}, output), 0);
+    const auto exported_json = read_text_file(output);
+    CHECK_NE(exported_json.find(
+                 R"({"content_control_tag":"customer_name","kind":"block"})"),
+             std::string::npos);
+    CHECK_NE(exported_json.find(
+                 R"({"content_control_tag":"order_no","kind":"text"})"),
+             std::string::npos);
+    CHECK_NE(exported_json.find(
+                 R"({"content_control_tag":"line_items","kind":"table_rows"})"),
+             std::string::npos);
+    CHECK_NE(exported_json.find(
+                 R"({"content_control_tag":"header_review","kind":"block"})"),
+             std::string::npos);
 
     remove_if_exists(source);
     remove_if_exists(output);
@@ -20427,6 +20537,81 @@ TEST_CASE("cli patch-template-schema applies upserts removals and slot pruning")
                   "\"kind\":\"default\",\"resolved_from_section\":0,"
                   "\"linked_to_previous\":true,\"slots\":[{\"bookmark\":"
                  "\"document_title\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(schema_input);
+    remove_if_exists(patch_input);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli patch-template-schema applies content control slot selectors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema_input =
+        working_directory / "cli_patch_template_schema_content_controls_input.json";
+    const fs::path patch_input =
+        working_directory / "cli_patch_template_schema_content_controls_patch.json";
+    const fs::path schema_output =
+        working_directory / "cli_patch_template_schema_content_controls_output.json";
+    const fs::path output =
+        working_directory / "cli_patch_template_schema_content_controls_summary.json";
+
+    remove_if_exists(schema_input);
+    remove_if_exists(patch_input);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+
+    write_binary_file(schema_input,
+                      std::string{
+                          "{"
+                          "\"targets\":[{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"content_control_tag\":\"order_no\",\"kind\":\"text\"},"
+                          "{\"content_control_alias\":\"Line Items\","
+                          "\"kind\":\"table_rows\"}"
+                          "]"
+                          "}]"
+                          "}"});
+    write_binary_file(patch_input,
+                      std::string{
+                          "{"
+                          "\"remove_slots\":[{"
+                          "\"part\":\"body\","
+                          "\"content_control_alias\":\"Line Items\""
+                          "}],"
+                          "\"rename_slots\":[{"
+                          "\"part\":\"body\","
+                          "\"content_control_tag\":\"order_no\","
+                          "\"new_content_control_tag\":\"order_id\""
+                          "}]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      schema_input.string(),
+                      "--patch-file",
+                      patch_input.string(),
+                      "--output",
+                      schema_output.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"patch-template-schema\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(schema_output.string()) +
+                 "\",\"target_count\":1,\"slot_count\":1,"
+                 "\"upsert_target_count\":0,\"remove_target_count\":0,"
+                 "\"remove_slot_count\":1,\"rename_slot_count\":1,"
+                 "\"updated_target_count\":0,\"replaced_slot_count\":0,"
+                 "\"applied_remove_target_count\":0,"
+                 "\"applied_remove_slot_count\":1,"
+                 "\"applied_rename_slot_count\":1,"
+                 "\"pruned_empty_target_count\":0}\n"});
+    CHECK_EQ(read_text_file(schema_output),
+             std::string{
+                 "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                 "{\"content_control_tag\":\"order_id\",\"kind\":\"text\"}]}]}\n"});
 
     remove_if_exists(schema_input);
     remove_if_exists(patch_input);
