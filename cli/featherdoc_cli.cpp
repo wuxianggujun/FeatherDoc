@@ -116,6 +116,8 @@ struct style_merge_suggestion_options {
     std::optional<path_type> output_plan_path;
     std::optional<std::uint32_t> min_confidence;
     std::optional<std::string> confidence_profile;
+    std::vector<std::string> source_style_ids{};
+    std::vector<std::string> target_style_ids{};
     bool fail_on_suggestion = false;
     bool json_output = false;
 };
@@ -1265,7 +1267,8 @@ void print_usage(std::ostream &stream) {
            " [--output-plan <path>] [--json]\n"
         << "  featherdoc_cli suggest-style-merges <input.docx>"
            " [--confidence-profile recommended|strict|review|exploratory]"
-           " [--min-confidence <0-100>] [--fail-on-suggestion]"
+           " [--min-confidence <0-100>] [--source-style <id>]..."
+           " [--target-style <id>]... [--fail-on-suggestion]"
            " [--output-plan <path>] [--json]\n"
         << "  featherdoc_cli apply-style-refactor <input.docx>"
            " [--plan-file <path> | --rename <old:new> | --merge <source:target>]"
@@ -3141,6 +3144,48 @@ auto parse_style_merge_suggestion_options(
                 return false;
             }
             options.confidence_profile = profile;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--source-style") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing style id after --source-style";
+                return false;
+            }
+            auto style_id = std::string(arguments[index + 1U]);
+            if (style_id.empty()) {
+                error_message = "--source-style expects a non-empty style id";
+                return false;
+            }
+            if (std::find(options.source_style_ids.begin(),
+                          options.source_style_ids.end(), style_id) !=
+                options.source_style_ids.end()) {
+                error_message = "duplicate --source-style id";
+                return false;
+            }
+            options.source_style_ids.push_back(std::move(style_id));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--target-style") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing style id after --target-style";
+                return false;
+            }
+            auto style_id = std::string(arguments[index + 1U]);
+            if (style_id.empty()) {
+                error_message = "--target-style expects a non-empty style id";
+                return false;
+            }
+            if (std::find(options.target_style_ids.begin(),
+                          options.target_style_ids.end(), style_id) !=
+                options.target_style_ids.end()) {
+                error_message = "duplicate --target-style id";
+                return false;
+            }
+            options.target_style_ids.push_back(std::move(style_id));
             ++index;
             continue;
         }
@@ -14691,6 +14736,53 @@ auto filter_style_refactor_plan_by_min_confidence(
     for (auto &operation : plan.operations) {
         if (operation.suggestion.has_value() &&
             operation.suggestion->confidence >= min_confidence) {
+            filtered_operations.push_back(std::move(operation));
+        }
+    }
+
+    plan.operations = std::move(filtered_operations);
+    plan.operation_count = plan.operations.size();
+    plan.applyable_count = 0U;
+    plan.issue_count = 0U;
+    for (const auto &operation : plan.operations) {
+        if (operation.applyable) {
+            ++plan.applyable_count;
+        }
+        plan.issue_count += operation.issues.size();
+    }
+    return plan;
+}
+
+auto style_refactor_filter_contains(const std::vector<std::string> &style_ids,
+                                    std::string_view style_id) -> bool {
+    return std::any_of(style_ids.begin(), style_ids.end(),
+                       [style_id](const auto &candidate) {
+                           return std::string_view(candidate) == style_id;
+                       });
+}
+
+auto filter_style_refactor_plan_by_style_ids(
+    featherdoc::style_refactor_plan plan,
+    const std::vector<std::string> &source_style_ids,
+    const std::vector<std::string> &target_style_ids)
+    -> featherdoc::style_refactor_plan {
+    if (source_style_ids.empty() && target_style_ids.empty()) {
+        return plan;
+    }
+
+    auto filtered_operations =
+        std::vector<featherdoc::style_refactor_operation_plan>{};
+    filtered_operations.reserve(plan.operations.size());
+    for (auto &operation : plan.operations) {
+        const auto source_matches =
+            source_style_ids.empty() ||
+            style_refactor_filter_contains(source_style_ids,
+                                           operation.source_style_id);
+        const auto target_matches =
+            target_style_ids.empty() ||
+            style_refactor_filter_contains(target_style_ids,
+                                           operation.target_style_id);
+        if (source_matches && target_matches) {
             filtered_operations.push_back(std::move(operation));
         }
     }
@@ -27795,6 +27887,10 @@ int main(int argc, char **argv) {
                                   options.json_output);
             return 1;
         }
+        plan = filter_style_refactor_plan_by_style_ids(
+            std::move(*plan), options.source_style_ids,
+            options.target_style_ids);
+
         auto min_confidence = options.min_confidence;
         if (!min_confidence.has_value() &&
             options.confidence_profile.has_value()) {

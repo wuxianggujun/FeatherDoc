@@ -19,7 +19,8 @@ performance.
   reporting safer command templates and post-apply cleanliness.
 - Added style refactor governance features for duplicate-style merge plans:
   `suggest-style-merges --confidence-profile recommended|strict|review|exploratory`,
-  `--min-confidence <0-100>`, `--fail-on-suggestion`, gate diagnostic
+  `--min-confidence <0-100>`, source/target suggestion filters,
+  `--fail-on-suggestion`, gate diagnostic
   JSON fields, top-level `suggestion_confidence_summary`,
   `recommended_min_confidence`, merge restore
   dry-run / plan-only auditing, repeated `--entry`, source/target rollback
@@ -36,15 +37,16 @@ performance.
 
 - Updated README, Chinese README, Sphinx docs, current-direction notes, and
   feature-gap analysis to describe numbering catalog governance, style refactor
-  confidence filtering, and the remaining real-corpus confidence calibration
-  work.
+  confidence filtering, source/target suggestion filtering, and the remaining
+  real-corpus confidence calibration work.
 
 ### Tests
 
 - Added unit and CLI coverage for numbering catalog import/export, catalog
   patch/lint/diff/check flows, style-numbering repair with catalog preload,
   duplicate-style suggestion confidence summaries, recommended confidence
-  profile, min-confidence filtering, suggestion gate exit-code and JSON diagnostic behavior,
+  profile, min-confidence filtering, source/target suggestion filtering,
+  suggestion gate exit-code and JSON diagnostic behavior,
   merge restore dry-run/selection behavior, and the
   new PowerShell catalog and
   onboarding-plan scripts.

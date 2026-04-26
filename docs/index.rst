@@ -451,6 +451,7 @@ Additional representative command groups:
     featherdoc_cli suggest-style-merges input.docx --output-plan style-merge-suggestions.json --json
     featherdoc_cli suggest-style-merges input.docx --confidence-profile recommended --fail-on-suggestion --output-plan style-merge-suggestions.recommended.json --json
     featherdoc_cli suggest-style-merges input.docx --min-confidence 90 --output-plan style-merge-suggestions.custom.json --json
+    featherdoc_cli suggest-style-merges input.docx --source-style DuplicateBodyC --target-style DuplicateBodyA --json
     featherdoc_cli apply-style-refactor input.docx --plan-file style-refactor.plan.json --rollback-plan style-refactor.rollback.json --output refactored-styles.docx --json
     featherdoc_cli apply-style-refactor input.docx --plan-file style-merge-suggestions.json --rollback-plan style-merge.rollback.json --output merged-styles.docx --json
     featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.rollback.json --entry 0 --entry 2 --dry-run --json
@@ -2433,9 +2434,10 @@ Current Limitations
   confidence, reason-code, evidence, top-level XML-difference metadata, and
   ``suggestion_confidence_summary`` fields for min/max confidence, exact-XML
   counts, XML-difference counts, and ``recommended_min_confidence``. CLI
-  output and persisted suggestion plans can be narrowed with
-  ``--confidence-profile recommended|strict|review|exploratory`` presets or custom
-  ``--min-confidence <0-100>`` thresholds before review or automation;
+  output and persisted suggestion plans can be narrowed to specific style
+  pairs with repeated ``--source-style`` / ``--target-style`` filters, then
+  with ``--confidence-profile recommended|strict|review|exploratory`` presets
+  or custom ``--min-confidence <0-100>`` thresholds before review or automation;
   ``--fail-on-suggestion`` turns remaining filtered suggestions into a CI gate
   failure and JSON output includes ``fail_on_suggestion`` plus
   ``suggestion_gate_failed`` diagnostics. The XML

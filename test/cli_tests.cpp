@@ -4127,6 +4127,113 @@ TEST_CASE("cli suggest-style-merges applies confidence profiles") {
     remove_if_exists(parse_output);
 }
 
+
+TEST_CASE("cli suggest-style-merges filters by style ids") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_suggest_style_merges_filters_source.docx";
+    const fs::path source_filter_output =
+        working_directory / "cli_suggest_style_merges_filters_source.json";
+    const fs::path target_filter_output =
+        working_directory / "cli_suggest_style_merges_filters_target.json";
+    const fs::path missing_filter_output =
+        working_directory / "cli_suggest_style_merges_filters_missing.json";
+    const fs::path parse_output =
+        working_directory / "cli_suggest_style_merges_filters_parse.json";
+
+    remove_if_exists(source);
+    remove_if_exists(source_filter_output);
+    remove_if_exists(target_filter_output);
+    remove_if_exists(missing_filter_output);
+    remove_if_exists(parse_output);
+
+    create_cli_duplicate_style_profile_fixture(source);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--source-style",
+                      "DuplicateBodyC",
+                      "--json"},
+                     source_filter_output),
+             0);
+    const auto source_filter_json = read_text_file(source_filter_output);
+    CHECK_NE(source_filter_json.find(R"("operation_count":1)"),
+             std::string::npos);
+    CHECK_NE(source_filter_json.find(R"("source_style_id":"DuplicateBodyC")"),
+             std::string::npos);
+    CHECK_EQ(source_filter_json.find(R"("source_style_id":"DuplicateBodyB")"),
+             std::string::npos);
+    CHECK_NE(source_filter_json.find(R"("target_style_id":"DuplicateBodyA")"),
+             std::string::npos);
+    CHECK_NE(source_filter_json.find(R"("confidence":80)"), std::string::npos);
+    CHECK_NE(source_filter_json.find(R"("exact_xml_match_count":0)"),
+             std::string::npos);
+    CHECK_NE(source_filter_json.find(R"("xml_difference_count":1)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--target-style",
+                      "DuplicateBodyA",
+                      "--json"},
+                     target_filter_output),
+             0);
+    const auto target_filter_json = read_text_file(target_filter_output);
+    CHECK_NE(target_filter_json.find(R"("operation_count":2)"),
+             std::string::npos);
+    CHECK_NE(target_filter_json.find(R"("source_style_id":"DuplicateBodyB")"),
+             std::string::npos);
+    CHECK_NE(target_filter_json.find(R"("source_style_id":"DuplicateBodyC")"),
+             std::string::npos);
+    CHECK_NE(target_filter_json.find(R"("target_style_id":"DuplicateBodyA")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--source-style",
+                      "MissingStyle",
+                      "--json"},
+                     missing_filter_output),
+             0);
+    const auto missing_filter_json = read_text_file(missing_filter_output);
+    CHECK_NE(missing_filter_json.find(R"("operation_count":0)"),
+             std::string::npos);
+    CHECK_EQ(missing_filter_json.find(R"("source_style_id":"DuplicateBodyB")"),
+             std::string::npos);
+    CHECK_EQ(missing_filter_json.find(R"("source_style_id":"DuplicateBodyC")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--source-style",
+                      "DuplicateBodyB",
+                      "--source-style",
+                      "DuplicateBodyB",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output).find("duplicate --source-style id"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--target-style",
+                      "DuplicateBodyA",
+                      "--target-style",
+                      "DuplicateBodyA",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output).find("duplicate --target-style id"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(source_filter_output);
+    remove_if_exists(target_filter_output);
+    remove_if_exists(missing_filter_output);
+    remove_if_exists(parse_output);
+}
+
 TEST_CASE("cli apply-style-refactor applies clean batch and blocks conflicts") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_style_refactor_apply_source.docx";
