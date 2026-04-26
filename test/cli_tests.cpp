@@ -1337,6 +1337,332 @@ void create_cli_style_existing_fixture(const fs::path &path) {
     zip_close(archive);
 }
 
+
+void create_cli_style_numbering_audit_broken_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>seed</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+</Relationships>
+)";
+    constexpr auto styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="MissingNumId" w:customStyle="1">
+    <w:name w:val="Missing NumId"/>
+    <w:basedOn w:val="Normal"/>
+    <w:pPr>
+      <w:numPr><w:ilvl w:val="0"/></w:numPr>
+    </w:pPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="OrphanNumId" w:customStyle="1">
+    <w:name w:val="Orphan NumId"/>
+    <w:basedOn w:val="Normal"/>
+    <w:pPr>
+      <w:numPr><w:ilvl w:val="0"/><w:numId w:val="777"/></w:numPr>
+    </w:pPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="PlainBody" w:customStyle="1">
+    <w:name w:val="Plain Body"/>
+    <w:basedOn w:val="Normal"/>
+  </w:style>
+</w:styles>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/styles.xml", styles_xml));
+    zip_close(archive);
+}
+
+
+void create_cli_style_numbering_based_on_mismatch_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    featherdoc::Document document(path);
+    REQUIRE_FALSE(document.create_empty());
+
+    auto base_style = featherdoc::paragraph_style_definition{};
+    base_style.name = "Base Numbered";
+    base_style.based_on = std::string{"Normal"};
+    base_style.is_quick_format = true;
+    REQUIRE(document.ensure_paragraph_style("BaseNumbered", base_style));
+
+    auto child_style = featherdoc::paragraph_style_definition{};
+    child_style.name = "Child Numbered";
+    child_style.based_on = std::string{"BaseNumbered"};
+    child_style.is_quick_format = true;
+    REQUIRE(document.ensure_paragraph_style("ChildNumbered", child_style));
+
+    auto base_definition = featherdoc::numbering_definition{};
+    base_definition.name = "BaseOutline";
+    base_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1."},
+    };
+    const auto base_definition_id =
+        document.ensure_numbering_definition(base_definition);
+    REQUIRE(base_definition_id.has_value());
+
+    auto child_definition = featherdoc::numbering_definition{};
+    child_definition.name = "ChildOutline";
+    child_definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1)"},
+    };
+    const auto child_definition_id =
+        document.ensure_numbering_definition(child_definition);
+    REQUIRE(child_definition_id.has_value());
+
+    REQUIRE(document.set_paragraph_style_numbering("BaseNumbered",
+                                                   *base_definition_id, 0U));
+    REQUIRE(document.set_paragraph_style_numbering("ChildNumbered",
+                                                   *child_definition_id, 0U));
+    REQUIRE_FALSE(document.save());
+}
+
+
+void create_cli_style_numbering_missing_level_relink_fixture(
+    const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/numbering.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>seed</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering"
+                Target="numbering.xml"/>
+</Relationships>
+)";
+    constexpr auto styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="NeedsRelink" w:customStyle="1">
+    <w:name w:val="Needs Relink"/>
+    <w:basedOn w:val="Normal"/>
+    <w:pPr>
+      <w:numPr><w:ilvl w:val="1"/><w:numId w:val="7"/></w:numPr>
+    </w:pPr>
+  </w:style>
+</w:styles>
+)";
+    constexpr auto numbering_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:abstractNum w:abstractNumId="1">
+    <w:multiLevelType w:val="multilevel"/>
+    <w:name w:val="SharedOutline"/>
+    <w:lvl w:ilvl="0">
+      <w:start w:val="1"/>
+      <w:numFmt w:val="decimal"/>
+      <w:lvlText w:val="%1."/>
+    </w:lvl>
+  </w:abstractNum>
+  <w:abstractNum w:abstractNumId="2">
+    <w:multiLevelType w:val="multilevel"/>
+    <w:name w:val="SharedOutline"/>
+    <w:lvl w:ilvl="0">
+      <w:start w:val="1"/>
+      <w:numFmt w:val="decimal"/>
+      <w:lvlText w:val="%1."/>
+    </w:lvl>
+    <w:lvl w:ilvl="1">
+      <w:start w:val="1"/>
+      <w:numFmt w:val="decimal"/>
+      <w:lvlText w:val="%1.%2."/>
+    </w:lvl>
+  </w:abstractNum>
+  <w:num w:numId="7"><w:abstractNumId w:val="1"/></w:num>
+  <w:num w:numId="8"><w:abstractNumId w:val="2"/></w:num>
+</w:numbering>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/styles.xml", styles_xml));
+    REQUIRE(write_archive_entry(archive, "word/numbering.xml", numbering_xml));
+    zip_close(archive);
+}
+
+
+void create_cli_style_numbering_catalog_repair_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/numbering.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>seed</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering"
+                Target="numbering.xml"/>
+</Relationships>
+)";
+    constexpr auto styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="CatalogRepaired" w:customStyle="1">
+    <w:name w:val="Catalog Repaired"/>
+    <w:basedOn w:val="Normal"/>
+    <w:pPr>
+      <w:numPr><w:ilvl w:val="1"/><w:numId w:val="7"/></w:numPr>
+    </w:pPr>
+  </w:style>
+</w:styles>
+)";
+    constexpr auto numbering_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:abstractNum w:abstractNumId="1">
+    <w:multiLevelType w:val="multilevel"/>
+    <w:name w:val="CatalogOutline"/>
+    <w:lvl w:ilvl="0">
+      <w:start w:val="1"/>
+      <w:numFmt w:val="decimal"/>
+      <w:lvlText w:val="%1."/>
+    </w:lvl>
+  </w:abstractNum>
+  <w:num w:numId="7"><w:abstractNumId w:val="1"/></w:num>
+</w:numbering>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/styles.xml", styles_xml));
+    REQUIRE(write_archive_entry(archive, "word/numbering.xml", numbering_xml));
+    zip_close(archive);
+}
+
+
 void create_cli_style_usage_fixture(const fs::path &path) {
     remove_if_exists(path);
 
@@ -1464,6 +1790,36 @@ void create_cli_style_usage_fixture(const fs::path &path) {
     REQUIRE(write_archive_entry(archive, "word/header1.xml", header_xml));
     REQUIRE(write_archive_entry(archive, "word/footer1.xml", footer_xml));
     zip_close(archive);
+}
+
+void create_cli_duplicate_style_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    featherdoc::Document document(path);
+    REQUIRE_FALSE(document.create_empty());
+
+    featherdoc::paragraph_style_definition duplicate_a;
+    duplicate_a.name = "Duplicate Body A";
+    duplicate_a.based_on = "Normal";
+    duplicate_a.run_font_family = "Aptos";
+    REQUIRE(document.ensure_paragraph_style("DuplicateBodyA", duplicate_a));
+
+    featherdoc::paragraph_style_definition duplicate_b;
+    duplicate_b.name = "Duplicate Body B";
+    duplicate_b.based_on = "Normal";
+    duplicate_b.run_font_family = "Aptos";
+    REQUIRE(document.ensure_paragraph_style("DuplicateBodyB", duplicate_b));
+
+    auto first_paragraph = document.paragraphs();
+    REQUIRE(first_paragraph.has_next());
+    REQUIRE(first_paragraph.add_run("first duplicate style reference").has_next());
+    REQUIRE(document.set_paragraph_style(first_paragraph, "DuplicateBodyA"));
+    auto second_paragraph = first_paragraph.insert_paragraph_after("second");
+    REQUIRE(document.set_paragraph_style(second_paragraph, "DuplicateBodyA"));
+    auto third_paragraph = second_paragraph.insert_paragraph_after("third");
+    REQUIRE(document.set_paragraph_style(third_paragraph, "DuplicateBodyB"));
+
+    REQUIRE_FALSE(document.save());
 }
 
 void create_cli_page_setup_fixture(const fs::path &path) {
@@ -2782,20 +3138,1126 @@ TEST_CASE("cli inspect-styles reports style usage for a single style") {
     remove_if_exists(table_output);
 }
 
-TEST_CASE("cli inspect-styles rejects usage without a single style target") {
+TEST_CASE("cli rename-style rewrites paragraph style ids and references") {
     const fs::path working_directory = fs::current_path();
-    const fs::path source = working_directory / "cli_styles_usage_parse_source.docx";
-    const fs::path output = working_directory / "cli_styles_usage_parse.json";
+    const fs::path source = working_directory / "cli_rename_style_source.docx";
+    const fs::path renamed = working_directory / "cli_rename_style_renamed.docx";
+    const fs::path output = working_directory / "cli_rename_style_output.json";
+    const fs::path usage_output = working_directory / "cli_rename_style_usage.json";
+    const fs::path conflict_output = working_directory / "cli_rename_style_conflict.json";
+
+    remove_if_exists(source);
+    remove_if_exists(renamed);
+    remove_if_exists(output);
+    remove_if_exists(usage_output);
+    remove_if_exists(conflict_output);
+
+    create_cli_style_usage_fixture(source);
+    {
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.open());
+        featherdoc::paragraph_style_definition child_style;
+        child_style.name = "Custom Child";
+        child_style.based_on = "CustomBody";
+        child_style.next_style = "CustomBody";
+        REQUIRE(document.ensure_paragraph_style("CustomChild", child_style));
+        REQUIRE_FALSE(document.save());
+    }
+
+    CHECK_EQ(run_cli({"rename-style",
+                      source.string(),
+                      "CustomBody",
+                      "RenamedBody",
+                      "--output",
+                      renamed.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            R"({"command":"rename-style","ok":true,)"
+            R"("in_place":false,"sections":1,"headers":1,"footers":1,)"
+            R"("old_style_id":"CustomBody","new_style_id":"RenamedBody",)"
+            R"("style":{"style_id":"RenamedBody","name":"Custom Body",)"
+            R"("based_on":"Normal","kind":"paragraph","type":"paragraph",)"
+            R"("numbering":null,"is_default":false,"is_custom":true,)"
+            R"("is_semi_hidden":false,"is_unhide_when_used":false,)"
+            R"("is_quick_format":true}})"
+            "\n"});
+
+    CHECK_EQ(run_cli({"inspect-styles", renamed.string(), "--style", "RenamedBody",
+                      "--usage", "--json"},
+                     usage_output),
+             0);
+    const auto usage_json = read_text_file(usage_output);
+    CHECK_NE(usage_json.find(R"("style_id":"RenamedBody")"), std::string::npos);
+    CHECK_NE(usage_json.find(R"("paragraph_count":3)"), std::string::npos);
+    CHECK_NE(usage_json.find(R"("body":{"paragraph_count":2)"),
+             std::string::npos);
+    CHECK_NE(usage_json.find(R"("header":{"paragraph_count":1)"),
+             std::string::npos);
+
+    const auto styles_xml = read_docx_entry(renamed, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(styles_xml.c_str()));
+    const auto styles_root = styles_document.child("w:styles");
+    CHECK(find_style_xml_node(styles_root, "CustomBody") == pugi::xml_node{});
+    CHECK(find_style_xml_node(styles_root, "RenamedBody") != pugi::xml_node{});
+    const auto child_style = find_style_xml_node(styles_root, "CustomChild");
+    REQUIRE(child_style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{child_style.child("w:basedOn").attribute("w:val").value()},
+             "RenamedBody");
+    CHECK_EQ(std::string_view{child_style.child("w:next").attribute("w:val").value()},
+             "RenamedBody");
+
+    const auto document_xml = read_docx_entry(renamed, "word/document.xml");
+    CHECK_NE(document_xml.find(R"(w:pStyle w:val="RenamedBody")"),
+             std::string::npos);
+    CHECK_EQ(document_xml.find(R"(w:pStyle w:val="CustomBody")"),
+             std::string::npos);
+    const auto header_xml = read_docx_entry(renamed, "word/header1.xml");
+    CHECK_NE(header_xml.find(R"(w:pStyle w:val="RenamedBody")"),
+             std::string::npos);
+    CHECK_EQ(header_xml.find(R"(w:pStyle w:val="CustomBody")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"rename-style", renamed.string(), "RenamedBody", "Strong",
+                      "--json"},
+                     conflict_output),
+             1);
+    const auto conflict_json = read_text_file(conflict_output);
+    CHECK_NE(conflict_json.find(R"("command":"rename-style")"),
+             std::string::npos);
+    CHECK_NE(conflict_json.find(R"("stage":"mutate")"), std::string::npos);
+    CHECK_NE(conflict_json.find(
+                 R"("detail":"target style id 'Strong' already exists in word/styles.xml")"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(renamed);
+    remove_if_exists(output);
+    remove_if_exists(usage_output);
+    remove_if_exists(conflict_output);
+}
+
+TEST_CASE("cli rename-style rewrites run and table style references") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_rename_style_refs_source.docx";
+    const fs::path run_renamed = working_directory / "cli_rename_style_run.docx";
+    const fs::path table_renamed = working_directory / "cli_rename_style_table.docx";
+    const fs::path run_output = working_directory / "cli_rename_style_run.json";
+    const fs::path table_output = working_directory / "cli_rename_style_table.json";
+    const fs::path run_usage_output = working_directory / "cli_rename_style_run_usage.json";
+    const fs::path table_usage_output = working_directory / "cli_rename_style_table_usage.json";
+
+    remove_if_exists(source);
+    remove_if_exists(run_renamed);
+    remove_if_exists(table_renamed);
+    remove_if_exists(run_output);
+    remove_if_exists(table_output);
+    remove_if_exists(run_usage_output);
+    remove_if_exists(table_usage_output);
+
+    create_cli_style_usage_fixture(source);
+
+    CHECK_EQ(run_cli({"rename-style",
+                      source.string(),
+                      "Strong",
+                      "StrongAccent",
+                      "--output",
+                      run_renamed.string(),
+                      "--json"},
+                     run_output),
+             0);
+    const auto run_json = read_text_file(run_output);
+    CHECK_NE(run_json.find(R"("old_style_id":"Strong")"), std::string::npos);
+    CHECK_NE(run_json.find(R"("new_style_id":"StrongAccent")"),
+             std::string::npos);
+
+    const auto run_document_xml = read_docx_entry(run_renamed, "word/document.xml");
+    CHECK_NE(run_document_xml.find(R"(w:rStyle w:val="StrongAccent")"),
+             std::string::npos);
+    CHECK_EQ(run_document_xml.find(R"(w:rStyle w:val="Strong")"),
+             std::string::npos);
+    const auto footer_xml = read_docx_entry(run_renamed, "word/footer1.xml");
+    CHECK_NE(footer_xml.find(R"(w:rStyle w:val="StrongAccent")"),
+             std::string::npos);
+    CHECK_EQ(footer_xml.find(R"(w:rStyle w:val="Strong")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-styles", run_renamed.string(), "--style",
+                      "StrongAccent", "--usage", "--json"},
+                     run_usage_output),
+             0);
+    const auto run_usage_json = read_text_file(run_usage_output);
+    CHECK_NE(run_usage_json.find(R"("style_id":"StrongAccent")"),
+             std::string::npos);
+    CHECK_NE(run_usage_json.find(R"("run_count":3)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"rename-style",
+                      source.string(),
+                      "ReportTable",
+                      "ReportTableRenamed",
+                      "--output",
+                      table_renamed.string(),
+                      "--json"},
+                     table_output),
+             0);
+    const auto table_json = read_text_file(table_output);
+    CHECK_NE(table_json.find(R"("old_style_id":"ReportTable")"),
+             std::string::npos);
+    CHECK_NE(table_json.find(R"("new_style_id":"ReportTableRenamed")"),
+             std::string::npos);
+
+    const auto table_document_xml = read_docx_entry(table_renamed, "word/document.xml");
+    CHECK_NE(table_document_xml.find(R"(w:tblStyle w:val="ReportTableRenamed")"),
+             std::string::npos);
+    CHECK_EQ(table_document_xml.find(R"(w:tblStyle w:val="ReportTable")"),
+             std::string::npos);
+    const auto header_xml = read_docx_entry(table_renamed, "word/header1.xml");
+    CHECK_NE(header_xml.find(R"(w:tblStyle w:val="ReportTableRenamed")"),
+             std::string::npos);
+    CHECK_EQ(header_xml.find(R"(w:tblStyle w:val="ReportTable")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-styles", table_renamed.string(), "--style",
+                      "ReportTableRenamed", "--usage", "--json"},
+                     table_usage_output),
+             0);
+    const auto table_usage_json = read_text_file(table_usage_output);
+    CHECK_NE(table_usage_json.find(R"("style_id":"ReportTableRenamed")"),
+             std::string::npos);
+    CHECK_NE(table_usage_json.find(R"("table_count":2)"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(run_renamed);
+    remove_if_exists(table_renamed);
+    remove_if_exists(run_output);
+    remove_if_exists(table_output);
+    remove_if_exists(run_usage_output);
+    remove_if_exists(table_usage_output);
+}
+
+TEST_CASE("cli merge-style rewrites paragraph references and removes source style") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_merge_style_source.docx";
+    const fs::path merged = working_directory / "cli_merge_style_merged.docx";
+    const fs::path output = working_directory / "cli_merge_style_output.json";
+    const fs::path usage_output = working_directory / "cli_merge_style_usage.json";
+    const fs::path missing_output = working_directory / "cli_merge_style_missing.json";
+    const fs::path mismatch_output = working_directory / "cli_merge_style_mismatch.json";
+
+    remove_if_exists(source);
+    remove_if_exists(merged);
+    remove_if_exists(output);
+    remove_if_exists(usage_output);
+    remove_if_exists(missing_output);
+    remove_if_exists(mismatch_output);
+
+    create_cli_style_usage_fixture(source);
+    {
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.open());
+        featherdoc::paragraph_style_definition child_style;
+        child_style.name = "Custom Child";
+        child_style.based_on = "CustomBody";
+        child_style.next_style = "CustomBody";
+        REQUIRE(document.ensure_paragraph_style("CustomChild", child_style));
+        REQUIRE_FALSE(document.save());
+    }
+
+    CHECK_EQ(run_cli({"merge-style", source.string(), "Strong", "Normal", "--json"},
+                     mismatch_output),
+             1);
+    const auto mismatch_json = read_text_file(mismatch_output);
+    CHECK_NE(mismatch_json.find(R"("command":"merge-style")"), std::string::npos);
+    CHECK_NE(mismatch_json.find(R"("stage":"mutate")"), std::string::npos);
+    CHECK_NE(mismatch_json.find(
+                 R"("detail":"source style id 'Strong' has type 'character' but target style id 'Normal' has type 'paragraph'")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"merge-style",
+                      source.string(),
+                      "CustomBody",
+                      "Normal",
+                      "--output",
+                      merged.string(),
+                      "--json"},
+                     output),
+             0);
+    const auto merge_json = read_text_file(output);
+    CHECK_NE(merge_json.find(R"("command":"merge-style")"), std::string::npos);
+    CHECK_NE(merge_json.find(R"("source_style_id":"CustomBody")"),
+             std::string::npos);
+    CHECK_NE(merge_json.find(R"("target_style_id":"Normal")"), std::string::npos);
+    CHECK_NE(merge_json.find(R"("style":{"style_id":"Normal")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-styles", merged.string(), "--style", "CustomBody",
+                      "--json"},
+                     missing_output),
+             1);
+    const auto missing_json = read_text_file(missing_output);
+    CHECK_NE(missing_json.find(R"("command":"inspect-styles")"),
+             std::string::npos);
+    CHECK_NE(missing_json.find(
+                 R"("detail":"style id 'CustomBody' was not found in word/styles.xml")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-styles", merged.string(), "--style", "Normal",
+                      "--usage", "--json"},
+                     usage_output),
+             0);
+    const auto usage_json = read_text_file(usage_output);
+    CHECK_NE(usage_json.find(R"("style_id":"Normal")"), std::string::npos);
+    CHECK_NE(usage_json.find(R"("paragraph_count":3)"), std::string::npos);
+
+    const auto styles_xml = read_docx_entry(merged, "word/styles.xml");
+    pugi::xml_document styles_document;
+    REQUIRE(styles_document.load_string(styles_xml.c_str()));
+    const auto styles_root = styles_document.child("w:styles");
+    CHECK(find_style_xml_node(styles_root, "CustomBody") == pugi::xml_node{});
+    CHECK(find_style_xml_node(styles_root, "Normal") != pugi::xml_node{});
+    const auto child_style = find_style_xml_node(styles_root, "CustomChild");
+    REQUIRE(child_style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{child_style.child("w:basedOn").attribute("w:val").value()},
+             "Normal");
+    CHECK_EQ(std::string_view{child_style.child("w:next").attribute("w:val").value()},
+             "Normal");
+
+    const auto document_xml = read_docx_entry(merged, "word/document.xml");
+    CHECK_NE(document_xml.find(R"(w:pStyle w:val="Normal")"), std::string::npos);
+    CHECK_EQ(document_xml.find(R"(w:pStyle w:val="CustomBody")"),
+             std::string::npos);
+    const auto header_xml = read_docx_entry(merged, "word/header1.xml");
+    CHECK_NE(header_xml.find(R"(w:pStyle w:val="Normal")"), std::string::npos);
+    CHECK_EQ(header_xml.find(R"(w:pStyle w:val="CustomBody")"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(merged);
+    remove_if_exists(output);
+    remove_if_exists(usage_output);
+    remove_if_exists(missing_output);
+    remove_if_exists(mismatch_output);
+}
+
+TEST_CASE("cli merge-style rewrites run and table style references") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_merge_style_refs_source.docx";
+    const fs::path run_merged = working_directory / "cli_merge_style_run.docx";
+    const fs::path table_merged = working_directory / "cli_merge_style_table.docx";
+    const fs::path run_output = working_directory / "cli_merge_style_run.json";
+    const fs::path table_output = working_directory / "cli_merge_style_table.json";
+    const fs::path run_usage_output = working_directory / "cli_merge_style_run_usage.json";
+    const fs::path table_usage_output = working_directory / "cli_merge_style_table_usage.json";
+
+    remove_if_exists(source);
+    remove_if_exists(run_merged);
+    remove_if_exists(table_merged);
+    remove_if_exists(run_output);
+    remove_if_exists(table_output);
+    remove_if_exists(run_usage_output);
+    remove_if_exists(table_usage_output);
+
+    create_cli_style_usage_fixture(source);
+    {
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.open());
+        featherdoc::character_style_definition character_style;
+        character_style.name = "Strong Target";
+        REQUIRE(document.ensure_character_style("StrongTarget", character_style));
+        featherdoc::table_style_definition table_style;
+        table_style.name = "Report Table Target";
+        REQUIRE(document.ensure_table_style("ReportTableTarget", table_style));
+        REQUIRE_FALSE(document.save());
+    }
+
+    CHECK_EQ(run_cli({"merge-style",
+                      source.string(),
+                      "Strong",
+                      "StrongTarget",
+                      "--output",
+                      run_merged.string(),
+                      "--json"},
+                     run_output),
+             0);
+    const auto run_json = read_text_file(run_output);
+    CHECK_NE(run_json.find(R"("source_style_id":"Strong")"), std::string::npos);
+    CHECK_NE(run_json.find(R"("target_style_id":"StrongTarget")"),
+             std::string::npos);
+
+    const auto run_document_xml = read_docx_entry(run_merged, "word/document.xml");
+    CHECK_NE(run_document_xml.find(R"(w:rStyle w:val="StrongTarget")"),
+             std::string::npos);
+    CHECK_EQ(run_document_xml.find(R"(w:rStyle w:val="Strong")"),
+             std::string::npos);
+    const auto footer_xml = read_docx_entry(run_merged, "word/footer1.xml");
+    CHECK_NE(footer_xml.find(R"(w:rStyle w:val="StrongTarget")"),
+             std::string::npos);
+    CHECK_EQ(footer_xml.find(R"(w:rStyle w:val="Strong")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-styles", run_merged.string(), "--style",
+                      "StrongTarget", "--usage", "--json"},
+                     run_usage_output),
+             0);
+    const auto run_usage_json = read_text_file(run_usage_output);
+    CHECK_NE(run_usage_json.find(R"("style_id":"StrongTarget")"),
+             std::string::npos);
+    CHECK_NE(run_usage_json.find(R"("run_count":3)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"merge-style",
+                      source.string(),
+                      "ReportTable",
+                      "ReportTableTarget",
+                      "--output",
+                      table_merged.string(),
+                      "--json"},
+                     table_output),
+             0);
+    const auto table_json = read_text_file(table_output);
+    CHECK_NE(table_json.find(R"("source_style_id":"ReportTable")"),
+             std::string::npos);
+    CHECK_NE(table_json.find(R"("target_style_id":"ReportTableTarget")"),
+             std::string::npos);
+
+    const auto table_document_xml = read_docx_entry(table_merged, "word/document.xml");
+    CHECK_NE(table_document_xml.find(R"(w:tblStyle w:val="ReportTableTarget")"),
+             std::string::npos);
+    CHECK_EQ(table_document_xml.find(R"(w:tblStyle w:val="ReportTable")"),
+             std::string::npos);
+    const auto header_xml = read_docx_entry(table_merged, "word/header1.xml");
+    CHECK_NE(header_xml.find(R"(w:tblStyle w:val="ReportTableTarget")"),
+             std::string::npos);
+    CHECK_EQ(header_xml.find(R"(w:tblStyle w:val="ReportTable")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-styles", table_merged.string(), "--style",
+                      "ReportTableTarget", "--usage", "--json"},
+                     table_usage_output),
+             0);
+    const auto table_usage_json = read_text_file(table_usage_output);
+    CHECK_NE(table_usage_json.find(R"("style_id":"ReportTableTarget")"),
+             std::string::npos);
+    CHECK_NE(table_usage_json.find(R"("table_count":2)"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(run_merged);
+    remove_if_exists(table_merged);
+    remove_if_exists(run_output);
+    remove_if_exists(table_output);
+    remove_if_exists(run_usage_output);
+    remove_if_exists(table_usage_output);
+}
+
+TEST_CASE("cli plan-style-refactor validates batch rename and merge operations") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_style_refactor_plan_source.docx";
+    const fs::path clean_output = working_directory / "cli_style_refactor_plan_clean.json";
+    const fs::path dirty_output = working_directory / "cli_style_refactor_plan_dirty.json";
+    const fs::path clean_plan_file =
+        working_directory / "cli_style_refactor_plan_clean.plan.json";
+    const fs::path parse_output = working_directory / "cli_style_refactor_plan_parse.json";
+
+    remove_if_exists(source);
+    remove_if_exists(clean_output);
+    remove_if_exists(dirty_output);
+    remove_if_exists(clean_plan_file);
+    remove_if_exists(parse_output);
+
+    create_cli_style_usage_fixture(source);
+
+    CHECK_EQ(run_cli({"plan-style-refactor",
+                      source.string(),
+                      "--rename",
+                      "CustomBody:ReviewBody",
+                      "--merge",
+                      "CustomBody:Normal",
+                      "--output-plan",
+                      clean_plan_file.string(),
+                      "--json"},
+                     clean_output),
+             0);
+    const auto clean_json = read_text_file(clean_output);
+    CHECK_NE(clean_json.find(R"("command":"plan-style-refactor")"),
+             std::string::npos);
+    CHECK_NE(clean_json.find(R"("clean":true)"), std::string::npos);
+    CHECK_NE(clean_json.find(R"("operation_count":2)"), std::string::npos);
+    CHECK_NE(clean_json.find(R"("applyable_count":2)"), std::string::npos);
+    CHECK_NE(clean_json.find(R"("source_reference_count":3)"), std::string::npos);
+    CHECK_NE(clean_json.find(
+                 R"("command_template":"featherdoc_cli rename-style <input.docx> CustomBody ReviewBody --output <output.docx> --json")"),
+             std::string::npos);
+    CHECK_NE(clean_json.find(
+                 R"("command_template":"featherdoc_cli merge-style <input.docx> CustomBody Normal --output <output.docx> --json")"),
+             std::string::npos);
+    const auto clean_plan_json = read_text_file(clean_plan_file);
+    CHECK_NE(clean_plan_json.find(R"("command":"plan-style-refactor")"),
+             std::string::npos);
+    CHECK_NE(clean_plan_json.find(R"("operations":[)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"plan-style-refactor",
+                      source.string(),
+                      "--merge",
+                      "Strong:Normal",
+                      "--rename",
+                      "MissingBody:NewBody",
+                      "--rename",
+                      "CustomBody:Strong",
+                      "--json"},
+                     dirty_output),
+             1);
+    const auto dirty_json = read_text_file(dirty_output);
+    CHECK_NE(dirty_json.find(R"("clean":false)"), std::string::npos);
+    CHECK_NE(dirty_json.find(R"("operation_count":3)"), std::string::npos);
+    CHECK_NE(dirty_json.find(R"("applyable_count":0)"), std::string::npos);
+    CHECK_NE(dirty_json.find(R"("issue_count":3)"), std::string::npos);
+    CHECK_NE(dirty_json.find(R"("code":"style_type_mismatch")"), std::string::npos);
+    CHECK_NE(dirty_json.find(R"("code":"missing_source_style")"), std::string::npos);
+    CHECK_NE(dirty_json.find(R"("code":"target_style_exists")"), std::string::npos);
+
+    const auto source_styles_xml = read_docx_entry(source, "word/styles.xml");
+    CHECK_NE(source_styles_xml.find(R"(w:styleId="CustomBody")"), std::string::npos);
+    CHECK_EQ(source_styles_xml.find(R"(w:styleId="ReviewBody")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"plan-style-refactor", source.string(), "--json"}, parse_output), 2);
+    CHECK_NE(read_text_file(parse_output)
+                 .find("plan-style-refactor expects at least one --rename or --merge option"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(clean_output);
+    remove_if_exists(dirty_output);
+    remove_if_exists(clean_plan_file);
+    remove_if_exists(parse_output);
+}
+
+TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_suggest_style_merges_source.docx";
+    const fs::path output = working_directory / "cli_suggest_style_merges_output.json";
+    const fs::path filtered_output =
+        working_directory / "cli_suggest_style_merges_filtered.json";
+    const fs::path plan_file =
+        working_directory / "cli_suggest_style_merges_plan.json";
+    const fs::path filtered_plan_file =
+        working_directory / "cli_suggest_style_merges_filtered.plan.json";
+    const fs::path applied = working_directory / "cli_suggest_style_merges_applied.docx";
+    const fs::path apply_output =
+        working_directory / "cli_suggest_style_merges_apply.json";
+    const fs::path rollback_file =
+        working_directory / "cli_suggest_style_merges_rollback.json";
+    const fs::path restored =
+        working_directory / "cli_suggest_style_merges_restored.docx";
+    const fs::path restore_output =
+        working_directory / "cli_suggest_style_merges_restore.json";
+    const fs::path dry_run_output =
+        working_directory / "cli_suggest_style_merges_restore_dry_run.json";
+    const fs::path parse_output =
+        working_directory / "cli_suggest_style_merges_parse.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+    remove_if_exists(filtered_output);
+    remove_if_exists(plan_file);
+    remove_if_exists(filtered_plan_file);
+    remove_if_exists(applied);
+    remove_if_exists(apply_output);
+    remove_if_exists(rollback_file);
+    remove_if_exists(restored);
+    remove_if_exists(restore_output);
+    remove_if_exists(dry_run_output);
+    remove_if_exists(parse_output);
+
+    create_cli_duplicate_style_fixture(source);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--output-plan",
+                      plan_file.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto suggestion_json = read_text_file(output);
+    CHECK_NE(suggestion_json.find(R"("command":"suggest-style-merges")"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("operation_count":1)"), std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("action":"merge")"), std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("source_style_id":"DuplicateBodyB")"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("target_style_id":"DuplicateBodyA")"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(
+                 R"("reason_code":"matching_style_signature_and_xml")"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("confidence":95)"), std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("target_has_more_references")"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("style_definition_xml_matches")"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("differences":[])"), std::string::npos);
+    CHECK_NE(suggestion_json.find(
+                 R"("suggestion_confidence_summary":{"suggestion_count":1)"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("min_confidence":95)"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("max_confidence":95)"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("exact_xml_match_count":1)"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("xml_difference_count":0)"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find(R"("recommended_min_confidence":95)"),
+             std::string::npos);
+    CHECK_NE(suggestion_json.find("automation gates"), std::string::npos);
+
+    const auto plan_json = read_text_file(plan_file);
+    CHECK_NE(plan_json.find(R"("command":"suggest-style-merges")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("operations":[)"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("source_style_id":"DuplicateBodyB")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("target_style_id":"DuplicateBodyA")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("confidence":95)"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("recommended_min_confidence":95)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--min-confidence",
+                      "96",
+                      "--output-plan",
+                      filtered_plan_file.string(),
+                      "--json"},
+                     filtered_output),
+             0);
+    const auto filtered_json = read_text_file(filtered_output);
+    CHECK_NE(filtered_json.find(R"("command":"suggest-style-merges")"),
+             std::string::npos);
+    CHECK_NE(filtered_json.find(R"("operation_count":0)"), std::string::npos);
+    CHECK_NE(filtered_json.find(R"("applyable_count":0)"), std::string::npos);
+    CHECK_NE(filtered_json.find(R"("suggestion_confidence_summary":{"suggestion_count":0)"),
+             std::string::npos);
+    CHECK_NE(filtered_json.find(R"("min_confidence":null)"),
+             std::string::npos);
+    CHECK_NE(filtered_json.find(R"("max_confidence":null)"),
+             std::string::npos);
+    CHECK_NE(filtered_json.find(R"("recommended_min_confidence":null)"),
+             std::string::npos);
+    CHECK_NE(filtered_json.find(R"("operations":[])"), std::string::npos);
+    CHECK_EQ(filtered_json.find(R"("source_style_id":"DuplicateBodyB")"),
+             std::string::npos);
+    const auto filtered_plan_json = read_text_file(filtered_plan_file);
+    CHECK_NE(filtered_plan_json.find(R"("operation_count":0)"),
+             std::string::npos);
+    CHECK_NE(filtered_plan_json.find(R"("recommended_min_confidence":null)"),
+             std::string::npos);
+    CHECK_NE(filtered_plan_json.find(R"("operations":[])"), std::string::npos);
+
+    CHECK_EQ(run_cli({"apply-style-refactor",
+                      source.string(),
+                      "--plan-file",
+                      plan_file.string(),
+                      "--rollback-plan",
+                      rollback_file.string(),
+                      "--output",
+                      applied.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    CHECK_NE(read_text_file(apply_output).find(R"("command":"apply-style-refactor")"),
+             std::string::npos);
+    const auto suggestion_rollback_json = read_text_file(rollback_file);
+    CHECK_NE(suggestion_rollback_json.find(R"("rollback_count":1)"),
+             std::string::npos);
+    CHECK_NE(suggestion_rollback_json.find(R"("restorable":true)"),
+             std::string::npos);
+    CHECK_NE(suggestion_rollback_json.find(R"("source_reference_count":1)"),
+             std::string::npos);
+    CHECK_NE(suggestion_rollback_json.find(R"("source_style_xml":")"),
+             std::string::npos);
+    CHECK_NE(suggestion_rollback_json.find(R"("node_ordinal":3)"),
+             std::string::npos);
+    CHECK_NE(suggestion_rollback_json.find(R"(w:styleId=\"DuplicateBodyB\")"),
+             std::string::npos);
+    {
+        featherdoc::Document document(applied);
+        REQUIRE_FALSE(document.open());
+        CHECK(document.find_style("DuplicateBodyA").has_value());
+        CHECK_FALSE(document.find_style("DuplicateBodyB").has_value());
+    }
+
+    CHECK_EQ(run_cli({"restore-style-merge",
+                      applied.string(),
+                      "--rollback-plan",
+                      rollback_file.string(),
+                      "--entry",
+                      "0",
+                      "--dry-run",
+                      "--json"},
+                     dry_run_output),
+             0);
+    const auto dry_run_json = read_text_file(dry_run_output);
+    CHECK_NE(dry_run_json.find(R"("command":"restore-style-merge")"),
+             std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("dry_run":true)"), std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("changed":false)"), std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("issue_count":0)"), std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("issue_summary":[])"), std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("restored_count":1)"), std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("restored_style_count":1)"),
+             std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("restored_reference_count":1)"),
+             std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("entry_index":0)"), std::string::npos);
+    {
+        featherdoc::Document document(applied);
+        REQUIRE_FALSE(document.open());
+        CHECK(document.find_style("DuplicateBodyA").has_value());
+        CHECK_FALSE(document.find_style("DuplicateBodyB").has_value());
+        const auto target_usage = document.find_style_usage("DuplicateBodyA");
+        REQUIRE(target_usage.has_value());
+        CHECK_EQ(target_usage->paragraph_count, 3U);
+    }
+
+    CHECK_EQ(run_cli({"restore-style-merge",
+                      applied.string(),
+                      "--rollback-plan",
+                      rollback_file.string(),
+                      "--entry",
+                      "0",
+                      "--output",
+                      restored.string(),
+                      "--json"},
+                     restore_output),
+             0);
+    const auto restore_json = read_text_file(restore_output);
+    CHECK_NE(restore_json.find(R"("command":"restore-style-merge")"),
+             std::string::npos);
+    CHECK_NE(restore_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(restore_json.find(R"("restored_count":1)"), std::string::npos);
+    CHECK_NE(restore_json.find(R"("restored_style_count":1)"),
+             std::string::npos);
+    CHECK_NE(restore_json.find(R"("restored_reference_count":1)"),
+             std::string::npos);
+    {
+        featherdoc::Document document(restored);
+        REQUIRE_FALSE(document.open());
+        CHECK(document.find_style("DuplicateBodyA").has_value());
+        CHECK(document.find_style("DuplicateBodyB").has_value());
+        const auto target_usage = document.find_style_usage("DuplicateBodyA");
+        REQUIRE(target_usage.has_value());
+        CHECK_EQ(target_usage->paragraph_count, 2U);
+        const auto source_usage = document.find_style_usage("DuplicateBodyB");
+        REQUIRE(source_usage.has_value());
+        CHECK_EQ(source_usage->paragraph_count, 1U);
+    }
+
+    CHECK_EQ(run_cli({"restore-style-merge",
+                      restored.string(),
+                      "--rollback-plan",
+                      rollback_file.string(),
+                      "--entry",
+                      "0",
+                      "--dry-run",
+                      "--json"},
+                     parse_output),
+             1);
+    const auto restore_conflict_json = read_text_file(parse_output);
+    CHECK_NE(restore_conflict_json.find(R"("ok":false)"), std::string::npos);
+    CHECK_NE(restore_conflict_json.find(R"("issue_count":1)"),
+             std::string::npos);
+    CHECK_NE(restore_conflict_json.find(
+                 R"("issue_summary":[{"code":"source_style_exists","count":1)"),
+             std::string::npos);
+    CHECK_NE(restore_conflict_json.find(R"("code":"source_style_exists")"),
+             std::string::npos);
+    CHECK_NE(restore_conflict_json.find(R"("suggestion":"The source style already exists;)"),
+             std::string::npos);
+    CHECK_NE(restore_conflict_json.find("skip this rollback entry"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"restore-style-merge",
+                      applied.string(),
+                      "--rollback-plan",
+                      rollback_file.string(),
+                      "--dry-run",
+                      "--output",
+                      restored.string(),
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output)
+                 .find("restore-style-merge --dry-run cannot be combined with --output"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--min-confidence",
+                      "101",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output)
+                 .find("--min-confidence expects an integer from 0 to 100"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges", source.string(), "--bad", "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output).find(R"("stage":"parse")"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+    remove_if_exists(filtered_output);
+    remove_if_exists(plan_file);
+    remove_if_exists(filtered_plan_file);
+    remove_if_exists(applied);
+    remove_if_exists(apply_output);
+    remove_if_exists(rollback_file);
+    remove_if_exists(restored);
+    remove_if_exists(restore_output);
+    remove_if_exists(dry_run_output);
+    remove_if_exists(parse_output);
+}
+
+TEST_CASE("cli apply-style-refactor applies clean batch and blocks conflicts") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_style_refactor_apply_source.docx";
+    const fs::path applied = working_directory / "cli_style_refactor_apply_output.docx";
+    const fs::path dirty_output =
+        working_directory / "cli_style_refactor_apply_dirty.docx";
+    const fs::path output = working_directory / "cli_style_refactor_apply.json";
+    const fs::path plan_file =
+        working_directory / "cli_style_refactor_apply.plan.json";
+    const fs::path plan_output =
+        working_directory / "cli_style_refactor_apply_plan_output.json";
+    const fs::path rollback_file =
+        working_directory / "cli_style_refactor_apply.rollback.json";
+    const fs::path restore_dry_run_output =
+        working_directory / "cli_style_refactor_apply_restore_dry_run.json";
+    const fs::path dirty_json =
+        working_directory / "cli_style_refactor_apply_dirty.json";
+    const fs::path parse_output =
+        working_directory / "cli_style_refactor_apply_parse.json";
+
+    remove_if_exists(source);
+    remove_if_exists(applied);
+    remove_if_exists(dirty_output);
+    remove_if_exists(output);
+    remove_if_exists(plan_file);
+    remove_if_exists(plan_output);
+    remove_if_exists(rollback_file);
+    remove_if_exists(restore_dry_run_output);
+    remove_if_exists(dirty_json);
+    remove_if_exists(parse_output);
+
+    create_cli_style_usage_fixture(source);
+    {
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.open());
+        featherdoc::paragraph_style_definition archive_body;
+        archive_body.name = "Archive Body";
+        archive_body.based_on = "Normal";
+        REQUIRE(document.ensure_paragraph_style("ArchiveBody", archive_body));
+        featherdoc::paragraph_style_definition archive_note;
+        archive_note.name = "Archive Note";
+        archive_note.based_on = "Normal";
+        REQUIRE(document.ensure_paragraph_style("ArchiveNote", archive_note));
+        REQUIRE_FALSE(document.save());
+    }
+
+    CHECK_EQ(run_cli({"plan-style-refactor",
+                      source.string(),
+                      "--rename",
+                      "CustomBody:ReviewBody",
+                      "--merge",
+                      "ArchiveBody:Normal",
+                      "--merge",
+                      "ArchiveNote:Normal",
+                      "--output-plan",
+                      plan_file.string(),
+                      "--json"},
+                     plan_output),
+             0);
+    const auto plan_json = read_text_file(plan_file);
+    CHECK_NE(plan_json.find(R"("source_style_id":"ArchiveBody")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("source_style_id":"ArchiveNote")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"apply-style-refactor",
+                      source.string(),
+                      "--plan-file",
+                      plan_file.string(),
+                      "--rollback-plan",
+                      rollback_file.string(),
+                      "--output",
+                      applied.string(),
+                      "--json"},
+                     output),
+             0);
+    const auto apply_json = read_text_file(output);
+    CHECK_NE(apply_json.find(R"("command":"apply-style-refactor")"),
+             std::string::npos);
+    CHECK_NE(apply_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("changed":true)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("requested_count":3)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("applied_count":3)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("skipped_count":0)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("rollback_count":3)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("plan_file":)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("rollback_plan_file":)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("clean":true)"), std::string::npos);
+    const auto rollback_json = read_text_file(rollback_file);
+    CHECK_NE(rollback_json.find(R"("rollback_count":3)"), std::string::npos);
+    CHECK_NE(rollback_json.find(
+                 R"("command_template":"featherdoc_cli rename-style <input.docx> ReviewBody CustomBody --output <output.docx> --json")"),
+             std::string::npos);
+    CHECK_NE(rollback_json.find(R"("automatic":false)"), std::string::npos);
+    CHECK_NE(rollback_json.find(R"("restorable":true)"), std::string::npos);
+    CHECK_NE(rollback_json.find(R"("source_style_xml":")"), std::string::npos);
+    CHECK_NE(rollback_json.find(R"(w:styleId=\"ArchiveBody\")"),
+             std::string::npos);
+    CHECK_NE(rollback_json.find(R"(w:styleId=\"ArchiveNote\")"),
+             std::string::npos);
+
+    const auto styles_xml = read_docx_entry(applied, "word/styles.xml");
+    CHECK_EQ(styles_xml.find(R"(w:styleId="CustomBody")"), std::string::npos);
+    CHECK_NE(styles_xml.find(R"(w:styleId="ReviewBody")"),
+             std::string::npos);
+    CHECK_EQ(styles_xml.find(R"(w:styleId="ArchiveBody")"),
+             std::string::npos);
+    CHECK_EQ(styles_xml.find(R"(w:styleId="ArchiveNote")"),
+             std::string::npos);
+    const auto document_xml = read_docx_entry(applied, "word/document.xml");
+    CHECK_NE(document_xml.find(R"(w:pStyle w:val="ReviewBody")"),
+             std::string::npos);
+    CHECK_EQ(document_xml.find(R"(w:pStyle w:val="CustomBody")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"restore-style-merge",
+                      applied.string(),
+                      "--rollback-plan",
+                      rollback_file.string(),
+                      "--entry",
+                      "1",
+                      "--entry",
+                      "2",
+                      "--dry-run",
+                      "--json"},
+                     restore_dry_run_output),
+             0);
+    const auto restore_dry_run_json = read_text_file(restore_dry_run_output);
+    CHECK_NE(restore_dry_run_json.find(R"("command":"restore-style-merge")"),
+             std::string::npos);
+    CHECK_NE(restore_dry_run_json.find(R"("dry_run":true)"), std::string::npos);
+    CHECK_NE(restore_dry_run_json.find(R"("requested_count":2)"),
+             std::string::npos);
+    CHECK_NE(restore_dry_run_json.find(R"("restored_count":2)"),
+             std::string::npos);
+    CHECK_NE(restore_dry_run_json.find(R"("entry_indexes":[1,2])"),
+             std::string::npos);
+    {
+        featherdoc::Document document(applied);
+        REQUIRE_FALSE(document.open());
+        CHECK_FALSE(document.find_style("ArchiveBody").has_value());
+        CHECK_FALSE(document.find_style("ArchiveNote").has_value());
+    }
+
+    CHECK_EQ(run_cli({"restore-style-merge",
+                      applied.string(),
+                      "--rollback-plan",
+                      rollback_file.string(),
+                      "--source-style",
+                      "ArchiveNote",
+                      "--target-style",
+                      "Normal",
+                      "--plan-only",
+                      "--json"},
+                     restore_dry_run_output),
+             0);
+    const auto restore_filter_json = read_text_file(restore_dry_run_output);
+    CHECK_NE(restore_filter_json.find(R"("command":"restore-style-merge")"),
+             std::string::npos);
+    CHECK_NE(restore_filter_json.find(R"("dry_run":true)"), std::string::npos);
+    CHECK_NE(restore_filter_json.find(R"("requested_count":1)"),
+             std::string::npos);
+    CHECK_NE(restore_filter_json.find(R"("restored_count":1)"),
+             std::string::npos);
+    CHECK_NE(restore_filter_json.find(R"("source_style_ids":["ArchiveNote"])"),
+             std::string::npos);
+    CHECK_NE(restore_filter_json.find(R"("target_style_ids":["Normal"])"),
+             std::string::npos);
+    CHECK_NE(restore_filter_json.find(R"("source_style_id":"ArchiveNote")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"apply-style-refactor",
+                      source.string(),
+                      "--rename",
+                      "CustomBody:ReviewBody",
+                      "--merge",
+                      "CustomBody:Normal",
+                      "--output",
+                      dirty_output.string(),
+                      "--json"},
+                     dirty_json),
+             1);
+    const auto dirty_text = read_text_file(dirty_json);
+    CHECK_NE(dirty_text.find(R"("ok":false)"), std::string::npos);
+    CHECK_NE(dirty_text.find(R"("changed":false)"), std::string::npos);
+    CHECK_NE(dirty_text.find(R"("applied_count":0)"), std::string::npos);
+    CHECK_NE(dirty_text.find(R"("skipped_count":2)"), std::string::npos);
+    CHECK_NE(dirty_text.find(R"("code":"duplicate_source_operation")"),
+             std::string::npos);
+    CHECK_FALSE(fs::exists(dirty_output));
+
+    CHECK_EQ(run_cli({"restore-style-merge",
+                      applied.string(),
+                      "--rollback-plan",
+                      rollback_file.string(),
+                      "--entry",
+                      "1",
+                      "--source-style",
+                      "ArchiveBody",
+                      "--dry-run",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output)
+                 .find("restore-style-merge --entry cannot be combined with --source-style or --target-style"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"apply-style-refactor", source.string(), "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output)
+                 .find("apply-style-refactor expects --plan-file or at least one --rename or --merge option"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(applied);
+    remove_if_exists(dirty_output);
+    remove_if_exists(output);
+    remove_if_exists(plan_file);
+    remove_if_exists(plan_output);
+    remove_if_exists(rollback_file);
+    remove_if_exists(restore_dry_run_output);
+    remove_if_exists(dirty_json);
+    remove_if_exists(parse_output);
+}
+
+TEST_CASE("cli prune-unused-styles removes unreachable custom styles") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_prune_unused_styles_source.docx";
+    const fs::path pruned = working_directory / "cli_prune_unused_styles_pruned.docx";
+    const fs::path plan_output = working_directory / "cli_prune_unused_styles_plan.json";
+    const fs::path output = working_directory / "cli_prune_unused_styles_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(pruned);
+    remove_if_exists(plan_output);
+    remove_if_exists(output);
+
+    create_cli_style_usage_fixture(source);
+    {
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.open());
+
+        featherdoc::paragraph_style_definition dependency_style;
+        dependency_style.name = "Dependency Style";
+        dependency_style.based_on = "Normal";
+        REQUIRE(document.ensure_paragraph_style("DependencyStyle", dependency_style));
+
+        featherdoc::paragraph_style_definition custom_body;
+        custom_body.name = "Custom Body";
+        custom_body.based_on = "DependencyStyle";
+        custom_body.is_quick_format = true;
+        REQUIRE(document.ensure_paragraph_style("CustomBody", custom_body));
+
+        featherdoc::paragraph_style_definition unused_body;
+        unused_body.name = "Unused Body";
+        unused_body.based_on = "Normal";
+        REQUIRE(document.ensure_paragraph_style("UnusedBody", unused_body));
+
+        featherdoc::character_style_definition unused_character;
+        unused_character.name = "Unused Character";
+        REQUIRE(document.ensure_character_style("UnusedCharacter", unused_character));
+
+        featherdoc::table_style_definition unused_table;
+        unused_table.name = "Unused Table";
+        REQUIRE(document.ensure_table_style("UnusedTable", unused_table));
+
+        REQUIRE_FALSE(document.save());
+    }
+
+    CHECK_EQ(run_cli({"plan-prune-unused-styles", source.string(), "--json"},
+                     plan_output),
+             0);
+    const auto plan_json = read_text_file(plan_output);
+    CHECK_NE(plan_json.find(R"("command":"plan-prune-unused-styles")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("removable_style_count":3)"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("UnusedBody")"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("UnusedCharacter")"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("UnusedTable")"), std::string::npos);
+    const auto source_styles_xml = read_docx_entry(source, "word/styles.xml");
+    CHECK_NE(source_styles_xml.find(R"(w:styleId="UnusedBody")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"prune-unused-styles",
+                      source.string(),
+                      "--output",
+                      pruned.string(),
+                      "--json"},
+                     output),
+             0);
+    const auto prune_json = read_text_file(output);
+    CHECK_NE(prune_json.find(R"("command":"prune-unused-styles")"),
+             std::string::npos);
+    CHECK_NE(prune_json.find(R"("removed_style_count":3)"), std::string::npos);
+    CHECK_NE(prune_json.find(R"("UnusedBody")"), std::string::npos);
+    CHECK_NE(prune_json.find(R"("UnusedCharacter")"), std::string::npos);
+    CHECK_NE(prune_json.find(R"("UnusedTable")"), std::string::npos);
+
+    const auto styles_xml = read_docx_entry(pruned, "word/styles.xml");
+    CHECK_NE(styles_xml.find(R"(w:styleId="CustomBody")"), std::string::npos);
+    CHECK_NE(styles_xml.find(R"(w:styleId="DependencyStyle")"), std::string::npos);
+    CHECK_EQ(styles_xml.find(R"(w:styleId="UnusedBody")"), std::string::npos);
+    CHECK_EQ(styles_xml.find(R"(w:styleId="UnusedCharacter")"), std::string::npos);
+    CHECK_EQ(styles_xml.find(R"(w:styleId="UnusedTable")"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(pruned);
+    remove_if_exists(plan_output);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli inspect-styles reports full style usage catalog") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_styles_usage_report_source.docx";
+    const fs::path output = working_directory / "cli_styles_usage_report.json";
 
     remove_if_exists(source);
     remove_if_exists(output);
 
-    create_cli_style_defaults_fixture(source);
+    create_cli_style_usage_fixture(source);
 
-    CHECK_EQ(run_cli({"inspect-styles", source.string(), "--usage", "--json"}, output), 2);
-    const auto parse_json = read_text_file(output);
-    CHECK_NE(parse_json.find("\"command\":\"inspect-styles\""), std::string::npos);
-    CHECK_NE(parse_json.find("\"message\":\"--usage requires --style\""), std::string::npos);
+    CHECK_EQ(run_cli({"inspect-styles", source.string(), "--usage", "--json"}, output), 0);
+    const auto report_json = read_text_file(output);
+    CHECK_NE(report_json.find(R"("count":4)"), std::string::npos);
+    CHECK_NE(report_json.find(R"("used_style_count":3)"), std::string::npos);
+    CHECK_NE(report_json.find(R"("unused_style_count":1)"), std::string::npos);
+    CHECK_NE(report_json.find(R"("total_reference_count":8)"), std::string::npos);
+    CHECK_NE(report_json.find(R"("style":{"style_id":"CustomBody")"),
+             std::string::npos);
+    CHECK_NE(report_json.find(R"("usage":{"style_id":"CustomBody","paragraph_count":3)"),
+             std::string::npos);
+    CHECK_NE(report_json.find(R"("style":{"style_id":"Normal")"), std::string::npos);
+    CHECK_NE(report_json.find(R"("usage":{"style_id":"Normal","paragraph_count":0)"),
+             std::string::npos);
 
     remove_if_exists(source);
     remove_if_exists(output);
@@ -4105,6 +5567,645 @@ TEST_CASE("cli inspect-numbering filters a single numbering instance") {
     remove_if_exists(missing_output);
 }
 
+TEST_CASE("cli export and import numbering catalog preserves instances and overrides") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_numbering_catalog_source.docx";
+    const fs::path target = working_directory / "cli_numbering_catalog_target.docx";
+    const fs::path imported = working_directory / "cli_numbering_catalog_imported.docx";
+    const fs::path catalog_json =
+        working_directory / "cli_numbering_catalog_export.json";
+    const fs::path export_output =
+        working_directory / "cli_numbering_catalog_export_output.json";
+    const fs::path import_output =
+        working_directory / "cli_numbering_catalog_import_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(target);
+    remove_if_exists(imported);
+    remove_if_exists(catalog_json);
+    remove_if_exists(export_output);
+    remove_if_exists(import_output);
+
+    auto source_document = featherdoc::Document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+
+    auto catalog = featherdoc::numbering_catalog{};
+    auto catalog_definition = featherdoc::numbering_catalog_definition{};
+    catalog_definition.definition.name = "CliCatalogOutline";
+    catalog_definition.definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 4U, 0U, "%1."},
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::bullet, 1U, 1U, "o"},
+    };
+    catalog_definition.instances.push_back(
+        featherdoc::numbering_instance_summary{41U, {}});
+
+    auto restarted_instance = featherdoc::numbering_instance_summary{};
+    restarted_instance.instance_id = 42U;
+    restarted_instance.level_overrides.push_back(
+        featherdoc::numbering_level_override_summary{0U, 7U, std::nullopt});
+    restarted_instance.level_overrides.push_back(
+        featherdoc::numbering_level_override_summary{
+            1U,
+            std::nullopt,
+            featherdoc::numbering_level_definition{
+                featherdoc::list_kind::decimal, 9U, 1U, "(%2)"}});
+    catalog_definition.instances.push_back(std::move(restarted_instance));
+    catalog.definitions.push_back(std::move(catalog_definition));
+
+    const auto import_summary = source_document.import_numbering_catalog(catalog);
+    REQUIRE(static_cast<bool>(import_summary));
+    REQUIRE_FALSE(source_document.save());
+
+    auto target_document = featherdoc::Document(target);
+    REQUIRE_FALSE(target_document.create_empty());
+    REQUIRE_FALSE(target_document.save());
+
+    CHECK_EQ(run_cli({"export-numbering-catalog",
+                      source.string(),
+                      "--output",
+                      catalog_json.string(),
+                      "--json"},
+                     export_output),
+             0);
+    CHECK_EQ(read_text_file(export_output),
+             std::string{"{\"command\":\"export-numbering-catalog\",\"ok\":true,"} +
+                 "\"output_path\":" + json_quote(catalog_json.string()) +
+                 ",\"definition_count\":1,\"instance_count\":2}\n");
+
+    const auto exported_catalog = read_text_file(catalog_json);
+    CHECK_NE(exported_catalog.find("\"name\":\"CliCatalogOutline\""),
+             std::string::npos);
+    CHECK_NE(exported_catalog.find("\"level_overrides\":[]"),
+             std::string::npos);
+    CHECK_NE(exported_catalog.find(
+                 "{\"level\":0,\"start_override\":7,\"level_definition\":null}"),
+             std::string::npos);
+    CHECK_NE(exported_catalog.find(
+                 "{\"level\":1,\"start_override\":null,\"level_definition\":"
+                 "{\"level\":1,\"kind\":\"decimal\",\"start\":9,"
+                 "\"text_pattern\":\"(%2)\"}}"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"import-numbering-catalog",
+                      target.string(),
+                      "--catalog-file",
+                      catalog_json.string(),
+                      "--output",
+                      imported.string(),
+                      "--json"},
+                     import_output),
+             0);
+    const auto import_json = read_text_file(import_output);
+    CHECK_NE(import_json.find("\"command\":\"import-numbering-catalog\""),
+             std::string::npos);
+    CHECK_NE(import_json.find("\"in_place\":false"), std::string::npos);
+    CHECK_NE(import_json.find("\"catalog_file\":" + json_quote(catalog_json.string())),
+             std::string::npos);
+    CHECK_NE(import_json.find("\"input_definition_count\":1"), std::string::npos);
+    CHECK_NE(import_json.find("\"imported_definition_count\":1"),
+             std::string::npos);
+    CHECK_NE(import_json.find("\"imported_instance_count\":2"),
+             std::string::npos);
+    CHECK_NE(import_json.find("\"name\":\"CliCatalogOutline\""),
+             std::string::npos);
+
+    auto imported_document = featherdoc::Document(imported);
+    REQUIRE_FALSE(imported_document.open());
+    const auto imported_definitions = imported_document.list_numbering_definitions();
+    REQUIRE_FALSE(imported_document.last_error());
+    const auto imported_definition =
+        std::find_if(imported_definitions.begin(), imported_definitions.end(),
+                     [](const auto &definition) {
+                         return definition.name == "CliCatalogOutline";
+                     });
+    REQUIRE(imported_definition != imported_definitions.end());
+    CHECK_EQ(imported_definition->levels.size(), 2U);
+    CHECK_EQ(imported_definition->instances.size(), 2U);
+
+    const auto restarted_imported_instance = std::find_if(
+        imported_definition->instances.begin(), imported_definition->instances.end(),
+        [](const auto &instance) { return instance.level_overrides.size() == 2U; });
+    REQUIRE(restarted_imported_instance != imported_definition->instances.end());
+    CHECK_EQ(restarted_imported_instance->level_overrides[0].level, 0U);
+    REQUIRE(restarted_imported_instance->level_overrides[0].start_override.has_value());
+    CHECK_EQ(*restarted_imported_instance->level_overrides[0].start_override, 7U);
+    CHECK_EQ(restarted_imported_instance->level_overrides[1].level, 1U);
+    REQUIRE(restarted_imported_instance->level_overrides[1]
+                .level_definition.has_value());
+    CHECK_EQ(restarted_imported_instance->level_overrides[1]
+                 .level_definition->text_pattern,
+             "(%2)");
+
+    remove_if_exists(source);
+    remove_if_exists(target);
+    remove_if_exists(imported);
+    remove_if_exists(catalog_json);
+    remove_if_exists(export_output);
+    remove_if_exists(import_output);
+}
+
+TEST_CASE("cli patch-numbering-catalog upserts and removes overrides") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_numbering_catalog_patch_source.docx";
+    const fs::path catalog_json =
+        working_directory / "cli_numbering_catalog_patch_catalog.json";
+    const fs::path patch_json =
+        working_directory / "cli_numbering_catalog_patch_patch.json";
+    const fs::path patched_json =
+        working_directory / "cli_numbering_catalog_patch_patched.json";
+    const fs::path export_output =
+        working_directory / "cli_numbering_catalog_patch_export_output.json";
+    const fs::path patch_output =
+        working_directory / "cli_numbering_catalog_patch_output.json";
+    const fs::path lint_output =
+        working_directory / "cli_numbering_catalog_patch_lint_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(catalog_json);
+    remove_if_exists(patch_json);
+    remove_if_exists(patched_json);
+    remove_if_exists(export_output);
+    remove_if_exists(patch_output);
+    remove_if_exists(lint_output);
+
+    auto document = featherdoc::Document(source);
+    REQUIRE_FALSE(document.create_empty());
+
+    auto catalog = featherdoc::numbering_catalog{};
+    auto catalog_definition = featherdoc::numbering_catalog_definition{};
+    catalog_definition.definition.name = "PatchableOutline";
+    catalog_definition.definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1."},
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 1U, "%1.%2."},
+    };
+    catalog_definition.instances.push_back(
+        featherdoc::numbering_instance_summary{3U, {}});
+    catalog_definition.instances.push_back(
+        featherdoc::numbering_instance_summary{
+            4U,
+            {featherdoc::numbering_level_override_summary{0U, 2U,
+                                                          std::nullopt}}});
+    catalog.definitions.push_back(std::move(catalog_definition));
+
+    const auto import_summary = document.import_numbering_catalog(catalog);
+    REQUIRE(static_cast<bool>(import_summary));
+    REQUIRE_FALSE(document.save());
+
+    CHECK_EQ(run_cli({"export-numbering-catalog",
+                      source.string(),
+                      "--output",
+                      catalog_json.string(),
+                      "--json"},
+                     export_output),
+             0);
+
+    write_binary_file(
+        patch_json,
+        "{\"upsert_levels\":["
+        "{\"definition_name\":\"PatchableOutline\",\"level\":"
+        "{\"level\":2,\"kind\":\"decimal\",\"start\":1,"
+        "\"text_pattern\":\"%1.%2.%3.\"}}],"
+        "\"upsert_overrides\":["
+        "{\"definition_name\":\"PatchableOutline\",\"instance_index\":0,"
+        "\"level\":1,\"start_override\":5},"
+        "{\"definition_name\":\"PatchableOutline\",\"instance_index\":1,"
+        "\"level\":2,\"level_definition\":{\"level\":2,\"kind\":\"bullet\","
+        "\"start\":1,\"text_pattern\":\"•\"}}],"
+        "\"remove_overrides\":["
+        "{\"definition_name\":\"PatchableOutline\",\"instance_index\":1,"
+        "\"level\":0},"
+        "{\"definition_name\":\"PatchableOutline\",\"instance_index\":1,"
+        "\"level\":7}]}\n");
+
+    CHECK_EQ(run_cli({"patch-numbering-catalog",
+                      catalog_json.string(),
+                      "--patch-file",
+                      patch_json.string(),
+                      "--output",
+                      patched_json.string(),
+                      "--json"},
+                     patch_output),
+             0);
+
+    CHECK_EQ(read_text_file(patch_output),
+             std::string{"{\"command\":\"patch-numbering-catalog\",\"ok\":true,"} +
+                 "\"output_path\":" + json_quote(patched_json.string()) +
+                 ",\"definition_count\":1,\"instance_count\":2,"
+                 "\"upserted_level_count\":1,\"upserted_override_count\":2,"
+                 "\"removed_override_count\":1,\"missing_override_count\":1}\n");
+
+    const auto patched_catalog = read_text_file(patched_json);
+    CHECK_NE(patched_catalog.find(
+                 "\"levels\":[{\"level\":0,\"kind\":\"decimal\",\"start\":1,"
+                 "\"text_pattern\":\"%1.\"},{\"level\":1,\"kind\":\"decimal\","
+                 "\"start\":1,\"text_pattern\":\"%1.%2.\"},{\"level\":2,"
+                 "\"kind\":\"decimal\",\"start\":1,"
+                 "\"text_pattern\":\"%1.%2.%3.\"}]"),
+             std::string::npos);
+    CHECK_NE(patched_catalog.find(
+                 "{\"instance_id\":1,\"level_overrides\":["
+                 "{\"level\":1,\"start_override\":5,"
+                 "\"level_definition\":null}]}"),
+             std::string::npos);
+    CHECK_NE(patched_catalog.find(
+                 "{\"instance_id\":2,\"level_overrides\":["
+                 "{\"level\":2,\"start_override\":null,\"level_definition\":"
+                 "{\"level\":2,\"kind\":\"bullet\",\"start\":1,"
+                 "\"text_pattern\":\"•\"}}]}"),
+             std::string::npos);
+    CHECK_EQ(patched_catalog.find("\"start_override\":2"), std::string::npos);
+
+    CHECK_EQ(run_cli({"lint-numbering-catalog", patched_json.string(), "--json"},
+                     lint_output),
+             0);
+    CHECK_EQ(read_text_file(lint_output),
+             std::string{"{\"command\":\"lint-numbering-catalog\",\"ok\":true,"} +
+                 "\"clean\":true,\"definition_count\":1,\"instance_count\":2,"
+                 "\"level_count\":3,\"override_count\":2,\"issue_count\":0,"
+                 "\"issues\":[]}\n");
+
+    remove_if_exists(source);
+    remove_if_exists(catalog_json);
+    remove_if_exists(patch_json);
+    remove_if_exists(patched_json);
+    remove_if_exists(export_output);
+    remove_if_exists(patch_output);
+    remove_if_exists(lint_output);
+}
+
+TEST_CASE("cli lint-numbering-catalog reports clean and dirty catalogs") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path clean_catalog =
+        working_directory / "cli_lint_numbering_catalog_clean.json";
+    const fs::path dirty_catalog =
+        working_directory / "cli_lint_numbering_catalog_dirty.json";
+    const fs::path clean_output =
+        working_directory / "cli_lint_numbering_catalog_clean_output.json";
+    const fs::path dirty_output =
+        working_directory / "cli_lint_numbering_catalog_dirty_output.json";
+    const fs::path parse_output =
+        working_directory / "cli_lint_numbering_catalog_parse_output.json";
+
+    remove_if_exists(clean_catalog);
+    remove_if_exists(dirty_catalog);
+    remove_if_exists(clean_output);
+    remove_if_exists(dirty_output);
+    remove_if_exists(parse_output);
+
+    write_binary_file(
+        clean_catalog,
+        "{\"definition_count\":1,\"instance_count\":1,\"definitions\":["
+        "{\"name\":\"CleanOutline\",\"levels\":["
+        "{\"level\":0,\"kind\":\"decimal\",\"start\":1,"
+        "\"text_pattern\":\"%1.\"}],\"instances\":["
+        "{\"instance_id\":1,\"level_overrides\":["
+        "{\"level\":0,\"start_override\":3,"
+        "\"level_definition\":null}]}]}]}\n");
+
+    CHECK_EQ(run_cli({"lint-numbering-catalog", clean_catalog.string(), "--json"},
+                     clean_output),
+             0);
+    CHECK_EQ(read_text_file(clean_output),
+             std::string{
+                 "{\"command\":\"lint-numbering-catalog\",\"ok\":true,"
+                 "\"clean\":true,\"definition_count\":1,\"instance_count\":1,"
+                 "\"level_count\":1,\"override_count\":1,\"issue_count\":0,"
+                 "\"issues\":[]}\n"});
+
+    write_binary_file(
+        dirty_catalog,
+        "{\"definitions\":["
+        "{\"name\":\"Broken\",\"levels\":["
+        "{\"level\":0,\"kind\":\"decimal\",\"start\":0,"
+        "\"text_pattern\":\"\"},"
+        "{\"level\":0,\"kind\":\"bullet\",\"start\":1,"
+        "\"text_pattern\":\"o\"}],\"instances\":["
+        "{\"instance_id\":5,\"level_overrides\":["
+        "{\"level\":9,\"start_override\":0,"
+        "\"level_definition\":null},"
+        "{\"level\":9,\"start_override\":1,"
+        "\"level_definition\":{\"level\":9,\"kind\":\"decimal\","
+        "\"start\":0,\"text_pattern\":\"\"}}]},"
+        "{\"instance_id\":5,\"level_overrides\":[]}]},"
+        "{\"name\":\"Broken\",\"levels\":[],\"instances\":[]}]}\n");
+
+    CHECK_EQ(run_cli({"lint-numbering-catalog", dirty_catalog.string(), "--json"},
+                     dirty_output),
+             1);
+    const auto dirty_json = read_text_file(dirty_output);
+    CHECK_NE(dirty_json.find("\"command\":\"lint-numbering-catalog\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"clean\":false"), std::string::npos);
+    CHECK_NE(dirty_json.find("\"definition_count\":2"), std::string::npos);
+    CHECK_NE(dirty_json.find("\"instance_count\":2"), std::string::npos);
+    CHECK_NE(dirty_json.find("\"level_count\":2"), std::string::npos);
+    CHECK_NE(dirty_json.find("\"override_count\":2"), std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"duplicate_definition_name\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"empty_levels\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"duplicate_level\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"invalid_start\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"empty_text_pattern\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"duplicate_instance_id\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"invalid_override_level\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"duplicate_override_level\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"invalid_override_start\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"invalid_override_definition\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"lint-numbering-catalog", "--json"}, parse_output), 2);
+    CHECK_EQ(read_text_file(parse_output),
+             std::string{
+                 "{\"command\":\"lint-numbering-catalog\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"lint-numbering-catalog "
+                 "expects a catalog path\"}\n"});
+
+    remove_if_exists(clean_catalog);
+    remove_if_exists(dirty_catalog);
+    remove_if_exists(clean_output);
+    remove_if_exists(dirty_output);
+    remove_if_exists(parse_output);
+}
+
+TEST_CASE("cli diff-numbering-catalog reports catalog changes as json") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left_catalog =
+        working_directory / "cli_diff_numbering_catalog_left.json";
+    const fs::path right_catalog =
+        working_directory / "cli_diff_numbering_catalog_right.json";
+    const fs::path diff_output =
+        working_directory / "cli_diff_numbering_catalog_output.json";
+    const fs::path equal_output =
+        working_directory / "cli_diff_numbering_catalog_equal_output.json";
+    const fs::path parse_output =
+        working_directory / "cli_diff_numbering_catalog_parse_output.json";
+
+    remove_if_exists(left_catalog);
+    remove_if_exists(right_catalog);
+    remove_if_exists(diff_output);
+    remove_if_exists(equal_output);
+    remove_if_exists(parse_output);
+
+    write_binary_file(
+        left_catalog,
+        "{\"definitions\":["
+        "{\"name\":\"RemovedOutline\",\"levels\":["
+        "{\"level\":0,\"kind\":\"decimal\",\"start\":1,"
+        "\"text_pattern\":\"%1.\"}],\"instances\":[]},"
+        "{\"name\":\"SharedOutline\",\"levels\":["
+        "{\"level\":0,\"kind\":\"decimal\",\"start\":1,"
+        "\"text_pattern\":\"%1.\"},"
+        "{\"level\":1,\"kind\":\"decimal\",\"start\":1,"
+        "\"text_pattern\":\"%1.%2.\"}],\"instances\":["
+        "{\"instance_id\":10,\"level_overrides\":["
+        "{\"level\":0,\"start_override\":2,"
+        "\"level_definition\":null}]},"
+        "{\"instance_id\":11,\"level_overrides\":[]}]}]}\n");
+
+    write_binary_file(
+        right_catalog,
+        "{\"definitions\":["
+        "{\"name\":\"SharedOutline\",\"levels\":["
+        "{\"level\":0,\"kind\":\"decimal\",\"start\":3,"
+        "\"text_pattern\":\"%1)\"},"
+        "{\"level\":2,\"kind\":\"bullet\",\"start\":1,"
+        "\"text_pattern\":\"•\"}],\"instances\":["
+        "{\"instance_id\":20,\"level_overrides\":["
+        "{\"level\":0,\"start_override\":4,"
+        "\"level_definition\":null},"
+        "{\"level\":2,\"start_override\":null,"
+        "\"level_definition\":{\"level\":2,\"kind\":\"bullet\","
+        "\"start\":1,\"text_pattern\":\"•\"}}]},"
+        "{\"instance_id\":21,\"level_overrides\":[]},"
+        "{\"instance_id\":22,\"level_overrides\":[]}]},"
+        "{\"name\":\"AddedOutline\",\"levels\":["
+        "{\"level\":0,\"kind\":\"bullet\",\"start\":1,"
+        "\"text_pattern\":\"•\"}],\"instances\":[]}]}\n");
+
+    CHECK_EQ(run_cli({"diff-numbering-catalog",
+                      left_catalog.string(),
+                      right_catalog.string(),
+                      "--json"},
+                     diff_output),
+             0);
+    const auto diff_json = read_text_file(diff_output);
+    CHECK_NE(diff_json.find("\"equal\":false"), std::string::npos);
+    CHECK_NE(diff_json.find("\"added_definition_count\":1"),
+             std::string::npos);
+    CHECK_NE(diff_json.find("\"removed_definition_count\":1"),
+             std::string::npos);
+    CHECK_NE(diff_json.find("\"changed_definition_count\":1"),
+             std::string::npos);
+    CHECK_NE(diff_json.find("\"name\":\"AddedOutline\""),
+             std::string::npos);
+    CHECK_NE(diff_json.find("\"name\":\"RemovedOutline\""),
+             std::string::npos);
+    CHECK_NE(diff_json.find("\"name\":\"SharedOutline\""),
+             std::string::npos);
+    CHECK_NE(diff_json.find("\"added_level_count\":1"), std::string::npos);
+    CHECK_NE(diff_json.find("\"removed_level_count\":1"), std::string::npos);
+    CHECK_NE(diff_json.find("\"changed_level_count\":1"), std::string::npos);
+    CHECK_NE(diff_json.find("\"added_instance_count\":1"), std::string::npos);
+    CHECK_NE(diff_json.find("\"changed_instance_count\":1"), std::string::npos);
+    CHECK_NE(diff_json.find("\"added_override_count\":1"), std::string::npos);
+    CHECK_NE(diff_json.find("\"changed_override_count\":1"), std::string::npos);
+
+    CHECK_EQ(run_cli({"diff-numbering-catalog",
+                      left_catalog.string(),
+                      left_catalog.string(),
+                      "--fail-on-diff",
+                      "--json"},
+                     equal_output),
+             0);
+    CHECK_NE(read_text_file(equal_output).find("\"equal\":true"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"diff-numbering-catalog",
+                      left_catalog.string(),
+                      right_catalog.string(),
+                      "--fail-on-diff",
+                      "--json"},
+                     parse_output),
+             1);
+
+    remove_if_exists(left_catalog);
+    remove_if_exists(right_catalog);
+    remove_if_exists(diff_output);
+    remove_if_exists(equal_output);
+    remove_if_exists(parse_output);
+}
+
+TEST_CASE("cli check-numbering-catalog gates docx catalog against baseline") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_check_numbering_catalog_source.docx";
+    const fs::path baseline_catalog =
+        working_directory / "cli_check_numbering_catalog_baseline.json";
+    const fs::path drift_catalog =
+        working_directory / "cli_check_numbering_catalog_drift.json";
+    const fs::path dirty_catalog =
+        working_directory / "cli_check_numbering_catalog_dirty.json";
+    const fs::path generated_catalog =
+        working_directory / "cli_check_numbering_catalog_generated.json";
+    const fs::path match_output =
+        working_directory / "cli_check_numbering_catalog_match_output.json";
+    const fs::path drift_output =
+        working_directory / "cli_check_numbering_catalog_drift_output.json";
+    const fs::path dirty_output =
+        working_directory / "cli_check_numbering_catalog_dirty_output.json";
+    const fs::path parse_output =
+        working_directory / "cli_check_numbering_catalog_parse_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(baseline_catalog);
+    remove_if_exists(drift_catalog);
+    remove_if_exists(dirty_catalog);
+    remove_if_exists(generated_catalog);
+    remove_if_exists(match_output);
+    remove_if_exists(drift_output);
+    remove_if_exists(dirty_output);
+    remove_if_exists(parse_output);
+
+    auto document = featherdoc::Document(source);
+    REQUIRE_FALSE(document.create_empty());
+
+    auto catalog = featherdoc::numbering_catalog{};
+    auto catalog_definition = featherdoc::numbering_catalog_definition{};
+    catalog_definition.definition.name = "CheckOutline";
+    catalog_definition.definition.levels = {
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1."},
+        featherdoc::numbering_level_definition{
+            featherdoc::list_kind::bullet, 1U, 1U, "o"},
+    };
+    catalog_definition.instances.push_back(
+        featherdoc::numbering_instance_summary{
+            99U,
+            {featherdoc::numbering_level_override_summary{0U, 3U,
+                                                          std::nullopt}}});
+    catalog.definitions.push_back(std::move(catalog_definition));
+
+    const auto import_summary = document.import_numbering_catalog(catalog);
+    REQUIRE(static_cast<bool>(import_summary));
+    REQUIRE_FALSE(document.save());
+
+    write_binary_file(
+        baseline_catalog,
+        "{\"definitions\":[{\"name\":\"CheckOutline\",\"levels\":["
+        "{\"level\":0,\"kind\":\"decimal\",\"start\":1,"
+        "\"text_pattern\":\"%1.\"},"
+        "{\"level\":1,\"kind\":\"bullet\",\"start\":1,"
+        "\"text_pattern\":\"o\"}],\"instances\":["
+        "{\"instance_id\":99,\"level_overrides\":["
+        "{\"level\":0,\"start_override\":3,"
+        "\"level_definition\":null}]}]}]}\n");
+    write_binary_file(
+        drift_catalog,
+        "{\"definitions\":[{\"name\":\"CheckOutline\",\"levels\":["
+        "{\"level\":0,\"kind\":\"decimal\",\"start\":7,"
+        "\"text_pattern\":\"%1.\"},"
+        "{\"level\":1,\"kind\":\"bullet\",\"start\":1,"
+        "\"text_pattern\":\"o\"}],\"instances\":["
+        "{\"instance_id\":99,\"level_overrides\":["
+        "{\"level\":0,\"start_override\":3,"
+        "\"level_definition\":null}]}]}]}\n");
+    write_binary_file(dirty_catalog,
+                      "{\"definitions\":[{\"name\":\"\",\"levels\":[],"
+                      "\"instances\":[]}]}\n");
+
+    CHECK_EQ(run_cli({"check-numbering-catalog",
+                      source.string(),
+                      "--catalog-file",
+                      baseline_catalog.string(),
+                      "--output",
+                      generated_catalog.string(),
+                      "--json"},
+                     match_output),
+             0);
+    const auto match_json = read_text_file(match_output);
+    CHECK_NE(match_json.find("\"command\":\"check-numbering-catalog\""),
+             std::string::npos);
+    CHECK_NE(match_json.find("\"matches\":true"), std::string::npos);
+    CHECK_NE(match_json.find("\"clean\":true"), std::string::npos);
+    CHECK_NE(match_json.find("\"catalog_file\":" +
+                             json_quote(baseline_catalog.string())),
+             std::string::npos);
+    CHECK_NE(match_json.find("\"generated_output_path\":" +
+                             json_quote(generated_catalog.string())),
+             std::string::npos);
+    CHECK_NE(match_json.find("\"baseline_issue_count\":0"),
+             std::string::npos);
+    CHECK_NE(match_json.find("\"generated_issue_count\":0"),
+             std::string::npos);
+    CHECK_NE(match_json.find("\"changed_definition_count\":0"),
+             std::string::npos);
+    CHECK_NE(read_text_file(generated_catalog).find("\"name\":\"CheckOutline\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"check-numbering-catalog",
+                      source.string(),
+                      "--catalog-file",
+                      drift_catalog.string(),
+                      "--json"},
+                     drift_output),
+             1);
+    const auto drift_json = read_text_file(drift_output);
+    CHECK_NE(drift_json.find("\"matches\":false"), std::string::npos);
+    CHECK_NE(drift_json.find("\"clean\":true"), std::string::npos);
+    CHECK_NE(drift_json.find("\"changed_definition_count\":1"),
+             std::string::npos);
+    CHECK_NE(drift_json.find("\"changed_level_count\":1"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"check-numbering-catalog",
+                      source.string(),
+                      "--catalog-file",
+                      dirty_catalog.string(),
+                      "--json"},
+                     dirty_output),
+             1);
+    const auto dirty_json = read_text_file(dirty_output);
+    CHECK_NE(dirty_json.find("\"matches\":false"), std::string::npos);
+    CHECK_NE(dirty_json.find("\"clean\":false"), std::string::npos);
+    CHECK_NE(dirty_json.find("\"baseline_issue_count\":2"),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"empty_definition_name\""),
+             std::string::npos);
+    CHECK_NE(dirty_json.find("\"issue\":\"empty_levels\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"check-numbering-catalog", source.string(), "--json"},
+                     parse_output),
+             2);
+    CHECK_EQ(read_text_file(parse_output),
+             std::string{
+                 "{\"command\":\"check-numbering-catalog\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"missing "
+                 "--catalog-file <catalog.json>\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(baseline_catalog);
+    remove_if_exists(drift_catalog);
+    remove_if_exists(dirty_catalog);
+    remove_if_exists(generated_catalog);
+    remove_if_exists(match_output);
+    remove_if_exists(drift_output);
+    remove_if_exists(dirty_output);
+    remove_if_exists(parse_output);
+}
+
 TEST_CASE(
     "cli ensure-numbering-definition and set-paragraph-numbering manage custom numbering") {
     const fs::path working_directory = fs::current_path();
@@ -4710,6 +6811,655 @@ TEST_CASE("cli set-paragraph-style-numbering links a custom numbering definition
     remove_if_exists(inspect_output);
     remove_if_exists(inspect_text_output);
 }
+
+
+TEST_CASE("cli inspect-style-numbering lists numbered paragraph styles only") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_inspect_style_numbering_source.docx";
+    const fs::path updated =
+        working_directory / "cli_inspect_style_numbering_updated.docx";
+    const fs::path mutate_output =
+        working_directory / "cli_inspect_style_numbering_mutate.json";
+    const fs::path json_output =
+        working_directory / "cli_inspect_style_numbering_output.json";
+    const fs::path text_output =
+        working_directory / "cli_inspect_style_numbering_output.txt";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(mutate_output);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+
+    {
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.create_empty());
+
+        auto legal_heading = featherdoc::paragraph_style_definition{};
+        legal_heading.name = "Legal Heading";
+        legal_heading.based_on = std::string{"Heading1"};
+        legal_heading.is_quick_format = true;
+        REQUIRE(document.ensure_paragraph_style("LegalHeading", legal_heading));
+
+        auto body_numbered = featherdoc::paragraph_style_definition{};
+        body_numbered.name = "Body Numbered";
+        body_numbered.based_on = std::string{"Normal"};
+        body_numbered.is_quick_format = true;
+        REQUIRE(document.ensure_paragraph_style("BodyNumbered", body_numbered));
+
+        auto plain_body = featherdoc::paragraph_style_definition{};
+        plain_body.name = "Plain Body";
+        plain_body.based_on = std::string{"Normal"};
+        plain_body.is_quick_format = true;
+        REQUIRE(document.ensure_paragraph_style("PlainBody", plain_body));
+
+        REQUIRE_FALSE(document.save());
+    }
+
+    CHECK_EQ(run_cli({"ensure-style-linked-numbering",
+                      source.string(),
+                      "--definition-name",
+                      "SharedOutline",
+                      "--numbering-level",
+                      "0:decimal:1:%1.",
+                      "--numbering-level",
+                      "1:decimal:1:%1.%2.",
+                      "--style-link",
+                      "LegalHeading:0",
+                      "--style-link",
+                      "BodyNumbered:1",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     mutate_output),
+             0);
+
+    CHECK_EQ(run_cli({"inspect-style-numbering", updated.string(), "--json"},
+                     json_output),
+             0);
+    const auto inspect_json = read_text_file(json_output);
+    CHECK_NE(inspect_json.find("\"count\":2"), std::string::npos);
+    CHECK_NE(inspect_json.find("\"style_id\":\"LegalHeading\""),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"style_id\":\"BodyNumbered\""),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"definition_name\":\"SharedOutline\""),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"level\":0"), std::string::npos);
+    CHECK_NE(inspect_json.find("\"level\":1"), std::string::npos);
+    CHECK_NE(inspect_json.find("\"instance\":{\"instance_id\":"),
+             std::string::npos);
+    CHECK_EQ(inspect_json.find("\"style_id\":\"PlainBody\""),
+             std::string::npos);
+    CHECK_EQ(inspect_json.find("\"numbering\":null"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-style-numbering", updated.string()}, text_output), 0);
+    const auto inspect_text = read_text_file(text_output);
+    CHECK_NE(inspect_text.find("styles: 2"), std::string::npos);
+    CHECK_NE(inspect_text.find("id=LegalHeading"), std::string::npos);
+    CHECK_NE(inspect_text.find("id=BodyNumbered"), std::string::npos);
+    CHECK_NE(inspect_text.find("definition_name=SharedOutline"),
+             std::string::npos);
+    CHECK_NE(inspect_text.find("numbering=(level=0,"), std::string::npos);
+    CHECK_NE(inspect_text.find("numbering=(level=1,"), std::string::npos);
+    CHECK_EQ(inspect_text.find("id=PlainBody"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(mutate_output);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+}
+
+TEST_CASE("cli inspect-style-numbering reports missing input as json") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path output =
+        working_directory / "cli_inspect_style_numbering_parse.json";
+
+    remove_if_exists(output);
+
+    CHECK_EQ(run_cli({"inspect-style-numbering", "--json"}, output), 2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"inspect-style-numbering\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"inspect-style-numbering "
+            "expects an input path\"}\n"});
+
+    remove_if_exists(output);
+}
+
+
+TEST_CASE("cli audit-style-numbering reports clean numbered styles") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_audit_style_numbering_clean_source.docx";
+    const fs::path updated =
+        working_directory / "cli_audit_style_numbering_clean_updated.docx";
+    const fs::path mutate_output =
+        working_directory / "cli_audit_style_numbering_clean_mutate.json";
+    const fs::path audit_output =
+        working_directory / "cli_audit_style_numbering_clean_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(mutate_output);
+    remove_if_exists(audit_output);
+
+    create_cli_paragraph_style_fixture(source, "LegalHeading", "Legal Heading",
+                                       "Heading1", false);
+
+    CHECK_EQ(run_cli({"set-paragraph-style-numbering",
+                      source.string(),
+                      "LegalHeading",
+                      "--definition-name",
+                      "LegalHeadingOutline",
+                      "--numbering-level",
+                      "0:decimal:1:%1.",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     mutate_output),
+             0);
+
+    CHECK_EQ(run_cli({"audit-style-numbering",
+                      updated.string(),
+                      "--json",
+                      "--fail-on-issue"},
+                     audit_output),
+             0);
+    const auto audit_json = read_text_file(audit_output);
+    CHECK_NE(audit_json.find("\"command\":\"audit-style-numbering\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"clean\":true"), std::string::npos);
+    CHECK_NE(audit_json.find("\"numbered_style_count\":1"),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"issue_count\":0"), std::string::npos);
+    CHECK_NE(audit_json.find("\"suggestion_count\":0"),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"style_id\":\"LegalHeading\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"definition_name\":\"LegalHeadingOutline\""),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(mutate_output);
+    remove_if_exists(audit_output);
+}
+
+TEST_CASE("cli audit-style-numbering reports broken style bindings") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_audit_style_numbering_broken_source.docx";
+    const fs::path json_output =
+        working_directory / "cli_audit_style_numbering_broken_output.json";
+    const fs::path text_output =
+        working_directory / "cli_audit_style_numbering_broken_output.txt";
+    const fs::path parse_output =
+        working_directory / "cli_audit_style_numbering_parse_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(parse_output);
+
+    create_cli_style_numbering_audit_broken_fixture(source);
+
+    CHECK_EQ(run_cli({"audit-style-numbering",
+                      source.string(),
+                      "--json",
+                      "--fail-on-issue"},
+                     json_output),
+             1);
+    const auto audit_json = read_text_file(json_output);
+    CHECK_NE(audit_json.find("\"clean\":false"), std::string::npos);
+    CHECK_NE(audit_json.find("\"paragraph_style_count\":4"),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"numbered_style_count\":2"),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"issue_count\":2"), std::string::npos);
+    CHECK_NE(audit_json.find("\"suggestion_count\":2"),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"kind\":\"missing_num_id\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"style_id\":\"MissingNumId\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"kind\":\"orphan_instance\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"style_id\":\"OrphanNumId\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"num_id\":777"), std::string::npos);
+    CHECK_NE(audit_json.find("\"action\":\"clear_style_numbering\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find(
+                 "\"command_template\":\"featherdoc_cli clear-paragraph-style-numbering <input.docx> MissingNumId --output <output.docx> --json\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find(
+                 "\"command_template\":\"featherdoc_cli clear-paragraph-style-numbering <input.docx> OrphanNumId --output <output.docx> --json\""),
+             std::string::npos);
+    CHECK_EQ(audit_json.find("\"style_id\":\"PlainBody\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-style-numbering", source.string()}, text_output), 0);
+    const auto audit_text = read_text_file(text_output);
+    CHECK_NE(audit_text.find("clean: no"), std::string::npos);
+    CHECK_NE(audit_text.find("numbered_styles: 2"), std::string::npos);
+    CHECK_NE(audit_text.find("issues: 2"), std::string::npos);
+    CHECK_NE(audit_text.find("suggestions: 2"), std::string::npos);
+    CHECK_NE(audit_text.find("suggestion[0]: action=clear_style_numbering"),
+             std::string::npos);
+    CHECK_NE(audit_text.find(
+                 "command=featherdoc_cli clear-paragraph-style-numbering <input.docx> MissingNumId --output <output.docx> --json"),
+             std::string::npos);
+    CHECK_NE(audit_text.find("kind=missing_num_id style_id=MissingNumId"),
+             std::string::npos);
+    CHECK_NE(audit_text.find("kind=orphan_instance style_id=OrphanNumId"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-style-numbering", "--json"}, parse_output), 2);
+    CHECK_EQ(
+        read_text_file(parse_output),
+        std::string{
+            "{\"command\":\"audit-style-numbering\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"audit-style-numbering "
+            "expects an input path\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(parse_output);
+}
+
+
+
+TEST_CASE("cli repair-style-numbering plans and applies safe clear repairs") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_repair_style_numbering_source.docx";
+    const fs::path repaired =
+        working_directory / "cli_repair_style_numbering_repaired.docx";
+    const fs::path plan_output =
+        working_directory / "cli_repair_style_numbering_plan.json";
+    const fs::path apply_output =
+        working_directory / "cli_repair_style_numbering_apply.json";
+    const fs::path audit_output =
+        working_directory / "cli_repair_style_numbering_audit.json";
+    const fs::path output_without_apply =
+        working_directory / "cli_repair_style_numbering_output_without_apply.json";
+    const fs::path apply_without_output =
+        working_directory / "cli_repair_style_numbering_apply_without_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(repaired);
+    remove_if_exists(plan_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(audit_output);
+    remove_if_exists(output_without_apply);
+    remove_if_exists(apply_without_output);
+
+    create_cli_style_numbering_audit_broken_fixture(source);
+
+    CHECK_EQ(run_cli({"repair-style-numbering", source.string(), "--json"},
+                     plan_output),
+             0);
+    const auto plan_json = read_text_file(plan_output);
+    CHECK_NE(plan_json.find("\"command\":\"repair-style-numbering\""),
+             std::string::npos);
+    CHECK_NE(plan_json.find("\"mode\":\"plan\""), std::string::npos);
+    CHECK_NE(plan_json.find("\"before_clean\":false"), std::string::npos);
+    CHECK_NE(plan_json.find("\"before_issue_count\":2"), std::string::npos);
+    CHECK_NE(plan_json.find("\"after_issue_count\":null"), std::string::npos);
+    CHECK_NE(plan_json.find("\"suggestion_count\":2"), std::string::npos);
+    CHECK_NE(plan_json.find("\"applyable_count\":2"), std::string::npos);
+    CHECK_NE(plan_json.find("\"applied_count\":0"), std::string::npos);
+    CHECK_NE(plan_json.find("\"applyable\":true"), std::string::npos);
+    CHECK_NE(plan_json.find("\"output_path\":null"), std::string::npos);
+    CHECK_NE(plan_json.find(
+                 "\"command_template\":\"featherdoc_cli clear-paragraph-style-numbering <input.docx> MissingNumId --output <output.docx> --json\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"repair-style-numbering",
+                      source.string(),
+                      "--apply",
+                      "--output",
+                      repaired.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    const auto apply_json = read_text_file(apply_output);
+    CHECK_NE(apply_json.find("\"mode\":\"apply\""), std::string::npos);
+    CHECK_NE(apply_json.find("\"before_issue_count\":2"), std::string::npos);
+    CHECK_NE(apply_json.find("\"after_clean\":true"), std::string::npos);
+    CHECK_NE(apply_json.find("\"after_issue_count\":0"), std::string::npos);
+    CHECK_NE(apply_json.find("\"applied_count\":2"), std::string::npos);
+    CHECK_NE(apply_json.find("\"output_path\":" + json_quote(repaired.string())),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-style-numbering",
+                      repaired.string(),
+                      "--json",
+                      "--fail-on-issue"},
+                     audit_output),
+             0);
+    const auto repaired_audit_json = read_text_file(audit_output);
+    CHECK_NE(repaired_audit_json.find("\"clean\":true"), std::string::npos);
+    CHECK_NE(repaired_audit_json.find("\"numbered_style_count\":0"),
+             std::string::npos);
+    CHECK_NE(repaired_audit_json.find("\"issue_count\":0"), std::string::npos);
+
+    const auto source_styles_xml = read_docx_entry(source, "word/styles.xml");
+    CHECK_NE(source_styles_xml.find("w:styleId=\"OrphanNumId\""),
+             std::string::npos);
+    CHECK_NE(source_styles_xml.find("<w:numId w:val=\"777\"/>"),
+             std::string::npos);
+    const auto repaired_styles_xml = read_docx_entry(repaired, "word/styles.xml");
+    CHECK_EQ(repaired_styles_xml.find("<w:numPr>"), std::string::npos);
+
+    CHECK_EQ(run_cli({"repair-style-numbering",
+                      source.string(),
+                      "--output",
+                      repaired.string(),
+                      "--json"},
+                     output_without_apply),
+             2);
+    CHECK_EQ(
+        read_text_file(output_without_apply),
+        std::string{
+            "{\"command\":\"repair-style-numbering\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"--output requires --apply\"}\n"});
+
+    CHECK_EQ(run_cli({"repair-style-numbering",
+                      source.string(),
+                      "--apply",
+                      "--json"},
+                     apply_without_output),
+             2);
+    CHECK_EQ(
+        read_text_file(apply_without_output),
+        std::string{
+            "{\"command\":\"repair-style-numbering\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"repair-style-numbering "
+            "--apply requires --output <path>\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(repaired);
+    remove_if_exists(plan_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(audit_output);
+    remove_if_exists(output_without_apply);
+    remove_if_exists(apply_without_output);
+}
+
+
+TEST_CASE("cli repair-style-numbering applies based-on alignment repairs") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_repair_style_numbering_based_on_source.docx";
+    const fs::path repaired =
+        working_directory / "cli_repair_style_numbering_based_on_repaired.docx";
+    const fs::path audit_output =
+        working_directory / "cli_repair_style_numbering_based_on_audit.json";
+    const fs::path apply_output =
+        working_directory / "cli_repair_style_numbering_based_on_apply.json";
+    const fs::path repaired_audit_output =
+        working_directory / "cli_repair_style_numbering_based_on_repaired_audit.json";
+
+    remove_if_exists(source);
+    remove_if_exists(repaired);
+    remove_if_exists(audit_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(repaired_audit_output);
+
+    create_cli_style_numbering_based_on_mismatch_fixture(source);
+
+    CHECK_EQ(run_cli({"audit-style-numbering",
+                      source.string(),
+                      "--json",
+                      "--fail-on-issue"},
+                     audit_output),
+             1);
+    const auto audit_json = read_text_file(audit_output);
+    CHECK_NE(audit_json.find("\"clean\":false"), std::string::npos);
+    CHECK_NE(audit_json.find("\"issue_count\":1"), std::string::npos);
+    CHECK_NE(audit_json.find("\"kind\":\"based_on_definition_mismatch\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"style_id\":\"ChildNumbered\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"action\":\"align_with_based_on_numbering\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"target_definition_name\":\"BaseOutline\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"target_level\":0"), std::string::npos);
+    CHECK_NE(audit_json.find("\"applyable\":true"), std::string::npos);
+
+    CHECK_EQ(run_cli({"repair-style-numbering",
+                      source.string(),
+                      "--apply",
+                      "--output",
+                      repaired.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    const auto apply_json = read_text_file(apply_output);
+    CHECK_NE(apply_json.find("\"mode\":\"apply\""), std::string::npos);
+    CHECK_NE(apply_json.find("\"before_issue_count\":1"),
+             std::string::npos);
+    CHECK_NE(apply_json.find("\"applyable_count\":1"), std::string::npos);
+    CHECK_NE(apply_json.find("\"applied_count\":1"), std::string::npos);
+    CHECK_NE(apply_json.find("\"after_clean\":true"), std::string::npos);
+    CHECK_NE(apply_json.find("\"after_issue_count\":0"), std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-style-numbering",
+                      repaired.string(),
+                      "--json",
+                      "--fail-on-issue"},
+                     repaired_audit_output),
+             0);
+    const auto repaired_audit_json = read_text_file(repaired_audit_output);
+    CHECK_NE(repaired_audit_json.find("\"clean\":true"), std::string::npos);
+    CHECK_NE(repaired_audit_json.find("\"issue_count\":0"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(repaired);
+    remove_if_exists(audit_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(repaired_audit_output);
+}
+
+
+TEST_CASE("cli repair-style-numbering relinks missing levels to unique same-name definitions") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_repair_style_numbering_relink_source.docx";
+    const fs::path repaired =
+        working_directory / "cli_repair_style_numbering_relink_repaired.docx";
+    const fs::path audit_output =
+        working_directory / "cli_repair_style_numbering_relink_audit.json";
+    const fs::path apply_output =
+        working_directory / "cli_repair_style_numbering_relink_apply.json";
+    const fs::path repaired_audit_output =
+        working_directory / "cli_repair_style_numbering_relink_repaired_audit.json";
+
+    remove_if_exists(source);
+    remove_if_exists(repaired);
+    remove_if_exists(audit_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(repaired_audit_output);
+
+    create_cli_style_numbering_missing_level_relink_fixture(source);
+
+    CHECK_EQ(run_cli({"audit-style-numbering",
+                      source.string(),
+                      "--json",
+                      "--fail-on-issue"},
+                     audit_output),
+             1);
+    const auto audit_json = read_text_file(audit_output);
+    CHECK_NE(audit_json.find("\"clean\":false"), std::string::npos);
+    CHECK_NE(audit_json.find("\"issue_count\":2"), std::string::npos);
+    CHECK_NE(audit_json.find("\"kind\":\"missing_level_definition\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"kind\":\"duplicate_definition_name\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"action\":\"relink_style_numbering\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"target_definition_id\":2"),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"target_definition_name\":\"SharedOutline\""),
+             std::string::npos);
+    CHECK_NE(audit_json.find("\"target_level\":1"), std::string::npos);
+    CHECK_NE(audit_json.find("\"applyable\":true"), std::string::npos);
+
+    CHECK_EQ(run_cli({"repair-style-numbering",
+                      source.string(),
+                      "--apply",
+                      "--output",
+                      repaired.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    const auto apply_json = read_text_file(apply_output);
+    CHECK_NE(apply_json.find("\"before_issue_count\":2"),
+             std::string::npos);
+    CHECK_NE(apply_json.find("\"applyable_count\":1"), std::string::npos);
+    CHECK_NE(apply_json.find("\"applied_count\":1"), std::string::npos);
+    CHECK_NE(apply_json.find("\"after_clean\":false"), std::string::npos);
+    CHECK_NE(apply_json.find("\"after_issue_count\":1"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-style-numbering",
+                      repaired.string(),
+                      "--json",
+                      "--fail-on-issue"},
+                     repaired_audit_output),
+             1);
+    const auto repaired_audit_json = read_text_file(repaired_audit_output);
+    CHECK_EQ(repaired_audit_json.find("\"kind\":\"missing_level_definition\""),
+             std::string::npos);
+    CHECK_NE(repaired_audit_json.find("\"kind\":\"duplicate_definition_name\""),
+             std::string::npos);
+
+    const auto repaired_styles_xml = read_docx_entry(repaired, "word/styles.xml");
+    pugi::xml_document repaired_styles_document;
+    REQUIRE(repaired_styles_document.load_string(repaired_styles_xml.c_str()));
+    const auto relinked_style = find_style_xml_node(
+        repaired_styles_document.child("w:styles"), "NeedsRelink");
+    REQUIRE(relinked_style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{relinked_style.child("w:pPr")
+                                  .child("w:numPr")
+                                  .child("w:numId")
+                                  .attribute("w:val")
+                                  .value()},
+             "8");
+
+    remove_if_exists(source);
+    remove_if_exists(repaired);
+    remove_if_exists(audit_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(repaired_audit_output);
+}
+
+
+TEST_CASE("cli repair-style-numbering imports catalog repairs before style fixes") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_repair_style_numbering_catalog_source.docx";
+    const fs::path catalog =
+        working_directory / "cli_repair_style_numbering_catalog.json";
+    const fs::path repaired =
+        working_directory / "cli_repair_style_numbering_catalog_repaired.docx";
+    const fs::path plan_output =
+        working_directory / "cli_repair_style_numbering_catalog_plan.json";
+    const fs::path apply_output =
+        working_directory / "cli_repair_style_numbering_catalog_apply.json";
+    const fs::path audit_output =
+        working_directory / "cli_repair_style_numbering_catalog_audit.json";
+
+    remove_if_exists(source);
+    remove_if_exists(catalog);
+    remove_if_exists(repaired);
+    remove_if_exists(plan_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(audit_output);
+
+    create_cli_style_numbering_catalog_repair_fixture(source);
+    write_binary_file(
+        catalog,
+        "{\"definition_count\":1,\"instance_count\":0,\"definitions\":["
+        "{\"name\":\"CatalogOutline\",\"levels\":["
+        "{\"level\":0,\"kind\":\"decimal\",\"start\":1,\"text_pattern\":\"%1.\"},"
+        "{\"level\":1,\"kind\":\"decimal\",\"start\":1,\"text_pattern\":\"%1.%2.\"}"
+        "],\"instances\":[]}]}");
+
+    CHECK_EQ(run_cli({"repair-style-numbering", source.string(), "--json"},
+                     plan_output),
+             0);
+    const auto plain_plan_json = read_text_file(plan_output);
+    CHECK_NE(plain_plan_json.find("\"action\":\"add_numbering_level\""),
+             std::string::npos);
+    CHECK_NE(plain_plan_json.find(
+                 "patch-numbering-catalog numbering-catalog.json --patch-file "
+                 "<patch-with-upsert_levels.json>"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"repair-style-numbering",
+                      source.string(),
+                      "--catalog-file",
+                      catalog.string(),
+                      "--json"},
+                     plan_output),
+             2);
+    CHECK_NE(read_text_file(plan_output).find("--catalog-file requires --apply"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"repair-style-numbering",
+                      source.string(),
+                      "--catalog-file",
+                      catalog.string(),
+                      "--apply",
+                      "--output",
+                      repaired.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    const auto apply_json = read_text_file(apply_output);
+    CHECK_NE(apply_json.find("\"before_issue_count\":1"),
+             std::string::npos);
+    CHECK_NE(apply_json.find("\"catalog_file\":" + json_quote(catalog.string())),
+             std::string::npos);
+    CHECK_NE(apply_json.find("\"catalog_import\":{"), std::string::npos);
+    CHECK_NE(apply_json.find("\"input_definition_count\":1"),
+             std::string::npos);
+    CHECK_NE(apply_json.find("\"imported_definition_count\":1"),
+             std::string::npos);
+    CHECK_NE(apply_json.find("\"imported_instance_count\":0"),
+             std::string::npos);
+    CHECK_NE(apply_json.find("\"applyable_count\":0"), std::string::npos);
+    CHECK_NE(apply_json.find("\"applied_count\":0"), std::string::npos);
+    CHECK_NE(apply_json.find("\"after_clean\":true"), std::string::npos);
+    CHECK_NE(apply_json.find("\"after_issue_count\":0"), std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-style-numbering",
+                      repaired.string(),
+                      "--json",
+                      "--fail-on-issue"},
+                     audit_output),
+             0);
+    const auto audit_json = read_text_file(audit_output);
+    CHECK_NE(audit_json.find("\"clean\":true"), std::string::npos);
+    CHECK_NE(audit_json.find("\"issue_count\":0"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(catalog);
+    remove_if_exists(repaired);
+    remove_if_exists(plan_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(audit_output);
+}
+
 
 TEST_CASE("cli ensure-style-linked-numbering links multiple paragraph styles to one shared instance") {
     const fs::path working_directory = fs::current_path();

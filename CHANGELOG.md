@@ -8,6 +8,43 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added numbering catalog export/import APIs and CLI automation for stable
+  numbering governance, including catalog lint/check/diff/patch/import flows,
+  baseline and manifest check scripts, and validation for definitions,
+  instances, `lvlOverride`, and `startOverride` round-trips.
+- Added style-numbering audit and repair improvements so CLI workflows can
+  inspect, gate, plan, apply, and catalog-preload style numbering fixes while
+  reporting safer command templates and post-apply cleanliness.
+- Added style refactor governance features for duplicate-style merge plans:
+  `suggest-style-merges --min-confidence <0-100>`, top-level
+  `suggestion_confidence_summary`, `recommended_min_confidence`, merge restore
+  dry-run / plan-only auditing, repeated `--entry`, source/target rollback
+  filters, actionable restore suggestions, and issue summaries.
+- Added render-data workspace guidance to the project-template smoke onboarding
+  plan so newly discovered templates now include prepare/validate render-data
+  commands, workspace paths, validation report paths, and Markdown/JSON review
+  hints before manifest registration.
+- Added repository assessment documentation in
+  `docs/project_score_assessment_zh.rst` to capture the current project score,
+  capability assessment, and maintainability priorities.
+
+### Changed
+
+- Updated README, Chinese README, Sphinx docs, current-direction notes, and
+  feature-gap analysis to describe numbering catalog governance, style refactor
+  confidence filtering, and the remaining real-corpus confidence calibration
+  work.
+
+### Tests
+
+- Added unit and CLI coverage for numbering catalog import/export, catalog
+  patch/lint/diff/check flows, style-numbering repair with catalog preload,
+  duplicate-style suggestion confidence summaries, min-confidence filtering,
+  merge restore dry-run/selection behavior, and the new PowerShell catalog and
+  onboarding-plan scripts.
+
 ## [1.9.0] - 2026-04-24
 
 ### Added

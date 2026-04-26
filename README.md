@@ -489,6 +489,19 @@ featherdoc_cli inspect-styles input.docx --style Strong --json
 featherdoc_cli inspect-runs input.docx 1 --run 0 --json
 featherdoc_cli inspect-template-runs input.docx 1 --run 0 --json
 featherdoc_cli inspect-numbering input.docx --definition 1 --json
+featherdoc_cli inspect-style-numbering input.docx --json
+featherdoc_cli audit-style-numbering input.docx --fail-on-issue --json
+featherdoc_cli repair-style-numbering input.docx --plan-only --json
+featherdoc_cli repair-style-numbering input.docx --apply --output repaired-style-numbering.docx --json
+featherdoc_cli repair-style-numbering input.docx --catalog-file numbering-catalog.json --apply --output catalog-repaired.docx --json
+featherdoc_cli export-numbering-catalog input.docx --output numbering-catalog.json --json
+featherdoc_cli check-numbering-catalog input.docx --catalog-file numbering-catalog.json --output numbering-catalog.generated.json --json
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx .\input.docx -CatalogFile .\numbering-catalog.json -GeneratedCatalogOutput .\numbering-catalog.generated.json -BuildDir build-codex-clang-compat -SkipBuild
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir build-codex-clang-compat -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild
+featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file numbering-catalog.patch.json --output numbering-catalog.patched.json --json
+featherdoc_cli lint-numbering-catalog numbering-catalog.patched.json --json
+featherdoc_cli diff-numbering-catalog numbering-catalog.json numbering-catalog.patched.json --fail-on-diff --json
+featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-catalog.patched.json --output target-numbering.docx --json
 featherdoc_cli inspect-page-setup input.docx --section 1 --json
 featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --json
@@ -575,11 +588,13 @@ from JSON files via `-TemplateValidationsFile` and
 `-SchemaValidationTargetsFile`. Before adding real templates, run
 `scripts/new_project_template_smoke_onboarding_plan.ps1` for a non-mutating
 onboarding plan that combines candidate discovery with per-template
-`freeze_template_schema_baseline.ps1` and
+`freeze_template_schema_baseline.ps1`, render-data workspace preparation,
+render-data completeness validation, and
 `register_project_template_smoke_manifest_entry.ps1` commands. The plan writes
 `plan.json`, `plan.md`, and `candidate_discovery.json` under `output/` so you
-can review schema baseline paths, visual smoke output directories, and final
-strict-preflight commands before touching the manifest. You can also run
+can review schema baseline paths, editable data skeleton workspaces, visual
+smoke output directories, and final strict-preflight commands before touching
+the manifest. You can also run
 `scripts/discover_project_template_smoke_candidates.ps1` to list tracked
 `.docx` / `.dotx` candidates that are not yet registered and print ready-to-run
 `register_project_template_smoke_manifest_entry.ps1` commands with unique
@@ -919,6 +934,19 @@ featherdoc_cli materialize-style-run-properties input.docx Normal --output mater
 featherdoc_cli set-style-run-properties input.docx Normal --font-family "Segoe UI" --east-asia-font-family "Microsoft YaHei" --language en-US --east-asia-language zh-CN --rtl true --paragraph-bidi true --output style-run-properties.docx --json
 featherdoc_cli clear-style-run-properties input.docx Normal --primary-language --rtl --paragraph-bidi --output cleared-style-run-properties.docx --json
 featherdoc_cli inspect-style-inheritance input.docx Normal --json
+featherdoc_cli inspect-styles input.docx --usage --json
+featherdoc_cli rename-style input.docx LegacyBody ReviewBody --output renamed-style.docx --json
+featherdoc_cli merge-style input.docx LegacyBody ReviewBody --output merged-style.docx --json
+featherdoc_cli plan-style-refactor input.docx --rename LegacyBody:ReviewBody --merge OldBody:Normal --output-plan style-refactor.plan.json --json
+featherdoc_cli suggest-style-merges input.docx --output-plan style-merge-suggestions.json --json
+featherdoc_cli suggest-style-merges input.docx --min-confidence 90 --output-plan style-merge-suggestions.strict.json --json
+featherdoc_cli apply-style-refactor input.docx --plan-file style-refactor.plan.json --rollback-plan style-refactor.rollback.json --output refactored-styles.docx --json
+featherdoc_cli apply-style-refactor input.docx --plan-file style-merge-suggestions.json --rollback-plan style-merge.rollback.json --output merged-styles.docx --json
+featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.rollback.json --entry 0 --entry 2 --dry-run --json
+featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.rollback.json --source-style OldBody --target-style Normal --dry-run --json
+featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.rollback.json --output restored-styles.docx --json
+featherdoc_cli plan-prune-unused-styles input.docx --json
+featherdoc_cli prune-unused-styles input.docx --output pruned-styles.docx --json
 featherdoc_cli inspect-paragraph-style-properties input.docx Heading1 --json
 featherdoc_cli set-paragraph-style-properties input.docx Heading1 --next-style BodyText --outline-level 1 --output updated-paragraph-style-properties.docx --json
 featherdoc_cli clear-paragraph-style-properties input.docx Heading1 --next-style --outline-level --output cleared-paragraph-style-properties.docx --json
@@ -927,6 +955,19 @@ featherdoc_cli rebase-paragraph-style-based-on input.docx Heading2 Normal --outp
 featherdoc_cli ensure-paragraph-style input.docx ReviewHeading --name "Review Heading" --based-on Heading1 --output ensured-paragraph-style.docx --json
 featherdoc_cli ensure-character-style input.docx ReviewStrong --name "Review Strong" --based-on Strong --output ensured-character-style.docx --json
 featherdoc_cli ensure-numbering-definition input.docx --definition-name OutlineReview --numbering-level 0:decimal:1:%1. --output numbering.docx --json
+featherdoc_cli inspect-style-numbering input.docx --json
+featherdoc_cli audit-style-numbering input.docx --fail-on-issue --json
+featherdoc_cli repair-style-numbering input.docx --plan-only --json
+featherdoc_cli repair-style-numbering input.docx --apply --output repaired-style-numbering.docx --json
+featherdoc_cli repair-style-numbering input.docx --catalog-file numbering-catalog.json --apply --output catalog-repaired.docx --json
+featherdoc_cli export-numbering-catalog input.docx --output numbering-catalog.json --json
+featherdoc_cli check-numbering-catalog input.docx --catalog-file numbering-catalog.json --output numbering-catalog.generated.json --json
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx .\input.docx -CatalogFile .\numbering-catalog.json -GeneratedCatalogOutput .\numbering-catalog.generated.json -BuildDir build-codex-clang-compat -SkipBuild
+pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir build-codex-clang-compat -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild
+featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file numbering-catalog.patch.json --output numbering-catalog.patched.json --json
+featherdoc_cli lint-numbering-catalog numbering-catalog.patched.json --json
+featherdoc_cli diff-numbering-catalog numbering-catalog.json numbering-catalog.patched.json --fail-on-diff --json
+featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-catalog.patched.json --output target-numbering.docx --json
 featherdoc_cli ensure-style-linked-numbering input.docx --definition-name HeadingReview --numbering-level 0:decimal:1:%1. --numbering-level 1:decimal:1:%1.%2. --style-link Heading1:0 --style-link Heading2:1 --output linked-style-numbering.docx --json
 featherdoc_cli set-paragraph-numbering input.docx 6 --definition 12 --level 0 --output numbered.docx --json
 featherdoc_cli set-paragraph-style-numbering input.docx Heading2 --definition-name HeadingReview --numbering-level 0:decimal:1:%1. --style-level 1 --output style-numbering.docx --json
@@ -1206,7 +1247,13 @@ you want to get done:
   `insert_section()`, `move_section()`, `move_header_part()`,
   `move_footer_part()`
 - Work with styles, numbering, and language metadata:
-  `list_styles()`, `find_style()`, `ensure_*style()`,
+  `list_styles()`, `find_style()`, `find_style_usage()`,
+  `list_style_usage()`, `plan_style_refactor()`,
+  `apply_style_refactor()`, `plan_style_refactor_restore()`,
+  `restore_style_refactor()`, `rename_style()`,
+  `merge_style()`,
+  `plan_prune_unused_styles()`, `prune_unused_styles()`,
+  `ensure_*style()`,
   `ensure_numbering_definition()`, `ensure_style_linked_numbering()`,
   `set_paragraph_style_numbering()`,
   `default_run_*()`, `style_run_*()`, `resolve_style_properties()`,
@@ -1953,6 +2000,11 @@ keeps the same full identity it prefers slot-level `remove_slots`,
 `rename_slots`, and partial `upsert_targets`. Only identity changes fall back
 to whole-target `remove_targets` plus `upsert_targets`, so applying the patch
 to the left schema still reproduces the normalized right schema.
+The same in-memory workflow is also available to C++ callers through
+`template_schema_patch`, `normalize_template_schema(...)`,
+`merge_template_schema(...)`, `apply_template_schema_patch(...)`, and
+`build_template_schema_patch(...)`, so downstream tooling can manage schema
+changes without round-tripping through CLI JSON files.
 Add `--fail-on-diff` when you want the diff command to behave like a CI gate
 and return a non-zero exit code on schema drift. If you want a single command
 that exports, normalizes, compares, and gates against a committed baseline, use
@@ -2447,24 +2499,62 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences. Custom numbering definitions and
   paragraph-style numbering are now supported through
-  `ensure_numbering_definition(...)` and
-  `set_paragraph_style_numbering(...)`, and multi-style shared outline linking
-  is now available through `ensure_style_linked_numbering(...)`, but there is
-  still no richer import/export or override-management layer for existing
-  numbering catalogs.
+`ensure_numbering_definition(...)` and
+`set_paragraph_style_numbering(...)`, and multi-style shared outline linking
+is now available through `ensure_style_linked_numbering(...)`. In-memory
+numbering catalog export/import is available through
+`export_numbering_catalog()` / `import_numbering_catalog(...)` and the
+`export-numbering-catalog` / `check-numbering-catalog` /
+`patch-numbering-catalog` / `lint-numbering-catalog` /
+`diff-numbering-catalog` / `import-numbering-catalog` CLI JSON workflow,
+including instance-level `lvlOverride` / `startOverride` preservation,
+definition-level upsert, batch override upsert/remove, structural validation,
+document-vs-baseline checks,
+the `scripts/check_numbering_catalog_baseline.ps1` and
+`scripts/check_numbering_catalog_manifest.ps1` wrappers, diff-based
+drift checks for catalog JSON files, and `audit-style-numbering`
+style-to-numbering issue gates with `command_template` repair suggestions,
+including missing-level `upsert_levels` patch guidance, and
+`repair-style-numbering` plan/apply safe clear-binding, based-on alignment,
+unique same-name relink, and catalog import pre-repairs.
 - Paragraph and run style references can now be attached and cleared, and a
   minimal `word/styles.xml` is created automatically when needed. Style
-  catalog inspection and minimal paragraph/character/table style definition
-  editing are now available through `list_styles()`, `find_style()`,
-  `find_style_usage()`, `resolve_style_properties()`, and the
-  `ensure_*_style(...)` helpers. Effective inherited
+  catalog inspection, single-style and full-catalog usage reports, style id
+  rename, same-type style merge, conservative unused custom style pruning, and
+  minimal paragraph/character/table style definition editing are now available
+  through `list_styles()`, `find_style()`, `find_style_usage()`,
+  `list_style_usage()`, `plan_style_refactor()`,
+  `suggest_style_merges()`, `apply_style_refactor()`,
+  `plan_style_refactor_restore()`, `restore_style_refactor()`,
+  `rename_style()`, `merge_style()`,
+  `plan_prune_unused_styles()`,
+  `prune_unused_styles()`, `resolve_style_properties()`, and the
+  `ensure_*_style(...)` helpers.
+  Effective inherited
   font/language/RTL/paragraph-bidi inspection is now available, and
   `materialize_style_run_properties(...)`,
   `rebase_paragraph_style_based_on(...)`, and
   `rebase_character_style_based_on(...)` can now freeze supported inherited
-  properties onto the child style before a `basedOn` rewrite. Broader
-  style-linked numbering and higher-level style refactoring workflows are
-  still missing.
+  properties onto the child style before a `basedOn` rewrite. Reviewed batch
+  style plans can now be applied through `apply_style_refactor(...)` /
+  `apply-style-refactor`; plan JSON can be persisted and replayed with
+  rollback records. Merge rollback records now capture the removed source
+  style XML plus original source usage hits.
+  `plan_style_refactor_restore(...)` / `restore-style-merge --dry-run`
+  (alias `--plan-only`) can audit the restore plan without saving changes, `--entry` can be repeated to select multiple rollback entries, `--source-style` / `--target-style` can filter merge rollback entries by style id, and restore issues include actionable `suggestion` text plus top-level `issue_count` / `issue_summary`, while
+  `restore_style_refactor(...)` / `restore-style-merge` restore those merge
+  snapshots by only rewriting the captured original source hits. `suggest_style_merges(...)` /
+  `suggest-style-merges` now emits conservative duplicate-style merge plans
+  for review, including
+  per-operation suggestion confidence, reason codes, evidence markers,
+  top-level XML difference hints, and a top-level
+  `suggestion_confidence_summary` with min/max confidence, exact-XML counts,
+  XML-difference counts, and `recommended_min_confidence` in JSON output.
+  The XML comparison ignores style identity (`styleId`) and display name so
+  visually equivalent duplicates can still be ranked highly. CLI output and
+  persisted suggestion plans can be narrowed with `--min-confidence <0-100>`
+  for stricter automation gates. Confidence calibration against real-world
+  corpora and richer batch restore selection remain future work.
 - Bookmark-based template filling now works across body, header, and footer
   parts through `fill_bookmarks(...)`, the standalone replacement helpers, and
   `TemplatePart` handles returned by `body_template()`, `header_template()`,
@@ -2477,8 +2567,11 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   occurrence constraints. Document-level multi-part schema validation is now
   available through `validate_template_schema(...)` plus
   `featherdoc_cli validate-template-schema`, and reusable JSON schema files can
-  now be fed through `--schema-file`, but there is still no richer schema
-  mutation layer or external schema-management toolchain.
+  now be fed through `--schema-file`. In-memory schema mutation helpers are now
+  available through `template_schema_patch`, `normalize_template_schema(...)`,
+  `merge_template_schema(...)`, `apply_template_schema_patch(...)`, and
+  `build_template_schema_patch(...)`, but there is still no external
+  schema-management toolchain.
 - Images can now be appended as inline body drawings, enumerated through
   `inline_images()` or the broader `drawing_images()`, extracted through
   `extract_inline_image(...)` / `extract_drawing_image(...)`, removed through

@@ -20,6 +20,7 @@ param(
     [string]$OutputDir = "output/project-template-smoke-onboarding-plan",
     [string]$SchemaBaselineDir = "baselines/template-schema",
     [string]$VisualSmokeOutputRoot = "output/project-template-smoke",
+    [string]$RenderDataWorkspaceRoot = "",
     [ValidateSet("default", "section-targets", "resolved-section-targets")]
     [string]$SchemaTargetMode = "default",
     [switch]$IncludeGenerated
@@ -179,6 +180,63 @@ function New-RegisterCommand {
     return Join-Command -Parts $parts.ToArray()
 }
 
+function New-PrepareRenderDataWorkspaceCommand {
+    param(
+        [string]$RepoRoot,
+        [string]$InputDocx,
+        [string]$WorkspaceDir,
+        [string]$SummaryJson,
+        [string]$BuildDir
+    )
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    $parts.Add("pwsh") | Out-Null
+    $parts.Add("-ExecutionPolicy Bypass") | Out-Null
+    $parts.Add("-File .\scripts\prepare_template_render_data_workspace.ps1") | Out-Null
+    $parts.Add("-InputDocx") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $InputDocx))) | Out-Null
+    $parts.Add("-WorkspaceDir") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $WorkspaceDir))) | Out-Null
+    $parts.Add("-SummaryJson") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $SummaryJson))) | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace($BuildDir)) {
+        $parts.Add("-BuildDir") | Out-Null
+        $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $BuildDir))) | Out-Null
+        $parts.Add("-SkipBuild") | Out-Null
+    }
+
+    return Join-Command -Parts $parts.ToArray()
+}
+
+function New-ValidateRenderDataWorkspaceCommand {
+    param(
+        [string]$RepoRoot,
+        [string]$WorkspaceDir,
+        [string]$SummaryJson,
+        [string]$ReportMarkdown,
+        [string]$BuildDir
+    )
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    $parts.Add("pwsh") | Out-Null
+    $parts.Add("-ExecutionPolicy Bypass") | Out-Null
+    $parts.Add("-File .\scripts\validate_render_data_mapping.ps1") | Out-Null
+    $parts.Add("-WorkspaceDir") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $WorkspaceDir))) | Out-Null
+    $parts.Add("-SummaryJson") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $SummaryJson))) | Out-Null
+    $parts.Add("-ReportMarkdown") | Out-Null
+    $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $ReportMarkdown))) | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace($BuildDir)) {
+        $parts.Add("-BuildDir") | Out-Null
+        $parts.Add((Quote-CommandValue -Value (Get-CommandPath -RepoRoot $RepoRoot -Path $BuildDir))) | Out-Null
+        $parts.Add("-SkipBuild") | Out-Null
+    }
+    $parts.Add("-RequireComplete") | Out-Null
+
+    return Join-Command -Parts $parts.ToArray()
+}
+
 function New-CheckManifestCommand {
     param(
         [string]$RepoRoot,
@@ -255,6 +313,11 @@ $resolvedSearchRoot = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $SearchRoo
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir -AllowMissing
 $resolvedSchemaBaselineDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $SchemaBaselineDir -AllowMissing
 $resolvedVisualSmokeOutputRoot = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $VisualSmokeOutputRoot -AllowMissing
+$resolvedRenderDataWorkspaceRoot = if ([string]::IsNullOrWhiteSpace($RenderDataWorkspaceRoot)) {
+    Join-Path $resolvedOutputDir "render-data-workspaces"
+} else {
+    Resolve-RepoPath -RepoRoot $repoRoot -InputPath $RenderDataWorkspaceRoot -AllowMissing
+}
 $resolvedBuildDir = if ([string]::IsNullOrWhiteSpace($BuildDir)) {
     ""
 } else {
@@ -313,6 +376,10 @@ foreach ($candidate in $unregisteredCandidates) {
     $schemaBaselinePath = Join-Path $resolvedSchemaBaselineDir ("{0}.schema.json" -f $entryName)
     $generatedSchemaOutput = Join-Path $resolvedOutputDir ("{0}.generated.schema.json" -f $entryName)
     $visualSmokeOutputDir = Join-Path $resolvedVisualSmokeOutputRoot ("{0}-visual" -f $entryName)
+    $renderDataWorkspaceDir = Join-Path $resolvedRenderDataWorkspaceRoot $entryName
+    $renderDataWorkspaceSummary = Join-Path $renderDataWorkspaceDir "summary.json"
+    $renderDataValidationSummary = Join-Path $renderDataWorkspaceDir "validation.summary.json"
+    $renderDataValidationReport = Join-Path $renderDataWorkspaceDir "validation.report.md"
 
     $entries.Add([pscustomobject]@{
         name = $entryName
@@ -324,6 +391,20 @@ foreach ($candidate in $unregisteredCandidates) {
         generated_schema_output_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $generatedSchemaOutput
         visual_smoke_output_dir = $visualSmokeOutputDir
         visual_smoke_output_dir_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $visualSmokeOutputDir
+        render_data_workspace_dir = $renderDataWorkspaceDir
+        render_data_workspace_dir_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $renderDataWorkspaceDir
+        render_data_workspace_summary = $renderDataWorkspaceSummary
+        render_data_workspace_summary_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $renderDataWorkspaceSummary
+        render_data_validation_summary = $renderDataValidationSummary
+        render_data_validation_summary_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $renderDataValidationSummary
+        render_data_validation_report = $renderDataValidationReport
+        render_data_validation_report_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $renderDataValidationReport
+        review_checklist = @(
+            "Run freeze_schema_baseline and review the generated schema for unexpected, duplicate, or malformed bookmarks.",
+            "Run prepare_render_data_workspace and fill the generated data skeleton with real business values.",
+            "Run validate_render_data_workspace until remaining_placeholder_count is 0.",
+            "Register the manifest entry, then run project-template-smoke and strict release preflight."
+        )
         commands = [ordered]@{
             freeze_schema_baseline = New-FreezeSchemaCommand `
                 -RepoRoot $repoRoot `
@@ -340,6 +421,18 @@ foreach ($candidate in $unregisteredCandidates) {
                 -GeneratedSchemaOutput $generatedSchemaOutput `
                 -VisualSmokeOutputDir $visualSmokeOutputDir `
                 -SchemaTargetMode $SchemaTargetMode
+            prepare_render_data_workspace = New-PrepareRenderDataWorkspaceCommand `
+                -RepoRoot $repoRoot `
+                -InputDocx $inputDocx `
+                -WorkspaceDir $renderDataWorkspaceDir `
+                -SummaryJson $renderDataWorkspaceSummary `
+                -BuildDir $resolvedBuildDir
+            validate_render_data_workspace = New-ValidateRenderDataWorkspaceCommand `
+                -RepoRoot $repoRoot `
+                -WorkspaceDir $renderDataWorkspaceDir `
+                -SummaryJson $renderDataValidationSummary `
+                -ReportMarkdown $renderDataValidationReport `
+                -BuildDir $resolvedBuildDir
         }
     }) | Out-Null
 }
@@ -358,6 +451,8 @@ $plan = [ordered]@{
     schema_baseline_dir_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSchemaBaselineDir
     visual_smoke_output_root = $resolvedVisualSmokeOutputRoot
     visual_smoke_output_root_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedVisualSmokeOutputRoot
+    render_data_workspace_root = $resolvedRenderDataWorkspaceRoot
+    render_data_workspace_root_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedRenderDataWorkspaceRoot
     schema_target_mode = $SchemaTargetMode
     candidate_discovery_json = $candidateDiscoveryPath
     candidate_discovery_json_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $candidateDiscoveryPath
@@ -385,6 +480,7 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Registered / unregistered / excluded candidates: $($plan.registered_candidate_count)/$($plan.unregistered_candidate_count)/$($plan.excluded_candidate_count)")
 [void]$lines.Add("- Onboarding entries to add: $($plan.onboarding_entry_count)")
 [void]$lines.Add("- Schema target mode: $($plan.schema_target_mode)")
+[void]$lines.Add("- Render-data workspace root: $($plan.render_data_workspace_root_display)")
 [void]$lines.Add("")
 [void]$lines.Add("## Entry Commands")
 [void]$lines.Add("")
@@ -398,10 +494,19 @@ if ($entries.Count -eq 0) {
         [void]$lines.Add("- Input DOCX: $($entry.input_docx_display)")
         [void]$lines.Add("- Schema baseline: $($entry.schema_baseline_display)")
         [void]$lines.Add("- Generated schema output: $($entry.generated_schema_output_display)")
+        [void]$lines.Add("- Render-data workspace: $($entry.render_data_workspace_dir_display)")
+        [void]$lines.Add("- Render-data validation report: $($entry.render_data_validation_report_display)")
         [void]$lines.Add("- Visual smoke output dir: $($entry.visual_smoke_output_dir_display)")
+        [void]$lines.Add("")
+        [void]$lines.Add("Review checklist:")
+        foreach ($item in @($entry.review_checklist)) {
+            [void]$lines.Add("- $item")
+        }
         [void]$lines.Add("")
         [void]$lines.Add('```powershell')
         [void]$lines.Add($entry.commands.freeze_schema_baseline)
+        [void]$lines.Add($entry.commands.prepare_render_data_workspace)
+        [void]$lines.Add($entry.commands.validate_render_data_workspace)
         [void]$lines.Add($entry.commands.register_manifest_entry)
         [void]$lines.Add('```')
         [void]$lines.Add("")

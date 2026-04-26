@@ -78,6 +78,19 @@ struct inspect_options {
     bool json_output = false;
 };
 
+struct audit_style_numbering_options {
+    bool fail_on_issue = false;
+    bool json_output = false;
+};
+
+struct repair_style_numbering_options {
+    bool plan_only = false;
+    bool apply = false;
+    std::optional<path_type> catalog_path;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
 struct inspect_styles_options {
     std::optional<std::string> style_id;
     bool usage_output = false;
@@ -87,6 +100,44 @@ struct inspect_styles_options {
 struct inspect_style_inheritance_options {
     bool json_output = false;
 };
+
+struct rename_style_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct style_refactor_plan_options {
+    std::vector<featherdoc::style_refactor_request> requests{};
+    std::optional<path_type> output_plan_path;
+    bool json_output = false;
+};
+
+struct style_merge_suggestion_options {
+    std::optional<path_type> output_plan_path;
+    std::optional<std::uint32_t> min_confidence;
+    bool json_output = false;
+};
+
+struct style_refactor_apply_options {
+    std::vector<featherdoc::style_refactor_request> requests{};
+    std::optional<path_type> plan_file_path;
+    std::optional<path_type> rollback_plan_path;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct style_merge_restore_options {
+    std::optional<path_type> rollback_plan_path;
+    std::vector<std::size_t> entry_indexes;
+    std::vector<std::string> source_style_ids;
+    std::vector<std::string> target_style_ids;
+    std::optional<path_type> output_path;
+    bool dry_run = false;
+    bool json_output = false;
+};
+
+using merge_style_options = rename_style_options;
+using prune_unused_styles_options = rename_style_options;
 
 struct inspect_numbering_options {
     std::optional<std::uint32_t> definition_id;
@@ -370,6 +421,147 @@ struct set_paragraph_numbering_options {
     std::optional<std::uint32_t> level;
     std::optional<path_type> output_path;
     bool json_output = false;
+};
+
+struct export_numbering_catalog_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct import_numbering_catalog_options {
+    std::optional<path_type> catalog_path;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct check_numbering_catalog_options {
+    std::optional<path_type> catalog_path;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct patch_numbering_catalog_options {
+    std::optional<path_type> patch_path;
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct numbering_catalog_override_patch {
+    std::string definition_name;
+    std::optional<std::size_t> instance_index;
+    std::optional<std::uint32_t> instance_id;
+    std::uint32_t level{};
+    bool saw_start_override = false;
+    std::optional<std::uint32_t> start_override;
+    bool saw_level_definition = false;
+    std::optional<featherdoc::numbering_level_definition> level_definition;
+};
+
+struct numbering_catalog_level_patch {
+    std::string definition_name;
+    featherdoc::numbering_level_definition level_definition;
+};
+
+struct numbering_catalog_patch_document {
+    std::vector<numbering_catalog_level_patch> upsert_levels;
+    std::vector<numbering_catalog_override_patch> upsert_overrides;
+    std::vector<numbering_catalog_override_patch> remove_overrides;
+};
+
+struct numbering_catalog_patch_summary {
+    std::size_t upserted_level_count{};
+    std::size_t upserted_override_count{};
+    std::size_t removed_override_count{};
+    std::size_t missing_override_count{};
+};
+
+enum class numbering_catalog_lint_issue_kind {
+    empty_definition_name,
+    duplicate_definition_name,
+    empty_levels,
+    duplicate_level,
+    invalid_level,
+    invalid_start,
+    empty_text_pattern,
+    duplicate_instance_id,
+    duplicate_override_level,
+    invalid_override_level,
+    invalid_override_start,
+    invalid_override_definition,
+};
+
+struct numbering_catalog_lint_issue {
+    numbering_catalog_lint_issue_kind kind =
+        numbering_catalog_lint_issue_kind::empty_definition_name;
+    std::size_t definition_index{};
+    std::string definition_name;
+    std::optional<std::size_t> instance_index;
+    std::optional<std::uint32_t> instance_id;
+    std::optional<std::size_t> level_index;
+    std::optional<std::size_t> override_index;
+    std::optional<std::uint32_t> level;
+    std::string detail;
+};
+
+struct numbering_catalog_lint_result {
+    std::size_t definition_count{};
+    std::size_t instance_count{};
+    std::size_t level_count{};
+    std::size_t override_count{};
+    std::vector<numbering_catalog_lint_issue> issues;
+
+    [[nodiscard]] bool clean() const noexcept {
+        return this->issues.empty();
+    }
+};
+
+struct changed_numbering_catalog_level {
+    featherdoc::numbering_level_definition left;
+    featherdoc::numbering_level_definition right;
+};
+
+struct changed_numbering_catalog_override {
+    featherdoc::numbering_level_override_summary left;
+    featherdoc::numbering_level_override_summary right;
+};
+
+struct numbering_catalog_instance_diff_result {
+    std::size_t instance_index{};
+    std::vector<featherdoc::numbering_level_override_summary> added_overrides;
+    std::vector<featherdoc::numbering_level_override_summary> removed_overrides;
+    std::vector<changed_numbering_catalog_override> changed_overrides;
+
+    [[nodiscard]] bool equal() const noexcept {
+        return this->added_overrides.empty() && this->removed_overrides.empty() &&
+               this->changed_overrides.empty();
+    }
+};
+
+struct changed_numbering_catalog_definition {
+    std::string name;
+    std::vector<featherdoc::numbering_level_definition> added_levels;
+    std::vector<featherdoc::numbering_level_definition> removed_levels;
+    std::vector<changed_numbering_catalog_level> changed_levels;
+    std::vector<featherdoc::numbering_instance_summary> added_instances;
+    std::vector<featherdoc::numbering_instance_summary> removed_instances;
+    std::vector<numbering_catalog_instance_diff_result> changed_instances;
+
+    [[nodiscard]] bool equal() const noexcept {
+        return this->added_levels.empty() && this->removed_levels.empty() &&
+               this->changed_levels.empty() && this->added_instances.empty() &&
+               this->removed_instances.empty() && this->changed_instances.empty();
+    }
+};
+
+struct numbering_catalog_diff_result {
+    std::vector<featherdoc::numbering_catalog_definition> added_definitions;
+    std::vector<featherdoc::numbering_catalog_definition> removed_definitions;
+    std::vector<changed_numbering_catalog_definition> changed_definitions;
+
+    [[nodiscard]] bool equal() const noexcept {
+        return this->added_definitions.empty() && this->removed_definitions.empty() &&
+               this->changed_definitions.empty();
+    }
 };
 
 struct paragraph_list_options {
@@ -1062,8 +1254,45 @@ void print_usage(std::ostream &stream) {
            " [--style <style-id>] [--usage] [--json]\n"
         << "  featherdoc_cli inspect-style-inheritance <input.docx> <style-id>"
            " [--json]\n"
+        << "  featherdoc_cli rename-style <input.docx> <old-style-id>"
+           " <new-style-id> [--output <path>] [--json]\n"
+        << "  featherdoc_cli merge-style <input.docx> <source-style-id>"
+           " <target-style-id> [--output <path>] [--json]\n"
+        << "  featherdoc_cli plan-style-refactor <input.docx>"
+           " [--rename <old:new>] [--merge <source:target>]"
+           " [--output-plan <path>] [--json]\n"
+        << "  featherdoc_cli suggest-style-merges <input.docx>"
+           " [--min-confidence <0-100>] [--output-plan <path>] [--json]\n"
+        << "  featherdoc_cli apply-style-refactor <input.docx>"
+           " [--plan-file <path> | --rename <old:new> | --merge <source:target>]"
+           " [--rollback-plan <path>] [--output <path>] [--json]\n"
+        << "  featherdoc_cli restore-style-merge <input.docx>"
+           " --rollback-plan <path> [--entry <index>]..."
+           " [--source-style <id>]... [--target-style <id>]..."
+           " [--dry-run | --output <path>] [--json]\n"
+        << "  featherdoc_cli plan-prune-unused-styles <input.docx>"
+           " [--json]\n"
+        << "  featherdoc_cli prune-unused-styles <input.docx>"
+           " [--output <path>] [--json]\n"
         << "  featherdoc_cli inspect-numbering <input.docx>"
            " [--definition <id>] [--instance <num-id>] [--json]\n"
+        << "  featherdoc_cli inspect-style-numbering <input.docx> [--json]\n"
+        << "  featherdoc_cli audit-style-numbering <input.docx>"
+           " [--fail-on-issue] [--json]\n"
+        << "  featherdoc_cli repair-style-numbering <input.docx>"
+           " [--catalog-file <catalog.json>] [--plan-only | --apply --output <path>] [--json]\n"
+        << "  featherdoc_cli export-numbering-catalog <input.docx>"
+           " [--output <catalog.json>] [--json]\n"
+        << "  featherdoc_cli check-numbering-catalog <input.docx>"
+           " --catalog-file <catalog.json>"
+           " [--output <generated-catalog.json>] [--json]\n"
+        << "  featherdoc_cli import-numbering-catalog <input.docx>"
+           " --catalog-file <catalog.json> [--output <path>] [--json]\n"
+        << "  featherdoc_cli patch-numbering-catalog <catalog.json>"
+           " --patch-file <patch.json> [--output <catalog.json>] [--json]\n"
+        << "  featherdoc_cli lint-numbering-catalog <catalog.json> [--json]\n"
+        << "  featherdoc_cli diff-numbering-catalog <left-catalog.json>"
+           " <right-catalog.json> [--fail-on-diff] [--json]\n"
         << "  featherdoc_cli inspect-paragraphs <input.docx>"
            " [--paragraph <index>] [--json]\n"
         << "  featherdoc_cli inspect-tables <input.docx>"
@@ -1946,7 +2175,6 @@ auto parse_export_template_schema_options(
             ++index;
             continue;
         }
-
         if (argument == "--json") {
             options.json_output = true;
             continue;
@@ -2271,6 +2499,107 @@ auto parse_inspect_options(const std::vector<std::string_view> &arguments,
         }
 
         error_message = "unknown option: " + std::string(arguments[index]);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_audit_style_numbering_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    audit_style_numbering_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--fail-on-issue") {
+            options.fail_on_issue = true;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_repair_style_numbering_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    repair_style_numbering_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--plan-only") {
+            options.plan_only = true;
+            continue;
+        }
+
+        if (argument == "--apply") {
+            options.apply = true;
+            continue;
+        }
+
+        if (argument == "--catalog-file") {
+            if (options.catalog_path.has_value()) {
+                error_message = "duplicate --catalog-file option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --catalog-file";
+                return false;
+            }
+
+            options.catalog_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.plan_only && options.apply) {
+        error_message = "--plan-only and --apply are mutually exclusive";
+        return false;
+    }
+    if (!options.apply) {
+        options.plan_only = true;
+    }
+    if (options.plan_only && options.output_path.has_value()) {
+        error_message = "--output requires --apply";
+        return false;
+    }
+    if (options.catalog_path.has_value() && !options.apply) {
+        error_message = "--catalog-file requires --apply";
+        return false;
+    }
+    if (options.apply && !options.output_path.has_value()) {
+        error_message = "repair-style-numbering --apply requires --output <path>";
         return false;
     }
 
@@ -2605,6 +2934,405 @@ auto parse_inspect_styles_options(const std::vector<std::string_view> &arguments
         }
 
         error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_rename_style_options(const std::vector<std::string_view> &arguments,
+                                std::size_t start_index,
+                                rename_style_options &options,
+                                std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_style_refactor_pair(
+    std::string_view text, featherdoc::style_refactor_action action,
+    featherdoc::style_refactor_request &request, std::string &error_message) -> bool {
+    const auto separator = text.find(':');
+    if (separator == std::string_view::npos) {
+        error_message = action == featherdoc::style_refactor_action::rename
+                            ? "invalid --rename value: expected <old-style-id>:<new-style-id>"
+                            : "invalid --merge value: expected <source-style-id>:<target-style-id>";
+        return false;
+    }
+
+    const auto source = text.substr(0U, separator);
+    const auto target = text.substr(separator + 1U);
+    if (source.empty()) {
+        error_message = action == featherdoc::style_refactor_action::rename
+                            ? "invalid --rename value: old style id must not be empty"
+                            : "invalid --merge value: source style id must not be empty";
+        return false;
+    }
+    if (target.empty()) {
+        error_message = action == featherdoc::style_refactor_action::rename
+                            ? "invalid --rename value: new style id must not be empty"
+                            : "invalid --merge value: target style id must not be empty";
+        return false;
+    }
+
+    request.action = action;
+    request.source_style_id = std::string(source);
+    request.target_style_id = std::string(target);
+    return true;
+}
+
+auto parse_style_refactor_plan_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    style_refactor_plan_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--rename" || argument == "--merge") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after " + std::string(argument);
+                return false;
+            }
+
+            auto request = featherdoc::style_refactor_request{};
+            const auto action = argument == "--rename"
+                                    ? featherdoc::style_refactor_action::rename
+                                    : featherdoc::style_refactor_action::merge;
+            if (!parse_style_refactor_pair(arguments[index + 1U], action, request,
+                                           error_message)) {
+                return false;
+            }
+            options.requests.push_back(std::move(request));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output-plan") {
+            if (options.output_plan_path.has_value()) {
+                error_message = "duplicate --output-plan option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output-plan";
+                return false;
+            }
+
+            options.output_plan_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.requests.empty()) {
+        error_message = "plan-style-refactor expects at least one --rename or --merge option";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_style_merge_suggestion_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    style_merge_suggestion_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output-plan") {
+            if (options.output_plan_path.has_value()) {
+                error_message = "duplicate --output-plan option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output-plan";
+                return false;
+            }
+
+            options.output_plan_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--min-confidence") {
+            if (options.min_confidence.has_value()) {
+                error_message = "duplicate --min-confidence option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --min-confidence";
+                return false;
+            }
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value) || value > 100U) {
+                error_message = "--min-confidence expects an integer from 0 to 100";
+                return false;
+            }
+            options.min_confidence = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_style_refactor_apply_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    style_refactor_apply_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--rename" || argument == "--merge") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after " + std::string(argument);
+                return false;
+            }
+
+            auto request = featherdoc::style_refactor_request{};
+            const auto action = argument == "--rename"
+                                    ? featherdoc::style_refactor_action::rename
+                                    : featherdoc::style_refactor_action::merge;
+            if (!parse_style_refactor_pair(arguments[index + 1U], action, request,
+                                           error_message)) {
+                return false;
+            }
+            options.requests.push_back(std::move(request));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--plan-file") {
+            if (options.plan_file_path.has_value()) {
+                error_message = "duplicate --plan-file option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --plan-file";
+                return false;
+            }
+
+            options.plan_file_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--rollback-plan") {
+            if (options.rollback_plan_path.has_value()) {
+                error_message = "duplicate --rollback-plan option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --rollback-plan";
+                return false;
+            }
+
+            options.rollback_plan_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.plan_file_path.has_value() && !options.requests.empty()) {
+        error_message =
+            "apply-style-refactor cannot combine --plan-file with --rename or --merge";
+        return false;
+    }
+
+    if (!options.plan_file_path.has_value() && options.requests.empty()) {
+        error_message =
+            "apply-style-refactor expects --plan-file or at least one --rename or --merge option";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_style_merge_restore_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    style_merge_restore_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--rollback-plan") {
+            if (options.rollback_plan_path.has_value()) {
+                error_message = "duplicate --rollback-plan option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --rollback-plan";
+                return false;
+            }
+
+            options.rollback_plan_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--entry") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing index after --entry";
+                return false;
+            }
+
+            std::size_t entry_index = 0U;
+            if (!parse_index(arguments[index + 1U], entry_index)) {
+                error_message = "--entry expects an unsigned integer index";
+                return false;
+            }
+            if (std::find(options.entry_indexes.begin(), options.entry_indexes.end(),
+                          entry_index) != options.entry_indexes.end()) {
+                error_message = "duplicate --entry index";
+                return false;
+            }
+            options.entry_indexes.push_back(entry_index);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--source-style") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing style id after --source-style";
+                return false;
+            }
+            auto style_id = std::string(arguments[index + 1U]);
+            if (style_id.empty()) {
+                error_message = "--source-style expects a non-empty style id";
+                return false;
+            }
+            if (std::find(options.source_style_ids.begin(),
+                          options.source_style_ids.end(), style_id) !=
+                options.source_style_ids.end()) {
+                error_message = "duplicate --source-style id";
+                return false;
+            }
+            options.source_style_ids.push_back(std::move(style_id));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--target-style") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing style id after --target-style";
+                return false;
+            }
+            auto style_id = std::string(arguments[index + 1U]);
+            if (style_id.empty()) {
+                error_message = "--target-style expects a non-empty style id";
+                return false;
+            }
+            if (std::find(options.target_style_ids.begin(),
+                          options.target_style_ids.end(), style_id) !=
+                options.target_style_ids.end()) {
+                error_message = "duplicate --target-style id";
+                return false;
+            }
+            options.target_style_ids.push_back(std::move(style_id));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--dry-run" || argument == "--plan-only") {
+            options.dry_run = true;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.rollback_plan_path.has_value()) {
+        error_message = "restore-style-merge expects --rollback-plan";
+        return false;
+    }
+    if (!options.entry_indexes.empty() &&
+        (!options.source_style_ids.empty() || !options.target_style_ids.empty())) {
+        error_message = "restore-style-merge --entry cannot be combined with "
+                        "--source-style or --target-style";
+        return false;
+    }
+    if (options.dry_run && options.output_path.has_value()) {
+        error_message = "restore-style-merge --dry-run cannot be combined with --output";
+        return false;
+    }
+    if (!options.dry_run && !options.output_path.has_value()) {
+        error_message = "restore-style-merge expects --output unless --dry-run is used";
         return false;
     }
 
@@ -2999,6 +3727,194 @@ auto parse_ensure_numbering_definition_options(
         error_message =
             "expected at least one --numbering-level "
             "<level>:<kind>:<start>:<text-pattern>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_export_numbering_catalog_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    export_numbering_catalog_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_import_numbering_catalog_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    import_numbering_catalog_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--catalog-file") {
+            if (options.catalog_path.has_value()) {
+                error_message = "duplicate --catalog-file option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --catalog-file";
+                return false;
+            }
+
+            options.catalog_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.catalog_path.has_value()) {
+        error_message = "missing --catalog-file <catalog.json>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_check_numbering_catalog_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    check_numbering_catalog_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--catalog-file") {
+            if (options.catalog_path.has_value()) {
+                error_message = "duplicate --catalog-file option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --catalog-file";
+                return false;
+            }
+
+            options.catalog_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.catalog_path.has_value()) {
+        error_message = "missing --catalog-file <catalog.json>";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_patch_numbering_catalog_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    patch_numbering_catalog_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--patch-file") {
+            if (options.patch_path.has_value()) {
+                error_message = "duplicate --patch-file option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --patch-file";
+                return false;
+            }
+
+            options.patch_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.patch_path.has_value()) {
+        error_message = "missing --patch-file <patch.json>";
         return false;
     }
 
@@ -11871,7 +12787,8 @@ void write_json_style_usage_hit(std::ostream &stream, const featherdoc::style_us
     } else {
         stream << "null";
     }
-    stream << ",\"ordinal\":" << hit.ordinal << ",\"kind\":";
+    stream << ",\"ordinal\":" << hit.ordinal
+           << ",\"node_ordinal\":" << hit.node_ordinal << ",\"kind\":";
     write_json_string(stream, style_usage_hit_kind_name(hit.kind));
     stream << ",\"references\":[";
     for (std::size_t index = 0; index < hit.references.size(); ++index) {
@@ -12017,6 +12934,83 @@ void write_json_numbering_definition_summary(
         write_json_numbering_instance_summary(stream, definition.instances[index]);
     }
     stream << "]}";
+}
+
+auto numbering_catalog_instance_count(
+    const featherdoc::numbering_catalog &catalog) -> std::size_t {
+    std::size_t count = 0U;
+    for (const auto &definition : catalog.definitions) {
+        count += definition.instances.size();
+    }
+    return count;
+}
+
+void write_json_numbering_catalog_definition(
+    std::ostream &stream,
+    const featherdoc::numbering_catalog_definition &definition) {
+    stream << "{\"name\":";
+    write_json_string(stream, definition.definition.name);
+    stream << ",\"levels\":[";
+    for (std::size_t index = 0; index < definition.definition.levels.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_level_definition(stream, definition.definition.levels[index]);
+    }
+    stream << "],\"instances\":[";
+    for (std::size_t index = 0; index < definition.instances.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_instance_summary(stream, definition.instances[index]);
+    }
+    stream << "]}";
+}
+
+void write_json_numbering_catalog(std::ostream &stream,
+                                  const featherdoc::numbering_catalog &catalog) {
+    stream << "{\"definition_count\":" << catalog.definitions.size()
+           << ",\"instance_count\":" << numbering_catalog_instance_count(catalog)
+           << ",\"definitions\":[";
+    for (std::size_t index = 0; index < catalog.definitions.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_catalog_definition(stream, catalog.definitions[index]);
+    }
+    stream << "]}";
+}
+
+void write_json_imported_numbering_definition_summary(
+    std::ostream &stream,
+    const featherdoc::imported_numbering_definition_summary &definition) {
+    stream << "{\"name\":";
+    write_json_string(stream, definition.name);
+    stream << ",\"definition_id\":" << definition.definition_id
+           << ",\"instance_ids\":[";
+    for (std::size_t index = 0; index < definition.instance_ids.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        stream << definition.instance_ids[index];
+    }
+    stream << "]}";
+}
+
+void write_json_numbering_catalog_import_summary(
+    std::ostream &stream,
+    const featherdoc::numbering_catalog_import_summary &summary) {
+    stream << "\"input_definition_count\":" << summary.input_definition_count
+           << ",\"imported_definition_count\":" << summary.imported_definition_count
+           << ",\"imported_instance_count\":" << summary.imported_instance_count
+           << ",\"imported_definitions\":[";
+    for (std::size_t index = 0; index < summary.definitions.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_imported_numbering_definition_summary(stream, summary.definitions[index]);
+    }
+    stream << ']';
 }
 
 void write_json_body_paragraph_summary(std::ostream &stream,
@@ -13034,6 +14028,509 @@ auto report_document_error(std::string_view command, std::string_view stage,
                            const featherdoc::document_error_info &error_info,
                            bool json_output) -> bool;
 
+
+enum class style_numbering_audit_issue_kind {
+    non_paragraph_numbering,
+    missing_num_id,
+    missing_level,
+    orphan_instance,
+    missing_definition,
+    missing_level_definition,
+    duplicate_definition_name,
+    based_on_definition_mismatch,
+};
+
+struct style_numbering_audit_issue {
+    style_numbering_audit_issue_kind kind{};
+    std::string style_id;
+    std::string style_name;
+    std::optional<std::string> based_on;
+    std::optional<std::uint32_t> num_id;
+    std::optional<std::uint32_t> level;
+    std::optional<std::uint32_t> definition_id;
+    std::optional<std::string> definition_name;
+    std::string message;
+};
+
+enum class style_numbering_repair_action {
+    clear_style_numbering,
+    relink_style_numbering,
+    add_numbering_level,
+    rename_numbering_definition,
+    align_with_based_on_numbering,
+    manual_review,
+};
+
+struct style_numbering_repair_target {
+    std::optional<std::uint32_t> definition_id;
+    std::optional<std::string> definition_name;
+    std::optional<std::uint32_t> level;
+};
+
+struct style_numbering_repair_suggestion {
+    style_numbering_repair_action action{};
+    style_numbering_audit_issue_kind issue_kind{};
+    std::string style_id;
+    std::string rationale;
+    std::string command_template;
+    std::optional<std::uint32_t> target_definition_id;
+    std::optional<std::string> target_definition_name;
+    std::optional<std::uint32_t> target_level;
+};
+
+struct style_numbering_audit_result {
+    std::size_t paragraph_style_count{};
+    std::vector<featherdoc::style_summary> numbered_styles;
+    std::vector<style_numbering_audit_issue> issues;
+    std::vector<style_numbering_repair_suggestion> suggestions;
+};
+
+struct style_numbering_repair_result {
+    bool apply = false;
+    std::optional<path_type> catalog_path;
+    std::optional<featherdoc::numbering_catalog_import_summary> catalog_import;
+    std::optional<path_type> output_path;
+    style_numbering_audit_result before;
+    std::optional<style_numbering_audit_result> after;
+    std::vector<style_numbering_repair_suggestion> applyable_suggestions;
+    std::size_t applied_count{};
+};
+
+auto style_numbering_audit_clean(
+    const style_numbering_audit_result &result) -> bool {
+    return result.issues.empty();
+}
+
+auto style_numbering_audit_issue_kind_name(
+    style_numbering_audit_issue_kind kind) -> std::string_view {
+    switch (kind) {
+    case style_numbering_audit_issue_kind::non_paragraph_numbering:
+        return "non_paragraph_numbering";
+    case style_numbering_audit_issue_kind::missing_num_id:
+        return "missing_num_id";
+    case style_numbering_audit_issue_kind::missing_level:
+        return "missing_level";
+    case style_numbering_audit_issue_kind::orphan_instance:
+        return "orphan_instance";
+    case style_numbering_audit_issue_kind::missing_definition:
+        return "missing_definition";
+    case style_numbering_audit_issue_kind::missing_level_definition:
+        return "missing_level_definition";
+    case style_numbering_audit_issue_kind::duplicate_definition_name:
+        return "duplicate_definition_name";
+    case style_numbering_audit_issue_kind::based_on_definition_mismatch:
+        return "based_on_definition_mismatch";
+    }
+
+    return "unknown";
+}
+
+auto style_numbering_repair_action_name(
+    style_numbering_repair_action action) -> std::string_view {
+    switch (action) {
+    case style_numbering_repair_action::clear_style_numbering:
+        return "clear_style_numbering";
+    case style_numbering_repair_action::relink_style_numbering:
+        return "relink_style_numbering";
+    case style_numbering_repair_action::add_numbering_level:
+        return "add_numbering_level";
+    case style_numbering_repair_action::rename_numbering_definition:
+        return "rename_numbering_definition";
+    case style_numbering_repair_action::align_with_based_on_numbering:
+        return "align_with_based_on_numbering";
+    case style_numbering_repair_action::manual_review:
+        return "manual_review";
+    }
+
+    return "manual_review";
+}
+
+auto style_numbering_repair_suggestion_applyable(
+    const style_numbering_repair_suggestion &suggestion) -> bool {
+    switch (suggestion.action) {
+    case style_numbering_repair_action::clear_style_numbering:
+        return true;
+    case style_numbering_repair_action::align_with_based_on_numbering:
+    case style_numbering_repair_action::relink_style_numbering:
+        return suggestion.target_definition_id.has_value() &&
+               suggestion.target_level.has_value();
+    case style_numbering_repair_action::add_numbering_level:
+    case style_numbering_repair_action::rename_numbering_definition:
+    case style_numbering_repair_action::manual_review:
+        return false;
+    }
+
+    return false;
+}
+
+auto style_numbering_repair_command_template(
+    style_numbering_repair_action action, const featherdoc::style_summary &style)
+    -> std::string {
+    switch (action) {
+    case style_numbering_repair_action::clear_style_numbering:
+        return "featherdoc_cli clear-paragraph-style-numbering <input.docx> " +
+               style.style_id + " --output <output.docx> --json";
+    case style_numbering_repair_action::relink_style_numbering:
+        return "featherdoc_cli set-paragraph-style-numbering <input.docx> " +
+               style.style_id +
+               " --definition-name <name> --numbering-level <level>:<kind>:<start>:<text-pattern> --style-level <level> --output <output.docx> --json";
+    case style_numbering_repair_action::add_numbering_level:
+        return "featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file <patch-with-upsert_levels.json> --output numbering-catalog.patched.json --json";
+    case style_numbering_repair_action::rename_numbering_definition:
+        return "featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file <patch.json> --output numbering-catalog.patched.json --json";
+    case style_numbering_repair_action::align_with_based_on_numbering:
+        return "featherdoc_cli set-paragraph-style-numbering <input.docx> " +
+               style.style_id +
+               " --definition-name <based-on-definition-name> --numbering-level <level>:<kind>:<start>:<text-pattern> --style-level <level> --output <output.docx> --json";
+    case style_numbering_repair_action::manual_review:
+        return "featherdoc_cli inspect-style-numbering <input.docx> --json";
+    }
+
+    return "featherdoc_cli inspect-style-numbering <input.docx> --json";
+}
+
+auto style_numbering_repair_action_for_issue(
+    style_numbering_audit_issue_kind kind) -> style_numbering_repair_action {
+    switch (kind) {
+    case style_numbering_audit_issue_kind::missing_num_id:
+    case style_numbering_audit_issue_kind::missing_level:
+    case style_numbering_audit_issue_kind::orphan_instance:
+    case style_numbering_audit_issue_kind::missing_definition:
+        return style_numbering_repair_action::clear_style_numbering;
+    case style_numbering_audit_issue_kind::missing_level_definition:
+        return style_numbering_repair_action::add_numbering_level;
+    case style_numbering_audit_issue_kind::duplicate_definition_name:
+        return style_numbering_repair_action::rename_numbering_definition;
+    case style_numbering_audit_issue_kind::based_on_definition_mismatch:
+        return style_numbering_repair_action::align_with_based_on_numbering;
+    case style_numbering_audit_issue_kind::non_paragraph_numbering:
+        return style_numbering_repair_action::manual_review;
+    }
+
+    return style_numbering_repair_action::manual_review;
+}
+
+auto style_numbering_repair_rationale(
+    style_numbering_audit_issue_kind kind) -> std::string_view {
+    switch (kind) {
+    case style_numbering_audit_issue_kind::missing_num_id:
+        return "remove incomplete style numbering or relink the style to a known numbering definition";
+    case style_numbering_audit_issue_kind::missing_level:
+        return "remove incomplete style numbering or relink the style with an explicit style level";
+    case style_numbering_audit_issue_kind::orphan_instance:
+        return "clear the orphan numId binding before relinking the style to a valid numbering definition";
+    case style_numbering_audit_issue_kind::missing_definition:
+        return "clear the missing definition binding before importing or recreating the target numbering catalog";
+    case style_numbering_audit_issue_kind::missing_level_definition:
+        return "add the missing level to the numbering catalog or relink the style to a defined level";
+    case style_numbering_audit_issue_kind::duplicate_definition_name:
+        return "rename or merge duplicate numbering definitions before relying on definition_name based automation";
+    case style_numbering_audit_issue_kind::based_on_definition_mismatch:
+        return "align the style with its based-on numbering definition or intentionally rebase the style";
+    case style_numbering_audit_issue_kind::non_paragraph_numbering:
+        return "review the non-paragraph style XML before applying paragraph numbering commands";
+    }
+
+    return "review the style numbering binding before applying mutations";
+}
+
+auto build_style_numbering_repair_suggestion(
+    style_numbering_audit_issue_kind kind,
+    const featherdoc::style_summary &style,
+    const style_numbering_repair_target *target = nullptr)
+    -> style_numbering_repair_suggestion {
+    const auto has_relink_target =
+        target != nullptr && target->definition_id.has_value() &&
+        target->level.has_value();
+    auto action = style_numbering_repair_action_for_issue(kind);
+    if (kind == style_numbering_audit_issue_kind::missing_level_definition &&
+        has_relink_target) {
+        action = style_numbering_repair_action::relink_style_numbering;
+    }
+
+    auto suggestion = style_numbering_repair_suggestion{};
+    suggestion.action = action;
+    suggestion.issue_kind = kind;
+    suggestion.style_id = style.style_id;
+    suggestion.rationale = std::string{style_numbering_repair_rationale(kind)};
+    suggestion.command_template =
+        style_numbering_repair_command_template(action, style);
+    if (target != nullptr) {
+        suggestion.target_definition_id = target->definition_id;
+        suggestion.target_definition_name = target->definition_name;
+        suggestion.target_level = target->level;
+    }
+    return suggestion;
+}
+
+auto collect_applyable_style_numbering_repair_suggestions(
+    const std::vector<style_numbering_repair_suggestion> &suggestions)
+    -> std::vector<style_numbering_repair_suggestion> {
+    auto applyable = std::vector<style_numbering_repair_suggestion>{};
+    for (const auto &suggestion : suggestions) {
+        if (!style_numbering_repair_suggestion_applyable(suggestion)) {
+            continue;
+        }
+
+        const auto duplicate = std::find_if(
+            applyable.begin(), applyable.end(), [&suggestion](const auto &existing) {
+                return existing.action == suggestion.action &&
+                       existing.style_id == suggestion.style_id;
+            });
+        if (duplicate == applyable.end()) {
+            applyable.push_back(suggestion);
+        }
+    }
+    return applyable;
+}
+
+auto find_numbering_definition_summary_by_id(
+    const std::vector<featherdoc::numbering_definition_summary> &definitions,
+    std::uint32_t definition_id)
+    -> const featherdoc::numbering_definition_summary * {
+    const auto found = std::find_if(
+        definitions.begin(), definitions.end(),
+        [definition_id](const auto &definition) {
+            return definition.definition_id == definition_id;
+        });
+    return found == definitions.end() ? nullptr : &(*found);
+}
+
+auto find_style_summary_by_id(
+    const std::vector<featherdoc::style_summary> &styles,
+    std::string_view style_id) -> const featherdoc::style_summary * {
+    const auto found = std::find_if(styles.begin(), styles.end(),
+                                    [style_id](const auto &style) {
+                                        return std::string_view{style.style_id} ==
+                                               style_id;
+                                    });
+    return found == styles.end() ? nullptr : &(*found);
+}
+
+auto numbering_definition_has_level(
+    const featherdoc::numbering_definition_summary &definition,
+    std::uint32_t level) -> bool {
+    return std::find_if(definition.levels.begin(), definition.levels.end(),
+                        [level](const auto &candidate) {
+                            return candidate.level == level;
+                        }) != definition.levels.end();
+}
+
+style_numbering_repair_target make_style_numbering_repair_target(
+    const featherdoc::style_summary::numbering_summary &numbering) {
+    auto target = style_numbering_repair_target{};
+    target.definition_id = numbering.definition_id;
+    target.definition_name = numbering.definition_name;
+    target.level = numbering.level;
+    return target;
+}
+
+style_numbering_repair_target make_style_numbering_repair_target(
+    const featherdoc::numbering_definition_summary &definition,
+    std::uint32_t level) {
+    auto target = style_numbering_repair_target{};
+    target.definition_id = definition.definition_id;
+    target.definition_name = definition.name;
+    target.level = level;
+    return target;
+}
+
+auto find_unique_numbering_definition_summary_by_name_and_level(
+    const std::vector<featherdoc::numbering_definition_summary> &definitions,
+    std::string_view name, std::uint32_t level,
+    std::optional<std::uint32_t> excluded_definition_id)
+    -> const featherdoc::numbering_definition_summary * {
+    const auto *candidate = static_cast<const featherdoc::numbering_definition_summary *>(nullptr);
+    for (const auto &definition : definitions) {
+        if (excluded_definition_id.has_value() &&
+            definition.definition_id == *excluded_definition_id) {
+            continue;
+        }
+        if (std::string_view{definition.name} != name ||
+            !numbering_definition_has_level(definition, level)) {
+            continue;
+        }
+        if (candidate != nullptr) {
+            return nullptr;
+        }
+        candidate = &definition;
+    }
+    return candidate;
+}
+
+auto numbering_instance_has_level_definition_override(
+    const std::optional<featherdoc::numbering_instance_summary> &instance,
+    std::uint32_t level) -> bool {
+    if (!instance.has_value()) {
+        return false;
+    }
+
+    return std::find_if(
+               instance->level_overrides.begin(), instance->level_overrides.end(),
+               [level](const auto &level_override) {
+                   return level_override.level == level &&
+                          level_override.level_definition.has_value();
+               }) != instance->level_overrides.end();
+}
+
+auto numbering_definition_name_is_duplicate(
+    const std::vector<featherdoc::numbering_definition_summary> &definitions,
+    std::string_view name) -> bool {
+    if (name.empty()) {
+        return false;
+    }
+
+    std::size_t count = 0U;
+    for (const auto &definition : definitions) {
+        if (std::string_view{definition.name} == name) {
+            ++count;
+            if (count > 1U) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void append_style_numbering_audit_issue(
+    style_numbering_audit_result &result,
+    style_numbering_audit_issue_kind kind,
+    const featherdoc::style_summary &style, std::string message,
+    const style_numbering_repair_target *target = nullptr) {
+    auto issue = style_numbering_audit_issue{};
+    issue.kind = kind;
+    issue.style_id = style.style_id;
+    issue.style_name = style.name;
+    issue.based_on = style.based_on;
+    issue.message = std::move(message);
+    if (style.numbering.has_value()) {
+        issue.num_id = style.numbering->num_id;
+        issue.level = style.numbering->level;
+        issue.definition_id = style.numbering->definition_id;
+        issue.definition_name = style.numbering->definition_name;
+    }
+    result.issues.push_back(std::move(issue));
+    result.suggestions.push_back(
+        build_style_numbering_repair_suggestion(kind, style, target));
+}
+
+auto audit_style_numbering(
+    const std::vector<featherdoc::style_summary> &styles,
+    const std::vector<featherdoc::numbering_definition_summary> &definitions)
+    -> style_numbering_audit_result {
+    auto result = style_numbering_audit_result{};
+    for (const auto &style : styles) {
+        if (style.kind == featherdoc::style_kind::paragraph) {
+            ++result.paragraph_style_count;
+            if (style.numbering.has_value()) {
+                result.numbered_styles.push_back(style);
+            }
+        }
+
+        if (!style.numbering.has_value()) {
+            continue;
+        }
+
+        if (style.kind != featherdoc::style_kind::paragraph) {
+            append_style_numbering_audit_issue(
+                result, style_numbering_audit_issue_kind::non_paragraph_numbering,
+                style, "non-paragraph style carries paragraph numbering metadata");
+            continue;
+        }
+
+        const auto &numbering = *style.numbering;
+        if (!numbering.num_id.has_value()) {
+            append_style_numbering_audit_issue(
+                result, style_numbering_audit_issue_kind::missing_num_id, style,
+                "style numbering has w:numPr but no valid w:numId");
+        }
+        if (!numbering.level.has_value()) {
+            append_style_numbering_audit_issue(
+                result, style_numbering_audit_issue_kind::missing_level, style,
+                "style numbering has w:numPr but no valid w:ilvl");
+        }
+        if (numbering.num_id.has_value() && !numbering.instance.has_value()) {
+            append_style_numbering_audit_issue(
+                result, style_numbering_audit_issue_kind::orphan_instance, style,
+                "style numbering references a numId that is not present in word/numbering.xml");
+        }
+
+        if (numbering.definition_id.has_value()) {
+            const auto *definition = find_numbering_definition_summary_by_id(
+                definitions, *numbering.definition_id);
+            if (definition == nullptr) {
+                append_style_numbering_audit_issue(
+                    result, style_numbering_audit_issue_kind::missing_definition,
+                    style,
+                    "style numbering instance resolves to a missing numbering definition");
+            } else if (numbering.level.has_value() &&
+                       !numbering_definition_has_level(*definition,
+                                                       *numbering.level) &&
+                       !numbering_instance_has_level_definition_override(
+                           numbering.instance, *numbering.level)) {
+                auto relink_target = std::optional<style_numbering_repair_target>{};
+                if (!definition->name.empty()) {
+                    const auto *target_definition =
+                        find_unique_numbering_definition_summary_by_name_and_level(
+                            definitions, definition->name, *numbering.level,
+                            numbering.definition_id);
+                    if (target_definition != nullptr) {
+                        relink_target = make_style_numbering_repair_target(
+                            *target_definition, *numbering.level);
+                    }
+                }
+                append_style_numbering_audit_issue(
+                    result,
+                    style_numbering_audit_issue_kind::missing_level_definition,
+                    style,
+                    "style numbering level is not defined by its numbering definition or lvlOverride",
+                    relink_target.has_value() ? &(*relink_target) : nullptr);
+            }
+        }
+
+        if (numbering.definition_name.has_value() &&
+            numbering_definition_name_is_duplicate(definitions,
+                                                   *numbering.definition_name)) {
+            append_style_numbering_audit_issue(
+                result,
+                style_numbering_audit_issue_kind::duplicate_definition_name,
+                style,
+                "style uses a numbering definition name that appears on multiple definitions");
+        }
+
+        if (style.based_on.has_value() && numbering.definition_id.has_value()) {
+            const auto *base_style = find_style_summary_by_id(styles, *style.based_on);
+            if (base_style != nullptr && base_style->numbering.has_value() &&
+                base_style->numbering->definition_id.has_value() &&
+                *base_style->numbering->definition_id != *numbering.definition_id) {
+                const auto target =
+                    make_style_numbering_repair_target(*base_style->numbering);
+                append_style_numbering_audit_issue(
+                    result,
+                    style_numbering_audit_issue_kind::based_on_definition_mismatch,
+                    style,
+                    "style and based-on style use different numbering definitions",
+                    &target);
+            }
+        }
+    }
+
+    return result;
+}
+
+auto filter_numbered_paragraph_styles(
+    const std::vector<featherdoc::style_summary> &styles)
+    -> std::vector<featherdoc::style_summary> {
+    auto filtered = std::vector<featherdoc::style_summary>{};
+    for (const auto &style : styles) {
+        if (style.kind == featherdoc::style_kind::paragraph &&
+            style.numbering.has_value()) {
+            filtered.push_back(style);
+        }
+    }
+    return filtered;
+}
+
 void inspect_styles(const std::vector<featherdoc::style_summary> &styles,
                     bool json_output) {
     if (json_output) {
@@ -13052,6 +14549,870 @@ void inspect_styles(const std::vector<featherdoc::style_summary> &styles,
     for (std::size_t index = 0; index < styles.size(); ++index) {
         std::cout << "style[" << index << "]: ";
         print_style_summary(std::cout, styles[index]);
+        std::cout << '\n';
+    }
+}
+
+void write_json_style_usage_report(std::ostream &stream,
+                                   const featherdoc::style_usage_report &report) {
+    stream << "{\"count\":" << report.style_count
+           << ",\"used_style_count\":" << report.used_style_count
+           << ",\"unused_style_count\":" << report.unused_style_count
+           << ",\"total_reference_count\":" << report.total_reference_count
+           << ",\"styles\":[";
+    for (std::size_t index = 0; index < report.entries.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        stream << "{\"style\":";
+        write_json_style_summary(stream, report.entries[index].style);
+        stream << ",\"usage\":";
+        write_json_style_usage_summary(stream, report.entries[index].usage);
+        stream << '}';
+    }
+    stream << "]}";
+}
+
+void inspect_style_usage_report(const featherdoc::style_usage_report &report,
+                                bool json_output) {
+    if (json_output) {
+        write_json_style_usage_report(std::cout, report);
+        std::cout << '\n';
+        return;
+    }
+
+    std::cout << "styles: " << report.style_count << '\n'
+              << "used_styles: " << report.used_style_count << '\n'
+              << "unused_styles: " << report.unused_style_count << '\n'
+              << "style_references: " << report.total_reference_count << '\n';
+    for (std::size_t index = 0; index < report.entries.size(); ++index) {
+        const auto &entry = report.entries[index];
+        std::cout << "style[" << index << "]: ";
+        print_style_summary(std::cout, entry.style);
+        std::cout << " usage_total=" << entry.usage.total_count()
+                  << " usage_body=" << entry.usage.body.total_count()
+                  << " usage_header=" << entry.usage.header.total_count()
+                  << " usage_footer=" << entry.usage.footer.total_count() << '\n';
+    }
+}
+
+auto style_refactor_action_name(featherdoc::style_refactor_action action) -> const char * {
+    switch (action) {
+    case featherdoc::style_refactor_action::rename:
+        return "rename";
+    case featherdoc::style_refactor_action::merge:
+        return "merge";
+    }
+
+    return "rename";
+}
+
+auto style_refactor_command_template(
+    const featherdoc::style_refactor_operation_plan &operation) -> std::string {
+    auto command = std::string{"featherdoc_cli "};
+    command += operation.action == featherdoc::style_refactor_action::rename
+                   ? "rename-style"
+                   : "merge-style";
+    command += " <input.docx> ";
+    command += operation.source_style_id;
+    command += ' ';
+    command += operation.target_style_id;
+    command += " --output <output.docx> --json";
+    return command;
+}
+
+auto filter_style_refactor_plan_by_min_confidence(
+    featherdoc::style_refactor_plan plan, std::uint32_t min_confidence)
+    -> featherdoc::style_refactor_plan {
+    if (min_confidence == 0U) {
+        return plan;
+    }
+
+    auto filtered_operations =
+        std::vector<featherdoc::style_refactor_operation_plan>{};
+    filtered_operations.reserve(plan.operations.size());
+    for (auto &operation : plan.operations) {
+        if (operation.suggestion.has_value() &&
+            operation.suggestion->confidence >= min_confidence) {
+            filtered_operations.push_back(std::move(operation));
+        }
+    }
+
+    plan.operations = std::move(filtered_operations);
+    plan.operation_count = plan.operations.size();
+    plan.applyable_count = 0U;
+    plan.issue_count = 0U;
+    for (const auto &operation : plan.operations) {
+        if (operation.applyable) {
+            ++plan.applyable_count;
+        }
+        plan.issue_count += operation.issues.size();
+    }
+    return plan;
+}
+
+void write_json_style_refactor_issue(
+    std::ostream &stream, const featherdoc::style_refactor_issue &issue) {
+    stream << "{\"code\":";
+    write_json_string(stream, issue.code);
+    stream << ",\"message\":";
+    write_json_string(stream, issue.message);
+    stream << '}';
+}
+
+void write_json_style_refactor_suggestion(
+    std::ostream &stream, const featherdoc::style_refactor_suggestion &suggestion) {
+    stream << "{\"reason_code\":";
+    write_json_string(stream, suggestion.reason_code);
+    stream << ",\"reason\":";
+    write_json_string(stream, suggestion.reason);
+    stream << ",\"confidence\":" << suggestion.confidence
+           << ",\"evidence\":";
+    write_json_strings(stream, suggestion.evidence);
+    stream << ",\"differences\":";
+    write_json_strings(stream, suggestion.differences);
+    stream << '}';
+}
+
+void write_json_style_refactor_suggestion_confidence_summary(
+    std::ostream &stream,
+    const featherdoc::style_refactor_suggestion_confidence_summary &summary) {
+    stream << "{\"suggestion_count\":" << summary.suggestion_count
+           << ",\"min_confidence\":";
+    write_json_optional_u32(stream, summary.min_confidence);
+    stream << ",\"max_confidence\":";
+    write_json_optional_u32(stream, summary.max_confidence);
+    stream << ",\"exact_xml_match_count\":" << summary.exact_xml_match_count
+           << ",\"xml_difference_count\":" << summary.xml_difference_count
+           << ",\"recommended_min_confidence\":";
+    write_json_optional_u32(stream, summary.recommended_min_confidence);
+    stream << ",\"recommendation\":";
+    write_json_string(stream, summary.recommendation);
+    stream << '}';
+}
+
+void write_json_style_refactor_operation(
+    std::ostream &stream, const featherdoc::style_refactor_operation_plan &operation) {
+    stream << "{\"action\":";
+    write_json_string(stream, style_refactor_action_name(operation.action));
+    stream << ",\"source_style_id\":";
+    write_json_string(stream, operation.source_style_id);
+    stream << ",\"target_style_id\":";
+    write_json_string(stream, operation.target_style_id);
+    stream << ",\"applyable\":" << json_bool(operation.applyable)
+           << ",\"source_exists\":" << json_bool(operation.source_style.has_value())
+           << ",\"target_exists\":" << json_bool(operation.target_style.has_value())
+           << ",\"source_kind\":";
+    if (operation.source_style.has_value()) {
+        write_json_string(stream, style_kind_name(operation.source_style->kind));
+    } else {
+        stream << "null";
+    }
+    stream << ",\"target_kind\":";
+    if (operation.target_style.has_value()) {
+        write_json_string(stream, style_kind_name(operation.target_style->kind));
+    } else {
+        stream << "null";
+    }
+    stream << ",\"source_reference_count\":";
+    if (operation.source_usage.has_value()) {
+        stream << operation.source_usage->total_count();
+    } else {
+        stream << "null";
+    }
+    stream << ",\"source_usage\":";
+    if (operation.source_usage.has_value()) {
+        write_json_style_usage_summary(stream, *operation.source_usage);
+    } else {
+        stream << "null";
+    }
+    stream << ",\"suggestion\":";
+    if (operation.suggestion.has_value()) {
+        write_json_style_refactor_suggestion(stream, *operation.suggestion);
+    } else {
+        stream << "null";
+    }
+    stream << ",\"issues\":[";
+    for (std::size_t index = 0; index < operation.issues.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_style_refactor_issue(stream, operation.issues[index]);
+    }
+    stream << "],\"command_template\":";
+    write_json_string(stream, style_refactor_command_template(operation));
+    stream << '}';
+}
+
+void write_json_style_refactor_plan_fields(
+    std::ostream &stream, const featherdoc::style_refactor_plan &plan) {
+    const auto confidence_summary = plan.suggestion_confidence_summary();
+    stream << "\"clean\":" << json_bool(plan.clean())
+           << ",\"operation_count\":" << plan.operation_count
+           << ",\"applyable_count\":" << plan.applyable_count
+           << ",\"issue_count\":" << plan.issue_count
+           << ",\"suggestion_confidence_summary\":";
+    write_json_style_refactor_suggestion_confidence_summary(stream,
+                                                            confidence_summary);
+    stream << ",\"operations\":[";
+    for (std::size_t index = 0; index < plan.operations.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_style_refactor_operation(stream, plan.operations[index]);
+    }
+    stream << ']';
+}
+
+auto style_refactor_rollback_command_template(
+    const featherdoc::style_refactor_rollback_entry &entry) -> std::string {
+    if (!entry.automatic) {
+        return {};
+    }
+
+    auto command = std::string{"featherdoc_cli "};
+    command += entry.action == featherdoc::style_refactor_action::rename
+                   ? "rename-style"
+                   : "merge-style";
+    command += " <input.docx> ";
+    command += entry.source_style_id;
+    command += ' ';
+    command += entry.target_style_id;
+    command += " --output <output.docx> --json";
+    return command;
+}
+
+void write_json_style_refactor_rollback_entry(
+    std::ostream &stream,
+    const featherdoc::style_refactor_rollback_entry &entry) {
+    stream << "{\"action\":";
+    write_json_string(stream, style_refactor_action_name(entry.action));
+    stream << ",\"source_style_id\":";
+    write_json_string(stream, entry.source_style_id);
+    stream << ",\"target_style_id\":";
+    write_json_string(stream, entry.target_style_id);
+    stream << ",\"automatic\":" << json_bool(entry.automatic)
+           << ",\"restorable\":" << json_bool(entry.restorable)
+           << ",\"note\":";
+    write_json_string(stream, entry.note);
+    stream << ",\"source_reference_count\":";
+    if (entry.source_usage.has_value()) {
+        stream << entry.source_usage->total_count();
+    } else {
+        stream << "null";
+    }
+    stream << ",\"source_usage\":";
+    if (entry.source_usage.has_value()) {
+        write_json_style_usage_summary(stream, *entry.source_usage);
+    } else {
+        stream << "null";
+    }
+    stream << ",\"source_style_xml\":";
+    if (!entry.source_style_xml.empty()) {
+        write_json_string(stream, entry.source_style_xml);
+    } else {
+        stream << "null";
+    }
+    stream << ",\"command_template\":";
+    if (entry.automatic) {
+        write_json_string(stream, style_refactor_rollback_command_template(entry));
+    } else {
+        stream << "null";
+    }
+    stream << '}';
+}
+
+void write_json_style_refactor_rollback_entries(
+    std::ostream &stream,
+    const std::vector<featherdoc::style_refactor_rollback_entry> &entries) {
+    stream << '[';
+    for (std::size_t index = 0; index < entries.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_style_refactor_rollback_entry(stream, entries[index]);
+    }
+    stream << ']';
+}
+
+void write_json_style_refactor_apply_result_fields(
+    std::ostream &stream,
+    const featherdoc::style_refactor_apply_result &result) {
+    stream << ",\"changed\":" << json_bool(result.changed)
+           << ",\"requested_count\":" << result.requested_count
+           << ",\"applied_count\":" << result.applied_count
+           << ",\"skipped_count\":" << result.skipped_count()
+           << ",\"rollback_count\":" << result.rollback_entries.size()
+           << ",\"rollback_operations\":";
+    write_json_style_refactor_rollback_entries(stream, result.rollback_entries);
+    stream << ",\"plan\":{";
+    write_json_style_refactor_plan_fields(stream, result.plan);
+    stream << '}';
+}
+
+void write_json_style_refactor_restore_issue(
+    std::ostream &stream,
+    const featherdoc::style_refactor_restore_issue &issue) {
+    stream << "{\"code\":";
+    write_json_string(stream, issue.code);
+    stream << ",\"message\":";
+    write_json_string(stream, issue.message);
+    stream << ",\"suggestion\":";
+    write_json_string(stream, issue.suggestion);
+    stream << '}';
+}
+
+void write_json_style_refactor_restore_issue_summary(
+    std::ostream &stream,
+    const std::vector<featherdoc::style_refactor_restore_issue_summary> &summaries) {
+    stream << '[';
+    for (std::size_t index = 0; index < summaries.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        stream << "{\"code\":";
+        write_json_string(stream, summaries[index].code);
+        stream << ",\"count\":" << summaries[index].count
+               << ",\"suggestion\":";
+        write_json_string(stream, summaries[index].suggestion);
+        stream << '}';
+    }
+    stream << ']';
+}
+
+void write_json_style_refactor_restore_operation(
+    std::ostream &stream,
+    const featherdoc::style_refactor_restore_operation_result &operation) {
+    stream << "{\"action\":";
+    write_json_string(stream, style_refactor_action_name(operation.action));
+    stream << ",\"source_style_id\":";
+    write_json_string(stream, operation.source_style_id);
+    stream << ",\"target_style_id\":";
+    write_json_string(stream, operation.target_style_id);
+    stream << ",\"restorable\":" << json_bool(operation.restorable)
+           << ",\"restored\":" << json_bool(operation.restored)
+           << ",\"style_restored\":" << json_bool(operation.style_restored)
+           << ",\"restored_reference_count\":"
+           << operation.restored_reference_count << ",\"issues\":[";
+    for (std::size_t index = 0; index < operation.issues.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_style_refactor_restore_issue(stream, operation.issues[index]);
+    }
+    stream << "]}";
+}
+
+void write_json_style_refactor_restore_selection(
+    std::ostream &stream, const style_merge_restore_options &options) {
+    if (!options.entry_indexes.empty()) {
+        if (options.entry_indexes.size() == 1U) {
+            stream << ",\"entry_index\":" << options.entry_indexes.front();
+        }
+        stream << ",\"entry_indexes\":[";
+        for (std::size_t index = 0; index < options.entry_indexes.size(); ++index) {
+            if (index != 0U) {
+                stream << ',';
+            }
+            stream << options.entry_indexes[index];
+        }
+        stream << ']';
+    }
+    if (!options.source_style_ids.empty()) {
+        stream << ",\"source_style_ids\":";
+        write_json_strings(stream, options.source_style_ids);
+    }
+    if (!options.target_style_ids.empty()) {
+        stream << ",\"target_style_ids\":";
+        write_json_strings(stream, options.target_style_ids);
+    }
+}
+
+void write_json_style_refactor_restore_result_fields(
+    std::ostream &stream,
+    const featherdoc::style_refactor_restore_result &result) {
+    const auto issue_summary = result.issue_summary();
+    stream << ",\"changed\":" << json_bool(result.changed)
+           << ",\"dry_run\":" << json_bool(result.dry_run)
+           << ",\"requested_count\":" << result.requested_count
+           << ",\"restored_count\":" << result.restored_count
+           << ",\"skipped_count\":" << result.skipped_count()
+           << ",\"issue_count\":" << result.issue_count()
+           << ",\"issue_summary\":";
+    write_json_style_refactor_restore_issue_summary(stream, issue_summary);
+    stream << ",\"restored_style_count\":" << result.restored_style_count
+           << ",\"restored_reference_count\":"
+           << result.restored_reference_count << ",\"operations\":[";
+    for (std::size_t index = 0; index < result.operations.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_style_refactor_restore_operation(stream, result.operations[index]);
+    }
+    stream << ']';
+}
+
+void inspect_style_refactor_restore_result(
+    const featherdoc::style_refactor_restore_result &result, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"restore-style-merge\",\"ok\":"
+                  << json_bool(result.restored());
+        write_json_style_refactor_restore_result_fields(std::cout, result);
+        std::cout << "}\n";
+        return;
+    }
+
+    const auto issue_summary = result.issue_summary();
+    std::cout << "restored: " << yes_no(result.restored()) << '\n'
+              << "changed: " << yes_no(result.changed) << '\n'
+              << "dry_run: " << yes_no(result.dry_run) << '\n'
+              << "requested_operations: " << result.requested_count << '\n'
+              << "restored_operations: " << result.restored_count << '\n'
+              << "skipped_operations: " << result.skipped_count() << '\n'
+              << "issues: " << result.issue_count() << '\n'
+              << "issue_summary_entries: " << issue_summary.size() << '\n'
+              << "restored_styles: " << result.restored_style_count << '\n'
+              << "restored_references: " << result.restored_reference_count
+              << '\n';
+    for (std::size_t index = 0; index < issue_summary.size(); ++index) {
+        std::cout << "issue_summary[" << index << "]: code="
+                  << issue_summary[index].code
+                  << " count=" << issue_summary[index].count
+                  << " suggestion=" << issue_summary[index].suggestion << '\n';
+    }
+    for (std::size_t index = 0; index < result.operations.size(); ++index) {
+        const auto &operation = result.operations[index];
+        std::cout << "restore[" << index << "]: action="
+                  << style_refactor_action_name(operation.action)
+                  << " source=" << operation.source_style_id
+                  << " target=" << operation.target_style_id
+                  << " restorable=" << yes_no(operation.restorable)
+                  << " restored=" << yes_no(operation.restored)
+                  << " style_restored=" << yes_no(operation.style_restored)
+                  << " references=" << operation.restored_reference_count
+                  << " issues=" << operation.issues.size() << '\n';
+        for (std::size_t issue_index = 0;
+             issue_index < operation.issues.size(); ++issue_index) {
+            const auto &issue = operation.issues[issue_index];
+            std::cout << "restore[" << index << "].issue[" << issue_index
+                      << "]: code=" << issue.code
+                      << " message=" << issue.message << '\n';
+            if (!issue.suggestion.empty()) {
+                std::cout << "restore[" << index << "].issue[" << issue_index
+                          << "].suggestion: " << issue.suggestion << '\n';
+            }
+        }
+    }
+}
+
+void inspect_style_refactor_plan(
+    const featherdoc::style_refactor_plan &plan, bool json_output,
+    std::string_view command_name = "plan-style-refactor");
+
+void inspect_style_refactor_apply_result(
+    const featherdoc::style_refactor_apply_result &result, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"apply-style-refactor\",\"ok\":"
+                  << json_bool(result.applied());
+        write_json_style_refactor_apply_result_fields(std::cout, result);
+        std::cout << "}\n";
+        return;
+    }
+
+    std::cout << "applied: " << yes_no(result.applied()) << '\n'
+              << "changed: " << yes_no(result.changed) << '\n'
+              << "requested_operations: " << result.requested_count << '\n'
+              << "applied_operations: " << result.applied_count << '\n'
+              << "skipped_operations: " << result.skipped_count() << '\n'
+              << "rollback_operations: " << result.rollback_entries.size()
+              << '\n';
+    for (std::size_t index = 0; index < result.rollback_entries.size(); ++index) {
+        const auto &entry = result.rollback_entries[index];
+        std::cout << "rollback[" << index << "]: action="
+                  << style_refactor_action_name(entry.action)
+                  << " source=" << entry.source_style_id
+                  << " target=" << entry.target_style_id
+                  << " automatic=" << yes_no(entry.automatic)
+                  << " restorable=" << yes_no(entry.restorable)
+                  << " references=";
+        if (entry.source_usage.has_value()) {
+            std::cout << entry.source_usage->total_count();
+        } else {
+            std::cout << "unknown";
+        }
+        std::cout << " note=" << entry.note;
+        if (entry.automatic) {
+            std::cout << " command="
+                      << style_refactor_rollback_command_template(entry);
+        }
+        std::cout << '\n';
+    }
+    inspect_style_refactor_plan(result.plan, false);
+}
+
+void inspect_style_refactor_plan(const featherdoc::style_refactor_plan &plan,
+                                 bool json_output,
+                                 std::string_view command_name) {
+    if (json_output) {
+        std::cout << "{\"command\":";
+        write_json_string(std::cout, command_name);
+        std::cout << ',';
+        write_json_style_refactor_plan_fields(std::cout, plan);
+        std::cout << "}\n";
+        return;
+    }
+
+    const auto confidence_summary = plan.suggestion_confidence_summary();
+    std::cout << "operations: " << plan.operation_count << '\n'
+              << "applyable_operations: " << plan.applyable_count << '\n'
+              << "issues: " << plan.issue_count << '\n'
+              << "suggestions: " << confidence_summary.suggestion_count << '\n'
+              << "suggestion_exact_xml_matches: "
+              << confidence_summary.exact_xml_match_count << '\n'
+              << "suggestion_xml_differences: "
+              << confidence_summary.xml_difference_count << '\n'
+              << "suggestion_min_confidence: ";
+    if (confidence_summary.min_confidence.has_value()) {
+        std::cout << *confidence_summary.min_confidence;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "suggestion_max_confidence: ";
+    if (confidence_summary.max_confidence.has_value()) {
+        std::cout << *confidence_summary.max_confidence;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n' << "suggestion_recommended_min_confidence: ";
+    if (confidence_summary.recommended_min_confidence.has_value()) {
+        std::cout << *confidence_summary.recommended_min_confidence;
+    } else {
+        std::cout << "none";
+    }
+    std::cout << '\n'
+              << "suggestion_recommendation: "
+              << confidence_summary.recommendation << '\n';
+    for (std::size_t index = 0; index < plan.operations.size(); ++index) {
+        const auto &operation = plan.operations[index];
+        std::cout << "operation[" << index << "]: action="
+                  << style_refactor_action_name(operation.action)
+                  << " source=" << operation.source_style_id
+                  << " target=" << operation.target_style_id
+                  << " applyable=" << yes_no(operation.applyable)
+                  << " references=";
+        if (operation.source_usage.has_value()) {
+            std::cout << operation.source_usage->total_count();
+        } else {
+            std::cout << "unknown";
+        }
+        std::cout << " issues=" << operation.issues.size();
+        if (operation.suggestion.has_value()) {
+            std::cout << " suggestion_confidence="
+                      << operation.suggestion->confidence
+                      << " suggestion_reason="
+                      << operation.suggestion->reason_code
+                      << " suggestion_differences="
+                      << operation.suggestion->differences.size();
+        }
+        std::cout << " command=" << style_refactor_command_template(operation)
+                  << '\n';
+        for (std::size_t issue_index = 0; issue_index < operation.issues.size();
+             ++issue_index) {
+            std::cout << "operation[" << index << "].issue[" << issue_index
+                      << "]: code=" << operation.issues[issue_index].code
+                      << " message=" << operation.issues[issue_index].message << '\n';
+        }
+    }
+}
+
+void write_json_style_numbering_audit_issue(
+    std::ostream &stream, const style_numbering_audit_issue &issue) {
+    stream << "{\"kind\":";
+    write_json_string(stream, style_numbering_audit_issue_kind_name(issue.kind));
+    stream << ",\"style_id\":";
+    write_json_string(stream, issue.style_id);
+    stream << ",\"style_name\":";
+    write_json_string(stream, issue.style_name);
+    stream << ",\"based_on\":";
+    write_json_optional_string(stream, issue.based_on);
+    stream << ",\"num_id\":";
+    write_json_optional_u32(stream, issue.num_id);
+    stream << ",\"level\":";
+    write_json_optional_u32(stream, issue.level);
+    stream << ",\"definition_id\":";
+    write_json_optional_u32(stream, issue.definition_id);
+    stream << ",\"definition_name\":";
+    write_json_optional_string(stream, issue.definition_name);
+    stream << ",\"message\":";
+    write_json_string(stream, issue.message);
+    stream << '}';
+}
+
+void write_json_style_numbering_repair_suggestion(
+    std::ostream &stream,
+    const style_numbering_repair_suggestion &suggestion) {
+    stream << "{\"action\":";
+    write_json_string(stream,
+                      style_numbering_repair_action_name(suggestion.action));
+    stream << ",\"issue_kind\":";
+    write_json_string(
+        stream, style_numbering_audit_issue_kind_name(suggestion.issue_kind));
+    stream << ",\"style_id\":";
+    write_json_string(stream, suggestion.style_id);
+    stream << ",\"target_definition_id\":";
+    write_json_optional_u32(stream, suggestion.target_definition_id);
+    stream << ",\"target_definition_name\":";
+    write_json_optional_string(stream, suggestion.target_definition_name);
+    stream << ",\"target_level\":";
+    write_json_optional_u32(stream, suggestion.target_level);
+    stream << ",\"rationale\":";
+    write_json_string(stream, suggestion.rationale);
+    stream << ",\"command_template\":";
+    write_json_string(stream, suggestion.command_template);
+    stream << ",\"applyable\":"
+           << json_bool(style_numbering_repair_suggestion_applyable(
+                  suggestion));
+    stream << '}';
+}
+
+void print_style_numbering_repair_suggestion(
+    std::ostream &stream,
+    const style_numbering_repair_suggestion &suggestion) {
+    stream << "action=" << style_numbering_repair_action_name(suggestion.action)
+           << " issue_kind="
+           << style_numbering_audit_issue_kind_name(suggestion.issue_kind)
+           << " style_id=" << suggestion.style_id
+           << " target_definition_id=";
+    if (suggestion.target_definition_id.has_value()) {
+        stream << *suggestion.target_definition_id;
+    } else {
+        stream << "none";
+    }
+    stream << " target_definition_name=";
+    if (suggestion.target_definition_name.has_value()) {
+        stream << *suggestion.target_definition_name;
+    } else {
+        stream << "none";
+    }
+    stream << " target_level=";
+    if (suggestion.target_level.has_value()) {
+        stream << *suggestion.target_level;
+    } else {
+        stream << "none";
+    }
+    stream << " applyable="
+           << yes_no(style_numbering_repair_suggestion_applyable(
+                  suggestion))
+           << " command=" << suggestion.command_template
+           << " rationale=" << suggestion.rationale;
+}
+
+void print_style_numbering_audit_issue(
+    std::ostream &stream, const style_numbering_audit_issue &issue) {
+    stream << "kind=" << style_numbering_audit_issue_kind_name(issue.kind)
+           << " style_id=" << issue.style_id
+           << " num_id=";
+    if (issue.num_id.has_value()) {
+        stream << *issue.num_id;
+    } else {
+        stream << "none";
+    }
+    stream << " level=";
+    if (issue.level.has_value()) {
+        stream << *issue.level;
+    } else {
+        stream << "none";
+    }
+    stream << " definition_id=";
+    if (issue.definition_id.has_value()) {
+        stream << *issue.definition_id;
+    } else {
+        stream << "none";
+    }
+    stream << " definition_name=";
+    if (issue.definition_name.has_value()) {
+        stream << *issue.definition_name;
+    } else {
+        stream << "none";
+    }
+    stream << " message=" << issue.message;
+}
+
+void inspect_style_numbering_audit(
+    const style_numbering_audit_result &result, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"audit-style-numbering\",\"clean\":"
+                  << json_bool(style_numbering_audit_clean(result))
+                  << ",\"paragraph_style_count\":"
+                  << result.paragraph_style_count
+                  << ",\"numbered_style_count\":"
+                  << result.numbered_styles.size()
+                  << ",\"issue_count\":" << result.issues.size()
+                  << ",\"suggestion_count\":" << result.suggestions.size()
+                  << ",\"styles\":[";
+        for (std::size_t index = 0; index < result.numbered_styles.size();
+             ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_style_summary(std::cout, result.numbered_styles[index]);
+        }
+        std::cout << "],\"issues\":[";
+        for (std::size_t index = 0; index < result.issues.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_style_numbering_audit_issue(std::cout,
+                                                   result.issues[index]);
+        }
+        std::cout << "],\"suggestions\":[";
+        for (std::size_t index = 0; index < result.suggestions.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_style_numbering_repair_suggestion(
+                std::cout, result.suggestions[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "clean: " << yes_no(style_numbering_audit_clean(result)) << '\n'
+              << "paragraph_styles: " << result.paragraph_style_count << '\n'
+              << "numbered_styles: " << result.numbered_styles.size() << '\n'
+              << "issues: " << result.issues.size() << '\n'
+              << "suggestions: " << result.suggestions.size() << '\n';
+    for (std::size_t index = 0; index < result.numbered_styles.size(); ++index) {
+        std::cout << "style[" << index << "]: ";
+        print_style_summary(std::cout, result.numbered_styles[index]);
+        std::cout << '\n';
+    }
+    for (std::size_t index = 0; index < result.issues.size(); ++index) {
+        std::cout << "issue[" << index << "]: ";
+        print_style_numbering_audit_issue(std::cout, result.issues[index]);
+        std::cout << '\n';
+    }
+    for (std::size_t index = 0; index < result.suggestions.size(); ++index) {
+        std::cout << "suggestion[" << index << "]: ";
+        print_style_numbering_repair_suggestion(std::cout,
+                                                result.suggestions[index]);
+        std::cout << '\n';
+    }
+}
+
+
+auto style_numbering_repair_skipped_suggestion_count(
+    const style_numbering_repair_result &result) -> std::size_t {
+    if (result.before.suggestions.size() < result.applyable_suggestions.size()) {
+        return 0U;
+    }
+    return result.before.suggestions.size() - result.applyable_suggestions.size();
+}
+
+void inspect_style_numbering_repair(
+    const style_numbering_repair_result &result, bool json_output) {
+    const auto mode = result.apply ? std::string_view{"apply"}
+                                   : std::string_view{"plan"};
+    if (json_output) {
+        std::cout << "{\"command\":\"repair-style-numbering\",\"mode\":";
+        write_json_string(std::cout, mode);
+        std::cout << ",\"ok\":true"
+                  << ",\"before_clean\":"
+                  << json_bool(style_numbering_audit_clean(result.before))
+                  << ",\"before_issue_count\":" << result.before.issues.size()
+                  << ",\"after_clean\":";
+        if (result.after.has_value()) {
+            std::cout << json_bool(style_numbering_audit_clean(*result.after));
+        } else {
+            std::cout << "null";
+        }
+        std::cout << ",\"after_issue_count\":";
+        if (result.after.has_value()) {
+            std::cout << result.after->issues.size();
+        } else {
+            std::cout << "null";
+        }
+        std::cout << ",\"suggestion_count\":"
+                  << result.before.suggestions.size()
+                  << ",\"applyable_count\":"
+                  << result.applyable_suggestions.size()
+                  << ",\"skipped_suggestion_count\":"
+                  << style_numbering_repair_skipped_suggestion_count(result)
+                  << ",\"applied_count\":" << result.applied_count
+                  << ",\"catalog_file\":";
+        if (result.catalog_path.has_value()) {
+            write_json_string(std::cout, result.catalog_path->string());
+        } else {
+            std::cout << "null";
+        }
+        std::cout << ",\"catalog_import\":";
+        if (result.catalog_import.has_value()) {
+            std::cout << '{';
+            write_json_numbering_catalog_import_summary(std::cout,
+                                                        *result.catalog_import);
+            std::cout << '}';
+        } else {
+            std::cout << "null";
+        }
+        std::cout << ",\"output_path\":";
+        if (result.output_path.has_value()) {
+            write_json_string(std::cout, result.output_path->string());
+        } else {
+            std::cout << "null";
+        }
+        std::cout << ",\"suggestions\":[";
+        for (std::size_t index = 0; index < result.before.suggestions.size();
+             ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_style_numbering_repair_suggestion(
+                std::cout, result.before.suggestions[index]);
+        }
+        std::cout << "],\"applyable_suggestions\":[";
+        for (std::size_t index = 0;
+             index < result.applyable_suggestions.size(); ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_style_numbering_repair_suggestion(
+                std::cout, result.applyable_suggestions[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "mode: " << mode << '\n'
+              << "before_clean: "
+              << yes_no(style_numbering_audit_clean(result.before)) << '\n'
+              << "before_issues: " << result.before.issues.size() << '\n'
+              << "suggestions: " << result.before.suggestions.size() << '\n'
+              << "applyable_suggestions: "
+              << result.applyable_suggestions.size() << '\n'
+              << "skipped_suggestions: "
+              << style_numbering_repair_skipped_suggestion_count(result) << '\n'
+              << "applied: " << result.applied_count << '\n';
+    if (result.catalog_path.has_value()) {
+        std::cout << "catalog_file: " << result.catalog_path->string() << '\n';
+    }
+    if (result.catalog_import.has_value()) {
+        std::cout << "catalog_imported_definitions: "
+                  << result.catalog_import->imported_definition_count << '\n'
+                  << "catalog_imported_instances: "
+                  << result.catalog_import->imported_instance_count << '\n';
+    }
+    if (result.output_path.has_value()) {
+        std::cout << "output_path: " << result.output_path->string() << '\n';
+    }
+    if (result.after.has_value()) {
+        std::cout << "after_clean: "
+                  << yes_no(style_numbering_audit_clean(*result.after)) << '\n'
+                  << "after_issues: " << result.after->issues.size() << '\n';
+    }
+    for (std::size_t index = 0; index < result.before.suggestions.size(); ++index) {
+        std::cout << "suggestion[" << index << "]: ";
+        print_style_numbering_repair_suggestion(
+            std::cout, result.before.suggestions[index]);
         std::cout << '\n';
     }
 }
@@ -13164,6 +15525,44 @@ void print_style_mutation_result(std::string_view command, featherdoc::Document 
     }
 
     inspect_style(style, std::nullopt, false);
+}
+
+void write_json_style_prune_plan(std::ostream &stream,
+                                 const featherdoc::style_prune_plan &plan) {
+    stream << ",\"scanned_style_count\":" << plan.scanned_style_count
+           << ",\"protected_style_count\":" << plan.protected_style_count
+           << ",\"removable_style_count\":" << plan.removable_style_ids.size()
+           << ",\"removable_style_ids\":";
+    write_json_strings(stream, plan.removable_style_ids);
+}
+
+void print_style_prune_plan(const featherdoc::style_prune_plan &plan) {
+    std::cout << "styles_scanned: " << plan.scanned_style_count << '\n'
+              << "styles_protected: " << plan.protected_style_count << '\n'
+              << "removable_styles: " << plan.removable_style_ids.size() << '\n';
+    for (std::size_t index = 0U; index < plan.removable_style_ids.size(); ++index) {
+        std::cout << "removable_style[" << index << "]: "
+                  << plan.removable_style_ids[index] << '\n';
+    }
+}
+
+void write_json_style_prune_summary(std::ostream &stream,
+                                    const featherdoc::style_prune_summary &summary) {
+    stream << ",\"scanned_style_count\":" << summary.scanned_style_count
+           << ",\"protected_style_count\":" << summary.protected_style_count
+           << ",\"removed_style_count\":" << summary.removed_style_ids.size()
+           << ",\"removed_style_ids\":";
+    write_json_strings(stream, summary.removed_style_ids);
+}
+
+void print_style_prune_summary(const featherdoc::style_prune_summary &summary) {
+    std::cout << "styles_scanned: " << summary.scanned_style_count << '\n'
+              << "styles_protected: " << summary.protected_style_count << '\n'
+              << "removed_styles: " << summary.removed_style_ids.size() << '\n';
+    for (std::size_t index = 0U; index < summary.removed_style_ids.size(); ++index) {
+        std::cout << "removed_style[" << index << "]: "
+                  << summary.removed_style_ids[index] << '\n';
+    }
 }
 
 void inspect_numbering(const std::vector<featherdoc::numbering_definition_summary> &definitions,
@@ -18578,6 +20977,2321 @@ auto read_template_schema_file(const path_type &schema_path,
     return true;
 }
 
+auto parse_json_numbering_catalog_uint32(
+    std::string_view content, std::size_t &index, std::uint32_t &value,
+    std::string_view member_name, std::string &error_message) -> bool {
+    std::string token;
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size()) {
+        return report_json_input_error("numbering catalog file", index,
+                                       "expected unsigned integer value",
+                                       error_message);
+    }
+
+    if (content[index] == '"') {
+        if (!parse_json_patch_string(content, index, token, error_message)) {
+            return false;
+        }
+    } else if (content[index] >= '0' && content[index] <= '9') {
+        if (!parse_json_patch_number(content, index, token, error_message)) {
+            return false;
+        }
+    } else {
+        return report_json_input_error("numbering catalog file", index,
+                                       "expected unsigned integer value",
+                                       error_message);
+    }
+
+    if (!parse_uint32(token, value)) {
+        error_message = "JSON numbering catalog member '" +
+                        std::string(member_name) +
+                        "' must be an unsigned integer";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_json_numbering_catalog_optional_uint32(
+    std::string_view content, std::size_t &index,
+    std::optional<std::uint32_t> &value, std::string_view member_name,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content.substr(index, 4U) == "null") {
+        index += 4U;
+        value.reset();
+        return true;
+    }
+
+    std::uint32_t parsed_value = 0U;
+    if (!parse_json_numbering_catalog_uint32(content, index, parsed_value,
+                                             member_name, error_message)) {
+        return false;
+    }
+    value = parsed_value;
+    return true;
+}
+
+auto consume_json_numbering_catalog_separator(
+    std::string_view content, std::size_t &index, char closing_character,
+    std::string_view after_item_detail, bool &closed,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size()) {
+        return report_json_input_error("numbering catalog file", index,
+                                       "unterminated JSON container",
+                                       error_message);
+    }
+    if (content[index] == ',') {
+        ++index;
+        skip_json_patch_whitespace(content, index);
+        closed = false;
+        return true;
+    }
+    if (content[index] == closing_character) {
+        ++index;
+        closed = true;
+        return true;
+    }
+
+    return report_json_input_error("numbering catalog file", index,
+                                   after_item_detail, error_message);
+}
+
+auto parse_numbering_catalog_level_definition(
+    std::string_view content, std::size_t &index,
+    featherdoc::numbering_level_definition &definition,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("numbering catalog file", index,
+                                       "numbering level definition must be an object",
+                                       error_message);
+    }
+
+    std::optional<std::uint32_t> level;
+    std::optional<featherdoc::list_kind> kind;
+    std::optional<std::uint32_t> start;
+    std::optional<std::string> text_pattern;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error(
+                    "numbering catalog file", index,
+                    "expected ':' after numbering level member", error_message);
+            }
+
+            ++index;
+            if (member_name == "level") {
+                if (level.has_value()) {
+                    error_message =
+                        "JSON numbering catalog level member 'level' must not be duplicated";
+                    return false;
+                }
+                std::uint32_t parsed_level = 0U;
+                if (!parse_json_numbering_catalog_uint32(
+                        content, index, parsed_level, member_name, error_message)) {
+                    return false;
+                }
+                level = parsed_level;
+            } else if (member_name == "kind") {
+                if (kind.has_value()) {
+                    error_message =
+                        "JSON numbering catalog level member 'kind' must not be duplicated";
+                    return false;
+                }
+                std::string kind_text;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, kind_text,
+                                             error_message)) {
+                    return false;
+                }
+                featherdoc::list_kind parsed_kind{};
+                if (!parse_list_kind(kind_text, parsed_kind)) {
+                    error_message =
+                        "JSON numbering catalog level member 'kind' must be 'bullet' or 'decimal'";
+                    return false;
+                }
+                kind = parsed_kind;
+            } else if (member_name == "start") {
+                if (start.has_value()) {
+                    error_message =
+                        "JSON numbering catalog level member 'start' must not be duplicated";
+                    return false;
+                }
+                std::uint32_t parsed_start = 0U;
+                if (!parse_json_numbering_catalog_uint32(
+                        content, index, parsed_start, member_name, error_message)) {
+                    return false;
+                }
+                start = parsed_start;
+            } else if (member_name == "text_pattern") {
+                if (text_pattern.has_value()) {
+                    error_message = "JSON numbering catalog level member 'text_pattern' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                text_pattern.emplace();
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, *text_pattern,
+                                             error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("numbering catalog file", index,
+                                               "unknown numbering level member",
+                                               error_message);
+            }
+
+            bool closed = false;
+            if (!consume_json_numbering_catalog_separator(
+                    content, index, '}',
+                    "expected ',' or '}' after numbering level member", closed,
+                    error_message)) {
+                return false;
+            }
+            if (closed) {
+                break;
+            }
+        }
+    }
+
+    if (!level.has_value() || !kind.has_value() || !start.has_value() ||
+        !text_pattern.has_value()) {
+        error_message = "JSON numbering catalog level definition must contain "
+                        "'level', 'kind', 'start', and 'text_pattern'";
+        return false;
+    }
+
+    definition.level = *level;
+    definition.kind = *kind;
+    definition.start = *start;
+    definition.text_pattern = std::move(*text_pattern);
+    return true;
+}
+
+auto parse_numbering_catalog_level_definitions(
+    std::string_view content, std::size_t &index,
+    std::vector<featherdoc::numbering_level_definition> &levels,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("numbering catalog file", index,
+                                       "expected levels array", error_message);
+    }
+
+    levels.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        featherdoc::numbering_level_definition level;
+        if (!parse_numbering_catalog_level_definition(content, index, level,
+                                                      error_message)) {
+            return false;
+        }
+        levels.push_back(std::move(level));
+
+        bool closed = false;
+        if (!consume_json_numbering_catalog_separator(
+                content, index, ']', "expected ',' or ']' after level definition",
+                closed, error_message)) {
+            return false;
+        }
+        if (closed) {
+            return true;
+        }
+    }
+
+    return report_json_input_error("numbering catalog file", index,
+                                   "unterminated levels array", error_message);
+}
+
+auto parse_numbering_catalog_level_override(
+    std::string_view content, std::size_t &index,
+    featherdoc::numbering_level_override_summary &level_override,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("numbering catalog file", index,
+                                       "numbering level override must be an object",
+                                       error_message);
+    }
+
+    std::optional<std::uint32_t> level;
+    std::optional<std::uint32_t> start_override;
+    bool saw_start_override = false;
+    std::optional<featherdoc::numbering_level_definition> level_definition;
+    bool saw_level_definition = false;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error(
+                    "numbering catalog file", index,
+                    "expected ':' after numbering override member", error_message);
+            }
+
+            ++index;
+            if (member_name == "level") {
+                if (level.has_value()) {
+                    error_message = "JSON numbering catalog override member 'level' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                std::uint32_t parsed_level = 0U;
+                if (!parse_json_numbering_catalog_uint32(
+                        content, index, parsed_level, member_name, error_message)) {
+                    return false;
+                }
+                level = parsed_level;
+            } else if (member_name == "start_override") {
+                if (saw_start_override) {
+                    error_message = "JSON numbering catalog override member "
+                                    "'start_override' must not be duplicated";
+                    return false;
+                }
+                saw_start_override = true;
+                if (!parse_json_numbering_catalog_optional_uint32(
+                        content, index, start_override, member_name,
+                        error_message)) {
+                    return false;
+                }
+            } else if (member_name == "level_definition") {
+                if (saw_level_definition) {
+                    error_message = "JSON numbering catalog override member "
+                                    "'level_definition' must not be duplicated";
+                    return false;
+                }
+                saw_level_definition = true;
+                skip_json_patch_whitespace(content, index);
+                if (index < content.size() && content.substr(index, 4U) == "null") {
+                    index += 4U;
+                    level_definition.reset();
+                } else {
+                    featherdoc::numbering_level_definition parsed_definition;
+                    if (!parse_numbering_catalog_level_definition(
+                            content, index, parsed_definition, error_message)) {
+                        return false;
+                    }
+                    level_definition = std::move(parsed_definition);
+                }
+            } else {
+                return report_json_input_error("numbering catalog file", index,
+                                               "unknown numbering override member",
+                                               error_message);
+            }
+
+            bool closed = false;
+            if (!consume_json_numbering_catalog_separator(
+                    content, index, '}',
+                    "expected ',' or '}' after numbering override member", closed,
+                    error_message)) {
+                return false;
+            }
+            if (closed) {
+                break;
+            }
+        }
+    }
+
+    if (!level.has_value()) {
+        error_message =
+            "JSON numbering catalog level override must contain 'level'";
+        return false;
+    }
+
+    level_override.level = *level;
+    level_override.start_override = start_override;
+    level_override.level_definition = std::move(level_definition);
+    return true;
+}
+
+auto parse_numbering_catalog_level_overrides(
+    std::string_view content, std::size_t &index,
+    std::vector<featherdoc::numbering_level_override_summary> &level_overrides,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("numbering catalog file", index,
+                                       "expected level_overrides array",
+                                       error_message);
+    }
+
+    level_overrides.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        featherdoc::numbering_level_override_summary level_override;
+        if (!parse_numbering_catalog_level_override(content, index, level_override,
+                                                    error_message)) {
+            return false;
+        }
+        level_overrides.push_back(std::move(level_override));
+
+        bool closed = false;
+        if (!consume_json_numbering_catalog_separator(
+                content, index, ']',
+                "expected ',' or ']' after numbering override", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            return true;
+        }
+    }
+
+    return report_json_input_error("numbering catalog file", index,
+                                   "unterminated level_overrides array",
+                                   error_message);
+}
+
+auto parse_numbering_catalog_instance(
+    std::string_view content, std::size_t &index,
+    featherdoc::numbering_instance_summary &instance,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("numbering catalog file", index,
+                                       "numbering instance must be an object",
+                                       error_message);
+    }
+
+    bool saw_instance_id = false;
+    bool saw_level_overrides = false;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error(
+                    "numbering catalog file", index,
+                    "expected ':' after numbering instance member", error_message);
+            }
+
+            ++index;
+            if (member_name == "instance_id") {
+                if (saw_instance_id) {
+                    error_message = "JSON numbering catalog instance member "
+                                    "'instance_id' must not be duplicated";
+                    return false;
+                }
+                saw_instance_id = true;
+                if (!parse_json_numbering_catalog_uint32(
+                        content, index, instance.instance_id, member_name,
+                        error_message)) {
+                    return false;
+                }
+            } else if (member_name == "level_overrides") {
+                if (saw_level_overrides) {
+                    error_message = "JSON numbering catalog instance member "
+                                    "'level_overrides' must not be duplicated";
+                    return false;
+                }
+                saw_level_overrides = true;
+                if (!parse_numbering_catalog_level_overrides(
+                        content, index, instance.level_overrides, error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("numbering catalog file", index,
+                                               "unknown numbering instance member",
+                                               error_message);
+            }
+
+            bool closed = false;
+            if (!consume_json_numbering_catalog_separator(
+                    content, index, '}',
+                    "expected ',' or '}' after numbering instance member", closed,
+                    error_message)) {
+                return false;
+            }
+            if (closed) {
+                break;
+            }
+        }
+    }
+
+    if (!saw_level_overrides) {
+        error_message =
+            "JSON numbering catalog instance must contain 'level_overrides'";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_numbering_catalog_instances(
+    std::string_view content, std::size_t &index,
+    std::vector<featherdoc::numbering_instance_summary> &instances,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("numbering catalog file", index,
+                                       "expected instances array", error_message);
+    }
+
+    instances.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        featherdoc::numbering_instance_summary instance;
+        if (!parse_numbering_catalog_instance(content, index, instance,
+                                             error_message)) {
+            return false;
+        }
+        instances.push_back(std::move(instance));
+
+        bool closed = false;
+        if (!consume_json_numbering_catalog_separator(
+                content, index, ']',
+                "expected ',' or ']' after numbering instance", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            return true;
+        }
+    }
+
+    return report_json_input_error("numbering catalog file", index,
+                                   "unterminated instances array", error_message);
+}
+
+auto parse_numbering_catalog_definition(
+    std::string_view content, std::size_t &index,
+    featherdoc::numbering_catalog_definition &catalog_definition,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("numbering catalog file", index,
+                                       "numbering catalog definition must be an object",
+                                       error_message);
+    }
+
+    bool saw_name = false;
+    bool saw_levels = false;
+    bool saw_instances = false;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error(
+                    "numbering catalog file", index,
+                    "expected ':' after numbering definition member", error_message);
+            }
+
+            ++index;
+            if (member_name == "name") {
+                if (saw_name) {
+                    error_message = "JSON numbering catalog definition member 'name' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                saw_name = true;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(
+                        content, index, catalog_definition.definition.name,
+                        error_message)) {
+                    return false;
+                }
+            } else if (member_name == "levels") {
+                if (saw_levels) {
+                    error_message = "JSON numbering catalog definition member 'levels' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                saw_levels = true;
+                if (!parse_numbering_catalog_level_definitions(
+                        content, index, catalog_definition.definition.levels,
+                        error_message)) {
+                    return false;
+                }
+            } else if (member_name == "instances") {
+                if (saw_instances) {
+                    error_message = "JSON numbering catalog definition member "
+                                    "'instances' must not be duplicated";
+                    return false;
+                }
+                saw_instances = true;
+                if (!parse_numbering_catalog_instances(
+                        content, index, catalog_definition.instances,
+                        error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("numbering catalog file", index,
+                                               "unknown numbering definition member",
+                                               error_message);
+            }
+
+            bool closed = false;
+            if (!consume_json_numbering_catalog_separator(
+                    content, index, '}',
+                    "expected ',' or '}' after numbering definition member", closed,
+                    error_message)) {
+                return false;
+            }
+            if (closed) {
+                break;
+            }
+        }
+    }
+
+    if (!saw_name || !saw_levels) {
+        error_message =
+            "JSON numbering catalog definition must contain 'name' and 'levels'";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_numbering_catalog_definitions(
+    std::string_view content, std::size_t &index,
+    std::vector<featherdoc::numbering_catalog_definition> &definitions,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("numbering catalog file", index,
+                                       "expected definitions array", error_message);
+    }
+
+    definitions.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        featherdoc::numbering_catalog_definition definition;
+        if (!parse_numbering_catalog_definition(content, index, definition,
+                                                error_message)) {
+            return false;
+        }
+        definitions.push_back(std::move(definition));
+
+        bool closed = false;
+        if (!consume_json_numbering_catalog_separator(
+                content, index, ']',
+                "expected ',' or ']' after numbering definition", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            return true;
+        }
+    }
+
+    return report_json_input_error("numbering catalog file", index,
+                                   "unterminated definitions array", error_message);
+}
+
+auto read_numbering_catalog_file(const path_type &catalog_path,
+                                 featherdoc::numbering_catalog &catalog,
+                                 std::string &error_message) -> bool {
+    std::string content;
+    std::size_t index = 0U;
+    if (!read_template_table_json_content(catalog_path, content, index,
+                                          error_message)) {
+        if (error_message.rfind("failed to read JSON patch file:", 0U) == 0U) {
+            error_message.replace(0U,
+                                  std::string("failed to read JSON patch file:").size(),
+                                  "failed to read numbering catalog file:");
+        }
+        return false;
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("numbering catalog file", index,
+                                       "root must be an object", error_message);
+    }
+
+    bool saw_definition_count = false;
+    bool saw_instance_count = false;
+    bool saw_definitions = false;
+
+    catalog.definitions.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error(
+                    "numbering catalog file", index,
+                    "expected ':' after root object member", error_message);
+            }
+
+            ++index;
+            if (member_name == "definition_count") {
+                if (saw_definition_count) {
+                    error_message = "JSON numbering catalog root member "
+                                    "'definition_count' must not be duplicated";
+                    return false;
+                }
+                saw_definition_count = true;
+                std::uint32_t ignored_count = 0U;
+                if (!parse_json_numbering_catalog_uint32(
+                        content, index, ignored_count, member_name, error_message)) {
+                    return false;
+                }
+            } else if (member_name == "instance_count") {
+                if (saw_instance_count) {
+                    error_message = "JSON numbering catalog root member "
+                                    "'instance_count' must not be duplicated";
+                    return false;
+                }
+                saw_instance_count = true;
+                std::uint32_t ignored_count = 0U;
+                if (!parse_json_numbering_catalog_uint32(
+                        content, index, ignored_count, member_name, error_message)) {
+                    return false;
+                }
+            } else if (member_name == "definitions") {
+                if (saw_definitions) {
+                    error_message = "JSON numbering catalog root member 'definitions' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                saw_definitions = true;
+                if (!parse_numbering_catalog_definitions(
+                        content, index, catalog.definitions, error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("numbering catalog file", index,
+                                               "unknown root member", error_message);
+            }
+
+            bool closed = false;
+            if (!consume_json_numbering_catalog_separator(
+                    content, index, '}',
+                    "expected ',' or '}' after root object member", closed,
+                    error_message)) {
+                return false;
+            }
+            if (closed) {
+                break;
+            }
+        }
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index != content.size()) {
+        return report_json_input_error("numbering catalog file", index,
+                                       "unexpected trailing content after root object",
+                                       error_message);
+    }
+
+    if (!saw_definitions) {
+        error_message =
+            "JSON numbering catalog file must contain a 'definitions' array";
+        return false;
+    }
+
+    return true;
+}
+
+auto write_numbering_catalog_file(const path_type &output_path,
+                                  const featherdoc::numbering_catalog &catalog,
+                                  std::string &error_message) -> bool {
+    std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
+    if (!stream.good()) {
+        error_message =
+            "failed to open numbering catalog output path: " + output_path.string();
+        return false;
+    }
+
+    write_json_numbering_catalog(stream, catalog);
+    stream << '\n';
+    if (!stream.good()) {
+        error_message =
+            "failed to write numbering catalog output path: " + output_path.string();
+        return false;
+    }
+
+    return true;
+}
+
+void print_exported_numbering_catalog_summary(
+    const featherdoc::numbering_catalog &catalog,
+    const std::optional<path_type> &output_path, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"export-numbering-catalog\",\"ok\":true";
+        if (output_path.has_value()) {
+            std::cout << ",\"output_path\":";
+            write_json_string(std::cout, output_path->string());
+        }
+        std::cout << ",\"definition_count\":" << catalog.definitions.size()
+                  << ",\"instance_count\":"
+                  << numbering_catalog_instance_count(catalog) << "}\n";
+        return;
+    }
+
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    }
+    std::cout << "definition_count: " << catalog.definitions.size() << '\n'
+              << "instance_count: " << numbering_catalog_instance_count(catalog)
+              << '\n';
+}
+
+auto consume_json_numbering_catalog_patch_separator(
+    std::string_view content, std::size_t &index, char closing_character,
+    std::string_view after_item_detail, bool &closed,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size()) {
+        return report_json_input_error("numbering catalog patch file", index,
+                                       "unterminated JSON container",
+                                       error_message);
+    }
+    if (content[index] == ',') {
+        ++index;
+        skip_json_patch_whitespace(content, index);
+        closed = false;
+        return true;
+    }
+    if (content[index] == closing_character) {
+        ++index;
+        closed = true;
+        return true;
+    }
+
+    return report_json_input_error("numbering catalog patch file", index,
+                                   after_item_detail, error_message);
+}
+
+auto parse_numbering_catalog_override_patch(
+    std::string_view content, std::size_t &index,
+    numbering_catalog_override_patch &patch, bool allow_override_values,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("numbering catalog patch file", index,
+                                       "override patch entry must be an object",
+                                       error_message);
+    }
+
+    bool saw_definition_name = false;
+    bool saw_level = false;
+    bool saw_instance_index = false;
+    bool saw_instance_id = false;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error(
+                    "numbering catalog patch file", index,
+                    "expected ':' after override patch member", error_message);
+            }
+
+            ++index;
+            if (member_name == "definition_name") {
+                if (saw_definition_name) {
+                    error_message = "JSON numbering catalog patch member "
+                                    "'definition_name' must not be duplicated";
+                    return false;
+                }
+                saw_definition_name = true;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, patch.definition_name,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "instance_index") {
+                if (saw_instance_index) {
+                    error_message = "JSON numbering catalog patch member "
+                                    "'instance_index' must not be duplicated";
+                    return false;
+                }
+                saw_instance_index = true;
+                std::uint32_t parsed_index = 0U;
+                if (!parse_json_numbering_catalog_uint32(
+                        content, index, parsed_index, member_name,
+                        error_message)) {
+                    return false;
+                }
+                patch.instance_index = static_cast<std::size_t>(parsed_index);
+            } else if (member_name == "instance_id") {
+                if (saw_instance_id) {
+                    error_message = "JSON numbering catalog patch member "
+                                    "'instance_id' must not be duplicated";
+                    return false;
+                }
+                saw_instance_id = true;
+                std::uint32_t parsed_id = 0U;
+                if (!parse_json_numbering_catalog_uint32(
+                        content, index, parsed_id, member_name, error_message)) {
+                    return false;
+                }
+                patch.instance_id = parsed_id;
+            } else if (member_name == "level") {
+                if (saw_level) {
+                    error_message = "JSON numbering catalog patch member 'level' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                saw_level = true;
+                if (!parse_json_numbering_catalog_uint32(
+                        content, index, patch.level, member_name, error_message)) {
+                    return false;
+                }
+            } else if (member_name == "start_override") {
+                if (!allow_override_values) {
+                    error_message = "JSON numbering catalog remove override entries "
+                                    "must not contain 'start_override'";
+                    return false;
+                }
+                if (patch.saw_start_override) {
+                    error_message = "JSON numbering catalog patch member "
+                                    "'start_override' must not be duplicated";
+                    return false;
+                }
+                patch.saw_start_override = true;
+                if (!parse_json_numbering_catalog_optional_uint32(
+                        content, index, patch.start_override, member_name,
+                        error_message)) {
+                    return false;
+                }
+            } else if (member_name == "level_definition") {
+                if (!allow_override_values) {
+                    error_message = "JSON numbering catalog remove override entries "
+                                    "must not contain 'level_definition'";
+                    return false;
+                }
+                if (patch.saw_level_definition) {
+                    error_message = "JSON numbering catalog patch member "
+                                    "'level_definition' must not be duplicated";
+                    return false;
+                }
+                patch.saw_level_definition = true;
+                skip_json_patch_whitespace(content, index);
+                if (index < content.size() && content.substr(index, 4U) == "null") {
+                    index += 4U;
+                    patch.level_definition.reset();
+                } else {
+                    featherdoc::numbering_level_definition parsed_definition;
+                    if (!parse_numbering_catalog_level_definition(
+                            content, index, parsed_definition, error_message)) {
+                        return false;
+                    }
+                    patch.level_definition = std::move(parsed_definition);
+                }
+            } else {
+                return report_json_input_error("numbering catalog patch file", index,
+                                               "unknown override patch member",
+                                               error_message);
+            }
+
+            bool closed = false;
+            if (!consume_json_numbering_catalog_patch_separator(
+                    content, index, '}',
+                    "expected ',' or '}' after override patch member", closed,
+                    error_message)) {
+                return false;
+            }
+            if (closed) {
+                break;
+            }
+        }
+    }
+
+    if (!saw_definition_name || !saw_level) {
+        error_message = "JSON numbering catalog override patch entries must contain "
+                        "'definition_name' and 'level'";
+        return false;
+    }
+    if (patch.definition_name.empty()) {
+        error_message =
+            "JSON numbering catalog override patch member 'definition_name' must not be empty";
+        return false;
+    }
+    if (patch.instance_index.has_value() == patch.instance_id.has_value()) {
+        error_message = "JSON numbering catalog override patch entries must contain "
+                        "exactly one of 'instance_index' or 'instance_id'";
+        return false;
+    }
+    if (allow_override_values && !patch.saw_start_override &&
+        !patch.saw_level_definition) {
+        error_message = "JSON numbering catalog upsert override entries must contain "
+                        "'start_override' or 'level_definition'";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_numbering_catalog_override_patch_array(
+    std::string_view content, std::size_t &index,
+    std::vector<numbering_catalog_override_patch> &patches,
+    std::string_view member_name, bool allow_override_values,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error(
+            "numbering catalog patch file", index,
+            "expected " + std::string(member_name) + " array", error_message);
+    }
+
+    patches.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        numbering_catalog_override_patch patch;
+        if (!parse_numbering_catalog_override_patch(
+                content, index, patch, allow_override_values, error_message)) {
+            return false;
+        }
+        patches.push_back(std::move(patch));
+
+        bool closed = false;
+        if (!consume_json_numbering_catalog_patch_separator(
+                content, index, ']',
+                "expected ',' or ']' after override patch entry", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            return true;
+        }
+    }
+
+    return report_json_input_error(
+        "numbering catalog patch file", index,
+        "unterminated " + std::string(member_name) + " array", error_message);
+}
+
+auto parse_numbering_catalog_level_patch(
+    std::string_view content, std::size_t &index,
+    numbering_catalog_level_patch &patch, std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("numbering catalog patch file", index,
+                                       "level patch entry must be an object",
+                                       error_message);
+    }
+
+    bool saw_definition_name = false;
+    bool saw_level = false;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error(
+                    "numbering catalog patch file", index,
+                    "expected ':' after level patch member", error_message);
+            }
+
+            ++index;
+            if (member_name == "definition_name") {
+                if (saw_definition_name) {
+                    error_message = "JSON numbering catalog patch member "
+                                    "'definition_name' must not be duplicated";
+                    return false;
+                }
+                saw_definition_name = true;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, patch.definition_name,
+                                             error_message)) {
+                    return false;
+                }
+            } else if (member_name == "level") {
+                if (saw_level) {
+                    error_message = "JSON numbering catalog patch member 'level' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                saw_level = true;
+                if (!parse_numbering_catalog_level_definition(
+                        content, index, patch.level_definition, error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("numbering catalog patch file", index,
+                                               "unknown level patch member",
+                                               error_message);
+            }
+
+            bool closed = false;
+            if (!consume_json_numbering_catalog_patch_separator(
+                    content, index, '}',
+                    "expected ',' or '}' after level patch member", closed,
+                    error_message)) {
+                return false;
+            }
+            if (closed) {
+                break;
+            }
+        }
+    }
+
+    if (!saw_definition_name || !saw_level) {
+        error_message = "JSON numbering catalog level patch entries must contain "
+                        "'definition_name' and 'level'";
+        return false;
+    }
+    if (patch.definition_name.empty()) {
+        error_message =
+            "JSON numbering catalog level patch member 'definition_name' must not be empty";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_numbering_catalog_level_patch_array(
+    std::string_view content, std::size_t &index,
+    std::vector<numbering_catalog_level_patch> &patches,
+    std::string_view member_name, std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error(
+            "numbering catalog patch file", index,
+            "expected " + std::string(member_name) + " array", error_message);
+    }
+
+    patches.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        numbering_catalog_level_patch patch;
+        if (!parse_numbering_catalog_level_patch(content, index, patch,
+                                                 error_message)) {
+            return false;
+        }
+        patches.push_back(std::move(patch));
+
+        bool closed = false;
+        if (!consume_json_numbering_catalog_patch_separator(
+                content, index, ']',
+                "expected ',' or ']' after level patch entry", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            return true;
+        }
+    }
+
+    return report_json_input_error(
+        "numbering catalog patch file", index,
+        "unterminated " + std::string(member_name) + " array", error_message);
+}
+
+auto read_numbering_catalog_patch_file(
+    const path_type &patch_path, numbering_catalog_patch_document &patch,
+    std::string &error_message) -> bool {
+    std::string content;
+    std::size_t index = 0U;
+    if (!read_template_table_json_content(patch_path, content, index,
+                                          error_message)) {
+        if (error_message.rfind("failed to read JSON patch file:", 0U) == 0U) {
+            error_message.replace(0U,
+                                  std::string("failed to read JSON patch file:").size(),
+                                  "failed to read numbering catalog patch file:");
+        }
+        return false;
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("numbering catalog patch file", index,
+                                       "root must be an object", error_message);
+    }
+
+    bool saw_upsert_levels = false;
+    bool saw_upsert_overrides = false;
+    bool saw_remove_overrides = false;
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error(
+                    "numbering catalog patch file", index,
+                    "expected ':' after root object member", error_message);
+            }
+
+            ++index;
+            if (member_name == "upsert_levels") {
+                if (saw_upsert_levels) {
+                    error_message = "JSON numbering catalog patch root member "
+                                    "'upsert_levels' must not be duplicated";
+                    return false;
+                }
+                saw_upsert_levels = true;
+                if (!parse_numbering_catalog_level_patch_array(
+                        content, index, patch.upsert_levels, member_name,
+                        error_message)) {
+                    return false;
+                }
+            } else if (member_name == "upsert_overrides") {
+                if (saw_upsert_overrides) {
+                    error_message = "JSON numbering catalog patch root member "
+                                    "'upsert_overrides' must not be duplicated";
+                    return false;
+                }
+                saw_upsert_overrides = true;
+                if (!parse_numbering_catalog_override_patch_array(
+                        content, index, patch.upsert_overrides, member_name, true,
+                        error_message)) {
+                    return false;
+                }
+            } else if (member_name == "remove_overrides") {
+                if (saw_remove_overrides) {
+                    error_message = "JSON numbering catalog patch root member "
+                                    "'remove_overrides' must not be duplicated";
+                    return false;
+                }
+                saw_remove_overrides = true;
+                if (!parse_numbering_catalog_override_patch_array(
+                        content, index, patch.remove_overrides, member_name, false,
+                        error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("numbering catalog patch file", index,
+                                               "unknown root member", error_message);
+            }
+
+            bool closed = false;
+            if (!consume_json_numbering_catalog_patch_separator(
+                    content, index, '}',
+                    "expected ',' or '}' after root object member", closed,
+                    error_message)) {
+                return false;
+            }
+            if (closed) {
+                break;
+            }
+        }
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index != content.size()) {
+        return report_json_input_error("numbering catalog patch file", index,
+                                       "unexpected trailing content after root object",
+                                       error_message);
+    }
+
+    return true;
+}
+
+auto find_numbering_catalog_patch_definition(
+    featherdoc::numbering_catalog &catalog, std::string_view definition_name,
+    featherdoc::numbering_catalog_definition *&definition,
+    std::string &error_message) -> bool {
+    definition = nullptr;
+    for (auto &candidate : catalog.definitions) {
+        if (candidate.definition.name != definition_name) {
+            continue;
+        }
+        if (definition != nullptr) {
+            error_message = "numbering catalog contains duplicate definition name: " +
+                            std::string(definition_name);
+            return false;
+        }
+        definition = &candidate;
+    }
+
+    if (definition == nullptr) {
+        error_message = "numbering catalog definition was not found: " +
+                        std::string(definition_name);
+        return false;
+    }
+
+    return true;
+}
+
+auto find_numbering_catalog_patch_instance(
+    featherdoc::numbering_catalog_definition &definition,
+    const numbering_catalog_override_patch &patch,
+    featherdoc::numbering_instance_summary *&instance,
+    std::string &error_message) -> bool {
+    instance = nullptr;
+    if (patch.instance_index.has_value()) {
+        if (*patch.instance_index >= definition.instances.size()) {
+            error_message = "numbering catalog instance index is out of range for "
+                            "definition: " +
+                            patch.definition_name;
+            return false;
+        }
+        instance = &definition.instances[*patch.instance_index];
+        return true;
+    }
+
+    for (auto &candidate : definition.instances) {
+        if (candidate.instance_id != *patch.instance_id) {
+            continue;
+        }
+        if (instance != nullptr) {
+            error_message = "numbering catalog contains duplicate instance id for "
+                            "definition: " +
+                            patch.definition_name;
+            return false;
+        }
+        instance = &candidate;
+    }
+
+    if (instance == nullptr) {
+        error_message = "numbering catalog instance id was not found for definition: " +
+                        patch.definition_name;
+        return false;
+    }
+
+    return true;
+}
+
+void sort_numbering_catalog_patch_levels(
+    featherdoc::numbering_catalog_definition &definition) {
+    std::sort(definition.definition.levels.begin(),
+              definition.definition.levels.end(), [](const auto &lhs,
+                                                     const auto &rhs) {
+                  return lhs.level < rhs.level;
+              });
+}
+
+void sort_numbering_catalog_patch_overrides(
+    featherdoc::numbering_instance_summary &instance) {
+    std::sort(instance.level_overrides.begin(), instance.level_overrides.end(),
+              [](const auto &lhs, const auto &rhs) {
+                  return lhs.level < rhs.level;
+              });
+}
+
+auto apply_numbering_catalog_level_upsert(
+    featherdoc::numbering_catalog &catalog,
+    const numbering_catalog_level_patch &patch,
+    numbering_catalog_patch_summary &summary, std::string &error_message) -> bool {
+    featherdoc::numbering_catalog_definition *definition = nullptr;
+    if (!find_numbering_catalog_patch_definition(catalog, patch.definition_name,
+                                                 definition, error_message)) {
+        return false;
+    }
+
+    auto &levels = definition->definition.levels;
+    auto level_it = std::find_if(
+        levels.begin(), levels.end(), [&patch](const auto &level) {
+            return level.level == patch.level_definition.level;
+        });
+    if (level_it == levels.end()) {
+        levels.push_back(patch.level_definition);
+    } else {
+        *level_it = patch.level_definition;
+    }
+
+    sort_numbering_catalog_patch_levels(*definition);
+    ++summary.upserted_level_count;
+    return true;
+}
+
+auto apply_numbering_catalog_override_upsert(
+    featherdoc::numbering_catalog &catalog,
+    const numbering_catalog_override_patch &patch,
+    numbering_catalog_patch_summary &summary, std::string &error_message) -> bool {
+    featherdoc::numbering_catalog_definition *definition = nullptr;
+    if (!find_numbering_catalog_patch_definition(catalog, patch.definition_name,
+                                                 definition, error_message)) {
+        return false;
+    }
+
+    featherdoc::numbering_instance_summary *instance = nullptr;
+    if (!find_numbering_catalog_patch_instance(*definition, patch, instance,
+                                               error_message)) {
+        return false;
+    }
+
+    auto override_it = std::find_if(
+        instance->level_overrides.begin(), instance->level_overrides.end(),
+        [&patch](const auto &level_override) {
+            return level_override.level == patch.level;
+        });
+    if (override_it == instance->level_overrides.end()) {
+        auto level_override = featherdoc::numbering_level_override_summary{};
+        level_override.level = patch.level;
+        if (patch.saw_start_override) {
+            level_override.start_override = patch.start_override;
+        }
+        if (patch.saw_level_definition) {
+            level_override.level_definition = patch.level_definition;
+        }
+        instance->level_overrides.push_back(std::move(level_override));
+    } else {
+        if (patch.saw_start_override) {
+            override_it->start_override = patch.start_override;
+        }
+        if (patch.saw_level_definition) {
+            override_it->level_definition = patch.level_definition;
+        }
+    }
+
+    sort_numbering_catalog_patch_overrides(*instance);
+    ++summary.upserted_override_count;
+    return true;
+}
+
+auto apply_numbering_catalog_override_remove(
+    featherdoc::numbering_catalog &catalog,
+    const numbering_catalog_override_patch &patch,
+    numbering_catalog_patch_summary &summary, std::string &error_message) -> bool {
+    featherdoc::numbering_catalog_definition *definition = nullptr;
+    if (!find_numbering_catalog_patch_definition(catalog, patch.definition_name,
+                                                 definition, error_message)) {
+        return false;
+    }
+
+    featherdoc::numbering_instance_summary *instance = nullptr;
+    if (!find_numbering_catalog_patch_instance(*definition, patch, instance,
+                                               error_message)) {
+        return false;
+    }
+
+    const auto original_size = instance->level_overrides.size();
+    instance->level_overrides.erase(
+        std::remove_if(instance->level_overrides.begin(),
+                       instance->level_overrides.end(),
+                       [&patch](const auto &level_override) {
+                           return level_override.level == patch.level;
+                       }),
+        instance->level_overrides.end());
+    if (instance->level_overrides.size() == original_size) {
+        ++summary.missing_override_count;
+    } else {
+        ++summary.removed_override_count;
+    }
+
+    return true;
+}
+
+auto apply_numbering_catalog_patch(
+    featherdoc::numbering_catalog &catalog,
+    const numbering_catalog_patch_document &patch,
+    numbering_catalog_patch_summary &summary, std::string &error_message) -> bool {
+    for (const auto &level_patch : patch.upsert_levels) {
+        if (!apply_numbering_catalog_level_upsert(catalog, level_patch, summary,
+                                                  error_message)) {
+            return false;
+        }
+    }
+    for (const auto &override_patch : patch.upsert_overrides) {
+        if (!apply_numbering_catalog_override_upsert(catalog, override_patch,
+                                                     summary, error_message)) {
+            return false;
+        }
+    }
+    for (const auto &override_patch : patch.remove_overrides) {
+        if (!apply_numbering_catalog_override_remove(catalog, override_patch,
+                                                     summary, error_message)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void write_json_numbering_catalog_patch_summary(
+    std::ostream &stream, const numbering_catalog_patch_summary &summary) {
+    stream << "\"upserted_level_count\":" << summary.upserted_level_count
+           << ",\"upserted_override_count\":" << summary.upserted_override_count
+           << ",\"removed_override_count\":" << summary.removed_override_count
+           << ",\"missing_override_count\":" << summary.missing_override_count;
+}
+
+void print_patched_numbering_catalog_summary(
+    const featherdoc::numbering_catalog &catalog,
+    const numbering_catalog_patch_summary &summary,
+    const std::optional<path_type> &output_path, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"patch-numbering-catalog\",\"ok\":true";
+        if (output_path.has_value()) {
+            std::cout << ",\"output_path\":";
+            write_json_string(std::cout, output_path->string());
+        }
+        std::cout << ",\"definition_count\":" << catalog.definitions.size()
+                  << ",\"instance_count\":"
+                  << numbering_catalog_instance_count(catalog) << ',';
+        write_json_numbering_catalog_patch_summary(std::cout, summary);
+        std::cout << "}\n";
+        return;
+    }
+
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    }
+    std::cout << "definition_count: " << catalog.definitions.size() << '\n'
+              << "instance_count: " << numbering_catalog_instance_count(catalog)
+              << '\n'
+              << "upserted_level_count: " << summary.upserted_level_count
+              << '\n'
+              << "upserted_override_count: " << summary.upserted_override_count
+              << '\n'
+              << "removed_override_count: " << summary.removed_override_count
+              << '\n'
+              << "missing_override_count: " << summary.missing_override_count
+              << '\n';
+}
+
+auto numbering_catalog_lint_issue_name(
+    const numbering_catalog_lint_issue_kind kind) -> std::string_view {
+    switch (kind) {
+    case numbering_catalog_lint_issue_kind::empty_definition_name:
+        return "empty_definition_name";
+    case numbering_catalog_lint_issue_kind::duplicate_definition_name:
+        return "duplicate_definition_name";
+    case numbering_catalog_lint_issue_kind::empty_levels:
+        return "empty_levels";
+    case numbering_catalog_lint_issue_kind::duplicate_level:
+        return "duplicate_level";
+    case numbering_catalog_lint_issue_kind::invalid_level:
+        return "invalid_level";
+    case numbering_catalog_lint_issue_kind::invalid_start:
+        return "invalid_start";
+    case numbering_catalog_lint_issue_kind::empty_text_pattern:
+        return "empty_text_pattern";
+    case numbering_catalog_lint_issue_kind::duplicate_instance_id:
+        return "duplicate_instance_id";
+    case numbering_catalog_lint_issue_kind::duplicate_override_level:
+        return "duplicate_override_level";
+    case numbering_catalog_lint_issue_kind::invalid_override_level:
+        return "invalid_override_level";
+    case numbering_catalog_lint_issue_kind::invalid_override_start:
+        return "invalid_override_start";
+    case numbering_catalog_lint_issue_kind::invalid_override_definition:
+        return "invalid_override_definition";
+    }
+
+    return "unknown";
+}
+
+void add_numbering_catalog_lint_issue(
+    numbering_catalog_lint_result &result,
+    numbering_catalog_lint_issue_kind kind, std::size_t definition_index,
+    std::string definition_name, std::string detail,
+    std::optional<std::size_t> instance_index = std::nullopt,
+    std::optional<std::uint32_t> instance_id = std::nullopt,
+    std::optional<std::size_t> level_index = std::nullopt,
+    std::optional<std::size_t> override_index = std::nullopt,
+    std::optional<std::uint32_t> level = std::nullopt) {
+    auto issue = numbering_catalog_lint_issue{};
+    issue.kind = kind;
+    issue.definition_index = definition_index;
+    issue.definition_name = std::move(definition_name);
+    issue.detail = std::move(detail);
+    issue.instance_index = instance_index;
+    issue.instance_id = instance_id;
+    issue.level_index = level_index;
+    issue.override_index = override_index;
+    issue.level = level;
+    result.issues.push_back(std::move(issue));
+}
+
+auto lint_numbering_catalog(const featherdoc::numbering_catalog &catalog)
+    -> numbering_catalog_lint_result {
+    constexpr std::uint32_t max_numbering_level = 8U;
+    auto result = numbering_catalog_lint_result{};
+    result.definition_count = catalog.definitions.size();
+
+    std::vector<std::string> seen_definition_names;
+    for (std::size_t definition_index = 0U;
+         definition_index < catalog.definitions.size(); ++definition_index) {
+        const auto &definition = catalog.definitions[definition_index];
+        const auto &definition_name = definition.definition.name;
+
+        result.level_count += definition.definition.levels.size();
+        result.instance_count += definition.instances.size();
+
+        if (definition_name.empty()) {
+            add_numbering_catalog_lint_issue(
+                result, numbering_catalog_lint_issue_kind::empty_definition_name,
+                definition_index, definition_name,
+                "numbering catalog definition name must not be empty");
+        } else if (std::find(seen_definition_names.begin(),
+                            seen_definition_names.end(),
+                            definition_name) != seen_definition_names.end()) {
+            add_numbering_catalog_lint_issue(
+                result,
+                numbering_catalog_lint_issue_kind::duplicate_definition_name,
+                definition_index, definition_name,
+                "numbering catalog definition names must be unique");
+        } else {
+            seen_definition_names.push_back(definition_name);
+        }
+
+        if (definition.definition.levels.empty()) {
+            add_numbering_catalog_lint_issue(
+                result, numbering_catalog_lint_issue_kind::empty_levels,
+                definition_index, definition_name,
+                "numbering catalog definition must contain at least one level");
+        }
+
+        std::vector<std::uint32_t> seen_levels;
+        for (std::size_t level_index = 0U;
+             level_index < definition.definition.levels.size(); ++level_index) {
+            const auto &level_definition = definition.definition.levels[level_index];
+            if (level_definition.level > max_numbering_level) {
+                add_numbering_catalog_lint_issue(
+                    result, numbering_catalog_lint_issue_kind::invalid_level,
+                    definition_index, definition_name,
+                    "numbering catalog level must be in the range [0, 8]",
+                    std::nullopt, std::nullopt, level_index, std::nullopt,
+                    level_definition.level);
+            }
+            if (std::find(seen_levels.begin(), seen_levels.end(),
+                          level_definition.level) != seen_levels.end()) {
+                add_numbering_catalog_lint_issue(
+                    result, numbering_catalog_lint_issue_kind::duplicate_level,
+                    definition_index, definition_name,
+                    "numbering catalog definition levels must be unique",
+                    std::nullopt, std::nullopt, level_index, std::nullopt,
+                    level_definition.level);
+            } else {
+                seen_levels.push_back(level_definition.level);
+            }
+            if (level_definition.start == 0U) {
+                add_numbering_catalog_lint_issue(
+                    result, numbering_catalog_lint_issue_kind::invalid_start,
+                    definition_index, definition_name,
+                    "numbering catalog level start must be greater than 0",
+                    std::nullopt, std::nullopt, level_index, std::nullopt,
+                    level_definition.level);
+            }
+            if (level_definition.text_pattern.empty()) {
+                add_numbering_catalog_lint_issue(
+                    result, numbering_catalog_lint_issue_kind::empty_text_pattern,
+                    definition_index, definition_name,
+                    "numbering catalog level text_pattern must not be empty",
+                    std::nullopt, std::nullopt, level_index, std::nullopt,
+                    level_definition.level);
+            }
+        }
+
+        std::vector<std::uint32_t> seen_instance_ids;
+        for (std::size_t instance_index = 0U;
+             instance_index < definition.instances.size(); ++instance_index) {
+            const auto &instance = definition.instances[instance_index];
+            result.override_count += instance.level_overrides.size();
+
+            if (instance.instance_id != 0U &&
+                std::find(seen_instance_ids.begin(), seen_instance_ids.end(),
+                          instance.instance_id) != seen_instance_ids.end()) {
+                add_numbering_catalog_lint_issue(
+                    result,
+                    numbering_catalog_lint_issue_kind::duplicate_instance_id,
+                    definition_index, definition_name,
+                    "numbering catalog instance ids should be unique per definition",
+                    instance_index, instance.instance_id);
+            } else if (instance.instance_id != 0U) {
+                seen_instance_ids.push_back(instance.instance_id);
+            }
+
+            std::vector<std::uint32_t> seen_override_levels;
+            for (std::size_t override_index = 0U;
+                 override_index < instance.level_overrides.size(); ++override_index) {
+                const auto &level_override = instance.level_overrides[override_index];
+                if (level_override.level > max_numbering_level) {
+                    add_numbering_catalog_lint_issue(
+                        result,
+                        numbering_catalog_lint_issue_kind::invalid_override_level,
+                        definition_index, definition_name,
+                        "numbering catalog override level must be in the range [0, 8]",
+                        instance_index, instance.instance_id, std::nullopt,
+                        override_index, level_override.level);
+                }
+                if (std::find(seen_override_levels.begin(),
+                              seen_override_levels.end(),
+                              level_override.level) != seen_override_levels.end()) {
+                    add_numbering_catalog_lint_issue(
+                        result,
+                        numbering_catalog_lint_issue_kind::duplicate_override_level,
+                        definition_index, definition_name,
+                        "numbering catalog override levels must be unique per instance",
+                        instance_index, instance.instance_id, std::nullopt,
+                        override_index, level_override.level);
+                } else {
+                    seen_override_levels.push_back(level_override.level);
+                }
+                if (level_override.start_override.has_value() &&
+                    *level_override.start_override == 0U) {
+                    add_numbering_catalog_lint_issue(
+                        result,
+                        numbering_catalog_lint_issue_kind::invalid_override_start,
+                        definition_index, definition_name,
+                        "numbering catalog start override must be greater than 0",
+                        instance_index, instance.instance_id, std::nullopt,
+                        override_index, level_override.level);
+                }
+                if (level_override.level_definition.has_value()) {
+                    const auto &override_definition = *level_override.level_definition;
+                    if (override_definition.level > max_numbering_level ||
+                        override_definition.start == 0U ||
+                        override_definition.text_pattern.empty()) {
+                        add_numbering_catalog_lint_issue(
+                            result,
+                            numbering_catalog_lint_issue_kind::invalid_override_definition,
+                            definition_index, definition_name,
+                            "numbering catalog override level definition is invalid",
+                            instance_index, instance.instance_id, std::nullopt,
+                            override_index, level_override.level);
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+void write_json_numbering_catalog_lint_issue(
+    std::ostream &stream, const numbering_catalog_lint_issue &issue) {
+    stream << "{\"issue\":";
+    write_json_string(stream, numbering_catalog_lint_issue_name(issue.kind));
+    stream << ",\"definition_index\":" << issue.definition_index
+           << ",\"definition_name\":";
+    write_json_string(stream, issue.definition_name);
+    if (issue.instance_index.has_value()) {
+        stream << ",\"instance_index\":" << *issue.instance_index;
+    }
+    if (issue.instance_id.has_value()) {
+        stream << ",\"instance_id\":" << *issue.instance_id;
+    }
+    if (issue.level_index.has_value()) {
+        stream << ",\"level_index\":" << *issue.level_index;
+    }
+    if (issue.override_index.has_value()) {
+        stream << ",\"override_index\":" << *issue.override_index;
+    }
+    if (issue.level.has_value()) {
+        stream << ",\"level\":" << *issue.level;
+    }
+    stream << ",\"detail\":";
+    write_json_string(stream, issue.detail);
+    stream << '}';
+}
+
+void write_json_numbering_catalog_lint_issues(
+    std::ostream &stream,
+    const std::vector<numbering_catalog_lint_issue> &issues) {
+    for (std::size_t index = 0U; index < issues.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_catalog_lint_issue(stream, issues[index]);
+    }
+}
+
+void print_linted_numbering_catalog_result(
+    const numbering_catalog_lint_result &result, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"lint-numbering-catalog\",\"ok\":true,"
+                  << "\"clean\":" << json_bool(result.clean())
+                  << ",\"definition_count\":" << result.definition_count
+                  << ",\"instance_count\":" << result.instance_count
+                  << ",\"level_count\":" << result.level_count
+                  << ",\"override_count\":" << result.override_count
+                  << ",\"issue_count\":" << result.issues.size()
+                  << ",\"issues\":[";
+        write_json_numbering_catalog_lint_issues(std::cout, result.issues);
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "clean: " << yes_no(result.clean()) << '\n'
+              << "definition_count: " << result.definition_count << '\n'
+              << "instance_count: " << result.instance_count << '\n'
+              << "level_count: " << result.level_count << '\n'
+              << "override_count: " << result.override_count << '\n'
+              << "issue_count: " << result.issues.size() << '\n';
+    if (result.issues.empty()) {
+        std::cout << "issues: none\n";
+        return;
+    }
+
+    for (std::size_t index = 0U; index < result.issues.size(); ++index) {
+        const auto &issue = result.issues[index];
+        std::cout << "issue[" << index << "]: issue="
+                  << numbering_catalog_lint_issue_name(issue.kind)
+                  << " definition_index=" << issue.definition_index
+                  << " definition_name=" << issue.definition_name;
+        if (issue.instance_index.has_value()) {
+            std::cout << " instance_index=" << *issue.instance_index;
+        }
+        if (issue.instance_id.has_value()) {
+            std::cout << " instance_id=" << *issue.instance_id;
+        }
+        if (issue.level_index.has_value()) {
+            std::cout << " level_index=" << *issue.level_index;
+        }
+        if (issue.override_index.has_value()) {
+            std::cout << " override_index=" << *issue.override_index;
+        }
+        if (issue.level.has_value()) {
+            std::cout << " level=" << *issue.level;
+        }
+        std::cout << " detail=" << issue.detail << '\n';
+    }
+}
+
+auto compare_numbering_catalog_level_definition(
+    const featherdoc::numbering_level_definition &left,
+    const featherdoc::numbering_level_definition &right) -> int {
+    if (left.level != right.level) {
+        return left.level < right.level ? -1 : 1;
+    }
+    if (left.kind != right.kind) {
+        return static_cast<int>(left.kind) < static_cast<int>(right.kind) ? -1 : 1;
+    }
+    if (left.start != right.start) {
+        return left.start < right.start ? -1 : 1;
+    }
+    if (left.text_pattern != right.text_pattern) {
+        return left.text_pattern < right.text_pattern ? -1 : 1;
+    }
+    return 0;
+}
+
+auto compare_numbering_catalog_override(
+    const featherdoc::numbering_level_override_summary &left,
+    const featherdoc::numbering_level_override_summary &right) -> int {
+    if (left.level != right.level) {
+        return left.level < right.level ? -1 : 1;
+    }
+    if (left.start_override != right.start_override) {
+        return left.start_override < right.start_override ? -1 : 1;
+    }
+    if (left.level_definition.has_value() != right.level_definition.has_value()) {
+        return left.level_definition.has_value() ? 1 : -1;
+    }
+    if (left.level_definition.has_value()) {
+        return compare_numbering_catalog_level_definition(*left.level_definition,
+                                                          *right.level_definition);
+    }
+    return 0;
+}
+
+auto sorted_numbering_catalog_levels(
+    const std::vector<featherdoc::numbering_level_definition> &levels)
+    -> std::vector<featherdoc::numbering_level_definition> {
+    auto sorted_levels = levels;
+    std::sort(sorted_levels.begin(), sorted_levels.end(),
+              [](const auto &left, const auto &right) {
+                  return left.level < right.level;
+              });
+    return sorted_levels;
+}
+
+auto sorted_numbering_catalog_overrides(
+    const std::vector<featherdoc::numbering_level_override_summary> &overrides)
+    -> std::vector<featherdoc::numbering_level_override_summary> {
+    auto sorted_overrides = overrides;
+    std::sort(sorted_overrides.begin(), sorted_overrides.end(),
+              [](const auto &left, const auto &right) {
+                  return left.level < right.level;
+              });
+    return sorted_overrides;
+}
+
+auto diff_numbering_catalog_levels(
+    const std::vector<featherdoc::numbering_level_definition> &left,
+    const std::vector<featherdoc::numbering_level_definition> &right,
+    changed_numbering_catalog_definition &definition_diff) -> void {
+    const auto left_levels = sorted_numbering_catalog_levels(left);
+    const auto right_levels = sorted_numbering_catalog_levels(right);
+    std::size_t left_index = 0U;
+    std::size_t right_index = 0U;
+    while (left_index < left_levels.size() && right_index < right_levels.size()) {
+        if (left_levels[left_index].level < right_levels[right_index].level) {
+            definition_diff.removed_levels.push_back(left_levels[left_index++]);
+            continue;
+        }
+        if (left_levels[left_index].level > right_levels[right_index].level) {
+            definition_diff.added_levels.push_back(right_levels[right_index++]);
+            continue;
+        }
+        if (compare_numbering_catalog_level_definition(left_levels[left_index],
+                                                       right_levels[right_index]) != 0) {
+            definition_diff.changed_levels.push_back(
+                {left_levels[left_index], right_levels[right_index]});
+        }
+        ++left_index;
+        ++right_index;
+    }
+    definition_diff.removed_levels.insert(definition_diff.removed_levels.end(),
+                                          left_levels.begin() +
+                                              static_cast<std::ptrdiff_t>(left_index),
+                                          left_levels.end());
+    definition_diff.added_levels.insert(definition_diff.added_levels.end(),
+                                        right_levels.begin() +
+                                            static_cast<std::ptrdiff_t>(right_index),
+                                        right_levels.end());
+}
+
+auto diff_numbering_catalog_overrides(
+    const std::vector<featherdoc::numbering_level_override_summary> &left,
+    const std::vector<featherdoc::numbering_level_override_summary> &right,
+    std::size_t instance_index) -> numbering_catalog_instance_diff_result {
+    auto result = numbering_catalog_instance_diff_result{};
+    result.instance_index = instance_index;
+    const auto left_overrides = sorted_numbering_catalog_overrides(left);
+    const auto right_overrides = sorted_numbering_catalog_overrides(right);
+    std::size_t left_index = 0U;
+    std::size_t right_index = 0U;
+    while (left_index < left_overrides.size() && right_index < right_overrides.size()) {
+        if (left_overrides[left_index].level < right_overrides[right_index].level) {
+            result.removed_overrides.push_back(left_overrides[left_index++]);
+            continue;
+        }
+        if (left_overrides[left_index].level > right_overrides[right_index].level) {
+            result.added_overrides.push_back(right_overrides[right_index++]);
+            continue;
+        }
+        if (compare_numbering_catalog_override(left_overrides[left_index],
+                                               right_overrides[right_index]) != 0) {
+            result.changed_overrides.push_back(
+                {left_overrides[left_index], right_overrides[right_index]});
+        }
+        ++left_index;
+        ++right_index;
+    }
+    result.removed_overrides.insert(result.removed_overrides.end(),
+                                    left_overrides.begin() +
+                                        static_cast<std::ptrdiff_t>(left_index),
+                                    left_overrides.end());
+    result.added_overrides.insert(result.added_overrides.end(),
+                                  right_overrides.begin() +
+                                      static_cast<std::ptrdiff_t>(right_index),
+                                  right_overrides.end());
+    return result;
+}
+
+auto diff_numbering_catalog_instances(
+    const std::vector<featherdoc::numbering_instance_summary> &left,
+    const std::vector<featherdoc::numbering_instance_summary> &right,
+    changed_numbering_catalog_definition &definition_diff) -> void {
+    const auto common_count = std::min(left.size(), right.size());
+    for (std::size_t index = 0U; index < common_count; ++index) {
+        auto instance_diff = diff_numbering_catalog_overrides(
+            left[index].level_overrides, right[index].level_overrides, index);
+        if (!instance_diff.equal()) {
+            definition_diff.changed_instances.push_back(std::move(instance_diff));
+        }
+    }
+    if (left.size() > common_count) {
+        definition_diff.removed_instances.insert(
+            definition_diff.removed_instances.end(),
+            left.begin() + static_cast<std::ptrdiff_t>(common_count), left.end());
+    }
+    if (right.size() > common_count) {
+        definition_diff.added_instances.insert(
+            definition_diff.added_instances.end(),
+            right.begin() + static_cast<std::ptrdiff_t>(common_count), right.end());
+    }
+}
+
+auto diff_numbering_catalogs(const featherdoc::numbering_catalog &left,
+                             const featherdoc::numbering_catalog &right)
+    -> numbering_catalog_diff_result {
+    auto result = numbering_catalog_diff_result{};
+    std::vector<bool> matched_right(right.definitions.size(), false);
+
+    for (const auto &left_definition : left.definitions) {
+        const auto right_it = std::find_if(
+            right.definitions.begin(), right.definitions.end(),
+            [&](const auto &right_definition) {
+                return right_definition.definition.name ==
+                       left_definition.definition.name;
+            });
+        if (right_it == right.definitions.end()) {
+            result.removed_definitions.push_back(left_definition);
+            continue;
+        }
+
+        const auto right_index = static_cast<std::size_t>(
+            std::distance(right.definitions.begin(), right_it));
+        matched_right[right_index] = true;
+
+        auto definition_diff = changed_numbering_catalog_definition{};
+        definition_diff.name = left_definition.definition.name;
+        diff_numbering_catalog_levels(left_definition.definition.levels,
+                                      right_it->definition.levels,
+                                      definition_diff);
+        diff_numbering_catalog_instances(left_definition.instances,
+                                         right_it->instances, definition_diff);
+        if (!definition_diff.equal()) {
+            result.changed_definitions.push_back(std::move(definition_diff));
+        }
+    }
+
+    for (std::size_t index = 0U; index < right.definitions.size(); ++index) {
+        if (!matched_right[index]) {
+            result.added_definitions.push_back(right.definitions[index]);
+        }
+    }
+
+    return result;
+}
+
+void write_json_numbering_catalog_changed_level(
+    std::ostream &stream, const changed_numbering_catalog_level &changed_level) {
+    stream << "{\"left\":";
+    write_json_numbering_level_definition(stream, changed_level.left);
+    stream << ",\"right\":";
+    write_json_numbering_level_definition(stream, changed_level.right);
+    stream << '}';
+}
+
+void write_json_numbering_catalog_changed_override(
+    std::ostream &stream, const changed_numbering_catalog_override &changed_override) {
+    stream << "{\"left\":";
+    write_json_numbering_level_override_summary(stream, changed_override.left);
+    stream << ",\"right\":";
+    write_json_numbering_level_override_summary(stream, changed_override.right);
+    stream << '}';
+}
+
+void write_json_numbering_catalog_instance_diff(
+    std::ostream &stream, const numbering_catalog_instance_diff_result &diff) {
+    stream << "{\"instance_index\":" << diff.instance_index
+           << ",\"added_override_count\":" << diff.added_overrides.size()
+           << ",\"removed_override_count\":" << diff.removed_overrides.size()
+           << ",\"changed_override_count\":" << diff.changed_overrides.size()
+           << ",\"added_overrides\":[";
+    for (std::size_t index = 0U; index < diff.added_overrides.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_level_override_summary(stream,
+                                                    diff.added_overrides[index]);
+    }
+    stream << "],\"removed_overrides\":[";
+    for (std::size_t index = 0U; index < diff.removed_overrides.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_level_override_summary(stream,
+                                                    diff.removed_overrides[index]);
+    }
+    stream << "],\"changed_overrides\":[";
+    for (std::size_t index = 0U; index < diff.changed_overrides.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_catalog_changed_override(stream,
+                                                      diff.changed_overrides[index]);
+    }
+    stream << "]}";
+}
+
+void write_json_numbering_catalog_changed_definition(
+    std::ostream &stream,
+    const changed_numbering_catalog_definition &definition_diff) {
+    stream << "{\"name\":";
+    write_json_string(stream, definition_diff.name);
+    stream << ",\"added_level_count\":" << definition_diff.added_levels.size()
+           << ",\"removed_level_count\":" << definition_diff.removed_levels.size()
+           << ",\"changed_level_count\":" << definition_diff.changed_levels.size()
+           << ",\"added_instance_count\":"
+           << definition_diff.added_instances.size()
+           << ",\"removed_instance_count\":"
+           << definition_diff.removed_instances.size()
+           << ",\"changed_instance_count\":"
+           << definition_diff.changed_instances.size()
+           << ",\"added_levels\":[";
+    for (std::size_t index = 0U; index < definition_diff.added_levels.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_level_definition(stream,
+                                              definition_diff.added_levels[index]);
+    }
+    stream << "],\"removed_levels\":[";
+    for (std::size_t index = 0U; index < definition_diff.removed_levels.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_level_definition(stream,
+                                              definition_diff.removed_levels[index]);
+    }
+    stream << "],\"changed_levels\":[";
+    for (std::size_t index = 0U; index < definition_diff.changed_levels.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_catalog_changed_level(
+            stream, definition_diff.changed_levels[index]);
+    }
+    stream << "],\"added_instances\":[";
+    for (std::size_t index = 0U; index < definition_diff.added_instances.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_instance_summary(stream,
+                                              definition_diff.added_instances[index]);
+    }
+    stream << "],\"removed_instances\":[";
+    for (std::size_t index = 0U; index < definition_diff.removed_instances.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_instance_summary(stream,
+                                              definition_diff.removed_instances[index]);
+    }
+    stream << "],\"changed_instances\":[";
+    for (std::size_t index = 0U; index < definition_diff.changed_instances.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_catalog_instance_diff(
+            stream, definition_diff.changed_instances[index]);
+    }
+    stream << "]}";
+}
+
+void write_json_numbering_catalog_diff_result(
+    std::ostream &stream, const numbering_catalog_diff_result &result) {
+    stream << "{\"equal\":" << json_bool(result.equal())
+           << ",\"added_definition_count\":" << result.added_definitions.size()
+           << ",\"removed_definition_count\":"
+           << result.removed_definitions.size()
+           << ",\"changed_definition_count\":"
+           << result.changed_definitions.size() << ",\"added_definitions\":[";
+    for (std::size_t index = 0U; index < result.added_definitions.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_catalog_definition(stream,
+                                                result.added_definitions[index]);
+    }
+    stream << "],\"removed_definitions\":[";
+    for (std::size_t index = 0U; index < result.removed_definitions.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_catalog_definition(stream,
+                                                result.removed_definitions[index]);
+    }
+    stream << "],\"changed_definitions\":[";
+    for (std::size_t index = 0U; index < result.changed_definitions.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_numbering_catalog_changed_definition(
+            stream, result.changed_definitions[index]);
+    }
+    stream << "]}\n";
+}
+
+void print_numbering_catalog_diff_result(
+    const numbering_catalog_diff_result &result, bool json_output) {
+    if (json_output) {
+        write_json_numbering_catalog_diff_result(std::cout, result);
+        return;
+    }
+
+    std::cout << "equal: " << yes_no(result.equal()) << '\n'
+              << "added_definition_count: " << result.added_definitions.size()
+              << '\n'
+              << "removed_definition_count: "
+              << result.removed_definitions.size() << '\n'
+              << "changed_definition_count: "
+              << result.changed_definitions.size() << '\n';
+}
+
+void print_checked_numbering_catalog_result(
+    const path_type &catalog_path,
+    const numbering_catalog_lint_result &baseline_lint,
+    const numbering_catalog_lint_result &generated_lint,
+    const numbering_catalog_diff_result &diff,
+    const std::optional<path_type> &output_path, bool json_output) {
+    const auto clean = baseline_lint.clean() && generated_lint.clean();
+    if (json_output) {
+        std::cout << "{\"command\":\"check-numbering-catalog\","
+                  << "\"matches\":" << json_bool(diff.equal())
+                  << ",\"clean\":" << json_bool(clean)
+                  << ",\"catalog_file\":";
+        write_json_string(std::cout, catalog_path.string());
+        if (output_path.has_value()) {
+            std::cout << ",\"generated_output_path\":";
+            write_json_string(std::cout, output_path->string());
+        }
+        std::cout << ",\"baseline_issue_count\":"
+                  << baseline_lint.issues.size()
+                  << ",\"generated_issue_count\":"
+                  << generated_lint.issues.size()
+                  << ",\"added_definition_count\":"
+                  << diff.added_definitions.size()
+                  << ",\"removed_definition_count\":"
+                  << diff.removed_definitions.size()
+                  << ",\"changed_definition_count\":"
+                  << diff.changed_definitions.size()
+                  << ",\"baseline_issues\":[";
+        write_json_numbering_catalog_lint_issues(std::cout,
+                                                 baseline_lint.issues);
+        std::cout << "],\"generated_issues\":[";
+        write_json_numbering_catalog_lint_issues(std::cout,
+                                                 generated_lint.issues);
+        std::cout << "],\"added_definitions\":[";
+        for (std::size_t index = 0U; index < diff.added_definitions.size();
+             ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_numbering_catalog_definition(
+                std::cout, diff.added_definitions[index]);
+        }
+        std::cout << "],\"removed_definitions\":[";
+        for (std::size_t index = 0U; index < diff.removed_definitions.size();
+             ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_numbering_catalog_definition(
+                std::cout, diff.removed_definitions[index]);
+        }
+        std::cout << "],\"changed_definitions\":[";
+        for (std::size_t index = 0U; index < diff.changed_definitions.size();
+             ++index) {
+            if (index != 0U) {
+                std::cout << ',';
+            }
+            write_json_numbering_catalog_changed_definition(
+                std::cout, diff.changed_definitions[index]);
+        }
+        std::cout << "]}\n";
+        return;
+    }
+
+    std::cout << "matches: " << yes_no(diff.equal()) << '\n'
+              << "clean: " << yes_no(clean) << '\n'
+              << "catalog_file: " << catalog_path.string() << '\n';
+    if (output_path.has_value()) {
+        std::cout << "generated_output_path: " << output_path->string()
+                  << '\n';
+    }
+    std::cout << "baseline_issue_count: " << baseline_lint.issues.size()
+              << '\n'
+              << "generated_issue_count: " << generated_lint.issues.size()
+              << '\n'
+              << "added_definition_count: " << diff.added_definitions.size()
+              << '\n'
+              << "removed_definition_count: " << diff.removed_definitions.size()
+              << '\n'
+              << "changed_definition_count: " << diff.changed_definitions.size()
+              << '\n';
+}
+
 auto append_validate_template_schema_file_targets(
     const path_type &schema_path,
     std::vector<validate_template_schema_target_options> &targets,
@@ -21545,6 +26259,1062 @@ auto write_template_schema_patch_file(const path_type &output_path,
     return true;
 }
 
+
+auto write_style_refactor_plan_file(
+    const path_type &output_path, const featherdoc::style_refactor_plan &plan,
+    std::string &error_message,
+    std::string_view command_name = "plan-style-refactor") -> bool {
+    std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
+    if (!stream.good()) {
+        error_message =
+            "failed to open style refactor plan output path: " + output_path.string();
+        return false;
+    }
+
+    stream << "{\"command\":";
+    write_json_string(stream, command_name);
+    stream << ',';
+    write_json_style_refactor_plan_fields(stream, plan);
+    stream << "}\n";
+    if (!stream.good()) {
+        error_message =
+            "failed to write style refactor plan output path: " + output_path.string();
+        return false;
+    }
+
+    return true;
+}
+
+auto write_style_refactor_rollback_plan_file(
+    const path_type &output_path,
+    const featherdoc::style_refactor_apply_result &result,
+    std::string &error_message) -> bool {
+    std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
+    if (!stream.good()) {
+        error_message = "failed to open style refactor rollback output path: " +
+                        output_path.string();
+        return false;
+    }
+
+    stream << "{\"command\":\"apply-style-refactor\""
+           << ",\"requested_count\":" << result.requested_count
+           << ",\"applied_count\":" << result.applied_count
+           << ",\"rollback_count\":" << result.rollback_entries.size()
+           << ",\"rollback_operations\":";
+    write_json_style_refactor_rollback_entries(stream, result.rollback_entries);
+    stream << "}\n";
+    if (!stream.good()) {
+        error_message = "failed to write style refactor rollback output path: " +
+                        output_path.string();
+        return false;
+    }
+
+    return true;
+}
+
+auto read_style_refactor_plan_content(const path_type &plan_path,
+                                      std::string &content,
+                                      std::string &error_message) -> bool {
+    std::ifstream stream(plan_path, std::ios::binary);
+    if (!stream.good()) {
+        error_message = "failed to read style refactor plan file: " +
+                        plan_path.string();
+        return false;
+    }
+
+    content.assign(std::istreambuf_iterator<char>(stream),
+                   std::istreambuf_iterator<char>());
+    return true;
+}
+
+auto parse_style_refactor_plan_action(std::string_view content,
+                                      std::size_t &index,
+                                      featherdoc::style_refactor_action &action,
+                                      std::string &error_message) -> bool {
+    std::string action_name;
+    if (!parse_json_patch_string(content, index, action_name, error_message)) {
+        return false;
+    }
+
+    if (action_name == "rename") {
+        action = featherdoc::style_refactor_action::rename;
+        return true;
+    }
+    if (action_name == "merge") {
+        action = featherdoc::style_refactor_action::merge;
+        return true;
+    }
+
+    return report_json_input_error("style refactor plan file", index,
+                                   "operation action must be 'rename' or 'merge'",
+                                   error_message);
+}
+
+auto consume_style_refactor_plan_separator(std::string_view content,
+                                           std::size_t &index, char close_char,
+                                           std::string_view error_detail,
+                                           bool &closed,
+                                           std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size()) {
+        return report_json_input_error("style refactor plan file", index,
+                                       "unexpected end of JSON", error_message);
+    }
+    if (content[index] == ',') {
+        ++index;
+        skip_json_patch_whitespace(content, index);
+        closed = false;
+        return true;
+    }
+    if (content[index] == close_char) {
+        ++index;
+        closed = true;
+        return true;
+    }
+
+    return report_json_input_error("style refactor plan file", index, error_detail,
+                                   error_message);
+}
+
+auto parse_style_refactor_plan_operation(
+    std::string_view content, std::size_t &index,
+    featherdoc::style_refactor_request &request, std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("style refactor plan file", index,
+                                       "expected operation object", error_message);
+    }
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    bool saw_action = false;
+    bool saw_source = false;
+    bool saw_target = false;
+    if (index < content.size() && content[index] == '}') {
+        return report_json_input_error("style refactor plan file", index,
+                                       "operation object must not be empty",
+                                       error_message);
+    }
+
+    while (index < content.size()) {
+        std::string member_name;
+        if (!parse_json_patch_string(content, index, member_name, error_message)) {
+            return false;
+        }
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size() || content[index] != ':') {
+            return report_json_input_error(
+                "style refactor plan file", index,
+                "expected ':' after operation object member", error_message);
+        }
+        ++index;
+
+        if (member_name == "action") {
+            if (saw_action) {
+                error_message =
+                    "JSON style refactor plan operation member 'action' must not be duplicated";
+                return false;
+            }
+            saw_action = true;
+            if (!parse_style_refactor_plan_action(content, index, request.action,
+                                                  error_message)) {
+                return false;
+            }
+        } else if (member_name == "source_style_id") {
+            if (saw_source) {
+                error_message = "JSON style refactor plan operation member "
+                                "'source_style_id' must not be duplicated";
+                return false;
+            }
+            saw_source = true;
+            if (!parse_json_patch_string(content, index, request.source_style_id,
+                                         error_message)) {
+                return false;
+            }
+        } else if (member_name == "target_style_id") {
+            if (saw_target) {
+                error_message = "JSON style refactor plan operation member "
+                                "'target_style_id' must not be duplicated";
+                return false;
+            }
+            saw_target = true;
+            if (!parse_json_patch_string(content, index, request.target_style_id,
+                                         error_message)) {
+                return false;
+            }
+        } else {
+            if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+        }
+
+        bool closed = false;
+        if (!consume_style_refactor_plan_separator(
+                content, index, '}',
+                "expected ',' or '}' after operation object member", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            break;
+        }
+    }
+
+    if (!saw_action || !saw_source || !saw_target) {
+        error_message = "JSON style refactor plan operation must contain 'action', "
+                        "'source_style_id', and 'target_style_id'";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_style_refactor_plan_operations(
+    std::string_view content, std::size_t &index,
+    std::vector<featherdoc::style_refactor_request> &requests,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("style refactor plan file", index,
+                                       "expected operations array", error_message);
+    }
+
+    requests.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        auto request = featherdoc::style_refactor_request{};
+        if (!parse_style_refactor_plan_operation(content, index, request,
+                                                 error_message)) {
+            return false;
+        }
+        requests.push_back(std::move(request));
+
+        bool closed = false;
+        if (!consume_style_refactor_plan_separator(
+                content, index, ']',
+                "expected ',' or ']' after operations array item", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            return true;
+        }
+    }
+
+    return report_json_input_error("style refactor plan file", index,
+                                   "unterminated operations array", error_message);
+}
+
+auto read_style_refactor_plan_file(
+    const path_type &plan_path,
+    std::vector<featherdoc::style_refactor_request> &requests,
+    std::string &error_message) -> bool {
+    std::string content;
+    if (!read_style_refactor_plan_content(plan_path, content, error_message)) {
+        return false;
+    }
+
+    std::size_t index = 0U;
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("style refactor plan file", index,
+                                       "expected root object", error_message);
+    }
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    bool saw_operations = false;
+    if (index < content.size() && content[index] == '}') {
+        return report_json_input_error("style refactor plan file", index,
+                                       "root object must not be empty",
+                                       error_message);
+    }
+
+    while (index < content.size()) {
+        std::string member_name;
+        if (!parse_json_patch_string(content, index, member_name, error_message)) {
+            return false;
+        }
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size() || content[index] != ':') {
+            return report_json_input_error("style refactor plan file", index,
+                                           "expected ':' after root object member",
+                                           error_message);
+        }
+        ++index;
+
+        if (member_name == "operations") {
+            if (saw_operations) {
+                error_message = "JSON style refactor plan root member 'operations' "
+                                "must not be duplicated";
+                return false;
+            }
+            saw_operations = true;
+            if (!parse_style_refactor_plan_operations(content, index, requests,
+                                                      error_message)) {
+                return false;
+            }
+        } else {
+            if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+        }
+
+        bool closed = false;
+        if (!consume_style_refactor_plan_separator(
+                content, index, '}',
+                "expected ',' or '}' after root object member", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            break;
+        }
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index != content.size()) {
+        return report_json_input_error("style refactor plan file", index,
+                                       "unexpected trailing content after root object",
+                                       error_message);
+    }
+
+    if (!saw_operations) {
+        error_message =
+            "JSON style refactor plan file must contain an 'operations' array";
+        return false;
+    }
+    if (requests.empty()) {
+        error_message =
+            "JSON style refactor plan file must contain at least one operation";
+        return false;
+    }
+
+    return true;
+}
+
+auto consume_style_refactor_rollback_separator(std::string_view content,
+                                                std::size_t &index,
+                                                char close_char,
+                                                std::string_view error_detail,
+                                                bool &closed,
+                                                std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size()) {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "unexpected end of JSON", error_message);
+    }
+    if (content[index] == ',') {
+        ++index;
+        skip_json_patch_whitespace(content, index);
+        closed = false;
+        return true;
+    }
+    if (content[index] == close_char) {
+        ++index;
+        closed = true;
+        return true;
+    }
+
+    return report_json_input_error("style refactor rollback file", index,
+                                   error_detail, error_message);
+}
+
+auto parse_json_bool_value(std::string_view content, std::size_t &index,
+                           bool &value, std::string_view member_name,
+                           std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (content.substr(index, 4U) == "true") {
+        value = true;
+        index += 4U;
+        return true;
+    }
+    if (content.substr(index, 5U) == "false") {
+        value = false;
+        index += 5U;
+        return true;
+    }
+    if (index < content.size() && content[index] == '"') {
+        std::string token;
+        if (!parse_json_patch_string(content, index, token, error_message)) {
+            return false;
+        }
+        if (parse_bool(token, value)) {
+            return true;
+        }
+    }
+
+    error_message = "JSON style refactor rollback member '" +
+                    std::string(member_name) + "' must be a boolean";
+    return false;
+}
+
+auto consume_json_null_value(std::string_view content, std::size_t &index,
+                             std::string_view member_name,
+                             std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (content.substr(index, 4U) == "null") {
+        index += 4U;
+        return true;
+    }
+
+    error_message = "JSON style refactor rollback member '" +
+                    std::string(member_name) + "' must be null";
+    return false;
+}
+
+auto parse_nullable_json_string_value(std::string_view content,
+                                      std::size_t &index,
+                                      std::string &value,
+                                      std::string_view member_name,
+                                      std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (content.substr(index, 4U) == "null") {
+        value.clear();
+        index += 4U;
+        return true;
+    }
+
+    if (index < content.size() && content[index] == '"') {
+        return parse_json_patch_string(content, index, value, error_message);
+    }
+
+    error_message = "JSON style refactor rollback member '" +
+                    std::string(member_name) + "' must be a string or null";
+    return false;
+}
+
+auto parse_style_usage_part_kind_value(
+    std::string_view content, std::size_t &index,
+    featherdoc::style_usage_part_kind &part,
+    std::string &error_message) -> bool {
+    std::string token;
+    skip_json_patch_whitespace(content, index);
+    if (!parse_json_patch_string(content, index, token, error_message)) {
+        return false;
+    }
+
+    if (token == "body") {
+        part = featherdoc::style_usage_part_kind::body;
+        return true;
+    }
+    if (token == "header") {
+        part = featherdoc::style_usage_part_kind::header;
+        return true;
+    }
+    if (token == "footer") {
+        part = featherdoc::style_usage_part_kind::footer;
+        return true;
+    }
+
+    error_message = "JSON style usage hit member 'part' must be 'body', "
+                    "'header', or 'footer'";
+    return false;
+}
+
+auto parse_style_usage_hit_kind_value(
+    std::string_view content, std::size_t &index,
+    featherdoc::style_usage_hit_kind &kind,
+    std::string &error_message) -> bool {
+    std::string token;
+    skip_json_patch_whitespace(content, index);
+    if (!parse_json_patch_string(content, index, token, error_message)) {
+        return false;
+    }
+
+    if (token == "paragraph") {
+        kind = featherdoc::style_usage_hit_kind::paragraph;
+        return true;
+    }
+    if (token == "run") {
+        kind = featherdoc::style_usage_hit_kind::run;
+        return true;
+    }
+    if (token == "table") {
+        kind = featherdoc::style_usage_hit_kind::table;
+        return true;
+    }
+
+    error_message = "JSON style usage hit member 'kind' must be 'paragraph', "
+                    "'run', or 'table'";
+    return false;
+}
+
+auto parse_style_usage_hit_section_index(
+    std::string_view content, std::size_t &index,
+    std::optional<std::size_t> &section_index,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (content.substr(index, 4U) == "null") {
+        section_index.reset();
+        index += 4U;
+        return true;
+    }
+
+    std::size_t parsed_index = 0U;
+    if (!parse_json_patch_index_value(content, index, parsed_index,
+                                      "section_index", error_message)) {
+        return false;
+    }
+    section_index = parsed_index;
+    return true;
+}
+
+auto parse_style_usage_hit_object(
+    std::string_view content, std::size_t &index,
+    featherdoc::style_usage_hit &hit, std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "expected style usage hit object",
+                                       error_message);
+    }
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    bool saw_part = false;
+    bool saw_entry_name = false;
+    bool saw_ordinal = false;
+    bool saw_kind = false;
+    bool saw_node_ordinal = false;
+
+    if (index < content.size() && content[index] == '}') {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "style usage hit object must not be empty",
+                                       error_message);
+    }
+
+    while (index < content.size()) {
+        std::string member_name;
+        if (!parse_json_patch_string(content, index, member_name, error_message)) {
+            return false;
+        }
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size() || content[index] != ':') {
+            return report_json_input_error(
+                "style refactor rollback file", index,
+                "expected ':' after style usage hit member", error_message);
+        }
+        ++index;
+
+        if (member_name == "part") {
+            saw_part = true;
+            if (!parse_style_usage_part_kind_value(content, index, hit.part,
+                                                   error_message)) {
+                return false;
+            }
+        } else if (member_name == "entry_name") {
+            saw_entry_name = true;
+            if (!parse_json_patch_string(content, index, hit.entry_name,
+                                         error_message)) {
+                return false;
+            }
+        } else if (member_name == "section_index") {
+            if (!parse_style_usage_hit_section_index(content, index,
+                                                     hit.section_index,
+                                                     error_message)) {
+                return false;
+            }
+        } else if (member_name == "ordinal") {
+            saw_ordinal = true;
+            if (!parse_json_patch_index_value(content, index, hit.ordinal,
+                                              "ordinal", error_message)) {
+                return false;
+            }
+        } else if (member_name == "node_ordinal") {
+            saw_node_ordinal = true;
+            if (!parse_json_patch_index_value(content, index, hit.node_ordinal,
+                                              "node_ordinal", error_message)) {
+                return false;
+            }
+        } else if (member_name == "kind") {
+            saw_kind = true;
+            if (!parse_style_usage_hit_kind_value(content, index, hit.kind,
+                                                  error_message)) {
+                return false;
+            }
+        } else {
+            if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+        }
+
+        bool closed = false;
+        if (!consume_style_refactor_rollback_separator(
+                content, index, '}',
+                "expected ',' or '}' after style usage hit member", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            break;
+        }
+    }
+
+    if (!saw_part || !saw_entry_name || !saw_ordinal || !saw_kind) {
+        error_message = "JSON style usage hit must contain 'part', 'entry_name', "
+                        "'ordinal', and 'kind'";
+        return false;
+    }
+    if (!saw_node_ordinal) {
+        hit.node_ordinal = hit.ordinal;
+    }
+
+    return true;
+}
+
+auto parse_style_usage_hits_array(
+    std::string_view content, std::size_t &index,
+    std::vector<featherdoc::style_usage_hit> &hits,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "expected style usage hits array",
+                                       error_message);
+    }
+
+    hits.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        auto hit = featherdoc::style_usage_hit{};
+        if (!parse_style_usage_hit_object(content, index, hit, error_message)) {
+            return false;
+        }
+        hits.push_back(std::move(hit));
+
+        bool closed = false;
+        if (!consume_style_refactor_rollback_separator(
+                content, index, ']',
+                "expected ',' or ']' after style usage hit", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            return true;
+        }
+    }
+
+    return report_json_input_error("style refactor rollback file", index,
+                                   "unterminated style usage hits array",
+                                   error_message);
+}
+
+auto parse_style_usage_summary_object(
+    std::string_view content, std::size_t &index,
+    featherdoc::style_usage_summary &usage,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "expected style usage object",
+                                       error_message);
+    }
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    bool saw_style_id = false;
+    bool saw_hits = false;
+    if (index < content.size() && content[index] == '}') {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "style usage object must not be empty",
+                                       error_message);
+    }
+
+    while (index < content.size()) {
+        std::string member_name;
+        if (!parse_json_patch_string(content, index, member_name, error_message)) {
+            return false;
+        }
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size() || content[index] != ':') {
+            return report_json_input_error(
+                "style refactor rollback file", index,
+                "expected ':' after style usage object member", error_message);
+        }
+        ++index;
+
+        if (member_name == "style_id") {
+            saw_style_id = true;
+            if (!parse_json_patch_string(content, index, usage.style_id,
+                                         error_message)) {
+                return false;
+            }
+        } else if (member_name == "paragraph_count") {
+            if (!parse_json_patch_index_value(content, index,
+                                              usage.paragraph_count,
+                                              "paragraph_count",
+                                              error_message)) {
+                return false;
+            }
+        } else if (member_name == "run_count") {
+            if (!parse_json_patch_index_value(content, index, usage.run_count,
+                                              "run_count", error_message)) {
+                return false;
+            }
+        } else if (member_name == "table_count") {
+            if (!parse_json_patch_index_value(content, index, usage.table_count,
+                                              "table_count", error_message)) {
+                return false;
+            }
+        } else if (member_name == "hits") {
+            saw_hits = true;
+            if (!parse_style_usage_hits_array(content, index, usage.hits,
+                                              error_message)) {
+                return false;
+            }
+        } else {
+            if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+        }
+
+        bool closed = false;
+        if (!consume_style_refactor_rollback_separator(
+                content, index, '}',
+                "expected ',' or '}' after style usage object member", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            break;
+        }
+    }
+
+    if (!saw_style_id || !saw_hits) {
+        error_message = "JSON style usage object must contain 'style_id' and 'hits'";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_style_refactor_rollback_entry(
+    std::string_view content, std::size_t &index,
+    featherdoc::style_refactor_rollback_entry &entry,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "expected rollback operation object",
+                                       error_message);
+    }
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    bool saw_action = false;
+    bool saw_source = false;
+    bool saw_target = false;
+    if (index < content.size() && content[index] == '}') {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "rollback operation object must not be empty",
+                                       error_message);
+    }
+
+    while (index < content.size()) {
+        std::string member_name;
+        if (!parse_json_patch_string(content, index, member_name, error_message)) {
+            return false;
+        }
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size() || content[index] != ':') {
+            return report_json_input_error(
+                "style refactor rollback file", index,
+                "expected ':' after rollback operation member", error_message);
+        }
+        ++index;
+
+        if (member_name == "action") {
+            saw_action = true;
+            if (!parse_style_refactor_plan_action(content, index, entry.action,
+                                                  error_message)) {
+                return false;
+            }
+        } else if (member_name == "source_style_id") {
+            saw_source = true;
+            if (!parse_json_patch_string(content, index, entry.source_style_id,
+                                         error_message)) {
+                return false;
+            }
+        } else if (member_name == "target_style_id") {
+            saw_target = true;
+            if (!parse_json_patch_string(content, index, entry.target_style_id,
+                                         error_message)) {
+                return false;
+            }
+        } else if (member_name == "automatic") {
+            if (!parse_json_bool_value(content, index, entry.automatic,
+                                       member_name, error_message)) {
+                return false;
+            }
+        } else if (member_name == "restorable") {
+            if (!parse_json_bool_value(content, index, entry.restorable,
+                                       member_name, error_message)) {
+                return false;
+            }
+        } else if (member_name == "note") {
+            if (!parse_nullable_json_string_value(content, index, entry.note,
+                                                  member_name, error_message)) {
+                return false;
+            }
+        } else if (member_name == "source_style_xml") {
+            if (!parse_nullable_json_string_value(content, index,
+                                                  entry.source_style_xml,
+                                                  member_name, error_message)) {
+                return false;
+            }
+        } else if (member_name == "source_usage") {
+            skip_json_patch_whitespace(content, index);
+            if (content.substr(index, 4U) == "null") {
+                if (!consume_json_null_value(content, index, member_name,
+                                             error_message)) {
+                    return false;
+                }
+                entry.source_usage.reset();
+            } else {
+                auto usage = featherdoc::style_usage_summary{};
+                if (!parse_style_usage_summary_object(content, index, usage,
+                                                      error_message)) {
+                    return false;
+                }
+                entry.source_usage = std::move(usage);
+            }
+        } else {
+            if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+        }
+
+        bool closed = false;
+        if (!consume_style_refactor_rollback_separator(
+                content, index, '}',
+                "expected ',' or '}' after rollback operation member", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            break;
+        }
+    }
+
+    if (!saw_action || !saw_source || !saw_target) {
+        error_message = "JSON style refactor rollback operation must contain "
+                        "'action', 'source_style_id', and 'target_style_id'";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_style_refactor_rollback_entries(
+    std::string_view content, std::size_t &index,
+    std::vector<featherdoc::style_refactor_rollback_entry> &entries,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "expected rollback_operations array",
+                                       error_message);
+    }
+
+    entries.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        auto entry = featherdoc::style_refactor_rollback_entry{};
+        if (!parse_style_refactor_rollback_entry(content, index, entry,
+                                                 error_message)) {
+            return false;
+        }
+        entries.push_back(std::move(entry));
+
+        bool closed = false;
+        if (!consume_style_refactor_rollback_separator(
+                content, index, ']',
+                "expected ',' or ']' after rollback operation", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            return true;
+        }
+    }
+
+    return report_json_input_error("style refactor rollback file", index,
+                                   "unterminated rollback_operations array",
+                                   error_message);
+}
+
+auto read_style_refactor_rollback_content(const path_type &rollback_path,
+                                          std::string &content,
+                                          std::string &error_message) -> bool {
+    std::ifstream stream(rollback_path, std::ios::binary);
+    if (!stream.good()) {
+        error_message = "failed to read style refactor rollback file: " +
+                        rollback_path.string();
+        return false;
+    }
+
+    content.assign(std::istreambuf_iterator<char>(stream),
+                   std::istreambuf_iterator<char>());
+    return true;
+}
+
+auto read_style_refactor_rollback_file(
+    const path_type &rollback_path, const std::vector<std::size_t> &entry_indexes,
+    const std::vector<std::string> &source_style_ids,
+    const std::vector<std::string> &target_style_ids,
+    std::vector<featherdoc::style_refactor_rollback_entry> &entries,
+    std::string &error_message) -> bool {
+    std::string content;
+    if (!read_style_refactor_rollback_content(rollback_path, content,
+                                              error_message)) {
+        return false;
+    }
+
+    std::size_t index = 0U;
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "expected root object", error_message);
+    }
+
+    auto parsed_entries = std::vector<featherdoc::style_refactor_rollback_entry>{};
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    bool saw_rollback_operations = false;
+    if (index < content.size() && content[index] == '}') {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "root object must not be empty",
+                                       error_message);
+    }
+
+    while (index < content.size()) {
+        std::string member_name;
+        if (!parse_json_patch_string(content, index, member_name, error_message)) {
+            return false;
+        }
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size() || content[index] != ':') {
+            return report_json_input_error(
+                "style refactor rollback file", index,
+                "expected ':' after root object member", error_message);
+        }
+        ++index;
+
+        if (member_name == "rollback_operations") {
+            if (saw_rollback_operations) {
+                error_message = "JSON style refactor rollback root member "
+                                "'rollback_operations' must not be duplicated";
+                return false;
+            }
+            saw_rollback_operations = true;
+            if (!parse_style_refactor_rollback_entries(content, index,
+                                                       parsed_entries,
+                                                       error_message)) {
+                return false;
+            }
+        } else {
+            if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+        }
+
+        bool closed = false;
+        if (!consume_style_refactor_rollback_separator(
+                content, index, '}',
+                "expected ',' or '}' after root object member", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            break;
+        }
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index != content.size()) {
+        return report_json_input_error("style refactor rollback file", index,
+                                       "unexpected trailing content after root object",
+                                       error_message);
+    }
+    if (!saw_rollback_operations) {
+        error_message = "JSON style refactor rollback file must contain a "
+                        "'rollback_operations' array";
+        return false;
+    }
+
+    const auto matches_style_selection = [&](const auto &entry) {
+        if (!source_style_ids.empty() &&
+            std::find(source_style_ids.begin(), source_style_ids.end(),
+                      entry.source_style_id) == source_style_ids.end()) {
+            return false;
+        }
+        if (!target_style_ids.empty() &&
+            std::find(target_style_ids.begin(), target_style_ids.end(),
+                      entry.target_style_id) == target_style_ids.end()) {
+            return false;
+        }
+        return true;
+    };
+
+    entries.clear();
+    if (!entry_indexes.empty()) {
+        for (const auto entry_index : entry_indexes) {
+            if (entry_index >= parsed_entries.size()) {
+                error_message = "style refactor rollback --entry index is out of range";
+                return false;
+            }
+            if (parsed_entries[entry_index].action !=
+                featherdoc::style_refactor_action::merge) {
+                error_message = "style refactor rollback --entry must reference a "
+                                "merge rollback operation";
+                return false;
+            }
+            entries.push_back(std::move(parsed_entries[entry_index]));
+        }
+    } else {
+        for (auto &entry : parsed_entries) {
+            if (entry.action == featherdoc::style_refactor_action::merge &&
+                matches_style_selection(entry)) {
+                entries.push_back(std::move(entry));
+            }
+        }
+    }
+
+    if (entries.empty()) {
+        if (!source_style_ids.empty() || !target_style_ids.empty()) {
+            error_message = "JSON style refactor rollback file does not contain any "
+                            "merge rollback operations matching restore selection";
+        } else {
+            error_message = "JSON style refactor rollback file does not contain any "
+                            "merge rollback operations to restore";
+        }
+        return false;
+    }
+
+    return true;
+}
+
 auto append_exported_section_targets(featherdoc::Document &doc,
                                      exported_template_schema_result &result,
                                      std::string_view command, bool json_output)
@@ -21797,11 +27567,6 @@ int main(int argc, char **argv) {
             return 2;
         }
 
-        if (options.usage_output && !options.style_id.has_value()) {
-            print_parse_error(command, "--usage requires --style", json_output);
-            return 2;
-        }
-
         if (!open_document(path_type(std::string(arguments[1])), doc, command,
                            options.json_output)) {
             return 1;
@@ -21826,6 +27591,18 @@ int main(int argc, char **argv) {
             }
 
             inspect_style(*style, usage, options.json_output);
+            return 0;
+        }
+
+        if (options.usage_output) {
+            const auto report = doc.list_style_usage();
+            if (!report.has_value()) {
+                report_document_error(command, "inspect", doc.last_error(),
+                                      options.json_output);
+                return 1;
+            }
+
+            inspect_style_usage_report(*report, options.json_output);
             return 0;
         }
 
@@ -21872,6 +27649,462 @@ int main(int argc, char **argv) {
         }
 
         inspect_resolved_style_properties(*resolved, options.json_output);
+        return 0;
+    }
+
+    if (command == "plan-style-refactor") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(command, "plan-style-refactor expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        auto options = style_refactor_plan_options{};
+        std::string error_message;
+        if (!parse_style_refactor_plan_options(arguments, 2U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto plan = doc.plan_style_refactor(options.requests);
+        if (!plan.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (options.output_plan_path.has_value() &&
+            !write_style_refactor_plan_file(*options.output_plan_path, *plan,
+                                            error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write style refactor plan output",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        inspect_style_refactor_plan(*plan, options.json_output);
+        return plan->clean() ? 0 : 1;
+    }
+
+    if (command == "suggest-style-merges") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(command, "suggest-style-merges expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        auto options = style_merge_suggestion_options{};
+        std::string error_message;
+        if (!parse_style_merge_suggestion_options(arguments, 2U, options,
+                                                  error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        auto plan = doc.suggest_style_merges();
+        if (!plan.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+        if (options.min_confidence.has_value()) {
+            plan = filter_style_refactor_plan_by_min_confidence(
+                std::move(*plan), *options.min_confidence);
+        }
+
+        if (options.output_plan_path.has_value() &&
+            !write_style_refactor_plan_file(*options.output_plan_path, *plan,
+                                            error_message, command)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write style merge suggestions",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        inspect_style_refactor_plan(*plan, options.json_output, command);
+        return plan->clean() ? 0 : 1;
+    }
+
+    if (command == "apply-style-refactor") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(command, "apply-style-refactor expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        auto options = style_refactor_apply_options{};
+        std::string error_message;
+        if (!parse_style_refactor_apply_options(arguments, 2U, options,
+                                               error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (options.plan_file_path.has_value() &&
+            !read_style_refactor_plan_file(*options.plan_file_path,
+                                           options.requests, error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto result = doc.apply_style_refactor(options.requests);
+        if (!result.has_value()) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!result->applied()) {
+            inspect_style_refactor_apply_result(*result, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.rollback_plan_path.has_value() &&
+            !write_style_refactor_rollback_plan_file(*options.rollback_plan_path,
+                                                     *result, error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(
+                command, "output",
+                "failed to write style refactor rollback output", error_info,
+                options.json_output);
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&result, &options](std::ostream &stream) {
+                    write_json_style_refactor_apply_result_fields(stream,
+                                                                   *result);
+                    if (options.plan_file_path.has_value()) {
+                        stream << ",\"plan_file\":";
+                        write_json_string(stream, options.plan_file_path->string());
+                    }
+                    if (options.rollback_plan_path.has_value()) {
+                        stream << ",\"rollback_plan_file\":";
+                        write_json_string(stream,
+                                          options.rollback_plan_path->string());
+                    }
+                });
+            return 0;
+        }
+
+        inspect_style_refactor_apply_result(*result, false);
+        return 0;
+    }
+
+    if (command == "restore-style-merge") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(command, "restore-style-merge expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        auto options = style_merge_restore_options{};
+        std::string error_message;
+        if (!parse_style_merge_restore_options(arguments, 2U, options,
+                                               error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        auto rollback_entries =
+            std::vector<featherdoc::style_refactor_rollback_entry>{};
+        if (!read_style_refactor_rollback_file(*options.rollback_plan_path,
+                                               options.entry_indexes,
+                                               options.source_style_ids,
+                                               options.target_style_ids,
+                                               rollback_entries, error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto result = options.dry_run
+            ? doc.plan_style_refactor_restore(rollback_entries)
+            : doc.restore_style_refactor(rollback_entries);
+        if (!result.has_value()) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!result->restored()) {
+            inspect_style_refactor_restore_result(*result, options.json_output);
+            return 1;
+        }
+
+        if (options.dry_run) {
+            if (options.json_output) {
+                std::cout << "{\"command\":\"restore-style-merge\",\"ok\":"
+                          << json_bool(result->restored());
+                write_json_style_refactor_restore_result_fields(std::cout, *result);
+                std::cout << ",\"rollback_plan_file\":";
+                write_json_string(std::cout, options.rollback_plan_path->string());
+                write_json_style_refactor_restore_selection(std::cout, options);
+                std::cout << "}\n";
+                return 0;
+            }
+
+            inspect_style_refactor_restore_result(*result, false);
+            return 0;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&result, &options](std::ostream &stream) {
+                    write_json_style_refactor_restore_result_fields(stream, *result);
+                    stream << ",\"rollback_plan_file\":";
+                    write_json_string(stream, options.rollback_plan_path->string());
+                    write_json_style_refactor_restore_selection(stream, options);
+                });
+            return 0;
+        }
+
+        inspect_style_refactor_restore_result(*result, false);
+        return 0;
+    }
+
+    if (command == "rename-style") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "rename-style expects an input path, an old style id, and a new style id",
+                json_output);
+            return 2;
+        }
+
+        const auto old_style_id = std::string(arguments[2]);
+        const auto new_style_id = std::string(arguments[3]);
+        rename_style_options options;
+        std::string error_message;
+        if (!parse_rename_style_options(arguments, 4U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.rename_style(old_style_id, new_style_id)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto style = doc.find_style(new_style_id);
+        if (!style.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&old_style_id, &new_style_id, &style](std::ostream &stream) {
+                    stream << ",\"old_style_id\":";
+                    write_json_string(stream, old_style_id);
+                    stream << ",\"new_style_id\":";
+                    write_json_string(stream, new_style_id);
+                    stream << ",\"style\":";
+                    write_json_style_summary(stream, *style);
+                });
+            return 0;
+        }
+
+        inspect_style(*style, std::nullopt, false);
+        return 0;
+    }
+
+    if (command == "merge-style") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "merge-style expects an input path, a source style id, and a target style id",
+                json_output);
+            return 2;
+        }
+
+        const auto source_style_id = std::string(arguments[2]);
+        const auto target_style_id = std::string(arguments[3]);
+        merge_style_options options;
+        std::string error_message;
+        if (!parse_rename_style_options(arguments, 4U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.merge_style(source_style_id, target_style_id)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto style = doc.find_style(target_style_id);
+        if (!style.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&source_style_id, &target_style_id, &style](std::ostream &stream) {
+                    stream << ",\"source_style_id\":";
+                    write_json_string(stream, source_style_id);
+                    stream << ",\"target_style_id\":";
+                    write_json_string(stream, target_style_id);
+                    stream << ",\"style\":";
+                    write_json_style_summary(stream, *style);
+                });
+            return 0;
+        }
+
+        inspect_style(*style, std::nullopt, false);
+        return 0;
+    }
+
+    if (command == "plan-prune-unused-styles") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(command,
+                              "plan-prune-unused-styles expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        for (std::size_t index = 2U; index < arguments.size(); ++index) {
+            if (arguments[index] == "--json") {
+                continue;
+            }
+            print_parse_error(command, "unknown option: " + std::string(arguments[index]),
+                              json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           json_output)) {
+            return 1;
+        }
+
+        const auto plan = doc.plan_prune_unused_styles();
+        if (!plan.has_value()) {
+            report_document_error(command, "inspect", doc.last_error(), json_output);
+            return 1;
+        }
+
+        if (json_output) {
+            std::cout << "{\"command\":\"plan-prune-unused-styles\",\"ok\":true";
+            write_json_style_prune_plan(std::cout, *plan);
+            std::cout << "}\n";
+            return 0;
+        }
+
+        print_style_prune_plan(*plan);
+        return 0;
+    }
+
+    if (command == "prune-unused-styles") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(command,
+                              "prune-unused-styles expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        prune_unused_styles_options options;
+        std::string error_message;
+        if (!parse_rename_style_options(arguments, 2U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto summary = doc.prune_unused_styles();
+        if (!summary.has_value()) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&summary](std::ostream &stream) {
+                    write_json_style_prune_summary(stream, *summary);
+                });
+            return 0;
+        }
+
+        print_style_prune_summary(*summary);
         return 0;
     }
 
@@ -21942,6 +28175,535 @@ int main(int argc, char **argv) {
         }
 
         inspect_numbering(definitions, options.json_output);
+        return 0;
+    }
+
+    if (command == "inspect-style-numbering") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(
+                command, "inspect-style-numbering expects an input path",
+                json_output);
+            return 2;
+        }
+
+        inspect_options options;
+        std::string error_message;
+        if (!parse_inspect_options(arguments, 2U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto styles = doc.list_styles();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "inspect", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        inspect_styles(filter_numbered_paragraph_styles(styles),
+                       options.json_output);
+        return 0;
+    }
+
+
+    if (command == "audit-style-numbering") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(
+                command, "audit-style-numbering expects an input path",
+                json_output);
+            return 2;
+        }
+
+        audit_style_numbering_options options;
+        std::string error_message;
+        if (!parse_audit_style_numbering_options(arguments, 2U, options,
+                                                 error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto styles = doc.list_styles();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "audit", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto definitions = doc.list_numbering_definitions();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "audit", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto result = audit_style_numbering(styles, definitions);
+        inspect_style_numbering_audit(result, options.json_output);
+        if (options.fail_on_issue && !style_numbering_audit_clean(result)) {
+            return 1;
+        }
+        return 0;
+    }
+
+
+    if (command == "repair-style-numbering") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(
+                command, "repair-style-numbering expects an input path",
+                json_output);
+            return 2;
+        }
+
+        repair_style_numbering_options options;
+        std::string error_message;
+        if (!parse_repair_style_numbering_options(arguments, 2U, options,
+                                                  error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        auto catalog = featherdoc::numbering_catalog{};
+        if (options.catalog_path.has_value() &&
+            !read_numbering_catalog_file(*options.catalog_path, catalog,
+                                         error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto styles = doc.list_styles();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "repair", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        const auto definitions = doc.list_numbering_definitions();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "repair", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        auto result = style_numbering_repair_result{};
+        result.apply = options.apply;
+        result.catalog_path = options.catalog_path;
+        result.output_path = options.output_path;
+        result.before = audit_style_numbering(styles, definitions);
+        result.applyable_suggestions =
+            collect_applyable_style_numbering_repair_suggestions(
+                result.before.suggestions);
+
+        if (options.apply) {
+            if (options.catalog_path.has_value()) {
+                const auto import_summary = doc.import_numbering_catalog(catalog);
+                if (!static_cast<bool>(import_summary)) {
+                    report_document_error(command, "repair", doc.last_error(),
+                                          options.json_output);
+                    return 1;
+                }
+                result.catalog_import = import_summary;
+
+                const auto catalog_repaired_styles = doc.list_styles();
+                if (const auto &error_info = doc.last_error(); error_info.code) {
+                    report_document_error(command, "repair", error_info,
+                                          options.json_output);
+                    return 1;
+                }
+                const auto catalog_repaired_definitions =
+                    doc.list_numbering_definitions();
+                if (const auto &error_info = doc.last_error(); error_info.code) {
+                    report_document_error(command, "repair", error_info,
+                                          options.json_output);
+                    return 1;
+                }
+                const auto catalog_repaired_audit = audit_style_numbering(
+                    catalog_repaired_styles, catalog_repaired_definitions);
+                result.applyable_suggestions =
+                    collect_applyable_style_numbering_repair_suggestions(
+                        catalog_repaired_audit.suggestions);
+            }
+
+            for (const auto &suggestion : result.applyable_suggestions) {
+                switch (suggestion.action) {
+                case style_numbering_repair_action::clear_style_numbering:
+                    if (!doc.clear_paragraph_style_numbering(suggestion.style_id)) {
+                        report_document_error(command, "repair", doc.last_error(),
+                                              options.json_output);
+                        return 1;
+                    }
+                    ++result.applied_count;
+                    break;
+                case style_numbering_repair_action::align_with_based_on_numbering:
+                case style_numbering_repair_action::relink_style_numbering:
+                    if (!suggestion.target_definition_id.has_value() ||
+                        !suggestion.target_level.has_value()) {
+                        break;
+                    }
+                    if (!doc.set_paragraph_style_numbering(
+                            suggestion.style_id, *suggestion.target_definition_id,
+                            *suggestion.target_level)) {
+                        report_document_error(command, "repair", doc.last_error(),
+                                              options.json_output);
+                        return 1;
+                    }
+                    ++result.applied_count;
+                    break;
+                case style_numbering_repair_action::add_numbering_level:
+                case style_numbering_repair_action::rename_numbering_definition:
+                case style_numbering_repair_action::manual_review:
+                    break;
+                }
+            }
+
+            const auto repaired_styles = doc.list_styles();
+            if (const auto &error_info = doc.last_error(); error_info.code) {
+                report_document_error(command, "repair", error_info,
+                                      options.json_output);
+                return 1;
+            }
+            const auto repaired_definitions = doc.list_numbering_definitions();
+            if (const auto &error_info = doc.last_error(); error_info.code) {
+                report_document_error(command, "repair", error_info,
+                                      options.json_output);
+                return 1;
+            }
+            result.after = audit_style_numbering(repaired_styles,
+                                                 repaired_definitions);
+
+            if (!save_document(doc, options.output_path, command,
+                               options.json_output)) {
+                return 1;
+            }
+        }
+
+        inspect_style_numbering_repair(result, options.json_output);
+        return 0;
+    }
+
+    if (command == "export-numbering-catalog") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command,
+                              "export-numbering-catalog expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        export_numbering_catalog_options options;
+        std::string error_message;
+        if (!parse_export_numbering_catalog_options(arguments, 2U, options,
+                                                    error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto catalog = doc.export_numbering_catalog();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "export", error_info,
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!options.output_path.has_value()) {
+            write_json_numbering_catalog(std::cout, catalog);
+            std::cout << '\n';
+            return 0;
+        }
+
+        if (!write_numbering_catalog_file(*options.output_path, catalog,
+                                          error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write numbering catalog output",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        print_exported_numbering_catalog_summary(catalog, options.output_path,
+                                                 options.json_output);
+        return 0;
+    }
+
+    if (command == "import-numbering-catalog") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(
+                command,
+                "import-numbering-catalog expects an input path and --catalog-file <catalog.json>",
+                json_output);
+            return 2;
+        }
+
+        import_numbering_catalog_options options;
+        std::string error_message;
+        if (!parse_import_numbering_catalog_options(arguments, 2U, options,
+                                                    error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        featherdoc::numbering_catalog catalog;
+        if (!read_numbering_catalog_file(*options.catalog_path, catalog,
+                                         error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto summary = doc.import_numbering_catalog(catalog);
+        if (!static_cast<bool>(summary)) {
+            report_document_error(command, "import", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&summary, &options](std::ostream &stream) {
+                    stream << ",\"catalog_file\":";
+                    write_json_string(stream, options.catalog_path->string());
+                    stream << ',';
+                    write_json_numbering_catalog_import_summary(stream, summary);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "patch-numbering-catalog") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(command,
+                              "patch-numbering-catalog expects a catalog path and "
+                              "--patch-file <patch.json>",
+                              json_output);
+            return 2;
+        }
+
+        patch_numbering_catalog_options options;
+        std::string error_message;
+        if (!parse_patch_numbering_catalog_options(arguments, 2U, options,
+                                                   error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        featherdoc::numbering_catalog catalog;
+        if (!read_numbering_catalog_file(path_type(std::string(arguments[1])),
+                                         catalog, error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        numbering_catalog_patch_document patch;
+        if (!read_numbering_catalog_patch_file(*options.patch_path, patch,
+                                               error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        numbering_catalog_patch_summary summary;
+        if (!apply_numbering_catalog_patch(catalog, patch, summary,
+                                           error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "patch",
+                                     "failed to patch numbering catalog",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!options.output_path.has_value()) {
+            write_json_numbering_catalog(std::cout, catalog);
+            std::cout << '\n';
+            return 0;
+        }
+
+        if (!write_numbering_catalog_file(*options.output_path, catalog,
+                                          error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(command, "output",
+                                     "failed to write patched numbering catalog output",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        print_patched_numbering_catalog_summary(catalog, summary,
+                                                options.output_path,
+                                                options.json_output);
+        return 0;
+    }
+
+    if (command == "lint-numbering-catalog") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(command,
+                              "lint-numbering-catalog expects a catalog path",
+                              json_output);
+            return 2;
+        }
+
+        lint_template_schema_options options;
+        std::string error_message;
+        if (!parse_lint_template_schema_options(arguments, 2U, options,
+                                                error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        featherdoc::numbering_catalog catalog;
+        if (!read_numbering_catalog_file(path_type(std::string(arguments[1])),
+                                         catalog, error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        const auto lint = lint_numbering_catalog(catalog);
+        print_linted_numbering_catalog_result(lint, options.json_output);
+        if (!lint.clean()) {
+            return 1;
+        }
+        return 0;
+    }
+
+    if (command == "diff-numbering-catalog") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U || arguments[1].starts_with("--") ||
+            arguments[2].starts_with("--")) {
+            print_parse_error(
+                command,
+                "diff-numbering-catalog expects left and right catalog paths",
+                json_output);
+            return 2;
+        }
+
+        diff_template_schema_options options;
+        std::string error_message;
+        if (!parse_diff_template_schema_options(arguments, 3U, options,
+                                                error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        featherdoc::numbering_catalog left;
+        if (!read_numbering_catalog_file(path_type(std::string(arguments[1])), left,
+                                         error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        featherdoc::numbering_catalog right;
+        if (!read_numbering_catalog_file(path_type(std::string(arguments[2])), right,
+                                         error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        const auto result = diff_numbering_catalogs(left, right);
+        print_numbering_catalog_diff_result(result, options.json_output);
+        if (options.fail_on_diff && !result.equal()) {
+            return 1;
+        }
+        return 0;
+    }
+
+    if (command == "check-numbering-catalog") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U || arguments[1].starts_with("--")) {
+            print_parse_error(
+                command,
+                "check-numbering-catalog expects an input path and --catalog-file <catalog.json>",
+                json_output);
+            return 2;
+        }
+
+        check_numbering_catalog_options options;
+        std::string error_message;
+        if (!parse_check_numbering_catalog_options(arguments, 2U, options,
+                                                   error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        featherdoc::numbering_catalog baseline;
+        if (!read_numbering_catalog_file(*options.catalog_path, baseline,
+                                         error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+        const auto baseline_lint = lint_numbering_catalog(baseline);
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto generated = doc.export_numbering_catalog();
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "export", error_info,
+                                  options.json_output);
+            return 1;
+        }
+        const auto generated_lint = lint_numbering_catalog(generated);
+
+        if (options.output_path.has_value() &&
+            !write_numbering_catalog_file(*options.output_path, generated,
+                                          error_message)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::io_error);
+            error_info.detail = std::move(error_message);
+            report_operation_failure(
+                command, "output",
+                "failed to write generated numbering catalog output",
+                error_info, options.json_output);
+            return 1;
+        }
+
+        const auto result = diff_numbering_catalogs(baseline, generated);
+        print_checked_numbering_catalog_result(
+            *options.catalog_path, baseline_lint, generated_lint, result,
+            options.output_path, options.json_output);
+        if (!baseline_lint.clean() || !generated_lint.clean() ||
+            !result.equal()) {
+            return 1;
+        }
         return 0;
     }
 

@@ -454,6 +454,59 @@ struct template_schema {
     std::vector<featherdoc::template_schema_entry> entries;
 };
 
+struct template_schema_slot_selector {
+    featherdoc::template_schema_part_selector target{};
+    std::string bookmark_name;
+};
+
+struct template_schema_slot_rename {
+    featherdoc::template_schema_slot_selector slot{};
+    std::string new_bookmark_name;
+};
+
+struct template_schema_patch {
+    std::vector<featherdoc::template_schema_entry> upsert_slots;
+    std::vector<featherdoc::template_schema_part_selector> remove_targets;
+    std::vector<featherdoc::template_schema_slot_selector> remove_slots;
+    std::vector<featherdoc::template_schema_slot_rename> rename_slots;
+};
+
+struct template_schema_normalization_summary {
+    std::size_t original_slots{};
+    std::size_t final_slots{};
+    std::size_t duplicate_slots_removed{};
+    bool reordered_or_normalized{false};
+
+    [[nodiscard]] bool changed() const noexcept {
+        return this->duplicate_slots_removed > 0U ||
+               this->original_slots != this->final_slots ||
+               this->reordered_or_normalized;
+    }
+};
+
+struct template_schema_patch_summary {
+    std::size_t removed_targets{};
+    std::size_t removed_slots{};
+    std::size_t renamed_slots{};
+    std::size_t inserted_slots{};
+    std::size_t replaced_slots{};
+
+    [[nodiscard]] bool changed() const noexcept {
+        return this->removed_targets > 0U || this->removed_slots > 0U ||
+               this->renamed_slots > 0U || this->inserted_slots > 0U ||
+               this->replaced_slots > 0U;
+    }
+};
+
+[[nodiscard]] template_schema_normalization_summary normalize_template_schema(
+    featherdoc::template_schema &schema);
+[[nodiscard]] template_schema_patch_summary merge_template_schema(
+    featherdoc::template_schema &base, const featherdoc::template_schema &overlay);
+[[nodiscard]] template_schema_patch_summary apply_template_schema_patch(
+    featherdoc::template_schema &schema, const featherdoc::template_schema_patch &patch);
+[[nodiscard]] featherdoc::template_schema_patch build_template_schema_patch(
+    const featherdoc::template_schema &left, const featherdoc::template_schema &right);
+
 struct template_schema_part_validation_result {
     featherdoc::template_schema_part_selector target{};
     std::string entry_name;
@@ -683,6 +736,7 @@ struct style_usage_hit {
     featherdoc::style_usage_hit_kind kind{featherdoc::style_usage_hit_kind::paragraph};
     std::string entry_name;
     std::size_t ordinal{0};
+    std::size_t node_ordinal{0};
     std::optional<std::size_t> section_index;
     std::vector<featherdoc::style_usage_hit_reference> references{};
 };
@@ -699,6 +753,252 @@ struct style_usage_summary {
 
     [[nodiscard]] std::size_t total_count() const {
         return paragraph_count + run_count + table_count;
+    }
+};
+
+struct style_usage_report_entry {
+    featherdoc::style_summary style{};
+    featherdoc::style_usage_summary usage{};
+};
+
+struct style_usage_report {
+    std::size_t style_count{0};
+    std::size_t used_style_count{0};
+    std::size_t unused_style_count{0};
+    std::size_t total_reference_count{0};
+    std::vector<featherdoc::style_usage_report_entry> entries{};
+};
+
+enum class style_refactor_action { rename, merge };
+
+struct style_refactor_request {
+    featherdoc::style_refactor_action action{featherdoc::style_refactor_action::rename};
+    std::string source_style_id;
+    std::string target_style_id;
+};
+
+struct style_refactor_issue {
+    std::string code;
+    std::string message;
+};
+
+struct style_refactor_suggestion {
+    std::string reason_code;
+    std::string reason;
+    std::uint32_t confidence{0};
+    std::vector<std::string> evidence{};
+    std::vector<std::string> differences{};
+};
+
+struct style_refactor_suggestion_confidence_summary {
+    std::size_t suggestion_count{0};
+    std::size_t exact_xml_match_count{0};
+    std::size_t xml_difference_count{0};
+    std::optional<std::uint32_t> min_confidence{};
+    std::optional<std::uint32_t> max_confidence{};
+    std::optional<std::uint32_t> recommended_min_confidence{};
+    std::string recommendation;
+};
+
+struct style_refactor_operation_plan {
+    featherdoc::style_refactor_action action{featherdoc::style_refactor_action::rename};
+    std::string source_style_id;
+    std::string target_style_id;
+    std::optional<featherdoc::style_summary> source_style{};
+    std::optional<featherdoc::style_summary> target_style{};
+    std::optional<featherdoc::style_usage_summary> source_usage{};
+    std::optional<featherdoc::style_refactor_suggestion> suggestion{};
+    std::vector<featherdoc::style_refactor_issue> issues{};
+    bool applyable{false};
+};
+
+struct style_refactor_plan {
+    std::size_t operation_count{0};
+    std::size_t applyable_count{0};
+    std::size_t issue_count{0};
+    std::vector<featherdoc::style_refactor_operation_plan> operations{};
+
+    [[nodiscard]] featherdoc::style_refactor_suggestion_confidence_summary
+    suggestion_confidence_summary() const {
+        auto summary = featherdoc::style_refactor_suggestion_confidence_summary{};
+        auto exact_xml_min_confidence = std::optional<std::uint32_t>{};
+
+        for (const auto &operation : operations) {
+            if (!operation.suggestion.has_value()) {
+                continue;
+            }
+
+            const auto &suggestion = *operation.suggestion;
+            ++summary.suggestion_count;
+            if (!summary.min_confidence.has_value() ||
+                suggestion.confidence < *summary.min_confidence) {
+                summary.min_confidence = suggestion.confidence;
+            }
+            if (!summary.max_confidence.has_value() ||
+                suggestion.confidence > *summary.max_confidence) {
+                summary.max_confidence = suggestion.confidence;
+            }
+
+            if (suggestion.reason_code == "matching_style_signature_and_xml") {
+                ++summary.exact_xml_match_count;
+                if (!exact_xml_min_confidence.has_value() ||
+                    suggestion.confidence < *exact_xml_min_confidence) {
+                    exact_xml_min_confidence = suggestion.confidence;
+                }
+            } else if (suggestion.reason_code == "matching_resolved_style_signature") {
+                ++summary.xml_difference_count;
+            }
+        }
+
+        if (summary.suggestion_count == 0U) {
+            summary.recommendation =
+                "No automatic style merge suggestions are present.";
+            return summary;
+        }
+
+        if (summary.exact_xml_match_count != 0U) {
+            summary.recommended_min_confidence = exact_xml_min_confidence;
+            summary.recommendation =
+                summary.exact_xml_match_count == summary.suggestion_count
+                    ? "All suggestions are exact style XML matches; use the "
+                      "recommended minimum confidence for automation gates."
+                    : "Use the recommended minimum confidence to keep exact "
+                      "style XML matches and review lower-confidence XML "
+                      "differences manually.";
+            return summary;
+        }
+
+        summary.recommended_min_confidence = summary.max_confidence;
+        summary.recommendation =
+            "No exact style XML matches are present; keep these suggestions in "
+            "manual review workflows.";
+        return summary;
+    }
+
+    [[nodiscard]] bool clean() const noexcept {
+        return issue_count == 0U;
+    }
+};
+
+struct style_refactor_rollback_entry {
+    featherdoc::style_refactor_action action{featherdoc::style_refactor_action::rename};
+    std::string source_style_id;
+    std::string target_style_id;
+    bool automatic{false};
+    bool restorable{false};
+    std::string note;
+    std::string source_style_xml;
+    std::optional<featherdoc::style_usage_summary> source_usage{};
+};
+
+struct style_refactor_apply_result {
+    featherdoc::style_refactor_plan plan{};
+    std::size_t requested_count{0};
+    std::size_t applied_count{0};
+    std::vector<featherdoc::style_refactor_rollback_entry> rollback_entries{};
+    bool changed{false};
+
+    [[nodiscard]] std::size_t skipped_count() const noexcept {
+        return requested_count >= applied_count ? requested_count - applied_count : 0U;
+    }
+
+    [[nodiscard]] bool applied() const noexcept {
+        return plan.clean() && applied_count == requested_count;
+    }
+};
+
+struct style_refactor_restore_issue {
+    std::string code;
+    std::string message;
+    std::string suggestion;
+};
+
+struct style_refactor_restore_issue_summary {
+    std::string code;
+    std::size_t count{0};
+    std::string suggestion;
+};
+
+struct style_refactor_restore_operation_result {
+    featherdoc::style_refactor_action action{featherdoc::style_refactor_action::merge};
+    std::string source_style_id;
+    std::string target_style_id;
+    bool restorable{false};
+    bool restored{false};
+    bool style_restored{false};
+    std::size_t restored_reference_count{0};
+    std::vector<featherdoc::style_refactor_restore_issue> issues{};
+};
+
+struct style_refactor_restore_result {
+    std::size_t requested_count{0};
+    std::size_t restored_count{0};
+    std::size_t restored_style_count{0};
+    std::size_t restored_reference_count{0};
+    std::vector<featherdoc::style_refactor_restore_operation_result> operations{};
+    bool changed{false};
+    bool dry_run{false};
+
+    [[nodiscard]] std::size_t skipped_count() const noexcept {
+        return requested_count >= restored_count ? requested_count - restored_count : 0U;
+    }
+
+    [[nodiscard]] std::size_t issue_count() const noexcept {
+        auto count = std::size_t{0};
+        for (const auto &operation : operations) {
+            count += operation.issues.size();
+        }
+        return count;
+    }
+
+    [[nodiscard]] std::vector<featherdoc::style_refactor_restore_issue_summary>
+    issue_summary() const {
+        auto summaries =
+            std::vector<featherdoc::style_refactor_restore_issue_summary>{};
+        for (const auto &operation : operations) {
+            for (const auto &issue : operation.issues) {
+                auto matched = false;
+                for (auto &summary : summaries) {
+                    if (summary.code == issue.code) {
+                        ++summary.count;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    summaries.push_back({issue.code, 1U, issue.suggestion});
+                }
+            }
+        }
+        return summaries;
+    }
+
+    [[nodiscard]] bool clean() const noexcept {
+        return issue_count() == 0U;
+    }
+
+    [[nodiscard]] bool restored() const noexcept {
+        return clean() && restored_count == requested_count;
+    }
+};
+
+struct style_prune_plan {
+    std::size_t scanned_style_count{0};
+    std::size_t protected_style_count{0};
+    std::vector<std::string> removable_style_ids{};
+
+    [[nodiscard]] bool changed() const noexcept {
+        return !removable_style_ids.empty();
+    }
+};
+
+struct style_prune_summary {
+    std::size_t scanned_style_count{0};
+    std::size_t protected_style_count{0};
+    std::vector<std::string> removed_style_ids{};
+
+    [[nodiscard]] bool changed() const noexcept {
+        return !removed_style_ids.empty();
     }
 };
 
@@ -756,6 +1056,32 @@ struct numbering_instance_lookup_summary {
     std::uint32_t definition_id{};
     std::string definition_name;
     featherdoc::numbering_instance_summary instance;
+};
+
+struct numbering_catalog_definition {
+    featherdoc::numbering_definition definition{};
+    std::vector<featherdoc::numbering_instance_summary> instances;
+};
+
+struct numbering_catalog {
+    std::vector<featherdoc::numbering_catalog_definition> definitions;
+};
+
+struct imported_numbering_definition_summary {
+    std::string name;
+    std::uint32_t definition_id{};
+    std::vector<std::uint32_t> instance_ids;
+};
+
+struct numbering_catalog_import_summary {
+    std::size_t input_definition_count{};
+    std::size_t imported_definition_count{};
+    std::size_t imported_instance_count{};
+    std::vector<featherdoc::imported_numbering_definition_summary> definitions;
+
+    explicit operator bool() const noexcept {
+        return this->input_definition_count == this->imported_definition_count;
+    }
 };
 
 struct paragraph_inspection_summary {
@@ -995,6 +1321,10 @@ class Document {
     [[nodiscard]] std::error_code ensure_numbering_part_attached();
     [[nodiscard]] std::error_code ensure_styles_loaded();
     [[nodiscard]] std::error_code ensure_styles_part_attached();
+    [[nodiscard]] std::optional<featherdoc::style_refactor_restore_result>
+    restore_style_refactor(
+        const std::vector<featherdoc::style_refactor_rollback_entry> &rollback_entries,
+        bool apply_changes);
     [[nodiscard]] std::error_code ensure_even_and_odd_headers_enabled();
     [[nodiscard]] std::optional<bool> inspect_even_and_odd_headers_enabled();
     [[nodiscard]] pugi::xml_node section_properties(std::size_t section_index) const;
@@ -1296,6 +1626,9 @@ class Document {
     find_numbering_definition(std::uint32_t definition_id);
     [[nodiscard]] std::optional<featherdoc::numbering_instance_lookup_summary>
     find_numbering_instance(std::uint32_t instance_id);
+    [[nodiscard]] featherdoc::numbering_catalog export_numbering_catalog();
+    [[nodiscard]] featherdoc::numbering_catalog_import_summary import_numbering_catalog(
+        const featherdoc::numbering_catalog &catalog);
     [[nodiscard]] std::optional<std::uint32_t> ensure_numbering_definition(
         const featherdoc::numbering_definition &definition);
     [[nodiscard]] bool set_paragraph_numbering(Paragraph paragraph,
@@ -1330,6 +1663,28 @@ class Document {
     resolve_style_properties(std::string_view style_id);
     [[nodiscard]] std::optional<featherdoc::style_usage_summary> find_style_usage(
         std::string_view style_id);
+    [[nodiscard]] std::optional<featherdoc::style_usage_report> list_style_usage();
+    [[nodiscard]] std::optional<featherdoc::style_refactor_plan>
+    plan_style_refactor(
+        const std::vector<featherdoc::style_refactor_request> &requests);
+    [[nodiscard]] std::optional<featherdoc::style_refactor_plan>
+    suggest_style_merges();
+    [[nodiscard]] std::optional<featherdoc::style_refactor_apply_result>
+    apply_style_refactor(
+        const std::vector<featherdoc::style_refactor_request> &requests);
+    [[nodiscard]] std::optional<featherdoc::style_refactor_restore_result>
+    plan_style_refactor_restore(
+        const std::vector<featherdoc::style_refactor_rollback_entry> &rollback_entries);
+    [[nodiscard]] std::optional<featherdoc::style_refactor_restore_result>
+    restore_style_refactor(
+        const std::vector<featherdoc::style_refactor_rollback_entry> &rollback_entries);
+    [[nodiscard]] bool rename_style(std::string_view old_style_id,
+                                    std::string_view new_style_id);
+    [[nodiscard]] bool merge_style(std::string_view source_style_id,
+                                   std::string_view target_style_id);
+    [[nodiscard]] std::optional<featherdoc::style_prune_plan>
+    plan_prune_unused_styles();
+    [[nodiscard]] std::optional<featherdoc::style_prune_summary> prune_unused_styles();
     [[nodiscard]] bool ensure_paragraph_style(
         std::string_view style_id,
         const featherdoc::paragraph_style_definition &definition);

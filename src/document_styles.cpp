@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -1012,16 +1013,145 @@ auto node_style_reference_matches(pugi::xml_node node, const char *properties_na
     return std::string_view{style_value.value()} == style_id;
 }
 
+auto rewrite_style_reference_value(pugi::xml_attribute value_attribute,
+                                   std::string_view old_style_id,
+                                   std::string_view new_style_id) -> bool {
+    if (value_attribute == pugi::xml_attribute{} ||
+        std::string_view{value_attribute.value()} != old_style_id) {
+        return false;
+    }
+
+    value_attribute.set_value(std::string{new_style_id}.c_str());
+    return true;
+}
+
+auto rewrite_style_reference_child(pugi::xml_node node, const char *properties_name,
+                                   const char *style_name,
+                                   std::string_view old_style_id,
+                                   std::string_view new_style_id) -> bool {
+    return rewrite_style_reference_value(
+        node.child(properties_name).child(style_name).attribute("w:val"), old_style_id,
+        new_style_id);
+}
+
+auto rewrite_style_metadata_reference(pugi::xml_node style, const char *child_name,
+                                      std::string_view old_style_id,
+                                      std::string_view new_style_id) -> bool {
+    return rewrite_style_reference_value(style.child(child_name).attribute("w:val"),
+                                         old_style_id, new_style_id);
+}
+
+auto rewrite_style_metadata_references_in_styles(pugi::xml_node styles_root,
+                                                 std::string_view old_style_id,
+                                                 std::string_view new_style_id) -> bool {
+    auto changed = false;
+    for (auto style = styles_root.child("w:style"); style != pugi::xml_node{};
+         style = style.next_sibling("w:style")) {
+        changed = rewrite_style_metadata_reference(style, "w:basedOn", old_style_id,
+                                                   new_style_id) ||
+                  changed;
+        changed = rewrite_style_metadata_reference(style, "w:next", old_style_id,
+                                                   new_style_id) ||
+                  changed;
+        changed = rewrite_style_metadata_reference(style, "w:link", old_style_id,
+                                                   new_style_id) ||
+                  changed;
+    }
+    return changed;
+}
+
+void collect_style_reference_value(pugi::xml_attribute value_attribute,
+                                   std::unordered_set<std::string> &style_ids) {
+    if (value_attribute == pugi::xml_attribute{} || value_attribute.value()[0] == '\0') {
+        return;
+    }
+
+    style_ids.emplace(value_attribute.value());
+}
+
+void collect_style_reference_child(pugi::xml_node node, const char *properties_name,
+                                   const char *style_name,
+                                   std::unordered_set<std::string> &style_ids) {
+    collect_style_reference_value(
+        node.child(properties_name).child(style_name).attribute("w:val"), style_ids);
+}
+
+void collect_style_references_in_tree(pugi::xml_node node,
+                                      std::unordered_set<std::string> &style_ids) {
+    if (node == pugi::xml_node{}) {
+        return;
+    }
+
+    const auto node_name = std::string_view{node.name()};
+    if (node_name == "w:p") {
+        collect_style_reference_child(node, "w:pPr", "w:pStyle", style_ids);
+    } else if (node_name == "w:r") {
+        collect_style_reference_child(node, "w:rPr", "w:rStyle", style_ids);
+    } else if (node_name == "w:tbl") {
+        collect_style_reference_child(node, "w:tblPr", "w:tblStyle", style_ids);
+    }
+
+    for (auto child = node.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        collect_style_references_in_tree(child, style_ids);
+    }
+}
+
+void append_style_dependency_ids(pugi::xml_node style,
+                                 std::vector<std::string> &dependencies) {
+    for (const auto *child_name : {"w:basedOn", "w:next", "w:link"}) {
+        const auto value = style.child(child_name).attribute("w:val");
+        if (value == pugi::xml_attribute{} || value.value()[0] == '\0') {
+            continue;
+        }
+        dependencies.emplace_back(value.value());
+    }
+}
+
+auto rewrite_style_references_in_tree(pugi::xml_node node,
+                                      std::string_view old_style_id,
+                                      std::string_view new_style_id) -> bool {
+    if (node == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto changed = false;
+    const auto node_name = std::string_view{node.name()};
+    if (node_name == "w:p") {
+        changed = rewrite_style_reference_child(node, "w:pPr", "w:pStyle",
+                                                old_style_id, new_style_id) ||
+                  changed;
+    } else if (node_name == "w:r") {
+        changed = rewrite_style_reference_child(node, "w:rPr", "w:rStyle",
+                                                old_style_id, new_style_id) ||
+                  changed;
+    } else if (node_name == "w:tbl") {
+        changed = rewrite_style_reference_child(node, "w:tblPr", "w:tblStyle",
+                                                old_style_id, new_style_id) ||
+                  changed;
+    }
+
+    for (auto child = node.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        changed = rewrite_style_references_in_tree(child, old_style_id, new_style_id) ||
+                  changed;
+    }
+
+    return changed;
+}
+
 void append_style_usage_hit(std::vector<featherdoc::style_usage_hit> &hits,
                             featherdoc::style_usage_part_kind part_kind,
                             featherdoc::style_usage_hit_kind hit_kind,
                             std::string_view entry_name, std::size_t ordinal,
+                            std::size_t node_ordinal,
                             std::optional<std::size_t> section_index = std::nullopt) {
     auto hit = featherdoc::style_usage_hit{};
     hit.part = part_kind;
     hit.kind = hit_kind;
     hit.entry_name = std::string{entry_name};
     hit.ordinal = ordinal;
+    hit.node_ordinal = node_ordinal;
     hit.section_index = section_index;
     hits.push_back(std::move(hit));
 }
@@ -1057,6 +1187,27 @@ auto style_usage_reference_kind(std::string_view xml_reference_type)
     return featherdoc::section_reference_kind::default_reference;
 }
 
+struct style_usage_node_ordinals {
+    std::size_t paragraph{0};
+    std::size_t run{0};
+    std::size_t table{0};
+};
+
+auto increment_style_usage_node_ordinal(
+    style_usage_node_ordinals &ordinals,
+    featherdoc::style_usage_hit_kind hit_kind) -> std::size_t {
+    switch (hit_kind) {
+    case featherdoc::style_usage_hit_kind::paragraph:
+        return ++ordinals.paragraph;
+    case featherdoc::style_usage_hit_kind::run:
+        return ++ordinals.run;
+    case featherdoc::style_usage_hit_kind::table:
+        return ++ordinals.table;
+    }
+
+    return 0U;
+}
+
 void apply_style_usage_hit_references(
     std::vector<featherdoc::style_usage_hit> &hits,
     const std::unordered_map<std::string,
@@ -1086,45 +1237,55 @@ void collect_style_usage(pugi::xml_node node, std::string_view style_id,
                          std::string_view entry_name,
                          std::vector<featherdoc::style_usage_hit> *hits,
                          std::size_t &part_ordinal,
+                         style_usage_node_ordinals &node_ordinals,
                          std::optional<std::size_t> section_index = std::nullopt) {
     if (node == pugi::xml_node{}) {
         return;
     }
 
     const auto node_name = std::string_view{node.name()};
-    if (node_name == "w:p" &&
-        node_style_reference_matches(node, "w:pPr", "w:pStyle", style_id)) {
-        ++usage.paragraph_count;
-        ++part_ordinal;
-        if (hits != nullptr) {
-            append_style_usage_hit(*hits, part_kind,
-                                   featherdoc::style_usage_hit_kind::paragraph, entry_name,
-                                   part_ordinal, section_index);
+    if (node_name == "w:p") {
+        const auto node_ordinal = increment_style_usage_node_ordinal(
+            node_ordinals, featherdoc::style_usage_hit_kind::paragraph);
+        if (node_style_reference_matches(node, "w:pPr", "w:pStyle", style_id)) {
+            ++usage.paragraph_count;
+            ++part_ordinal;
+            if (hits != nullptr) {
+                append_style_usage_hit(
+                    *hits, part_kind, featherdoc::style_usage_hit_kind::paragraph,
+                    entry_name, part_ordinal, node_ordinal, section_index);
+            }
         }
-    } else if (node_name == "w:r" &&
-               node_style_reference_matches(node, "w:rPr", "w:rStyle", style_id)) {
-        ++usage.run_count;
-        ++part_ordinal;
-        if (hits != nullptr) {
-            append_style_usage_hit(*hits, part_kind,
-                                   featherdoc::style_usage_hit_kind::run, entry_name, part_ordinal,
-                                   section_index);
+    } else if (node_name == "w:r") {
+        const auto node_ordinal = increment_style_usage_node_ordinal(
+            node_ordinals, featherdoc::style_usage_hit_kind::run);
+        if (node_style_reference_matches(node, "w:rPr", "w:rStyle", style_id)) {
+            ++usage.run_count;
+            ++part_ordinal;
+            if (hits != nullptr) {
+                append_style_usage_hit(
+                    *hits, part_kind, featherdoc::style_usage_hit_kind::run,
+                    entry_name, part_ordinal, node_ordinal, section_index);
+            }
         }
-    } else if (node_name == "w:tbl" &&
-               node_style_reference_matches(node, "w:tblPr", "w:tblStyle", style_id)) {
-        ++usage.table_count;
-        ++part_ordinal;
-        if (hits != nullptr) {
-            append_style_usage_hit(*hits, part_kind,
-                                   featherdoc::style_usage_hit_kind::table, entry_name, part_ordinal,
-                                   section_index);
+    } else if (node_name == "w:tbl") {
+        const auto node_ordinal = increment_style_usage_node_ordinal(
+            node_ordinals, featherdoc::style_usage_hit_kind::table);
+        if (node_style_reference_matches(node, "w:tblPr", "w:tblStyle", style_id)) {
+            ++usage.table_count;
+            ++part_ordinal;
+            if (hits != nullptr) {
+                append_style_usage_hit(
+                    *hits, part_kind, featherdoc::style_usage_hit_kind::table,
+                    entry_name, part_ordinal, node_ordinal, section_index);
+            }
         }
     }
 
     for (auto child = node.first_child(); child != pugi::xml_node{};
          child = child.next_sibling()) {
-        collect_style_usage(child, style_id, usage, part_kind, entry_name, hits, part_ordinal,
-                            section_index);
+        collect_style_usage(child, style_id, usage, part_kind, entry_name, hits,
+                            part_ordinal, node_ordinals, section_index);
     }
 }
 
@@ -1136,6 +1297,7 @@ void collect_body_style_usage(pugi::xml_node body, std::string_view style_id,
     }
 
     auto part_ordinal = std::size_t{0};
+    auto node_ordinals = style_usage_node_ordinals{};
     auto section_index = std::size_t{0};
     for (auto child = body.first_child(); child != pugi::xml_node{};
          child = child.next_sibling()) {
@@ -1145,7 +1307,8 @@ void collect_body_style_usage(pugi::xml_node body, std::string_view style_id,
         }
 
         collect_style_usage(child, style_id, usage, featherdoc::style_usage_part_kind::body,
-                            document_xml_entry, hits, part_ordinal, section_index);
+                            document_xml_entry, hits, part_ordinal, node_ordinals,
+                            section_index);
         if (child_name == "w:p" && child.child("w:pPr").child("w:sectPr") != pugi::xml_node{}) {
             ++section_index;
         }
@@ -1463,6 +1626,483 @@ void remove_empty_run_properties(pugi::xml_node run) {
         run.remove_child(run_properties);
     }
 }
+
+auto has_style_refactor_issue(
+    const featherdoc::style_refactor_operation_plan &operation,
+    std::string_view code) -> bool {
+    return std::any_of(operation.issues.begin(), operation.issues.end(),
+                       [code](const auto &issue) { return issue.code == code; });
+}
+
+void append_style_refactor_issue_once(
+    featherdoc::style_refactor_operation_plan &operation, std::string code,
+    std::string message) {
+    if (has_style_refactor_issue(operation, code)) {
+        return;
+    }
+    operation.issues.push_back(
+        featherdoc::style_refactor_issue{std::move(code), std::move(message)});
+}
+
+void recalculate_style_refactor_plan_counts(
+    featherdoc::style_refactor_plan &plan) {
+    plan.operation_count = plan.operations.size();
+    plan.applyable_count = 0U;
+    plan.issue_count = 0U;
+    for (auto &operation : plan.operations) {
+        operation.applyable = operation.issues.empty();
+        if (operation.applyable) {
+            ++plan.applyable_count;
+        }
+        plan.issue_count += operation.issues.size();
+    }
+}
+
+auto style_duplicate_string_key(const std::optional<std::string> &value)
+    -> std::string {
+    return value.has_value() ? *value : std::string{};
+}
+
+auto style_duplicate_bool_key(std::optional<bool> value) -> char {
+    if (!value.has_value()) {
+        return '?';
+    }
+    return *value ? '1' : '0';
+}
+
+void append_style_duplicate_key_part(std::string &key, std::string_view value) {
+    key.append(std::to_string(value.size()));
+    key.push_back(':');
+    key.append(value);
+    key.push_back('|');
+}
+
+auto style_duplicate_numbering_key(
+    const std::optional<featherdoc::style_summary::numbering_summary> &numbering)
+    -> std::string {
+    if (!numbering.has_value()) {
+        return {};
+    }
+
+    auto key = std::string{};
+    append_style_duplicate_key_part(
+        key, numbering->num_id.has_value() ? std::to_string(*numbering->num_id)
+                                         : std::string{});
+    append_style_duplicate_key_part(
+        key, numbering->level.has_value() ? std::to_string(*numbering->level)
+                                        : std::string{});
+    append_style_duplicate_key_part(
+        key, numbering->definition_id.has_value()
+                 ? std::to_string(*numbering->definition_id)
+                 : std::string{});
+    append_style_duplicate_key_part(
+        key, numbering->definition_name.value_or(std::string{}));
+    return key;
+}
+
+auto style_duplicate_signature(
+    const featherdoc::style_summary &style,
+    const featherdoc::resolved_style_properties_summary &resolved)
+    -> std::string {
+    auto key = std::string{};
+    append_style_duplicate_key_part(key, style.type_name);
+    append_style_duplicate_key_part(key, style_duplicate_string_key(style.based_on));
+    append_style_duplicate_key_part(key, style.is_semi_hidden ? "1" : "0");
+    append_style_duplicate_key_part(key, style.is_unhide_when_used ? "1" : "0");
+    append_style_duplicate_key_part(key, style.is_quick_format ? "1" : "0");
+    append_style_duplicate_key_part(key,
+                                    style_duplicate_numbering_key(style.numbering));
+    append_style_duplicate_key_part(key,
+        resolved.run_font_family.value.value_or(std::string{}));
+    append_style_duplicate_key_part(key,
+        resolved.run_east_asia_font_family.value.value_or(std::string{}));
+    append_style_duplicate_key_part(key,
+        resolved.run_language.value.value_or(std::string{}));
+    append_style_duplicate_key_part(key,
+        resolved.run_east_asia_language.value.value_or(std::string{}));
+    append_style_duplicate_key_part(key,
+        resolved.run_bidi_language.value.value_or(std::string{}));
+    append_style_duplicate_key_part(
+        key, std::string{style_duplicate_bool_key(resolved.run_rtl.value)});
+    append_style_duplicate_key_part(
+        key, std::string{style_duplicate_bool_key(resolved.paragraph_bidi.value)});
+    return key;
+}
+
+auto style_duplicate_merge_candidate(const featherdoc::style_summary &style)
+    -> bool {
+    if (style.style_id.empty() || style.is_default || !style.is_custom) {
+        return false;
+    }
+    return style.kind == featherdoc::style_kind::paragraph ||
+           style.kind == featherdoc::style_kind::character;
+}
+
+struct style_duplicate_xml_comparison {
+    bool definitions_match{false};
+    std::vector<std::string> differences{};
+};
+
+auto style_xml_ignored_attribute(std::string_view attribute_name, bool root_node)
+    -> bool {
+    return root_node && attribute_name == "w:styleId";
+}
+
+auto style_xml_ignored_child(std::string_view child_name, bool root_node) -> bool {
+    return root_node && child_name == "w:name";
+}
+
+void append_style_canonical_xml(std::string &output, pugi::xml_node node,
+                                bool root_node = false) {
+    if (node == pugi::xml_node{}) {
+        output.append("<missing/>");
+        return;
+    }
+
+    switch (node.type()) {
+    case pugi::node_element: {
+        output.push_back('<');
+        output.append(node.name());
+
+        auto attributes = std::vector<std::pair<std::string, std::string>>{};
+        for (auto attribute = node.first_attribute();
+             attribute != pugi::xml_attribute{};
+             attribute = attribute.next_attribute()) {
+            if (!style_xml_ignored_attribute(attribute.name(), root_node)) {
+                attributes.emplace_back(attribute.name(), attribute.value());
+            }
+        }
+        std::sort(attributes.begin(), attributes.end());
+        for (const auto &attribute : attributes) {
+            output.push_back(' ');
+            output.append(attribute.first);
+            output.push_back('=');
+            output.push_back('\'');
+            output.append(attribute.second);
+            output.push_back('\'');
+        }
+        output.push_back('>');
+
+        for (auto child = node.first_child(); child != pugi::xml_node{};
+             child = child.next_sibling()) {
+            if (child.type() == pugi::node_element &&
+                style_xml_ignored_child(child.name(), root_node)) {
+                continue;
+            }
+            append_style_canonical_xml(output, child, false);
+        }
+
+        output.append("</");
+        output.append(node.name());
+        output.push_back('>');
+        return;
+    }
+    case pugi::node_pcdata:
+    case pugi::node_cdata:
+        output.append(node.value());
+        return;
+    default:
+        return;
+    }
+}
+
+auto style_canonical_xml(pugi::xml_node node, bool root_node = false)
+    -> std::string {
+    auto output = std::string{};
+    append_style_canonical_xml(output, node, root_node);
+    return output;
+}
+
+auto style_xml_snapshot(pugi::xml_node style) -> std::string {
+    if (style == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto stream = std::ostringstream{};
+    style.print(stream, "", pugi::format_raw);
+    return stream.str();
+}
+
+auto style_refactor_restore_issue_suggestion(std::string_view code) -> std::string {
+    if (code == "unsupported_rollback_action") {
+        return "Select merge rollback entries only, or use the original rename-style command template for rename rollback entries.";
+    }
+    if (code == "empty_source_style_id" || code == "empty_target_style_id") {
+        return "Regenerate the rollback plan from a valid apply-style-refactor run before retrying restore.";
+    }
+    if (code == "not_restorable" || code == "missing_source_style_xml" ||
+        code == "missing_source_usage") {
+        return "Re-run apply-style-refactor with --rollback-plan so merge rollback records include source style XML and original usage hits.";
+    }
+    if (code == "source_usage_style_mismatch" ||
+        code == "source_style_xml_mismatch") {
+        return "Do not edit rollback JSON by hand; regenerate the rollback plan from the same style refactor plan.";
+    }
+    if (code == "source_style_exists") {
+        return "The source style already exists; skip this rollback entry or restore from a document where the merge is still applied.";
+    }
+    if (code == "missing_target_style") {
+        return "Restore against the merged document that still contains the target style, or recreate the target style before retrying.";
+    }
+    if (code == "invalid_source_style_xml") {
+        return "Regenerate the rollback plan; the captured source style XML snapshot is not usable.";
+    }
+    if (code == "missing_usage_part" || code == "missing_usage_hit") {
+        return "The document structure changed after the merge; restore from the original merged document or skip this entry after review.";
+    }
+    if (code == "usage_hit_not_target_style") {
+        return "The captured reference no longer points at the merge target; inspect current style usage before deciding whether to skip this entry.";
+    }
+    if (code == "source_style_insert_failed") {
+        return "Check styles.xml integrity and retry restore after repairing the styles part.";
+    }
+    return "Review the rollback entry and current document state before retrying restore.";
+}
+
+void append_style_refactor_restore_issue(
+    std::vector<featherdoc::style_refactor_restore_issue> &issues,
+    std::string code, std::string message) {
+    auto issue = featherdoc::style_refactor_restore_issue{};
+    issue.code = std::move(code);
+    issue.message = std::move(message);
+    issue.suggestion = style_refactor_restore_issue_suggestion(issue.code);
+    issues.push_back(std::move(issue));
+}
+
+auto style_usage_hit_node_name(featherdoc::style_usage_hit_kind hit_kind)
+    -> const char * {
+    switch (hit_kind) {
+    case featherdoc::style_usage_hit_kind::paragraph:
+        return "w:p";
+    case featherdoc::style_usage_hit_kind::run:
+        return "w:r";
+    case featherdoc::style_usage_hit_kind::table:
+        return "w:tbl";
+    }
+
+    return "";
+}
+
+auto style_usage_hit_properties_name(featherdoc::style_usage_hit_kind hit_kind)
+    -> const char * {
+    switch (hit_kind) {
+    case featherdoc::style_usage_hit_kind::paragraph:
+        return "w:pPr";
+    case featherdoc::style_usage_hit_kind::run:
+        return "w:rPr";
+    case featherdoc::style_usage_hit_kind::table:
+        return "w:tblPr";
+    }
+
+    return "";
+}
+
+auto style_usage_hit_style_name(featherdoc::style_usage_hit_kind hit_kind)
+    -> const char * {
+    switch (hit_kind) {
+    case featherdoc::style_usage_hit_kind::paragraph:
+        return "w:pStyle";
+    case featherdoc::style_usage_hit_kind::run:
+        return "w:rStyle";
+    case featherdoc::style_usage_hit_kind::table:
+        return "w:tblStyle";
+    }
+
+    return "";
+}
+
+auto style_usage_hit_precise_ordinal(
+    const featherdoc::style_usage_hit &hit) -> std::size_t {
+    return hit.node_ordinal != 0U ? hit.node_ordinal : hit.ordinal;
+}
+
+struct style_reference_restore_hit_result {
+    bool found{false};
+    bool changed{false};
+};
+
+void restore_style_reference_hit_in_tree(
+    pugi::xml_node node, const featherdoc::style_usage_hit &hit,
+    std::string_view target_style_id, std::string_view source_style_id,
+    bool apply_change, style_usage_node_ordinals &node_ordinals,
+    style_reference_restore_hit_result &result) {
+    if (node == pugi::xml_node{} || result.found) {
+        return;
+    }
+
+    const auto node_name = std::string_view{node.name()};
+    if (node_name == style_usage_hit_node_name(hit.kind)) {
+        const auto node_ordinal = increment_style_usage_node_ordinal(node_ordinals,
+                                                                     hit.kind);
+        if (node_ordinal == style_usage_hit_precise_ordinal(hit)) {
+            result.found = true;
+            if (apply_change) {
+                result.changed = rewrite_style_reference_child(
+                    node, style_usage_hit_properties_name(hit.kind),
+                    style_usage_hit_style_name(hit.kind), target_style_id,
+                    source_style_id);
+            } else {
+                result.changed = node_style_reference_matches(
+                    node, style_usage_hit_properties_name(hit.kind),
+                    style_usage_hit_style_name(hit.kind), target_style_id);
+            }
+            return;
+        }
+    }
+
+    for (auto child = node.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        restore_style_reference_hit_in_tree(child, hit, target_style_id,
+                                            source_style_id, apply_change,
+                                            node_ordinals, result);
+        if (result.found) {
+            return;
+        }
+    }
+}
+
+auto restore_style_reference_hit(
+    pugi::xml_node root, const featherdoc::style_usage_hit &hit,
+    std::string_view target_style_id, std::string_view source_style_id,
+    bool apply_change = true) -> style_reference_restore_hit_result {
+    auto result = style_reference_restore_hit_result{};
+    if (root == pugi::xml_node{} || style_usage_hit_precise_ordinal(hit) == 0U) {
+        return result;
+    }
+
+    auto node_ordinals = style_usage_node_ordinals{};
+    restore_style_reference_hit_in_tree(root, hit, target_style_id, source_style_id,
+                                        apply_change, node_ordinals, result);
+    return result;
+}
+
+void append_style_child_xml_difference(std::vector<std::string> &differences,
+                                       pugi::xml_node source_style,
+                                       pugi::xml_node target_style,
+                                       const char *child_name) {
+    const auto source_child = source_style.child(child_name);
+    const auto target_child = target_style.child(child_name);
+    if (source_child == pugi::xml_node{} && target_child == pugi::xml_node{}) {
+        return;
+    }
+    if (style_canonical_xml(source_child) != style_canonical_xml(target_child)) {
+        differences.emplace_back(child_name);
+    }
+}
+
+auto compare_style_duplicate_xml(pugi::xml_node source_style,
+                                 pugi::xml_node target_style)
+    -> style_duplicate_xml_comparison {
+    auto comparison = style_duplicate_xml_comparison{};
+    if (source_style == pugi::xml_node{} || target_style == pugi::xml_node{}) {
+        comparison.differences.emplace_back("missing_style_xml");
+        return comparison;
+    }
+
+    comparison.definitions_match =
+        style_canonical_xml(source_style, true) ==
+        style_canonical_xml(target_style, true);
+    if (comparison.definitions_match) {
+        return comparison;
+    }
+
+    append_style_child_xml_difference(comparison.differences, source_style,
+                                      target_style, "w:basedOn");
+    append_style_child_xml_difference(comparison.differences, source_style,
+                                      target_style, "w:next");
+    append_style_child_xml_difference(comparison.differences, source_style,
+                                      target_style, "w:link");
+    append_style_child_xml_difference(comparison.differences, source_style,
+                                      target_style, "w:pPr");
+    append_style_child_xml_difference(comparison.differences, source_style,
+                                      target_style, "w:rPr");
+    append_style_child_xml_difference(comparison.differences, source_style,
+                                      target_style, "w:tblPr");
+    append_style_child_xml_difference(comparison.differences, source_style,
+                                      target_style, "w:uiPriority");
+    append_style_child_xml_difference(comparison.differences, source_style,
+                                      target_style, "w:qFormat");
+    append_style_child_xml_difference(comparison.differences, source_style,
+                                      target_style, "w:semiHidden");
+    append_style_child_xml_difference(comparison.differences, source_style,
+                                      target_style, "w:unhideWhenUsed");
+    if (comparison.differences.empty()) {
+        comparison.differences.emplace_back("other_style_xml");
+    }
+    return comparison;
+}
+
+auto style_duplicate_merge_suggestion(
+    bool target_has_more_references,
+    const style_duplicate_xml_comparison &xml_comparison)
+    -> featherdoc::style_refactor_suggestion {
+    auto suggestion = featherdoc::style_refactor_suggestion{};
+    suggestion.reason_code = xml_comparison.definitions_match
+                                 ? "matching_style_signature_and_xml"
+                                 : "matching_resolved_style_signature";
+    suggestion.reason = xml_comparison.definitions_match
+        ? "Source and target share the supported resolved style signature, and "
+          "their style definitions also match after ignoring styleId and name."
+        : "Source and target share the supported resolved style signature, but "
+          "their raw style definitions still differ in unsupported or metadata XML.";
+    suggestion.confidence = xml_comparison.definitions_match
+                                ? (target_has_more_references ? 95U : 90U)
+                                : (target_has_more_references ? 80U : 75U);
+    suggestion.evidence = {
+        "same_style_type",
+        "same_based_on",
+        "same_visibility_flags",
+        "same_numbering_summary",
+        "same_resolved_run_properties",
+        xml_comparison.definitions_match ? "style_definition_xml_matches"
+                                         : "style_definition_xml_differs",
+        target_has_more_references ? "target_has_more_references"
+                                   : "target_selected_by_style_id_tiebreaker",
+    };
+    suggestion.differences = xml_comparison.differences;
+    return suggestion;
+}
+
+void add_style_refactor_apply_conflicts(featherdoc::style_refactor_plan &plan) {
+    auto source_operations = std::unordered_map<std::string, std::size_t>{};
+    auto rename_targets = std::unordered_map<std::string, std::size_t>{};
+
+    for (std::size_t index = 0U; index < plan.operations.size(); ++index) {
+        auto &operation = plan.operations[index];
+        if (!operation.source_style_id.empty()) {
+            const auto [iterator, inserted] =
+                source_operations.emplace(operation.source_style_id, index);
+            if (!inserted) {
+                const auto message =
+                    "source style id '" + operation.source_style_id +
+                    "' appears in multiple apply operations";
+                append_style_refactor_issue_once(
+                    plan.operations[iterator->second], "duplicate_source_operation",
+                    message);
+                append_style_refactor_issue_once(
+                    operation, "duplicate_source_operation", message);
+            }
+        }
+
+        if (operation.action == featherdoc::style_refactor_action::rename &&
+            !operation.target_style_id.empty()) {
+            const auto [iterator, inserted] =
+                rename_targets.emplace(operation.target_style_id, index);
+            if (!inserted) {
+                const auto message =
+                    "rename target style id '" + operation.target_style_id +
+                    "' is created by multiple apply operations";
+                append_style_refactor_issue_once(
+                    plan.operations[iterator->second],
+                    "duplicate_rename_target_operation", message);
+                append_style_refactor_issue_once(
+                    operation, "duplicate_rename_target_operation", message);
+            }
+        }
+    }
+
+    recalculate_style_refactor_plan_counts(plan);
+}
 } // namespace
 
 namespace featherdoc {
@@ -1754,7 +2394,7 @@ std::optional<featherdoc::style_summary> Document::find_style(std::string_view s
         return std::nullopt;
     }
 
-    const auto styles_root = this->styles.child("w:styles");
+    auto styles_root = this->styles.child("w:styles");
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
                        "word/styles.xml does not contain a w:styles root",
@@ -1930,9 +2570,10 @@ std::optional<featherdoc::style_usage_summary> Document::find_style_usage(
         }
 
         auto part_ordinal = std::size_t{0};
+        auto node_ordinals = style_usage_node_ordinals{};
         collect_style_usage(part->xml.child("w:hdr"), style_id, usage.header,
                             featherdoc::style_usage_part_kind::header, part->entry_name,
-                            &usage.hits, part_ordinal);
+                            &usage.hits, part_ordinal, node_ordinals);
     }
 
     for (const auto &part : this->footer_parts) {
@@ -1941,9 +2582,10 @@ std::optional<featherdoc::style_usage_summary> Document::find_style_usage(
         }
 
         auto part_ordinal = std::size_t{0};
+        auto node_ordinals = style_usage_node_ordinals{};
         collect_style_usage(part->xml.child("w:ftr"), style_id, usage.footer,
                             featherdoc::style_usage_part_kind::footer, part->entry_name,
-                            &usage.hits, part_ordinal);
+                            &usage.hits, part_ordinal, node_ordinals);
     }
 
     const auto build_part_references = [&](const char *reference_name, const auto &parts) {
@@ -2004,6 +2646,969 @@ std::optional<featherdoc::style_usage_summary> Document::find_style_usage(
 
     this->last_error_info.clear();
     return usage;
+}
+
+std::optional<featherdoc::style_usage_report> Document::list_style_usage() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before listing style usage",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    auto styles = this->list_styles();
+    if (const auto &error_info = this->last_error(); error_info.code) {
+        return std::nullopt;
+    }
+
+    auto report = featherdoc::style_usage_report{};
+    report.style_count = styles.size();
+    report.entries.reserve(styles.size());
+
+    for (auto &style : styles) {
+        auto usage = featherdoc::style_usage_summary{};
+        usage.style_id = style.style_id;
+
+        if (!style.style_id.empty()) {
+            auto style_usage = this->find_style_usage(style.style_id);
+            if (!style_usage.has_value()) {
+                return std::nullopt;
+            }
+            usage = std::move(*style_usage);
+        }
+
+        const auto reference_count = usage.total_count();
+        report.total_reference_count += reference_count;
+        if (reference_count == 0U) {
+            ++report.unused_style_count;
+        } else {
+            ++report.used_style_count;
+        }
+
+        report.entries.push_back(
+            featherdoc::style_usage_report_entry{std::move(style), std::move(usage)});
+    }
+
+    this->last_error_info.clear();
+    return report;
+}
+
+std::optional<featherdoc::style_refactor_plan> Document::plan_style_refactor(
+    const std::vector<featherdoc::style_refactor_request> &requests) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before planning style refactors",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    auto styles = this->list_styles();
+    if (const auto &error_info = this->last_error(); error_info.code) {
+        return std::nullopt;
+    }
+
+    auto styles_by_id = std::unordered_map<std::string, featherdoc::style_summary>{};
+    styles_by_id.reserve(styles.size());
+    for (auto &style : styles) {
+        if (!style.style_id.empty()) {
+            styles_by_id.emplace(style.style_id, std::move(style));
+        }
+    }
+
+    auto plan = featherdoc::style_refactor_plan{};
+    plan.operation_count = requests.size();
+    plan.operations.reserve(requests.size());
+
+    const auto append_issue = [](featherdoc::style_refactor_operation_plan &operation,
+                                 std::string code, std::string message) {
+        operation.issues.push_back(
+            featherdoc::style_refactor_issue{std::move(code), std::move(message)});
+    };
+
+    for (const auto &request : requests) {
+        auto operation = featherdoc::style_refactor_operation_plan{};
+        operation.action = request.action;
+        operation.source_style_id = request.source_style_id;
+        operation.target_style_id = request.target_style_id;
+
+        if (operation.source_style_id.empty()) {
+            append_issue(operation, "empty_source_style_id", "source style id must not be empty");
+        }
+        if (operation.target_style_id.empty()) {
+            append_issue(operation, "empty_target_style_id", "target style id must not be empty");
+        }
+        if (!operation.source_style_id.empty() && operation.source_style_id == operation.target_style_id) {
+            append_issue(operation, "same_style_id",
+                         "source and target style ids must be different");
+        }
+
+        if (!operation.source_style_id.empty()) {
+            const auto source_iterator = styles_by_id.find(operation.source_style_id);
+            if (source_iterator == styles_by_id.end()) {
+                append_issue(operation, "missing_source_style",
+                             "source style id '" + operation.source_style_id +
+                                 "' was not found in word/styles.xml");
+            } else {
+                operation.source_style = source_iterator->second;
+                if (source_iterator->second.is_default) {
+                    append_issue(operation, "default_source_style",
+                                 "default source style id '" + operation.source_style_id +
+                                     "' cannot be refactored");
+                }
+
+                auto source_usage = this->find_style_usage(operation.source_style_id);
+                if (!source_usage.has_value()) {
+                    return std::nullopt;
+                }
+                operation.source_usage = std::move(*source_usage);
+            }
+        }
+
+        if (!operation.target_style_id.empty()) {
+            const auto target_iterator = styles_by_id.find(operation.target_style_id);
+            if (target_iterator != styles_by_id.end()) {
+                operation.target_style = target_iterator->second;
+            }
+        }
+
+        if (operation.action == featherdoc::style_refactor_action::rename) {
+            if (operation.target_style.has_value()) {
+                append_issue(operation, "target_style_exists",
+                             "target style id '" + operation.target_style_id +
+                                 "' already exists in word/styles.xml");
+            }
+        } else {
+            if (!operation.target_style.has_value() && !operation.target_style_id.empty()) {
+                append_issue(operation, "missing_target_style",
+                             "target style id '" + operation.target_style_id +
+                                 "' was not found in word/styles.xml");
+            }
+            if (operation.source_style.has_value() && operation.target_style.has_value() &&
+                (operation.source_style->kind != operation.target_style->kind ||
+                 operation.source_style->type_name != operation.target_style->type_name)) {
+                append_issue(operation, "style_type_mismatch",
+                             "source style id '" + operation.source_style_id +
+                                 "' has type '" + operation.source_style->type_name +
+                                 "' but target style id '" + operation.target_style_id +
+                                 "' has type '" + operation.target_style->type_name + "'");
+            }
+        }
+
+        operation.applyable = operation.issues.empty();
+        if (operation.applyable) {
+            ++plan.applyable_count;
+        }
+        plan.issue_count += operation.issues.size();
+        plan.operations.push_back(std::move(operation));
+    }
+
+    this->last_error_info.clear();
+    return plan;
+}
+
+std::optional<featherdoc::style_refactor_plan>
+Document::suggest_style_merges() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before suggesting style merges",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    auto styles = this->list_styles();
+    if (const auto &error_info = this->last_error(); error_info.code) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    struct duplicate_candidate {
+        featherdoc::style_summary style{};
+        featherdoc::style_usage_summary usage{};
+        pugi::xml_node style_node{};
+    };
+
+    auto candidates_by_signature =
+        std::unordered_map<std::string, std::vector<duplicate_candidate>>{};
+
+    for (const auto &style : styles) {
+        if (!style_duplicate_merge_candidate(style)) {
+            continue;
+        }
+
+        const auto resolved = this->resolve_style_properties(style.style_id);
+        if (!resolved.has_value()) {
+            return std::nullopt;
+        }
+        const auto usage = this->find_style_usage(style.style_id);
+        if (!usage.has_value()) {
+            return std::nullopt;
+        }
+        const auto style_node = find_style_node(styles_root, style.style_id);
+
+        candidates_by_signature[style_duplicate_signature(style, *resolved)]
+            .push_back(duplicate_candidate{style, *usage, style_node});
+    }
+
+    auto requests = std::vector<featherdoc::style_refactor_request>{};
+    auto suggestions = std::vector<featherdoc::style_refactor_suggestion>{};
+    for (auto &entry : candidates_by_signature) {
+        auto &candidates = entry.second;
+        if (candidates.size() < 2U) {
+            continue;
+        }
+
+        std::sort(candidates.begin(), candidates.end(),
+                  [](const auto &left, const auto &right) {
+                      const auto left_count = left.usage.total_count();
+                      const auto right_count = right.usage.total_count();
+                      if (left_count != right_count) {
+                          return left_count > right_count;
+                      }
+                      return left.style.style_id < right.style.style_id;
+                  });
+
+        const auto target_style_id = candidates.front().style.style_id;
+        const auto target_reference_count = candidates.front().usage.total_count();
+        const auto target_style_node = candidates.front().style_node;
+        for (std::size_t index = 1U; index < candidates.size(); ++index) {
+            requests.push_back({featherdoc::style_refactor_action::merge,
+                                candidates[index].style.style_id, target_style_id});
+            suggestions.push_back(style_duplicate_merge_suggestion(
+                target_reference_count > candidates[index].usage.total_count(),
+                compare_style_duplicate_xml(candidates[index].style_node,
+                                            target_style_node)));
+        }
+    }
+
+    auto plan = this->plan_style_refactor(requests);
+    if (!plan.has_value()) {
+        return std::nullopt;
+    }
+
+    for (std::size_t index = 0U;
+         index < plan->operations.size() && index < suggestions.size(); ++index) {
+        auto &operation = plan->operations[index];
+        if (operation.action == featherdoc::style_refactor_action::merge &&
+            operation.source_style_id == requests[index].source_style_id &&
+            operation.target_style_id == requests[index].target_style_id) {
+            operation.suggestion = suggestions[index];
+        }
+    }
+
+    return plan;
+}
+
+std::optional<featherdoc::style_refactor_apply_result>
+Document::apply_style_refactor(
+    const std::vector<featherdoc::style_refactor_request> &requests) {
+    auto plan = this->plan_style_refactor(requests);
+    if (!plan.has_value()) {
+        return std::nullopt;
+    }
+
+    add_style_refactor_apply_conflicts(*plan);
+
+    auto result = featherdoc::style_refactor_apply_result{};
+    result.requested_count = requests.size();
+    result.plan = std::move(*plan);
+
+    if (!result.plan.clean()) {
+        this->last_error_info.clear();
+        return result;
+    }
+
+    for (const auto &operation : result.plan.operations) {
+        auto rollback = featherdoc::style_refactor_rollback_entry{};
+        if (operation.action == featherdoc::style_refactor_action::rename) {
+            rollback.action = featherdoc::style_refactor_action::rename;
+            rollback.source_style_id = operation.target_style_id;
+            rollback.target_style_id = operation.source_style_id;
+            rollback.automatic = true;
+            rollback.restorable = true;
+            rollback.note = "rename style back to its previous style id";
+        } else {
+            rollback.action = featherdoc::style_refactor_action::merge;
+            rollback.source_style_id = operation.source_style_id;
+            rollback.target_style_id = operation.target_style_id;
+            rollback.automatic = false;
+            rollback.source_usage = operation.source_usage;
+            if (const auto styles_root = this->styles.child("w:styles");
+                styles_root != pugi::xml_node{}) {
+                rollback.source_style_xml = style_xml_snapshot(
+                    find_style_node(styles_root, operation.source_style_id));
+            }
+            rollback.restorable = !rollback.source_style_xml.empty() &&
+                                  rollback.source_usage.has_value();
+            rollback.note = rollback.restorable
+                ? "merge source style XML and original source references were captured for a future restore workflow"
+                : "merge removed the source style definition; restore the source document or a backup before replaying dependent references";
+        }
+
+        const auto applied =
+            operation.action == featherdoc::style_refactor_action::rename
+                ? this->rename_style(operation.source_style_id,
+                                     operation.target_style_id)
+                : this->merge_style(operation.source_style_id,
+                                    operation.target_style_id);
+        if (!applied) {
+            return std::nullopt;
+        }
+        result.rollback_entries.push_back(std::move(rollback));
+        ++result.applied_count;
+    }
+
+    result.changed = result.applied_count > 0U;
+    this->last_error_info.clear();
+    return result;
+}
+
+std::optional<featherdoc::style_refactor_restore_result>
+Document::plan_style_refactor_restore(
+    const std::vector<featherdoc::style_refactor_rollback_entry> &rollback_entries) {
+    return this->restore_style_refactor(rollback_entries, false);
+}
+
+std::optional<featherdoc::style_refactor_restore_result>
+Document::restore_style_refactor(
+    const std::vector<featherdoc::style_refactor_rollback_entry> &rollback_entries) {
+    return this->restore_style_refactor(rollback_entries, true);
+}
+
+std::optional<featherdoc::style_refactor_restore_result>
+Document::restore_style_refactor(
+    const std::vector<featherdoc::style_refactor_rollback_entry> &rollback_entries,
+    bool apply_changes) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before restoring style refactors",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto document_root = this->document.child("w:document");
+    if (document_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::document_xml_parse_failed,
+                       "word/document.xml does not contain a w:document root",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    auto result = featherdoc::style_refactor_restore_result{};
+    result.requested_count = rollback_entries.size();
+    result.dry_run = !apply_changes;
+    result.operations.reserve(rollback_entries.size());
+
+    const auto find_hit_root = [&](const featherdoc::style_usage_hit &hit) {
+        if (hit.part == featherdoc::style_usage_part_kind::body) {
+            return document_root.child("w:body");
+        }
+
+        if (hit.part == featherdoc::style_usage_part_kind::header) {
+            for (const auto &part : this->header_parts) {
+                if (part && part->entry_name == hit.entry_name) {
+                    return part->xml.child("w:hdr");
+                }
+            }
+            return pugi::xml_node{};
+        }
+
+        for (const auto &part : this->footer_parts) {
+            if (part && part->entry_name == hit.entry_name) {
+                return part->xml.child("w:ftr");
+            }
+        }
+        return pugi::xml_node{};
+    };
+
+    for (const auto &entry : rollback_entries) {
+        auto operation = featherdoc::style_refactor_restore_operation_result{};
+        operation.action = entry.action;
+        operation.source_style_id = entry.source_style_id;
+        operation.target_style_id = entry.target_style_id;
+        operation.restorable = entry.restorable ||
+                               (!entry.source_style_xml.empty() &&
+                                entry.source_usage.has_value());
+
+        if (entry.action != featherdoc::style_refactor_action::merge) {
+            append_style_refactor_restore_issue(
+                operation.issues, "unsupported_rollback_action",
+                "only merge rollback entries can be restored from captured XML");
+        }
+        if (entry.source_style_id.empty()) {
+            append_style_refactor_restore_issue(
+                operation.issues, "empty_source_style_id",
+                "merge rollback source style id must not be empty");
+        }
+        if (entry.target_style_id.empty()) {
+            append_style_refactor_restore_issue(
+                operation.issues, "empty_target_style_id",
+                "merge rollback target style id must not be empty");
+        }
+        if (!operation.restorable) {
+            append_style_refactor_restore_issue(
+                operation.issues, "not_restorable",
+                "merge rollback entry does not contain a restorable style XML and usage snapshot");
+        }
+        if (entry.source_style_xml.empty()) {
+            append_style_refactor_restore_issue(
+                operation.issues, "missing_source_style_xml",
+                "merge rollback entry does not contain source style XML");
+        }
+        if (!entry.source_usage.has_value()) {
+            append_style_refactor_restore_issue(
+                operation.issues, "missing_source_usage",
+                "merge rollback entry does not contain original source usage hits");
+        } else if (!entry.source_usage->style_id.empty() &&
+                   entry.source_usage->style_id != entry.source_style_id) {
+            append_style_refactor_restore_issue(
+                operation.issues, "source_usage_style_mismatch",
+                "merge rollback source usage style id does not match the rollback source style id");
+        }
+        if (find_style_node(styles_root, entry.source_style_id) != pugi::xml_node{}) {
+            append_style_refactor_restore_issue(
+                operation.issues, "source_style_exists",
+                "source style id '" + entry.source_style_id +
+                    "' already exists in word/styles.xml");
+        }
+        if (find_style_node(styles_root, entry.target_style_id) == pugi::xml_node{}) {
+            append_style_refactor_restore_issue(
+                operation.issues, "missing_target_style",
+                "target style id '" + entry.target_style_id +
+                    "' was not found in word/styles.xml");
+        }
+
+        auto source_style_document = pugi::xml_document{};
+        pugi::xml_node source_style;
+        if (!entry.source_style_xml.empty()) {
+            const auto parsed = source_style_document.load_string(
+                entry.source_style_xml.c_str(), pugi::parse_default);
+            if (!parsed) {
+                append_style_refactor_restore_issue(
+                    operation.issues, "invalid_source_style_xml",
+                    "source style XML snapshot could not be parsed");
+            } else {
+                source_style = source_style_document.child("w:style");
+                if (source_style == pugi::xml_node{}) {
+                    source_style = source_style_document.first_child();
+                }
+                if (source_style == pugi::xml_node{} ||
+                    std::string_view{source_style.name()} != "w:style") {
+                    append_style_refactor_restore_issue(
+                        operation.issues, "invalid_source_style_xml",
+                        "source style XML snapshot must contain a w:style root");
+                } else if (std::string_view{source_style.attribute("w:styleId").value()} !=
+                           entry.source_style_id) {
+                    append_style_refactor_restore_issue(
+                        operation.issues, "source_style_xml_mismatch",
+                        "source style XML snapshot style id does not match the rollback source style id");
+                }
+            }
+        }
+
+        if (!operation.issues.empty()) {
+            result.operations.push_back(std::move(operation));
+            continue;
+        }
+
+        for (const auto &hit : entry.source_usage->hits) {
+            const auto root = find_hit_root(hit);
+            if (root == pugi::xml_node{}) {
+                append_style_refactor_restore_issue(
+                    operation.issues, "missing_usage_part",
+                    "usage hit part '" + hit.entry_name +
+                        "' was not found while restoring source references");
+                continue;
+            }
+
+            const auto hit_result = restore_style_reference_hit(
+                root, hit, entry.target_style_id, entry.source_style_id, false);
+            if (!hit_result.found) {
+                append_style_refactor_restore_issue(
+                    operation.issues, "missing_usage_hit",
+                    "usage hit ordinal could not be found while restoring source references");
+                continue;
+            }
+            if (!hit_result.changed) {
+                append_style_refactor_restore_issue(
+                    operation.issues, "usage_hit_not_target_style",
+                    "usage hit no longer references the merge target style id");
+            }
+        }
+
+        if (!operation.issues.empty()) {
+            result.operations.push_back(std::move(operation));
+            continue;
+        }
+
+        if (!apply_changes) {
+            operation.style_restored = true;
+            operation.restored_reference_count = entry.source_usage->hits.size();
+            operation.restored = true;
+            ++result.restored_count;
+            ++result.restored_style_count;
+            result.restored_reference_count += operation.restored_reference_count;
+            result.operations.push_back(std::move(operation));
+            continue;
+        }
+
+        if (styles_root.append_copy(source_style) == pugi::xml_node{}) {
+            append_style_refactor_restore_issue(
+                operation.issues, "source_style_insert_failed",
+                "source style XML snapshot could not be inserted into word/styles.xml");
+            result.operations.push_back(std::move(operation));
+            continue;
+        }
+
+        operation.style_restored = true;
+        ++result.restored_style_count;
+
+        for (const auto &hit : entry.source_usage->hits) {
+            const auto root = find_hit_root(hit);
+            if (root == pugi::xml_node{}) {
+                append_style_refactor_restore_issue(
+                    operation.issues, "missing_usage_part",
+                    "usage hit part '" + hit.entry_name +
+                        "' was not found while restoring source references");
+                continue;
+            }
+
+            const auto hit_result = restore_style_reference_hit(
+                root, hit, entry.target_style_id, entry.source_style_id);
+            if (!hit_result.found) {
+                append_style_refactor_restore_issue(
+                    operation.issues, "missing_usage_hit",
+                    "usage hit ordinal could not be found while restoring source references");
+                continue;
+            }
+            if (!hit_result.changed) {
+                append_style_refactor_restore_issue(
+                    operation.issues, "usage_hit_not_target_style",
+                    "usage hit no longer references the merge target style id");
+                continue;
+            }
+
+            ++operation.restored_reference_count;
+            ++result.restored_reference_count;
+        }
+
+        operation.restored = operation.issues.empty();
+        if (operation.restored) {
+            ++result.restored_count;
+        }
+        if (apply_changes) {
+            result.changed = result.changed || operation.style_restored ||
+                             operation.restored_reference_count > 0U;
+        }
+        result.operations.push_back(std::move(operation));
+    }
+
+    if (apply_changes && result.changed) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return result;
+}
+
+bool Document::rename_style(std::string_view old_style_id,
+                            std::string_view new_style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before renaming styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (old_style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "old style id must not be empty when renaming styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (new_style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "new style id must not be empty when renaming styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto style = find_style_node(styles_root, old_style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{old_style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (find_style_node(styles_root, new_style_id) != pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "target style id '" + std::string{new_style_id} +
+                           "' already exists in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (read_on_off_attribute(style, "w:default")) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "default style id '" + std::string{old_style_id} +
+                           "' cannot be renamed",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto document_root = this->document.child("w:document");
+    if (document_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::document_xml_parse_failed,
+                       "word/document.xml does not contain a w:document root",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_part_attached()) {
+        return false;
+    }
+
+    auto changed = true;
+    ensure_attribute_value(style, "w:styleId", new_style_id);
+
+    changed = rewrite_style_metadata_references_in_styles(styles_root, old_style_id,
+                                                       new_style_id) ||
+              changed;
+
+    changed = rewrite_style_references_in_tree(document_root, old_style_id,
+                                               new_style_id) ||
+              changed;
+
+    for (const auto &part : this->header_parts) {
+        if (part) {
+            changed = rewrite_style_references_in_tree(part->xml.child("w:hdr"),
+                                                       old_style_id, new_style_id) ||
+                      changed;
+        }
+    }
+
+    for (const auto &part : this->footer_parts) {
+        if (part) {
+            changed = rewrite_style_references_in_tree(part->xml.child("w:ftr"),
+                                                       old_style_id, new_style_id) ||
+                      changed;
+        }
+    }
+
+    if (changed) {
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::merge_style(std::string_view source_style_id,
+                           std::string_view target_style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before merging styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (source_style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "source style id must not be empty when merging styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (target_style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "target style id must not be empty when merging styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (source_style_id == target_style_id) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "source and target style ids must be different when merging styles",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+
+    auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto source_style = find_style_node(styles_root, source_style_id);
+    if (source_style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "source style id '" + std::string{source_style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto target_style = find_style_node(styles_root, target_style_id);
+    if (target_style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "target style id '" + std::string{target_style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    if (read_on_off_attribute(source_style, "w:default")) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "default style id '" + std::string{source_style_id} +
+                           "' cannot be merged",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto source_summary = summarize_style_node(source_style);
+    const auto target_summary = summarize_style_node(target_style);
+    if (source_summary.kind != target_summary.kind ||
+        source_summary.type_name != target_summary.type_name) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "source style id '" + std::string{source_style_id} +
+                           "' has type '" + source_summary.type_name +
+                           "' but target style id '" + std::string{target_style_id} +
+                           "' has type '" + target_summary.type_name + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    const auto document_root = this->document.child("w:document");
+    if (document_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::document_xml_parse_failed,
+                       "word/document.xml does not contain a w:document root",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    if (const auto error = this->ensure_styles_part_attached()) {
+        return false;
+    }
+
+    rewrite_style_metadata_references_in_styles(styles_root, source_style_id,
+                                                target_style_id);
+    rewrite_style_references_in_tree(document_root, source_style_id, target_style_id);
+
+    for (const auto &part : this->header_parts) {
+        if (part) {
+            rewrite_style_references_in_tree(part->xml.child("w:hdr"), source_style_id,
+                                             target_style_id);
+        }
+    }
+
+    for (const auto &part : this->footer_parts) {
+        if (part) {
+            rewrite_style_references_in_tree(part->xml.child("w:ftr"), source_style_id,
+                                             target_style_id);
+        }
+    }
+
+    if (!styles_root.remove_child(source_style)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "failed to remove source style id '" +
+                           std::string{source_style_id} + "' from word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+std::optional<featherdoc::style_prune_plan> Document::plan_prune_unused_styles() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before planning unused style pruning",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto styles_root = this->styles.child("w:styles");
+    if (styles_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::styles_xml_parse_failed,
+                       "word/styles.xml does not contain a w:styles root",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+
+    const auto document_root = this->document.child("w:document");
+    if (document_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info, document_errc::document_xml_parse_failed,
+                       "word/document.xml does not contain a w:document root",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    auto plan = featherdoc::style_prune_plan{};
+    auto style_nodes = std::unordered_map<std::string, pugi::xml_node>{};
+    auto protected_style_ids = std::unordered_set<std::string>{};
+    auto traversal_queue = std::vector<std::string>{};
+
+    const auto protect_style_id = [&](std::string_view style_id) {
+        if (style_id.empty()) {
+            return;
+        }
+        auto [iterator, inserted] = protected_style_ids.emplace(style_id);
+        if (inserted) {
+            traversal_queue.push_back(*iterator);
+        }
+    };
+
+    for (auto style = styles_root.child("w:style"); style != pugi::xml_node{};
+         style = style.next_sibling("w:style")) {
+        const auto style_id = std::string_view{style.attribute("w:styleId").value()};
+        if (style_id.empty()) {
+            continue;
+        }
+        ++plan.scanned_style_count;
+        style_nodes.emplace(std::string{style_id}, style);
+        if (read_on_off_attribute(style, "w:default") ||
+            !read_on_off_attribute(style, "w:customStyle")) {
+            protect_style_id(style_id);
+        }
+    }
+
+    auto directly_used_style_ids = std::unordered_set<std::string>{};
+    collect_style_references_in_tree(document_root, directly_used_style_ids);
+    for (const auto &part : this->header_parts) {
+        if (part) {
+            collect_style_references_in_tree(part->xml.child("w:hdr"),
+                                             directly_used_style_ids);
+        }
+    }
+    for (const auto &part : this->footer_parts) {
+        if (part) {
+            collect_style_references_in_tree(part->xml.child("w:ftr"),
+                                             directly_used_style_ids);
+        }
+    }
+    for (const auto &style_id : directly_used_style_ids) {
+        protect_style_id(style_id);
+    }
+
+    for (std::size_t index = 0U; index < traversal_queue.size(); ++index) {
+        const auto iterator = style_nodes.find(traversal_queue[index]);
+        if (iterator == style_nodes.end()) {
+            continue;
+        }
+
+        auto dependencies = std::vector<std::string>{};
+        append_style_dependency_ids(iterator->second, dependencies);
+        for (const auto &dependency : dependencies) {
+            if (style_nodes.contains(dependency)) {
+                protect_style_id(dependency);
+            }
+        }
+    }
+
+    plan.protected_style_count = protected_style_ids.size();
+
+    for (auto style = styles_root.child("w:style"); style != pugi::xml_node{};
+         style = style.next_sibling("w:style")) {
+        const auto style_id = std::string{style.attribute("w:styleId").value()};
+        if (!style_id.empty() && read_on_off_attribute(style, "w:customStyle") &&
+            !read_on_off_attribute(style, "w:default") &&
+            !protected_style_ids.contains(style_id)) {
+            plan.removable_style_ids.push_back(style_id);
+        }
+    }
+
+    this->last_error_info.clear();
+    return plan;
+}
+
+std::optional<featherdoc::style_prune_summary> Document::prune_unused_styles() {
+    const auto plan = this->plan_prune_unused_styles();
+    if (!plan.has_value()) {
+        return std::nullopt;
+    }
+
+    auto summary = featherdoc::style_prune_summary{};
+    summary.scanned_style_count = plan->scanned_style_count;
+    summary.protected_style_count = plan->protected_style_count;
+
+    if (!plan->removable_style_ids.empty()) {
+        if (const auto error = this->ensure_styles_part_attached()) {
+            return std::nullopt;
+        }
+        auto styles_root = this->styles.child("w:styles");
+        for (const auto &style_id : plan->removable_style_ids) {
+            const auto style = find_style_node(styles_root, style_id);
+            if (style == pugi::xml_node{}) {
+                continue;
+            }
+            if (styles_root.remove_child(style)) {
+                summary.removed_style_ids.push_back(style_id);
+            }
+        }
+        this->styles_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return summary;
 }
 
 bool Document::ensure_paragraph_style(std::string_view style_id,

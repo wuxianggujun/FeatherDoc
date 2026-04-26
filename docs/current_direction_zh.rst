@@ -128,18 +128,29 @@
 - 样式目录 inspection
 - 最小 paragraph / character / table style definition
 - style inheritance inspection
+- 单样式 / 全量 style usage report（find_style_usage / list_style_usage / inspect-styles --usage）
 - style run property materialization
 - paragraph / character style rebase
 - 自定义编号定义
 - paragraph style numbering
 - 多样式共享 outline numbering
+- style numbering 的 CLI 只读盘点、审计 gate、command_template 修复建议（缺失 level 指向 upsert_levels patch）、plan/apply 安全清理、based-on 对齐、唯一同名 definition relink 和 catalog 导入预修复入口（inspect-style-numbering / audit-style-numbering / repair-style-numbering）
+- style id 重命名，并同步 body / header / footer 内 paragraph、run、table 引用（rename_style / rename-style）
+- 同类型 style merge，并同步引用后移除源样式（merge_style / merge-style）
+- 批量 style rename / merge 的非破坏性计划、审计、持久化 JSON plan、受控 apply 与 rollback 记录，并输出 source usage、issue 与 command_template；merge rollback 会捕获被删除 source style XML 与原 source usage hits，restore dry-run 可无输出文件审计恢复计划，且可重复 `--entry` 或用 `--source-style` / `--target-style` 选择 rollback 项，restore issue 会输出可操作 suggestion 与顶层 issue_count / issue_summary，正式 restore 会按 `node_ordinal` 只恢复原 source hits（plan_style_refactor / plan-style-refactor / apply_style_refactor / apply-style-refactor / plan_style_refactor_restore / restore_style_refactor / restore-style-merge --dry-run / restore-style-merge --plan-only / restore-style-merge）
+- 重复 custom paragraph / character style 的保守 merge 建议，并输出可审阅 / 可持久化 JSON plan，包含 reason / confidence / evidence / differences 元数据与顶层 suggestion_confidence_summary；CLI 可用 `--min-confidence <0-100>` 过滤更保守的自动化 plan；XML 对比会忽略 styleId 与显示名（suggest_style_merges / suggest-style-merges）
+- 未使用 custom style 的保守 plan / prune，并保护默认 / 内置样式与 basedOn / next / link 依赖（plan_prune_unused_styles / plan-prune-unused-styles / prune_unused_styles / prune-unused-styles）
+- numbering catalog 的 CLI JSON import/export
+- numbering catalog JSON definition level upsert 与 override 批量 upsert/remove
+- numbering catalog JSON lint 结构校验
+- numbering catalog JSON check / diff 准入与单文件 / manifest baseline gate
 
 接下来最值得补的是：
 
-1. 现有 numbering catalog 的 import / export / override 管理
-2. 更高层的 style refactoring workflow
-3. 面向 heading / list / theme 的稳定重构入口
-4. 样式与编号之间更明确的批量治理 API
+1. merge restore 的更完整冲突处理与基于真实语料的建议置信度校准
+2. 面向 heading / list / theme 的稳定重构入口
+3. 样式与编号之间更明确的批量治理 mutation API
+4. exemplar 文档到 catalog JSON 的自动提取与冲突审计 workflow
 
 这条线的目标是：
 

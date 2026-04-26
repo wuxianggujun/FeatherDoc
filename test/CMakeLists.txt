@@ -400,6 +400,23 @@ if(WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/export_render_data_skeleton
         )
 
+        add_test(
+            NAME
+            new_project_template_smoke_onboarding_plan
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/new_project_template_smoke_onboarding_plan_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -BuildDir
+            ${PROJECT_BINARY_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/new_project_template_smoke_onboarding_plan
+        )
+
         if(FEATHERDOC_PYTHON_EXECUTABLE)
             add_test(
                 NAME
@@ -506,6 +523,42 @@ if(WIN32)
                 ${PROJECT_BINARY_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/template_validation_regression_bundle
+            )
+        endif()
+
+        if(TARGET featherdoc_cli)
+            add_test(
+                NAME
+                check_numbering_catalog_baseline
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/check_numbering_catalog_baseline_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/check_numbering_catalog_baseline
+            )
+
+            add_test(
+                NAME
+                check_numbering_catalog_manifest
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/check_numbering_catalog_manifest_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/check_numbering_catalog_manifest
             )
         endif()
 
