@@ -1270,6 +1270,10 @@ class TemplatePart {
     find_content_controls_by_tag(std::string_view tag) const;
     [[nodiscard]] std::vector<content_control_summary>
     find_content_controls_by_alias(std::string_view alias) const;
+    [[nodiscard]] std::size_t replace_content_control_text_by_tag(
+        std::string_view tag, std::string_view replacement);
+    [[nodiscard]] std::size_t replace_content_control_text_by_alias(
+        std::string_view alias, std::string_view replacement);
     [[nodiscard]] std::optional<std::size_t> find_table_index_by_bookmark(
         std::string_view bookmark_name) const;
     [[nodiscard]] std::optional<std::size_t> find_table_index(
@@ -1615,6 +1619,10 @@ class Document {
     find_content_controls_by_tag(std::string_view tag) const;
     [[nodiscard]] std::vector<content_control_summary>
     find_content_controls_by_alias(std::string_view alias) const;
+    [[nodiscard]] std::size_t replace_content_control_text_by_tag(
+        std::string_view tag, std::string_view replacement);
+    [[nodiscard]] std::size_t replace_content_control_text_by_alias(
+        std::string_view alias, std::string_view replacement);
     [[nodiscard]] template_validation_result validate_template(
         std::span<const template_slot_requirement> requirements) const;
     [[nodiscard]] template_validation_result validate_template(

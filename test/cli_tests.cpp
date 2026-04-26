@@ -16723,6 +16723,156 @@ TEST_CASE("cli inspect-content-controls lists and filters content controls") {
     remove_if_exists(parse_output);
 }
 
+TEST_CASE("cli replace-content-control-text rewrites selected content controls") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_content_control_text_source.docx";
+    const fs::path updated =
+        working_directory / "cli_content_control_text_updated.docx";
+    const fs::path replace_output =
+        working_directory / "cli_content_control_text_replace.json";
+    const fs::path inspect_output =
+        working_directory / "cli_content_control_text_inspect.json";
+    const fs::path header_updated =
+        working_directory / "cli_content_control_text_header.docx";
+    const fs::path header_output =
+        working_directory / "cli_content_control_text_header.json";
+    const fs::path header_inspect_output =
+        working_directory / "cli_content_control_text_header_inspect.json";
+    const fs::path parse_output =
+        working_directory / "cli_content_control_text_parse.json";
+    const fs::path missing_output =
+        working_directory / "cli_content_control_text_missing.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(replace_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(header_updated);
+    remove_if_exists(header_output);
+    remove_if_exists(header_inspect_output);
+    remove_if_exists(parse_output);
+    remove_if_exists(missing_output);
+
+    create_cli_content_controls_fixture(source);
+
+    CHECK_EQ(run_cli({"replace-content-control-text",
+                      source.string(),
+                      "--tag",
+                      "order_no",
+                      "--text",
+                      "INV-002",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     replace_output),
+             0);
+    const auto replace_json = read_text_file(replace_output);
+    CHECK_NE(replace_json.find(R"("command":"replace-content-control-text")"),
+             std::string::npos);
+    CHECK_NE(replace_json.find(R"("selector":{"kind":"tag","value":"order_no"})"),
+             std::string::npos);
+    CHECK_NE(replace_json.find(R"("replaced":1)"), std::string::npos);
+    CHECK_NE(replace_json.find(R"("text":"INV-002")"), std::string::npos);
+
+    const auto document_xml = read_docx_entry(updated, "word/document.xml");
+    CHECK_NE(document_xml.find("INV-002"), std::string::npos);
+    CHECK_EQ(document_xml.find("INV-001"), std::string::npos);
+    CHECK_EQ(document_xml.find("w:showingPlcHdr"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-content-controls",
+                      updated.string(),
+                      "--tag",
+                      "order_no",
+                      "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("count":1)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"INV-002")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("showing_placeholder":false)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"replace-content-control-text",
+                      updated.string(),
+                      "--part",
+                      "header",
+                      "--index",
+                      "0",
+                      "--alias",
+                      "Header Review",
+                      "--text",
+                      "Approved",
+                      "--output",
+                      header_updated.string(),
+                      "--json"},
+                     header_output),
+             0);
+    const auto header_json = read_text_file(header_output);
+    CHECK_NE(header_json.find(R"("part":"header")"), std::string::npos);
+    CHECK_NE(header_json.find(R"("part_index":0)"), std::string::npos);
+    CHECK_NE(header_json.find(
+                 R"("selector":{"kind":"alias","value":"Header Review"})"),
+             std::string::npos);
+    CHECK_NE(header_json.find(R"("replaced":1)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-content-controls",
+                      header_updated.string(),
+                      "--part",
+                      "header",
+                      "--index",
+                      "0",
+                      "--alias",
+                      "Header Review",
+                      "--json"},
+                     header_inspect_output),
+             0);
+    const auto header_inspect_json = read_text_file(header_inspect_output);
+    CHECK_NE(header_inspect_json.find(R"("count":1)"), std::string::npos);
+    CHECK_NE(header_inspect_json.find(R"("text":"Approved")"),
+             std::string::npos);
+    CHECK_NE(read_docx_entry(header_updated, "word/header1.xml").find("Approved"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"replace-content-control-text",
+                      source.string(),
+                      "--tag",
+                      "order_no",
+                      "--alias",
+                      "Order Number",
+                      "--text",
+                      "INV-003",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output).find("--tag cannot be combined with --alias"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"replace-content-control-text",
+                      source.string(),
+                      "--tag",
+                      "missing",
+                      "--text",
+                      "noop",
+                      "--json"},
+                     missing_output),
+             1);
+    const auto missing_json = read_text_file(missing_output);
+    CHECK_NE(missing_json.find(R"("stage":"mutate")"), std::string::npos);
+    CHECK_NE(missing_json.find("matching content control not found"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(replace_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(header_updated);
+    remove_if_exists(header_output);
+    remove_if_exists(header_inspect_output);
+    remove_if_exists(parse_output);
+    remove_if_exists(missing_output);
+}
+
 TEST_CASE("cli inspect-images lists selected body drawing images as json") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_images_body_source.docx";

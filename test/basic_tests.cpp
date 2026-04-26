@@ -7348,6 +7348,118 @@ TEST_CASE("content controls can be listed and filtered by tag or alias") {
     fs::remove(target);
 }
 
+TEST_CASE("content control text can be replaced by tag or alias") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "content_controls_replace_text.docx";
+    fs::remove(target);
+
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:sdt>
+      <w:sdtPr>
+        <w:alias w:val="Customer Name"/>
+        <w:tag w:val="customer_name"/>
+        <w:id w:val="42"/>
+      </w:sdtPr>
+      <w:sdtContent>
+        <w:p><w:r><w:t>Ada Lovelace</w:t></w:r></w:p>
+      </w:sdtContent>
+    </w:sdt>
+    <w:p>
+      <w:r><w:t>Order: </w:t></w:r>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Order Number"/>
+          <w:tag w:val="order_no"/>
+          <w:id w:val="43"/>
+          <w:showingPlcHdr/>
+        </w:sdtPr>
+        <w:sdtContent><w:r><w:t>INV-001</w:t></w:r></w:sdtContent>
+      </w:sdt>
+    </w:p>
+    <w:tbl>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Line Items"/>
+          <w:tag w:val="line_items"/>
+          <w:id w:val="44"/>
+        </w:sdtPr>
+        <w:sdtContent>
+          <w:tr>
+            <w:tc><w:p><w:r><w:t>SKU-1</w:t></w:r></w:p></w:tc>
+          </w:tr>
+        </w:sdtContent>
+      </w:sdt>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+    write_test_docx(target, document_xml);
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_EQ(doc.replace_content_control_text_by_tag("order_no", "INV-002\nready"),
+             1U);
+    CHECK_FALSE(doc.last_error());
+    CHECK_EQ(doc.body_template().replace_content_control_text_by_alias("Line Items",
+                                                                       "SKU-2"),
+             1U);
+    CHECK_FALSE(doc.last_error());
+
+    const auto content_controls = doc.list_content_controls();
+    CHECK_FALSE(doc.last_error());
+    REQUIRE(content_controls.size() == 3U);
+    CHECK_EQ(content_controls[1].text, "INV-002\nready");
+    CHECK_FALSE(content_controls[1].showing_placeholder);
+    CHECK_EQ(content_controls[2].kind, featherdoc::content_control_kind::table_row);
+    CHECK_EQ(content_controls[2].text, "SKU-2");
+
+    CHECK_FALSE(doc.save());
+
+    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_string(saved_document_xml.c_str()));
+
+    const auto body = saved_document.child("w:document").child("w:body");
+    const auto order_control = body.child("w:p").child("w:sdt");
+    REQUIRE(order_control != pugi::xml_node{});
+    CHECK(order_control.child("w:sdtPr").child("w:showingPlcHdr") ==
+          pugi::xml_node{});
+    const auto order_run = order_control.child("w:sdtContent").child("w:r");
+    REQUIRE(order_run != pugi::xml_node{});
+    CHECK_EQ(std::string{order_run.child("w:t").text().get()}, "INV-002");
+    REQUIRE(order_run.child("w:br") != pugi::xml_node{});
+    CHECK_EQ(std::string{order_run.last_child().text().get()}, "ready");
+
+    const auto line_item_cell = body.child("w:tbl")
+                                    .child("w:sdt")
+                                    .child("w:sdtContent")
+                                    .child("w:tr")
+                                    .child("w:tc");
+    REQUIRE(line_item_cell != pugi::xml_node{});
+    CHECK_EQ(std::string{line_item_cell.child("w:p")
+                             .child("w:r")
+                             .child("w:t")
+                             .text()
+                             .get()},
+             "SKU-2");
+    CHECK_EQ(saved_document_xml.find("INV-001"), std::string::npos);
+    CHECK_EQ(saved_document_xml.find("SKU-1"), std::string::npos);
+
+    CHECK_EQ(doc.replace_content_control_text_by_alias("missing", "noop"), 0U);
+    CHECK_FALSE(doc.last_error());
+    CHECK_EQ(doc.replace_content_control_text_by_tag("", "noop"), 0U);
+    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().detail, "content control tag must not be empty");
+    CHECK_EQ(doc.last_error().entry_name, test_document_xml_entry);
+
+    fs::remove(target);
+}
+
 TEST_CASE("validate_template reports missing required bookmarks") {
     namespace fs = std::filesystem;
 

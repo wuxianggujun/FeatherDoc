@@ -9,13 +9,15 @@ FeatherDoc is a modernized C++ library for reading and writing Microsoft Word
 
 ## Highlights
 
-- CMake 3.20+
-- C++20
-- MSVC-friendly build setup
+- CMake 3.20+ and C++20
+- MSVC-friendly build, test, install, and package-export setup
 - Lightweight document editing APIs for paragraphs, runs, tables, images,
-  lists, and style references
-- MSVC-safe XML parsing on `open()`
-- Streamed ZIP rewrite path on `save()`
+  lists, styles, numbering, sections, headers/footers, and template parts
+- Scriptable `featherdoc_cli` workflows for inspection, one-shot rewrites,
+  numbering catalog governance, style refactor plans, and visual validation
+- Template schema validation, bookmark filling, content-control inspection,
+  and content-control plain-text replacement by tag or alias
+- MSVC-safe XML parsing on `open()` and streamed ZIP rewrite on `save()`
 
 ## Build
 
@@ -480,7 +482,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync_visual_review_verdict.ps
 
 `featherdoc_cli` is a small command-line wrapper around the current
 inspection and editing APIs for sections, styles, numbering, page setup,
-bookmarks, images, and template parts.
+bookmarks, content controls, images, and template parts.
 
 ```bash
 featherdoc_cli inspect-sections input.docx
@@ -505,6 +507,7 @@ featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-cat
 featherdoc_cli inspect-page-setup input.docx --section 1 --json
 featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
 featherdoc_cli inspect-content-controls input.docx --tag customer_name --json
+featherdoc_cli replace-content-control-text input.docx --tag customer_name --text "Ada Lovelace" --output content-control-text.docx --json
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --json
 featherdoc_cli ensure-table-style input.docx ReportTable --name "Report Table" --based-on TableGrid --output styled.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
@@ -982,6 +985,7 @@ featherdoc_cli clear-paragraph-list input.docx 10 --output cleared-list.docx --j
 # Template inspection and bookmark-driven edits
 featherdoc_cli inspect-template-paragraphs input.docx --part header --index 0 --paragraph 0 --json
 featherdoc_cli inspect-content-controls input.docx --part body --alias "Customer Name" --json
+featherdoc_cli replace-content-control-text input.docx --part body --alias "Customer Name" --text "Ada Lovelace" --output content-control-text.docx --json
 featherdoc_cli inspect-template-tables input.docx --part body --table 0 --json
 featherdoc_cli inspect-template-table-rows input.docx 0 --row 1 --json
 featherdoc_cli inspect-template-table-cells input.docx 0 --row 1 --cell 1 --json
@@ -1238,10 +1242,11 @@ you want to get done:
 - Work with tables and layout:
   `append_table()`, row/column insertion, `merge_right()`, `merge_down()`,
   `unmerge_*()`, fixed-grid width APIs, and layout-mode helpers
-- Fill templates or validate bookmarks:
+- Fill templates, validate bookmarks, or inspect content controls:
   `list_bookmarks()`, `validate_template()`, `fill_bookmarks()`,
   `replace_bookmark_with_*()`, `body_template()`, `header_template()`,
-  `footer_template()`
+  `footer_template()`, `list_content_controls()`,
+  `find_content_controls_by_*()`, `replace_content_control_text_by_*()`
 - Work with images and page-number fields:
   `append_image()`, `append_floating_image()`, `replace_*image()`,
   `append_page_number_field()`, `append_total_pages_field()`
@@ -2575,9 +2580,12 @@ unique same-name relink, and catalog import pre-repairs.
   covers slot declarations, missing required slots, duplicate names,
   malformed placeholders, unexpected bookmarks, kind mismatches, and
   occurrence constraints. Content controls can now be enumerated through
-  `list_content_controls()` / `TemplatePart::list_content_controls()` and
-  filtered by tag or alias through the `inspect-content-controls` CLI, but
-  content-control replacement and schema integration are still future work.
+  `list_content_controls()` / `TemplatePart::list_content_controls()`,
+  filtered by tag or alias through the `inspect-content-controls` CLI,
+  rewritten from the CLI through `replace-content-control-text`, and rewritten
+  as plain text through `replace_content_control_text_by_tag(...)` /
+  `replace_content_control_text_by_alias(...)` on `Document` or `TemplatePart`.
+  Structured content replacement and schema integration are still future work.
   Document-level multi-part schema validation is now
   available through `validate_template_schema(...)` plus
   `featherdoc_cli validate-template-schema`, and reusable JSON schema files can
@@ -2606,7 +2614,7 @@ living in a single large `.cpp` file:
 
 - `src/document.cpp`: `Document` open/save flow, archive handling, and error reporting
 - `src/document_image.cpp`: inline body image insertion, enumeration, extraction, replacement, media part allocation, and drawing relationship updates
-- `src/document_numbering.cpp`: managed paragraph list numbering, numbering part attachment, and numbering definition generation
+- `src/document_numbering.cpp`: managed paragraph list numbering, numbering catalog import/export, numbering part attachment, and numbering definition generation
 - `src/document_styles.cpp`: paragraph/run style references and `word/styles.xml` attachment/persistence
 - `src/document_template.cpp`: bookmark-based template filling and batch replacement APIs
 - `src/paragraph.cpp`: paragraph traversal, run creation, paragraph insertion, and paragraph-property cloning

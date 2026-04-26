@@ -223,13 +223,15 @@ README 已经明确当前没有高层公式 API。这个缺口是真实存在的
 
 当前模板能力主要围绕书签。Word 真实业务模板中也常见 content control。
 现在已经先补了 ``list_content_controls()`` / ``inspect-content-controls``
-这条基础 inspection 链路，可以枚举 ``w:sdt`` 并按 tag / alias 过滤。
+这条基础 inspection 链路，可以枚举 ``w:sdt`` 并按 tag / alias 过滤；
+同时也提供了 ``replace_content_control_text_by_tag(...)`` /
+``replace_content_control_text_by_alias(...)`` 这组 C++ 层纯文本替换入口，
+以及 ``replace-content-control-text`` 这条 CLI 一次性纯文本替换命令。
 
 建议继续补齐：
 
 - 将内容控件纳入 template schema slot 导出 / 校验
-- 按 tag / alias 定位后执行受控替换
-- 替换文本、段落、表格、图片内容
+- 继续扩展段落、表格、图片等富内容替换
 - 提供与书签模板同级的可视化回归 fixture
 
 价值：

@@ -797,6 +797,22 @@ struct inspect_content_controls_options {
     bool json_output = false;
 };
 
+struct replace_content_control_text_options {
+    validation_part_family part = validation_part_family::body;
+    std::optional<std::size_t> part_index;
+    std::optional<std::size_t> section_index;
+    featherdoc::section_reference_kind reference_kind =
+        featherdoc::section_reference_kind::default_reference;
+    std::optional<std::string> tag;
+    std::optional<std::string> alias;
+    std::string text;
+    std::optional<path_type> output_path;
+    bool has_part = false;
+    bool has_kind = false;
+    bool has_text = false;
+    bool json_output = false;
+};
+
 struct inspect_images_options {
     validation_part_family part = validation_part_family::body;
     std::optional<std::size_t> part_index;
@@ -1662,6 +1678,11 @@ void print_usage(std::ostream &stream) {
            " [--index <part-index>] [--section <section-index>]"
            " [--kind default|first|even] [--tag <tag>] [--alias <alias>]"
            " [--json]\n"
+        << "  featherdoc_cli replace-content-control-text <input.docx>"
+           " (--tag <tag> | --alias <alias>) --text <text>"
+           " [--part body|header|footer|section-header|section-footer]"
+           " [--index <part-index>] [--section <section-index>]"
+           " [--kind default|first|even] [--output <path>] [--json]\n"
         << "  featherdoc_cli replace-bookmark-text <input.docx>"
            " <bookmark-name> --text <text>"
            " [--part body|header|footer|section-header|section-footer]"
@@ -7564,6 +7585,180 @@ auto parse_inspect_content_controls_options(
     return validate_template_part_selection(options.part, options.part_index,
                                             options.section_index, options.has_kind,
                                             "inspection", error_message);
+}
+
+auto parse_replace_content_control_text_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    replace_content_control_text_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--part") {
+            if (options.has_part) {
+                error_message = "duplicate --part option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --part";
+                return false;
+            }
+            if (!parse_validation_part(arguments[index + 1U], options.part)) {
+                error_message = "invalid template part: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.has_part = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--index") {
+            if (options.part_index.has_value()) {
+                error_message = "duplicate --index option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --index";
+                return false;
+            }
+            std::size_t part_index = 0U;
+            if (!parse_index(arguments[index + 1U], part_index)) {
+                error_message = "invalid part index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.part_index = part_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--section") {
+            if (options.section_index.has_value()) {
+                error_message = "duplicate --section option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --section";
+                return false;
+            }
+            std::size_t section_index = 0U;
+            if (!parse_index(arguments[index + 1U], section_index)) {
+                error_message = "invalid section index: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.section_index = section_index;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--kind") {
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --kind";
+                return false;
+            }
+            if (!parse_reference_kind(arguments[index + 1U], options.reference_kind)) {
+                error_message = "invalid reference kind: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.has_kind = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--tag") {
+            if (options.tag.has_value()) {
+                error_message = "duplicate --tag option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --tag";
+                return false;
+            }
+            auto tag = std::string(arguments[index + 1U]);
+            if (tag.empty()) {
+                error_message = "--tag expects a non-empty value";
+                return false;
+            }
+            options.tag = std::move(tag);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--alias") {
+            if (options.alias.has_value()) {
+                error_message = "duplicate --alias option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --alias";
+                return false;
+            }
+            auto alias = std::string(arguments[index + 1U]);
+            if (alias.empty()) {
+                error_message = "--alias expects a non-empty value";
+                return false;
+            }
+            options.alias = std::move(alias);
+            ++index;
+            continue;
+        }
+
+        if (argument == "--text") {
+            if (options.has_text) {
+                error_message = "duplicate --text option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --text";
+                return false;
+            }
+            options.text = std::string(arguments[index + 1U]);
+            options.has_text = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.tag.has_value() && !options.alias.has_value()) {
+        error_message = "replace-content-control-text expects --tag or --alias";
+        return false;
+    }
+    if (options.tag.has_value() && options.alias.has_value()) {
+        error_message = "--tag cannot be combined with --alias";
+        return false;
+    }
+    if (!options.has_text) {
+        error_message = "expected --text <text>";
+        return false;
+    }
+
+    return validate_template_part_selection(options.part, options.part_index,
+                                            options.section_index, options.has_kind,
+                                            "mutation", error_message);
 }
 
 auto parse_inspect_images_options(
@@ -17190,6 +17385,65 @@ void inspect_content_controls(
         print_content_control_summary(std::cout, content_controls[index]);
         std::cout << '\n';
     }
+}
+
+void write_json_content_control_text_result(
+    std::ostream &stream, const selected_template_part &selected,
+    const replace_content_control_text_options &options, std::size_t replaced) {
+    stream << ",\"part\":";
+    write_json_string(stream, validation_part_name(selected.family));
+    if (selected.part_index.has_value()) {
+        stream << ",\"part_index\":" << *selected.part_index;
+    }
+    if (selected.section_index.has_value()) {
+        stream << ",\"section\":" << *selected.section_index;
+    }
+    if (selected.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(stream,
+                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+    }
+    stream << ",\"entry_name\":";
+    write_json_string(stream, std::string(selected.part.entry_name()));
+    stream << ",\"selector\":{\"kind\":";
+    write_json_string(stream, options.tag.has_value() ? "tag" : "alias");
+    stream << ",\"value\":";
+    write_json_string(stream, options.tag.has_value() ? *options.tag
+                                                 : *options.alias);
+    stream << "},\"replaced\":" << replaced << ",\"text\":";
+    write_json_string(stream, options.text);
+}
+
+void print_content_control_text_result(
+    const selected_template_part &selected,
+    const replace_content_control_text_options &options,
+    const std::optional<path_type> &output_path, std::size_t replaced) {
+    const auto entry_name = std::string(selected.part.entry_name());
+    std::cout << "part: " << validation_part_name(selected.family) << '\n';
+    if (selected.part_index.has_value()) {
+        std::cout << "part_index: " << *selected.part_index << '\n';
+    }
+    if (selected.section_index.has_value()) {
+        std::cout << "section: " << *selected.section_index << '\n';
+    }
+    if (selected.reference_kind.has_value()) {
+        std::cout << "kind: "
+                  << featherdoc::to_xml_reference_type(*selected.reference_kind)
+                  << '\n';
+    }
+    std::cout << "entry_name: " << entry_name << '\n';
+    std::cout << "selector_kind: "
+              << (options.tag.has_value() ? "tag" : "alias") << '\n';
+    std::cout << "selector_value: "
+              << (options.tag.has_value() ? *options.tag : *options.alias)
+              << '\n';
+    if (output_path.has_value()) {
+        std::cout << "output_path: " << output_path->string() << '\n';
+    } else {
+        std::cout << "output_path: in_place\n";
+    }
+    std::cout << "replaced: " << replaced << '\n';
+    std::cout << "text: " << options.text << '\n';
 }
 
 void inspect_images(const selected_template_part &selected,
@@ -36466,6 +36720,74 @@ int main(int argc, char **argv) {
             filter_content_controls(content_controls, options);
         inspect_content_controls(selected, filtered_content_controls, options,
                                  options.json_output);
+        return 0;
+    }
+
+    if (command == "replace-content-control-text") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(
+                command, "replace-content-control-text expects an input path",
+                json_output);
+            return 2;
+        }
+
+        replace_content_control_text_options options;
+        std::string error_message;
+        if (!parse_replace_content_control_text_options(arguments, 2U, options,
+                                                        error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        selected_template_part selected;
+        if (!select_template_part(doc, options.part, options.part_index,
+                                  options.section_index, options.reference_kind,
+                                  selected, error_message)) {
+            report_operation_failure(command, "mutate", error_message,
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        const auto replaced = options.tag.has_value()
+                                  ? selected.part.replace_content_control_text_by_tag(
+                                        *options.tag, options.text)
+                                  : selected.part.replace_content_control_text_by_alias(
+                                        *options.alias, options.text);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "mutate", error_info,
+                                  options.json_output);
+            return 1;
+        }
+        if (replaced == 0U) {
+            report_operation_failure(command, "mutate",
+                                     "matching content control not found",
+                                     doc.last_error(), options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&selected, &options, replaced](std::ostream &stream) {
+                    write_json_content_control_text_result(stream, selected,
+                                                           options, replaced);
+                });
+        } else {
+            print_content_control_text_result(selected, options,
+                                              options.output_path, replaced);
+        }
+
         return 0;
     }
 

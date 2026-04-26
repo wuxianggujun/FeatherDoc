@@ -1092,6 +1092,160 @@ auto filter_content_controls_by_tag_or_alias(
     return matches;
 }
 
+void clear_node_children(pugi::xml_node node) {
+    for (auto child = node.first_child(); child != pugi::xml_node{};) {
+        const auto next = child.next_sibling();
+        node.remove_child(child);
+        child = next;
+    }
+}
+
+auto ensure_content_control_content_node(pugi::xml_node content_control)
+    -> pugi::xml_node {
+    auto content = content_control.child("w:sdtContent");
+    if (content != pugi::xml_node{}) {
+        return content;
+    }
+
+    return content_control.append_child("w:sdtContent");
+}
+
+auto append_text_table_cell(pugi::xml_node parent, std::string_view text)
+    -> bool {
+    auto cell = parent.append_child("w:tc");
+    if (cell == pugi::xml_node{}) {
+        return false;
+    }
+
+    return featherdoc::detail::append_plain_text_paragraph(cell, text);
+}
+
+auto rewrite_content_control_plain_text(pugi::xml_node content_control,
+                                        std::string_view replacement)
+    -> bool {
+    if (content_control == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto content = ensure_content_control_content_node(content_control);
+    if (content == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto kind = content_control_kind_from_node(content_control);
+    clear_node_children(content);
+
+    switch (kind) {
+    case featherdoc::content_control_kind::run: {
+        auto run = content.append_child("w:r");
+        if (run == pugi::xml_node{}) {
+            return false;
+        }
+        if (!featherdoc::detail::set_plain_text_run_content(run, replacement)) {
+            return false;
+        }
+        break;
+    }
+    case featherdoc::content_control_kind::table_row: {
+        auto row = content.append_child("w:tr");
+        if (row == pugi::xml_node{} || !append_text_table_cell(row, replacement)) {
+            return false;
+        }
+        break;
+    }
+    case featherdoc::content_control_kind::table_cell:
+        if (!append_text_table_cell(content, replacement)) {
+            return false;
+        }
+        break;
+    case featherdoc::content_control_kind::block:
+    case featherdoc::content_control_kind::unknown:
+        if (!featherdoc::detail::append_plain_text_paragraph(content,
+                                                            replacement)) {
+            return false;
+        }
+        break;
+    }
+
+    if (auto properties = content_control.child("w:sdtPr");
+        properties != pugi::xml_node{}) {
+        for (auto placeholder = properties.child("w:showingPlcHdr");
+             placeholder != pugi::xml_node{};) {
+            const auto next = placeholder.next_sibling("w:showingPlcHdr");
+            properties.remove_child(placeholder);
+            placeholder = next;
+        }
+    }
+
+    return true;
+}
+
+auto content_control_matches_tag_or_alias(pugi::xml_node content_control,
+                                             std::string_view value,
+                                             bool match_tag) -> bool {
+    const auto properties = content_control.child("w:sdtPr");
+    const auto candidate = optional_child_attribute(
+        properties, match_tag ? "w:tag" : "w:alias", "w:val");
+    return candidate.has_value() && *candidate == value;
+}
+
+bool replace_content_control_text_by_tag_or_alias_in_node(
+    featherdoc::document_error_info &last_error_info, pugi::xml_node node,
+    std::string_view entry_name, std::string_view value,
+    std::string_view replacement, bool match_tag, std::size_t &replaced) {
+    for (auto child = node.first_child(); child != pugi::xml_node{};) {
+        const auto next = child.next_sibling();
+        if (std::string_view{child.name()} == "w:sdt" &&
+            content_control_matches_tag_or_alias(child, value, match_tag)) {
+            if (!rewrite_content_control_plain_text(child, replacement)) {
+                set_last_error(
+                    last_error_info,
+                    std::make_error_code(std::errc::not_enough_memory),
+                    "failed to rewrite content control text",
+                    std::string{entry_name});
+                return false;
+            }
+            ++replaced;
+            child = next;
+            continue;
+        }
+
+        if (!replace_content_control_text_by_tag_or_alias_in_node(
+                last_error_info, child, entry_name, value, replacement,
+                match_tag, replaced)) {
+            return false;
+        }
+        child = next;
+    }
+
+    return true;
+}
+
+auto replace_content_control_text_by_tag_or_alias_in_part(
+    featherdoc::document_error_info &last_error_info,
+    pugi::xml_document &document, std::string_view entry_name,
+    std::string_view value, std::string_view replacement, bool match_tag)
+    -> std::size_t {
+    if (value.empty()) {
+        set_last_error(
+            last_error_info, std::make_error_code(std::errc::invalid_argument),
+            match_tag ? "content control tag must not be empty"
+                      : "content control alias must not be empty",
+            std::string{entry_name});
+        return 0U;
+    }
+
+    std::size_t replaced = 0U;
+    if (!replace_content_control_text_by_tag_or_alias_in_node(
+            last_error_info, document, entry_name, value, replacement,
+            match_tag, replaced)) {
+        return replaced;
+    }
+
+    last_error_info.clear();
+    return replaced;
+}
+
 auto collect_block_bookmark_placeholders(featherdoc::document_error_info &last_error_info,
                                          pugi::xml_document &document,
                                          std::string_view entry_name,
@@ -3140,6 +3294,40 @@ TemplatePart::find_content_controls_by_alias(std::string_view alias) const {
         alias, false);
 }
 
+std::size_t TemplatePart::replace_content_control_text_by_tag(
+    std::string_view tag, std::string_view replacement) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return 0U;
+    }
+
+    return replace_content_control_text_by_tag_or_alias_in_part(
+        *this->last_error_info, *this->xml_document, this->entry_name_storage,
+        tag, replacement, true);
+}
+
+std::size_t TemplatePart::replace_content_control_text_by_alias(
+    std::string_view alias, std::string_view replacement) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return 0U;
+    }
+
+    return replace_content_control_text_by_tag_or_alias_in_part(
+        *this->last_error_info, *this->xml_document, this->entry_name_storage,
+        alias, replacement, false);
+}
+
 std::optional<std::size_t> TemplatePart::find_table_index_by_bookmark(
     std::string_view bookmark_name) const {
     if (this->xml_document == nullptr || this->last_error_info == nullptr) {
@@ -3645,6 +3833,34 @@ Document::find_content_controls_by_alias(std::string_view alias) const {
     return filter_content_controls_by_tag_or_alias(
         this->last_error_info, const_cast<pugi::xml_document &>(this->document),
         document_xml_entry, alias, false);
+}
+
+std::size_t Document::replace_content_control_text_by_tag(
+    std::string_view tag, std::string_view replacement) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before replacing content control text",
+                       std::string{document_xml_entry});
+        return 0U;
+    }
+
+    return replace_content_control_text_by_tag_or_alias_in_part(
+        this->last_error_info, this->document, document_xml_entry, tag,
+        replacement, true);
+}
+
+std::size_t Document::replace_content_control_text_by_alias(
+    std::string_view alias, std::string_view replacement) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before replacing content control text",
+                       std::string{document_xml_entry});
+        return 0U;
+    }
+
+    return replace_content_control_text_by_tag_or_alias_in_part(
+        this->last_error_info, this->document, document_xml_entry, alias,
+        replacement, false);
 }
 
 template_validation_result Document::validate_template(
