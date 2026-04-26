@@ -939,7 +939,8 @@ featherdoc_cli rename-style input.docx LegacyBody ReviewBody --output renamed-st
 featherdoc_cli merge-style input.docx LegacyBody ReviewBody --output merged-style.docx --json
 featherdoc_cli plan-style-refactor input.docx --rename LegacyBody:ReviewBody --merge OldBody:Normal --output-plan style-refactor.plan.json --json
 featherdoc_cli suggest-style-merges input.docx --output-plan style-merge-suggestions.json --json
-featherdoc_cli suggest-style-merges input.docx --min-confidence 90 --output-plan style-merge-suggestions.strict.json --json
+featherdoc_cli suggest-style-merges input.docx --confidence-profile strict --output-plan style-merge-suggestions.strict.json --json
+featherdoc_cli suggest-style-merges input.docx --min-confidence 90 --output-plan style-merge-suggestions.custom.json --json
 featherdoc_cli apply-style-refactor input.docx --plan-file style-refactor.plan.json --rollback-plan style-refactor.rollback.json --output refactored-styles.docx --json
 featherdoc_cli apply-style-refactor input.docx --plan-file style-merge-suggestions.json --rollback-plan style-merge.rollback.json --output merged-styles.docx --json
 featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.rollback.json --entry 0 --entry 2 --dry-run --json
@@ -2552,9 +2553,11 @@ unique same-name relink, and catalog import pre-repairs.
   XML-difference counts, and `recommended_min_confidence` in JSON output.
   The XML comparison ignores style identity (`styleId`) and display name so
   visually equivalent duplicates can still be ranked highly. CLI output and
-  persisted suggestion plans can be narrowed with `--min-confidence <0-100>`
-  for stricter automation gates. Confidence calibration against real-world
-  corpora and richer batch restore selection remain future work.
+  persisted suggestion plans can be narrowed with the named
+  `--confidence-profile strict|review|exploratory` presets or custom
+  `--min-confidence <0-100>` thresholds for stricter automation gates.
+  Confidence calibration against real-world corpora and richer batch restore
+  selection remain future work.
 - Bookmark-based template filling now works across body, header, and footer
   parts through `fill_bookmarks(...)`, the standalone replacement helpers, and
   `TemplatePart` handles returned by `body_template()`, `header_template()`,

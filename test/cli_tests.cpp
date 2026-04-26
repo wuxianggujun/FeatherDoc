@@ -1822,6 +1822,45 @@ void create_cli_duplicate_style_fixture(const fs::path &path) {
     REQUIRE_FALSE(document.save());
 }
 
+void create_cli_duplicate_style_profile_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    featherdoc::Document document(path);
+    REQUIRE_FALSE(document.create_empty());
+
+    featherdoc::paragraph_style_definition duplicate_a;
+    duplicate_a.name = "Duplicate Body A";
+    duplicate_a.based_on = "Normal";
+    duplicate_a.run_font_family = "Aptos";
+    REQUIRE(document.ensure_paragraph_style("DuplicateBodyA", duplicate_a));
+
+    featherdoc::paragraph_style_definition duplicate_b;
+    duplicate_b.name = "Duplicate Body B";
+    duplicate_b.based_on = "Normal";
+    duplicate_b.run_font_family = "Aptos";
+    REQUIRE(document.ensure_paragraph_style("DuplicateBodyB", duplicate_b));
+
+    featherdoc::paragraph_style_definition duplicate_c;
+    duplicate_c.name = "Duplicate Body C";
+    duplicate_c.based_on = "Normal";
+    duplicate_c.next_style = "Normal";
+    duplicate_c.run_font_family = "Aptos";
+    REQUIRE(document.ensure_paragraph_style("DuplicateBodyC", duplicate_c));
+
+    auto first_paragraph = document.paragraphs();
+    REQUIRE(first_paragraph.has_next());
+    REQUIRE(first_paragraph.add_run("first duplicate style reference").has_next());
+    REQUIRE(document.set_paragraph_style(first_paragraph, "DuplicateBodyA"));
+    auto second_paragraph = first_paragraph.insert_paragraph_after("second");
+    REQUIRE(document.set_paragraph_style(second_paragraph, "DuplicateBodyA"));
+    auto third_paragraph = second_paragraph.insert_paragraph_after("third");
+    REQUIRE(document.set_paragraph_style(third_paragraph, "DuplicateBodyB"));
+    auto fourth_paragraph = third_paragraph.insert_paragraph_after("fourth");
+    REQUIRE(document.set_paragraph_style(fourth_paragraph, "DuplicateBodyC"));
+
+    REQUIRE_FALSE(document.save());
+}
+
 void create_cli_page_setup_fixture(const fs::path &path) {
     remove_if_exists(path);
 
@@ -3921,6 +3960,97 @@ TEST_CASE("cli suggest-style-merges writes reviewable duplicate merge plan") {
     remove_if_exists(restored);
     remove_if_exists(restore_output);
     remove_if_exists(dry_run_output);
+    remove_if_exists(parse_output);
+}
+
+TEST_CASE("cli suggest-style-merges applies confidence profiles") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_suggest_style_merges_profiles_source.docx";
+    const fs::path strict_output =
+        working_directory / "cli_suggest_style_merges_profiles_strict.json";
+    const fs::path review_output =
+        working_directory / "cli_suggest_style_merges_profiles_review.json";
+    const fs::path parse_output =
+        working_directory / "cli_suggest_style_merges_profiles_parse.json";
+
+    remove_if_exists(source);
+    remove_if_exists(strict_output);
+    remove_if_exists(review_output);
+    remove_if_exists(parse_output);
+
+    create_cli_duplicate_style_profile_fixture(source);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--confidence-profile",
+                      "strict",
+                      "--json"},
+                     strict_output),
+             0);
+    const auto strict_json = read_text_file(strict_output);
+    CHECK_NE(strict_json.find(R"("operation_count":1)"), std::string::npos);
+    CHECK_NE(strict_json.find(R"("source_style_id":"DuplicateBodyB")"),
+             std::string::npos);
+    CHECK_EQ(strict_json.find(R"("source_style_id":"DuplicateBodyC")"),
+             std::string::npos);
+    CHECK_NE(strict_json.find(R"("min_confidence":95)"), std::string::npos);
+    CHECK_NE(strict_json.find(R"("recommended_min_confidence":95)"),
+             std::string::npos);
+    CHECK_NE(strict_json.find(R"("exact_xml_match_count":1)"),
+             std::string::npos);
+    CHECK_NE(strict_json.find(R"("xml_difference_count":0)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--confidence-profile",
+                      "review",
+                      "--json"},
+                     review_output),
+             0);
+    const auto review_json = read_text_file(review_output);
+    CHECK_NE(review_json.find(R"("operation_count":2)"), std::string::npos);
+    CHECK_NE(review_json.find(R"("source_style_id":"DuplicateBodyB")"),
+             std::string::npos);
+    CHECK_NE(review_json.find(R"("source_style_id":"DuplicateBodyC")"),
+             std::string::npos);
+    CHECK_NE(review_json.find(R"("confidence":80)"), std::string::npos);
+    CHECK_NE(review_json.find(R"("min_confidence":80)"), std::string::npos);
+    CHECK_NE(review_json.find(R"("exact_xml_match_count":1)"),
+             std::string::npos);
+    CHECK_NE(review_json.find(R"("xml_difference_count":1)"),
+             std::string::npos);
+    CHECK_NE(review_json.find("review lower-confidence XML differences manually"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--confidence-profile",
+                      "strict",
+                      "--min-confidence",
+                      "80",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output)
+                 .find("--confidence-profile cannot be combined with --min-confidence"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"suggest-style-merges",
+                      source.string(),
+                      "--confidence-profile",
+                      "unsafe",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output)
+                 .find("--confidence-profile expects strict, review, or exploratory"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(strict_output);
+    remove_if_exists(review_output);
     remove_if_exists(parse_output);
 }
 

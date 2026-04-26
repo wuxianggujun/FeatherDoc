@@ -449,7 +449,8 @@ Additional representative command groups:
     featherdoc_cli merge-style input.docx LegacyBody ReviewBody --output merged-style.docx --json
     featherdoc_cli plan-style-refactor input.docx --rename LegacyBody:ReviewBody --merge OldBody:Normal --output-plan style-refactor.plan.json --json
     featherdoc_cli suggest-style-merges input.docx --output-plan style-merge-suggestions.json --json
-    featherdoc_cli suggest-style-merges input.docx --min-confidence 90 --output-plan style-merge-suggestions.strict.json --json
+    featherdoc_cli suggest-style-merges input.docx --confidence-profile strict --output-plan style-merge-suggestions.strict.json --json
+    featherdoc_cli suggest-style-merges input.docx --min-confidence 90 --output-plan style-merge-suggestions.custom.json --json
     featherdoc_cli apply-style-refactor input.docx --plan-file style-refactor.plan.json --rollback-plan style-refactor.rollback.json --output refactored-styles.docx --json
     featherdoc_cli apply-style-refactor input.docx --plan-file style-merge-suggestions.json --rollback-plan style-merge.rollback.json --output merged-styles.docx --json
     featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.rollback.json --entry 0 --entry 2 --dry-run --json
@@ -2433,7 +2434,8 @@ Current Limitations
   ``suggestion_confidence_summary`` fields for min/max confidence, exact-XML
   counts, XML-difference counts, and ``recommended_min_confidence``. CLI
   output and persisted suggestion plans can be narrowed with
-  ``--min-confidence <0-100>`` before review or automation. The XML
+  ``--confidence-profile strict|review|exploratory`` presets or custom
+  ``--min-confidence <0-100>`` thresholds before review or automation. The XML
   comparison ignores style identity and display name before ranking exact
   definition matches more highly. Unreachable
   custom styles can be planned and pruned through

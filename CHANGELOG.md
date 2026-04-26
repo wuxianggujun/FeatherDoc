@@ -18,8 +18,9 @@ performance.
   inspect, gate, plan, apply, and catalog-preload style numbering fixes while
   reporting safer command templates and post-apply cleanliness.
 - Added style refactor governance features for duplicate-style merge plans:
-  `suggest-style-merges --min-confidence <0-100>`, top-level
-  `suggestion_confidence_summary`, `recommended_min_confidence`, merge restore
+  `suggest-style-merges --confidence-profile strict|review|exploratory`,
+  `--min-confidence <0-100>`, top-level `suggestion_confidence_summary`,
+  `recommended_min_confidence`, merge restore
   dry-run / plan-only auditing, repeated `--entry`, source/target rollback
   filters, actionable restore suggestions, and issue summaries.
 - Added render-data workspace guidance to the project-template smoke onboarding
@@ -41,8 +42,9 @@ performance.
 
 - Added unit and CLI coverage for numbering catalog import/export, catalog
   patch/lint/diff/check flows, style-numbering repair with catalog preload,
-  duplicate-style suggestion confidence summaries, min-confidence filtering,
-  merge restore dry-run/selection behavior, and the new PowerShell catalog and
+  duplicate-style suggestion confidence summaries, confidence profile and
+  min-confidence filtering, merge restore dry-run/selection behavior, and the
+  new PowerShell catalog and
   onboarding-plan scripts.
 
 ## [1.9.0] - 2026-04-24

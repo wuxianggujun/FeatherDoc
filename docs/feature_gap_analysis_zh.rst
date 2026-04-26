@@ -143,7 +143,7 @@ definition 的高层编辑仍然不足。
 五、样式重构工作流
 ^^^^^^^^^^^^^^^^^^
 
-当前已经有样式检查、单样式 / 全量 usage report、继承解析、局部 rebase、materialize、基础 style id rename、同类型 style merge、批量 rename / merge 非破坏性计划、重复样式保守 merge 建议、顶层 ``suggestion_confidence_summary``、可用 ``--min-confidence <0-100>`` 过滤的持久化 JSON plan、受控 apply 与 rollback 记录（含 merge source style XML 与原 source usage hits 快照）、基于 rollback JSON 的 merge restore dry-run（也可用 ``--plan-only``）审计 / 正式恢复，并支持重复 ``--entry`` 或 ``--source-style`` / ``--target-style`` 选择 rollback 项，restore issue 会输出可操作 ``suggestion`` 与顶层 ``issue_count`` / ``issue_summary``，以及保守的未使用 custom style prune plan / apply 能力。
+当前已经有样式检查、单样式 / 全量 usage report、继承解析、局部 rebase、materialize、基础 style id rename、同类型 style merge、批量 rename / merge 非破坏性计划、重复样式保守 merge 建议、顶层 ``suggestion_confidence_summary``、可用 ``--confidence-profile strict|review|exploratory`` 或 ``--min-confidence <0-100>`` 过滤的持久化 JSON plan、受控 apply 与 rollback 记录（含 merge source style XML 与原 source usage hits 快照）、基于 rollback JSON 的 merge restore dry-run（也可用 ``--plan-only``）审计 / 正式恢复，并支持重复 ``--entry`` 或 ``--source-style`` / ``--target-style`` 选择 rollback 项，restore issue 会输出可操作 ``suggestion`` 与顶层 ``issue_count`` / ``issue_summary``，以及保守的未使用 custom style prune plan / apply 能力。
 下一步缺的是基于真实语料的建议置信度校准、merge restore 更完整冲突处理与更完整的样式治理闭环。
 
 建议补齐：

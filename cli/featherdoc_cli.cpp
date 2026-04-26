@@ -115,6 +115,7 @@ struct style_refactor_plan_options {
 struct style_merge_suggestion_options {
     std::optional<path_type> output_plan_path;
     std::optional<std::uint32_t> min_confidence;
+    std::optional<std::string> confidence_profile;
     bool json_output = false;
 };
 
@@ -1262,6 +1263,7 @@ void print_usage(std::ostream &stream) {
            " [--rename <old:new>] [--merge <source:target>]"
            " [--output-plan <path>] [--json]\n"
         << "  featherdoc_cli suggest-style-merges <input.docx>"
+           " [--confidence-profile strict|review|exploratory]"
            " [--min-confidence <0-100>] [--output-plan <path>] [--json]\n"
         << "  featherdoc_cli apply-style-refactor <input.docx>"
            " [--plan-file <path> | --rename <old:new> | --merge <source:target>]"
@@ -3061,6 +3063,20 @@ auto parse_style_refactor_plan_options(
     return true;
 }
 
+auto style_merge_suggestion_confidence_profile_min_confidence(
+    std::string_view profile) -> std::optional<std::uint32_t> {
+    if (profile == "strict") {
+        return 90U;
+    }
+    if (profile == "review") {
+        return 75U;
+    }
+    if (profile == "exploratory") {
+        return 0U;
+    }
+    return std::nullopt;
+}
+
 auto parse_style_merge_suggestion_options(
     const std::vector<std::string_view> &arguments, std::size_t start_index,
     style_merge_suggestion_options &options, std::string &error_message) -> bool {
@@ -3100,12 +3116,40 @@ auto parse_style_merge_suggestion_options(
             continue;
         }
 
+        if (argument == "--confidence-profile") {
+            if (options.confidence_profile.has_value()) {
+                error_message = "duplicate --confidence-profile option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --confidence-profile";
+                return false;
+            }
+            const auto profile = std::string(arguments[index + 1U]);
+            if (!style_merge_suggestion_confidence_profile_min_confidence(profile)
+                     .has_value()) {
+                error_message =
+                    "--confidence-profile expects strict, review, or exploratory";
+                return false;
+            }
+            options.confidence_profile = profile;
+            ++index;
+            continue;
+        }
+
         if (argument == "--json") {
             options.json_output = true;
             continue;
         }
 
         error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (options.min_confidence.has_value() &&
+        options.confidence_profile.has_value()) {
+        error_message =
+            "--confidence-profile cannot be combined with --min-confidence";
         return false;
     }
 
@@ -27722,9 +27766,15 @@ int main(int argc, char **argv) {
                                   options.json_output);
             return 1;
         }
-        if (options.min_confidence.has_value()) {
-            plan = filter_style_refactor_plan_by_min_confidence(
-                std::move(*plan), *options.min_confidence);
+        auto min_confidence = options.min_confidence;
+        if (!min_confidence.has_value() &&
+            options.confidence_profile.has_value()) {
+            min_confidence = style_merge_suggestion_confidence_profile_min_confidence(
+                *options.confidence_profile);
+        }
+        if (min_confidence.has_value()) {
+            plan = filter_style_refactor_plan_by_min_confidence(std::move(*plan),
+                                                                *min_confidence);
         }
 
         if (options.output_plan_path.has_value() &&
