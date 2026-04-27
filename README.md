@@ -563,7 +563,28 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
-When `preview-template-schema-patch` writes `--output-patch`, its JSON summary includes `output_patch_path` so automation can pick up the emitted patch file directly.
+When `preview-template-schema-patch` writes `--output-patch`, its JSON summary includes `output_patch_path` so automation can pick up the emitted patch file directly. Schema patch files can also use `update_slots` for targeted slot metadata changes without replacing the whole target, and `build-template-schema-patch` emits `update_slots` automatically for same-target/same-slot metadata-only drift or unique slot renames whose metadata also changed:
+
+```json
+{
+  "update_slots": [
+    {
+      "part": "body",
+      "bookmark": "customer",
+      "slot_kind": "block",
+      "required": false,
+      "min_occurrences": 2,
+      "max_occurrences": 5
+    },
+    {
+      "part": "body",
+      "content_control_tag": "status",
+      "clear_min_occurrences": true,
+      "clear_max_occurrences": true
+    }
+  ]
+}
+```
 
 For project-level smoke checks across several real templates, use
 `scripts/run_project_template_smoke.ps1`. Each manifest entry can point at a
@@ -2018,12 +2039,12 @@ document-specific overlay, use `merge-template-schema`; later files upsert
 matching targets and replace same-bookmark slot definitions before the merged
 result is normalized. If you need to maintain a committed schema in place, use
 `patch-template-schema` with a patch file that can `upsert_targets`,
-`remove_targets`, `remove_slots`, and `rename_slots`; the patched result is
+`remove_targets`, `remove_slots`, `rename_slots`, and `update_slots`; the patched result is
 normalized before it is printed or written. If you already have a reviewed left
 and right schema pair and want a reusable patch file, use
 `build-template-schema-patch`; it stays correctness-first, but when a target
 keeps the same full identity it prefers slot-level `remove_slots`,
-`rename_slots`, and partial `upsert_targets`. Only identity changes fall back
+`rename_slots`, `update_slots`, and partial `upsert_targets`. Same-slot metadata drift and unique rename-plus-metadata drift are represented as `update_slots`; only identity changes fall back
 to whole-target `remove_targets` plus `upsert_targets`, so applying the patch
 to the left schema still reproduces the normalized right schema.
 The same in-memory workflow is also available to C++ callers through
@@ -2062,13 +2083,18 @@ arrays:
   `bookmark_name`, `content_control_tag`, or `content_control_alias` for the old
   slot name, and the matching `new_bookmark` / `new_bookmark_name`,
   `new_content_control_tag`, or `new_content_control_alias` for the new slot name
+- `update_slots`: the same selector fields plus one or more metadata updates:
+  `slot_kind` / `kind`, `required`, `count`, `min_occurrences`,
+  `max_occurrences`, `clear_min_occurrences`, or `clear_max_occurrences`
 - `entry_name` is ignored in selectors, so exported JSON can be copied into a
   patch file after trimming unrelated fields
 - `{}` is also valid and represents a no-op patch; that is what
   `build-template-schema-patch` emits when two schemas are already equivalent
-- `build-template-schema-patch` only emits `rename_slots` when the left/right
-  target identity is unchanged and the old/new slot shapes match uniquely; if
-  that confidence is missing, it falls back to remove/add style patch entries
+- `build-template-schema-patch` emits `rename_slots` when the left/right
+  target identity and slot source are unchanged and the old/new slot match is
+  unique. If slot metadata also changed, it follows the rename with an
+  `update_slots` entry that selects the new slot name. If confidence is missing,
+  it falls back to remove/add style patch entries
 
 Example patch file:
 
@@ -2113,6 +2139,14 @@ Example patch file:
       "part": "body",
       "content_control_tag": "order_no",
       "new_content_control_tag": "order_id"
+    }
+  ],
+  "update_slots": [
+    {
+      "part": "body",
+      "content_control_tag": "order_id",
+      "slot_kind": "block",
+      "count": 2
     }
   ],
   "upsert_targets": [

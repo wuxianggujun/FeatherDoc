@@ -1182,11 +1182,20 @@ struct template_schema_patch_rename_slot {
         featherdoc::template_slot_source_kind::bookmark};
 };
 
+struct template_schema_patch_update_slot {
+    template_schema_patch_target_selector target{};
+    std::string bookmark_name;
+    featherdoc::template_slot_source_kind source{
+        featherdoc::template_slot_source_kind::bookmark};
+    featherdoc::template_schema_slot_update update{};
+};
+
 struct template_schema_patch_document {
     std::vector<exported_template_schema_target> upsert_targets;
     std::vector<template_schema_patch_target_selector> remove_targets;
     std::vector<template_schema_patch_remove_slot> remove_slots;
     std::vector<template_schema_patch_rename_slot> rename_slots;
+    std::vector<template_schema_patch_update_slot> update_slots;
 };
 
 enum class template_schema_lint_issue_kind {
@@ -21354,6 +21363,489 @@ auto parse_template_schema_patch_remove_slots_array(
                                    error_message);
 }
 
+auto parse_template_schema_patch_update_slot(
+    std::string_view content, std::size_t &index,
+    template_schema_patch_update_slot &operation, std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected update-slot object", error_message);
+    }
+
+    std::optional<std::string> part_value;
+    std::optional<std::size_t> index_value;
+    std::optional<std::size_t> part_index_value;
+    std::optional<std::size_t> section_value;
+    std::optional<featherdoc::section_reference_kind> kind_value;
+    std::optional<std::size_t> resolved_from_section_value;
+    std::optional<bool> linked_to_previous_value;
+    std::optional<std::string> bookmark_value;
+    std::optional<std::string> bookmark_name_value;
+    std::optional<std::string> content_control_tag_value;
+    std::optional<std::string> content_control_alias_value;
+    std::optional<featherdoc::template_slot_kind> slot_kind_value;
+    std::optional<bool> required_value;
+    std::optional<std::size_t> count_value;
+    std::optional<std::size_t> min_value;
+    std::optional<std::size_t> min_occurrences_value;
+    std::optional<std::size_t> max_value;
+    std::optional<std::size_t> max_occurrences_value;
+    std::optional<bool> clear_min_value;
+    std::optional<bool> clear_min_occurrences_value;
+    std::optional<bool> clear_max_value;
+    std::optional<bool> clear_max_occurrences_value;
+
+    const auto parse_string_member = [&](std::string_view member_name,
+                                         std::optional<std::string> &value) -> bool {
+        if (value.has_value()) {
+            error_message = "JSON schema patch member '" + std::string(member_name) +
+                            "' must not be duplicated";
+            return false;
+        }
+        skip_json_patch_whitespace(content, index);
+        value.emplace();
+        return parse_json_patch_string(content, index, *value, error_message);
+    };
+    const auto parse_index_member = [&](std::string_view member_name,
+                                        std::optional<std::size_t> &value) -> bool {
+        if (value.has_value()) {
+            error_message = "JSON schema patch update-slot member '" +
+                            std::string(member_name) + "' must not be duplicated";
+            return false;
+        }
+        std::size_t parsed_index = 0U;
+        if (!parse_json_patch_index_value(content, index, parsed_index, member_name,
+                                          error_message)) {
+            return false;
+        }
+        value = parsed_index;
+        return true;
+    };
+    const auto parse_clear_bool = [&](std::string_view member_name,
+                                      std::optional<bool> &value) -> bool {
+        if (value.has_value()) {
+            error_message = "JSON schema patch update-slot member '" +
+                            std::string(member_name) + "' must not be duplicated";
+            return false;
+        }
+        bool parsed_value = false;
+        if (!parse_json_patch_bool_member_value(content, index, parsed_value,
+                                                member_name, error_message)) {
+            return false;
+        }
+        value = parsed_value;
+        return true;
+    };
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        ++index;
+    } else {
+        while (index < content.size()) {
+            std::string member_name;
+            if (!parse_json_patch_string(content, index, member_name,
+                                         error_message)) {
+                return false;
+            }
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size() || content[index] != ':') {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "expected ':' after object member",
+                                               error_message);
+            }
+
+            ++index;
+            if (member_name == "part") {
+                if (!parse_string_member(member_name, part_value)) {
+                    return false;
+                }
+            } else if (member_name == "index") {
+                if (index_value.has_value()) {
+                    error_message = "JSON schema patch member 'index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index, "index",
+                                                  error_message)) {
+                    return false;
+                }
+                index_value = parsed_index;
+            } else if (member_name == "part_index") {
+                if (part_index_value.has_value()) {
+                    error_message = "JSON schema patch member 'part_index' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "part_index", error_message)) {
+                    return false;
+                }
+                part_index_value = parsed_index;
+            } else if (member_name == "section") {
+                if (section_value.has_value()) {
+                    error_message = "JSON schema patch member 'section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_index = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_index,
+                                                  "section", error_message)) {
+                    return false;
+                }
+                section_value = parsed_index;
+            } else if (member_name == "kind") {
+                skip_json_patch_whitespace(content, index);
+                std::string token;
+                if (!parse_json_patch_string(content, index, token, error_message)) {
+                    return false;
+                }
+                featherdoc::section_reference_kind parsed_reference_kind{};
+                featherdoc::template_slot_kind parsed_slot_kind{};
+                if (parse_reference_kind(token, parsed_reference_kind)) {
+                    if (kind_value.has_value()) {
+                        error_message = "JSON schema patch member 'kind' must not be duplicated";
+                        return false;
+                    }
+                    kind_value = parsed_reference_kind;
+                } else if (parse_template_slot_kind(token, parsed_slot_kind)) {
+                    if (slot_kind_value.has_value()) {
+                        error_message = "JSON schema patch update-slot member 'kind' must not be duplicated";
+                        return false;
+                    }
+                    slot_kind_value = parsed_slot_kind;
+                } else {
+                    error_message = "JSON schema patch update-slot member 'kind' must be a section reference kind or template slot kind";
+                    return false;
+                }
+            } else if (member_name == "target_kind" || member_name == "reference_kind") {
+                if (kind_value.has_value()) {
+                    error_message = "JSON schema patch member '" + member_name + "' must not be duplicated";
+                    return false;
+                }
+                featherdoc::section_reference_kind parsed_kind{};
+                if (!parse_json_patch_reference_kind_value(content, index, parsed_kind,
+                                                           error_message)) {
+                    return false;
+                }
+                kind_value = parsed_kind;
+            } else if (member_name == "slot_kind") {
+                if (slot_kind_value.has_value()) {
+                    error_message = "JSON schema patch update-slot member 'slot_kind' must not be duplicated";
+                    return false;
+                }
+                std::string token;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, token, error_message)) {
+                    return false;
+                }
+                featherdoc::template_slot_kind parsed_kind{};
+                if (!parse_template_slot_kind(token, parsed_kind)) {
+                    error_message = "JSON schema patch update-slot member 'slot_kind' must be one of 'text', 'table_rows', 'table', 'image', 'floating_image', or 'block'";
+                    return false;
+                }
+                slot_kind_value = parsed_kind;
+            } else if (member_name == "linked_to_previous") {
+                if (linked_to_previous_value.has_value()) {
+                    error_message = "JSON schema patch member 'linked_to_previous' must not be duplicated";
+                    return false;
+                }
+                bool parsed_value = false;
+                if (!parse_json_patch_bool_member_value(content, index, parsed_value,
+                                                        "linked_to_previous",
+                                                        error_message)) {
+                    return false;
+                }
+                linked_to_previous_value = parsed_value;
+            } else if (member_name == "resolved_from_section") {
+                if (resolved_from_section_value.has_value()) {
+                    error_message = "JSON schema patch member 'resolved_from_section' must not be duplicated";
+                    return false;
+                }
+                std::size_t parsed_value = 0U;
+                if (!parse_json_patch_index_value(content, index, parsed_value,
+                                                  "resolved_from_section",
+                                                  error_message)) {
+                    return false;
+                }
+                resolved_from_section_value = parsed_value;
+            } else if (member_name == "bookmark") {
+                if (!parse_string_member(member_name, bookmark_value)) {
+                    return false;
+                }
+            } else if (member_name == "bookmark_name") {
+                if (!parse_string_member(member_name, bookmark_name_value)) {
+                    return false;
+                }
+            } else if (member_name == "content_control_tag") {
+                if (!parse_string_member(member_name, content_control_tag_value)) {
+                    return false;
+                }
+            } else if (member_name == "content_control_alias") {
+                if (!parse_string_member(member_name, content_control_alias_value)) {
+                    return false;
+                }
+            } else if (member_name == "required") {
+                if (required_value.has_value()) {
+                    error_message = "JSON schema patch update-slot member 'required' must not be duplicated";
+                    return false;
+                }
+                bool parsed_required = true;
+                if (!parse_json_patch_bool_member_value(content, index,
+                                                        parsed_required,
+                                                        "required",
+                                                        error_message)) {
+                    return false;
+                }
+                required_value = parsed_required;
+            } else if (member_name == "count") {
+                if (!parse_index_member(member_name, count_value)) {
+                    return false;
+                }
+            } else if (member_name == "min") {
+                if (!parse_index_member(member_name, min_value)) {
+                    return false;
+                }
+            } else if (member_name == "min_occurrences") {
+                if (!parse_index_member(member_name, min_occurrences_value)) {
+                    return false;
+                }
+            } else if (member_name == "max") {
+                if (!parse_index_member(member_name, max_value)) {
+                    return false;
+                }
+            } else if (member_name == "max_occurrences") {
+                if (!parse_index_member(member_name, max_occurrences_value)) {
+                    return false;
+                }
+            } else if (member_name == "clear_min") {
+                if (!parse_clear_bool(member_name, clear_min_value)) {
+                    return false;
+                }
+            } else if (member_name == "clear_min_occurrences") {
+                if (!parse_clear_bool(member_name, clear_min_occurrences_value)) {
+                    return false;
+                }
+            } else if (member_name == "clear_max") {
+                if (!parse_clear_bool(member_name, clear_max_value)) {
+                    return false;
+                }
+            } else if (member_name == "clear_max_occurrences") {
+                if (!parse_clear_bool(member_name, clear_max_occurrences_value)) {
+                    return false;
+                }
+            } else if (member_name == "entry_name") {
+                std::string ignored;
+                skip_json_patch_whitespace(content, index);
+                if (!parse_json_patch_string(content, index, ignored, error_message)) {
+                    return false;
+                }
+            } else {
+                return report_json_input_error("JSON schema patch file", index,
+                                               "unknown update-slot member",
+                                               error_message);
+            }
+
+            skip_json_patch_whitespace(content, index);
+            if (index >= content.size()) {
+                break;
+            }
+            if (content[index] == ',') {
+                ++index;
+                skip_json_patch_whitespace(content, index);
+                continue;
+            }
+            if (content[index] == '}') {
+                ++index;
+                break;
+            }
+            return report_json_input_error("JSON schema patch file", index,
+                                           "expected ',' or '}' after object member",
+                                           error_message);
+        }
+    }
+
+    operation = {};
+    if (!finalize_template_schema_patch_selector(
+            part_value, index_value, part_index_value, section_value, kind_value,
+            resolved_from_section_value, linked_to_previous_value, operation.target,
+            error_message)) {
+        return false;
+    }
+
+    std::optional<std::string> resolved_bookmark_name;
+    if (!resolve_json_patch_string_member(bookmark_value, bookmark_name_value,
+                                          "bookmark", "bookmark_name",
+                                          resolved_bookmark_name, error_message)) {
+        return false;
+    }
+    std::size_t selector_count = 0U;
+    selector_count += resolved_bookmark_name.has_value() ? 1U : 0U;
+    selector_count += content_control_tag_value.has_value() ? 1U : 0U;
+    selector_count += content_control_alias_value.has_value() ? 1U : 0U;
+    if (selector_count != 1U) {
+        error_message =
+            "JSON schema patch update-slot object must contain exactly one of "
+            "'bookmark', 'bookmark_name', 'content_control_tag', or "
+            "'content_control_alias'";
+        return false;
+    }
+
+    auto source = featherdoc::template_slot_source_kind::bookmark;
+    std::string resolved_slot_name;
+    if (resolved_bookmark_name.has_value()) {
+        resolved_slot_name = *resolved_bookmark_name;
+    } else if (content_control_tag_value.has_value()) {
+        source = featherdoc::template_slot_source_kind::content_control_tag;
+        resolved_slot_name = *content_control_tag_value;
+    } else {
+        source = featherdoc::template_slot_source_kind::content_control_alias;
+        resolved_slot_name = *content_control_alias_value;
+    }
+    if (resolved_slot_name.empty()) {
+        error_message = "JSON schema patch update-slot selector must not be empty";
+        return false;
+    }
+
+    std::optional<std::size_t> resolved_min;
+    if (!resolve_json_patch_index_member(min_value, min_occurrences_value,
+                                         "min", "min_occurrences", resolved_min,
+                                         error_message)) {
+        return false;
+    }
+    std::optional<std::size_t> resolved_max;
+    if (!resolve_json_patch_index_member(max_value, max_occurrences_value,
+                                         "max", "max_occurrences", resolved_max,
+                                         error_message)) {
+        return false;
+    }
+    const auto resolve_bool_alias = [&](const std::optional<bool> &primary,
+                                        const std::optional<bool> &alias,
+                                        std::string_view primary_name,
+                                        std::string_view alias_name,
+                                        std::optional<bool> &resolved) -> bool {
+        if (primary.has_value() && alias.has_value() && *primary != *alias) {
+            error_message = "JSON patch members '" + std::string(primary_name) +
+                            "' and '" + std::string(alias_name) +
+                            "' must match when both are present";
+            return false;
+        }
+        resolved = primary.has_value() ? primary : alias;
+        return true;
+    };
+    std::optional<bool> resolved_clear_min;
+    std::optional<bool> resolved_clear_max;
+    if (!resolve_bool_alias(clear_min_value, clear_min_occurrences_value,
+                            "clear_min", "clear_min_occurrences",
+                            resolved_clear_min) ||
+        !resolve_bool_alias(clear_max_value, clear_max_occurrences_value,
+                            "clear_max", "clear_max_occurrences",
+                            resolved_clear_max)) {
+        return false;
+    }
+
+    if (count_value.has_value() &&
+        (resolved_min.has_value() || resolved_max.has_value())) {
+        error_message = "JSON schema patch update-slot member 'count' conflicts with 'min'/'max'";
+        return false;
+    }
+    if (count_value.has_value() &&
+        (resolved_clear_min.value_or(false) || resolved_clear_max.value_or(false))) {
+        error_message = "JSON schema patch update-slot member 'count' conflicts with clear occurrence flags";
+        return false;
+    }
+    if (resolved_min.has_value() && resolved_clear_min.value_or(false)) {
+        error_message = "JSON schema patch update-slot member 'min' conflicts with 'clear_min_occurrences'";
+        return false;
+    }
+    if (resolved_max.has_value() && resolved_clear_max.value_or(false)) {
+        error_message = "JSON schema patch update-slot member 'max' conflicts with 'clear_max_occurrences'";
+        return false;
+    }
+    if (resolved_min.has_value() && resolved_max.has_value() &&
+        *resolved_max < *resolved_min) {
+        error_message =
+            "JSON schema patch update-slot occurrence range is invalid: max must be greater than or equal to min";
+        return false;
+    }
+
+    operation.bookmark_name = std::move(resolved_slot_name);
+    operation.source = source;
+    operation.update.kind = slot_kind_value;
+    operation.update.required = required_value;
+    if (count_value.has_value()) {
+        operation.update.min_occurrences = *count_value;
+        operation.update.max_occurrences = *count_value;
+    } else {
+        operation.update.min_occurrences = resolved_min;
+        operation.update.max_occurrences = resolved_max;
+    }
+    operation.update.clear_min_occurrences = resolved_clear_min.value_or(false);
+    operation.update.clear_max_occurrences = resolved_clear_max.value_or(false);
+
+    if (!operation.update.kind.has_value() &&
+        !operation.update.required.has_value() &&
+        !operation.update.min_occurrences.has_value() &&
+        !operation.update.max_occurrences.has_value() &&
+        !operation.update.clear_min_occurrences &&
+        !operation.update.clear_max_occurrences) {
+        error_message = "JSON schema patch update-slot object must contain at least one update field";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_template_schema_patch_update_slots_array(
+    std::string_view content, std::size_t &index,
+    std::vector<template_schema_patch_update_slot> &operations,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("JSON schema patch file", index,
+                                       "expected update_slots array",
+                                       error_message);
+    }
+
+    operations.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        template_schema_patch_update_slot operation;
+        if (!parse_template_schema_patch_update_slot(content, index, operation,
+                                                     error_message)) {
+            return false;
+        }
+        operations.push_back(std::move(operation));
+
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size()) {
+            break;
+        }
+        if (content[index] == ',') {
+            ++index;
+            skip_json_patch_whitespace(content, index);
+            continue;
+        }
+        if (content[index] == ']') {
+            ++index;
+            return true;
+        }
+        return report_json_input_error(
+            "JSON schema patch file", index,
+            "expected ',' or ']' after update-slot entry", error_message);
+    }
+
+    return report_json_input_error("JSON schema patch file", index,
+                                   "unterminated update_slots array",
+                                   error_message);
+}
+
 auto parse_template_schema_patch_rename_slot(
     std::string_view content, std::size_t &index,
     template_schema_patch_rename_slot &operation, std::string &error_message)
@@ -21792,6 +22284,7 @@ auto read_template_schema_patch_file(const path_type &patch_path,
     bool saw_remove_targets = false;
     bool saw_remove_slots = false;
     bool saw_rename_slots = false;
+    bool saw_update_slots = false;
 
     ++index;
     skip_json_patch_whitespace(content, index);
@@ -21892,6 +22385,17 @@ auto read_template_schema_patch_file(const path_type &patch_path,
                 saw_rename_slots = true;
                 if (!parse_template_schema_patch_rename_slots_array(
                         content, index, patch.rename_slots, error_message)) {
+                    return false;
+                }
+            } else if (member_name == "update_slots") {
+                if (saw_update_slots) {
+                    error_message = "JSON schema patch member 'update_slots' "
+                                    "must not be duplicated";
+                    return false;
+                }
+                saw_update_slots = true;
+                if (!parse_template_schema_patch_update_slots_array(
+                        content, index, patch.update_slots, error_message)) {
                     return false;
                 }
             } else {
@@ -25772,6 +26276,34 @@ auto compare_template_slot_requirement(
     return compare_optional_index(left.max_occurrences, right.max_occurrences);
 }
 
+auto make_template_schema_slot_update(
+    const featherdoc::template_slot_requirement &left,
+    const featherdoc::template_slot_requirement &right)
+    -> featherdoc::template_schema_slot_update {
+    featherdoc::template_schema_slot_update update{};
+    if (left.kind != right.kind) {
+        update.kind = right.kind;
+    }
+    if (left.required != right.required) {
+        update.required = right.required;
+    }
+    if (left.min_occurrences != right.min_occurrences) {
+        if (right.min_occurrences.has_value()) {
+            update.min_occurrences = *right.min_occurrences;
+        } else {
+            update.clear_min_occurrences = true;
+        }
+    }
+    if (left.max_occurrences != right.max_occurrences) {
+        if (right.max_occurrences.has_value()) {
+            update.max_occurrences = *right.max_occurrences;
+        } else {
+            update.clear_max_occurrences = true;
+        }
+    }
+    return update;
+}
+
 auto compare_template_slot_requirement_shape(
     const featherdoc::template_slot_requirement &left,
     const featherdoc::template_slot_requirement &right) -> int {
@@ -25963,11 +26495,13 @@ struct patched_template_schema_summary {
     std::size_t remove_target_count = 0U;
     std::size_t remove_slot_count = 0U;
     std::size_t rename_slot_count = 0U;
+    std::size_t update_slot_count = 0U;
     std::size_t updated_target_count = 0U;
     std::size_t replaced_slot_count = 0U;
     std::size_t applied_remove_target_count = 0U;
     std::size_t applied_remove_slot_count = 0U;
     std::size_t applied_rename_slot_count = 0U;
+    std::size_t applied_update_slot_count = 0U;
     std::size_t pruned_empty_target_count = 0U;
 };
 
@@ -25979,6 +26513,7 @@ struct previewed_template_schema_patch_summary {
     std::optional<std::size_t> remove_target_count;
     std::optional<std::size_t> remove_slot_count;
     std::optional<std::size_t> rename_slot_count;
+    std::optional<std::size_t> update_slot_count;
     featherdoc::template_schema_patch_summary applied{};
 };
 
@@ -25989,12 +26524,14 @@ struct built_template_schema_patch_summary {
     std::size_t generated_remove_target_count = 0U;
     std::size_t generated_remove_slot_count = 0U;
     std::size_t generated_rename_slot_count = 0U;
+    std::size_t generated_update_slot_count = 0U;
     std::size_t generated_upsert_target_count = 0U;
 
     [[nodiscard]] bool empty_patch() const noexcept {
         return this->generated_remove_target_count == 0U &&
                this->generated_remove_slot_count == 0U &&
                this->generated_rename_slot_count == 0U &&
+               this->generated_update_slot_count == 0U &&
                this->generated_upsert_target_count == 0U;
     }
 };
@@ -26018,6 +26555,7 @@ void apply_template_schema_patch(exported_template_schema_result &result,
     summary.remove_target_count = patch.remove_targets.size();
     summary.remove_slot_count = patch.remove_slots.size();
     summary.rename_slot_count = patch.rename_slots.size();
+    summary.update_slot_count = patch.update_slots.size();
 
     for (const auto &selector : patch.remove_targets) {
         const auto previous_size = result.targets.size();
@@ -26077,6 +26615,48 @@ void apply_template_schema_patch(exported_template_schema_result &result,
                 }
                 requirement.bookmark_name = rename_slot.new_bookmark_name;
                 ++summary.applied_rename_slot_count;
+            }
+        }
+    }
+
+    for (const auto &update_slot : patch.update_slots) {
+        for (auto &target : result.targets) {
+            if (!template_schema_patch_selector_matches_target(update_slot.target,
+                                                               target)) {
+                continue;
+            }
+            for (auto &requirement : target.requirements) {
+                if (requirement.source != update_slot.source ||
+                    requirement.bookmark_name != update_slot.bookmark_name) {
+                    continue;
+                }
+                auto updated_requirement = requirement;
+                if (update_slot.update.kind.has_value()) {
+                    updated_requirement.kind = *update_slot.update.kind;
+                }
+                if (update_slot.update.required.has_value()) {
+                    updated_requirement.required = *update_slot.update.required;
+                }
+                if (update_slot.update.clear_min_occurrences) {
+                    updated_requirement.min_occurrences.reset();
+                }
+                if (update_slot.update.min_occurrences.has_value()) {
+                    updated_requirement.min_occurrences =
+                        *update_slot.update.min_occurrences;
+                }
+                if (update_slot.update.clear_max_occurrences) {
+                    updated_requirement.max_occurrences.reset();
+                }
+                if (update_slot.update.max_occurrences.has_value()) {
+                    updated_requirement.max_occurrences =
+                        *update_slot.update.max_occurrences;
+                }
+                if (compare_template_slot_requirement(requirement,
+                                                      updated_requirement) == 0) {
+                    continue;
+                }
+                requirement = std::move(updated_requirement);
+                ++summary.applied_update_slot_count;
             }
         }
     }
@@ -26175,6 +26755,16 @@ auto to_template_schema_patch(const template_schema_patch_document &document)
         patch.rename_slots.push_back(std::move(operation));
     }
 
+    patch.update_slots.reserve(document.update_slots.size());
+    for (const auto &update_slot : document.update_slots) {
+        featherdoc::template_schema_slot_patch_update operation{};
+        operation.slot.target = to_template_schema_part_selector(update_slot.target);
+        operation.slot.source = update_slot.source;
+        operation.slot.bookmark_name = update_slot.bookmark_name;
+        operation.update = update_slot.update;
+        patch.update_slots.push_back(std::move(operation));
+    }
+
     return patch;
 }
 
@@ -26204,6 +26794,10 @@ auto has_template_schema_resolved_target_metadata(
                        }) ||
            std::any_of(patch.rename_slots.begin(), patch.rename_slots.end(),
                        [&](const template_schema_patch_rename_slot &slot) {
+                           return selector_has_metadata(slot.target);
+                       }) ||
+           std::any_of(patch.update_slots.begin(), patch.update_slots.end(),
+                       [&](const template_schema_patch_update_slot &slot) {
                            return selector_has_metadata(slot.target);
                        });
 }
@@ -26375,7 +26969,13 @@ void append_changed_target_template_schema_patch(
             static_cast<std::size_t>(std::distance(right.requirements.begin(), right_it));
         right_matched[right_index] = true;
         if (compare_template_slot_requirement(left_requirement, *right_it) != 0) {
-            upsert_target.requirements.push_back(*right_it);
+            template_schema_patch_update_slot update_slot{};
+            update_slot.target = selector;
+            update_slot.bookmark_name = left_requirement.bookmark_name;
+            update_slot.source = left_requirement.source;
+            update_slot.update = make_template_schema_slot_update(left_requirement,
+                                                                  *right_it);
+            patch.update_slots.push_back(std::move(update_slot));
         }
     }
 
@@ -26388,23 +26988,37 @@ void append_changed_target_template_schema_patch(
 
     std::vector<bool> removed_consumed(removed_requirements.size(), false);
     std::vector<bool> added_consumed(added_requirements.size(), false);
-    for (std::size_t removed_index = 0U; removed_index < removed_requirements.size();
-         ++removed_index) {
+    const auto find_unique_renamed_slot = [&](std::size_t removed_index,
+                                              int match_level)
+        -> std::optional<std::size_t> {
+        const auto matches = [&](const featherdoc::template_slot_requirement &removed,
+                                 const featherdoc::template_slot_requirement &added) {
+            if (removed.source != added.source) {
+                return false;
+            }
+            if (match_level == 0) {
+                return compare_template_slot_requirement_shape(removed, added) == 0;
+            }
+            if (match_level == 1) {
+                return removed.kind == added.kind;
+            }
+            return true;
+        };
+
         std::optional<std::size_t> matched_added_index;
         std::size_t matched_added_count = 0U;
         for (std::size_t added_index = 0U; added_index < added_requirements.size();
              ++added_index) {
             if (added_consumed[added_index] ||
-                compare_template_slot_requirement_shape(
-                    *removed_requirements[removed_index],
-                    *added_requirements[added_index]) != 0) {
+                !matches(*removed_requirements[removed_index],
+                         *added_requirements[added_index])) {
                 continue;
             }
             matched_added_index = added_index;
             ++matched_added_count;
         }
         if (matched_added_count != 1U || !matched_added_index.has_value()) {
-            continue;
+            return std::nullopt;
         }
 
         std::size_t matched_removed_count = 0U;
@@ -26412,19 +27026,28 @@ void append_changed_target_template_schema_patch(
              candidate_removed_index < removed_requirements.size();
              ++candidate_removed_index) {
             if (removed_consumed[candidate_removed_index] ||
-                compare_template_slot_requirement_shape(
-                    *removed_requirements[candidate_removed_index],
-                    *added_requirements[*matched_added_index]) != 0) {
+                !matches(*removed_requirements[candidate_removed_index],
+                         *added_requirements[*matched_added_index])) {
                 continue;
             }
             ++matched_removed_count;
         }
         if (matched_removed_count != 1U) {
-            continue;
+            return std::nullopt;
         }
+        return matched_added_index;
+    };
 
-        if (removed_requirements[removed_index]->source !=
-            featherdoc::template_slot_source_kind::bookmark) {
+    for (std::size_t removed_index = 0U; removed_index < removed_requirements.size();
+         ++removed_index) {
+        auto matched_added_index = find_unique_renamed_slot(removed_index, 0);
+        if (!matched_added_index.has_value()) {
+            matched_added_index = find_unique_renamed_slot(removed_index, 1);
+        }
+        if (!matched_added_index.has_value()) {
+            matched_added_index = find_unique_renamed_slot(removed_index, 2);
+        }
+        if (!matched_added_index.has_value()) {
             continue;
         }
 
@@ -26436,6 +27059,21 @@ void append_changed_target_template_schema_patch(
             added_requirements[*matched_added_index]->bookmark_name;
         rename_slot.source = removed_requirements[removed_index]->source;
         patch.rename_slots.push_back(std::move(rename_slot));
+
+        if (compare_template_slot_requirement_shape(
+                *removed_requirements[removed_index],
+                *added_requirements[*matched_added_index]) != 0) {
+            template_schema_patch_update_slot update_slot{};
+            update_slot.target = selector;
+            update_slot.bookmark_name =
+                added_requirements[*matched_added_index]->bookmark_name;
+            update_slot.source = removed_requirements[removed_index]->source;
+            update_slot.update = make_template_schema_slot_update(
+                *removed_requirements[removed_index],
+                *added_requirements[*matched_added_index]);
+            patch.update_slots.push_back(std::move(update_slot));
+        }
+
         removed_consumed[removed_index] = true;
         added_consumed[*matched_added_index] = true;
     }
@@ -26494,6 +27132,7 @@ auto build_template_schema_patch_document(
     summary.generated_remove_target_count = patch.remove_targets.size();
     summary.generated_remove_slot_count = patch.remove_slots.size();
     summary.generated_rename_slot_count = patch.rename_slots.size();
+    summary.generated_update_slot_count = patch.update_slots.size();
     summary.generated_upsert_target_count = patch.upsert_targets.size();
     return patch;
 }
@@ -26708,6 +27347,53 @@ void write_json_template_schema_patch_rename_slot(
     stream << '}';
 }
 
+void write_json_template_schema_patch_update_slot(
+    std::ostream &stream, const template_schema_patch_update_slot &operation) {
+    stream << "{\"part\":";
+    write_json_string(stream, validation_part_name(operation.target.part));
+    if (operation.target.part_index.has_value()) {
+        stream << ",\"index\":" << *operation.target.part_index;
+    }
+    if (operation.target.section_index.has_value()) {
+        stream << ",\"section\":" << *operation.target.section_index;
+    }
+    if (operation.target.reference_kind.has_value()) {
+        stream << ",\"kind\":";
+        write_json_string(
+            stream,
+            featherdoc::to_xml_reference_type(*operation.target.reference_kind));
+    }
+    if (operation.target.resolved_from_section_index.has_value()) {
+        stream << ",\"resolved_from_section\":"
+               << *operation.target.resolved_from_section_index;
+    }
+    if (operation.target.linked_to_previous) {
+        stream << ",\"linked_to_previous\":true";
+    }
+    stream << ",\"" << template_slot_source_json_name(operation.source) << "\":";
+    write_json_string(stream, operation.bookmark_name);
+    if (operation.update.kind.has_value()) {
+        stream << ",\"slot_kind\":";
+        write_json_string(stream, template_slot_kind_name(*operation.update.kind));
+    }
+    if (operation.update.required.has_value()) {
+        stream << ",\"required\":" << json_bool(*operation.update.required);
+    }
+    if (operation.update.min_occurrences.has_value()) {
+        stream << ",\"min_occurrences\":" << *operation.update.min_occurrences;
+    }
+    if (operation.update.max_occurrences.has_value()) {
+        stream << ",\"max_occurrences\":" << *operation.update.max_occurrences;
+    }
+    if (operation.update.clear_min_occurrences) {
+        stream << ",\"clear_min_occurrences\":true";
+    }
+    if (operation.update.clear_max_occurrences) {
+        stream << ",\"clear_max_occurrences\":true";
+    }
+    stream << '}';
+}
+
 void write_json_template_schema_patch_document(
     std::ostream &stream, const template_schema_patch_document &patch) {
     bool wrote_member = false;
@@ -26755,6 +27441,19 @@ void write_json_template_schema_patch_document(
             }
             write_json_template_schema_patch_rename_slot(stream,
                                                          patch.rename_slots[index]);
+        }
+        stream << ']';
+    }
+
+    if (!patch.update_slots.empty()) {
+        write_separator();
+        stream << "\"update_slots\":[";
+        for (std::size_t index = 0U; index < patch.update_slots.size(); ++index) {
+            if (index != 0U) {
+                stream << ',';
+            }
+            write_json_template_schema_patch_update_slot(stream,
+                                                         patch.update_slots[index]);
         }
         stream << ']';
     }
@@ -27163,6 +27862,7 @@ void print_patched_template_schema_summary(
                   << ",\"remove_target_count\":" << summary.remove_target_count
                   << ",\"remove_slot_count\":" << summary.remove_slot_count
                   << ",\"rename_slot_count\":" << summary.rename_slot_count
+                  << ",\"update_slot_count\":" << summary.update_slot_count
                   << ",\"updated_target_count\":" << summary.updated_target_count
                   << ",\"replaced_slot_count\":" << summary.replaced_slot_count
                   << ",\"applied_remove_target_count\":"
@@ -27171,6 +27871,8 @@ void print_patched_template_schema_summary(
                   << summary.applied_remove_slot_count
                   << ",\"applied_rename_slot_count\":"
                   << summary.applied_rename_slot_count
+                  << ",\"applied_update_slot_count\":"
+                  << summary.applied_update_slot_count
                   << ",\"pruned_empty_target_count\":"
                   << summary.pruned_empty_target_count << "}\n";
         return;
@@ -27185,6 +27887,7 @@ void print_patched_template_schema_summary(
               << "remove_target_count: " << summary.remove_target_count << '\n'
               << "remove_slot_count: " << summary.remove_slot_count << '\n'
               << "rename_slot_count: " << summary.rename_slot_count << '\n'
+              << "update_slot_count: " << summary.update_slot_count << '\n'
               << "updated_target_count: " << summary.updated_target_count << '\n'
               << "replaced_slot_count: " << summary.replaced_slot_count << '\n'
               << "applied_remove_target_count: "
@@ -27193,6 +27896,8 @@ void print_patched_template_schema_summary(
               << summary.applied_remove_slot_count << '\n'
               << "applied_rename_slot_count: "
               << summary.applied_rename_slot_count << '\n'
+              << "applied_update_slot_count: "
+              << summary.applied_update_slot_count << '\n'
               << "pruned_empty_target_count: "
               << summary.pruned_empty_target_count << '\n';
 }
@@ -27221,6 +27926,9 @@ void print_previewed_template_schema_patch_summary(
         }
         if (summary.rename_slot_count.has_value()) {
             std::cout << ",\"rename_slot_count\":" << *summary.rename_slot_count;
+        }
+        if (summary.update_slot_count.has_value()) {
+            std::cout << ",\"update_slot_count\":" << *summary.update_slot_count;
         }
         std::cout << ",\"removed_targets\":" << summary.applied.removed_targets
                   << ",\"removed_slots\":" << summary.applied.removed_slots
@@ -27252,6 +27960,9 @@ void print_previewed_template_schema_patch_summary(
     if (summary.rename_slot_count.has_value()) {
         std::cout << "rename_slot_count: " << *summary.rename_slot_count << '\n';
     }
+    if (summary.update_slot_count.has_value()) {
+        std::cout << "update_slot_count: " << *summary.update_slot_count << '\n';
+    }
     std::cout << "removed_targets: " << summary.applied.removed_targets << '\n'
               << "removed_slots: " << summary.applied.removed_slots << '\n'
               << "renamed_slots: " << summary.applied.renamed_slots << '\n'
@@ -27278,6 +27989,8 @@ void print_built_template_schema_patch_summary(
                   << summary.generated_remove_slot_count
                   << ",\"generated_rename_slot_count\":"
                   << summary.generated_rename_slot_count
+                  << ",\"generated_update_slot_count\":"
+                  << summary.generated_update_slot_count
                   << ",\"generated_upsert_target_count\":"
                   << summary.generated_upsert_target_count
                   << ",\"empty_patch\":" << json_bool(summary.empty_patch()) << "}\n";
@@ -27296,6 +28009,8 @@ void print_built_template_schema_patch_summary(
               << summary.generated_remove_slot_count << '\n'
               << "generated_rename_slot_count: "
               << summary.generated_rename_slot_count << '\n'
+              << "generated_update_slot_count: "
+              << summary.generated_update_slot_count << '\n'
               << "generated_upsert_target_count: "
               << summary.generated_upsert_target_count << '\n'
               << "empty_patch: " << yes_no(summary.empty_patch()) << '\n';
@@ -39793,6 +40508,7 @@ int main(int argc, char **argv) {
             summary.remove_target_count = patch.remove_targets.size();
             summary.remove_slot_count = patch.remove_slots.size();
             summary.rename_slot_count = patch.rename_slots.size();
+            summary.update_slot_count = patch.update_slots.size();
             summary.applied =
                 featherdoc::preview_template_schema_patch(left_schema, patch);
             if (options.output_patch_path.has_value()) {
@@ -39833,6 +40549,7 @@ int main(int argc, char **argv) {
             summary.remove_target_count = patch.remove_targets.size();
             summary.remove_slot_count = patch.remove_slots.size();
             summary.rename_slot_count = patch.rename_slots.size();
+            summary.update_slot_count = patch.update_slots.size();
             summary.applied =
                 featherdoc::preview_template_schema_patch(left_schema, patch);
             if (options.output_patch_path.has_value()) {

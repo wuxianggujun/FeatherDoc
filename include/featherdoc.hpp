@@ -500,13 +500,6 @@ struct template_schema_slot_rename {
     std::string new_bookmark_name;
 };
 
-struct template_schema_patch {
-    std::vector<featherdoc::template_schema_entry> upsert_slots;
-    std::vector<featherdoc::template_schema_part_selector> remove_targets;
-    std::vector<featherdoc::template_schema_slot_selector> remove_slots;
-    std::vector<featherdoc::template_schema_slot_rename> rename_slots;
-};
-
 struct template_schema_slot_update {
     std::optional<featherdoc::template_slot_kind> kind;
     std::optional<bool> required;
@@ -514,6 +507,19 @@ struct template_schema_slot_update {
     std::optional<std::size_t> max_occurrences;
     bool clear_min_occurrences{false};
     bool clear_max_occurrences{false};
+};
+
+struct template_schema_slot_patch_update {
+    featherdoc::template_schema_slot_selector slot{};
+    featherdoc::template_schema_slot_update update{};
+};
+
+struct template_schema_patch {
+    std::vector<featherdoc::template_schema_entry> upsert_slots;
+    std::vector<featherdoc::template_schema_part_selector> remove_targets;
+    std::vector<featherdoc::template_schema_slot_selector> remove_slots;
+    std::vector<featherdoc::template_schema_slot_rename> rename_slots;
+    std::vector<featherdoc::template_schema_slot_patch_update> update_slots;
 };
 
 struct template_schema_normalization_summary {

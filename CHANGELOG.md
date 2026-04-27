@@ -12,6 +12,8 @@ performance.
 
 - Added `preview-template-schema-patch --output-patch` support so schema patch previews can copy an explicit patch file or generate a reusable left/right schema patch while reporting `output_patch_path` in JSON summaries for automation.
 - Added template-schema patch preview and slot mutation helpers in the public API, including preview, replace-target, upsert-slot, remove-target, remove-slot, rename-slot, and update-slot operations.
+- Added template-schema patch `update_slots` support in CLI patch files for targeted slot kind, required, and occurrence metadata changes without replacing full targets.
+- Updated `build_template_schema_patch(...)` and `build-template-schema-patch` to emit `update_slots` for same-slot metadata drift and unique rename-plus-metadata drift, keeping generated patches smaller and more reviewable.
 - Added a one-stop project template onboarding script that prepares schema candidates, temporary smoke manifests, render-data workspaces, completeness reports, and review checklists without mutating committed manifests by default.
 
 - Added numbering catalog export/import APIs and CLI automation for stable
@@ -60,6 +62,8 @@ performance.
 ### Tests
 
 - Added CLI regression coverage for `preview-template-schema-patch --output-patch`, including patch-file copy output, left/right schema generated output, and JSON `output_patch_path` reporting.
+- Added unit coverage for high-level template schema mutation helpers, including preview-only summaries, target replacement, slot occurrence updates, source-aware slot rename, and target/slot removal.
+- Added unit and CLI regression coverage for template-schema `update_slots` patch application, parse errors, preview summaries, output-patch serialization, generated patch output, and source-aware rename-plus-update patch generation.
 - Split shared CLI test support and style-focused CLI coverage into dedicated helpers/files so the full CLI suite can keep focused regression coverage without duplicating harness code.
 - Added PowerShell coverage for the project template onboarding workflow.
 

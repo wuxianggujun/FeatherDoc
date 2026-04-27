@@ -17486,7 +17486,7 @@ TEST_CASE("cli lint-template-schema reports clean normalized schemas") {
                       std::string{
                           "{\"targets\":[{\"part\":\"body\",\"slots\":["
                           "{\"bookmark\":\"customer\",\"kind\":\"text\"},"
-                          "{\"bookmark\":\"invoice_no\",\"kind\":\"text\"}"
+                          "{\"bookmark\":\"invoice_no\",\"kind\":\"text\",\"count\":2}"
                           "]}]}\n"});
 
     CHECK_EQ(run_cli({"lint-template-schema", schema_input.string(), "--json"}, output),
@@ -17934,10 +17934,12 @@ TEST_CASE("cli patch-template-schema applies upserts removals and slot pruning")
                  "\",\"target_count\":2,\"slot_count\":3,"
                  "\"upsert_target_count\":1,\"remove_target_count\":1,"
                  "\"remove_slot_count\":1,\"rename_slot_count\":1,"
-                 "\"updated_target_count\":1,\"replaced_slot_count\":1,"
+                 "\"update_slot_count\":0,\"updated_target_count\":1,"
+                 "\"replaced_slot_count\":1,"
                  "\"applied_remove_target_count\":1,"
                  "\"applied_remove_slot_count\":1,"
                  "\"applied_rename_slot_count\":1,"
+                 "\"applied_update_slot_count\":0,"
                  "\"pruned_empty_target_count\":0}\n"});
     CHECK_EQ(read_text_file(schema_output),
              std::string{
@@ -18015,15 +18017,94 @@ TEST_CASE("cli patch-template-schema applies content control slot selectors") {
                  "\",\"target_count\":1,\"slot_count\":1,"
                  "\"upsert_target_count\":0,\"remove_target_count\":0,"
                  "\"remove_slot_count\":1,\"rename_slot_count\":1,"
-                 "\"updated_target_count\":0,\"replaced_slot_count\":0,"
+                 "\"update_slot_count\":0,\"updated_target_count\":0,"
+                 "\"replaced_slot_count\":0,"
                  "\"applied_remove_target_count\":0,"
                  "\"applied_remove_slot_count\":1,"
                  "\"applied_rename_slot_count\":1,"
+                 "\"applied_update_slot_count\":0,"
                  "\"pruned_empty_target_count\":0}\n"});
     CHECK_EQ(read_text_file(schema_output),
              std::string{
                  "{\"targets\":[{\"part\":\"body\",\"slots\":["
                  "{\"content_control_tag\":\"order_id\",\"kind\":\"text\"}]}]}\n"});
+
+    remove_if_exists(schema_input);
+    remove_if_exists(patch_input);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli patch-template-schema updates slot properties") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path schema_input =
+        working_directory / "cli_patch_template_schema_update_slots_input.json";
+    const fs::path patch_input =
+        working_directory / "cli_patch_template_schema_update_slots_patch.json";
+    const fs::path schema_output =
+        working_directory / "cli_patch_template_schema_update_slots_output.json";
+    const fs::path output =
+        working_directory / "cli_patch_template_schema_update_slots_summary.json";
+
+    remove_if_exists(schema_input);
+    remove_if_exists(patch_input);
+    remove_if_exists(schema_output);
+    remove_if_exists(output);
+
+    write_binary_file(schema_input,
+                      std::string{
+                          "{"
+                          "\"targets\":[{"
+                          "\"part\":\"body\","
+                          "\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":1},"
+                          "{\"content_control_tag\":\"status\",\"kind\":\"text\",\"count\":1}"
+                          "]"
+                          "}]"
+                          "}"});
+    write_binary_file(patch_input,
+                      std::string{
+                          "{"
+                          "\"update_slots\":["
+                          "{\"part\":\"body\",\"bookmark\":\"customer\","
+                          "\"kind\":\"block\",\"required\":false,"
+                          "\"min_occurrences\":2,\"max_occurrences\":5},"
+                          "{\"part\":\"body\",\"content_control_tag\":\"status\","
+                          "\"clear_min_occurrences\":true,"
+                          "\"clear_max_occurrences\":true}"
+                          "]"
+                          "}"});
+
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      schema_input.string(),
+                      "--patch-file",
+                      patch_input.string(),
+                      "--output",
+                      schema_output.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"patch-template-schema\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(schema_output.string()) +
+                 "\",\"target_count\":1,\"slot_count\":2,"
+                 "\"upsert_target_count\":0,\"remove_target_count\":0,"
+                 "\"remove_slot_count\":0,\"rename_slot_count\":0,"
+                 "\"update_slot_count\":2,\"updated_target_count\":0,"
+                 "\"replaced_slot_count\":0,"
+                 "\"applied_remove_target_count\":0,"
+                 "\"applied_remove_slot_count\":0,"
+                 "\"applied_rename_slot_count\":0,"
+                 "\"applied_update_slot_count\":2,"
+                 "\"pruned_empty_target_count\":0}\n"});
+    CHECK_EQ(read_text_file(schema_output),
+             std::string{
+                 "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                 "{\"bookmark\":\"customer\",\"kind\":\"block\","
+                 "\"required\":false,\"min\":2,\"max\":5},"
+                 "{\"content_control_tag\":\"status\",\"kind\":\"text\"}]}]}\n"});
 
     remove_if_exists(schema_input);
     remove_if_exists(patch_input);
@@ -18105,6 +18186,40 @@ TEST_CASE("cli patch-template-schema reports parse errors") {
                  "rename-slot object must contain 'new_bookmark' or "
                  "'new_bookmark_name'\"}\n"});
 
+    write_binary_file(patch_input,
+                      std::string{"{\"update_slots\":[{\"part\":\"body\","
+                                  "\"bookmark\":\"customer\"}]}\n"});
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      schema_input.string(),
+                      "--patch-file",
+                      patch_input.string(),
+                      "--json"},
+                     output),
+             2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"patch-template-schema\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"JSON schema patch "
+                 "update-slot object must contain at least one update field\"}\n"});
+
+    write_binary_file(patch_input,
+                      std::string{"{\"update_slots\":[{\"part\":\"body\","
+                                  "\"bookmark\":\"customer\",\"min\":1,"
+                                  "\"clear_min_occurrences\":true}]}\n"});
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      schema_input.string(),
+                      "--patch-file",
+                      patch_input.string(),
+                      "--json"},
+                     output),
+             2);
+    CHECK_EQ(read_text_file(output),
+             std::string{
+                 "{\"command\":\"patch-template-schema\",\"ok\":false,"
+                 "\"stage\":\"parse\",\"message\":\"JSON schema patch "
+                 "update-slot member 'min' conflicts with "
+                 "'clear_min_occurrences'\"}\n"});
+
     remove_if_exists(schema_input);
     remove_if_exists(patch_input);
     remove_if_exists(output);
@@ -18151,10 +18266,70 @@ TEST_CASE("cli preview-template-schema-patch copies patch file to output patch")
                  json_escape_text(copied_patch_output.string()) +
                  "\",\"left_slot_count\":1,\"upsert_slot_count\":1,"
                  "\"remove_target_count\":0,\"remove_slot_count\":0,"
-                 "\"rename_slot_count\":0,\"removed_targets\":0,"
+                 "\"rename_slot_count\":0,\"update_slot_count\":0,"
+                 "\"removed_targets\":0,"
                  "\"removed_slots\":0,\"renamed_slots\":0,"
                  "\"inserted_slots\":1,\"replaced_slots\":0,\"changed\":true}\n");
     CHECK_EQ(read_text_file(copied_patch_output), read_text_file(patch_input));
+
+    remove_if_exists(left_schema);
+    remove_if_exists(patch_input);
+    remove_if_exists(copied_patch_output);
+    remove_if_exists(preview_output);
+}
+
+TEST_CASE("cli preview-template-schema-patch writes update slot output patch") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left_schema =
+        working_directory / "cli_preview_template_schema_patch_update_left.json";
+    const fs::path patch_input =
+        working_directory / "cli_preview_template_schema_patch_update_input.json";
+    const fs::path copied_patch_output =
+        working_directory / "cli_preview_template_schema_patch_update_output.json";
+    const fs::path preview_output =
+        working_directory / "cli_preview_template_schema_patch_update_summary.json";
+
+    remove_if_exists(left_schema);
+    remove_if_exists(patch_input);
+    remove_if_exists(copied_patch_output);
+    remove_if_exists(preview_output);
+
+    write_binary_file(left_schema,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":1}]}]}\n"});
+    write_binary_file(patch_input,
+                      std::string{
+                          "{\"update_slots\":[{\"part\":\"body\","
+                          "\"bookmark\":\"customer\",\"kind\":\"block\","
+                          "\"required\":false,\"min_occurrences\":2,"
+                          "\"max_occurrences\":5}]}\n"});
+
+    CHECK_EQ(run_cli({"preview-template-schema-patch",
+                      left_schema.string(),
+                      "--patch-file",
+                      patch_input.string(),
+                      "--output-patch",
+                      copied_patch_output.string(),
+                      "--json"},
+                     preview_output),
+             0);
+    CHECK_EQ(read_text_file(preview_output),
+             std::string{
+                 "{\"command\":\"preview-template-schema-patch\",\"ok\":true,"
+                 "\"output_patch_path\":\""} +
+                 json_escape_text(copied_patch_output.string()) +
+                 "\",\"left_slot_count\":1,\"upsert_slot_count\":0,"
+                 "\"remove_target_count\":0,\"remove_slot_count\":0,"
+                 "\"rename_slot_count\":0,\"update_slot_count\":1,"
+                 "\"removed_targets\":0,\"removed_slots\":0,"
+                 "\"renamed_slots\":0,\"inserted_slots\":0,"
+                 "\"replaced_slots\":1,\"changed\":true}\n");
+    CHECK_EQ(read_text_file(copied_patch_output),
+             std::string{
+                 "{\"update_slots\":[{\"part\":\"body\",\"bookmark\":"
+                 "\"customer\",\"slot_kind\":\"block\",\"required\":false,"
+                 "\"min_occurrences\":2,\"max_occurrences\":5}]}\n"});
 
     remove_if_exists(left_schema);
     remove_if_exists(patch_input);
@@ -18211,7 +18386,8 @@ TEST_CASE("cli preview-template-schema-patch writes generated output patch file"
                  "\",\"left_slot_count\":1,\"right_slot_count\":2,"
                  "\"upsert_slot_count\":1,\"remove_target_count\":0,"
                  "\"remove_slot_count\":0,\"rename_slot_count\":0,"
-                 "\"removed_targets\":0,\"removed_slots\":0,"
+                 "\"update_slot_count\":0,\"removed_targets\":0,"
+                 "\"removed_slots\":0,"
                  "\"renamed_slots\":0,\"inserted_slots\":1,"
                  "\"replaced_slots\":0,\"changed\":true}\n");
     CHECK_EQ(read_text_file(generated_patch_output), read_text_file(patch_input));
@@ -18303,7 +18479,8 @@ TEST_CASE("cli build-template-schema-patch generates reusable patch output") {
                  "\"changed_target_count\":1,\"generated_remove_target_count\":1,"
                  "\"generated_remove_slot_count\":0,"
                  "\"generated_rename_slot_count\":1,"
-                 "\"generated_upsert_target_count\":2,"
+                 "\"generated_update_slot_count\":1,"
+                 "\"generated_upsert_target_count\":1,"
                  "\"empty_patch\":false}\n"});
     CHECK_EQ(read_text_file(patch_output),
              std::string{
@@ -18312,9 +18489,10 @@ TEST_CASE("cli build-template-schema-patch generates reusable patch output") {
                  "\"rename_slots\":["
                  "{\"part\":\"body\",\"bookmark\":\"summary_block\","
                  "\"new_bookmark\":\"invoice_no\"}],"
+                 "\"update_slots\":[{\"part\":\"body\",\"bookmark\":"
+                 "\"customer\",\"min_occurrences\":2,"
+                 "\"max_occurrences\":2}],"
                  "\"upsert_targets\":["
-                 "{\"part\":\"body\",\"slots\":["
-                 "{\"bookmark\":\"customer\",\"kind\":\"text\",\"count\":2}]},"
                  "{\"part\":\"section-header\",\"section\":1,\"kind\":\"default\","
                  "\"resolved_from_section\":0,\"linked_to_previous\":true,"
                  "\"slots\":[{\"bookmark\":\"header_title\",\"kind\":\"text\"}]}]}\n"});
@@ -18338,7 +18516,7 @@ TEST_CASE("cli build-template-schema-patch generates reusable patch output") {
     remove_if_exists(apply_output);
 }
 
-TEST_CASE("cli build-template-schema-patch emits slot-level rename and removal") {
+TEST_CASE("cli build-template-schema-patch emits slot-level rename update and removal") {
     const fs::path working_directory = fs::current_path();
     const fs::path left_schema =
         working_directory / "cli_build_template_schema_patch_slot_ops_left.json";
@@ -18383,7 +18561,7 @@ TEST_CASE("cli build-template-schema-patch emits slot-level rename and removal")
                           "\"part\":\"body\","
                           "\"slots\":["
                           "{\"bookmark\":\"customer\",\"kind\":\"text\"},"
-                          "{\"bookmark\":\"invoice_no\",\"kind\":\"text\"}"
+                          "{\"bookmark\":\"invoice_no\",\"kind\":\"text\",\"count\":2}"
                           "]"
                           "}"
                           "]"
@@ -18406,6 +18584,7 @@ TEST_CASE("cli build-template-schema-patch emits slot-level rename and removal")
                  "\"changed_target_count\":1,\"generated_remove_target_count\":0,"
                  "\"generated_remove_slot_count\":1,"
                  "\"generated_rename_slot_count\":1,"
+                 "\"generated_update_slot_count\":1,"
                  "\"generated_upsert_target_count\":0,"
                  "\"empty_patch\":false}\n"});
     CHECK_EQ(read_text_file(patch_output),
@@ -18413,7 +18592,92 @@ TEST_CASE("cli build-template-schema-patch emits slot-level rename and removal")
                  "{\"remove_slots\":[{\"part\":\"body\",\"bookmark\":"
                  "\"obsolete_note\"}],"
                  "\"rename_slots\":[{\"part\":\"body\",\"bookmark\":"
-                 "\"summary_block\",\"new_bookmark\":\"invoice_no\"}]}\n"});
+                 "\"summary_block\",\"new_bookmark\":\"invoice_no\"}],"
+                 "\"update_slots\":[{\"part\":\"body\",\"bookmark\":"
+                 "\"invoice_no\",\"min_occurrences\":2,"
+                 "\"max_occurrences\":2}]}\n"});
+
+    CHECK_EQ(run_cli({"patch-template-schema",
+                      left_schema.string(),
+                      "--patch-file",
+                      patch_output.string(),
+                      "--output",
+                      applied_schema.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    CHECK_EQ(read_text_file(applied_schema), read_text_file(right_schema) + "\n");
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(patch_output);
+    remove_if_exists(build_output);
+    remove_if_exists(applied_schema);
+    remove_if_exists(apply_output);
+}
+
+TEST_CASE("cli build-template-schema-patch emits source-aware rename update") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left_schema =
+        working_directory / "cli_build_template_schema_patch_source_left.json";
+    const fs::path right_schema =
+        working_directory / "cli_build_template_schema_patch_source_right.json";
+    const fs::path patch_output =
+        working_directory / "cli_build_template_schema_patch_source_output.json";
+    const fs::path build_output =
+        working_directory / "cli_build_template_schema_patch_source_summary.json";
+    const fs::path applied_schema =
+        working_directory / "cli_build_template_schema_patch_source_applied.json";
+    const fs::path apply_output =
+        working_directory / "cli_build_template_schema_patch_source_apply_summary.json";
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(patch_output);
+    remove_if_exists(build_output);
+    remove_if_exists(applied_schema);
+    remove_if_exists(apply_output);
+
+    write_binary_file(left_schema,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"content_control_tag\":\"order_no\","
+                          "\"kind\":\"text\"}]}]}"});
+    write_binary_file(right_schema,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"content_control_tag\":\"order_id\","
+                          "\"kind\":\"block\",\"count\":2}]}]}"});
+
+    CHECK_EQ(run_cli({"build-template-schema-patch",
+                      left_schema.string(),
+                      right_schema.string(),
+                      "--output",
+                      patch_output.string(),
+                      "--json"},
+                     build_output),
+             0);
+    CHECK_EQ(read_text_file(build_output),
+             std::string{
+                 "{\"command\":\"build-template-schema-patch\",\"ok\":true,"
+                 "\"output_path\":\"" +
+                 json_escape_text(patch_output.string()) +
+                 "\",\"added_target_count\":0,\"removed_target_count\":0,"
+                 "\"changed_target_count\":1,\"generated_remove_target_count\":0,"
+                 "\"generated_remove_slot_count\":0,"
+                 "\"generated_rename_slot_count\":1,"
+                 "\"generated_update_slot_count\":1,"
+                 "\"generated_upsert_target_count\":0,"
+                 "\"empty_patch\":false}\n"});
+    CHECK_EQ(read_text_file(patch_output),
+             std::string{
+                 "{\"rename_slots\":[{\"part\":\"body\","
+                 "\"content_control_tag\":\"order_no\","
+                 "\"new_content_control_tag\":\"order_id\"}],"
+                 "\"update_slots\":[{\"part\":\"body\","
+                 "\"content_control_tag\":\"order_id\","
+                 "\"slot_kind\":\"block\",\"min_occurrences\":2,"
+                 "\"max_occurrences\":2}]}\n"});
 
     CHECK_EQ(run_cli({"patch-template-schema",
                       left_schema.string(),
