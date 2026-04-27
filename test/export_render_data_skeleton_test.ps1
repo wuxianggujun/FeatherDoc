@@ -124,6 +124,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $samplePatchObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $samplePatch | ConvertFrom-Json
+$samplePatchSummaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $samplePatchSummary | ConvertFrom-Json
+Assert-Equal -Actual $samplePatchSummaryObject.output_patch_path -Expected $samplePatch `
+    -Message "Convert summary should expose output_patch_path for automation."
 Assert-Equal -Actual $samplePatchObject.bookmark_paragraphs[0].paragraphs[0] `
     -Expected "TODO: note_lines" `
     -Message "Invoice render-data skeleton patch did not preserve the note placeholder."
@@ -256,5 +259,50 @@ Assert-Equal -Actual $conflictSummaryObject.conflict_count -Expected 1 `
 Assert-ContainsText -Text ([string]$conflictSummaryObject.error) `
     -ExpectedText "conflicts" `
     -Label "Conflict render-data skeleton error"
+
+$invalidSelectorMappingPath = Join-Path $resolvedWorkingDir "invalid-selector.render_data_mapping.json"
+$invalidSelectorPatch = Join-Path $resolvedWorkingDir "invalid-selector.render_patch.json"
+$invalidSelectorSummary = Join-Path $resolvedWorkingDir "invalid-selector.render_patch.summary.json"
+
+Set-Content -LiteralPath $invalidSelectorMappingPath -Encoding UTF8 -Value @'
+{
+  "bookmark_text": [
+    {
+      "bookmark_name": "customer_name",
+      "part": "header",
+      "index": -1,
+      "source": "customer.name"
+    }
+  ]
+}
+'@
+
+$invalidSelectorFailed = $false
+try {
+    & $convertScriptPath `
+        -DataPath $sampleOutput `
+        -MappingPath $invalidSelectorMappingPath `
+        -OutputPatch $invalidSelectorPatch `
+        -SummaryJson $invalidSelectorSummary
+
+    if ($LASTEXITCODE -ne 0) {
+        $invalidSelectorFailed = $true
+    }
+} catch {
+    $invalidSelectorFailed = $true
+}
+
+if (-not $invalidSelectorFailed) {
+    throw "convert_render_data_to_patch_plan.ps1 should fail when selector indexes are negative."
+}
+
+$invalidSelectorSummaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $invalidSelectorSummary | ConvertFrom-Json
+Assert-Equal -Actual $invalidSelectorSummaryObject.status -Expected "failed" `
+    -Message "Invalid selector convert summary did not report status=failed."
+Assert-Equal -Actual $invalidSelectorSummaryObject.output_patch_path -Expected $invalidSelectorPatch `
+    -Message "Invalid selector convert summary should still expose output_patch_path."
+Assert-ContainsText -Text ([string]$invalidSelectorSummaryObject.error) `
+    -ExpectedText "non-negative integer" `
+    -Label "Invalid selector convert error"
 
 Write-Host "Render-data skeleton export regression passed."

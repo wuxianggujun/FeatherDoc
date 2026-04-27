@@ -697,7 +697,9 @@ hand-editing patch JSON, use
 `samples/template_render_data_mapping.schema.json`. The mapping file binds one
 JSON `source` path to each `bookmark_text`, `bookmark_paragraphs`,
 `bookmark_table_rows`, or `bookmark_block_visibility` entry, so the generated
-patch stays reproducible while business data remains schema-shaped.
+patch stays reproducible while business data remains schema-shaped. The
+conversion summary includes `output_patch_path`, and the converter validates
+part/index/section/kind selectors before writing the generated patch.
 
 If you already have a render-plan draft and want a starting mapping file instead
 of writing one from scratch, run

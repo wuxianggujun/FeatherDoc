@@ -15,6 +15,7 @@ performance.
 - Added template-schema patch `update_slots` support in CLI patch files for targeted slot kind, required, and occurrence metadata changes without replacing full targets.
 - Updated `build_template_schema_patch(...)` and `build-template-schema-patch` to emit `update_slots` for same-slot metadata drift and unique rename-plus-metadata drift, keeping generated patches smaller and more reviewable.
 - Added a one-stop project template onboarding script that prepares schema candidates, temporary smoke manifests, render-data workspaces, completeness reports, and review checklists without mutating committed manifests by default.
+- Added `convert_render_data_to_patch_plan.ps1` `output_patch_path` summaries and stricter render-data selector validation before generated patches are written.
 
 - Added numbering catalog export/import APIs and CLI automation for stable
   numbering governance, including catalog lint/check/diff/patch/import flows,
@@ -66,6 +67,7 @@ performance.
 - Added unit and CLI regression coverage for template-schema `update_slots` patch application, parse errors, preview summaries, output-patch serialization, generated patch output, generated occurrence-clear updates, rename-plus-occurrence-clear updates, source-aware rename-plus-update patch generation, ambiguous rename fallback behavior, cross-source rename fallback behavior, cross-target rename fallback behavior, and changed target identity replacement.
 - Split shared CLI test support and style-focused CLI coverage into dedicated helpers/files so the full CLI suite can keep focused regression coverage without duplicating harness code.
 - Added PowerShell coverage for the project template onboarding workflow.
+- Added PowerShell regression coverage for render-data conversion summary paths and malformed render-plan selector rejection.
 
 - Added unit and CLI coverage for numbering catalog import/export, catalog
   patch/lint/diff/check flows, style-numbering repair with catalog preload,

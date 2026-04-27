@@ -1741,7 +1741,9 @@ If you want business data to remain in its own JSON document, use
 ``samples/template_render_data_mapping.schema.json``. The mapping file binds a
 JSON ``source`` path to each render-patch target, so text, paragraph, table,
 and block-visibility payloads can be regenerated from business data rather than
-hand-edited patch JSON.
+hand-edited patch JSON. The conversion summary reports ``output_patch_path`` and
+selector validation rejects malformed ``part`` / ``index`` / ``section`` /
+``kind`` combinations before writing the generated patch.
 
 If you already have a render-plan draft and want a starting mapping file, run
 ``scripts/export_render_data_mapping_draft.ps1``. It preserves bookmark targets

@@ -472,8 +472,9 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_patch
 JSON，可以用 `scripts/convert_render_data_to_patch_plan.ps1`。它会读取业务数
 据和一份 mapping 文件，把每个 `source` 路径映射到
 `bookmark_text`、`bookmark_paragraphs`、`bookmark_table_rows`、
-`bookmark_block_visibility` 里的目标条目。mapping 文件可直接参考
-`samples/template_render_data_mapping.schema.json` 和
+`bookmark_block_visibility` 里的目标条目。转换 summary 会写出
+`output_patch_path`，并在生成 patch 前校验 `part/index/section/kind` selector。
+mapping 文件可直接参考 `samples/template_render_data_mapping.schema.json` 和
 `samples/chinese_invoice_template.render_data_mapping.json`。
 
 如果你已经有 render plan 草稿，但不想从零手写 mapping，也可以先跑

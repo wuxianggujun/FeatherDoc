@@ -267,4 +267,63 @@ Assert-ContainsText -Text $visibilityDocumentXml -ExpectedText "Keep me" -Label 
 Assert-NotContainsText -Text $visibilityDocumentXml -UnexpectedText "Hide me" -Label "Patched visibility document.xml"
 Assert-NotContainsText -Text $visibilityDocumentXml -UnexpectedText "Secret Cell" -Label "Patched visibility document.xml"
 
+$invalidSelectorBasePlan = Join-Path $resolvedWorkingDir "invalid-selector.base.render-plan.json"
+$invalidSelectorPatchPlan = Join-Path $resolvedWorkingDir "invalid-selector.patch.render-plan.json"
+$invalidSelectorOutputPlan = Join-Path $resolvedWorkingDir "invalid-selector.output.render-plan.json"
+$invalidSelectorSummary = Join-Path $resolvedWorkingDir "invalid-selector.patch.summary.json"
+
+Set-Content -LiteralPath $invalidSelectorBasePlan -Encoding UTF8 -Value @'
+{
+  "bookmark_text": [
+    {
+      "bookmark_name": "header_title",
+      "part": "section-header",
+      "section": 0,
+      "kind": "default",
+      "text": "TODO: header_title"
+    }
+  ]
+}
+'@
+
+Set-Content -LiteralPath $invalidSelectorPatchPlan -Encoding UTF8 -Value @'
+{
+  "bookmark_text": [
+    {
+      "bookmark_name": "header_title",
+      "part": "section-header",
+      "section": 0,
+      "kind": "odd",
+      "text": "Updated header title"
+    }
+  ]
+}
+'@
+
+$invalidSelectorFailed = $false
+try {
+    & $patchScriptPath `
+        -BasePlanPath $invalidSelectorBasePlan `
+        -PatchPlanPath $invalidSelectorPatchPlan `
+        -OutputPlan $invalidSelectorOutputPlan `
+        -SummaryJson $invalidSelectorSummary
+
+    if ($LASTEXITCODE -ne 0) {
+        $invalidSelectorFailed = $true
+    }
+} catch {
+    $invalidSelectorFailed = $true
+}
+
+if (-not $invalidSelectorFailed) {
+    throw "patch_template_render_plan.ps1 should fail when patch selector kind is unsupported."
+}
+
+$invalidSelectorSummaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $invalidSelectorSummary | ConvertFrom-Json
+Assert-Equal -Actual $invalidSelectorSummaryObject.status -Expected "failed" `
+    -Message "Invalid selector patch summary did not report status=failed."
+Assert-ContainsText -Text ([string]$invalidSelectorSummaryObject.error) `
+    -ExpectedText "unsupported kind" `
+    -Label "Invalid selector patch error"
+
 Write-Host "Template render-plan patch regression passed."
