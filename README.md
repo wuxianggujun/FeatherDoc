@@ -542,6 +542,8 @@ featherdoc_cli lint-template-schema template-schema.json --json
 featherdoc_cli repair-template-schema template-schema.json --output repaired-template-schema.json --json
 featherdoc_cli merge-template-schema shared-template-schema.json invoice-template-schema.json --output merged-template-schema.json --json
 featherdoc_cli patch-template-schema committed-template-schema.json --patch-file schema.patch.json --output patched-template-schema.json --json
+featherdoc_cli preview-template-schema-patch committed-template-schema.json --patch-file schema.patch.json --output-patch schema.preview.patch.json --json
+featherdoc_cli preview-template-schema-patch committed-template-schema.json generated-schema.json --output-patch schema.preview.patch.json --json
 featherdoc_cli build-template-schema-patch committed-schema.json generated-schema.json --output schema.patch.json --json
 featherdoc_cli diff-template-schema old-template-schema.json new-template-schema.json --json
 featherdoc_cli diff-template-schema committed-schema.json generated-schema.json --fail-on-diff --json
@@ -560,6 +562,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -Man
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson .\output\project-template-smoke\summary.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
+
+When `preview-template-schema-patch` writes `--output-patch`, its JSON summary includes `output_patch_path` so automation can pick up the emitted patch file directly.
 
 For project-level smoke checks across several real templates, use
 `scripts/run_project_template_smoke.ps1`. Each manifest entry can point at a
@@ -589,7 +593,12 @@ one entry without hand-editing JSON. `register_*` accepts direct
 `-SchemaValidationFile` / `-SchemaBaselineFile` flags for common cases and can
 also load complex `template_validations` or `schema_validation.targets` arrays
 from JSON files via `-TemplateValidationsFile` and
-`-SchemaValidationTargetsFile`. Before adding real templates, run
+`-SchemaValidationTargetsFile`. For a single real template that is ready for
+review, run `scripts/onboard_project_template.ps1` to create a one-stop
+onboarding bundle with a schema candidate, temporary smoke manifest,
+render-data workspace, completeness report, `START_HERE.zh-CN.md`, and manual
+review checklist. It is non-mutating for committed manifests unless you pass
+`-RegisterManifest`. Before adding many real templates at once, run
 `scripts/new_project_template_smoke_onboarding_plan.ps1` for a non-mutating
 onboarding plan that combines candidate discovery with per-template
 `freeze_template_schema_baseline.ps1`, render-data workspace preparation,

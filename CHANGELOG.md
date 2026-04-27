@@ -10,6 +10,10 @@ performance.
 
 ### Added
 
+- Added `preview-template-schema-patch --output-patch` support so schema patch previews can copy an explicit patch file or generate a reusable left/right schema patch while reporting `output_patch_path` in JSON summaries for automation.
+- Added template-schema patch preview and slot mutation helpers in the public API, including preview, replace-target, upsert-slot, remove-target, remove-slot, rename-slot, and update-slot operations.
+- Added a one-stop project template onboarding script that prepares schema candidates, temporary smoke manifests, render-data workspaces, completeness reports, and review checklists without mutating committed manifests by default.
+
 - Added numbering catalog export/import APIs and CLI automation for stable
   numbering governance, including catalog lint/check/diff/patch/import flows,
   baseline and manifest check scripts, and validation for definitions,
@@ -44,6 +48,8 @@ performance.
 
 ### Changed
 
+- Updated template schema patch generation to preserve slot source selectors in generated `remove_slots` and `rename_slots` entries, keeping content-control and bookmark-oriented schemas round-trippable.
+
 - Updated README, Chinese README, Sphinx docs, current-direction notes, and
   feature-gap analysis to describe numbering catalog governance, content
   control inspection and plain-text replacement, style refactor confidence
@@ -52,6 +58,10 @@ performance.
   work.
 
 ### Tests
+
+- Added CLI regression coverage for `preview-template-schema-patch --output-patch`, including patch-file copy output, left/right schema generated output, and JSON `output_patch_path` reporting.
+- Split shared CLI test support and style-focused CLI coverage into dedicated helpers/files so the full CLI suite can keep focused regression coverage without duplicating harness code.
+- Added PowerShell coverage for the project template onboarding workflow.
 
 - Added unit and CLI coverage for numbering catalog import/export, catalog
   patch/lint/diff/check flows, style-numbering repair with catalog preload,

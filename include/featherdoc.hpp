@@ -507,6 +507,15 @@ struct template_schema_patch {
     std::vector<featherdoc::template_schema_slot_rename> rename_slots;
 };
 
+struct template_schema_slot_update {
+    std::optional<featherdoc::template_slot_kind> kind;
+    std::optional<bool> required;
+    std::optional<std::size_t> min_occurrences;
+    std::optional<std::size_t> max_occurrences;
+    bool clear_min_occurrences{false};
+    bool clear_max_occurrences{false};
+};
+
 struct template_schema_normalization_summary {
     std::size_t original_slots{};
     std::size_t final_slots{};
@@ -540,8 +549,38 @@ struct template_schema_patch_summary {
     featherdoc::template_schema &base, const featherdoc::template_schema &overlay);
 [[nodiscard]] template_schema_patch_summary apply_template_schema_patch(
     featherdoc::template_schema &schema, const featherdoc::template_schema_patch &patch);
+[[nodiscard]] template_schema_patch_summary preview_template_schema_patch(
+    const featherdoc::template_schema &schema,
+    const featherdoc::template_schema_patch &patch);
+[[nodiscard]] template_schema_patch_summary preview_template_schema_patch(
+    const featherdoc::template_schema &left,
+    const featherdoc::template_schema &right);
 [[nodiscard]] featherdoc::template_schema_patch build_template_schema_patch(
     const featherdoc::template_schema &left, const featherdoc::template_schema &right);
+[[nodiscard]] template_schema_patch_summary replace_template_schema_target(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_part_selector &target,
+    std::span<const featherdoc::template_schema_entry> entries);
+[[nodiscard]] template_schema_patch_summary replace_template_schema_target(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_part_selector &target,
+    std::initializer_list<featherdoc::template_schema_entry> entries);
+[[nodiscard]] template_schema_patch_summary upsert_template_schema_slot(
+    featherdoc::template_schema &schema, const featherdoc::template_schema_entry &entry);
+[[nodiscard]] template_schema_patch_summary remove_template_schema_target(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_part_selector &target);
+[[nodiscard]] template_schema_patch_summary remove_template_schema_slot(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_slot_selector &slot);
+[[nodiscard]] template_schema_patch_summary rename_template_schema_slot(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_slot_selector &slot,
+    std::string_view new_bookmark_name);
+[[nodiscard]] template_schema_patch_summary update_template_schema_slot(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_slot_selector &slot,
+    const featherdoc::template_schema_slot_update &update);
 
 struct template_schema_part_validation_result {
     featherdoc::template_schema_part_selector target{};

@@ -417,6 +417,23 @@ if(WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/new_project_template_smoke_onboarding_plan
         )
 
+        add_test(
+            NAME
+            onboard_project_template
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/onboard_project_template_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -BuildDir
+            ${PROJECT_BINARY_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/onboard_project_template
+        )
+
         if(FEATHERDOC_PYTHON_EXECUTABLE)
             add_test(
                 NAME
@@ -724,6 +741,7 @@ if(TARGET featherdoc_cli)
     add_executable(
         cli_tests
         cli_tests.cpp
+        cli_styles_tests.cpp
     )
 
     target_link_libraries(

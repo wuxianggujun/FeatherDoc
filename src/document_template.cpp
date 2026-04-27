@@ -2711,6 +2711,117 @@ template_schema_patch_summary apply_template_schema_patch(
     return summary;
 }
 
+template_schema_patch_summary preview_template_schema_patch(
+    const featherdoc::template_schema &schema,
+    const featherdoc::template_schema_patch &patch) {
+    auto preview_schema = schema;
+    return apply_template_schema_patch(preview_schema, patch);
+}
+
+template_schema_patch_summary preview_template_schema_patch(
+    const featherdoc::template_schema &left,
+    const featherdoc::template_schema &right) {
+    const auto patch = build_template_schema_patch(left, right);
+    return preview_template_schema_patch(left, patch);
+}
+
+template_schema_patch_summary replace_template_schema_target(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_part_selector &target,
+    std::span<const featherdoc::template_schema_entry> entries) {
+    featherdoc::template_schema_patch patch{};
+    patch.remove_targets.push_back(target);
+    patch.upsert_slots.insert(patch.upsert_slots.end(), entries.begin(), entries.end());
+    return apply_template_schema_patch(schema, patch);
+}
+
+template_schema_patch_summary replace_template_schema_target(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_part_selector &target,
+    std::initializer_list<featherdoc::template_schema_entry> entries) {
+    return replace_template_schema_target(
+        schema, target, std::span<const featherdoc::template_schema_entry>{entries.begin(), entries.size()});
+}
+
+template_schema_patch_summary upsert_template_schema_slot(
+    featherdoc::template_schema &schema, const featherdoc::template_schema_entry &entry) {
+    featherdoc::template_schema_patch patch{};
+    patch.upsert_slots.push_back(entry);
+    return apply_template_schema_patch(schema, patch);
+}
+
+template_schema_patch_summary remove_template_schema_target(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_part_selector &target) {
+    featherdoc::template_schema_patch patch{};
+    patch.remove_targets.push_back(target);
+    return apply_template_schema_patch(schema, patch);
+}
+
+template_schema_patch_summary remove_template_schema_slot(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_slot_selector &slot) {
+    featherdoc::template_schema_patch patch{};
+    patch.remove_slots.push_back(slot);
+    return apply_template_schema_patch(schema, patch);
+}
+
+template_schema_patch_summary rename_template_schema_slot(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_slot_selector &slot,
+    std::string_view new_bookmark_name) {
+    featherdoc::template_schema_patch patch{};
+    featherdoc::template_schema_slot_rename rename_slot{};
+    rename_slot.slot = slot;
+    rename_slot.new_bookmark_name = std::string{new_bookmark_name};
+    patch.rename_slots.push_back(std::move(rename_slot));
+    return apply_template_schema_patch(schema, patch);
+}
+
+template_schema_patch_summary update_template_schema_slot(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_slot_selector &slot,
+    const featherdoc::template_schema_slot_update &update) {
+    featherdoc::template_schema_patch_summary summary{};
+    (void)normalize_template_schema(schema);
+
+    const auto target = canonical_template_schema_selector(slot.target);
+    const auto existing_it = find_template_schema_slot(
+        schema.entries, target, slot.source, slot.bookmark_name);
+    if (existing_it == schema.entries.end()) {
+        return summary;
+    }
+
+    auto updated_entry = *existing_it;
+    if (update.kind.has_value()) {
+        updated_entry.requirement.kind = *update.kind;
+    }
+    if (update.required.has_value()) {
+        updated_entry.requirement.required = *update.required;
+    }
+    if (update.clear_min_occurrences) {
+        updated_entry.requirement.min_occurrences.reset();
+    }
+    if (update.min_occurrences.has_value()) {
+        updated_entry.requirement.min_occurrences = *update.min_occurrences;
+    }
+    if (update.clear_max_occurrences) {
+        updated_entry.requirement.max_occurrences.reset();
+    }
+    if (update.max_occurrences.has_value()) {
+        updated_entry.requirement.max_occurrences = *update.max_occurrences;
+    }
+
+    if (template_schema_entry_equals(*existing_it, updated_entry)) {
+        return summary;
+    }
+
+    *existing_it = std::move(updated_entry);
+    ++summary.replaced_slots;
+    (void)normalize_template_schema(schema);
+    return summary;
+}
+
 template_schema_patch build_template_schema_patch(
     const featherdoc::template_schema &left, const featherdoc::template_schema &right) {
     auto normalized_left = left;
@@ -2807,6 +2918,7 @@ template_schema_patch build_template_schema_patch(
 
         featherdoc::template_schema_slot_rename rename_slot{};
         rename_slot.slot.target = removed_entries[removed_index].target;
+        rename_slot.slot.source = removed_entries[removed_index].requirement.source;
         rename_slot.slot.bookmark_name =
             removed_entries[removed_index].requirement.bookmark_name;
         rename_slot.new_bookmark_name =
@@ -2824,6 +2936,7 @@ template_schema_patch build_template_schema_patch(
 
         featherdoc::template_schema_slot_selector remove_slot{};
         remove_slot.target = removed_entries[removed_index].target;
+        remove_slot.source = removed_entries[removed_index].requirement.source;
         remove_slot.bookmark_name =
             removed_entries[removed_index].requirement.bookmark_name;
         patch.remove_slots.push_back(std::move(remove_slot));

@@ -354,6 +354,8 @@ featherdoc_cli lint-template-schema template-schema.json --json
 featherdoc_cli repair-template-schema template-schema.json --output repaired-template-schema.json --json
 featherdoc_cli merge-template-schema shared-template-schema.json invoice-template-schema.json --output merged-template-schema.json --json
 featherdoc_cli patch-template-schema committed-template-schema.json --patch-file schema.patch.json --output patched-template-schema.json --json
+featherdoc_cli preview-template-schema-patch committed-template-schema.json --patch-file schema.patch.json --output-patch schema.preview.patch.json --json
+featherdoc_cli preview-template-schema-patch committed-template-schema.json generated-schema.json --output-patch schema.preview.patch.json --json
 featherdoc_cli build-template-schema-patch committed-schema.json generated-schema.json --output schema.patch.json --json
 featherdoc_cli diff-template-schema old-template-schema.json new-template-schema.json --json
 featherdoc_cli diff-template-schema committed-schema.json generated-schema.json --fail-on-diff --json
@@ -362,6 +364,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\freeze_template_schema_baseline.ps1
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 -InputDocx .\template.docx -SchemaFile .\template.schema.json -ResolvedSectionTargets -GeneratedSchemaOutput .\generated-template.schema.json -RepairedSchemaOutput .\repaired-template.schema.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_manifest.ps1 -ManifestPath .\baselines\template-schema\manifest.json -BuildDir build-codex-clang-compat -RepairedSchemaOutputDir .\output\template-schema-manifest-repairs
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_template_schema_manifest_entry.ps1 -Name template-name -InputDocx .\template.docx
+pwsh -ExecutionPolicy Bypass -File .\scripts\onboard_project_template.ps1 -InputDocx .\samples\chinese_invoice_template.docx -TemplateName chinese-invoice -OutputDir .\output\project-template-onboarding\chinese-invoice -BuildDir build-codex-clang-compat -SkipBuild -SkipProjectTemplateSmoke
 pwsh -ExecutionPolicy Bypass -File .\scripts\new_project_template_smoke_onboarding_plan.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat
 pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\discover_project_template_smoke_candidates.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -Json -IncludeRegistered -IncludeExcluded -OutputPath .\output\project-template-smoke\candidate_discovery.json -FailOnUnregistered
@@ -372,6 +375,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -Man
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson .\output\project-template-smoke\summary.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
+
+当 `preview-template-schema-patch` 写出 `--output-patch` 时，JSON summary 会包含 `output_patch_path`，方便自动化流程直接读取生成的 patch 文件。
 
 如果你要把多份真实项目模板放到同一条 smoke 流里统一检查，可以直接用
 `scripts/run_project_template_smoke.ps1`。manifest 里的每个 entry 既可以直

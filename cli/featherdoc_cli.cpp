@@ -57,6 +57,13 @@ struct patch_template_schema_options {
     bool json_output = false;
 };
 
+struct preview_template_schema_patch_options {
+    std::optional<path_type> patch_path;
+    std::optional<path_type> output_patch_path;
+    std::optional<path_type> right_schema_path;
+    bool json_output = false;
+};
+
 struct build_template_schema_patch_options {
     std::optional<path_type> output_path;
     bool json_output = false;
@@ -1864,6 +1871,9 @@ void print_usage(std::ostream &stream) {
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli patch-template-schema <schema.json>"
            " --patch-file <patch.json> [--output <path>] [--json]\n"
+        << "  featherdoc_cli preview-template-schema-patch <schema.json>"
+           " (--patch-file <patch.json>|<right-schema.json>)"
+           " [--output-patch <path>] [--json]\n"
         << "  featherdoc_cli build-template-schema-patch <left-schema.json>"
            " <right-schema.json> [--output <path>] [--json]\n"
         << "  featherdoc_cli diff-template-schema <left-schema.json>"
@@ -2406,6 +2416,68 @@ auto parse_patch_template_schema_options(
 
     if (!options.patch_path.has_value()) {
         error_message = "missing required --patch-file <path> option";
+        return false;
+    }
+
+    return true;
+}
+
+auto parse_preview_template_schema_patch_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    preview_template_schema_patch_options &options, std::string &error_message)
+    -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--patch-file") {
+            if (options.patch_path.has_value()) {
+                error_message = "duplicate --patch-file option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --patch-file";
+                return false;
+            }
+
+            options.patch_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--output-patch") {
+            if (options.output_patch_path.has_value()) {
+                error_message = "duplicate --output-patch option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output-patch";
+                return false;
+            }
+
+            options.output_patch_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        if (argument.starts_with("--")) {
+            error_message = "unknown option: " + std::string(argument);
+            return false;
+        }
+
+        if (options.right_schema_path.has_value()) {
+            error_message = "duplicate right schema path";
+            return false;
+        }
+        options.right_schema_path = path_type(std::string(argument));
+    }
+
+    if (options.patch_path.has_value() == options.right_schema_path.has_value()) {
+        error_message = "preview-template-schema-patch expects exactly one of "
+                        "--patch-file <path> or <right-schema.json>";
         return false;
     }
 
@@ -25899,6 +25971,17 @@ struct patched_template_schema_summary {
     std::size_t pruned_empty_target_count = 0U;
 };
 
+struct previewed_template_schema_patch_summary {
+    std::size_t left_slot_count = 0U;
+    std::optional<path_type> output_patch_path;
+    std::optional<std::size_t> right_slot_count;
+    std::optional<std::size_t> upsert_slot_count;
+    std::optional<std::size_t> remove_target_count;
+    std::optional<std::size_t> remove_slot_count;
+    std::optional<std::size_t> rename_slot_count;
+    featherdoc::template_schema_patch_summary applied{};
+};
+
 struct built_template_schema_patch_summary {
     std::size_t added_target_count = 0U;
     std::size_t removed_target_count = 0U;
@@ -26019,6 +26102,110 @@ auto make_template_schema_patch_target_selector(
     selector.resolved_from_section_index = target.resolved_from_section_index;
     selector.linked_to_previous = target.linked_to_previous;
     return selector;
+}
+
+auto to_template_schema_part_selector(
+    const template_schema_patch_target_selector &selector)
+    -> featherdoc::template_schema_part_selector {
+    featherdoc::template_schema_part_selector target{};
+    target.part = to_template_schema_part_kind(selector.part);
+    target.part_index = selector.part_index;
+    target.section_index = selector.section_index;
+    target.reference_kind = selector.reference_kind.value_or(
+        featherdoc::section_reference_kind::default_reference);
+    return target;
+}
+
+auto to_template_schema_part_selector(const exported_template_schema_target &target)
+    -> featherdoc::template_schema_part_selector {
+    featherdoc::template_schema_part_selector selector{};
+    selector.part = to_template_schema_part_kind(target.part);
+    selector.part_index = target.part_index;
+    selector.section_index = target.section_index;
+    selector.reference_kind = target.reference_kind.value_or(
+        featherdoc::section_reference_kind::default_reference);
+    return selector;
+}
+
+auto to_template_schema(const exported_template_schema_result &result)
+    -> featherdoc::template_schema {
+    featherdoc::template_schema schema{};
+    schema.entries.reserve(result.slot_count());
+    for (const auto &target : result.targets) {
+        const auto selector = to_template_schema_part_selector(target);
+        for (const auto &requirement : target.requirements) {
+            schema.entries.push_back({selector, requirement});
+        }
+    }
+    return schema;
+}
+
+auto to_template_schema_patch(const template_schema_patch_document &document)
+    -> featherdoc::template_schema_patch {
+    featherdoc::template_schema_patch patch{};
+
+    for (const auto &target : document.upsert_targets) {
+        const auto selector = to_template_schema_part_selector(target);
+        for (const auto &requirement : target.requirements) {
+            patch.upsert_slots.push_back({selector, requirement});
+        }
+    }
+
+    patch.remove_targets.reserve(document.remove_targets.size());
+    for (const auto &target : document.remove_targets) {
+        patch.remove_targets.push_back(to_template_schema_part_selector(target));
+    }
+
+    patch.remove_slots.reserve(document.remove_slots.size());
+    for (const auto &remove_slot : document.remove_slots) {
+        featherdoc::template_schema_slot_selector slot{};
+        slot.target = to_template_schema_part_selector(remove_slot.target);
+        slot.source = remove_slot.source;
+        slot.bookmark_name = remove_slot.bookmark_name;
+        patch.remove_slots.push_back(std::move(slot));
+    }
+
+    patch.rename_slots.reserve(document.rename_slots.size());
+    for (const auto &rename_slot : document.rename_slots) {
+        featherdoc::template_schema_slot_rename operation{};
+        operation.slot.target = to_template_schema_part_selector(rename_slot.target);
+        operation.slot.source = rename_slot.source;
+        operation.slot.bookmark_name = rename_slot.bookmark_name;
+        operation.new_bookmark_name = rename_slot.new_bookmark_name;
+        patch.rename_slots.push_back(std::move(operation));
+    }
+
+    return patch;
+}
+
+auto has_template_schema_resolved_target_metadata(
+    const exported_template_schema_result &result) -> bool {
+    return std::any_of(result.targets.begin(), result.targets.end(),
+                       [](const exported_template_schema_target &target) {
+                           return target.resolved_from_section_index.has_value() ||
+                                  target.linked_to_previous;
+                       });
+}
+
+auto has_template_schema_resolved_target_metadata(
+    const template_schema_patch_document &patch) -> bool {
+    const auto selector_has_metadata = [](const auto &selector) {
+        return selector.resolved_from_section_index.has_value() ||
+               selector.linked_to_previous;
+    };
+
+    return has_template_schema_resolved_target_metadata(
+               exported_template_schema_result{patch.upsert_targets, {}}) ||
+           std::any_of(patch.remove_targets.begin(), patch.remove_targets.end(),
+                       selector_has_metadata) ||
+           std::any_of(patch.remove_slots.begin(), patch.remove_slots.end(),
+                       [&](const template_schema_patch_remove_slot &slot) {
+                           return selector_has_metadata(slot.target);
+                       }) ||
+           std::any_of(patch.rename_slots.begin(), patch.rename_slots.end(),
+                       [&](const template_schema_patch_rename_slot &slot) {
+                           return selector_has_metadata(slot.target);
+                       });
 }
 
 auto lint_template_schema(const exported_template_schema_result &result)
@@ -27008,6 +27195,69 @@ void print_patched_template_schema_summary(
               << summary.applied_rename_slot_count << '\n'
               << "pruned_empty_target_count: "
               << summary.pruned_empty_target_count << '\n';
+}
+
+void print_previewed_template_schema_patch_summary(
+    const previewed_template_schema_patch_summary &summary, bool json_output) {
+    if (json_output) {
+        std::cout << "{\"command\":\"preview-template-schema-patch\",\"ok\":true";
+        if (summary.output_patch_path.has_value()) {
+            std::cout << ",\"output_patch_path\":";
+            write_json_string(std::cout, summary.output_patch_path->string());
+        }
+        std::cout << ",\"left_slot_count\":" << summary.left_slot_count;
+        if (summary.right_slot_count.has_value()) {
+            std::cout << ",\"right_slot_count\":" << *summary.right_slot_count;
+        }
+        if (summary.upsert_slot_count.has_value()) {
+            std::cout << ",\"upsert_slot_count\":" << *summary.upsert_slot_count;
+        }
+        if (summary.remove_target_count.has_value()) {
+            std::cout << ",\"remove_target_count\":"
+                      << *summary.remove_target_count;
+        }
+        if (summary.remove_slot_count.has_value()) {
+            std::cout << ",\"remove_slot_count\":" << *summary.remove_slot_count;
+        }
+        if (summary.rename_slot_count.has_value()) {
+            std::cout << ",\"rename_slot_count\":" << *summary.rename_slot_count;
+        }
+        std::cout << ",\"removed_targets\":" << summary.applied.removed_targets
+                  << ",\"removed_slots\":" << summary.applied.removed_slots
+                  << ",\"renamed_slots\":" << summary.applied.renamed_slots
+                  << ",\"inserted_slots\":" << summary.applied.inserted_slots
+                  << ",\"replaced_slots\":" << summary.applied.replaced_slots
+                  << ",\"changed\":" << json_bool(summary.applied.changed())
+                  << "}\n";
+        return;
+    }
+
+    if (summary.output_patch_path.has_value()) {
+        std::cout << "output_patch_path: " << summary.output_patch_path->string()
+                  << '\n';
+    }
+    std::cout << "left_slot_count: " << summary.left_slot_count << '\n';
+    if (summary.right_slot_count.has_value()) {
+        std::cout << "right_slot_count: " << *summary.right_slot_count << '\n';
+    }
+    if (summary.upsert_slot_count.has_value()) {
+        std::cout << "upsert_slot_count: " << *summary.upsert_slot_count << '\n';
+    }
+    if (summary.remove_target_count.has_value()) {
+        std::cout << "remove_target_count: " << *summary.remove_target_count << '\n';
+    }
+    if (summary.remove_slot_count.has_value()) {
+        std::cout << "remove_slot_count: " << *summary.remove_slot_count << '\n';
+    }
+    if (summary.rename_slot_count.has_value()) {
+        std::cout << "rename_slot_count: " << *summary.rename_slot_count << '\n';
+    }
+    std::cout << "removed_targets: " << summary.applied.removed_targets << '\n'
+              << "removed_slots: " << summary.applied.removed_slots << '\n'
+              << "renamed_slots: " << summary.applied.renamed_slots << '\n'
+              << "inserted_slots: " << summary.applied.inserted_slots << '\n'
+              << "replaced_slots: " << summary.applied.replaced_slots << '\n'
+              << "changed: " << yes_no(summary.applied.changed()) << '\n';
 }
 
 void print_built_template_schema_patch_summary(
@@ -39483,6 +39733,124 @@ int main(int argc, char **argv) {
 
         print_patched_template_schema_summary(result, summary, options.output_path,
                                               options.json_output);
+        return 0;
+    }
+
+    if (command == "preview-template-schema-patch") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U || arguments[1].starts_with("--")) {
+            print_parse_error(command,
+                              "preview-template-schema-patch expects a schema path "
+                              "and --patch-file <path> or <right-schema.json>",
+                              json_output);
+            return 2;
+        }
+
+        preview_template_schema_patch_options options;
+        std::string error_message;
+        if (!parse_preview_template_schema_patch_options(arguments, 2U, options,
+                                                         error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        exported_template_schema_result left_result;
+        if (!read_template_schema_file(path_type(std::string(arguments[1])),
+                                       left_result, error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+        normalize_template_schema_result(left_result);
+        if (has_template_schema_resolved_target_metadata(left_result)) {
+            print_parse_error(command,
+                              "preview-template-schema-patch does not support "
+                              "schemas with resolved-section target metadata",
+                              options.json_output);
+            return 2;
+        }
+
+        previewed_template_schema_patch_summary summary{};
+        summary.left_slot_count = left_result.slot_count();
+        const auto left_schema = to_template_schema(left_result);
+
+        if (options.patch_path.has_value()) {
+            template_schema_patch_document patch_document;
+            if (!read_template_schema_patch_file(*options.patch_path, patch_document,
+                                                 error_message)) {
+                print_parse_error(command, error_message, options.json_output);
+                return 2;
+            }
+            if (has_template_schema_resolved_target_metadata(patch_document)) {
+                print_parse_error(command,
+                                  "preview-template-schema-patch does not support "
+                                  "patches with resolved-section target metadata",
+                                  options.json_output);
+                return 2;
+            }
+
+            const auto patch = to_template_schema_patch(patch_document);
+            summary.upsert_slot_count = patch.upsert_slots.size();
+            summary.remove_target_count = patch.remove_targets.size();
+            summary.remove_slot_count = patch.remove_slots.size();
+            summary.rename_slot_count = patch.rename_slots.size();
+            summary.applied =
+                featherdoc::preview_template_schema_patch(left_schema, patch);
+            if (options.output_patch_path.has_value()) {
+                if (!write_template_schema_patch_file(*options.output_patch_path,
+                                                      patch_document, error_message)) {
+                    featherdoc::document_error_info error_info{};
+                    error_info.code = std::make_error_code(std::errc::io_error);
+                    error_info.detail = std::move(error_message);
+                    report_operation_failure(command, "output-patch",
+                                             "failed to write previewed patch output",
+                                             error_info, options.json_output);
+                    return 1;
+                }
+            }
+        } else {
+            exported_template_schema_result right_result;
+            if (!read_template_schema_file(*options.right_schema_path, right_result,
+                                           error_message)) {
+                print_parse_error(command, error_message, options.json_output);
+                return 2;
+            }
+            normalize_template_schema_result(right_result);
+            if (has_template_schema_resolved_target_metadata(right_result)) {
+                print_parse_error(command,
+                                  "preview-template-schema-patch does not support "
+                                  "schemas with resolved-section target metadata",
+                                  options.json_output);
+                return 2;
+            }
+
+            summary.right_slot_count = right_result.slot_count();
+            const auto diff = diff_template_schema_results(left_result, right_result);
+            built_template_schema_patch_summary built_summary{};
+            const auto patch_document =
+                build_template_schema_patch_document(diff, built_summary);
+            const auto patch = to_template_schema_patch(patch_document);
+            summary.upsert_slot_count = patch.upsert_slots.size();
+            summary.remove_target_count = patch.remove_targets.size();
+            summary.remove_slot_count = patch.remove_slots.size();
+            summary.rename_slot_count = patch.rename_slots.size();
+            summary.applied =
+                featherdoc::preview_template_schema_patch(left_schema, patch);
+            if (options.output_patch_path.has_value()) {
+                if (!write_template_schema_patch_file(*options.output_patch_path,
+                                                      patch_document, error_message)) {
+                    featherdoc::document_error_info error_info{};
+                    error_info.code = std::make_error_code(std::errc::io_error);
+                    error_info.detail = std::move(error_message);
+                    report_operation_failure(command, "output-patch",
+                                             "failed to write previewed generated patch output",
+                                             error_info, options.json_output);
+                    return 1;
+                }
+            }
+        }
+
+        summary.output_patch_path = options.output_patch_path;
+        print_previewed_template_schema_patch_summary(summary, options.json_output);
         return 0;
     }
 
