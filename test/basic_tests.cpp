@@ -6968,6 +6968,57 @@ TEST_CASE("template schema patch builder preserves source-aware rename updates")
              right.entries.front().requirement.max_occurrences);
 }
 
+
+TEST_CASE("template schema patch builder keeps ambiguous renames explicit") {
+    featherdoc::template_schema left{{
+        {{}, {"old_primary", featherdoc::template_slot_kind::text, true}},
+        {{}, {"old_secondary", featherdoc::template_slot_kind::text, true}},
+    }};
+
+    featherdoc::template_schema right{{
+        {{}, {"new_primary", featherdoc::template_slot_kind::text, true}},
+        {{}, {"new_secondary", featherdoc::template_slot_kind::text, true}},
+    }};
+
+    const auto patch = featherdoc::build_template_schema_patch(left, right);
+    CHECK(patch.rename_slots.empty());
+    CHECK(patch.update_slots.empty());
+    CHECK_EQ(patch.remove_slots.size(), 2U);
+    CHECK_EQ(patch.upsert_slots.size(), 2U);
+
+    const auto has_remove_slot = [&](std::string_view bookmark_name) {
+        return std::any_of(
+            patch.remove_slots.begin(), patch.remove_slots.end(),
+            [&](const featherdoc::template_schema_slot_selector &selector) {
+                return selector.bookmark_name == bookmark_name;
+            });
+    };
+    const auto has_upsert_slot = [&](std::string_view bookmark_name) {
+        return std::any_of(
+            patch.upsert_slots.begin(), patch.upsert_slots.end(),
+            [&](const featherdoc::template_schema_entry &entry) {
+                return entry.requirement.bookmark_name == bookmark_name;
+            });
+    };
+    CHECK(has_remove_slot("old_primary"));
+    CHECK(has_remove_slot("old_secondary"));
+    CHECK(has_upsert_slot("new_primary"));
+    CHECK(has_upsert_slot("new_secondary"));
+
+    const auto apply_summary = featherdoc::apply_template_schema_patch(left, patch);
+    CHECK(apply_summary.changed());
+    (void)featherdoc::normalize_template_schema(right);
+    REQUIRE(left.entries.size() == right.entries.size());
+    for (std::size_t index = 0U; index < left.entries.size(); ++index) {
+        CHECK_EQ(left.entries[index].requirement.bookmark_name,
+                 right.entries[index].requirement.bookmark_name);
+        CHECK_EQ(left.entries[index].requirement.kind,
+                 right.entries[index].requirement.kind);
+        CHECK_EQ(left.entries[index].requirement.required,
+                 right.entries[index].requirement.required);
+    }
+}
+
 TEST_CASE("template schema high-level mutation helpers update targets and slots") {
     const auto find_slot = [](const featherdoc::template_schema &current,
                               featherdoc::template_schema_part_kind part,
