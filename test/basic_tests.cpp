@@ -6969,6 +6969,39 @@ TEST_CASE("template schema patch builder preserves source-aware rename updates")
 }
 
 
+TEST_CASE("template schema patch builder emits rename occurrence clear updates") {
+    featherdoc::template_schema left{{
+        {{}, {"old_customer", featherdoc::template_slot_kind::text, true, 2U, 2U}},
+    }};
+    featherdoc::template_schema right{{
+        {{}, {"customer", featherdoc::template_slot_kind::text, true}},
+    }};
+
+    const auto patch = featherdoc::build_template_schema_patch(left, right);
+    REQUIRE(patch.rename_slots.size() == 1U);
+    CHECK_EQ(patch.rename_slots.front().slot.bookmark_name, "old_customer");
+    CHECK_EQ(patch.rename_slots.front().new_bookmark_name, "customer");
+    CHECK(patch.remove_slots.empty());
+    REQUIRE(patch.update_slots.size() == 1U);
+    CHECK_EQ(patch.update_slots.front().slot.bookmark_name, "customer");
+    CHECK_FALSE(patch.update_slots.front().update.min_occurrences.has_value());
+    CHECK_FALSE(patch.update_slots.front().update.max_occurrences.has_value());
+    CHECK(patch.update_slots.front().update.clear_min_occurrences);
+    CHECK(patch.update_slots.front().update.clear_max_occurrences);
+    CHECK(patch.upsert_slots.empty());
+
+    const auto apply_summary = featherdoc::apply_template_schema_patch(left, patch);
+    CHECK(apply_summary.changed());
+    (void)featherdoc::normalize_template_schema(right);
+    REQUIRE(left.entries.size() == right.entries.size());
+    CHECK_EQ(left.entries.front().requirement.bookmark_name,
+             right.entries.front().requirement.bookmark_name);
+    CHECK_EQ(left.entries.front().requirement.min_occurrences,
+             right.entries.front().requirement.min_occurrences);
+    CHECK_EQ(left.entries.front().requirement.max_occurrences,
+             right.entries.front().requirement.max_occurrences);
+}
+
 TEST_CASE("template schema patch builder keeps ambiguous renames explicit") {
     featherdoc::template_schema left{{
         {{}, {"old_primary", featherdoc::template_slot_kind::text, true}},
