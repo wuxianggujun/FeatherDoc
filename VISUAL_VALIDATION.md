@@ -37,7 +37,8 @@ Key evidence paths:
 
 When you finish the screenshot review in the same run, add
 `-ReviewVerdict pass` (or `fail` / `undetermined`) and `-ReviewNote` to stamp
-machine-readable `status=reviewed`, `verdict`, and `reviewed_at` metadata.
+machine-readable `status=reviewed`, `verdict`, `reviewed_at`, and
+`review_method=operator_supplied` metadata.
 
 - `fixed-grid-aggregate-contact-sheet.png`
 
@@ -125,11 +126,17 @@ If you ran the full release-preflight and also want to update
 `output/release-candidate-checks/report/summary.json` plus refresh
 `START_HERE.md`, `report/final_review.md`, `release_handoff.md`,
 `release_body.zh-CN.md`, and `release_summary.zh-CN.md`, the same command will refresh the detected
-release bundle automatically. Those refreshed entry points now surface not only
-the top-level `visual verdict`, but also the `section page setup` verdict, the
+release bundle automatically. The sync copies screenshot-review provenance from
+`review_result.json` into the gate summary, release summary, gate final review,
+and release final review; with `-RefreshReleaseBundle`, the internal handoff
+files (`START_HERE.md`, `release_handoff.md`, `ARTIFACT_GUIDE.md`, and
+`REVIEWER_CHECKLIST.md`) are regenerated with the same `reviewed_at` and
+`review_method` lines. Those refreshed entry points now surface not only the
+top-level `visual verdict`, but also the `section page setup` verdict, the
 `page number fields` verdict, and each curated visual-regression bundle
-verdict. Only fall back to the explicit command below when you need to
-override the inferred paths:
+verdict. The public `release_body.zh-CN.md` stays concise and does not expose
+free-form review notes or operator provenance. Only fall back to the explicit
+command below when you need to override the inferred paths:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_visual_review_verdict.ps1 `

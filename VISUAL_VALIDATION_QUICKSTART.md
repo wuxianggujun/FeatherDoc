@@ -87,11 +87,17 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\refresh_readme_visual_ass
 
 If you ran the full `release-preflight`, the same report directory also gets
 `release_handoff.md`, `release_body.zh-CN.md`, and `release_summary.zh-CN.md`.
-The short helper above auto-resolves the newest task pointers and matching
-release summary. If you need to override paths manually, keep using the longer
-commands below. If `summary.json` already carries the final verdict and you
-only need to regenerate those release notes after later editorial edits, the narrower
-fallback is:
+`review_result.json` verdict files record `status=reviewed`, the final
+`verdict`, `reviewed_at`, and `review_method=operator_supplied`; sync copies
+those fields into gate/release summaries and final-review files. With
+`-RefreshReleaseBundle`, `START_HERE.md`, `release_handoff.md`,
+`ARTIFACT_GUIDE.md`, and `REVIEWER_CHECKLIST.md` also show the internal
+provenance lines, while public `release_body.zh-CN.md` omits free-form notes
+and operator provenance. The short helper above auto-resolves the newest task
+pointers and matching release summary. If you need to override paths manually,
+keep using the longer commands below. If `summary.json` already carries the
+final verdict and you only need to regenerate those release notes after later
+editorial edits, the narrower fallback is:
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\write_release_note_bundle.ps1 `

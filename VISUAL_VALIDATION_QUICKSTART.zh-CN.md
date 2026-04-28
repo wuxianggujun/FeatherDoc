@@ -60,6 +60,12 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\refresh_readme_visual_ass
 
 如果你跑的是完整 `release-preflight`，报告目录还会同时生成
 `release_handoff.md`、`release_body.zh-CN.md` 和 `release_summary.zh-CN.md`。
+`review_result.json` 会记录 `status=reviewed`、最终 `verdict`、
+`reviewed_at` 与 `review_method=operator_supplied`；同步脚本会把这些字段写回
+gate/release summary 和 final-review 文档。追加 `-RefreshReleaseBundle` 后，
+`START_HERE.md`、`release_handoff.md`、`ARTIFACT_GUIDE.md` 与
+`REVIEWER_CHECKLIST.md` 也会展示内部 provenance；公开的
+`release_body.zh-CN.md` 不展示自由文本 notes 或 operator provenance。
 上面这条短命令会自动解析最新 task pointer 和匹配的 release summary。
 如果你需要手动覆盖路径，再继续使用显式同步命令。
 如果 `summary.json` 已经带上最终 verdict，只是后面又改了 release 文案，
