@@ -287,6 +287,9 @@ Assert-True -Condition ($curatedReleaseTasks[0].task_dir -eq $newTaskDir) `
     -Message "Release summary visual_gate did not refresh the curated bundle task dir."
 
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "$bundleLabel verdict: pass" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "## Release summary discovery" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Mode: explicit" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Release bundle refresh requested: False" -Label "gate_final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Visual verdict: pass" -Label "release final_review.md"
 foreach ($pathToCheck in @($releaseHandoffPath, $releaseBodyPath, $releaseSummaryZhPath, $artifactGuidePath, $reviewerChecklistPath, $startHerePath)) {
     Assert-PathNotExists -Path $pathToCheck -Label $pathToCheck

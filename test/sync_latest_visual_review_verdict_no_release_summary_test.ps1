@@ -261,6 +261,10 @@ Assert-True -Condition ($gateSummary.release_summary_discovery.output_search_roo
 Assert-True -Condition ($gateSummary.release_summary_discovery.release_bundle_refresh_requested -eq $false) `
     -Message "Gate summary release_summary_discovery.release_bundle_refresh_requested should be false without a matching release summary."
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Document verdict: pass" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "## Release summary discovery" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Mode: auto_not_found" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Selected release summary: (not available)" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Release bundle refresh requested: False" -Label "gate_final_review.md"
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Document reviewed at: 2026-04-15T10:05:00" -Label "gate_final_review.md"
 
 Assert-True -Condition ($decoyReleaseSummary.steps.visual_gate.document_task_dir -eq $oldDocumentTaskDir) `

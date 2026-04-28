@@ -275,6 +275,10 @@ Assert-True -Condition ($releaseSummary.steps.visual_gate.superseded_review_task
     -Message "Release summary visual_gate superseded_review_tasks_report was not updated."
 
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Document verdict: pass" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "## Release summary discovery" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Mode: explicit" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Reason: explicit_path" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Release bundle refresh requested: True" -Label "gate_final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Visual verdict: pass" -Label "release final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Smoke: verdict=pass, review_status=reviewed, reviewed_at=2026-04-14T09:05:00, review_method=operator_supplied" -Label "release final_review.md"
 

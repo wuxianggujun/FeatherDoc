@@ -321,6 +321,36 @@ function Get-OverallVisualVerdict {
     return "pending_manual_review"
 }
 
+
+function New-GateReleaseSummaryDiscoveryMarkdown {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()]$GateSummary
+    )
+
+    $discovery = Get-OptionalPropertyObject -Object $GateSummary -Name "release_summary_discovery"
+    if ($null -eq $discovery) {
+        return ""
+    }
+
+    $selectedSummaryPath = Get-OptionalPropertyValue -Object $discovery -Name "selected_summary_path"
+    if ([string]::IsNullOrWhiteSpace($selectedSummaryPath)) {
+        $selectedSummaryPath = Get-OptionalPropertyValue -Object $GateSummary -Name "selected_release_summary_path"
+    }
+
+    $lines = New-Object 'System.Collections.Generic.List[string]'
+    [void]$lines.Add("## Release summary discovery")
+    [void]$lines.Add("")
+    [void]$lines.Add("- Mode: $(Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $discovery -Name 'mode'))")
+    [void]$lines.Add("- Reason: $(Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $discovery -Name 'reason'))")
+    [void]$lines.Add("- Selected release summary: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $selectedSummaryPath)")
+    [void]$lines.Add("- Output search root: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $discovery -Name 'output_search_root'))")
+    [void]$lines.Add("- Release bundle refresh requested: $(Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $discovery -Name 'release_bundle_refresh_requested'))")
+    [void]$lines.Add("")
+
+    return ($lines -join [Environment]::NewLine)
+}
+
 function New-GateFinalReviewContent {
     param(
         [string]$RepoRoot,
@@ -487,6 +517,8 @@ function New-GateFinalReviewContent {
         "- Curated visual regression review tasks: not available"
     }
 
+    $releaseSummaryDiscoverySection = New-GateReleaseSummaryDiscoveryMarkdown -RepoRoot $RepoRoot -GateSummary $GateSummary
+
     $nextSteps = switch (Get-OptionalPropertyValue -Object $GateSummary -Name "visual_verdict") {
         "pass" {
             @(
@@ -541,7 +573,7 @@ $sectionPageSetupTaskSummary
 $pageNumberFieldsTaskSummary
 $curatedVisualTaskSummary
 
-## Next steps
+$releaseSummaryDiscoverySection## Next steps
 
 $nextSteps
 "@
