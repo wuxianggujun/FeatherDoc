@@ -73,6 +73,7 @@ performance.
 
 ### Changed
 
+- Hardened release preflight review task-count rendering so incomplete visual gate metadata is omitted instead of producing blank counts in `final_review.md`.
 - Hardened release metadata review task count rendering so incomplete release-summary metadata falls back to the gate summary instead of emitting blank counts.
 - Mirrored `sync_latest_visual_review_verdict.ps1` release summary discovery metadata into selected release summaries and surfaced it in release `final_review.md` for artifact-only review handoffs.
 - Added a release summary discovery section to `gate_final_review.md` so reviewers can see whether `sync_latest_visual_review_verdict.ps1` used an explicit summary, auto-detected one, or ran gate-only.
@@ -92,6 +93,7 @@ performance.
 
 ### Tests
 
+- Added release preflight review task-count coverage so incomplete visual gate summaries do not render empty count lines in `final_review.md`.
 - Added missing visual review task-count coverage so legacy release metadata without `review_task_summary` stays clean instead of rendering empty count lines.
 - Added release `final_review.md` assertions for explicit, auto-detected, and `-SkipReleaseBundle` release summary discovery metadata.
 - Added gate final-review assertions for release summary discovery metadata, including explicit, auto-not-found, and `-SkipReleaseBundle` paths.

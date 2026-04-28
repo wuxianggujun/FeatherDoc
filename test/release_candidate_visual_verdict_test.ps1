@@ -151,6 +151,20 @@ $reviewTaskSummaryLine = Get-VisualGateReviewTaskSummaryLine -VisualGateStep ([o
 Assert-ContainsText -Text $reviewTaskSummaryLine -ExpectedText "- Review task count: 3 total (2 standard, 1 curated)" `
     -Message "Rendered review task summary line should include total, standard, and curated counts."
 
+$incompleteReviewTaskSummaryLine = Get-VisualGateReviewTaskSummaryLine -VisualGateStep ([ordered]@{
+        review_task_summary = [ordered]@{
+            total_count = 3
+        }
+    })
+if ($incompleteReviewTaskSummaryLine -ne "") {
+    throw "Incomplete review task summary unexpectedly rendered '$incompleteReviewTaskSummaryLine'."
+}
+
+$missingReviewTaskSummaryLine = Get-VisualGateReviewTaskSummaryLine -VisualGateStep ([ordered]@{})
+if ($missingReviewTaskSummaryLine -ne "") {
+    throw "Missing review task summary unexpectedly rendered '$missingReviewTaskSummaryLine'."
+}
+
 $reviewMarkdown = Get-VisualGateReviewSummaryMarkdown -RepoRoot $resolvedRepoRoot -VisualGateStep ([ordered]@{
         section_page_setup_verdict = "pass"
         section_page_setup_review_status = "reviewed"

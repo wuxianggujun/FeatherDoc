@@ -472,10 +472,19 @@ function Get-VisualGateReviewTaskSummaryLine {
         return ""
     }
 
+    $totalCount = Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "total_count"
+    $standardCount = Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "standard_count"
+    $curatedCount = Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "curated_count"
+    if ([string]::IsNullOrWhiteSpace([string]$totalCount) -or
+        [string]::IsNullOrWhiteSpace([string]$standardCount) -or
+        [string]::IsNullOrWhiteSpace([string]$curatedCount)) {
+        return ""
+    }
+
     return "- Review task count: {0} total ({1} standard, {2} curated)" -f `
-        (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "total_count"),
-        (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "standard_count"),
-        (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "curated_count")
+        $totalCount,
+        $standardCount,
+        $curatedCount
 }
 
 function Get-VisualGateReviewSummaryMarkdown {
