@@ -1163,8 +1163,9 @@ the first entry before you open `report/ARTIFACT_GUIDE.md` or
 `-SectionPageSetupReviewVerdict`, `-PageNumberFieldsReviewVerdict`, and
 `-CuratedVisualReviewVerdict` options, plus their matching `*ReviewNote`
 parameters, then records the seeded per-flow verdicts in `report/summary.json`
-and surfaces them in `report/final_review.md`. The generated release body and
-short summary also list smoke, fixed-grid, section/page-number, and curated
+and surfaces them in `report/final_review.md`. `START_HERE.md`,
+`ARTIFACT_GUIDE.md`, the generated release body, and short summary also list
+smoke, fixed-grid, section/page-number, and curated
 visual verdicts when those seeded values are available.
 
 If you also want release-preflight to gate a template DOCX against a committed
