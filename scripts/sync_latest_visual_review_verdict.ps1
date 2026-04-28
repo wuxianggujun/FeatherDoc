@@ -591,6 +591,10 @@ if (-not [string]::IsNullOrWhiteSpace($ReleaseCandidateSummaryJson)) {
     }
 }
 
+if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
+    [void](Read-JsonFile -Path $resolvedReleaseSummaryPath)
+}
+
 Update-GateSummaryReviewTasksFromPointers `
     -GateSummaryPath $resolvedGateSummaryPath `
     -LatestPointerDescriptors $latestPointerDescriptors

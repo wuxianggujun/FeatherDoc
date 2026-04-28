@@ -68,6 +68,7 @@ performance.
 
 ### Changed
 
+- Validated explicit `sync_latest_visual_review_verdict.ps1 -ReleaseCandidateSummaryJson` JSON before mutating gate summaries, preventing half-written sign-off state when the release summary is unreadable.
 - Refactored release visual verdict metadata collection into a shared helper so release handoff, artifact guide, start-here, reviewer checklist, and release-note writers resolve standard and curated visual verdicts consistently.
 - Updated release metadata bundle writers so curated visual regression entries also use same-run `review_verdict` values when no legacy `verdict` field is present.
 - Updated template schema patch generation to preserve slot source selectors in generated `remove_slots` and `rename_slots` entries, keeping content-control and bookmark-oriented schemas round-trippable.
@@ -81,6 +82,7 @@ performance.
 
 ### Tests
 
+- Added malformed explicit release-summary coverage so `sync_latest_visual_review_verdict.ps1` reports unreadable `-ReleaseCandidateSummaryJson` files before gate summaries or release artifacts are written.
 - Added malformed latest-task pointer coverage so `sync_latest_visual_review_verdict.ps1` reports the unreadable JSON path before gate inference or audit artifacts are written.
 - Added `sync_latest_visual_review_verdict_unsupported_source_kind_test.ps1` to verify unsupported latest-task `source.kind` values fail clearly before gate inference or audit artifacts are written.
 - Added `sync_latest_visual_review_verdict_missing_source_path_test.ps1` to verify latest-task pointers without `source.path` fail clearly before gate inference or audit artifacts are written.
