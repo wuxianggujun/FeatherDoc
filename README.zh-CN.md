@@ -70,6 +70,12 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
 - `cmake --install` + `find_package(FeatherDoc)` smoke
 - Word visual release gate
 
+如果同一轮已经完成截图审查，也可以把 visual gate 的
+`-SmokeReviewVerdict`、`-FixedGridReviewVerdict`、
+`-SectionPageSetupReviewVerdict`、`-PageNumberFieldsReviewVerdict`、
+`-CuratedVisualReviewVerdict` 以及对应的 `*ReviewNote` 直接传给这个总控脚本，
+它会透传到 visual gate，并把各 flow 的 seeded verdict 写入 `report/summary.json`。
+
 脚本结束后，输出目录里会生成：
 
 - `START_HERE.md`

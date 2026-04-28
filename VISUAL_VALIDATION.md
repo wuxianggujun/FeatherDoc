@@ -87,6 +87,19 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_rel
 # Same gate, but also refresh docs/assets/readme/ in one shot.
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `
     -RefreshReadmeAssets
+
+# Full release-preflight accepts the same visual verdict passthrough options.
+powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_release_candidate_checks.ps1 `
+    -SmokeReviewVerdict pass `
+    -SmokeReviewNote "Smoke contact sheet reviewed." `
+    -FixedGridReviewVerdict pass `
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed." `
+    -SectionPageSetupReviewVerdict pass `
+    -SectionPageSetupReviewNote "Section page setup contact sheet reviewed." `
+    -PageNumberFieldsReviewVerdict pass `
+    -PageNumberFieldsReviewNote "Page number fields contact sheet reviewed." `
+    -CuratedVisualReviewVerdict pass `
+    -CuratedVisualReviewNote "Curated visual bundles reviewed."
 ```
 
 That wrapper regenerates the smoke screenshots, runs the fixed-grid quartet,

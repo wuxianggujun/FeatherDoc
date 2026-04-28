@@ -267,6 +267,21 @@ if(WIN32)
 
         add_test(
             NAME
+            release_candidate_visual_verdict
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_visual_verdict_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_visual_verdict
+        )
+
+        add_test(
+            NAME
             word_visual_review_report
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}

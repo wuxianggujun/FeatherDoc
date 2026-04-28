@@ -87,6 +87,19 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_rel
 # 同一条 gate，但顺手刷新 docs/assets/readme/ 里的展示图。
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `
     -RefreshReadmeAssets
+
+# 完整 release-preflight 也接受同一组 visual verdict 透传参数。
+powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_release_candidate_checks.ps1 `
+    -SmokeReviewVerdict pass `
+    -SmokeReviewNote "Smoke contact sheet reviewed." `
+    -FixedGridReviewVerdict pass `
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed." `
+    -SectionPageSetupReviewVerdict pass `
+    -SectionPageSetupReviewNote "Section page setup contact sheet reviewed." `
+    -PageNumberFieldsReviewVerdict pass `
+    -PageNumberFieldsReviewNote "Page number fields contact sheet reviewed." `
+    -CuratedVisualReviewVerdict pass `
+    -CuratedVisualReviewNote "Curated visual bundles reviewed."
 ```
 
 这个总控脚本会重新生成 smoke 截图、执行 fixed-grid quartet，并同时准备

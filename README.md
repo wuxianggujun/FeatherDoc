@@ -1158,7 +1158,11 @@ uses after the main build, tests, and sample runs.
 A local `run_release_candidate_checks.ps1` execution also writes
 `output/release-candidate-checks/START_HERE.md`; use that summary-root note as
 the first entry before you open `report/ARTIFACT_GUIDE.md` or
-`REVIEWER_CHECKLIST.md`.
+`REVIEWER_CHECKLIST.md`. The wrapper accepts the same visual gate
+`-SmokeReviewVerdict`, `-FixedGridReviewVerdict`,
+`-SectionPageSetupReviewVerdict`, `-PageNumberFieldsReviewVerdict`, and
+`-CuratedVisualReviewVerdict` options, plus their matching `*ReviewNote`
+parameters, then records the seeded per-flow verdicts in `report/summary.json`.
 
 If you also want release-preflight to gate a template DOCX against a committed
 schema baseline, pass `-TemplateSchemaInputDocx`, `-TemplateSchemaBaseline`,

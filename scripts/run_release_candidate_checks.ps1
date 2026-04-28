@@ -15,6 +15,21 @@ evidence produced by the visual gate. This requires the visual gate to run.
 .PARAMETER ReadmeAssetsDir
 Target repository directory for the refreshed README gallery PNG files.
 
+.PARAMETER SmokeReviewVerdict
+Optional screenshot-backed verdict to pass into the Word visual smoke flow.
+
+.PARAMETER FixedGridReviewVerdict
+Optional screenshot-backed verdict to seed into the fixed-grid review task.
+
+.PARAMETER SectionPageSetupReviewVerdict
+Optional screenshot-backed verdict to seed into the section page setup review task.
+
+.PARAMETER PageNumberFieldsReviewVerdict
+Optional screenshot-backed verdict to seed into the page number fields review task.
+
+.PARAMETER CuratedVisualReviewVerdict
+Optional screenshot-backed verdict to seed into curated visual regression review tasks.
+
 .EXAMPLE
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 `
     -SkipConfigure `
@@ -67,6 +82,21 @@ param(
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$SmokeReviewVerdict = "undecided",
+    [string]$SmokeReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$FixedGridReviewVerdict = "undecided",
+    [string]$FixedGridReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$SectionPageSetupReviewVerdict = "undecided",
+    [string]$SectionPageSetupReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$PageNumberFieldsReviewVerdict = "undecided",
+    [string]$PageNumberFieldsReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$CuratedVisualReviewVerdict = "undecided",
+    [string]$CuratedVisualReviewNote = "",
     [switch]$RefreshReadmeAssets,
     [string]$ReadmeAssetsDir = "docs/assets/readme",
     [switch]$KeepWordOpen,
@@ -323,6 +353,75 @@ function Get-OptionalPropertyValue {
     }
 
     return $property.Value
+}
+
+
+function Set-OptionalSummaryValue {
+    param(
+        [System.Collections.IDictionary]$Target,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -ne $Value -and -not [string]::IsNullOrWhiteSpace([string]$Value)) {
+        $Target[$Name] = $Value
+    }
+}
+
+function Add-OptionalVisualReviewArguments {
+    param(
+        [object[]]$Arguments,
+        [string]$VerdictArgument,
+        [string]$Verdict,
+        [string]$NoteArgument,
+        [string]$Note
+    )
+
+    $result = @($Arguments)
+    if ($Verdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($Note)) {
+        $result += @($VerdictArgument, $Verdict)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Note)) {
+        $result += @($NoteArgument, $Note)
+    }
+
+    return $result
+}
+
+function Add-GateFlowReviewSummary {
+    param(
+        [System.Collections.IDictionary]$Target,
+        [string]$Prefix,
+        [AllowNull()]$FlowInfo
+    )
+
+    $reviewStatus = Get-OptionalPropertyValue -Object $FlowInfo -Name "review_status"
+    $reviewVerdict = Get-OptionalPropertyValue -Object $FlowInfo -Name "review_verdict"
+    Set-OptionalSummaryValue -Target $Target -Name ("{0}_review_status" -f $Prefix) -Value $reviewStatus
+    Set-OptionalSummaryValue -Target $Target -Name ("{0}_verdict" -f $Prefix) -Value $reviewVerdict
+}
+
+function Get-CuratedVisualReviewSummaryEntries {
+    param([AllowNull()]$GateSummary)
+
+    $curatedFlows = @(Get-OptionalPropertyValue -Object $GateSummary -Name "curated_visual_regressions")
+    return @(
+        $curatedFlows | Where-Object {
+            -not [string]::IsNullOrWhiteSpace([string](Get-OptionalPropertyValue -Object $_ -Name "review_verdict"))
+        } | ForEach-Object {
+            $taskInfo = Get-OptionalPropertyValue -Object $_ -Name "task"
+            [ordered]@{
+                id = Get-OptionalPropertyValue -Object $_ -Name "id"
+                label = Get-OptionalPropertyValue -Object $_ -Name "label"
+                verdict = Get-OptionalPropertyValue -Object $_ -Name "review_verdict"
+                review_status = Get-OptionalPropertyValue -Object $_ -Name "review_status"
+                task_id = Get-OptionalPropertyValue -Object $taskInfo -Name "task_id"
+                task_dir = Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
+                review_result_path = Get-OptionalPropertyValue -Object $taskInfo -Name "review_result_path"
+                final_review_path = Get-OptionalPropertyValue -Object $taskInfo -Name "final_review_path"
+            }
+        }
+    )
 }
 
 function Convert-OptionalBoolean {
@@ -1202,6 +1301,31 @@ try {
             $Dpi.ToString()
             "-SkipBuild"
         )
+        $visualGateArgs = Add-OptionalVisualReviewArguments -Arguments $visualGateArgs `
+            -VerdictArgument "-SmokeReviewVerdict" `
+            -Verdict $SmokeReviewVerdict `
+            -NoteArgument "-SmokeReviewNote" `
+            -Note $SmokeReviewNote
+        $visualGateArgs = Add-OptionalVisualReviewArguments -Arguments $visualGateArgs `
+            -VerdictArgument "-FixedGridReviewVerdict" `
+            -Verdict $FixedGridReviewVerdict `
+            -NoteArgument "-FixedGridReviewNote" `
+            -Note $FixedGridReviewNote
+        $visualGateArgs = Add-OptionalVisualReviewArguments -Arguments $visualGateArgs `
+            -VerdictArgument "-SectionPageSetupReviewVerdict" `
+            -Verdict $SectionPageSetupReviewVerdict `
+            -NoteArgument "-SectionPageSetupReviewNote" `
+            -Note $SectionPageSetupReviewNote
+        $visualGateArgs = Add-OptionalVisualReviewArguments -Arguments $visualGateArgs `
+            -VerdictArgument "-PageNumberFieldsReviewVerdict" `
+            -Verdict $PageNumberFieldsReviewVerdict `
+            -NoteArgument "-PageNumberFieldsReviewNote" `
+            -Note $PageNumberFieldsReviewNote
+        $visualGateArgs = Add-OptionalVisualReviewArguments -Arguments $visualGateArgs `
+            -VerdictArgument "-CuratedVisualReviewVerdict" `
+            -Verdict $CuratedVisualReviewVerdict `
+            -NoteArgument "-CuratedVisualReviewNote" `
+            -Note $CuratedVisualReviewNote
         foreach ($argumentName in $visualGateBuildDirArguments) {
             $visualGateArgs += @(
                 $argumentName
@@ -1256,6 +1380,18 @@ try {
         if (-not [string]::IsNullOrWhiteSpace([string]$gateVisualVerdict)) {
             $summary.visual_verdict = [string]$gateVisualVerdict
             $summary.steps.visual_gate.visual_verdict = [string]$gateVisualVerdict
+        }
+        Add-GateFlowReviewSummary -Target $summary.steps.visual_gate -Prefix "smoke" `
+            -FlowInfo (Get-OptionalPropertyValue -Object $gateSummary -Name "smoke")
+        Add-GateFlowReviewSummary -Target $summary.steps.visual_gate -Prefix "fixed_grid" `
+            -FlowInfo (Get-OptionalPropertyValue -Object $gateSummary -Name "fixed_grid")
+        Add-GateFlowReviewSummary -Target $summary.steps.visual_gate -Prefix "section_page_setup" `
+            -FlowInfo (Get-OptionalPropertyValue -Object $gateSummary -Name "section_page_setup")
+        Add-GateFlowReviewSummary -Target $summary.steps.visual_gate -Prefix "page_number_fields" `
+            -FlowInfo (Get-OptionalPropertyValue -Object $gateSummary -Name "page_number_fields")
+        $curatedVisualReviewEntries = @(Get-CuratedVisualReviewSummaryEntries -GateSummary $gateSummary)
+        if ($curatedVisualReviewEntries.Count -gt 0) {
+            $summary.steps.visual_gate.curated_visual_regressions = $curatedVisualReviewEntries
         }
 
         $readmeGalleryInfo = Get-ReadmeGalleryInfoFromGateSummary -GateSummaryPath $visualGateInfo.gate_summary

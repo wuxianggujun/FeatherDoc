@@ -47,6 +47,19 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_g
 # Full release-preflight: MSVC build + tests + install smoke + visual gate.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_release_candidate_checks.ps1
 
+# Full release-preflight with same-run screenshot verdict metadata.
+pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_release_candidate_checks.ps1 `
+    -SmokeReviewVerdict pass `
+    -SmokeReviewNote "Smoke contact sheet reviewed." `
+    -FixedGridReviewVerdict pass `
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed." `
+    -SectionPageSetupReviewVerdict pass `
+    -SectionPageSetupReviewNote "Section page setup contact sheet reviewed." `
+    -PageNumberFieldsReviewVerdict pass `
+    -PageNumberFieldsReviewNote "Page number fields contact sheet reviewed." `
+    -CuratedVisualReviewVerdict pass `
+    -CuratedVisualReviewNote "Curated visual bundles reviewed."
+
 # Full release-preflight, plus README / docs gallery refresh.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_release_candidate_checks.ps1 -RefreshReadmeAssets
 
