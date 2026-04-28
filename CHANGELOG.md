@@ -82,6 +82,7 @@ performance.
 
 ### Tests
 
+- Added missing explicit release-summary coverage so `sync_latest_visual_review_verdict.ps1` reports absent `-ReleaseCandidateSummaryJson` paths before gate summaries or release artifacts are written.
 - Added malformed explicit release-summary coverage so `sync_latest_visual_review_verdict.ps1` reports unreadable `-ReleaseCandidateSummaryJson` files before gate summaries or release artifacts are written.
 - Added malformed latest-task pointer coverage so `sync_latest_visual_review_verdict.ps1` reports the unreadable JSON path before gate inference or audit artifacts are written.
 - Added `sync_latest_visual_review_verdict_unsupported_source_kind_test.ps1` to verify unsupported latest-task `source.kind` values fail clearly before gate inference or audit artifacts are written.
