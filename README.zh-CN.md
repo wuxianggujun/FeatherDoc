@@ -288,7 +288,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_
 `review_result.json` 会直接记录 `status=reviewed`、`verdict` 与
 `reviewed_at`，后续 verdict sync 可以直接消费。跑 release gate 时也可以用
 `-SmokeReviewVerdict pass` 和 `-SmokeReviewNote`，把同一轮 smoke 截图结论
-透传到 smoke 报告与 gate summary。
+透传到 smoke 报告与 gate summary；fixed-grid 四联也能用
+`-FixedGridReviewVerdict pass` 和 `-FixedGridReviewNote`，把结论直接种进生成的
+fixed-grid review task。
 
 要把这些渲染结果同步回仓库里的 README 预览 PNG，执行：
 

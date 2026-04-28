@@ -43,6 +43,12 @@ flow. Use this when the smoke contact sheet is reviewed during the same gate run
 .PARAMETER SmokeReviewNote
 Optional note recorded with SmokeReviewVerdict in the smoke review artifacts.
 
+.PARAMETER FixedGridReviewVerdict
+Optional screenshot-backed verdict to seed into the fixed-grid review task.
+
+.PARAMETER FixedGridReviewNote
+Optional note recorded with FixedGridReviewVerdict in the fixed-grid review task.
+
 #>
 param(
     [string]$GateOutputDir = "output/word-visual-release-gate",
@@ -150,6 +156,9 @@ param(
     [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
     [string]$SmokeReviewVerdict = "undecided",
     [string]$SmokeReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$FixedGridReviewVerdict = "undecided",
+    [string]$FixedGridReviewNote = "",
     [string]$TaskOutputRoot = "output/word-visual-smoke/tasks",
     [switch]$RefreshReadmeAssets,
     [string]$ReadmeAssetsDir = "docs/assets/readme",
@@ -300,7 +309,7 @@ function Add-OptionalSummaryValue {
     }
 }
 
-function Read-SmokeReviewResult {
+function Read-ReviewResult {
     param([string]$ReviewResultPath)
 
     Assert-PathExists -Path $ReviewResultPath -Label "smoke review result JSON"
@@ -1276,7 +1285,7 @@ if (-not $SkipSmoke) {
         -Arguments $smokeArgs `
         -FailureMessage "Word visual smoke gate step failed."
     $smokeInfo = Parse-SmokeRunOutput -Lines $smokeRunOutput
-    $smokeReviewResult = Read-SmokeReviewResult -ReviewResultPath $smokeInfo.review_result_path
+    $smokeReviewResult = Read-ReviewResult -ReviewResultPath $smokeInfo.review_result_path
 
     $gateSummary.smoke = [ordered]@{
         status = "completed"
@@ -1396,6 +1405,12 @@ if (-not $SkipFixedGrid) {
             "-TaskOutputRoot"
             $taskOutputRootForChild
         )
+        if ($FixedGridReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($FixedGridReviewNote)) {
+            $prepareTaskArgs += @("-ReviewVerdict", $FixedGridReviewVerdict)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($FixedGridReviewNote)) {
+            $prepareTaskArgs += @("-ReviewNote", $FixedGridReviewNote)
+        }
         if ($OpenTaskDirs) {
             $prepareTaskArgs += "-OpenTaskDir"
         }
@@ -1404,9 +1419,18 @@ if (-not $SkipFixedGrid) {
             -Arguments $prepareTaskArgs `
             -FailureMessage "Fixed-grid review task preparation failed."
         $fixedGridTaskInfo = Parse-PrepareTaskOutput -Lines $fixedGridTaskOutput
+        $fixedGridTaskReview = Read-ReviewResult -ReviewResultPath $fixedGridTaskInfo.review_result_path
 
         $gateSummary.review_tasks.fixed_grid = $fixedGridTaskInfo
         $gateSummary.fixed_grid.task = $fixedGridTaskInfo
+        $gateSummary.fixed_grid.review_status = Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "status"
+        $gateSummary.fixed_grid.review_verdict = Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "verdict"
+        Add-OptionalSummaryValue -Target $gateSummary.fixed_grid -Name "reviewed_at" `
+            -Value (Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "reviewed_at")
+        Add-OptionalSummaryValue -Target $gateSummary.fixed_grid -Name "review_method" `
+            -Value (Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "review_method")
+        Add-OptionalSummaryValue -Target $gateSummary.fixed_grid -Name "review_note" `
+            -Value (Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "review_note")
     }
 } else {
     $gateSummary.fixed_grid = [ordered]@{
@@ -1712,6 +1736,15 @@ $smokeReviewStatusLine = if ($gateSummary.smoke -and $gateSummary.smoke.status -
     "- Smoke review verdict: not available"
 }
 $fixedGridStatusLine = Get-FlowStatusLine -Label "Fixed-grid" -FlowInfo $gateSummary.fixed_grid -PathField "summary_json"
+$fixedGridReviewStatusLine = if ($gateSummary.fixed_grid -and $gateSummary.fixed_grid.status -eq "completed") {
+    if ($gateSummary.fixed_grid.review_verdict) {
+        "- Fixed-grid review verdict: $($gateSummary.fixed_grid.review_verdict) ($($gateSummary.fixed_grid.review_status))"
+    } else {
+        "- Fixed-grid review verdict: not requested"
+    }
+} else {
+    "- Fixed-grid review verdict: not available"
+}
 $sectionPageSetupStatusLine = Get-FlowStatusLine -Label "Section page setup" -FlowInfo $gateSummary.section_page_setup -PathField "summary_json"
 $pageNumberFieldsStatusLine = Get-FlowStatusLine -Label "Page number fields" -FlowInfo $gateSummary.page_number_fields -PathField "summary_json"
 $curatedVisualStatusLines = if ($gateSummary.curated_visual_regressions.Count -gt 0) {
@@ -1792,6 +1825,7 @@ $gateFinalReview = @"
 $smokeStatusLine
 $smokeReviewStatusLine
 $fixedGridStatusLine
+$fixedGridReviewStatusLine
 $sectionPageSetupStatusLine
 $pageNumberFieldsStatusLine
 $curatedVisualStatusLines

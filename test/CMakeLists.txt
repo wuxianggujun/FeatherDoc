@@ -177,6 +177,21 @@ if(WIN32)
 
         add_test(
             NAME
+            prepare_word_review_task_verdict
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/prepare_word_review_task_verdict_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/prepare_word_review_task_verdict
+        )
+
+        add_test(
+            NAME
             prepare_section_page_setup_review_task
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}

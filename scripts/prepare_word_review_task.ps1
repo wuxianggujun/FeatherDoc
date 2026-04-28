@@ -9,6 +9,9 @@ param(
     [string]$VisualRegressionRefreshCommand = "",
     [ValidateSet("review-only", "review-and-repair")]
     [string]$Mode = "review-only",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$ReviewVerdict = "undecided",
+    [string]$ReviewNote = "",
     [string]$TaskOutputRoot = "output/word-visual-smoke/tasks",
     [switch]$OpenTaskDir
 )
@@ -76,6 +79,101 @@ function Get-OptionalMemberValue {
     }
 
     return ""
+}
+
+function Normalize-ReviewTaskVerdict {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return "undecided"
+    }
+
+    switch ($Value.ToLowerInvariant()) {
+        "pass" { return "pass" }
+        "fail" { return "fail" }
+        "undetermined" { return "undetermined" }
+        "pending_manual_review" { return "pending_manual_review" }
+        "undecided" { return "undecided" }
+        default { throw "Unsupported review task verdict: $Value" }
+    }
+}
+
+function Get-ReviewTaskStatus {
+    param([string]$Verdict)
+
+    $normalizedVerdict = Normalize-ReviewTaskVerdict -Value $Verdict
+    if ($normalizedVerdict -eq "pass" -or
+        $normalizedVerdict -eq "fail" -or
+        $normalizedVerdict -eq "undetermined") {
+        return "reviewed"
+    }
+
+    return "pending_review"
+}
+
+function Get-ReviewTaskDisplayVerdict {
+    param([string]$Verdict)
+
+    $normalizedVerdict = Normalize-ReviewTaskVerdict -Value $Verdict
+    if ($normalizedVerdict -eq "undecided") {
+        return "pending_manual_review"
+    }
+
+    return $normalizedVerdict
+}
+
+function Update-SeedReviewResult {
+    param(
+        [string]$ReviewResultPath,
+        [string]$Verdict,
+        [string]$ReviewNote,
+        [string]$ReviewedAt
+    )
+
+    $normalizedVerdict = Normalize-ReviewTaskVerdict -Value $Verdict
+    $status = Get-ReviewTaskStatus -Verdict $normalizedVerdict
+    $reviewResult = Get-Content -Raw -LiteralPath $ReviewResultPath | ConvertFrom-Json
+    $reviewResult.status = $status
+    $reviewResult.verdict = $normalizedVerdict
+
+    if ($status -eq "reviewed") {
+        $reviewResult | Add-Member -NotePropertyName "reviewed_at" -NotePropertyValue $ReviewedAt -Force
+        $reviewResult | Add-Member -NotePropertyName "review_method" -NotePropertyValue "operator_supplied" -Force
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ReviewNote)) {
+        $reviewResult | Add-Member -NotePropertyName "review_note" -NotePropertyValue $ReviewNote -Force
+        $notes = @($reviewResult.notes)
+        if ($ReviewNote -notin $notes) {
+            $notes += $ReviewNote
+        }
+        $reviewResult.notes = $notes
+    }
+
+    ($reviewResult | ConvertTo-Json -Depth 6) | Set-Content -Path $ReviewResultPath -Encoding UTF8
+}
+
+function Update-SeedFinalReview {
+    param(
+        [string]$FinalReviewPath,
+        [string]$Verdict,
+        [string]$ReviewNote
+    )
+
+    $displayVerdict = Get-ReviewTaskDisplayVerdict -Verdict $Verdict
+    $status = Get-ReviewTaskStatus -Verdict $Verdict
+    $summaryNote = if ([string]::IsNullOrWhiteSpace($ReviewNote)) { "" } else { $ReviewNote }
+
+    $content = Get-Content -Raw -LiteralPath $FinalReviewPath
+    $content = $content.Replace("- Verdict: pending_manual_review", "- Verdict: $displayVerdict")
+    $seededVerdictBlock = @(
+        "",
+        "## Seeded Review Metadata",
+        "",
+        "- Status: $status",
+        "- Verdict: $displayVerdict",
+        "- Notes: $summaryNote"
+    ) -join [Environment]::NewLine
+    Set-Content -LiteralPath $FinalReviewPath -Encoding UTF8 -Value ($content.TrimEnd() + $seededVerdictBlock + [Environment]::NewLine)
 }
 
 function Resolve-BundleAggregateContactSheetPath {
@@ -1144,6 +1242,17 @@ $seedReviewResult | Set-Content -Path $reviewResultPath -Encoding UTF8
 $seedFinalReview = Expand-Template -TemplatePath $finalReviewTemplatePath `
     -Values $templateValues
 $seedFinalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
+
+if ($ReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($ReviewNote)) {
+    $reviewedAt = (Get-Date).ToString("s")
+    Update-SeedReviewResult -ReviewResultPath $reviewResultPath `
+        -Verdict $ReviewVerdict `
+        -ReviewNote $ReviewNote `
+        -ReviewedAt $reviewedAt
+    Update-SeedFinalReview -FinalReviewPath $finalReviewPath `
+        -Verdict $ReviewVerdict `
+        -ReviewNote $ReviewNote
+}
 
 $manifest = [ordered]@{
     task_id = $taskId

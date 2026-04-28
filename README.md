@@ -465,6 +465,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.
 If the standard smoke contact sheet is reviewed during the same gate run, add
 `-SmokeReviewVerdict pass` (or `fail` / `undetermined`) and `-SmokeReviewNote`
 so the smoke `review_result.json` and gate summary carry the same sign-off.
+When the fixed-grid bundle is also reviewed in that run, use
+`-FixedGridReviewVerdict pass` and `-FixedGridReviewNote` to seed the generated
+fixed-grid review task with the same machine-readable metadata.
 
 After the screenshot-backed review tasks you care about are signed off,
 including any curated visual regression bundles emitted by the gate, sync the

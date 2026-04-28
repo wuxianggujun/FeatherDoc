@@ -31,7 +31,9 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_g
 # Same gate, but stamp a same-run smoke screenshot verdict into the smoke report and gate summary.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `
     -SmokeReviewVerdict pass `
-    -SmokeReviewNote "Smoke contact sheet reviewed."
+    -SmokeReviewNote "Smoke contact sheet reviewed." `
+    -FixedGridReviewVerdict pass `
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed."
 
 # Same gate, but also refresh the repository README / docs preview PNGs.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 -RefreshReadmeAssets

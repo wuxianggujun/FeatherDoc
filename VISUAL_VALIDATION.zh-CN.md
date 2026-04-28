@@ -74,7 +74,9 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_rel
 # 同一条 gate，但把本轮 smoke 截图结论写进 smoke 报告和 gate summary。
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `
     -SmokeReviewVerdict pass `
-    -SmokeReviewNote "Smoke contact sheet reviewed."
+    -SmokeReviewNote "Smoke contact sheet reviewed." `
+    -FixedGridReviewVerdict pass `
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed."
 
 # 同一条 gate，但顺手刷新 docs/assets/readme/ 里的展示图。
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `

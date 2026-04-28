@@ -38,4 +38,17 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'review_verdict = Get-Option
 Assert-ContainsText -Text $scriptText -ExpectedText 'Smoke review verdict:' `
     -Message "Release gate final review should surface the smoke review verdict."
 
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$FixedGridReviewVerdict = "undecided"' `
+    -Message "Release gate should expose FixedGridReviewVerdict."
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$FixedGridReviewNote = ""' `
+    -Message "Release gate should expose FixedGridReviewNote."
+Assert-ContainsText -Text $scriptText -ExpectedText '$prepareTaskArgs += @("-ReviewVerdict", $FixedGridReviewVerdict)' `
+    -Message "Release gate should pass FixedGridReviewVerdict into prepare_word_review_task.ps1."
+Assert-ContainsText -Text $scriptText -ExpectedText '$prepareTaskArgs += @("-ReviewNote", $FixedGridReviewNote)' `
+    -Message "Release gate should pass FixedGridReviewNote into prepare_word_review_task.ps1."
+Assert-ContainsText -Text $scriptText -ExpectedText 'review_verdict = Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "verdict"' `
+    -Message "Release gate summary should capture the fixed-grid task review verdict."
+Assert-ContainsText -Text $scriptText -ExpectedText 'Fixed-grid review verdict:' `
+    -Message "Release gate final review should surface the fixed-grid review verdict."
+
 Write-Host "Word visual release gate smoke verdict regression passed."
