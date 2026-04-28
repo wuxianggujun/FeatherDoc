@@ -35,6 +35,14 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
     -GateOutputDir output/word-visual-release-gate `
     -TaskOutputRoot output/word-visual-smoke/tasks-release-gate `
     -RefreshReadmeAssets
+
+.PARAMETER SmokeReviewVerdict
+Optional screenshot-backed verdict to pass into the standard Word visual smoke
+flow. Use this when the smoke contact sheet is reviewed during the same gate run.
+
+.PARAMETER SmokeReviewNote
+Optional note recorded with SmokeReviewVerdict in the smoke review artifacts.
+
 #>
 param(
     [string]$GateOutputDir = "output/word-visual-release-gate",
@@ -139,6 +147,9 @@ param(
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$SmokeReviewVerdict = "undecided",
+    [string]$SmokeReviewNote = "",
     [string]$TaskOutputRoot = "output/word-visual-smoke/tasks",
     [switch]$RefreshReadmeAssets,
     [string]$ReadmeAssetsDir = "docs/assets/readme",
@@ -257,6 +268,43 @@ function Assert-PathExists {
     if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path $Path)) {
         throw "Expected $Label was not found: $Path"
     }
+}
+
+function Get-OptionalPropertyValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $null
+    }
+
+    return $property.Value
+}
+
+function Add-OptionalSummaryValue {
+    param(
+        [System.Collections.IDictionary]$Target,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -ne $Value -and -not [string]::IsNullOrWhiteSpace([string]$Value)) {
+        $Target[$Name] = $Value
+    }
+}
+
+function Read-SmokeReviewResult {
+    param([string]$ReviewResultPath)
+
+    Assert-PathExists -Path $ReviewResultPath -Label "smoke review result JSON"
+    return Get-Content -Raw -LiteralPath $ReviewResultPath | ConvertFrom-Json
 }
 
 function Parse-SmokeRunOutput {
@@ -1217,11 +1265,18 @@ if (-not $SkipSmoke) {
     if ($VisibleWord) {
         $smokeArgs += "-VisibleWord"
     }
+    if ($SmokeReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($SmokeReviewNote)) {
+        $smokeArgs += @("-ReviewVerdict", $SmokeReviewVerdict)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($SmokeReviewNote)) {
+        $smokeArgs += @("-ReviewNote", $SmokeReviewNote)
+    }
 
     $smokeRunOutput = Invoke-ChildPowerShell -ScriptPath $smokeScript `
         -Arguments $smokeArgs `
         -FailureMessage "Word visual smoke gate step failed."
     $smokeInfo = Parse-SmokeRunOutput -Lines $smokeRunOutput
+    $smokeReviewResult = Read-SmokeReviewResult -ReviewResultPath $smokeInfo.review_result_path
 
     $gateSummary.smoke = [ordered]@{
         status = "completed"
@@ -1237,7 +1292,15 @@ if (-not $SkipSmoke) {
         review_result = $smokeInfo.review_result_path
         final_review = $smokeInfo.final_review_path
         repair_dir = $smokeInfo.repair_dir
+        review_status = Get-OptionalPropertyValue -Object $smokeReviewResult -Name "status"
+        review_verdict = Get-OptionalPropertyValue -Object $smokeReviewResult -Name "verdict"
     }
+    Add-OptionalSummaryValue -Target $gateSummary.smoke -Name "reviewed_at" `
+        -Value (Get-OptionalPropertyValue -Object $smokeReviewResult -Name "reviewed_at")
+    Add-OptionalSummaryValue -Target $gateSummary.smoke -Name "review_method" `
+        -Value (Get-OptionalPropertyValue -Object $smokeReviewResult -Name "review_method")
+    Add-OptionalSummaryValue -Target $gateSummary.smoke -Name "review_note" `
+        -Value (Get-OptionalPropertyValue -Object $smokeReviewResult -Name "review_note")
 
     if (-not $SkipReviewTasks) {
         Write-Step "Preparing document review task from the smoke DOCX"
@@ -1643,6 +1706,11 @@ $sectionPageSetupTaskSummary = Get-TaskSummaryBlock -Label "Section page setup" 
 $pageNumberFieldsTaskSummary = Get-TaskSummaryBlock -Label "Page number fields" -TaskInfo $gateSummary.review_tasks.page_number_fields
 
 $smokeStatusLine = Get-FlowStatusLine -Label "Smoke" -FlowInfo $gateSummary.smoke -PathField "docx_path"
+$smokeReviewStatusLine = if ($gateSummary.smoke -and $gateSummary.smoke.status -eq "completed") {
+    "- Smoke review verdict: $($gateSummary.smoke.review_verdict) ($($gateSummary.smoke.review_status))"
+} else {
+    "- Smoke review verdict: not available"
+}
 $fixedGridStatusLine = Get-FlowStatusLine -Label "Fixed-grid" -FlowInfo $gateSummary.fixed_grid -PathField "summary_json"
 $sectionPageSetupStatusLine = Get-FlowStatusLine -Label "Section page setup" -FlowInfo $gateSummary.section_page_setup -PathField "summary_json"
 $pageNumberFieldsStatusLine = Get-FlowStatusLine -Label "Page number fields" -FlowInfo $gateSummary.page_number_fields -PathField "summary_json"
@@ -1722,6 +1790,7 @@ $gateFinalReview = @"
 ## Included flows
 
 $smokeStatusLine
+$smokeReviewStatusLine
 $fixedGridStatusLine
 $sectionPageSetupStatusLine
 $pageNumberFieldsStatusLine

@@ -237,6 +237,21 @@ if(WIN32)
 
         add_test(
             NAME
+            word_visual_release_gate_smoke_verdict
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/word_visual_release_gate_smoke_verdict_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/word_visual_release_gate_smoke_verdict
+        )
+
+        add_test(
+            NAME
             word_visual_review_report
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}

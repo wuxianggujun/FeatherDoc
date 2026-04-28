@@ -286,7 +286,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_
 如果同一轮已经完成截图审查，可以给 `run_word_visual_smoke.ps1` 追加
 `-ReviewVerdict pass`（或 `fail` / `undetermined`）和 `-ReviewNote`，这样
 `review_result.json` 会直接记录 `status=reviewed`、`verdict` 与
-`reviewed_at`，后续 verdict sync 可以直接消费。
+`reviewed_at`，后续 verdict sync 可以直接消费。跑 release gate 时也可以用
+`-SmokeReviewVerdict pass` 和 `-SmokeReviewNote`，把同一轮 smoke 截图结论
+透传到 smoke 报告与 gate summary。
 
 要把这些渲染结果同步回仓库里的 README 预览 PNG，执行：
 

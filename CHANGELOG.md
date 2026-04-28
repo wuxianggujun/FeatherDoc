@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added `run_word_visual_release_gate.ps1 -SmokeReviewVerdict/-SmokeReviewNote` passthrough so the standard smoke flow can stamp same-run screenshot verdicts into smoke reports and the gate summary.
 - Added `run_word_visual_smoke.ps1 -ReviewVerdict/-ReviewNote` support so screenshot-backed pass/fail/undetermined sign-off can be written directly to `review_result.json` and `final_review.md` with review metadata.
 - Added `preview-template-schema-patch --output-patch` support so schema patch previews can copy an explicit patch file or generate a reusable left/right schema patch while reporting `output_patch_path` in JSON summaries for automation.
 - Added template-schema patch preview and slot mutation helpers in the public API, including preview, replace-target, upsert-slot, remove-target, remove-slot, rename-slot, and update-slot operations.
