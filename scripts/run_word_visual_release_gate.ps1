@@ -49,6 +49,21 @@ Optional screenshot-backed verdict to seed into the fixed-grid review task.
 .PARAMETER FixedGridReviewNote
 Optional note recorded with FixedGridReviewVerdict in the fixed-grid review task.
 
+.PARAMETER SectionPageSetupReviewVerdict
+Optional screenshot-backed verdict to seed into the section page setup review task.
+
+.PARAMETER SectionPageSetupReviewNote
+Optional note recorded with SectionPageSetupReviewVerdict in the section page
+setup review task.
+
+.PARAMETER PageNumberFieldsReviewVerdict
+Optional screenshot-backed verdict to seed into the page number fields review
+task.
+
+.PARAMETER PageNumberFieldsReviewNote
+Optional note recorded with PageNumberFieldsReviewVerdict in the page number
+fields review task.
+
 .PARAMETER CuratedVisualReviewVerdict
 Optional screenshot-backed verdict to seed into every curated visual regression
 review task.
@@ -167,6 +182,12 @@ param(
     [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
     [string]$FixedGridReviewVerdict = "undecided",
     [string]$FixedGridReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$SectionPageSetupReviewVerdict = "undecided",
+    [string]$SectionPageSetupReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$PageNumberFieldsReviewVerdict = "undecided",
+    [string]$PageNumberFieldsReviewNote = "",
     [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
     [string]$CuratedVisualReviewVerdict = "undecided",
     [string]$CuratedVisualReviewNote = "",
@@ -1514,6 +1535,12 @@ if (-not $SkipSectionPageSetup) {
             "-TaskOutputRoot"
             $taskOutputRootForChild
         )
+        if ($SectionPageSetupReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($SectionPageSetupReviewNote)) {
+            $prepareTaskArgs += @("-ReviewVerdict", $SectionPageSetupReviewVerdict)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($SectionPageSetupReviewNote)) {
+            $prepareTaskArgs += @("-ReviewNote", $SectionPageSetupReviewNote)
+        }
         if ($OpenTaskDirs) {
             $prepareTaskArgs += "-OpenTaskDir"
         }
@@ -1522,9 +1549,18 @@ if (-not $SkipSectionPageSetup) {
             -Arguments $prepareTaskArgs `
             -FailureMessage "Section page setup review task preparation failed."
         $sectionPageSetupTaskInfo = Parse-PrepareTaskOutput -Lines $sectionPageSetupTaskOutput
+        $sectionPageSetupTaskReview = Read-ReviewResult -ReviewResultPath $sectionPageSetupTaskInfo.review_result_path
 
         $gateSummary.review_tasks.section_page_setup = $sectionPageSetupTaskInfo
         $gateSummary.section_page_setup.task = $sectionPageSetupTaskInfo
+        $gateSummary.section_page_setup.review_status = Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "status"
+        $gateSummary.section_page_setup.review_verdict = Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "verdict"
+        Add-OptionalSummaryValue -Target $gateSummary.section_page_setup -Name "reviewed_at" `
+            -Value (Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "reviewed_at")
+        Add-OptionalSummaryValue -Target $gateSummary.section_page_setup -Name "review_method" `
+            -Value (Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "review_method")
+        Add-OptionalSummaryValue -Target $gateSummary.section_page_setup -Name "review_note" `
+            -Value (Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "review_note")
     }
 } else {
     $gateSummary.section_page_setup = [ordered]@{
@@ -1597,6 +1633,12 @@ if (-not $SkipPageNumberFields) {
             "-TaskOutputRoot"
             $taskOutputRootForChild
         )
+        if ($PageNumberFieldsReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($PageNumberFieldsReviewNote)) {
+            $prepareTaskArgs += @("-ReviewVerdict", $PageNumberFieldsReviewVerdict)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($PageNumberFieldsReviewNote)) {
+            $prepareTaskArgs += @("-ReviewNote", $PageNumberFieldsReviewNote)
+        }
         if ($OpenTaskDirs) {
             $prepareTaskArgs += "-OpenTaskDir"
         }
@@ -1605,9 +1647,18 @@ if (-not $SkipPageNumberFields) {
             -Arguments $prepareTaskArgs `
             -FailureMessage "Page number fields review task preparation failed."
         $pageNumberFieldsTaskInfo = Parse-PrepareTaskOutput -Lines $pageNumberFieldsTaskOutput
+        $pageNumberFieldsTaskReview = Read-ReviewResult -ReviewResultPath $pageNumberFieldsTaskInfo.review_result_path
 
         $gateSummary.review_tasks.page_number_fields = $pageNumberFieldsTaskInfo
         $gateSummary.page_number_fields.task = $pageNumberFieldsTaskInfo
+        $gateSummary.page_number_fields.review_status = Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "status"
+        $gateSummary.page_number_fields.review_verdict = Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "verdict"
+        Add-OptionalSummaryValue -Target $gateSummary.page_number_fields -Name "reviewed_at" `
+            -Value (Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "reviewed_at")
+        Add-OptionalSummaryValue -Target $gateSummary.page_number_fields -Name "review_method" `
+            -Value (Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "review_method")
+        Add-OptionalSummaryValue -Target $gateSummary.page_number_fields -Name "review_note" `
+            -Value (Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "review_note")
     }
 } else {
     $gateSummary.page_number_fields = [ordered]@{
@@ -1782,7 +1833,25 @@ $fixedGridReviewStatusLine = if ($gateSummary.fixed_grid -and $gateSummary.fixed
     "- Fixed-grid review verdict: not available"
 }
 $sectionPageSetupStatusLine = Get-FlowStatusLine -Label "Section page setup" -FlowInfo $gateSummary.section_page_setup -PathField "summary_json"
+$sectionPageSetupReviewStatusLine = if ($gateSummary.section_page_setup -and $gateSummary.section_page_setup.status -eq "completed") {
+    if ($gateSummary.section_page_setup.review_verdict) {
+        "- Section page setup review verdict: $($gateSummary.section_page_setup.review_verdict) ($($gateSummary.section_page_setup.review_status))"
+    } else {
+        "- Section page setup review verdict: not requested"
+    }
+} else {
+    "- Section page setup review verdict: not available"
+}
 $pageNumberFieldsStatusLine = Get-FlowStatusLine -Label "Page number fields" -FlowInfo $gateSummary.page_number_fields -PathField "summary_json"
+$pageNumberFieldsReviewStatusLine = if ($gateSummary.page_number_fields -and $gateSummary.page_number_fields.status -eq "completed") {
+    if ($gateSummary.page_number_fields.review_verdict) {
+        "- Page number fields review verdict: $($gateSummary.page_number_fields.review_verdict) ($($gateSummary.page_number_fields.review_status))"
+    } else {
+        "- Page number fields review verdict: not requested"
+    }
+} else {
+    "- Page number fields review verdict: not available"
+}
 $curatedVisualStatusLines = if ($gateSummary.curated_visual_regressions.Count -gt 0) {
     ($gateSummary.curated_visual_regressions | ForEach-Object {
             if ($_.status -eq "completed") {
@@ -1864,7 +1933,9 @@ $smokeReviewStatusLine
 $fixedGridStatusLine
 $fixedGridReviewStatusLine
 $sectionPageSetupStatusLine
+$sectionPageSetupReviewStatusLine
 $pageNumberFieldsStatusLine
+$pageNumberFieldsReviewStatusLine
 $curatedVisualStatusLines
 $readmeGalleryStatusLine
 

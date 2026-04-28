@@ -290,9 +290,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_fixed_grid_merge_unmerge_
 `-SmokeReviewVerdict pass` 和 `-SmokeReviewNote`，把同一轮 smoke 截图结论
 透传到 smoke 报告与 gate summary；fixed-grid 四联也能用
 `-FixedGridReviewVerdict pass` 和 `-FixedGridReviewNote`，把结论直接种进生成的
-fixed-grid review task。curated visual regression bundle 也可以用
-`-CuratedVisualReviewVerdict pass` 和 `-CuratedVisualReviewNote`，把同一轮结论
-种进每个生成的 curated bundle task，并同步展示到 gate summary。
+fixed-grid review task。section page setup 和 page-number fields 两类 bundle 也可用
+`-SectionPageSetupReviewVerdict/-SectionPageSetupReviewNote` 与
+`-PageNumberFieldsReviewVerdict/-PageNumberFieldsReviewNote` 走同样流程。
+curated visual regression bundle 也可以用 `-CuratedVisualReviewVerdict pass` 和
+`-CuratedVisualReviewNote`，把同一轮结论种进每个生成的 curated bundle task，
+并同步展示到 gate summary。
 
 要把这些渲染结果同步回仓库里的 README 预览 PNG，执行：
 

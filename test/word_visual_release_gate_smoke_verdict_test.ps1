@@ -51,6 +51,36 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'review_verdict = Get-Option
 Assert-ContainsText -Text $scriptText -ExpectedText 'Fixed-grid review verdict:' `
     -Message "Release gate final review should surface the fixed-grid review verdict."
 
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$SectionPageSetupReviewVerdict = "undecided"' `
+    -Message "Release gate should expose SectionPageSetupReviewVerdict."
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$SectionPageSetupReviewNote = ""' `
+    -Message "Release gate should expose SectionPageSetupReviewNote."
+Assert-ContainsText -Text $scriptText -ExpectedText '$prepareTaskArgs += @("-ReviewVerdict", $SectionPageSetupReviewVerdict)' `
+    -Message "Release gate should pass SectionPageSetupReviewVerdict into prepare_word_review_task.ps1."
+Assert-ContainsText -Text $scriptText -ExpectedText '$prepareTaskArgs += @("-ReviewNote", $SectionPageSetupReviewNote)' `
+    -Message "Release gate should pass SectionPageSetupReviewNote into prepare_word_review_task.ps1."
+Assert-ContainsText -Text $scriptText -ExpectedText '$sectionPageSetupTaskReview = Read-ReviewResult -ReviewResultPath $sectionPageSetupTaskInfo.review_result_path' `
+    -Message "Release gate should read the section page setup task review result."
+Assert-ContainsText -Text $scriptText -ExpectedText 'review_verdict = Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "verdict"' `
+    -Message "Release gate summary should capture the section page setup task review verdict."
+Assert-ContainsText -Text $scriptText -ExpectedText 'Section page setup review verdict:' `
+    -Message "Release gate final review should surface the section page setup review verdict."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$PageNumberFieldsReviewVerdict = "undecided"' `
+    -Message "Release gate should expose PageNumberFieldsReviewVerdict."
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$PageNumberFieldsReviewNote = ""' `
+    -Message "Release gate should expose PageNumberFieldsReviewNote."
+Assert-ContainsText -Text $scriptText -ExpectedText '$prepareTaskArgs += @("-ReviewVerdict", $PageNumberFieldsReviewVerdict)' `
+    -Message "Release gate should pass PageNumberFieldsReviewVerdict into prepare_word_review_task.ps1."
+Assert-ContainsText -Text $scriptText -ExpectedText '$prepareTaskArgs += @("-ReviewNote", $PageNumberFieldsReviewNote)' `
+    -Message "Release gate should pass PageNumberFieldsReviewNote into prepare_word_review_task.ps1."
+Assert-ContainsText -Text $scriptText -ExpectedText '$pageNumberFieldsTaskReview = Read-ReviewResult -ReviewResultPath $pageNumberFieldsTaskInfo.review_result_path' `
+    -Message "Release gate should read the page number fields task review result."
+Assert-ContainsText -Text $scriptText -ExpectedText 'review_verdict = Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "verdict"' `
+    -Message "Release gate summary should capture the page number fields task review verdict."
+Assert-ContainsText -Text $scriptText -ExpectedText 'Page number fields review verdict:' `
+    -Message "Release gate final review should surface the page number fields review verdict."
+
 Assert-ContainsText -Text $scriptText -ExpectedText '[string]$CuratedVisualReviewVerdict = "undecided"' `
     -Message "Release gate should expose CuratedVisualReviewVerdict."
 Assert-ContainsText -Text $scriptText -ExpectedText '[string]$CuratedVisualReviewNote = ""' `

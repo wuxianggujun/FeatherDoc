@@ -28,12 +28,16 @@ Replace `<repo-root>` with your local FeatherDoc checkout.
 # Visual-only gate: regenerate the smoke gallery, fixed-grid quartet, and both review tasks.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1
 
-# Same gate, but stamp same-run smoke, fixed-grid, and curated screenshot verdicts.
+# Same gate, but stamp same-run smoke, fixed-grid, section/page, and curated verdicts.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `
     -SmokeReviewVerdict pass `
     -SmokeReviewNote "Smoke contact sheet reviewed." `
     -FixedGridReviewVerdict pass `
     -FixedGridReviewNote "Fixed-grid contact sheet reviewed." `
+    -SectionPageSetupReviewVerdict pass `
+    -SectionPageSetupReviewNote "Section page setup contact sheet reviewed." `
+    -PageNumberFieldsReviewVerdict pass `
+    -PageNumberFieldsReviewNote "Page number fields contact sheet reviewed." `
     -CuratedVisualReviewVerdict pass `
     -CuratedVisualReviewNote "Curated visual bundles reviewed."
 
