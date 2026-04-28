@@ -347,6 +347,10 @@ function Get-OptionalPropertyValue {
         return $null
     }
 
+    if ($Object -is [System.Collections.IDictionary] -and $Object.Contains($Name)) {
+        return $Object[$Name]
+    }
+
     $property = $Object.PSObject.Properties[$Name]
     if ($null -eq $property) {
         return $null
@@ -422,6 +426,98 @@ function Get-CuratedVisualReviewSummaryEntries {
             }
         }
     )
+}
+
+function Get-ReleaseCandidateDisplayValue {
+    param(
+        [AllowNull()]$Value,
+        [string]$Fallback = "(not available)"
+    )
+
+    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+        return $Fallback
+    }
+
+    return [string]$Value
+}
+
+function Get-VisualGateReviewSummaryMarkdown {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()]$VisualGateStep
+    )
+
+    $reviewLines = New-Object 'System.Collections.Generic.List[string]'
+    $standardFlows = @(
+        [pscustomobject]@{ Label = "Smoke"; Prefix = "smoke"; TaskProperty = "document_task_dir" },
+        [pscustomobject]@{ Label = "Fixed grid"; Prefix = "fixed_grid"; TaskProperty = "fixed_grid_task_dir" },
+        [pscustomobject]@{ Label = "Section page setup"; Prefix = "section_page_setup"; TaskProperty = "section_page_setup_task_dir" },
+        [pscustomobject]@{ Label = "Page number fields"; Prefix = "page_number_fields"; TaskProperty = "page_number_fields_task_dir" }
+    )
+
+    foreach ($flow in $standardFlows) {
+        $verdict = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_verdict" -f $flow.Prefix)
+        $reviewStatus = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_review_status" -f $flow.Prefix)
+        if ([string]::IsNullOrWhiteSpace([string]$verdict) -and [string]::IsNullOrWhiteSpace([string]$reviewStatus)) {
+            continue
+        }
+
+        $line = "- {0}: verdict={1}, review_status={2}" -f `
+            $flow.Label,
+            (Get-ReleaseCandidateDisplayValue -Value $verdict),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewStatus)
+        $taskDir = Get-OptionalPropertyValue -Object $VisualGateStep -Name $flow.TaskProperty
+        if (-not [string]::IsNullOrWhiteSpace([string]$taskDir)) {
+            $line += ", task=$(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $taskDir)"
+        }
+
+        [void]$reviewLines.Add($line)
+    }
+
+    $curatedEntries = @(Get-OptionalPropertyValue -Object $VisualGateStep -Name "curated_visual_regressions")
+    foreach ($entry in $curatedEntries) {
+        $verdict = Get-OptionalPropertyValue -Object $entry -Name "verdict"
+        $reviewStatus = Get-OptionalPropertyValue -Object $entry -Name "review_status"
+        if ([string]::IsNullOrWhiteSpace([string]$verdict) -and [string]::IsNullOrWhiteSpace([string]$reviewStatus)) {
+            continue
+        }
+
+        $label = Get-OptionalPropertyValue -Object $entry -Name "label"
+        if ([string]::IsNullOrWhiteSpace([string]$label)) {
+            $label = Get-OptionalPropertyValue -Object $entry -Name "id"
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$label)) {
+            $label = Get-OptionalPropertyValue -Object $entry -Name "task_id"
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$label)) {
+            $label = "Curated visual regression"
+        }
+
+        $line = "- Curated - {0}: verdict={1}, review_status={2}" -f `
+            $label,
+            (Get-ReleaseCandidateDisplayValue -Value $verdict),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewStatus)
+        $taskDir = Get-OptionalPropertyValue -Object $entry -Name "task_dir"
+        if (-not [string]::IsNullOrWhiteSpace([string]$taskDir)) {
+            $line += ", task=$(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $taskDir)"
+        }
+
+        [void]$reviewLines.Add($line)
+    }
+
+    if ($reviewLines.Count -eq 0) {
+        return ""
+    }
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    [void]$sectionLines.Add("## Visual review verdicts")
+    [void]$sectionLines.Add("")
+    foreach ($line in $reviewLines) {
+        [void]$sectionLines.Add($line)
+    }
+    [void]$sectionLines.Add("")
+
+    return ($sectionLines -join [Environment]::NewLine)
 }
 
 function Convert-OptionalBoolean {
@@ -1451,6 +1547,8 @@ try {
             "- README gallery refresh: $($summary.readme_gallery.status)"
         }
     }
+    $visualGateReviewSummary = Get-VisualGateReviewSummaryMarkdown -RepoRoot $repoRoot `
+        -VisualGateStep $summary.steps.visual_gate
 
     $finalReview = @"
 # Release Candidate Checks
@@ -1474,7 +1572,7 @@ try {
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
 $readmeGalleryStatusLine
-
+$visualGateReviewSummary
 ## Key outputs
 
 - Build directory: $buildDirDisplay

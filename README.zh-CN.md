@@ -74,7 +74,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
 `-SmokeReviewVerdict`、`-FixedGridReviewVerdict`、
 `-SectionPageSetupReviewVerdict`、`-PageNumberFieldsReviewVerdict`、
 `-CuratedVisualReviewVerdict` 以及对应的 `*ReviewNote` 直接传给这个总控脚本，
-它会透传到 visual gate，并把各 flow 的 seeded verdict 写入 `report/summary.json`。
+它会透传到 visual gate，并把各 flow 的 seeded verdict 写入
+`report/summary.json`，同时展示在 `report/final_review.md`。
 
 脚本结束后，输出目录里会生成：
 

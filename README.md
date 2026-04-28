@@ -1162,7 +1162,8 @@ the first entry before you open `report/ARTIFACT_GUIDE.md` or
 `-SmokeReviewVerdict`, `-FixedGridReviewVerdict`,
 `-SectionPageSetupReviewVerdict`, `-PageNumberFieldsReviewVerdict`, and
 `-CuratedVisualReviewVerdict` options, plus their matching `*ReviewNote`
-parameters, then records the seeded per-flow verdicts in `report/summary.json`.
+parameters, then records the seeded per-flow verdicts in `report/summary.json`
+and surfaces them in `report/final_review.md`.
 
 If you also want release-preflight to gate a template DOCX against a committed
 schema baseline, pass `-TemplateSchemaInputDocx`, `-TemplateSchemaBaseline`,

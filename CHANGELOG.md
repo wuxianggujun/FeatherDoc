@@ -10,7 +10,7 @@ performance.
 
 ### Added
 
-- Added `run_release_candidate_checks.ps1` passthrough for the visual gate `*-ReviewVerdict/-ReviewNote` parameters so release-preflight can seed same-run screenshot sign-off metadata and copy per-flow verdicts into `report/summary.json`.
+- Added `run_release_candidate_checks.ps1` passthrough for the visual gate `*-ReviewVerdict/-ReviewNote` parameters so release-preflight can seed same-run screenshot sign-off metadata and copy per-flow verdicts into `report/summary.json` and `report/final_review.md`.
 - Added `run_word_visual_release_gate.ps1 -SectionPageSetupReviewVerdict/-SectionPageSetupReviewNote` and `-PageNumberFieldsReviewVerdict/-PageNumberFieldsReviewNote` support so those generated review tasks can be seeded with same-run screenshot sign-off metadata.
 - Added `run_word_visual_release_gate.ps1 -CuratedVisualReviewVerdict/-CuratedVisualReviewNote` support so curated visual regression bundle review tasks can be seeded with screenshot-backed sign-off metadata in the gate summary and final review.
 - Added `prepare_word_review_task.ps1 -ReviewVerdict/-ReviewNote` and `run_word_visual_release_gate.ps1 -FixedGridReviewVerdict/-FixedGridReviewNote` support so fixed-grid review tasks can be seeded with screenshot-backed sign-off metadata.

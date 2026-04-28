@@ -122,8 +122,8 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_latest_visual_
 
 如果你跑的是完整 release-preflight，并且还想把 verdict 同步回
 `output/release-candidate-checks/report/summary.json`，同时重刷
-`START_HERE.md`、`release_handoff.md`、`release_body.zh-CN.md` 和
-`release_summary.zh-CN.md`，这条默认命令也会一并刷新检测到的 release bundle。
+`START_HERE.md`、`report/final_review.md`、`release_handoff.md`、
+`release_body.zh-CN.md` 和 `release_summary.zh-CN.md`，这条默认命令也会一并刷新检测到的 release bundle。
 刷新后的入口页除了总 `visual verdict` 外，还会同步显示
 `section page setup`、`page number fields` 和每个 curated visual
 regression bundle 的 verdict。

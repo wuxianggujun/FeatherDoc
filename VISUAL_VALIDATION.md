@@ -123,8 +123,8 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_latest_visual_
 
 If you ran the full release-preflight and also want to update
 `output/release-candidate-checks/report/summary.json` plus refresh
-`START_HERE.md`, `release_handoff.md`, `release_body.zh-CN.md`, and
-`release_summary.zh-CN.md`, the same command will refresh the detected
+`START_HERE.md`, `report/final_review.md`, `release_handoff.md`,
+`release_body.zh-CN.md`, and `release_summary.zh-CN.md`, the same command will refresh the detected
 release bundle automatically. Those refreshed entry points now surface not only
 the top-level `visual verdict`, but also the `section page setup` verdict, the
 `page number fields` verdict, and each curated visual-regression bundle
