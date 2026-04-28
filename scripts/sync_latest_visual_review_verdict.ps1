@@ -343,6 +343,32 @@ function Update-ReleaseSummaryTaskDirsFromPointers {
     ($summary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $ReleaseSummaryPath -Encoding UTF8
 }
 
+
+function Update-ReleaseSummaryDiscoveryMetadata {
+    param(
+        [string]$GateSummaryPath,
+        [string]$Mode,
+        [string]$Reason,
+        [string]$SelectedSummaryPath,
+        [string]$OutputSearchRoot,
+        [bool]$SkipReleaseBundle
+    )
+
+    $gateSummary = Read-JsonFile -Path $GateSummaryPath
+    $releaseBundleRefreshRequested = (-not [string]::IsNullOrWhiteSpace($SelectedSummaryPath)) -and (-not $SkipReleaseBundle)
+    $metadata = [pscustomobject]@{
+        mode = $Mode
+        reason = $Reason
+        selected_summary_path = $SelectedSummaryPath
+        output_search_root = $OutputSearchRoot
+        release_bundle_refresh_requested = $releaseBundleRefreshRequested
+    }
+
+    Set-PropertyValue -Object $gateSummary -Name "selected_release_summary_path" -Value $SelectedSummaryPath
+    Set-PropertyValue -Object $gateSummary -Name "release_summary_discovery" -Value $metadata
+    ($gateSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $GateSummaryPath -Encoding UTF8
+}
+
 function Update-AuditReportMetadata {
     param(
         [string]$GateSummaryPath,
@@ -577,8 +603,13 @@ Assert-PathExists -Path $resolvedGateSummaryPath -Label "inferred gate summary"
 Write-Step "Resolved gate summary: $resolvedGateSummaryPath"
 
 $resolvedReleaseSummaryPath = ""
+$resolvedOutputSearchRoot = ""
+$releaseSummaryDiscoveryMode = "auto"
+$releaseSummaryDiscoveryReason = "no_matching_summary"
 if (-not [string]::IsNullOrWhiteSpace($ReleaseCandidateSummaryJson)) {
     $resolvedReleaseSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $ReleaseCandidateSummaryJson
+    $releaseSummaryDiscoveryMode = "explicit"
+    $releaseSummaryDiscoveryReason = "explicit_path"
     Assert-PathExists -Path $resolvedReleaseSummaryPath -Label "explicit release-candidate summary"
     Write-Step "Using explicit release summary: $resolvedReleaseSummaryPath"
 } else {
@@ -587,8 +618,10 @@ if (-not [string]::IsNullOrWhiteSpace($ReleaseCandidateSummaryJson)) {
         -SearchRoot $resolvedOutputSearchRoot `
         -GateSummaryPath $resolvedGateSummaryPath
     if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
+        $releaseSummaryDiscoveryReason = "matched_gate_summary"
         Write-Step "Auto-detected release summary: $resolvedReleaseSummaryPath"
     } else {
+        $releaseSummaryDiscoveryMode = "auto_not_found"
         Write-Step "No matching release summary was found under $resolvedOutputSearchRoot"
     }
 }
@@ -596,6 +629,14 @@ if (-not [string]::IsNullOrWhiteSpace($ReleaseCandidateSummaryJson)) {
 if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
     [void](Read-JsonFile -Path $resolvedReleaseSummaryPath)
 }
+
+Update-ReleaseSummaryDiscoveryMetadata `
+    -GateSummaryPath $resolvedGateSummaryPath `
+    -Mode $releaseSummaryDiscoveryMode `
+    -Reason $releaseSummaryDiscoveryReason `
+    -SelectedSummaryPath $resolvedReleaseSummaryPath `
+    -OutputSearchRoot $resolvedOutputSearchRoot `
+    -SkipReleaseBundle ([bool]$SkipReleaseBundle)
 
 Update-GateSummaryReviewTasksFromPointers `
     -GateSummaryPath $resolvedGateSummaryPath `

@@ -225,7 +225,7 @@ $releaseSummaryPath = Join-Path $releaseReportDir "summary.json"
 
 & $syncLatestScript `
     -TaskOutputRoot $tasksRoot `
-    -OutputSearchRoot $resolvedWorkingDir
+    -ReleaseCandidateSummaryJson $releaseSummaryPath
 
 $gateSummary = Get-Content -Raw -LiteralPath $gateSummaryPath | ConvertFrom-Json
 $releaseSummary = Get-Content -Raw -LiteralPath $releaseSummaryPath | ConvertFrom-Json
@@ -255,6 +255,16 @@ Assert-True -Condition ($supersededReviewTasksReport.superseded_task_count -eq 1
     -Message "Superseded review-task audit did not record the expected stale task count."
 Assert-True -Condition ($gateSummary.superseded_review_tasks_report -eq $supersededReviewTasksReportPath) `
     -Message "Gate summary superseded_review_tasks_report was not updated."
+Assert-True -Condition ($gateSummary.selected_release_summary_path -eq $releaseSummaryPath) `
+    -Message "Gate summary selected_release_summary_path did not record the explicit release summary."
+Assert-True -Condition ($gateSummary.release_summary_discovery.mode -eq "explicit") `
+    -Message "Gate summary release_summary_discovery.mode did not record explicit discovery."
+Assert-True -Condition ($gateSummary.release_summary_discovery.reason -eq "explicit_path") `
+    -Message "Gate summary release_summary_discovery.reason did not record the explicit path."
+Assert-True -Condition ($gateSummary.release_summary_discovery.output_search_root -eq "") `
+    -Message "Gate summary release_summary_discovery.output_search_root should stay empty for explicit release summaries."
+Assert-True -Condition ($gateSummary.release_summary_discovery.release_bundle_refresh_requested -eq $true) `
+    -Message "Gate summary release_summary_discovery.release_bundle_refresh_requested should be true for explicit release summaries."
 Assert-True -Condition ($releaseSummary.steps.visual_gate.document_task_dir -eq $newDocumentTaskDir) `
     -Message "Release summary visual_gate.document_task_dir was not refreshed from latest_document_task.json."
 Assert-True -Condition ($releaseSummary.steps.visual_gate.document_verdict -eq "pass") `

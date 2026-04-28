@@ -309,6 +309,16 @@ Assert-True -Condition ($supersededReviewTasksReport.superseded_task_count -eq 1
     -Message "Superseded review-task audit did not record the expected stale task count."
 Assert-True -Condition ($gateSummary.superseded_review_tasks_report -eq $supersededReviewTasksReportPath) `
     -Message "Gate summary superseded_review_tasks_report was not updated."
+Assert-True -Condition ($gateSummary.selected_release_summary_path -eq $releaseSummaryPath) `
+    -Message "Gate summary selected_release_summary_path did not record the auto-detected release summary."
+Assert-True -Condition ($gateSummary.release_summary_discovery.mode -eq "auto") `
+    -Message "Gate summary release_summary_discovery.mode did not record auto discovery."
+Assert-True -Condition ($gateSummary.release_summary_discovery.reason -eq "matched_gate_summary") `
+    -Message "Gate summary release_summary_discovery.reason did not record a matched gate summary."
+Assert-True -Condition ($gateSummary.release_summary_discovery.output_search_root -eq $resolvedWorkingDir) `
+    -Message "Gate summary release_summary_discovery.output_search_root did not record the search root."
+Assert-True -Condition ($gateSummary.release_summary_discovery.release_bundle_refresh_requested -eq $true) `
+    -Message "Gate summary release_summary_discovery.release_bundle_refresh_requested should be true for an auto-detected release summary."
 Assert-True -Condition ($releaseSummary.steps.visual_gate.document_task_dir -eq $newDocumentTaskDir) `
     -Message "Release summary visual_gate.document_task_dir was not refreshed from latest_document_task.json."
 Assert-True -Condition ($releaseSummary.steps.visual_gate.document_verdict -eq "pass") `

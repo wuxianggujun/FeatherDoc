@@ -250,6 +250,16 @@ Assert-True -Condition ($gateSummary.visual_verdict -eq "pass") `
     -Message "Gate summary visual verdict was not recomputed from the refreshed document task."
 Assert-True -Condition ($gateSummary.superseded_review_tasks_report -eq $supersededReviewTasksReportPath) `
     -Message "Gate summary superseded_review_tasks_report was not updated."
+Assert-True -Condition ($gateSummary.selected_release_summary_path -eq "") `
+    -Message "Gate summary selected_release_summary_path should stay empty when no matching release summary exists."
+Assert-True -Condition ($gateSummary.release_summary_discovery.mode -eq "auto_not_found") `
+    -Message "Gate summary release_summary_discovery.mode did not record the no-match auto discovery result."
+Assert-True -Condition ($gateSummary.release_summary_discovery.reason -eq "no_matching_summary") `
+    -Message "Gate summary release_summary_discovery.reason did not record the no-match result."
+Assert-True -Condition ($gateSummary.release_summary_discovery.output_search_root -eq $resolvedWorkingDir) `
+    -Message "Gate summary release_summary_discovery.output_search_root did not record the search root."
+Assert-True -Condition ($gateSummary.release_summary_discovery.release_bundle_refresh_requested -eq $false) `
+    -Message "Gate summary release_summary_discovery.release_bundle_refresh_requested should be false without a matching release summary."
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Document verdict: pass" -Label "gate_final_review.md"
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Document reviewed at: 2026-04-15T10:05:00" -Label "gate_final_review.md"
 
