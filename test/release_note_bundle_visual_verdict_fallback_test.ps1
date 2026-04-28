@@ -207,7 +207,9 @@ $startHerePath = Join-Path (Split-Path -Parent $reportDir) "START_HERE.md"
 
 foreach ($assertion in @(
         @{ Path = $handoffPath; Label = "release_handoff.md" },
-        @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" }
+        @{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $startHerePath; Label = "START_HERE.md" }
     )) {
     Assert-Contains -Path $assertion.Path -ExpectedText "Review task count: 5 total (4 standard, 1 curated)" -Label $assertion.Label
 }
