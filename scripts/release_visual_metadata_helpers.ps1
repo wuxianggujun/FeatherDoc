@@ -1,5 +1,37 @@
 Set-StrictMode -Version Latest
 
+function Convert-VisualReviewTimestamp {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
+function Get-OptionalPropertyRawValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $null
+    }
+
+    return $property.Value
+}
+
 function Get-VisualTaskVerdict {
     param(
         $VisualGateSummary,
@@ -56,6 +88,40 @@ function Get-VisualTaskReviewNote {
     return Get-OptionalPropertyValue -Object $gateFlow -Name "review_note"
 }
 
+function Get-VisualTaskReviewedAt {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryReviewedAt = Get-OptionalPropertyRawValue -Object $VisualGateSummary -Name ("{0}_reviewed_at" -f $TaskKey)
+    $summaryReviewedAt = Convert-VisualReviewTimestamp -Value $summaryReviewedAt
+    if (-not [string]::IsNullOrWhiteSpace($summaryReviewedAt)) {
+        return $summaryReviewedAt
+    }
+
+    $gateFlow = Get-OptionalPropertyObject -Object $GateSummary -Name $TaskKey
+    $gateReviewedAt = Get-OptionalPropertyRawValue -Object $gateFlow -Name "reviewed_at"
+    return Convert-VisualReviewTimestamp -Value $gateReviewedAt
+}
+
+function Get-VisualTaskReviewMethod {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryReviewMethod = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_review_method" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryReviewMethod)) {
+        return $summaryReviewMethod
+    }
+
+    $gateFlow = Get-OptionalPropertyObject -Object $GateSummary -Name $TaskKey
+    return Get-OptionalPropertyValue -Object $gateFlow -Name "review_method"
+}
+
 function Get-OptionalPropertyArray {
     param(
         $Object,
@@ -103,6 +169,8 @@ function Get-OrCreateCuratedVisualReviewEntry {
             review_result_path = ""
             final_review_path = ""
             review_status = ""
+            reviewed_at = ""
+            review_method = ""
             review_note = ""
         }
         [void]$EntryOrder.Add($key)
@@ -147,6 +215,17 @@ function Merge-CuratedVisualReviewEntry {
     $reviewStatus = Get-OptionalPropertyValue -Object $Source -Name "review_status"
     if (-not [string]::IsNullOrWhiteSpace($reviewStatus)) {
         $Entry.review_status = $reviewStatus
+    }
+
+    $reviewedAt = Get-OptionalPropertyRawValue -Object $Source -Name "reviewed_at"
+    $reviewedAt = Convert-VisualReviewTimestamp -Value $reviewedAt
+    if (-not [string]::IsNullOrWhiteSpace($reviewedAt)) {
+        $Entry.reviewed_at = $reviewedAt
+    }
+
+    $reviewMethod = Get-OptionalPropertyValue -Object $Source -Name "review_method"
+    if (-not [string]::IsNullOrWhiteSpace($reviewMethod)) {
+        $Entry.review_method = $reviewMethod
     }
 
     $reviewNote = Get-OptionalPropertyValue -Object $Source -Name "review_note"

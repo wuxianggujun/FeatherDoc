@@ -356,6 +356,14 @@ $smokeReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -
 $fixedGridReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
 $sectionPageSetupReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeReviewedAt = Get-VisualTaskReviewedAt -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridReviewedAt = Get-VisualTaskReviewedAt -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupReviewedAt = Get-VisualTaskReviewedAt -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsReviewedAt = Get-VisualTaskReviewedAt -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
 $supersededReviewTasksReportPath = Get-SupersededReviewTasksReportPath -Summary $summary -VisualGateSummary $visualGateStep
 if ([string]::IsNullOrWhiteSpace($taskOutputRoot) -and -not [string]::IsNullOrWhiteSpace($supersededReviewTasksReportPath)) {
@@ -461,15 +469,23 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 [void]$handoffLines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
 [void]$handoffLines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
+[void]$handoffLines.Add("- Smoke reviewed at: $(Get-DisplayValue -Value $smokeReviewedAt)")
+[void]$handoffLines.Add("- Smoke review method: $(Get-DisplayValue -Value $smokeReviewMethod)")
 [void]$handoffLines.Add("- Smoke review note: $(Get-DisplayValue -Value $smokeReviewNote)")
 [void]$handoffLines.Add("- Fixed-grid verdict: $(Get-DisplayValue -Value $fixedGridVerdict)")
 [void]$handoffLines.Add("- Fixed-grid review status: $(Get-DisplayValue -Value $fixedGridReviewStatus)")
+[void]$handoffLines.Add("- Fixed-grid reviewed at: $(Get-DisplayValue -Value $fixedGridReviewedAt)")
+[void]$handoffLines.Add("- Fixed-grid review method: $(Get-DisplayValue -Value $fixedGridReviewMethod)")
 [void]$handoffLines.Add("- Fixed-grid review note: $(Get-DisplayValue -Value $fixedGridReviewNote)")
 [void]$handoffLines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$handoffLines.Add("- Section page setup review status: $(Get-DisplayValue -Value $sectionPageSetupReviewStatus)")
+[void]$handoffLines.Add("- Section page setup reviewed at: $(Get-DisplayValue -Value $sectionPageSetupReviewedAt)")
+[void]$handoffLines.Add("- Section page setup review method: $(Get-DisplayValue -Value $sectionPageSetupReviewMethod)")
 [void]$handoffLines.Add("- Section page setup review note: $(Get-DisplayValue -Value $sectionPageSetupReviewNote)")
 [void]$handoffLines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
 [void]$handoffLines.Add("- Page number fields review status: $(Get-DisplayValue -Value $pageNumberFieldsReviewStatus)")
+[void]$handoffLines.Add("- Page number fields reviewed at: $(Get-DisplayValue -Value $pageNumberFieldsReviewedAt)")
+[void]$handoffLines.Add("- Page number fields review method: $(Get-DisplayValue -Value $pageNumberFieldsReviewMethod)")
 [void]$handoffLines.Add("- Page number fields review note: $(Get-DisplayValue -Value $pageNumberFieldsReviewNote)")
 [void]$handoffLines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
 [void]$handoffLines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
@@ -527,8 +543,10 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 if ($curatedVisualReviewEntries.Count -gt 0) {
     foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
         [void]$handoffLines.Add("- $($curatedVisualReview.label) verdict: $(Get-DisplayValue -Value $curatedVisualReview.verdict)")
-    [void]$handoffLines.Add("- $($curatedVisualReview.label) review status: $(Get-DisplayValue -Value $curatedVisualReview.review_status)")
-    [void]$handoffLines.Add("- $($curatedVisualReview.label) review note: $(Get-DisplayValue -Value $curatedVisualReview.review_note)")
+        [void]$handoffLines.Add("- $($curatedVisualReview.label) review status: $(Get-DisplayValue -Value $curatedVisualReview.review_status)")
+        [void]$handoffLines.Add("- $($curatedVisualReview.label) reviewed at: $(Get-DisplayValue -Value $curatedVisualReview.reviewed_at)")
+        [void]$handoffLines.Add("- $($curatedVisualReview.label) review method: $(Get-DisplayValue -Value $curatedVisualReview.review_method)")
+        [void]$handoffLines.Add("- $($curatedVisualReview.label) review note: $(Get-DisplayValue -Value $curatedVisualReview.review_note)")
         [void]$handoffLines.Add("- $($curatedVisualReview.label) review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.task_dir)")
         if (-not [string]::IsNullOrWhiteSpace($curatedVisualReview.id)) {
             [void]$handoffLines.Add("- $($curatedVisualReview.label) open-latest command: pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind $($curatedVisualReview.id)-visual-regression-bundle -PrintPrompt")

@@ -86,6 +86,8 @@ $gateSummary = [ordered]@{
         task = [ordered]@{ task_dir = $smokeTaskDir }
         review_status = "reviewed"
         review_verdict = "pass"
+        reviewed_at = "2026-04-28T12:30:00"
+        review_method = "operator_supplied"
         review_note = "smoke contact sheet reviewed"
     }
     fixed_grid = [ordered]@{
@@ -93,6 +95,8 @@ $gateSummary = [ordered]@{
         task = [ordered]@{ task_dir = $fixedGridTaskDir }
         review_status = "reviewed"
         review_verdict = "fail"
+        reviewed_at = "2026-04-28T12:32:00"
+        review_method = "operator_supplied"
         review_note = "fixed-grid mismatch documented"
     }
     section_page_setup = [ordered]@{
@@ -100,6 +104,8 @@ $gateSummary = [ordered]@{
         task = [ordered]@{ task_dir = $sectionPageSetupTaskDir }
         review_status = "reviewed"
         review_verdict = "undetermined"
+        reviewed_at = "2026-04-28T12:33:00"
+        review_method = "operator_supplied"
         review_note = "section setup needs reviewer decision"
     }
     page_number_fields = [ordered]@{
@@ -107,6 +113,8 @@ $gateSummary = [ordered]@{
         task = [ordered]@{ task_dir = $pageNumberFieldsTaskDir }
         review_status = "reviewed"
         review_verdict = "pending_manual_review"
+        reviewed_at = "2026-04-28T12:34:00"
+        review_method = "operator_supplied"
         review_note = "page number fields awaiting reviewer"
     }
     review_tasks = [ordered]@{
@@ -117,6 +125,8 @@ $gateSummary = [ordered]@{
                 task = [ordered]@{ task_dir = $curatedBundleTaskDir }
                 review_status = "reviewed"
                 review_verdict = "pass"
+                reviewed_at = "2026-04-28T12:35:00"
+                review_method = "operator_supplied"
                 review_note = "curated visual evidence checked"
             }
         )
@@ -129,6 +139,8 @@ $gateSummary = [ordered]@{
             task = [ordered]@{ task_dir = $curatedBundleTaskDir }
             review_status = "reviewed"
             review_verdict = "pass"
+            reviewed_at = "2026-04-28T12:35:00"
+            review_method = "operator_supplied"
             review_note = "curated visual evidence checked"
         }
     )
@@ -166,6 +178,8 @@ $summary = [ordered]@{
             summary_json = $gateSummaryPath
             final_review = $gateFinalReviewPath
             superseded_review_tasks_report = $supersededReviewTasksReportPath
+            smoke_reviewed_at = "2026-04-28T12:31:00"
+            smoke_review_method = "release_summary_override"
         }
     }
 }
@@ -189,18 +203,28 @@ foreach ($assertion in @(
     )) {
     Assert-Contains -Path $assertion.Path -ExpectedText "Smoke verdict: pass" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Smoke review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Smoke reviewed at: 2026-04-28T12:31:00" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Smoke review method: release_summary_override" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Smoke review note: smoke contact sheet reviewed" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Fixed-grid verdict: fail" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Fixed-grid review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Fixed-grid reviewed at: 2026-04-28T12:32:00" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Fixed-grid review method: operator_supplied" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Fixed-grid review note: fixed-grid mismatch documented" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Section page setup verdict: undetermined" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Section page setup review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Section page setup reviewed at: 2026-04-28T12:33:00" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Section page setup review method: operator_supplied" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Section page setup review note: section setup needs reviewer decision" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields verdict: pending_manual_review" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields reviewed at: 2026-04-28T12:34:00" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields review method: operator_supplied" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields review note: page number fields awaiting reviewer" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback verdict: pass" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback reviewed at: 2026-04-28T12:35:00" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback review method: operator_supplied" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback review note: curated visual evidence checked" -Label $assertion.Label
 }
 
@@ -229,6 +253,21 @@ foreach ($unexpectedNote in @(
     $bodyContent = Get-Content -Raw -LiteralPath $bodyPath
     if ($bodyContent -match [regex]::Escape($unexpectedNote)) {
         throw "release_body.zh-CN.md unexpectedly rendered review note '$unexpectedNote'."
+    }
+}
+
+foreach ($unexpectedProvenance in @(
+        "2026-04-28T12:31:00",
+        "2026-04-28T12:32:00",
+        "2026-04-28T12:33:00",
+        "2026-04-28T12:34:00",
+        "2026-04-28T12:35:00",
+        "release_summary_override",
+        "operator_supplied"
+    )) {
+    $bodyContent = Get-Content -Raw -LiteralPath $bodyPath
+    if ($bodyContent -match [regex]::Escape($unexpectedProvenance)) {
+        throw "release_body.zh-CN.md unexpectedly rendered review provenance '$unexpectedProvenance'."
     }
 }
 
