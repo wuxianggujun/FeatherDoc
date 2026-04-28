@@ -51,4 +51,19 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'review_verdict = Get-Option
 Assert-ContainsText -Text $scriptText -ExpectedText 'Fixed-grid review verdict:' `
     -Message "Release gate final review should surface the fixed-grid review verdict."
 
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$CuratedVisualReviewVerdict = "undecided"' `
+    -Message "Release gate should expose CuratedVisualReviewVerdict."
+Assert-ContainsText -Text $scriptText -ExpectedText '[string]$CuratedVisualReviewNote = ""' `
+    -Message "Release gate should expose CuratedVisualReviewNote."
+Assert-ContainsText -Text $scriptText -ExpectedText '$prepareTaskArgs += @("-ReviewVerdict", $CuratedVisualReviewVerdict)' `
+    -Message "Release gate should pass CuratedVisualReviewVerdict into prepare_word_review_task.ps1."
+Assert-ContainsText -Text $scriptText -ExpectedText '$prepareTaskArgs += @("-ReviewNote", $CuratedVisualReviewNote)' `
+    -Message "Release gate should pass CuratedVisualReviewNote into prepare_word_review_task.ps1."
+Assert-ContainsText -Text $scriptText -ExpectedText '$bundleTaskReview = Read-ReviewResult -ReviewResultPath $bundleTaskInfo.review_result_path' `
+    -Message "Release gate should read the curated task review result."
+Assert-ContainsText -Text $scriptText -ExpectedText 'review_verdict = Get-OptionalPropertyValue -Object $bundleTaskReview -Name "verdict"' `
+    -Message "Release gate summary should capture the curated task review verdict."
+Assert-ContainsText -Text $scriptText -ExpectedText '$($_.label) review verdict:' `
+    -Message "Release gate final review should surface curated task review verdicts."
+
 Write-Host "Word visual release gate smoke verdict regression passed."

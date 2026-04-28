@@ -71,12 +71,14 @@ For the full local release-preflight visual chain:
 ```powershell
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1
 
-# Same gate, but stamp a same-run smoke screenshot verdict into the smoke report and gate summary.
+# Same gate, but stamp same-run smoke, fixed-grid, and curated screenshot verdicts.
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `
     -SmokeReviewVerdict pass `
     -SmokeReviewNote "Smoke contact sheet reviewed." `
     -FixedGridReviewVerdict pass `
-    -FixedGridReviewNote "Fixed-grid contact sheet reviewed."
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed." `
+    -CuratedVisualReviewVerdict pass `
+    -CuratedVisualReviewNote "Curated visual bundles reviewed."
 
 # Same gate, but also refresh docs/assets/readme/ in one shot.
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `

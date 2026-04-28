@@ -49,6 +49,14 @@ Optional screenshot-backed verdict to seed into the fixed-grid review task.
 .PARAMETER FixedGridReviewNote
 Optional note recorded with FixedGridReviewVerdict in the fixed-grid review task.
 
+.PARAMETER CuratedVisualReviewVerdict
+Optional screenshot-backed verdict to seed into every curated visual regression
+review task.
+
+.PARAMETER CuratedVisualReviewNote
+Optional note recorded with CuratedVisualReviewVerdict in each curated visual
+regression review task.
+
 #>
 param(
     [string]$GateOutputDir = "output/word-visual-release-gate",
@@ -159,6 +167,9 @@ param(
     [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
     [string]$FixedGridReviewVerdict = "undecided",
     [string]$FixedGridReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$CuratedVisualReviewVerdict = "undecided",
+    [string]$CuratedVisualReviewNote = "",
     [string]$TaskOutputRoot = "output/word-visual-smoke/tasks",
     [switch]$RefreshReadmeAssets,
     [string]$ReadmeAssetsDir = "docs/assets/readme",
@@ -1650,6 +1661,12 @@ foreach ($descriptor in $curatedVisualFlowDescriptors) {
             "-TaskOutputRoot"
             $taskOutputRootForChild
         )
+        if ($CuratedVisualReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($CuratedVisualReviewNote)) {
+            $prepareTaskArgs += @("-ReviewVerdict", $CuratedVisualReviewVerdict)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($CuratedVisualReviewNote)) {
+            $prepareTaskArgs += @("-ReviewNote", $CuratedVisualReviewNote)
+        }
         if ($OpenTaskDirs) {
             $prepareTaskArgs += "-OpenTaskDir"
         }
@@ -1658,13 +1675,32 @@ foreach ($descriptor in $curatedVisualFlowDescriptors) {
             -Arguments $prepareTaskArgs `
             -FailureMessage "$($descriptor.label) review task preparation failed."
         $bundleTaskInfo = Parse-PrepareTaskOutput -Lines $bundleTaskOutput
+        $bundleTaskReview = Read-ReviewResult -ReviewResultPath $bundleTaskInfo.review_result_path
 
         $flowInfo.task = $bundleTaskInfo
-        $gateSummary.review_tasks.curated_visual_regressions += [ordered]@{
+        $flowInfo.review_status = Get-OptionalPropertyValue -Object $bundleTaskReview -Name "status"
+        $flowInfo.review_verdict = Get-OptionalPropertyValue -Object $bundleTaskReview -Name "verdict"
+        Add-OptionalSummaryValue -Target $flowInfo -Name "reviewed_at" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "reviewed_at")
+        Add-OptionalSummaryValue -Target $flowInfo -Name "review_method" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "review_method")
+        Add-OptionalSummaryValue -Target $flowInfo -Name "review_note" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "review_note")
+
+        $bundleTaskSummary = [ordered]@{
             id = $descriptor.id
             label = $descriptor.label
             task = $bundleTaskInfo
+            review_status = Get-OptionalPropertyValue -Object $bundleTaskReview -Name "status"
+            review_verdict = Get-OptionalPropertyValue -Object $bundleTaskReview -Name "verdict"
         }
+        Add-OptionalSummaryValue -Target $bundleTaskSummary -Name "reviewed_at" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "reviewed_at")
+        Add-OptionalSummaryValue -Target $bundleTaskSummary -Name "review_method" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "review_method")
+        Add-OptionalSummaryValue -Target $bundleTaskSummary -Name "review_note" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "review_note")
+        $gateSummary.review_tasks.curated_visual_regressions += $bundleTaskSummary
     }
 
     $gateSummary.curated_visual_regressions += $flowInfo
@@ -1765,6 +1801,7 @@ $curatedVisualTaskSummary = if ($gateSummary.review_tasks.curated_visual_regress
                 "- $($_.label) task dir: $($_.task.task_dir)"
                 "- $($_.label) prompt: $($_.task.prompt_path)"
                 "- $($_.label) latest pointer: $($_.task.latest_source_kind_task_pointer_path)"
+                "- $($_.label) review verdict: $($_.review_verdict) ($($_.review_status))"
             ) -join [Environment]::NewLine
         }) -join [Environment]::NewLine
 } else {

@@ -467,7 +467,10 @@ If the standard smoke contact sheet is reviewed during the same gate run, add
 so the smoke `review_result.json` and gate summary carry the same sign-off.
 When the fixed-grid bundle is also reviewed in that run, use
 `-FixedGridReviewVerdict pass` and `-FixedGridReviewNote` to seed the generated
-fixed-grid review task with the same machine-readable metadata.
+fixed-grid review task with the same machine-readable metadata. For curated
+visual regression bundles produced by the same gate, use
+`-CuratedVisualReviewVerdict pass` and `-CuratedVisualReviewNote` to seed every
+generated curated bundle task and surface the verdict in the gate summary.
 
 After the screenshot-backed review tasks you care about are signed off,
 including any curated visual regression bundles emitted by the gate, sync the

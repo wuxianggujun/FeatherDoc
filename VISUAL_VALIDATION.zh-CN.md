@@ -71,12 +71,14 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_fixed_grid_merg
 ```powershell
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1
 
-# 同一条 gate，但把本轮 smoke 截图结论写进 smoke 报告和 gate summary。
+# 同一条 gate，把本轮 smoke、fixed-grid 与 curated 截图结论写进报告。
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `
     -SmokeReviewVerdict pass `
     -SmokeReviewNote "Smoke contact sheet reviewed." `
     -FixedGridReviewVerdict pass `
-    -FixedGridReviewNote "Fixed-grid contact sheet reviewed."
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed." `
+    -CuratedVisualReviewVerdict pass `
+    -CuratedVisualReviewNote "Curated visual bundles reviewed."
 
 # 同一条 gate，但顺手刷新 docs/assets/readme/ 里的展示图。
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `

@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added `run_word_visual_release_gate.ps1 -CuratedVisualReviewVerdict/-CuratedVisualReviewNote` support so curated visual regression bundle review tasks can be seeded with screenshot-backed sign-off metadata in the gate summary and final review.
 - Added `prepare_word_review_task.ps1 -ReviewVerdict/-ReviewNote` and `run_word_visual_release_gate.ps1 -FixedGridReviewVerdict/-FixedGridReviewNote` support so fixed-grid review tasks can be seeded with screenshot-backed sign-off metadata.
 - Added `run_word_visual_release_gate.ps1 -SmokeReviewVerdict/-SmokeReviewNote` passthrough so the standard smoke flow can stamp same-run screenshot verdicts into smoke reports and the gate summary.
 - Added `run_word_visual_smoke.ps1 -ReviewVerdict/-ReviewNote` support so screenshot-backed pass/fail/undetermined sign-off can be written directly to `review_result.json` and `final_review.md` with review metadata.
