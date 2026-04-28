@@ -143,6 +143,12 @@ function Get-VisualTaskVerdict {
         return $summaryVerdict
     }
 
+    $gateFlow = Get-OptionalPropertyObject -Object $GateSummary -Name $TaskKey
+    $gateFlowVerdict = Get-OptionalPropertyValue -Object $gateFlow -Name "review_verdict"
+    if (-not [string]::IsNullOrWhiteSpace($gateFlowVerdict)) {
+        return $gateFlowVerdict
+    }
+
     $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
     $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
     $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
@@ -531,6 +537,8 @@ if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -Literal
 }
 $sectionPageSetupTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
 $sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
@@ -604,6 +612,8 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
 [void]$lines.Add("- Visual gate status: $($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict: $visualVerdict")
+[void]$lines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
+[void]$lines.Add("- Fixed-grid verdict: $(Get-DisplayValue -Value $fixedGridVerdict)")
 [void]$lines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$lines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
 [void]$lines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
@@ -708,6 +718,12 @@ if (-not [string]::IsNullOrWhiteSpace($consumerDocument)) {
 
 if (-not [string]::IsNullOrWhiteSpace($gateFinalReviewPath)) {
     Add-CheckboxLine -Lines $lines -Text ('Spot-check the visual gate final review notes if anything in the release notes feels risky: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath))
+}
+if (-not [string]::IsNullOrWhiteSpace($smokeVerdict)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the Word visual smoke verdict is signed off as `{0}` in the gate summary.' -f $smokeVerdict)
+}
+if (-not [string]::IsNullOrWhiteSpace($fixedGridVerdict)) {
+    Add-CheckboxLine -Lines $lines -Text ('Confirm the fixed-grid visual verdict is signed off as `{0}` in the gate summary.' -f $fixedGridVerdict)
 }
 if (-not [string]::IsNullOrWhiteSpace($sectionPageSetupTaskDir)) {
     Add-CheckboxLine -Lines $lines -Text ('Open the section page setup review task if the release touches layout or orientation behavior: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir))

@@ -76,9 +76,9 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
 `-CuratedVisualReviewVerdict` 以及对应的 `*ReviewNote` 直接传给这个总控脚本，
 它会透传到 visual gate，并把各 flow 的 seeded verdict 写入
 `report/summary.json`，同时展示在 `report/final_review.md`。生成的
-`START_HERE.md`、`ARTIFACT_GUIDE.md`、`release_body.zh-CN.md` 和
-`release_summary.zh-CN.md` 也会同步列出 smoke、fixed-grid、
-section/page-number 和 curated visual verdict。
+`START_HERE.md`、`ARTIFACT_GUIDE.md`、`REVIEWER_CHECKLIST.md`、
+`release_body.zh-CN.md` 和 `release_summary.zh-CN.md` 也会同步列出
+smoke、fixed-grid、section/page-number 和 curated visual verdict。
 
 脚本结束后，输出目录里会生成：
 

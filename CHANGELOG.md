@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added smoke and fixed-grid seeded visual verdicts to release-preflight `REVIEWER_CHECKLIST.md` so human review prompts match the rest of the release metadata bundle.
 - Added smoke and fixed-grid seeded visual verdicts to release-preflight `START_HERE.md` and `ARTIFACT_GUIDE.md` so metadata entry points match the full release-note bundle.
 - Added smoke and fixed-grid seeded visual verdicts to release-preflight `release_body.zh-CN.md` and `release_summary.zh-CN.md` so the release note bundle covers the full visual gate flow.
 - Added `run_release_candidate_checks.ps1` passthrough for the visual gate `*-ReviewVerdict/-ReviewNote` parameters so release-preflight can seed same-run screenshot sign-off metadata and copy per-flow verdicts into `report/summary.json` and `report/final_review.md`.
