@@ -84,7 +84,8 @@ function New-TaskReviewSeed {
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
-$resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
+$workingDirLeaf = Split-Path -Leaf ([System.IO.Path]::GetFullPath($WorkingDir))
+$resolvedWorkingDir = Join-Path $resolvedRepoRoot ("output\codex-{0}-{1}" -f $workingDirLeaf, [System.Guid]::NewGuid().ToString("N"))
 $tasksRoot = Join-Path $resolvedWorkingDir "tasks"
 $gateRoot = Join-Path $resolvedWorkingDir "word-visual-release-gate"
 $gateReportDir = Join-Path $gateRoot "report"

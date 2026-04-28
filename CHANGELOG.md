@@ -81,6 +81,8 @@ performance.
 
 ### Tests
 
+- Stabilized `sync_latest_visual_review_verdict*` regressions with isolated short `output/` run directories so repeated CTest runs stay within the 60-second test budget.
+- Added `sync_latest_visual_review_verdict_conflicting_gates_test.ps1` to ensure mixed latest-task pointers from different visual gates fail before mutating summaries or audit artifacts.
 - Added `sync_latest_visual_review_verdict_no_release_summary_test.ps1` to verify the shortest sign-off helper updates only the gate when no matching release-candidate summary is found.
 - Extended `sync_latest_visual_review_verdict_test.ps1` to cover auto-detected release summaries, automatic release-bundle refreshes, and public release-body provenance filtering.
 - Extended `sync_visual_review_verdict_section_page_setup_test.ps1` to cover `-RefreshReleaseBundle` provenance refreshes and assert public release-body notes stay free of operator-only metadata.
