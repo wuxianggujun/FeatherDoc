@@ -143,7 +143,11 @@ function Read-JsonFile {
     param([string]$Path)
 
     Assert-PathExists -Path $Path -Label "JSON file"
-    return Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+    try {
+        return Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+    } catch {
+        throw ("Failed to parse JSON file: {0}. {1}" -f $Path, $_.Exception.Message)
+    }
 }
 
 function Convert-LatestPointerToTaskInfo {

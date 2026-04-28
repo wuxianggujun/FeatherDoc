@@ -81,6 +81,7 @@ performance.
 
 ### Tests
 
+- Added malformed latest-task pointer coverage so `sync_latest_visual_review_verdict.ps1` reports the unreadable JSON path before gate inference or audit artifacts are written.
 - Added `sync_latest_visual_review_verdict_unsupported_source_kind_test.ps1` to verify unsupported latest-task `source.kind` values fail clearly before gate inference or audit artifacts are written.
 - Added `sync_latest_visual_review_verdict_missing_source_path_test.ps1` to verify latest-task pointers without `source.path` fail clearly before gate inference or audit artifacts are written.
 - Stabilized `sync_latest_visual_review_verdict*` regressions with isolated short `output/` run directories so repeated CTest runs stay within the 60-second test budget.
