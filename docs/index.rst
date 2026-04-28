@@ -1717,7 +1717,11 @@ header-part, and footer-part bookmarks, classifies ``text``, ``block``,
 arrays, and writes a draft JSON that can be edited and then fed back into
 ``render_template_document.ps1``. Text and paragraph slots get
 ``TODO: <bookmark_name>`` placeholders, table-row slots start as empty arrays,
-and block-visibility entries default to ``visible: true``.
+and block-visibility entries default to ``visible: true``. Header/footer
+bookmarks are exported as loaded ``header[index]`` / ``footer[index]`` targets
+by default; pass ``-TargetMode resolved-section-targets`` to emit effective
+``section-header`` / ``section-footer`` targets with ``section`` and ``kind``
+selectors instead. The export summary records the selected ``target_mode``.
 
 If you want to keep business data in a separate JSON file, follow with
 ``scripts/patch_template_render_plan.ps1``. It reads a base render plan plus a
@@ -1734,7 +1738,9 @@ final document, use ``scripts/render_template_document_from_patch.ps1``. The
 script runs export, patch, and render in sequence, resolves
 ``featherdoc_cli`` once for the full pipeline, enables ``-RequireComplete`` on
 the patch step by default, and can optionally keep the exported draft plus the
-patched render plan via ``-DraftPlanOutput`` and ``-PatchedPlanOutput``.
+patched render plan via ``-DraftPlanOutput`` and ``-PatchedPlanOutput``. Pass
+``-ExportTargetMode resolved-section-targets`` when patch entries should target
+effective section header/footer references directly.
 
 If you want business data to remain in its own JSON document, use
 ``scripts/convert_render_data_to_patch_plan.ps1`` together with
@@ -1766,7 +1772,9 @@ For the full ``.docx + business JSON + mapping = final .docx`` flow, use
 patch, and render as one direct pipeline, keeping the patch step's
 ``-RequireComplete`` semantics by default. Optional
 ``-PatchPlanOutput``, ``-DraftPlanOutput``, and ``-PatchedPlanOutput`` flags
-keep intermediate artifacts for review.
+keep intermediate artifacts for review. Use ``-ExportTargetMode
+resolved-section-targets`` when the mapping should address effective
+``section-header`` / ``section-footer`` targets instead of loaded part indexes.
 
 ``replace_bookmark_with_table(...)`` replaces a bookmark that occupies its own
 paragraph with a generated table block.

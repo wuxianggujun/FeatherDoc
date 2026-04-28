@@ -108,6 +108,9 @@ $sampleDataObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $sampleDataPath
 $blockVisibilitySampleExecutable = Find-ExecutableByName `
     -SearchRoot $resolvedBuildDir `
     -TargetName "featherdoc_sample_bookmark_block_visibility_visual"
+$partTemplateSampleExecutable = Find-ExecutableByName `
+    -SearchRoot $resolvedBuildDir `
+    -TargetName "featherdoc_sample_part_template_validation"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
@@ -330,5 +333,138 @@ Assert-Equal -Actual $visibilitySummaryObject.steps[3].summary.operation_count -
 Assert-ContainsText -Text $visibilityDocumentXml -ExpectedText "Keep me" -Label "Visibility document.xml"
 Assert-NotContainsText -Text $visibilityDocumentXml -UnexpectedText "Hide me" -Label "Visibility document.xml"
 Assert-NotContainsText -Text $visibilityDocumentXml -UnexpectedText "Secret Cell" -Label "Visibility document.xml"
+
+$partTemplateDir = Join-Path $resolvedWorkingDir "part_template"
+$partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
+$partTemplateDataPath = Join-Path $resolvedWorkingDir "part_template.render_data.json"
+$partTemplateMappingPath = Join-Path $resolvedWorkingDir "part_template.render_data_mapping.json"
+$partTemplatePatchPath = Join-Path $resolvedWorkingDir "part_template.render_patch.generated.json"
+$partTemplateDraftPlan = Join-Path $resolvedWorkingDir "part_template.render-plan.draft.json"
+$partTemplatePatchedPlan = Join-Path $resolvedWorkingDir "part_template.render-plan.filled.json"
+$partTemplateRenderedDocx = Join-Path $resolvedWorkingDir "part_template.rendered.from-data.docx"
+$partTemplateSummaryPath = Join-Path $resolvedWorkingDir "part_template.rendered.from-data.summary.json"
+
+& $partTemplateSampleExecutable $partTemplateDir
+if ($LASTEXITCODE -ne 0) {
+    throw "featherdoc_sample_part_template_validation failed."
+}
+
+$partTemplateData = [ordered]@{
+    header = [ordered]@{
+        title = "Section Header Rendered From Data"
+        note_lines = @("Header note line 1", "Header note line 2")
+        rows = @(
+            [ordered]@{ name = "Alpha"; quantity = "12" },
+            [ordered]@{ name = "Beta"; quantity = "34" }
+        )
+    }
+    footer = [ordered]@{
+        company = "FeatherDoc Section Footer Ltd."
+        summary = "Section footer summary rendered from business data"
+    }
+}
+($partTemplateData | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $partTemplateDataPath -Encoding UTF8
+
+$partTemplateMapping = [ordered]@{
+    bookmark_text = @(
+        [ordered]@{
+            bookmark_name = "header_title"
+            part = "section-header"
+            section = 0
+            kind = "default"
+            source = "header.title"
+        },
+        [ordered]@{
+            bookmark_name = "footer_company"
+            part = "section-footer"
+            section = 0
+            kind = "default"
+            source = "footer.company"
+        },
+        [ordered]@{
+            bookmark_name = "footer_summary"
+            part = "section-footer"
+            section = 0
+            kind = "default"
+            source = "footer.summary"
+        }
+    )
+    bookmark_paragraphs = @(
+        [ordered]@{
+            bookmark_name = "header_note"
+            part = "section-header"
+            section = 0
+            kind = "default"
+            source = "header.note_lines"
+        }
+    )
+    bookmark_table_rows = @(
+        [ordered]@{
+            bookmark_name = "header_rows"
+            part = "section-header"
+            section = 0
+            kind = "default"
+            source = "header.rows"
+            columns = @("name", "quantity")
+        }
+    )
+}
+($partTemplateMapping | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $partTemplateMappingPath -Encoding UTF8
+
+& $scriptPath `
+    -InputDocx $partTemplateDocx `
+    -DataPath $partTemplateDataPath `
+    -MappingPath $partTemplateMappingPath `
+    -OutputDocx $partTemplateRenderedDocx `
+    -SummaryJson $partTemplateSummaryPath `
+    -PatchPlanOutput $partTemplatePatchPath `
+    -DraftPlanOutput $partTemplateDraftPlan `
+    -PatchedPlanOutput $partTemplatePatchedPlan `
+    -BuildDir $resolvedBuildDir `
+    -ExportTargetMode resolved-section-targets `
+    -SkipBuild
+
+if ($LASTEXITCODE -ne 0) {
+    throw "render_template_document_from_data.ps1 failed for the section header/footer fixture."
+}
+
+$partTemplateSummaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $partTemplateSummaryPath | ConvertFrom-Json
+$partTemplatePatchObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $partTemplatePatchPath | ConvertFrom-Json
+$partTemplateDraftPlanObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $partTemplateDraftPlan | ConvertFrom-Json
+$partTemplateHeaderXml = Read-DocxEntryText -DocxPath $partTemplateRenderedDocx -EntryName "word/header1.xml"
+$partTemplateFooterXml = Read-DocxEntryText -DocxPath $partTemplateRenderedDocx -EntryName "word/footer1.xml"
+
+Assert-Equal -Actual $partTemplateSummaryObject.status -Expected "completed" `
+    -Message "Section part data-render summary did not report status=completed."
+Assert-Equal -Actual $partTemplateSummaryObject.export_target_mode -Expected "resolved-section-targets" `
+    -Message "Section part data-render summary did not record export_target_mode."
+Assert-Equal -Actual $partTemplateSummaryObject.steps[0].summary.target_mode -Expected "resolved-section-targets" `
+    -Message "Section part export summary did not record resolved-section target mode."
+Assert-Equal -Actual $partTemplateSummaryObject.steps[0].summary.plan_counts.bookmark_text -Expected 3 `
+    -Message "Section part export step reported an unexpected bookmark_text count."
+Assert-Equal -Actual $partTemplateSummaryObject.steps[1].summary.patch_counts.bookmark_table_rows -Expected 1 `
+    -Message "Section part convert step reported an unexpected table-row count."
+Assert-Equal -Actual $partTemplateSummaryObject.steps[2].summary.patch_counts.bookmark_table_rows.applied -Expected 1 `
+    -Message "Section part patch step reported an unexpected applied table-row count."
+Assert-Equal -Actual $partTemplateSummaryObject.steps[3].summary.operation_count -Expected 4 `
+    -Message "Section part render step reported an unexpected operation_count."
+Assert-Equal -Actual $partTemplatePatchObject.bookmark_text[0].part -Expected "section-header" `
+    -Message "Section header text patch did not preserve the section-header selector."
+Assert-Equal -Actual $partTemplateDraftPlanObject.bookmark_text[0].part -Expected "section-header" `
+    -Message "Section header draft plan did not export section-header selectors."
+Assert-Equal -Actual $partTemplateDraftPlanObject.bookmark_text[0].section -Expected 0 `
+    -Message "Section header draft plan did not preserve section=0."
+Assert-Equal -Actual $partTemplateDraftPlanObject.bookmark_text[0].kind -Expected "default" `
+    -Message "Section header draft plan did not preserve kind=default."
+
+Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Section Header Rendered From Data" -Label "Section header XML"
+Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Header note line 1" -Label "Section header XML"
+Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Header note line 2" -Label "Section header XML"
+Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "Alpha" -Label "Section header XML"
+Assert-ContainsText -Text $partTemplateHeaderXml -ExpectedText "34" -Label "Section header XML"
+Assert-ContainsText -Text $partTemplateFooterXml -ExpectedText "FeatherDoc Section Footer Ltd." -Label "Section footer XML"
+Assert-ContainsText -Text $partTemplateFooterXml -ExpectedText "Section footer summary rendered from business data" -Label "Section footer XML"
+Assert-NotContainsText -Text $partTemplateHeaderXml -UnexpectedText "TODO:" -Label "Section header XML"
+Assert-NotContainsText -Text $partTemplateFooterXml -UnexpectedText "TODO:" -Label "Section footer XML"
 
 Write-Host "Render-from-data regression passed."

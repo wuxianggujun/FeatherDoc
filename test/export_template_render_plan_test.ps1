@@ -58,6 +58,9 @@ $sampleSummary = Join-Path $resolvedWorkingDir "invoice.render-plan.summary.json
 $blockVisibilitySampleExecutable = Find-ExecutableByName `
     -SearchRoot $resolvedBuildDir `
     -TargetName "featherdoc_sample_bookmark_block_visibility_visual"
+$partTemplateSampleExecutable = Find-ExecutableByName `
+    -SearchRoot $resolvedBuildDir `
+    -TargetName "featherdoc_sample_part_template_validation"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
@@ -82,6 +85,8 @@ $samplePlanSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $sampleSummary
 
 Assert-Equal -Actual $samplePlanSummary.status -Expected "completed" `
     -Message "Sample render-plan export did not report status=completed."
+Assert-Equal -Actual $samplePlanSummary.target_mode -Expected "loaded-parts" `
+    -Message "Sample render-plan export should default to loaded-parts target mode."
 Assert-Equal -Actual $samplePlanSummary.plan_counts.bookmark_text -Expected 3 `
     -Message "Unexpected bookmark_text count in sample render-plan summary."
 Assert-Equal -Actual $samplePlanSummary.plan_counts.bookmark_paragraphs -Expected 1 `
@@ -165,5 +170,79 @@ Assert-True -Condition ($null -ne $keepEntry) -Message "Missing keep_block visib
 Assert-True -Condition ($null -ne $hideEntry) -Message "Missing hide_block visibility entry."
 Assert-True -Condition ([bool]$keepEntry.visible) -Message "keep_block should default to visible=true."
 Assert-True -Condition ([bool]$hideEntry.visible) -Message "hide_block should default to visible=true in the draft."
+
+$partTemplateDir = Join-Path $resolvedWorkingDir "part_template_validation_fixture"
+$partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
+$partTargetOutput = Join-Path $resolvedWorkingDir "part_template.resolved-section-targets.render-plan.json"
+$partTargetSummary = Join-Path $resolvedWorkingDir "part_template.resolved-section-targets.summary.json"
+
+& $partTemplateSampleExecutable $partTemplateDir
+if ($LASTEXITCODE -ne 0) {
+    throw "featherdoc_sample_part_template_validation failed."
+}
+
+& $scriptPath `
+    -InputDocx $partTemplateDocx `
+    -OutputPlan $partTargetOutput `
+    -SummaryJson $partTargetSummary `
+    -BuildDir $resolvedBuildDir `
+    -TargetMode resolved-section-targets `
+    -SkipBuild
+
+if ($LASTEXITCODE -ne 0) {
+    throw "export_template_render_plan.ps1 failed for resolved section targets."
+}
+
+Assert-True -Condition (Test-Path -LiteralPath $partTargetOutput) `
+    -Message "Resolved section target render-plan output was not created."
+Assert-True -Condition (Test-Path -LiteralPath $partTargetSummary) `
+    -Message "Resolved section target render-plan summary was not created."
+
+$partTargetPlan = Get-Content -Raw -Encoding UTF8 -LiteralPath $partTargetOutput | ConvertFrom-Json
+$partTargetSummaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $partTargetSummary | ConvertFrom-Json
+
+Assert-Equal -Actual $partTargetSummaryObject.status -Expected "completed" `
+    -Message "Resolved section target export did not report status=completed."
+Assert-Equal -Actual $partTargetSummaryObject.target_mode -Expected "resolved-section-targets" `
+    -Message "Resolved section target export did not record target_mode."
+Assert-Equal -Actual $partTargetSummaryObject.plan_counts.bookmark_text -Expected 3 `
+    -Message "Resolved section target export reported an unexpected text count."
+Assert-Equal -Actual $partTargetSummaryObject.plan_counts.bookmark_paragraphs -Expected 1 `
+    -Message "Resolved section target export reported an unexpected paragraph count."
+Assert-Equal -Actual $partTargetSummaryObject.plan_counts.bookmark_table_rows -Expected 1 `
+    -Message "Resolved section target export reported an unexpected table-row count."
+
+$headerSummary = @($partTargetSummaryObject.inspected_parts | Where-Object {
+        $_.part -eq "section-header" -and $_.section -eq 0 -and $_.kind -eq "default"
+    })[0]
+$footerSummary = @($partTargetSummaryObject.inspected_parts | Where-Object {
+        $_.part -eq "section-footer" -and $_.section -eq 0 -and $_.kind -eq "default"
+    })[0]
+Assert-True -Condition ($null -ne $headerSummary) `
+    -Message "Resolved section target summary did not inspect section-header section=0 kind=default."
+Assert-True -Condition ($null -ne $footerSummary) `
+    -Message "Resolved section target summary did not inspect section-footer section=0 kind=default."
+
+$headerTextEntry = @($partTargetPlan.bookmark_text | Where-Object {
+        $_.bookmark_name -eq "header_title" -and $_.part -eq "section-header"
+    })[0]
+$footerTextEntry = @($partTargetPlan.bookmark_text | Where-Object {
+        $_.bookmark_name -eq "footer_summary" -and $_.part -eq "section-footer"
+    })[0]
+$headerParagraphEntry = @($partTargetPlan.bookmark_paragraphs | Where-Object {
+        $_.bookmark_name -eq "header_note" -and $_.part -eq "section-header"
+    })[0]
+$headerRowsEntry = @($partTargetPlan.bookmark_table_rows | Where-Object {
+        $_.bookmark_name -eq "header_rows" -and $_.part -eq "section-header"
+    })[0]
+
+foreach ($entry in @($headerTextEntry, $footerTextEntry, $headerParagraphEntry, $headerRowsEntry)) {
+    Assert-True -Condition ($null -ne $entry) `
+        -Message "Resolved section target export missed an expected section entry."
+    Assert-Equal -Actual $entry.section -Expected 0 `
+        -Message "Resolved section target entry did not preserve section=0."
+    Assert-Equal -Actual $entry.kind -Expected "default" `
+        -Message "Resolved section target entry did not preserve kind=default."
+}
 
 Write-Host "Template render-plan export regression passed."

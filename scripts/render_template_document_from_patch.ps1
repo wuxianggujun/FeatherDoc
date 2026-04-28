@@ -6,7 +6,9 @@ Exports, patches, and renders a DOCX template in one command.
 Runs `export_template_render_plan.ps1`, `patch_template_render_plan.ps1`, and
 `render_template_document.ps1` as one repeatable pipeline. The patch step
 always enables `-RequireComplete` so leftover `TODO:` placeholders or empty
-table-row drafts fail fast before a document is rendered.
+table-row drafts fail fast before a document is rendered. Use
+`-ExportTargetMode resolved-section-targets` when patch entries should address
+effective section header/footer targets.
 
 .EXAMPLE
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_patch.ps1 `
@@ -27,6 +29,8 @@ param(
     [string]$SummaryJson = "",
     [string]$BuildDir = "",
     [string]$Generator = "NMake Makefiles",
+    [ValidateSet("loaded-parts", "resolved-section-targets")]
+    [string]$ExportTargetMode = "loaded-parts",
     [switch]$SkipBuild,
     [string]$DraftPlanOutput = "",
     [string]$PatchedPlanOutput = ""
@@ -155,6 +159,7 @@ function Build-OrchestratedRenderSummary {
         [string]$ResolvedBuildDir,
         [string]$Generator,
         [bool]$SkipBuild,
+        [string]$ExportTargetMode,
         [string]$DraftPlanPath,
         [string]$PatchedPlanPath,
         [bool]$KeptDraftPlan,
@@ -174,6 +179,7 @@ function Build-OrchestratedRenderSummary {
         build_dir = $ResolvedBuildDir
         generator = $Generator
         skip_build = $SkipBuild
+        export_target_mode = $ExportTargetMode
         require_complete = $true
         draft_plan = $DraftPlanPath
         patched_plan = $PatchedPlanPath
@@ -260,6 +266,7 @@ try {
         -SummaryJson $exportSummaryPath `
         -BuildDir $resolvedBuildDir `
         -Generator $Generator `
+        -TargetMode $ExportTargetMode `
         -SkipBuild
     $exportSummaryObject = Read-JsonFileIfPresent -Path $exportSummaryPath
     if ($LASTEXITCODE -ne 0) {
@@ -341,6 +348,7 @@ try {
             -ResolvedBuildDir $resolvedBuildDir `
             -Generator $Generator `
             -SkipBuild ([bool]$SkipBuild) `
+            -ExportTargetMode $ExportTargetMode `
             -DraftPlanPath $resolvedDraftPlanOutput `
             -PatchedPlanPath $resolvedPatchedPlanOutput `
             -KeptDraftPlan (-not [string]::IsNullOrWhiteSpace($DraftPlanOutput)) `

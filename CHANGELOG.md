@@ -16,6 +16,7 @@ performance.
 - Updated `build_template_schema_patch(...)` and `build-template-schema-patch` to emit `update_slots` for same-slot metadata drift and unique rename-plus-metadata drift, keeping generated patches smaller and more reviewable.
 - Added a one-stop project template onboarding script that prepares schema candidates, temporary smoke manifests, render-data workspaces, completeness reports, and review checklists without mutating committed manifests by default.
 - Added `convert_render_data_to_patch_plan.ps1` `output_patch_path` summaries and stricter render-data selector validation before generated patches are written.
+- Added `export_template_render_plan.ps1 -TargetMode resolved-section-targets` plus `-ExportTargetMode` passthrough in the from-patch/from-data render wrappers so render-plan drafts can target effective `section-header` / `section-footer` references directly.
 
 - Added numbering catalog export/import APIs and CLI automation for stable
   numbering governance, including catalog lint/check/diff/patch/import flows,
@@ -68,6 +69,7 @@ performance.
 - Split shared CLI test support and style-focused CLI coverage into dedicated helpers/files so the full CLI suite can keep focused regression coverage without duplicating harness code.
 - Added PowerShell coverage for the project template onboarding workflow.
 - Added PowerShell regression coverage for render-data conversion summary paths and malformed render-plan selector rejection.
+- Added PowerShell regression coverage for resolved section header/footer render-plan export and from-data section header/footer rendering.
 
 - Added unit and CLI coverage for numbering catalog import/export, catalog
   patch/lint/diff/check flows, style-numbering repair with catalog preload,

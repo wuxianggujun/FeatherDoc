@@ -579,7 +579,7 @@ if(WIN32)
             )
         endif()
 
-        if(TARGET featherdoc_cli AND TARGET featherdoc_sample_bookmark_block_visibility_visual)
+        if(TARGET featherdoc_cli AND TARGET featherdoc_sample_bookmark_block_visibility_visual AND TARGET featherdoc_sample_part_template_validation)
             add_test(
                 NAME
                 template_render_plan

@@ -668,7 +668,11 @@ footer-part bookmarks, classifies `text`, `block`, `table_rows`, and
 JSON that can be edited and then fed back into
 `render_template_document.ps1`. The draft uses `TODO: <bookmark_name>`
 placeholders for text and paragraph slots, keeps table-row drafts empty, and
-defaults block-visibility entries to `visible: true`.
+defaults block-visibility entries to `visible: true`. By default header/footer
+bookmarks are exported as loaded `header[index]` / `footer[index]` targets. Pass
+`-TargetMode resolved-section-targets` when you want the draft to use effective
+`section-header` / `section-footer` targets with `section` and `kind` selectors;
+the export summary records the chosen `target_mode`.
 
 If you want to keep business data separate from the exported draft, follow with
 `scripts/patch_template_render_plan.ps1`. It reads one base render plan plus a
@@ -685,7 +689,9 @@ with a final `.docx`, use `scripts/render_template_document_from_patch.ps1`.
 It runs export, patch, and render in order, resolves `featherdoc_cli` once for
 the whole pipeline, enables `-RequireComplete` on the patch step by default,
 and can optionally keep the exported draft plus the patched render plan for
-review.
+review. Pass `-ExportTargetMode resolved-section-targets` to make the export
+step generate `section-header` / `section-footer` selectors for patch entries
+that address effective section header/footer references directly.
 
 ```bash
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_patch.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PatchPlanPath .\samples\chinese_invoice_template.render_patch.json -OutputDocx .\output\rendered\invoice.from-patch.docx -SummaryJson .\output\rendered\invoice.from-patch.summary.json -DraftPlanOutput .\output\rendered\invoice.draft.render-plan.json -PatchedPlanOutput .\output\rendered\invoice.filled.render-plan.json -BuildDir build-codex-clang-compat -SkipBuild
@@ -928,7 +934,9 @@ For the full `.docx + business JSON + mapping = final .docx` workflow, use
 `scripts/render_template_document_from_data.ps1`. It runs export, convert,
 patch, and render as one direct pipeline, keeps `-RequireComplete` semantics on
 the patch step by default, and still lets you preserve the generated patch plus
-draft / patched render plans when needed.
+draft / patched render plans when needed. Use `-ExportTargetMode
+resolved-section-targets` when the mapping should target effective
+`section-header` / `section-footer` references instead of loaded part indexes.
 
 ```bash
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_data.ps1 -InputDocx .\samples\chinese_invoice_template.docx -DataPath .\samples\chinese_invoice_template.render_data.json -MappingPath .\samples\chinese_invoice_template.render_data_mapping.json -OutputDocx .\output\rendered\invoice.from-data.docx -SummaryJson .\output\rendered\invoice.from-data.summary.json -PatchPlanOutput .\output\rendered\invoice.generated.render_patch.json -DraftPlanOutput .\output\rendered\invoice.draft.render-plan.json -PatchedPlanOutput .\output\rendered\invoice.filled.render-plan.json -BuildDir build-codex-clang-compat -SkipBuild

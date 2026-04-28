@@ -5,7 +5,10 @@ Exports a render-plan draft from a DOCX template.
 .DESCRIPTION
 Builds or reuses `featherdoc_cli`, inspects body/header/footer template parts,
 classifies bookmarks by kind, and writes a JSON render-plan draft that can be
-edited and then fed back into `render_template_document.ps1`.
+edited and then fed back into `render_template_document.ps1`. By default,
+header/footer bookmarks target loaded part indexes; use `-TargetMode
+resolved-section-targets` when the render plan should target section-specific
+header/footer references instead.
 
 .EXAMPLE
 pwsh -ExecutionPolicy Bypass -File .\scripts\export_template_render_plan.ps1 `
@@ -22,6 +25,8 @@ param(
     [string]$SummaryJson = "",
     [string]$BuildDir = "",
     [string]$Generator = "NMake Makefiles",
+    [ValidateSet("loaded-parts", "resolved-section-targets")]
+    [string]$TargetMode = "loaded-parts",
     [switch]$SkipBuild
 )
 
@@ -191,7 +196,9 @@ function Invoke-TemplateSchemaJsonCommand {
 function New-SelectionObject {
     param(
         [string]$Part,
-        [Nullable[int]]$Index
+        [Nullable[int]]$Index,
+        [Nullable[int]]$Section,
+        [string]$Kind = ""
     )
 
     $selection = [ordered]@{
@@ -200,6 +207,12 @@ function New-SelectionObject {
 
     if ($null -ne $Index) {
         $selection.index = [int]$Index
+    }
+    if ($null -ne $Section) {
+        $selection.section = [int]$Section
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Kind)) {
+        $selection.kind = $Kind
     }
 
     return $selection
@@ -219,6 +232,16 @@ function New-RenderPlanEntry {
     $indexValue = Get-OptionalObjectPropertyValue -Object $Selection -Name "index"
     if (-not [string]::IsNullOrWhiteSpace($indexValue)) {
         $entry.index = [int]$indexValue
+    }
+
+    $sectionValue = Get-OptionalObjectPropertyValue -Object $Selection -Name "section"
+    if (-not [string]::IsNullOrWhiteSpace($sectionValue)) {
+        $entry.section = [int]$sectionValue
+    }
+
+    $kindValue = Get-OptionalObjectPropertyValue -Object $Selection -Name "kind"
+    if (-not [string]::IsNullOrWhiteSpace($kindValue)) {
+        $entry.kind = $kindValue
     }
 
     return $entry
@@ -297,6 +320,7 @@ function Build-RenderPlanExportSummary {
         [string]$SummaryJsonPath,
         [string]$CliPath,
         [string]$ResolvedBuildDir,
+        [string]$TargetMode,
         [object[]]$InspectedParts,
         [object[]]$UnsupportedBookmarks,
         [object]$Plan
@@ -310,6 +334,7 @@ function Build-RenderPlanExportSummary {
         summary_json = $SummaryJsonPath
         cli_path = $CliPath
         build_dir = $ResolvedBuildDir
+        target_mode = $TargetMode
         plan_counts = [ordered]@{
             bookmark_text = @($Plan.bookmark_text).Count
             bookmark_paragraphs = @($Plan.bookmark_paragraphs).Count
@@ -377,28 +402,54 @@ try {
     $bookmarkVisibilityEntries = New-Object 'System.Collections.Generic.List[object]'
 
     $partSelections = New-Object 'System.Collections.Generic.List[object]'
-    $partSelections.Add((New-SelectionObject -Part "body" -Index $null)) | Out-Null
+    $partSelections.Add((New-SelectionObject -Part "body" -Index $null -Section $null)) | Out-Null
 
-    Write-Step "Inspecting header parts"
-    $headerPartsResult = Invoke-TemplateSchemaJsonCommand `
-        -ExecutablePath $cliPath `
-        -Command "inspect-header-parts" `
-        -Arguments @("inspect-header-parts", $resolvedInputDocx, "--json")
-    foreach ($part in (Get-OptionalObjectArrayProperty -Object $headerPartsResult.Json -Name "parts" |
-            Sort-Object { [int](Get-OptionalObjectPropertyValue -Object $_ -Name "index") })) {
-        $headerIndex = [int](Get-OptionalObjectPropertyValue -Object $part -Name "index")
-        $partSelections.Add((New-SelectionObject -Part "header" -Index $headerIndex)) | Out-Null
-    }
+    if ($TargetMode -eq "resolved-section-targets") {
+        Write-Step "Inspecting section header/footer references"
+        $sectionsResult = Invoke-TemplateSchemaJsonCommand `
+            -ExecutablePath $cliPath `
+            -Command "inspect-sections" `
+            -Arguments @("inspect-sections", $resolvedInputDocx, "--json")
+        foreach ($sectionLayout in (Get-OptionalObjectArrayProperty -Object $sectionsResult.Json -Name "section_layouts" |
+                Sort-Object { [int](Get-OptionalObjectPropertyValue -Object $_ -Name "index") })) {
+            $sectionIndex = [int](Get-OptionalObjectPropertyValue -Object $sectionLayout -Name "index")
+            foreach ($family in @("header", "footer")) {
+                $references = Get-OptionalObjectPropertyObject -Object $sectionLayout -Name $family
+                foreach ($kind in @("default", "first", "even")) {
+                    $isPresent = Get-OptionalObjectPropertyObject -Object $references -Name $kind
+                    if ($null -ne $isPresent -and [bool]$isPresent) {
+                        $partName = if ($family -eq "header") { "section-header" } else { "section-footer" }
+                        $partSelections.Add((New-SelectionObject `
+                                    -Part $partName `
+                                    -Index $null `
+                                    -Section $sectionIndex `
+                                    -Kind $kind)) | Out-Null
+                    }
+                }
+            }
+        }
+    } else {
+        Write-Step "Inspecting header parts"
+        $headerPartsResult = Invoke-TemplateSchemaJsonCommand `
+            -ExecutablePath $cliPath `
+            -Command "inspect-header-parts" `
+            -Arguments @("inspect-header-parts", $resolvedInputDocx, "--json")
+        foreach ($part in (Get-OptionalObjectArrayProperty -Object $headerPartsResult.Json -Name "parts" |
+                Sort-Object { [int](Get-OptionalObjectPropertyValue -Object $_ -Name "index") })) {
+            $headerIndex = [int](Get-OptionalObjectPropertyValue -Object $part -Name "index")
+            $partSelections.Add((New-SelectionObject -Part "header" -Index $headerIndex -Section $null)) | Out-Null
+        }
 
-    Write-Step "Inspecting footer parts"
-    $footerPartsResult = Invoke-TemplateSchemaJsonCommand `
-        -ExecutablePath $cliPath `
-        -Command "inspect-footer-parts" `
-        -Arguments @("inspect-footer-parts", $resolvedInputDocx, "--json")
-    foreach ($part in (Get-OptionalObjectArrayProperty -Object $footerPartsResult.Json -Name "parts" |
-            Sort-Object { [int](Get-OptionalObjectPropertyValue -Object $_ -Name "index") })) {
-        $footerIndex = [int](Get-OptionalObjectPropertyValue -Object $part -Name "index")
-        $partSelections.Add((New-SelectionObject -Part "footer" -Index $footerIndex)) | Out-Null
+        Write-Step "Inspecting footer parts"
+        $footerPartsResult = Invoke-TemplateSchemaJsonCommand `
+            -ExecutablePath $cliPath `
+            -Command "inspect-footer-parts" `
+            -Arguments @("inspect-footer-parts", $resolvedInputDocx, "--json")
+        foreach ($part in (Get-OptionalObjectArrayProperty -Object $footerPartsResult.Json -Name "parts" |
+                Sort-Object { [int](Get-OptionalObjectPropertyValue -Object $_ -Name "index") })) {
+            $footerIndex = [int](Get-OptionalObjectPropertyValue -Object $part -Name "index")
+            $partSelections.Add((New-SelectionObject -Part "footer" -Index $footerIndex -Section $null)) | Out-Null
+        }
     }
 
     foreach ($selection in $partSelections) {
@@ -413,8 +464,22 @@ try {
             $selectionSummary.index = [int]$indexValue
         }
 
+        $sectionValue = Get-OptionalObjectPropertyValue -Object $selection -Name "section"
+        if (-not [string]::IsNullOrWhiteSpace($sectionValue)) {
+            $arguments += @("--section", $sectionValue)
+            $selectionSummary.section = [int]$sectionValue
+        }
+
+        $kindValue = Get-OptionalObjectPropertyValue -Object $selection -Name "kind"
+        if (-not [string]::IsNullOrWhiteSpace($kindValue)) {
+            $arguments += @("--kind", $kindValue)
+            $selectionSummary.kind = $kindValue
+        }
+
         $selectionLabel = if (-not [string]::IsNullOrWhiteSpace($indexValue)) {
             "{0}[{1}]" -f [string]$selection.part, $indexValue
+        } elseif (-not [string]::IsNullOrWhiteSpace($sectionValue)) {
+            "{0}[section={1},kind={2}]" -f [string]$selection.part, $sectionValue, $kindValue
         } else {
             [string]$selection.part
         }
@@ -462,6 +527,7 @@ try {
             -SummaryJsonPath $resolvedSummaryJson `
             -CliPath $cliPath `
             -ResolvedBuildDir $resolvedBuildDir `
+            -TargetMode $TargetMode `
             -InspectedParts @($inspectedParts.ToArray()) `
             -UnsupportedBookmarks @($unsupportedBookmarks.ToArray()) `
             -Plan ([pscustomobject]$plan)
