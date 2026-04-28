@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added release metadata handoff and reviewer checklist rendering for visual gate review task counts so internal sign-off bundles show total, standard, and curated review scope.
 - Added release preflight propagation for visual gate review task counts so `run_release_candidate_checks.ps1` records total, standard, and curated scope in release summaries and final reviews.
 - Added release summary synchronization for visual gate review task counts so `sync_visual_review_verdict.ps1` carries total, standard, and curated scope into release `summary.json` and `final_review.md`.
 - Added `run_word_visual_release_gate.ps1` review task summary counts to `gate_summary.json` and `gate_final_review.md` so automation and reviewers can see total, standard, and curated review-task scope at a glance.

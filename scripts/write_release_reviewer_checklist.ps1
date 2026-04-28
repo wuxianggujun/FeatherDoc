@@ -382,6 +382,7 @@ $fixedGridReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGa
 $sectionPageSetupReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
+$visualReviewTaskSummaryLine = Get-VisualReviewTaskSummaryLine -VisualGateSummary $visualGateStep -GateSummary $gateSummary
 $supersededReviewTasksReportPath = Get-SupersededReviewTasksReportPath -Summary $summary -VisualGateSummary $visualGateStep
 if ([string]::IsNullOrWhiteSpace($taskOutputRoot) -and -not [string]::IsNullOrWhiteSpace($supersededReviewTasksReportPath)) {
     $taskOutputRoot = Split-Path -Parent $supersededReviewTasksReportPath
@@ -452,6 +453,9 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
 [void]$lines.Add("- Visual gate status: $($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict: $visualVerdict")
+if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
+    [void]$lines.Add("- $visualReviewTaskSummaryLine")
+}
 [void]$lines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
 [void]$lines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
 [void]$lines.Add("- Smoke reviewed at: $(Get-DisplayValue -Value $smokeReviewedAt)")

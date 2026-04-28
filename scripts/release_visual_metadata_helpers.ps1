@@ -122,6 +122,26 @@ function Get-VisualTaskReviewMethod {
     return Get-OptionalPropertyValue -Object $gateFlow -Name "review_method"
 }
 
+function Get-VisualReviewTaskSummaryLine {
+    param(
+        $VisualGateSummary,
+        $GateSummary
+    )
+
+    $summary = Get-OptionalPropertyObject -Object $VisualGateSummary -Name "review_task_summary"
+    if ($null -eq $summary) {
+        $summary = Get-OptionalPropertyObject -Object $GateSummary -Name "review_task_summary"
+    }
+    if ($null -eq $summary) {
+        return ""
+    }
+
+    return "Review task count: {0} total ({1} standard, {2} curated)" -f `
+        (Get-OptionalPropertyValue -Object $summary -Name "total_count"),
+        (Get-OptionalPropertyValue -Object $summary -Name "standard_count"),
+        (Get-OptionalPropertyValue -Object $summary -Name "curated_count")
+}
+
 function Get-OptionalPropertyArray {
     param(
         $Object,

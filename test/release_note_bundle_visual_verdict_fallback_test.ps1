@@ -117,6 +117,11 @@ $gateSummary = [ordered]@{
         review_method = "operator_supplied"
         review_note = "page number fields awaiting reviewer"
     }
+    review_task_summary = [ordered]@{
+        total_count = 5
+        standard_count = 4
+        curated_count = 1
+    }
     review_tasks = [ordered]@{
         curated_visual_regressions = @(
             [ordered]@{
@@ -178,6 +183,11 @@ $summary = [ordered]@{
             summary_json = $gateSummaryPath
             final_review = $gateFinalReviewPath
             superseded_review_tasks_report = $supersededReviewTasksReportPath
+            review_task_summary = [ordered]@{
+                total_count = 5
+                standard_count = 4
+                curated_count = 1
+            }
             smoke_reviewed_at = "2026-04-28T12:31:00"
             smoke_review_method = "release_summary_override"
         }
@@ -194,6 +204,13 @@ $shortPath = Join-Path $reportDir "release_summary.zh-CN.md"
 $guidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $checklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 $startHerePath = Join-Path (Split-Path -Parent $reportDir) "START_HERE.md"
+
+foreach ($assertion in @(
+        @{ Path = $handoffPath; Label = "release_handoff.md" },
+        @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" }
+    )) {
+    Assert-Contains -Path $assertion.Path -ExpectedText "Review task count: 5 total (4 standard, 1 curated)" -Label $assertion.Label
+}
 
 foreach ($assertion in @(
         @{ Path = $handoffPath; Label = "release_handoff.md" },
