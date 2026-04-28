@@ -84,6 +84,7 @@ performance.
 
 ### Tests
 
+- Extended `sync_latest_visual_review_verdict_curated_visual_bundle_test.ps1` to verify `-SkipReleaseBundle` still syncs release summaries while leaving release-note bundle files untouched and marking `release_bundle_refresh_requested=false`.
 - Added release-summary discovery metadata assertions for explicit, auto-detected, and gate-only `sync_latest_visual_review_verdict.ps1` runs.
 - Added equal-timestamp release-summary discovery coverage for the path tie-breaker used by `sync_latest_visual_review_verdict.ps1`.
 - Added latest-match release-summary discovery coverage so `sync_latest_visual_review_verdict.ps1` refreshes the newest valid matching summary when multiple candidates point at the same gate.
