@@ -237,6 +237,21 @@ if(WIN32)
 
         add_test(
             NAME
+            word_visual_review_report
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/word_visual_review_report_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/word_visual_review_report
+        )
+
+        add_test(
+            NAME
             sync_visual_review_verdict_section_page_setup
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}

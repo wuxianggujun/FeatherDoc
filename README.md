@@ -267,6 +267,10 @@ Artifacts are written under `output/word-visual-smoke/`, including the source
 renders and contact sheets, a `report/` directory for the generated checklist
 and summary data, generated `review_result.json` and `final_review.md`
 skeletons, and a reserved `repair/` directory for iterative fix candidates.
+If the screenshot review is completed during the same run, pass
+`-ReviewVerdict pass` (or `fail` / `undetermined`) plus `-ReviewNote` so
+`review_result.json` records `status=reviewed`, `verdict`, and `reviewed_at`
+for verdict-sync automation.
 The script now also validates two things before you trust the result:
 
 - generated smoke samples must contain the expected core DOCX ZIP entries

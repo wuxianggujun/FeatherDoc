@@ -32,6 +32,12 @@ Key evidence paths:
 - `evidence\pages\*.png`
 - `report\summary.json`
 - `report\review_checklist.md`
+- `report\review_result.json`
+- `report\final_review.md`
+
+When you finish the screenshot review in the same run, add
+`-ReviewVerdict pass` (or `fail` / `undetermined`) and `-ReviewNote` to stamp
+machine-readable `status=reviewed`, `verdict`, and `reviewed_at` metadata.
 
 - `fixed-grid-aggregate-contact-sheet.png`
 

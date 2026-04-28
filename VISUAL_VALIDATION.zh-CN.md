@@ -31,6 +31,12 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_smo
 - `evidence\pages\*.png`
 - `report\summary.json`
 - `report\review_checklist.md`
+- `report\review_result.json`
+- `report\final_review.md`
+
+如果同一轮已经完成截图审查，可以追加 `-ReviewVerdict pass`（或 `fail` /
+`undetermined`）和 `-ReviewNote`，让报告直接写入机器可读的
+`status=reviewed`、`verdict` 与 `reviewed_at`。
 
 - `fixed-grid-aggregate-contact-sheet.png`
 

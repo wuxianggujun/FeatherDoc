@@ -5,10 +5,14 @@ param(
     [int]$Dpi = 144,
     [switch]$SkipBuild,
     [switch]$KeepWordOpen,
-    [switch]$VisibleWord
+    [switch]$VisibleWord,
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$ReviewVerdict = "undecided",
+    [string]$ReviewNote = ""
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "word_visual_review_report.ps1")
 
 function Write-Step {
     param([string]$Message)
@@ -435,60 +439,34 @@ $summary = Get-Content -Path $summaryPath -Raw | ConvertFrom-Json
 $pdfPageCount = Get-PdfPageCount -PythonCommand $renderPython -PdfPath $pdfPath
 Assert-RenderedEvidence -Summary $summary -PagesDir $pagesDir -ContactSheetPath $contactSheetPath -PdfPageCount $pdfPageCount
 $customInput = [bool]$InputDocx
-$reviewResult = [ordered]@{
-    document_path = $docxPath
-    pdf_path = $pdfPath
-    evidence_dir = $evidenceDir
-    report_dir = $reportDir
-    repair_dir = $repairDir
-    generated_at = (Get-Date).ToString("s")
-    status = "pending_review"
-    verdict = "undecided"
-    page_count = $summary.page_count
-    evidence = [ordered]@{
-        summary_json = $summaryPath
-        checklist = $checklistPath
-        contact_sheet = $contactSheetPath
-        page_images = @($summary.pages)
-    }
-    findings = @()
-    notes = @(Get-ReviewNotes -CustomInput:$customInput)
-}
+$generatedAt = (Get-Date).ToString("s")
+$reviewNotes = @(Get-ReviewNotes -CustomInput:$customInput)
+$reviewResult = New-WordVisualReviewResult `
+    -DocumentPath $docxPath `
+    -PdfPath $pdfPath `
+    -EvidenceDir $evidenceDir `
+    -ReportDir $reportDir `
+    -RepairDir $repairDir `
+    -GeneratedAt $generatedAt `
+    -ReviewVerdict $ReviewVerdict `
+    -PageCount $summary.page_count `
+    -SummaryPath $summaryPath `
+    -ChecklistPath $checklistPath `
+    -ContactSheetPath $contactSheetPath `
+    -PageImages @($summary.pages) `
+    -Notes $reviewNotes `
+    -ReviewNote $ReviewNote
 ($reviewResult | ConvertTo-Json -Depth 6) | Set-Content -Path $reviewResultPath -Encoding UTF8
 
-$finalReview = @"
-# Word Visual Review
-
-- Document: $docxPath
-- PDF: $pdfPath
-- Evidence directory: $evidenceDir
-- Report directory: $reportDir
-- Repair directory: $repairDir
-- Generated at: $(Get-Date -Format s)
-- Current status: pending_review
-- Verdict: pending_manual_review
-
-## Summary
-
-- Verdict:
-- Notes:
-
-## Findings
-
-- Page:
-  Element type:
-  Description:
-  Severity:
-  Screenshot evidence:
-  Confidence:
-
-## Repair Decision
-
-- Enter repair loop:
-- Suggested fix:
-- Current best candidate:
-- Notes:
-"@
+$finalReview = New-WordVisualFinalReviewMarkdown `
+    -DocumentPath $docxPath `
+    -PdfPath $pdfPath `
+    -EvidenceDir $evidenceDir `
+    -ReportDir $reportDir `
+    -RepairDir $repairDir `
+    -GeneratedAt $generatedAt `
+    -ReviewVerdict $ReviewVerdict `
+    -ReviewNote $ReviewNote
 $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
 $checklist = Get-ReviewChecklist -CustomInput:$customInput `
