@@ -81,6 +81,7 @@ performance.
 
 ### Tests
 
+- Extended `sync_latest_visual_review_verdict_test.ps1` to cover auto-detected release summaries, automatic release-bundle refreshes, and public release-body provenance filtering.
 - Extended `sync_visual_review_verdict_section_page_setup_test.ps1` to cover `-RefreshReleaseBundle` provenance refreshes and assert public release-body notes stay free of operator-only metadata.
 - Extended visual verdict sync regression coverage to verify review provenance is copied into gate summaries, release summaries, and final reviews.
 - Extended release metadata bundle regression coverage to verify visual review provenance is emitted only in handoff-oriented artifacts.
