@@ -74,6 +74,7 @@ performance.
 
 ### Tests
 
+- Added release visual verdict metadata consistency coverage so release handoff, artifact guides, reviewer checklist, release notes, and preflight summaries keep smoke, fixed-grid, section/page setup, page-number, and curated visual verdict fields aligned.
 - Added CLI regression coverage for `preview-template-schema-patch --output-patch`, including patch-file copy output, left/right schema generated output, and JSON `output_patch_path` reporting.
 - Added unit coverage for high-level template schema mutation helpers, including preview-only summaries, target replacement, slot occurrence updates, source-aware slot rename, and target/slot removal.
 - Added unit and CLI regression coverage for template-schema `update_slots` patch application, parse errors, preview summaries, output-patch serialization, generated patch output, generated occurrence-clear updates, rename-plus-occurrence-clear updates, source-aware rename-plus-update patch generation, ambiguous rename fallback behavior, cross-source rename fallback behavior, cross-target rename fallback behavior, and changed target identity replacement.

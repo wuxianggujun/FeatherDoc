@@ -282,6 +282,21 @@ if(WIN32)
 
         add_test(
             NAME
+            release_visual_verdict_metadata_consistency
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_visual_verdict_metadata_consistency_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_visual_verdict_metadata_consistency
+        )
+
+        add_test(
+            NAME
             word_visual_review_report
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}
