@@ -265,6 +265,12 @@ Assert-True -Condition ($gateSummary.release_summary_discovery.output_search_roo
     -Message "Gate summary release_summary_discovery.output_search_root should stay empty for explicit release summaries."
 Assert-True -Condition ($gateSummary.release_summary_discovery.release_bundle_refresh_requested -eq $true) `
     -Message "Gate summary release_summary_discovery.release_bundle_refresh_requested should be true for explicit release summaries."
+Assert-True -Condition ($releaseSummary.selected_release_summary_path -eq $releaseSummaryPath) `
+    -Message "Release summary selected_release_summary_path did not record the explicit release summary."
+Assert-True -Condition ($releaseSummary.release_summary_discovery.mode -eq "explicit") `
+    -Message "Release summary release_summary_discovery.mode did not record explicit discovery."
+Assert-True -Condition ($releaseSummary.release_summary_discovery.release_bundle_refresh_requested -eq $true) `
+    -Message "Release summary release_summary_discovery.release_bundle_refresh_requested should be true for explicit release summaries."
 Assert-True -Condition ($releaseSummary.steps.visual_gate.document_task_dir -eq $newDocumentTaskDir) `
     -Message "Release summary visual_gate.document_task_dir was not refreshed from latest_document_task.json."
 Assert-True -Condition ($releaseSummary.steps.visual_gate.document_verdict -eq "pass") `
@@ -280,6 +286,9 @@ Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Mode: explicit" -Label
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Reason: explicit_path" -Label "gate_final_review.md"
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Release bundle refresh requested: True" -Label "gate_final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Visual verdict: pass" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "## Release summary discovery" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Mode: explicit" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Release bundle refresh requested: True" -Label "release final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Smoke: verdict=pass, review_status=reviewed, reviewed_at=2026-04-14T09:05:00, review_method=operator_supplied" -Label "release final_review.md"
 
 foreach ($pathToCheck in @($releaseHandoffPath, $artifactGuidePath, $reviewerChecklistPath, $startHerePath)) {

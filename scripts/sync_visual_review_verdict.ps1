@@ -682,6 +682,7 @@ function New-ReleaseCandidateFinalReviewContent {
     $readmeGallery = Get-OptionalPropertyObject -Object $Summary -Name "readme_gallery"
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
     $visualReviewProvenance = Get-ReleaseVisualReviewProvenanceMarkdown -RepoRoot $RepoRoot -VisualGateStep $Summary.steps.visual_gate
+    $releaseSummaryDiscoverySection = New-GateReleaseSummaryDiscoveryMarkdown -RepoRoot $RepoRoot -GateSummary $Summary
     $readmeGalleryStatusLine = switch ($readmeGalleryStatus) {
         "completed" { "- README gallery refresh: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $readmeGallery -Name 'assets_dir')))" }
         "visual_gate_skipped" { "- README gallery refresh: unavailable (visual gate skipped)" }
@@ -717,7 +718,7 @@ function New-ReleaseCandidateFinalReviewContent {
 - Visual gate: $(Get-OptionalPropertyValue -Object $Summary.steps.visual_gate -Name 'status')
 $readmeGalleryStatusLine
 
-$visualReviewProvenance## Key outputs
+$visualReviewProvenance$releaseSummaryDiscoverySection## Key outputs
 
 - Build directory: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'build_dir'))
 - Install directory: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'install_dir'))

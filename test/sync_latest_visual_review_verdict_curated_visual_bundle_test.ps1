@@ -279,6 +279,12 @@ Assert-True -Condition ($gateSummary.release_summary_discovery.reason -eq "expli
     -Message "Gate summary release_summary_discovery.reason did not record the explicit path."
 Assert-True -Condition ($gateSummary.release_summary_discovery.release_bundle_refresh_requested -eq $false) `
     -Message "Gate summary release_summary_discovery.release_bundle_refresh_requested should be false with -SkipReleaseBundle."
+Assert-True -Condition ($releaseSummary.selected_release_summary_path -eq $releaseSummaryPath) `
+    -Message "Release summary selected_release_summary_path did not record the explicit release summary."
+Assert-True -Condition ($releaseSummary.release_summary_discovery.mode -eq "explicit") `
+    -Message "Release summary release_summary_discovery.mode did not record explicit discovery."
+Assert-True -Condition ($releaseSummary.release_summary_discovery.release_bundle_refresh_requested -eq $false) `
+    -Message "Release summary release_summary_discovery.release_bundle_refresh_requested should be false with -SkipReleaseBundle."
 Assert-True -Condition ($curatedReleaseTasks.Count -eq 1) `
     -Message "Release summary visual_gate is missing the curated visual bundle entry."
 Assert-True -Condition ($curatedReleaseTasks[0].id -eq $bundleId) `
@@ -291,6 +297,8 @@ Assert-Contains -Path $gateFinalReviewPath -ExpectedText "## Release summary dis
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Mode: explicit" -Label "gate_final_review.md"
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Release bundle refresh requested: False" -Label "gate_final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Visual verdict: pass" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "## Release summary discovery" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Release bundle refresh requested: False" -Label "release final_review.md"
 foreach ($pathToCheck in @($releaseHandoffPath, $releaseBodyPath, $releaseSummaryZhPath, $artifactGuidePath, $reviewerChecklistPath, $startHerePath)) {
     Assert-PathNotExists -Path $pathToCheck -Label $pathToCheck
 }

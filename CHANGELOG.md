@@ -68,6 +68,7 @@ performance.
 
 ### Changed
 
+- Mirrored `sync_latest_visual_review_verdict.ps1` release summary discovery metadata into selected release summaries and surfaced it in release `final_review.md` for artifact-only review handoffs.
 - Added a release summary discovery section to `gate_final_review.md` so reviewers can see whether `sync_latest_visual_review_verdict.ps1` used an explicit summary, auto-detected one, or ran gate-only.
 - Added `selected_release_summary_path` and `release_summary_discovery` metadata to `sync_latest_visual_review_verdict.ps1` gate summaries so automation can tell whether release artifacts were refreshed.
 - Added deterministic release-summary discovery ordering so `sync_latest_visual_review_verdict.ps1` breaks equal timestamp candidates by path and keeps repeated syncs stable.
@@ -85,6 +86,7 @@ performance.
 
 ### Tests
 
+- Added release `final_review.md` assertions for explicit, auto-detected, and `-SkipReleaseBundle` release summary discovery metadata.
 - Added gate final-review assertions for release summary discovery metadata, including explicit, auto-not-found, and `-SkipReleaseBundle` paths.
 - Extended `sync_latest_visual_review_verdict_curated_visual_bundle_test.ps1` to verify `-SkipReleaseBundle` still syncs release summaries while leaving release-note bundle files untouched and marking `release_bundle_refresh_requested=false`.
 - Added release-summary discovery metadata assertions for explicit, auto-detected, and gate-only `sync_latest_visual_review_verdict.ps1` runs.

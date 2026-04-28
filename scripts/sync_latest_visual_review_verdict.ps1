@@ -347,6 +347,7 @@ function Update-ReleaseSummaryTaskDirsFromPointers {
 function Update-ReleaseSummaryDiscoveryMetadata {
     param(
         [string]$GateSummaryPath,
+        [string]$ReleaseSummaryPath,
         [string]$Mode,
         [string]$Reason,
         [string]$SelectedSummaryPath,
@@ -367,6 +368,13 @@ function Update-ReleaseSummaryDiscoveryMetadata {
     Set-PropertyValue -Object $gateSummary -Name "selected_release_summary_path" -Value $SelectedSummaryPath
     Set-PropertyValue -Object $gateSummary -Name "release_summary_discovery" -Value $metadata
     ($gateSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $GateSummaryPath -Encoding UTF8
+
+    if (-not [string]::IsNullOrWhiteSpace($ReleaseSummaryPath)) {
+        $summary = Read-JsonFile -Path $ReleaseSummaryPath
+        Set-PropertyValue -Object $summary -Name "selected_release_summary_path" -Value $SelectedSummaryPath
+        Set-PropertyValue -Object $summary -Name "release_summary_discovery" -Value $metadata
+        ($summary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $ReleaseSummaryPath -Encoding UTF8
+    }
 }
 
 function Update-AuditReportMetadata {
@@ -632,6 +640,7 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
 
 Update-ReleaseSummaryDiscoveryMetadata `
     -GateSummaryPath $resolvedGateSummaryPath `
+    -ReleaseSummaryPath $resolvedReleaseSummaryPath `
     -Mode $releaseSummaryDiscoveryMode `
     -Reason $releaseSummaryDiscoveryReason `
     -SelectedSummaryPath $resolvedReleaseSummaryPath `

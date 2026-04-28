@@ -319,6 +319,12 @@ Assert-True -Condition ($gateSummary.release_summary_discovery.output_search_roo
     -Message "Gate summary release_summary_discovery.output_search_root did not record the search root."
 Assert-True -Condition ($gateSummary.release_summary_discovery.release_bundle_refresh_requested -eq $true) `
     -Message "Gate summary release_summary_discovery.release_bundle_refresh_requested should be true for an auto-detected release summary."
+Assert-True -Condition ($releaseSummary.selected_release_summary_path -eq $releaseSummaryPath) `
+    -Message "Release summary selected_release_summary_path did not record the auto-detected release summary."
+Assert-True -Condition ($releaseSummary.release_summary_discovery.mode -eq "auto") `
+    -Message "Release summary release_summary_discovery.mode did not record auto discovery."
+Assert-True -Condition ($releaseSummary.release_summary_discovery.reason -eq "matched_gate_summary") `
+    -Message "Release summary release_summary_discovery.reason did not record a matched gate summary."
 Assert-True -Condition ($releaseSummary.steps.visual_gate.document_task_dir -eq $newDocumentTaskDir) `
     -Message "Release summary visual_gate.document_task_dir was not refreshed from latest_document_task.json."
 Assert-True -Condition ($releaseSummary.steps.visual_gate.document_verdict -eq "pass") `
@@ -335,6 +341,9 @@ foreach ($pathToCheck in @($olderReleaseFinalReviewPath, $olderReleaseHandoffPat
 
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Document verdict: pass" -Label "gate_final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Visual verdict: pass" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "## Release summary discovery" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Mode: auto" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Reason: matched_gate_summary" -Label "release final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Smoke: verdict=pass, review_status=reviewed, reviewed_at=2026-04-14T09:05:00, review_method=operator_supplied" -Label "release final_review.md"
 
 foreach ($pathToCheck in @($releaseHandoffPath, $artifactGuidePath, $reviewerChecklistPath, $startHerePath)) {
