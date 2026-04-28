@@ -1769,6 +1769,8 @@ targets, or leftover placeholders can fail before the final ``.docx`` step.
 Pass ``-ExportTargetMode resolved-section-targets`` when the mapping targets
 effective section header/footer references; workspace validation infers that
 same mode from workspace metadata and records it in JSON / Markdown summaries.
+Prepared workspace summaries also carry that mode into their recommended
+validation and render commands.
 
 For the full ``.docx + business JSON + mapping = final .docx`` flow, use
 ``scripts/render_template_document_from_data.ps1``. It runs export, convert,

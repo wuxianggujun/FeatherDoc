@@ -130,6 +130,12 @@ Assert-ContainsText -Text ([string]$summary.next_commands.render_docx) `
 Assert-ContainsText -Text ([string]$summary.next_commands.render_docx) `
     -ExpectedText "render_template_document_from_workspace.ps1" `
     -Message "Workspace summary render command should point to the workspace wrapper."
+Assert-ContainsText -Text ([string]$summary.next_commands.render_docx) `
+    -ExpectedText "-ExportTargetMode" `
+    -Message "Workspace summary render command should preserve export target mode."
+Assert-ContainsText -Text ([string]$summary.next_commands.render_docx) `
+    -ExpectedText "loaded-parts" `
+    -Message "Workspace summary render command should preserve the default target mode."
 Assert-ContainsText -Text ([string]$summary.next_commands.validate_data) `
     -ExpectedText "validate_render_data_mapping.ps1" `
     -Message "Workspace summary validation command should point to the validation wrapper."
@@ -275,6 +281,12 @@ Assert-Equal -Actual $sectionSummary.steps[0].summary.target_mode -Expected "res
 Assert-ContainsText -Text ([string]$sectionSummary.next_commands.validate_data) `
     -ExpectedText 'resolved-section-targets' `
     -Message "Section workspace validation command should preserve the resolved target mode."
+Assert-ContainsText -Text ([string]$sectionSummary.next_commands.render_docx) `
+    -ExpectedText '-ExportTargetMode' `
+    -Message "Section workspace render command should preserve export target mode."
+Assert-ContainsText -Text ([string]$sectionSummary.next_commands.render_docx) `
+    -ExpectedText 'resolved-section-targets' `
+    -Message "Section workspace render command should preserve the resolved target mode."
 Assert-ContainsText -Text $sectionStartHere `
     -ExpectedText 'resolved-section-targets' `
     -Message "Section workspace start-here guide should preserve the resolved target mode."

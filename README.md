@@ -729,8 +729,8 @@ the JSON file they should edit first, the validation command that confirms the
 edited data is complete, and the render command they should run next. Pass
 `-ExportTargetMode resolved-section-targets` here when the workspace should keep
 effective `section-header` / `section-footer` selectors; the workspace summary,
-recommended validation command, validation wrapper, and workspace render wrapper
-all preserve that `export_target_mode`.
+recommended validation/render commands, validation wrapper, and workspace render
+wrapper all preserve that `export_target_mode`.
 
 ```bash
 pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_template_render_data_workspace.ps1 -InputDocx .\samples\chinese_invoice_template.docx -WorkspaceDir .\output\rendered\invoice.workspace -SummaryJson .\output\rendered\invoice.workspace\summary.json -BuildDir build-codex-clang-compat -SkipBuild

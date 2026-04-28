@@ -426,8 +426,8 @@ if ($SkipBuild) {
 }
 $renderWorkspaceCommand = (
     'pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_workspace.ps1 ' +
-    '-WorkspaceDir "{0}" -OutputDocx "{1}" -SummaryJson "{2}"'
-) -f $resolvedWorkspaceDir, $recommendedRenderedDocx, $recommendedRenderSummary
+    '-WorkspaceDir "{0}" -OutputDocx "{1}" -SummaryJson "{2}" -ExportTargetMode "{3}"'
+) -f $resolvedWorkspaceDir, $recommendedRenderedDocx, $recommendedRenderSummary, $ExportTargetMode
 
 $renderPlanSummary = Join-Path $resolvedWorkspaceDir ($inputStem + ".render-plan.summary.json")
 $mappingSummary = Join-Path $resolvedWorkspaceDir ($inputStem + ".render_data_mapping.draft.summary.json")
@@ -628,4 +628,3 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedSummaryJson)) {
 }
 
 exit 0
-
