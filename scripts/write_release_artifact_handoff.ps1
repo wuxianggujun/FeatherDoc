@@ -352,6 +352,10 @@ $smokeReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $visualGateSt
 $fixedGridReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
 $sectionPageSetupReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
 $supersededReviewTasksReportPath = Get-SupersededReviewTasksReportPath -Summary $summary -VisualGateSummary $visualGateStep
 if ([string]::IsNullOrWhiteSpace($taskOutputRoot) -and -not [string]::IsNullOrWhiteSpace($supersededReviewTasksReportPath)) {
@@ -457,12 +461,16 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 [void]$handoffLines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
 [void]$handoffLines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
+[void]$handoffLines.Add("- Smoke review note: $(Get-DisplayValue -Value $smokeReviewNote)")
 [void]$handoffLines.Add("- Fixed-grid verdict: $(Get-DisplayValue -Value $fixedGridVerdict)")
 [void]$handoffLines.Add("- Fixed-grid review status: $(Get-DisplayValue -Value $fixedGridReviewStatus)")
+[void]$handoffLines.Add("- Fixed-grid review note: $(Get-DisplayValue -Value $fixedGridReviewNote)")
 [void]$handoffLines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$handoffLines.Add("- Section page setup review status: $(Get-DisplayValue -Value $sectionPageSetupReviewStatus)")
+[void]$handoffLines.Add("- Section page setup review note: $(Get-DisplayValue -Value $sectionPageSetupReviewNote)")
 [void]$handoffLines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
 [void]$handoffLines.Add("- Page number fields review status: $(Get-DisplayValue -Value $pageNumberFieldsReviewStatus)")
+[void]$handoffLines.Add("- Page number fields review note: $(Get-DisplayValue -Value $pageNumberFieldsReviewNote)")
 [void]$handoffLines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
 [void]$handoffLines.Add("- Superseded review tasks: $(Get-DisplayValue -Value $supersededReviewTasksCount)")
 [void]$handoffLines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
@@ -520,6 +528,7 @@ if ($curatedVisualReviewEntries.Count -gt 0) {
     foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
         [void]$handoffLines.Add("- $($curatedVisualReview.label) verdict: $(Get-DisplayValue -Value $curatedVisualReview.verdict)")
     [void]$handoffLines.Add("- $($curatedVisualReview.label) review status: $(Get-DisplayValue -Value $curatedVisualReview.review_status)")
+    [void]$handoffLines.Add("- $($curatedVisualReview.label) review note: $(Get-DisplayValue -Value $curatedVisualReview.review_note)")
         [void]$handoffLines.Add("- $($curatedVisualReview.label) review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.task_dir)")
         if (-not [string]::IsNullOrWhiteSpace($curatedVisualReview.id)) {
             [void]$handoffLines.Add("- $($curatedVisualReview.label) open-latest command: pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind $($curatedVisualReview.id)-visual-regression-bundle -PrintPrompt")

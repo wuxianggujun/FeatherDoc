@@ -66,8 +66,14 @@ Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$summaryStatus = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_review_status" -f $TaskKey)' `
     -Message "release_visual_metadata_helpers.ps1 should read same-run review_status from the release summary."
 Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$summaryNote = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_review_note" -f $TaskKey)' `
+    -Message "release_visual_metadata_helpers.ps1 should read same-run review_note from the release summary."
+Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$reviewStatus = Get-OptionalPropertyValue -Object $Source -Name "review_status"' `
     -Message "release_visual_metadata_helpers.ps1 should read curated review_status values."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$reviewNote = Get-OptionalPropertyValue -Object $Source -Name "review_note"' `
+    -Message "release_visual_metadata_helpers.ps1 should read curated review_note values."
 Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$verdict = Get-OptionalPropertyValue -Object $Source -Name "review_verdict"' `
     -Message "release_visual_metadata_helpers.ps1 should read curated review_verdict fallback values."
@@ -121,11 +127,17 @@ foreach ($scriptInfo in $metadataScripts) {
         -ExpectedText (('[void]${0}.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the smoke visual review status."
     Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Smoke review note: $(Get-DisplayValue -Value $smokeReviewNote)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the smoke visual review note."
+    Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Fixed-grid verdict: $(Get-DisplayValue -Value $fixedGridVerdict)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the fixed-grid visual verdict."
     Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Fixed-grid review status: $(Get-DisplayValue -Value $fixedGridReviewStatus)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the fixed-grid visual review status."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Fixed-grid review note: $(Get-DisplayValue -Value $fixedGridReviewNote)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the fixed-grid visual review note."
     Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the section page setup visual verdict."
@@ -133,11 +145,17 @@ foreach ($scriptInfo in $metadataScripts) {
         -ExpectedText (('[void]${0}.Add("- Section page setup review status: $(Get-DisplayValue -Value $sectionPageSetupReviewStatus)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the section page setup visual review status."
     Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Section page setup review note: $(Get-DisplayValue -Value $sectionPageSetupReviewNote)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the section page setup visual review note."
+    Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the page number fields visual verdict."
     Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Page number fields review status: $(Get-DisplayValue -Value $pageNumberFieldsReviewStatus)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the page number fields visual review status."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Page number fields review note: $(Get-DisplayValue -Value $pageNumberFieldsReviewNote)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the page number fields visual review note."
 }
 
 $bodyScriptPath = Join-Path $resolvedRepoRoot "scripts\write_release_body_zh.ps1"
@@ -171,6 +189,9 @@ Assert-LineContainsAll -Lines $bodyScriptLines `
 Assert-LineContainsAll -Lines $bodyScriptLines `
     -Fragments @('Smoke review status', 'Get-DisplayValue -Value $smokeReviewStatus') `
     -Message "write_release_body_zh.ps1 should render the smoke visual review status in the full body."
+if ($bodyScriptText -match 'review note') {
+    throw "write_release_body_zh.ps1 should not render free-form visual review notes in public release notes."
+}
 Assert-LineContainsAll -Lines $bodyScriptLines `
     -Fragments @('Fixed-grid verdict', 'Get-DisplayValue -Value $fixedGridVerdict') `
     -Message "write_release_body_zh.ps1 should render the fixed-grid visual verdict in the full body."

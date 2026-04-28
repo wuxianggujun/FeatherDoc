@@ -86,24 +86,28 @@ $gateSummary = [ordered]@{
         task = [ordered]@{ task_dir = $smokeTaskDir }
         review_status = "reviewed"
         review_verdict = "pass"
+        review_note = "smoke contact sheet reviewed"
     }
     fixed_grid = [ordered]@{
         status = "completed"
         task = [ordered]@{ task_dir = $fixedGridTaskDir }
         review_status = "reviewed"
         review_verdict = "fail"
+        review_note = "fixed-grid mismatch documented"
     }
     section_page_setup = [ordered]@{
         status = "completed"
         task = [ordered]@{ task_dir = $sectionPageSetupTaskDir }
         review_status = "reviewed"
         review_verdict = "undetermined"
+        review_note = "section setup needs reviewer decision"
     }
     page_number_fields = [ordered]@{
         status = "completed"
         task = [ordered]@{ task_dir = $pageNumberFieldsTaskDir }
         review_status = "reviewed"
         review_verdict = "pending_manual_review"
+        review_note = "page number fields awaiting reviewer"
     }
     review_tasks = [ordered]@{
         curated_visual_regressions = @(
@@ -113,6 +117,7 @@ $gateSummary = [ordered]@{
                 task = [ordered]@{ task_dir = $curatedBundleTaskDir }
                 review_status = "reviewed"
                 review_verdict = "pass"
+                review_note = "curated visual evidence checked"
             }
         )
     }
@@ -124,6 +129,7 @@ $gateSummary = [ordered]@{
             task = [ordered]@{ task_dir = $curatedBundleTaskDir }
             review_status = "reviewed"
             review_verdict = "pass"
+            review_note = "curated visual evidence checked"
         }
     )
 }
@@ -183,14 +189,19 @@ foreach ($assertion in @(
     )) {
     Assert-Contains -Path $assertion.Path -ExpectedText "Smoke verdict: pass" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Smoke review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Smoke review note: smoke contact sheet reviewed" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Fixed-grid verdict: fail" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Fixed-grid review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Fixed-grid review note: fixed-grid mismatch documented" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Section page setup verdict: undetermined" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Section page setup review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Section page setup review note: section setup needs reviewer decision" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields verdict: pending_manual_review" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields review note: page number fields awaiting reviewer" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback verdict: pass" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback review note: curated visual evidence checked" -Label $assertion.Label
 }
 
 foreach ($fragments in @(
@@ -206,6 +217,19 @@ foreach ($fragments in @(
         @("Curated review verdict fallback review status", "reviewed")
     )) {
     Assert-LineContainsAll -Path $bodyPath -Fragments $fragments -Label "release_body.zh-CN.md"
+}
+
+foreach ($unexpectedNote in @(
+        "smoke contact sheet reviewed",
+        "fixed-grid mismatch documented",
+        "section setup needs reviewer decision",
+        "page number fields awaiting reviewer",
+        "curated visual evidence checked"
+    )) {
+    $bodyContent = Get-Content -Raw -LiteralPath $bodyPath
+    if ($bodyContent -match [regex]::Escape($unexpectedNote)) {
+        throw "release_body.zh-CN.md unexpectedly rendered review note '$unexpectedNote'."
+    }
 }
 
 foreach ($fragment in @(
