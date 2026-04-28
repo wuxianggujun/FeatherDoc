@@ -178,6 +178,12 @@ function Get-VisualTaskVerdict {
         return $summaryVerdict
     }
 
+    $gateFlow = Get-OptionalPropertyObject -Object $GateSummary -Name $TaskKey
+    $gateFlowVerdict = Get-OptionalPropertyValue -Object $gateFlow -Name "review_verdict"
+    if (-not [string]::IsNullOrWhiteSpace($gateFlowVerdict)) {
+        return $gateFlowVerdict
+    }
+
     $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
     $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
     $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
@@ -657,6 +663,8 @@ function Get-ValidationSummaryBullet {
 
 function Get-VisualValidationDetailBullet {
     param(
+        [string]$SmokeVerdict,
+        [string]$FixedGridVerdict,
         [string]$SectionPageSetupVerdict,
         [string]$PageNumberFieldsVerdict,
         [object[]]$CuratedVisualReviewEntries
@@ -664,6 +672,12 @@ function Get-VisualValidationDetailBullet {
 
     $parts = New-Object 'System.Collections.Generic.List[string]'
 
+    if (-not [string]::IsNullOrWhiteSpace($SmokeVerdict)) {
+        [void]$parts.Add('smoke=`{0}`' -f $SmokeVerdict)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($FixedGridVerdict)) {
+        [void]$parts.Add('fixed-grid=`{0}`' -f $FixedGridVerdict)
+    }
     if (-not [string]::IsNullOrWhiteSpace($SectionPageSetupVerdict)) {
         [void]$parts.Add('section page setup=`{0}`' -f $SectionPageSetupVerdict)
     }
@@ -708,6 +722,8 @@ function Get-ShortSummaryBullets {
         [string]$TemplateSchemaManifestEntryCount,
         [string]$TemplateSchemaManifestDriftCount,
         [string]$ProjectTemplateSmokeDirtySchemaBaselineCount,
+        [string]$SmokeVerdict,
+        [string]$FixedGridVerdict,
         [string]$SectionPageSetupVerdict,
         [string]$PageNumberFieldsVerdict,
         [object[]]$CuratedVisualReviewEntries
@@ -793,6 +809,8 @@ function Get-ShortSummaryBullets {
     }
 
     $visualValidationDetailBullet = Get-VisualValidationDetailBullet `
+        -SmokeVerdict $SmokeVerdict `
+        -FixedGridVerdict $FixedGridVerdict `
         -SectionPageSetupVerdict $SectionPageSetupVerdict `
         -PageNumberFieldsVerdict $PageNumberFieldsVerdict `
         -CuratedVisualReviewEntries $CuratedVisualReviewEntries
@@ -984,6 +1002,8 @@ if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -Literal
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
     $readmeGalleryAssetsDir = Get-OptionalPropertyValue -Object $readmeGallery -Name "assets_dir"
 }
+$smokeVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "fixed_grid"
 $sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary)
@@ -1050,6 +1070,8 @@ $shortSummaryBullets = Get-ShortSummaryBullets `
     -TemplateSchemaManifestEntryCount $templateSchemaManifestEntryCount `
     -TemplateSchemaManifestDriftCount $templateSchemaManifestDriftCount `
     -ProjectTemplateSmokeDirtySchemaBaselineCount $projectTemplateSmokeDirtySchemaBaselineCount `
+    -SmokeVerdict $smokeVerdict `
+    -FixedGridVerdict $fixedGridVerdict `
     -SectionPageSetupVerdict $sectionPageSetupVerdict `
     -PageNumberFieldsVerdict $pageNumberFieldsVerdict `
     -CuratedVisualReviewEntries $curatedVisualReviewEntries
@@ -1089,6 +1111,8 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- install + find_package smoke：$($summary.steps.install_smoke.status)")
 [void]$lines.Add("- Word visual release gate：$($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict：$(if ($visualVerdict) { $visualVerdict } else { 'pending_manual_review' })")
+[void]$lines.Add("- Smoke verdict：$(Get-DisplayValue -Value $smokeVerdict)")
+[void]$lines.Add("- Fixed-grid verdict：$(Get-DisplayValue -Value $fixedGridVerdict)")
 [void]$lines.Add("- Section page setup verdict：$(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$lines.Add("- Page number fields verdict：$(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
 [void]$lines.Add("- Curated visual regression bundles：$($curatedVisualReviewEntries.Count)")

@@ -145,6 +145,8 @@ $summary = [ordered]@{
             summary_json = $gateSummaryPath
             final_review = $gateFinalReviewPath
             superseded_review_tasks_report = $supersededReviewTasksReportPath
+            smoke_verdict = "pass"
+            fixed_grid_verdict = "undetermined"
             curated_visual_regressions = @(
                 [ordered]@{
                     id = $curatedBundleId
@@ -182,10 +184,12 @@ Assert-Contains -Path $shortPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'rel
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\VISUAL_VALIDATION_QUICKSTART.zh-CN.md' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\RELEASE_ARTIFACT_TEMPLATE.zh-CN.md' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\visual-validation' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Smoke verdict：pass' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText 'Fixed-grid verdict：undetermined' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Section page setup verdict：pass' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Page number fields verdict：pending_manual_review' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'Template table CLI selector verdict：pass' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $shortPath -ExpectedText 'Word visual gate 细分结论：section page setup=`pass`，page number fields=`pending_manual_review`，Template table CLI selector=`pass`。' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $shortPath -ExpectedText 'Word visual gate 细分结论：smoke=`pass`，fixed-grid=`undetermined`，section page setup=`pass`，page number fields=`pending_manual_review`，Template table CLI selector=`pass`。' -Label 'release_summary.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $installDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $resolvedWorkingDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText 'draft' -Label 'release_body.zh-CN.md'
