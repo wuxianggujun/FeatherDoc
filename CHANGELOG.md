@@ -81,6 +81,7 @@ performance.
 
 ### Tests
 
+- Added `sync_latest_visual_review_verdict_unsupported_source_kind_test.ps1` to verify unsupported latest-task `source.kind` values fail clearly before gate inference or audit artifacts are written.
 - Added `sync_latest_visual_review_verdict_missing_source_path_test.ps1` to verify latest-task pointers without `source.path` fail clearly before gate inference or audit artifacts are written.
 - Stabilized `sync_latest_visual_review_verdict*` regressions with isolated short `output/` run directories so repeated CTest runs stay within the 60-second test budget.
 - Added `sync_latest_visual_review_verdict_conflicting_gates_test.ps1` to ensure mixed latest-task pointers from different visual gates fail before mutating summaries or audit artifacts.

@@ -447,6 +447,21 @@ if(WIN32)
 
         add_test(
             NAME
+            sync_latest_visual_review_verdict_unsupported_source_kind
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_latest_visual_review_verdict_unsupported_source_kind_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_unsupported_source_kind
+        )
+
+        add_test(
+            NAME
             find_superseded_review_tasks
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}
