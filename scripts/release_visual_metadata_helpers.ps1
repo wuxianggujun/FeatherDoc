@@ -24,6 +24,22 @@ function Get-VisualTaskVerdict {
     return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
 }
 
+function Get-VisualTaskReviewStatus {
+    param(
+        $VisualGateSummary,
+        $GateSummary,
+        [string]$TaskKey
+    )
+
+    $summaryStatus = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_review_status" -f $TaskKey)
+    if (-not [string]::IsNullOrWhiteSpace($summaryStatus)) {
+        return $summaryStatus
+    }
+
+    $gateFlow = Get-OptionalPropertyObject -Object $GateSummary -Name $TaskKey
+    return Get-OptionalPropertyValue -Object $gateFlow -Name "review_status"
+}
+
 function Get-OptionalPropertyArray {
     param(
         $Object,
@@ -70,6 +86,7 @@ function Get-OrCreateCuratedVisualReviewEntry {
             task_dir = ""
             review_result_path = ""
             final_review_path = ""
+            review_status = ""
         }
         [void]$EntryOrder.Add($key)
     }
@@ -108,6 +125,11 @@ function Merge-CuratedVisualReviewEntry {
     }
     if (-not [string]::IsNullOrWhiteSpace($verdict)) {
         $Entry.verdict = $verdict
+    }
+
+    $reviewStatus = Get-OptionalPropertyValue -Object $Source -Name "review_status"
+    if (-not [string]::IsNullOrWhiteSpace($reviewStatus)) {
+        $Entry.review_status = $reviewStatus
     }
 
     $taskInfo = Get-OptionalPropertyObject -Object $Source -Name "task"

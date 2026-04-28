@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added release metadata bundle review-status output for smoke, fixed-grid, section/page setup, page-number fields, and curated visual regression verdicts.
 - Added smoke and fixed-grid seeded visual verdicts to release-preflight `release_handoff.md` so the release handoff matches the rest of the metadata bundle.
 - Added smoke and fixed-grid seeded visual verdicts to release-preflight `REVIEWER_CHECKLIST.md` so human review prompts match the rest of the release metadata bundle.
 - Added smoke and fixed-grid seeded visual verdicts to release-preflight `START_HERE.md` and `ARTIFACT_GUIDE.md` so metadata entry points match the full release-note bundle.
@@ -76,6 +77,7 @@ performance.
 
 ### Tests
 
+- Extended release note bundle regression coverage to verify visual review-status metadata is rendered beside verdicts.
 - Updated release visual verdict metadata consistency coverage to pin the shared helper and its generated bundle behavior.
 - Added release note bundle fallback coverage for visual gate `review_verdict` metadata across handoff, guide, checklist, start-here, and Chinese release-note outputs.
 - Added release visual verdict metadata consistency coverage so release handoff, artifact guides, reviewer checklist, release notes, and preflight summaries keep smoke, fixed-grid, section/page setup, page-number, and curated visual verdict fields aligned.

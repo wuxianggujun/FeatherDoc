@@ -182,18 +182,28 @@ foreach ($assertion in @(
         @{ Path = $startHerePath; Label = "START_HERE.md" }
     )) {
     Assert-Contains -Path $assertion.Path -ExpectedText "Smoke verdict: pass" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Smoke review status: reviewed" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Fixed-grid verdict: fail" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Fixed-grid review status: reviewed" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Section page setup verdict: undetermined" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Section page setup review status: reviewed" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields verdict: pending_manual_review" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields review status: reviewed" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback verdict: pass" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback review status: reviewed" -Label $assertion.Label
 }
 
 foreach ($fragments in @(
         @("Smoke verdict", "pass"),
+        @("Smoke review status", "reviewed"),
         @("Fixed-grid verdict", "fail"),
+        @("Fixed-grid review status", "reviewed"),
         @("Section page setup verdict", "undetermined"),
+        @("Section page setup review status", "reviewed"),
         @("Page number fields verdict", "pending_manual_review"),
-        @("Curated review verdict fallback verdict", "pass")
+        @("Page number fields review status", "reviewed"),
+        @("Curated review verdict fallback verdict", "pass"),
+        @("Curated review verdict fallback review status", "reviewed")
     )) {
     Assert-LineContainsAll -Path $bodyPath -Fragments $fragments -Label "release_body.zh-CN.md"
 }

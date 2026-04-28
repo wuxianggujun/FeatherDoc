@@ -63,6 +63,12 @@ Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$gateFlowVerdict = Get-OptionalPropertyValue -Object $gateFlow -Name "review_verdict"' `
     -Message "release_visual_metadata_helpers.ps1 should read same-run review_verdict from the visual gate summary."
 Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$summaryStatus = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_review_status" -f $TaskKey)' `
+    -Message "release_visual_metadata_helpers.ps1 should read same-run review_status from the release summary."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$reviewStatus = Get-OptionalPropertyValue -Object $Source -Name "review_status"' `
+    -Message "release_visual_metadata_helpers.ps1 should read curated review_status values."
+Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$verdict = Get-OptionalPropertyValue -Object $Source -Name "review_verdict"' `
     -Message "release_visual_metadata_helpers.ps1 should read curated review_verdict fallback values."
 Assert-ContainsText -Text $visualMetadataHelperText `
@@ -112,14 +118,26 @@ foreach ($scriptInfo in $metadataScripts) {
         -ExpectedText (('[void]${0}.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the smoke visual verdict."
     Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the smoke visual review status."
+    Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Fixed-grid verdict: $(Get-DisplayValue -Value $fixedGridVerdict)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the fixed-grid visual verdict."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Fixed-grid review status: $(Get-DisplayValue -Value $fixedGridReviewStatus)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the fixed-grid visual review status."
     Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the section page setup visual verdict."
     Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Section page setup review status: $(Get-DisplayValue -Value $sectionPageSetupReviewStatus)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the section page setup visual review status."
+    Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render the page number fields visual verdict."
+    Assert-ContainsText -Text $scriptText `
+        -ExpectedText (('[void]${0}.Add("- Page number fields review status: $(Get-DisplayValue -Value $pageNumberFieldsReviewStatus)")' -f $scriptInfo.LinesVariable)) `
+        -Message "$label should render the page number fields visual review status."
 }
 
 $bodyScriptPath = Join-Path $resolvedRepoRoot "scripts\write_release_body_zh.ps1"
@@ -151,14 +169,26 @@ Assert-LineContainsAll -Lines $bodyScriptLines `
     -Fragments @('Smoke verdict', 'Get-DisplayValue -Value $smokeVerdict') `
     -Message "write_release_body_zh.ps1 should render the smoke visual verdict in the full body."
 Assert-LineContainsAll -Lines $bodyScriptLines `
+    -Fragments @('Smoke review status', 'Get-DisplayValue -Value $smokeReviewStatus') `
+    -Message "write_release_body_zh.ps1 should render the smoke visual review status in the full body."
+Assert-LineContainsAll -Lines $bodyScriptLines `
     -Fragments @('Fixed-grid verdict', 'Get-DisplayValue -Value $fixedGridVerdict') `
     -Message "write_release_body_zh.ps1 should render the fixed-grid visual verdict in the full body."
+Assert-LineContainsAll -Lines $bodyScriptLines `
+    -Fragments @('Fixed-grid review status', 'Get-DisplayValue -Value $fixedGridReviewStatus') `
+    -Message "write_release_body_zh.ps1 should render the fixed-grid visual review status in the full body."
 Assert-LineContainsAll -Lines $bodyScriptLines `
     -Fragments @('Section page setup verdict', 'Get-DisplayValue -Value $sectionPageSetupVerdict') `
     -Message "write_release_body_zh.ps1 should render the section page setup visual verdict in the full body."
 Assert-LineContainsAll -Lines $bodyScriptLines `
+    -Fragments @('Section page setup review status', 'Get-DisplayValue -Value $sectionPageSetupReviewStatus') `
+    -Message "write_release_body_zh.ps1 should render the section page setup visual review status in the full body."
+Assert-LineContainsAll -Lines $bodyScriptLines `
     -Fragments @('Page number fields verdict', 'Get-DisplayValue -Value $pageNumberFieldsVerdict') `
     -Message "write_release_body_zh.ps1 should render the page number fields visual verdict in the full body."
+Assert-LineContainsAll -Lines $bodyScriptLines `
+    -Fragments @('Page number fields review status', 'Get-DisplayValue -Value $pageNumberFieldsReviewStatus') `
+    -Message "write_release_body_zh.ps1 should render the page number fields visual review status in the full body."
 
 $releasePreflightPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
 Assert-ScriptParses -Path $releasePreflightPath

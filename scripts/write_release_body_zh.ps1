@@ -892,6 +892,10 @@ $smokeVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_g
 $fixedGridVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "fixed_grid"
 $sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary)
 
 $installedDataDir = ""
@@ -998,12 +1002,17 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- Word visual release gate：$($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict：$(if ($visualVerdict) { $visualVerdict } else { 'pending_manual_review' })")
 [void]$lines.Add("- Smoke verdict：$(Get-DisplayValue -Value $smokeVerdict)")
+[void]$lines.Add("- Smoke review status：$(Get-DisplayValue -Value $smokeReviewStatus)")
 [void]$lines.Add("- Fixed-grid verdict：$(Get-DisplayValue -Value $fixedGridVerdict)")
+[void]$lines.Add("- Fixed-grid review status：$(Get-DisplayValue -Value $fixedGridReviewStatus)")
 [void]$lines.Add("- Section page setup verdict：$(Get-DisplayValue -Value $sectionPageSetupVerdict)")
+[void]$lines.Add("- Section page setup review status：$(Get-DisplayValue -Value $sectionPageSetupReviewStatus)")
 [void]$lines.Add("- Page number fields verdict：$(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
+[void]$lines.Add("- Page number fields review status：$(Get-DisplayValue -Value $pageNumberFieldsReviewStatus)")
 [void]$lines.Add("- Curated visual regression bundles：$($curatedVisualReviewEntries.Count)")
 foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
     [void]$lines.Add("- $($curatedVisualReview.label) verdict：$(Get-DisplayValue -Value $curatedVisualReview.verdict)")
+    [void]$lines.Add("- $($curatedVisualReview.label) review status：$(Get-DisplayValue -Value $curatedVisualReview.review_status)")
 }
 [void]$lines.Add("- README 展示图刷新：$(if ($readmeGalleryStatus) { $readmeGalleryStatus } else { 'unknown' })")
 [void]$lines.Add("- 说明：$validationNote")
