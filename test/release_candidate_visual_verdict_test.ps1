@@ -82,11 +82,20 @@ foreach ($prefix in @(
 Assert-ContainsText -Text $scriptText -ExpectedText '$summary.steps.visual_gate.curated_visual_regressions = $curatedVisualReviewEntries' `
     -Message "Release summary should capture curated visual review verdict metadata."
 
+Assert-ContainsText -Text $scriptText -ExpectedText '$summary.steps.visual_gate.review_task_summary = $reviewTaskSummary' `
+    -Message "Release summary should capture visual gate review task counts."
+
 Assert-ContainsText -Text $scriptText -ExpectedText 'if ($Object -is [System.Collections.IDictionary] -and $Object.Contains($Name))' `
     -Message "Optional property lookup should support the release summary dictionary used while rendering final_review.md."
 
+Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-VisualGateReviewTaskSummaryLine' `
+    -Message "Release preflight final_review.md should render visual review task counts."
+
 Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-VisualGateReviewSummaryMarkdown' `
     -Message "Release preflight final_review.md should render visual review verdict metadata."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'Review task count: {0} total ({1} standard, {2} curated)' `
+    -Message "Release preflight final_review.md should format visual review task counts."
 
 Assert-ContainsText -Text $scriptText -ExpectedText '## Visual review verdicts' `
     -Message "Release preflight final_review.md should include a visual review verdicts section when seeded metadata exists."
@@ -96,6 +105,9 @@ Assert-ContainsText -Text $scriptText -ExpectedText '- {0}: verdict={1}, review_
 
 Assert-ContainsText -Text $scriptText -ExpectedText '- Curated - {0}: verdict={1}, review_status={2}, reviewed_at={3}, review_method={4}' `
     -Message "Release preflight final_review.md should format curated visual review provenance."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '$visualGateReviewTaskSummaryLine' `
+    -Message "Release preflight final_review.md should embed the visual review task counts."
 
 Assert-ContainsText -Text $scriptText -ExpectedText '$visualGateReviewSummary' `
     -Message "Release preflight final_review.md should embed the visual review verdict summary."
@@ -112,6 +124,7 @@ $functionNames = @(
     "Get-OptionalPropertyValue",
     "Convert-ReviewTimestamp",
     "Get-ReleaseCandidateDisplayValue",
+    "Get-VisualGateReviewTaskSummaryLine",
     "Get-VisualGateReviewSummaryMarkdown"
 )
 $functionAsts = $scriptAst.FindAll({
@@ -127,6 +140,16 @@ foreach ($functionName in $functionNames) {
 
     Invoke-Expression $functionAst.Extent.Text
 }
+
+$reviewTaskSummaryLine = Get-VisualGateReviewTaskSummaryLine -VisualGateStep ([ordered]@{
+        review_task_summary = [ordered]@{
+            total_count = 3
+            standard_count = 2
+            curated_count = 1
+        }
+    })
+Assert-ContainsText -Text $reviewTaskSummaryLine -ExpectedText "- Review task count: 3 total (2 standard, 1 curated)" `
+    -Message "Rendered review task summary line should include total, standard, and curated counts."
 
 $reviewMarkdown = Get-VisualGateReviewSummaryMarkdown -RepoRoot $resolvedRepoRoot -VisualGateStep ([ordered]@{
         section_page_setup_verdict = "pass"

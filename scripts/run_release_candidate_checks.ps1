@@ -464,6 +464,20 @@ function Get-ReleaseCandidateDisplayValue {
     return [string]$Value
 }
 
+function Get-VisualGateReviewTaskSummaryLine {
+    param([AllowNull()]$VisualGateStep)
+
+    $reviewTaskSummary = Get-OptionalPropertyValue -Object $VisualGateStep -Name "review_task_summary"
+    if ($null -eq $reviewTaskSummary) {
+        return ""
+    }
+
+    return "- Review task count: {0} total ({1} standard, {2} curated)" -f `
+        (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "total_count"),
+        (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "standard_count"),
+        (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "curated_count")
+}
+
 function Get-VisualGateReviewSummaryMarkdown {
     param(
         [string]$RepoRoot,
@@ -1514,6 +1528,10 @@ try {
             $summary.visual_verdict = [string]$gateVisualVerdict
             $summary.steps.visual_gate.visual_verdict = [string]$gateVisualVerdict
         }
+        $reviewTaskSummary = Get-OptionalPropertyValue -Object $gateSummary -Name "review_task_summary"
+        if ($null -ne $reviewTaskSummary) {
+            $summary.steps.visual_gate.review_task_summary = $reviewTaskSummary
+        }
         Add-GateFlowReviewSummary -Target $summary.steps.visual_gate -Prefix "smoke" `
             -FlowInfo (Get-OptionalPropertyValue -Object $gateSummary -Name "smoke")
         Add-GateFlowReviewSummary -Target $summary.steps.visual_gate -Prefix "fixed_grid" `
@@ -1584,6 +1602,8 @@ try {
             "- README gallery refresh: $($summary.readme_gallery.status)"
         }
     }
+    $visualGateReviewTaskSummaryLine = Get-VisualGateReviewTaskSummaryLine `
+        -VisualGateStep $summary.steps.visual_gate
     $visualGateReviewSummary = Get-VisualGateReviewSummaryMarkdown -RepoRoot $repoRoot `
         -VisualGateStep $summary.steps.visual_gate
 
@@ -1608,6 +1628,7 @@ try {
 - Project template smoke: $($summary.steps.project_template_smoke.status)
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
+$visualGateReviewTaskSummaryLine
 $readmeGalleryStatusLine
 $visualGateReviewSummary
 ## Key outputs
