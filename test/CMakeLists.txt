@@ -387,6 +387,21 @@ if(WIN32)
 
         add_test(
             NAME
+            sync_latest_visual_review_verdict_uses_latest_release_summary_candidate
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_latest_visual_review_verdict_uses_latest_release_summary_candidate_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_uses_latest_release_summary_candidate
+        )
+
+        add_test(
+            NAME
             sync_latest_visual_review_verdict_curated_visual_bundle
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}
