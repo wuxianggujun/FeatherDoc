@@ -234,6 +234,9 @@ function Merge-CuratedVisualReviewEntry {
     }
 
     $verdict = Get-OptionalPropertyValue -Object $Source -Name "verdict"
+    if ([string]::IsNullOrWhiteSpace($verdict)) {
+        $verdict = Get-OptionalPropertyValue -Object $Source -Name "review_verdict"
+    }
     if (-not [string]::IsNullOrWhiteSpace($verdict)) {
         $Entry.verdict = $verdict
     }

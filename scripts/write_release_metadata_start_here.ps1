@@ -231,6 +231,9 @@ function Get-CuratedVisualReviewEntries {
             }
 
             $verdict = Get-OptionalPropertyValue -Object $source -Name "verdict"
+            if ([string]::IsNullOrWhiteSpace($verdict)) {
+                $verdict = Get-OptionalPropertyValue -Object $source -Name "review_verdict"
+            }
             if (-not [string]::IsNullOrWhiteSpace($verdict)) {
                 $entryMap[$key].verdict = $verdict
             }

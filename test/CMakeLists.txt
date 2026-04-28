@@ -59,6 +59,21 @@ if(WIN32)
 
         add_test(
             NAME
+            release_note_bundle_visual_verdict_fallback
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_note_bundle_visual_verdict_fallback_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_note_bundle_visual_verdict_fallback
+        )
+
+        add_test(
+            NAME
             package_release_assets_safety
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}

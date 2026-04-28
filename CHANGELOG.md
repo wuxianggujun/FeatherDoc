@@ -63,6 +63,7 @@ performance.
 
 ### Changed
 
+- Updated release metadata bundle writers so curated visual regression entries also use same-run `review_verdict` values when no legacy `verdict` field is present.
 - Updated template schema patch generation to preserve slot source selectors in generated `remove_slots` and `rename_slots` entries, keeping content-control and bookmark-oriented schemas round-trippable.
 
 - Updated README, Chinese README, Sphinx docs, current-direction notes, and
@@ -74,6 +75,7 @@ performance.
 
 ### Tests
 
+- Added release note bundle fallback coverage for visual gate `review_verdict` metadata across handoff, guide, checklist, start-here, and Chinese release-note outputs.
 - Added release visual verdict metadata consistency coverage so release handoff, artifact guides, reviewer checklist, release notes, and preflight summaries keep smoke, fixed-grid, section/page setup, page-number, and curated visual verdict fields aligned.
 - Added CLI regression coverage for `preview-template-schema-patch --output-patch`, including patch-file copy output, left/right schema generated output, and JSON `output_patch_path` reporting.
 - Added unit coverage for high-level template schema mutation helpers, including preview-only summaries, target replacement, slot occurrence updates, source-aware slot rename, and target/slot removal.
