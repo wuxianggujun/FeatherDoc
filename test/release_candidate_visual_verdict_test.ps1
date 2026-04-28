@@ -91,11 +91,11 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-VisualGateRevi
 Assert-ContainsText -Text $scriptText -ExpectedText '## Visual review verdicts' `
     -Message "Release preflight final_review.md should include a visual review verdicts section when seeded metadata exists."
 
-Assert-ContainsText -Text $scriptText -ExpectedText '- {0}: verdict={1}, review_status={2}' `
-    -Message "Release preflight final_review.md should format standard flow review verdicts."
+Assert-ContainsText -Text $scriptText -ExpectedText '- {0}: verdict={1}, review_status={2}, reviewed_at={3}, review_method={4}' `
+    -Message "Release preflight final_review.md should format standard flow review provenance."
 
-Assert-ContainsText -Text $scriptText -ExpectedText '- Curated - {0}: verdict={1}, review_status={2}' `
-    -Message "Release preflight final_review.md should format curated visual review verdicts."
+Assert-ContainsText -Text $scriptText -ExpectedText '- Curated - {0}: verdict={1}, review_status={2}, reviewed_at={3}, review_method={4}' `
+    -Message "Release preflight final_review.md should format curated visual review provenance."
 
 Assert-ContainsText -Text $scriptText -ExpectedText '$visualGateReviewSummary' `
     -Message "Release preflight final_review.md should embed the visual review verdict summary."
@@ -110,6 +110,7 @@ if ($parseErrors.Count -gt 0) {
 $functionNames = @(
     "Get-RepoRelativePath",
     "Get-OptionalPropertyValue",
+    "Convert-ReviewTimestamp",
     "Get-ReleaseCandidateDisplayValue",
     "Get-VisualGateReviewSummaryMarkdown"
 )
@@ -130,24 +131,28 @@ foreach ($functionName in $functionNames) {
 $reviewMarkdown = Get-VisualGateReviewSummaryMarkdown -RepoRoot $resolvedRepoRoot -VisualGateStep ([ordered]@{
         section_page_setup_verdict = "pass"
         section_page_setup_review_status = "reviewed"
+        section_page_setup_reviewed_at = "2026-04-28T13:00:00"
+        section_page_setup_review_method = "operator_supplied"
         section_page_setup_task_dir = Join-Path $resolvedRepoRoot "output\section-task"
         curated_visual_regressions = @(
             [ordered]@{
                 label = "Bookmark block visibility"
                 verdict = "pass"
                 review_status = "reviewed"
+                reviewed_at = "2026-04-28T13:05:00"
+                review_method = "operator_supplied"
                 task_dir = Join-Path $resolvedRepoRoot "output\curated-task"
             }
         )
     })
 Assert-ContainsText -Text $reviewMarkdown -ExpectedText "## Visual review verdicts" `
     -Message "Rendered review markdown should include the visual review verdicts heading."
-Assert-ContainsText -Text $reviewMarkdown -ExpectedText "- Section page setup: verdict=pass, review_status=reviewed" `
-    -Message "Rendered review markdown should include seeded standard flow verdicts."
+Assert-ContainsText -Text $reviewMarkdown -ExpectedText "- Section page setup: verdict=pass, review_status=reviewed, reviewed_at=2026-04-28T13:00:00, review_method=operator_supplied" `
+    -Message "Rendered review markdown should include seeded standard flow review provenance."
 Assert-ContainsText -Text $reviewMarkdown -ExpectedText "task=.\output\section-task" `
     -Message "Rendered review markdown should include repo-relative standard flow task paths."
-Assert-ContainsText -Text $reviewMarkdown -ExpectedText "- Curated - Bookmark block visibility: verdict=pass, review_status=reviewed" `
-    -Message "Rendered review markdown should include seeded curated verdicts."
+Assert-ContainsText -Text $reviewMarkdown -ExpectedText "- Curated - Bookmark block visibility: verdict=pass, review_status=reviewed, reviewed_at=2026-04-28T13:05:00, review_method=operator_supplied" `
+    -Message "Rendered review markdown should include seeded curated review provenance."
 Assert-ContainsText -Text $reviewMarkdown -ExpectedText "task=.\output\curated-task" `
     -Message "Rendered review markdown should include repo-relative curated task paths."
 

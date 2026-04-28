@@ -33,7 +33,8 @@ function Assert-Contains {
 function New-TaskReviewSeed {
     param(
         [string]$Root,
-        [string]$TaskId
+        [string]$TaskId,
+        [string]$ReviewedAt
     )
 
     $reportDir = Join-Path $Root "report"
@@ -43,6 +44,8 @@ function New-TaskReviewSeed {
         task_id = $TaskId
         status = "reviewed"
         verdict = "pass"
+        reviewed_at = $ReviewedAt
+        review_method = "operator_supplied"
         findings = @()
         notes = @("verified")
     } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath (Join-Path $reportDir "review_result.json") -Encoding UTF8
@@ -66,10 +69,10 @@ $documentTaskDir = Join-Path $tasksRoot "document-task"
 $fixedGridTaskDir = Join-Path $tasksRoot "fixed-grid-task"
 $sectionPageSetupTaskDir = Join-Path $tasksRoot "section-page-setup-task"
 $pageNumberFieldsTaskDir = Join-Path $tasksRoot "page-number-fields-task"
-New-TaskReviewSeed -Root $documentTaskDir -TaskId "document-task"
-New-TaskReviewSeed -Root $fixedGridTaskDir -TaskId "fixed-grid-task"
-New-TaskReviewSeed -Root $sectionPageSetupTaskDir -TaskId "section-page-setup-task"
-New-TaskReviewSeed -Root $pageNumberFieldsTaskDir -TaskId "page-number-fields-task"
+New-TaskReviewSeed -Root $documentTaskDir -TaskId "document-task" -ReviewedAt "2026-04-14T12:31:00"
+New-TaskReviewSeed -Root $fixedGridTaskDir -TaskId "fixed-grid-task" -ReviewedAt "2026-04-14T12:32:00"
+New-TaskReviewSeed -Root $sectionPageSetupTaskDir -TaskId "section-page-setup-task" -ReviewedAt "2026-04-14T12:33:00"
+New-TaskReviewSeed -Root $pageNumberFieldsTaskDir -TaskId "page-number-fields-task" -ReviewedAt "2026-04-14T12:34:00"
 
 $gateSummaryPath = Join-Path $gateReportDir "gate_summary.json"
 $releaseSummaryPath = Join-Path $releaseReportDir "summary.json"
@@ -169,9 +172,19 @@ Assert-True -Condition ($gateSummary.manual_review.tasks.page_number_fields.verd
     -Message "Gate summary manual review is missing the page number fields verdict."
 Assert-True -Condition ($releaseSummary.steps.visual_gate.page_number_fields_verdict -eq "pass") `
     -Message "Release summary did not record page_number_fields_verdict=pass."
+Assert-True -Condition ($gateSummary.page_number_fields.review_method -eq "operator_supplied") `
+    -Message "Gate summary did not record page number fields review_method."
+Assert-True -Condition ($releaseSummary.steps.visual_gate.page_number_fields_review_method -eq "operator_supplied") `
+    -Message "Release summary did not record page_number_fields_review_method."
+Assert-Contains -Path $gateSummaryPath -ExpectedText "2026-04-14T12:34:00" -Label "gate_summary.json"
+Assert-Contains -Path $releaseSummaryPath -ExpectedText "2026-04-14T12:34:00" -Label "summary.json"
 
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Page number fields flow" -Label "gate_final_review.md"
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Page number fields verdict: pass" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Page number fields reviewed at: 2026-04-14T12:34:00" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Page number fields review method: operator_supplied" -Label "gate_final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Visual verdict: pass" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "## Visual review provenance" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Page number fields: verdict=pass, review_status=reviewed, reviewed_at=2026-04-14T12:34:00, review_method=operator_supplied" -Label "release final_review.md"
 
 Write-Host "Sync visual review verdict page number fields regression passed."

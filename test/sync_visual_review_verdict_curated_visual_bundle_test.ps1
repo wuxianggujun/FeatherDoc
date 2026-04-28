@@ -33,7 +33,8 @@ function Assert-Contains {
 function New-TaskReviewSeed {
     param(
         [string]$Root,
-        [string]$TaskId
+        [string]$TaskId,
+        [string]$ReviewedAt
     )
 
     $reportDir = Join-Path $Root "report"
@@ -43,6 +44,8 @@ function New-TaskReviewSeed {
         task_id = $TaskId
         status = "reviewed"
         verdict = "pass"
+        reviewed_at = $ReviewedAt
+        review_method = "operator_supplied"
         findings = @()
         notes = @("verified")
     } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath (Join-Path $reportDir "review_result.json") -Encoding UTF8
@@ -74,7 +77,7 @@ New-Item -ItemType Directory -Path $bundleReportDir -Force | Out-Null
 } | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $bundleSummaryPath -Encoding UTF8
 
 $taskDir = Join-Path $tasksRoot "$bundleId-task"
-New-TaskReviewSeed -Root $taskDir -TaskId "$bundleId-task"
+New-TaskReviewSeed -Root $taskDir -TaskId "$bundleId-task" -ReviewedAt "2026-04-21T21:35:00"
 
 $gateSummaryPath = Join-Path $gateReportDir "gate_summary.json"
 $releaseSummaryPath = Join-Path $releaseReportDir "summary.json"
@@ -163,9 +166,19 @@ Assert-True -Condition ($curatedReleaseReviews[0].id -eq $bundleId) `
     -Message "Release summary visual_gate did not record the curated bundle id."
 Assert-True -Condition ($curatedReleaseReviews[0].verdict -eq "pass") `
     -Message "Release summary visual_gate did not record the curated bundle verdict."
+Assert-True -Condition ($curatedManualReviews[0].review_method -eq "operator_supplied") `
+    -Message "Gate summary manual_review did not record the curated review_method."
+Assert-True -Condition ($curatedReleaseReviews[0].review_method -eq "operator_supplied") `
+    -Message "Release summary visual_gate did not record the curated review_method."
+Assert-Contains -Path $gateSummaryPath -ExpectedText "2026-04-21T21:35:00" -Label "gate_summary.json"
+Assert-Contains -Path $releaseSummaryPath -ExpectedText "2026-04-21T21:35:00" -Label "summary.json"
 
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "$bundleLabel flow: completed" -Label "gate_final_review.md"
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "$bundleLabel verdict: pass" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "$bundleLabel reviewed at: 2026-04-21T21:35:00" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "$bundleLabel review method: operator_supplied" -Label "gate_final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Visual verdict: pass" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "## Visual review provenance" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Curated - $($bundleLabel): verdict=pass, review_status=reviewed, reviewed_at=2026-04-21T21:35:00, review_method=operator_supplied" -Label "release final_review.md"
 
 Write-Host "Sync visual review verdict curated visual bundle regression passed."

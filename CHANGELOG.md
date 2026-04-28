@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added visual review provenance sync for release gate and release-candidate final reviews so `reviewed_at` / `review_method` metadata survives verdict refreshes.
 - Added release handoff, artifact guide, start-here, and reviewer checklist visual review provenance output for `reviewed_at` / `review_method` metadata while keeping those internal sign-off details out of public release notes.
 - Added release handoff, artifact guide, start-here, and reviewer checklist review-note output for visual gate sign-off metadata while keeping free-form notes out of public release notes.
 - Added release metadata bundle review-status output for smoke, fixed-grid, section/page setup, page-number fields, and curated visual regression verdicts.
@@ -79,6 +80,7 @@ performance.
 
 ### Tests
 
+- Extended visual verdict sync regression coverage to verify review provenance is copied into gate summaries, release summaries, and final reviews.
 - Extended release metadata bundle regression coverage to verify visual review provenance is emitted only in handoff-oriented artifacts.
 - Extended release metadata bundle regression coverage to verify visual review notes are emitted only in handoff-oriented artifacts.
 - Extended release note bundle regression coverage to verify visual review-status metadata is rendered beside verdicts.

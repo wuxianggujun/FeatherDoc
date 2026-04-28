@@ -372,6 +372,20 @@ function Set-OptionalSummaryValue {
     }
 }
 
+function Convert-ReviewTimestamp {
+    param([AllowNull()]$Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
 function Add-OptionalVisualReviewArguments {
     param(
         [object[]]$Arguments,
@@ -401,8 +415,14 @@ function Add-GateFlowReviewSummary {
 
     $reviewStatus = Get-OptionalPropertyValue -Object $FlowInfo -Name "review_status"
     $reviewVerdict = Get-OptionalPropertyValue -Object $FlowInfo -Name "review_verdict"
+    $reviewedAt = Convert-ReviewTimestamp -Value (Get-OptionalPropertyValue -Object $FlowInfo -Name "reviewed_at")
+    $reviewMethod = Get-OptionalPropertyValue -Object $FlowInfo -Name "review_method"
+    $reviewNote = Get-OptionalPropertyValue -Object $FlowInfo -Name "review_note"
     Set-OptionalSummaryValue -Target $Target -Name ("{0}_review_status" -f $Prefix) -Value $reviewStatus
     Set-OptionalSummaryValue -Target $Target -Name ("{0}_verdict" -f $Prefix) -Value $reviewVerdict
+    Set-OptionalSummaryValue -Target $Target -Name ("{0}_reviewed_at" -f $Prefix) -Value $reviewedAt
+    Set-OptionalSummaryValue -Target $Target -Name ("{0}_review_method" -f $Prefix) -Value $reviewMethod
+    Set-OptionalSummaryValue -Target $Target -Name ("{0}_review_note" -f $Prefix) -Value $reviewNote
 }
 
 function Get-CuratedVisualReviewSummaryEntries {
@@ -419,6 +439,9 @@ function Get-CuratedVisualReviewSummaryEntries {
                 label = Get-OptionalPropertyValue -Object $_ -Name "label"
                 verdict = Get-OptionalPropertyValue -Object $_ -Name "review_verdict"
                 review_status = Get-OptionalPropertyValue -Object $_ -Name "review_status"
+                reviewed_at = Convert-ReviewTimestamp -Value (Get-OptionalPropertyValue -Object $_ -Name "reviewed_at")
+                review_method = Get-OptionalPropertyValue -Object $_ -Name "review_method"
+                review_note = Get-OptionalPropertyValue -Object $_ -Name "review_note"
                 task_id = Get-OptionalPropertyValue -Object $taskInfo -Name "task_id"
                 task_dir = Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
                 review_result_path = Get-OptionalPropertyValue -Object $taskInfo -Name "review_result_path"
@@ -458,14 +481,21 @@ function Get-VisualGateReviewSummaryMarkdown {
     foreach ($flow in $standardFlows) {
         $verdict = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_verdict" -f $flow.Prefix)
         $reviewStatus = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_review_status" -f $flow.Prefix)
-        if ([string]::IsNullOrWhiteSpace([string]$verdict) -and [string]::IsNullOrWhiteSpace([string]$reviewStatus)) {
+        $reviewedAt = Convert-ReviewTimestamp -Value (Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_reviewed_at" -f $flow.Prefix))
+        $reviewMethod = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_review_method" -f $flow.Prefix)
+        if ([string]::IsNullOrWhiteSpace([string]$verdict) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewStatus) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewedAt) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewMethod)) {
             continue
         }
 
-        $line = "- {0}: verdict={1}, review_status={2}" -f `
+        $line = "- {0}: verdict={1}, review_status={2}, reviewed_at={3}, review_method={4}" -f `
             $flow.Label,
             (Get-ReleaseCandidateDisplayValue -Value $verdict),
-            (Get-ReleaseCandidateDisplayValue -Value $reviewStatus)
+            (Get-ReleaseCandidateDisplayValue -Value $reviewStatus),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewedAt),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewMethod)
         $taskDir = Get-OptionalPropertyValue -Object $VisualGateStep -Name $flow.TaskProperty
         if (-not [string]::IsNullOrWhiteSpace([string]$taskDir)) {
             $line += ", task=$(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $taskDir)"
@@ -478,7 +508,12 @@ function Get-VisualGateReviewSummaryMarkdown {
     foreach ($entry in $curatedEntries) {
         $verdict = Get-OptionalPropertyValue -Object $entry -Name "verdict"
         $reviewStatus = Get-OptionalPropertyValue -Object $entry -Name "review_status"
-        if ([string]::IsNullOrWhiteSpace([string]$verdict) -and [string]::IsNullOrWhiteSpace([string]$reviewStatus)) {
+        $reviewedAt = Convert-ReviewTimestamp -Value (Get-OptionalPropertyValue -Object $entry -Name "reviewed_at")
+        $reviewMethod = Get-OptionalPropertyValue -Object $entry -Name "review_method"
+        if ([string]::IsNullOrWhiteSpace([string]$verdict) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewStatus) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewedAt) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewMethod)) {
             continue
         }
 
@@ -493,10 +528,12 @@ function Get-VisualGateReviewSummaryMarkdown {
             $label = "Curated visual regression"
         }
 
-        $line = "- Curated - {0}: verdict={1}, review_status={2}" -f `
+        $line = "- Curated - {0}: verdict={1}, review_status={2}, reviewed_at={3}, review_method={4}" -f `
             $label,
             (Get-ReleaseCandidateDisplayValue -Value $verdict),
-            (Get-ReleaseCandidateDisplayValue -Value $reviewStatus)
+            (Get-ReleaseCandidateDisplayValue -Value $reviewStatus),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewedAt),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewMethod)
         $taskDir = Get-OptionalPropertyValue -Object $entry -Name "task_dir"
         if (-not [string]::IsNullOrWhiteSpace([string]$taskDir)) {
             $line += ", task=$(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $taskDir)"
