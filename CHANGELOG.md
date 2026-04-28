@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added `run_word_visual_release_gate.ps1` review task summary counts to `gate_summary.json` and `gate_final_review.md` so automation and reviewers can see total, standard, and curated review-task scope at a glance.
 - Documented the `sync_visual_review_verdict.ps1 -RefreshReleaseBundle` provenance flow so release reviewers know which internal handoff files surface `reviewed_at` / `review_method` and why public `release_body.zh-CN.md` stays concise.
 - Added visual review provenance sync for release gate and release-candidate final reviews so `reviewed_at` / `review_method` metadata survives verdict refreshes.
 - Added release handoff, artifact guide, start-here, and reviewer checklist visual review provenance output for `reviewed_at` / `review_method` metadata while keeping those internal sign-off details out of public release notes.

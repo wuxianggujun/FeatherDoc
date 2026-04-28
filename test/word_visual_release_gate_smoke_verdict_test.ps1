@@ -95,5 +95,11 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'review_verdict = Get-Option
     -Message "Release gate summary should capture the curated task review verdict."
 Assert-ContainsText -Text $scriptText -ExpectedText '$($_.label) review verdict:' `
     -Message "Release gate final review should surface curated task review verdicts."
+Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-ReviewTaskSummary' `
+    -Message "Release gate should derive machine-readable review task summary counts."
+Assert-ContainsText -Text $scriptText -ExpectedText '$gateSummary.review_task_summary = Get-ReviewTaskSummary -ReviewTasks $gateSummary.review_tasks' `
+    -Message "Release gate should write review task summary metadata into gate_summary.json."
+Assert-ContainsText -Text $scriptText -ExpectedText 'Review task count: $($gateSummary.review_task_summary.total_count) total' `
+    -Message "Release gate final review should surface review task summary counts."
 
 Write-Host "Word visual release gate smoke verdict regression passed."

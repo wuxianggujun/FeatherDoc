@@ -466,6 +466,49 @@ function Get-TaskSummaryBlock {
     ) -join [Environment]::NewLine
 }
 
+function Get-ReviewTaskSummary {
+    param($ReviewTasks)
+
+    $summary = [ordered]@{
+        total_count = 0
+        standard_count = 0
+        curated_count = 0
+    }
+
+    if ($null -eq $ReviewTasks) {
+        return $summary
+    }
+
+    foreach ($name in @("document", "fixed_grid", "section_page_setup", "page_number_fields")) {
+        if ($ReviewTasks -is [System.Collections.IDictionary]) {
+            if ($ReviewTasks.Contains($name) -and $null -ne $ReviewTasks[$name]) {
+                $summary.standard_count += 1
+            }
+        } elseif ($null -ne (Get-OptionalPropertyValue -Object $ReviewTasks -Name $name)) {
+            $summary.standard_count += 1
+        }
+    }
+
+    $curatedTasks = if ($ReviewTasks -is [System.Collections.IDictionary]) {
+        if ($ReviewTasks.Contains("curated_visual_regressions")) {
+            $ReviewTasks["curated_visual_regressions"]
+        } else {
+            @()
+        }
+    } else {
+        Get-OptionalPropertyValue -Object $ReviewTasks -Name "curated_visual_regressions"
+    }
+
+    foreach ($task in @($curatedTasks)) {
+        if ($null -ne $task) {
+            $summary.curated_count += 1
+        }
+    }
+
+    $summary.total_count = $summary.standard_count + $summary.curated_count
+    return $summary
+}
+
 function Get-FlowStatusLine {
     param(
         [string]$Label,
@@ -869,6 +912,7 @@ $gateSummary = [ordered]@{
     section_page_setup = $null
     page_number_fields = $null
     curated_visual_regressions = @()
+    review_task_summary = $null
     review_tasks = [ordered]@{
         document = $null
         fixed_grid = $null
@@ -1804,6 +1848,8 @@ if ($RefreshReadmeAssets) {
     }
 }
 
+$gateSummary.review_task_summary = Get-ReviewTaskSummary -ReviewTasks $gateSummary.review_tasks
+
 $gateSummary.notes = @(
     "This gate validates execution, evidence generation, and review-task packaging.",
     "Visual pass/fail still depends on screenshot-backed review written into each task's report directory."
@@ -1925,6 +1971,7 @@ $gateFinalReview = @"
 - Gate summary JSON: $gateSummaryPath
 - Execution status: pass
 - Visual review status: $($gateSummary.visual_verdict)
+- Review task count: $($gateSummary.review_task_summary.total_count) total ($($gateSummary.review_task_summary.standard_count) standard, $($gateSummary.review_task_summary.curated_count) curated)
 
 ## Included flows
 
