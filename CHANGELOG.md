@@ -82,6 +82,7 @@ performance.
 
 ### Tests
 
+- Added malformed-only release-summary discovery coverage so `sync_latest_visual_review_verdict.ps1` continues gate-only synchronization without writing release artifacts when no valid matching summary exists.
 - Added auto-discovery coverage so `sync_latest_visual_review_verdict.ps1` skips malformed release-summary candidates and still refreshes the matching valid release bundle.
 - Added missing explicit release-summary coverage so `sync_latest_visual_review_verdict.ps1` reports absent `-ReleaseCandidateSummaryJson` paths before gate summaries or release artifacts are written.
 - Added malformed explicit release-summary coverage so `sync_latest_visual_review_verdict.ps1` reports unreadable `-ReleaseCandidateSummaryJson` files before gate summaries or release artifacts are written.
