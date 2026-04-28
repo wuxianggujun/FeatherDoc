@@ -485,7 +485,9 @@ function Find-ReleaseCandidateSummary {
     }
 
     $candidates = Get-ChildItem -Path $SearchRoot -Recurse -File -Filter "summary.json" |
-        Sort-Object LastWriteTimeUtc -Descending
+        Sort-Object `
+            @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true },
+            @{ Expression = { $_.FullName } }
 
     foreach ($candidate in $candidates) {
         try {

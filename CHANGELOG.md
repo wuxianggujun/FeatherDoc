@@ -68,6 +68,7 @@ performance.
 
 ### Changed
 
+- Added deterministic release-summary discovery ordering so `sync_latest_visual_review_verdict.ps1` breaks equal timestamp candidates by path and keeps repeated syncs stable.
 - Validated explicit `sync_latest_visual_review_verdict.ps1 -ReleaseCandidateSummaryJson` JSON before mutating gate summaries, preventing half-written sign-off state when the release summary is unreadable.
 - Refactored release visual verdict metadata collection into a shared helper so release handoff, artifact guide, start-here, reviewer checklist, and release-note writers resolve standard and curated visual verdicts consistently.
 - Updated release metadata bundle writers so curated visual regression entries also use same-run `review_verdict` values when no legacy `verdict` field is present.
@@ -82,6 +83,7 @@ performance.
 
 ### Tests
 
+- Added equal-timestamp release-summary discovery coverage for the path tie-breaker used by `sync_latest_visual_review_verdict.ps1`.
 - Added latest-match release-summary discovery coverage so `sync_latest_visual_review_verdict.ps1` refreshes the newest valid matching summary when multiple candidates point at the same gate.
 - Added malformed-only release-summary discovery coverage so `sync_latest_visual_review_verdict.ps1` continues gate-only synchronization without writing release artifacts when no valid matching summary exists.
 - Added auto-discovery coverage so `sync_latest_visual_review_verdict.ps1` skips malformed release-summary candidates and still refreshes the matching valid release bundle.
