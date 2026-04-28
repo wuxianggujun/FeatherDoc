@@ -464,27 +464,41 @@ function Get-ReleaseCandidateDisplayValue {
     return [string]$Value
 }
 
+function Get-CompleteVisualGateReviewTaskSummary {
+    param([AllowNull()]$Summary)
+
+    if ($null -eq $Summary) {
+        return $null
+    }
+
+    $totalCount = Get-OptionalPropertyValue -Object $Summary -Name "total_count"
+    $standardCount = Get-OptionalPropertyValue -Object $Summary -Name "standard_count"
+    $curatedCount = Get-OptionalPropertyValue -Object $Summary -Name "curated_count"
+    if ([string]::IsNullOrWhiteSpace([string]$totalCount) -or
+        [string]::IsNullOrWhiteSpace([string]$standardCount) -or
+        [string]::IsNullOrWhiteSpace([string]$curatedCount)) {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        total_count = $totalCount
+        standard_count = $standardCount
+        curated_count = $curatedCount
+    }
+}
+
 function Get-VisualGateReviewTaskSummaryLine {
     param([AllowNull()]$VisualGateStep)
 
-    $reviewTaskSummary = Get-OptionalPropertyValue -Object $VisualGateStep -Name "review_task_summary"
+    $reviewTaskSummary = Get-CompleteVisualGateReviewTaskSummary -Summary (Get-OptionalPropertyValue -Object $VisualGateStep -Name "review_task_summary")
     if ($null -eq $reviewTaskSummary) {
         return ""
     }
 
-    $totalCount = Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "total_count"
-    $standardCount = Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "standard_count"
-    $curatedCount = Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "curated_count"
-    if ([string]::IsNullOrWhiteSpace([string]$totalCount) -or
-        [string]::IsNullOrWhiteSpace([string]$standardCount) -or
-        [string]::IsNullOrWhiteSpace([string]$curatedCount)) {
-        return ""
-    }
-
     return "- Review task count: {0} total ({1} standard, {2} curated)" -f `
-        $totalCount,
-        $standardCount,
-        $curatedCount
+        $reviewTaskSummary.total_count,
+        $reviewTaskSummary.standard_count,
+        $reviewTaskSummary.curated_count
 }
 
 function Get-VisualGateReviewSummaryMarkdown {
@@ -1537,7 +1551,7 @@ try {
             $summary.visual_verdict = [string]$gateVisualVerdict
             $summary.steps.visual_gate.visual_verdict = [string]$gateVisualVerdict
         }
-        $reviewTaskSummary = Get-OptionalPropertyValue -Object $gateSummary -Name "review_task_summary"
+        $reviewTaskSummary = Get-CompleteVisualGateReviewTaskSummary -Summary (Get-OptionalPropertyValue -Object $gateSummary -Name "review_task_summary")
         if ($null -ne $reviewTaskSummary) {
             $summary.steps.visual_gate.review_task_summary = $reviewTaskSummary
         }

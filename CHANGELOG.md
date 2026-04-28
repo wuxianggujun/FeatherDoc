@@ -73,6 +73,7 @@ performance.
 
 ### Changed
 
+- Hardened release preflight summary generation so incomplete visual review task counts are skipped before they enter `summary.json`.
 - Hardened visual verdict sync so incomplete review task counts are dropped from release summaries and omitted from refreshed `final_review.md` output.
 - Hardened release preflight review task-count rendering so incomplete visual gate metadata is omitted instead of producing blank counts in `final_review.md`.
 - Hardened release metadata review task count rendering so incomplete release-summary metadata falls back to the gate summary instead of emitting blank counts.
@@ -94,6 +95,7 @@ performance.
 
 ### Tests
 
+- Added release preflight helper coverage for complete versus incomplete visual review task-count metadata.
 - Extended visual verdict sync coverage to verify incomplete review task counts do not survive release-summary refreshes.
 - Added release preflight review task-count coverage so incomplete visual gate summaries do not render empty count lines in `final_review.md`.
 - Added missing visual review task-count coverage so legacy release metadata without `review_task_summary` stays clean instead of rendering empty count lines.

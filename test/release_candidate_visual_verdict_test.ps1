@@ -91,6 +91,12 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'if ($Object -is [System.Col
 Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-VisualGateReviewTaskSummaryLine' `
     -Message "Release preflight final_review.md should render visual review task counts."
 
+Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-CompleteVisualGateReviewTaskSummary' `
+    -Message "Release preflight should validate review task counts before copying or rendering them."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'Get-CompleteVisualGateReviewTaskSummary -Summary (Get-OptionalPropertyValue -Object $gateSummary -Name "review_task_summary")' `
+    -Message "Release preflight summary should only copy complete visual review task counts."
+
 Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-VisualGateReviewSummaryMarkdown' `
     -Message "Release preflight final_review.md should render visual review verdict metadata."
 
@@ -124,6 +130,7 @@ $functionNames = @(
     "Get-OptionalPropertyValue",
     "Convert-ReviewTimestamp",
     "Get-ReleaseCandidateDisplayValue",
+    "Get-CompleteVisualGateReviewTaskSummary",
     "Get-VisualGateReviewTaskSummaryLine",
     "Get-VisualGateReviewSummaryMarkdown"
 )
@@ -139,6 +146,22 @@ foreach ($functionName in $functionNames) {
     }
 
     Invoke-Expression $functionAst.Extent.Text
+}
+
+$completeReviewTaskSummary = Get-CompleteVisualGateReviewTaskSummary -Summary ([ordered]@{
+        total_count = 3
+        standard_count = 2
+        curated_count = 1
+    })
+if ($null -eq $completeReviewTaskSummary -or $completeReviewTaskSummary.total_count -ne 3) {
+    throw "Complete review task summary was not preserved."
+}
+
+$incompleteReviewTaskSummary = Get-CompleteVisualGateReviewTaskSummary -Summary ([ordered]@{
+        total_count = 3
+    })
+if ($null -ne $incompleteReviewTaskSummary) {
+    throw "Incomplete review task summary was unexpectedly preserved."
 }
 
 $reviewTaskSummaryLine = Get-VisualGateReviewTaskSummaryLine -VisualGateStep ([ordered]@{
