@@ -67,19 +67,7 @@ function Get-OptionalPropertyObject {
     return $property.Value
 }
 
-function Get-OptionalPropertyArray {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    $propertyValue = Get-OptionalPropertyObject -Object $Object -Name $Name
-    if ($null -eq $propertyValue) {
-        return @()
-    }
-
-    return @($propertyValue)
-}
+. (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
 
 function Get-DisplayValue {
     param([string]$Value)
@@ -164,111 +152,6 @@ function Get-PublicArtifactPath {
     }
 
     return Split-Path -Leaf $Value
-}
-
-function Get-VisualTaskVerdict {
-    param(
-        $VisualGateSummary,
-        $GateSummary,
-        [string]$TaskKey
-    )
-
-    $summaryVerdict = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_verdict" -f $TaskKey)
-    if (-not [string]::IsNullOrWhiteSpace($summaryVerdict)) {
-        return $summaryVerdict
-    }
-
-    $gateFlow = Get-OptionalPropertyObject -Object $GateSummary -Name $TaskKey
-    $gateFlowVerdict = Get-OptionalPropertyValue -Object $gateFlow -Name "review_verdict"
-    if (-not [string]::IsNullOrWhiteSpace($gateFlowVerdict)) {
-        return $gateFlowVerdict
-    }
-
-    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
-    $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
-    $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
-    return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
-}
-
-function Get-CuratedVisualReviewEntries {
-    param(
-        $VisualGateSummary,
-        $GateSummary
-    )
-
-    $entryMap = @{}
-    $entryOrder = New-Object 'System.Collections.Generic.List[string]'
-    $fallbackIndex = 0
-
-    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
-    $manualTasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
-
-    $sources = @(
-        (Get-OptionalPropertyArray -Object $VisualGateSummary -Name "curated_visual_regressions"),
-        (Get-OptionalPropertyArray -Object $manualTasks -Name "curated_visual_regressions"),
-        (Get-OptionalPropertyArray -Object $GateSummary -Name "curated_visual_regressions")
-    )
-
-    foreach ($sourceGroup in $sources) {
-        foreach ($source in $sourceGroup) {
-            $fallbackIndex += 1
-
-            $id = Get-OptionalPropertyValue -Object $source -Name "id"
-            $displayLabel = Get-OptionalPropertyValue -Object $source -Name "display_label"
-            $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
-                $displayLabel
-            } else {
-                Get-OptionalPropertyValue -Object $source -Name "label"
-            }
-            $key = if (-not [string]::IsNullOrWhiteSpace($id)) {
-                $id
-            } elseif (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
-                $label
-            } else {
-                "__curated_{0}" -f $fallbackIndex
-            }
-
-            if (-not $entryMap.ContainsKey($key)) {
-                $entryMap[$key] = [ordered]@{
-                    id = ""
-                    label = ""
-                    verdict = ""
-                }
-                [void]$entryOrder.Add($key)
-            }
-
-            if (-not [string]::IsNullOrWhiteSpace($id)) {
-                $entryMap[$key].id = $id
-            }
-            if (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
-                $entryMap[$key].label = $label
-            }
-
-            $verdict = Get-OptionalPropertyValue -Object $source -Name "verdict"
-            if ([string]::IsNullOrWhiteSpace($verdict)) {
-                $verdict = Get-OptionalPropertyValue -Object $source -Name "review_verdict"
-            }
-            if (-not [string]::IsNullOrWhiteSpace($verdict)) {
-                $entryMap[$key].verdict = $verdict
-            }
-        }
-    }
-
-    $entries = @()
-    foreach ($key in $entryOrder) {
-        $entry = $entryMap[$key]
-        if ([string]::IsNullOrWhiteSpace($entry.label)) {
-            if (-not [string]::IsNullOrWhiteSpace($entry.id)) {
-                $entry.label = $entry.id
-            } else {
-                $entry.label = "Curated visual regression bundle"
-            }
-        }
-
-        $entries += [pscustomobject]$entry
-    }
-
-    return $entries
 }
 
 function Get-CommandPathDisplayValue {

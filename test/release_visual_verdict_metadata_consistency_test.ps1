@@ -56,6 +56,19 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
+$visualMetadataHelperPath = Join-Path (Join-Path $resolvedRepoRoot "scripts") "release_visual_metadata_helpers.ps1"
+Assert-ScriptParses -Path $visualMetadataHelperPath
+$visualMetadataHelperText = Get-Content -Raw -LiteralPath $visualMetadataHelperPath
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$gateFlowVerdict = Get-OptionalPropertyValue -Object $gateFlow -Name "review_verdict"' `
+    -Message "release_visual_metadata_helpers.ps1 should read same-run review_verdict from the visual gate summary."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '$verdict = Get-OptionalPropertyValue -Object $Source -Name "review_verdict"' `
+    -Message "release_visual_metadata_helpers.ps1 should read curated review_verdict fallback values."
+Assert-ContainsText -Text $visualMetadataHelperText `
+    -ExpectedText '(Get-OptionalPropertyArray -Object $reviewTasks -Name "curated_visual_regressions")' `
+    -Message "release_visual_metadata_helpers.ps1 should merge curated review task metadata."
+
 $metadataScripts = @(
     [pscustomobject]@{
         Path = Join-Path $resolvedRepoRoot "scripts\write_release_artifact_handoff.ps1"
@@ -81,8 +94,8 @@ foreach ($scriptInfo in $metadataScripts) {
     $label = Split-Path -Leaf $scriptInfo.Path
 
     Assert-ContainsText -Text $scriptText `
-        -ExpectedText '$gateFlowVerdict = Get-OptionalPropertyValue -Object $gateFlow -Name "review_verdict"' `
-        -Message "$label should read same-run review_verdict from the visual gate summary."
+        -ExpectedText '. (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")' `
+        -Message "$label should use the shared release visual metadata helper."
     Assert-ContainsText -Text $scriptText `
         -ExpectedText '$smokeVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"' `
         -Message "$label should collect the smoke visual verdict."
@@ -113,8 +126,8 @@ $bodyScriptPath = Join-Path $resolvedRepoRoot "scripts\write_release_body_zh.ps1
 Assert-ScriptParses -Path $bodyScriptPath
 $bodyScriptText = Get-Content -Raw -LiteralPath $bodyScriptPath
 Assert-ContainsText -Text $bodyScriptText `
-    -ExpectedText '$gateFlowVerdict = Get-OptionalPropertyValue -Object $gateFlow -Name "review_verdict"' `
-    -Message "write_release_body_zh.ps1 should read same-run review_verdict from the visual gate summary."
+    -ExpectedText '. (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")' `
+    -Message "write_release_body_zh.ps1 should use the shared release visual metadata helper."
 Assert-ContainsText -Text $bodyScriptText `
     -ExpectedText '$smokeVerdict = Get-VisualTaskVerdict -VisualGateSummary $summary.steps.visual_gate -GateSummary $gateSummary -TaskKey "smoke"' `
     -Message "write_release_body_zh.ps1 should collect the smoke visual verdict."

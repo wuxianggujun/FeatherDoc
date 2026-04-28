@@ -63,6 +63,7 @@ performance.
 
 ### Changed
 
+- Refactored release visual verdict metadata collection into a shared helper so release handoff, artifact guide, start-here, reviewer checklist, and release-note writers resolve standard and curated visual verdicts consistently.
 - Updated release metadata bundle writers so curated visual regression entries also use same-run `review_verdict` values when no legacy `verdict` field is present.
 - Updated template schema patch generation to preserve slot source selectors in generated `remove_slots` and `rename_slots` entries, keeping content-control and bookmark-oriented schemas round-trippable.
 
@@ -75,6 +76,7 @@ performance.
 
 ### Tests
 
+- Updated release visual verdict metadata consistency coverage to pin the shared helper and its generated bundle behavior.
 - Added release note bundle fallback coverage for visual gate `review_verdict` metadata across handoff, guide, checklist, start-here, and Chinese release-note outputs.
 - Added release visual verdict metadata consistency coverage so release handoff, artifact guides, reviewer checklist, release notes, and preflight summaries keep smoke, fixed-grid, section/page setup, page-number, and curated visual verdict fields aligned.
 - Added CLI regression coverage for `preview-template-schema-patch --output-patch`, including patch-file copy output, left/right schema generated output, and JSON `output_patch_path` reporting.
