@@ -89,6 +89,11 @@ $releaseSummaryPath = Join-Path $releaseReportDir "summary.json"
     execution_status = "pass"
     visual_verdict = "pending_manual_review"
     readme_gallery = @{ status = "not_requested" }
+    review_task_summary = @{
+        total_count = 1
+        standard_count = 0
+        curated_count = 1
+    }
     curated_visual_regressions = @(
         @{
             id = $bundleId
@@ -170,6 +175,10 @@ Assert-True -Condition ($curatedManualReviews[0].review_method -eq "operator_sup
     -Message "Gate summary manual_review did not record the curated review_method."
 Assert-True -Condition ($curatedReleaseReviews[0].review_method -eq "operator_supplied") `
     -Message "Release summary visual_gate did not record the curated review_method."
+Assert-True -Condition ($releaseSummary.steps.visual_gate.review_task_summary.total_count -eq 1) `
+    -Message "Release summary visual_gate did not copy review_task_summary.total_count."
+Assert-True -Condition ($releaseSummary.steps.visual_gate.review_task_summary.curated_count -eq 1) `
+    -Message "Release summary visual_gate did not copy review_task_summary.curated_count."
 Assert-Contains -Path $gateSummaryPath -ExpectedText "2026-04-21T21:35:00" -Label "gate_summary.json"
 Assert-Contains -Path $releaseSummaryPath -ExpectedText "2026-04-21T21:35:00" -Label "summary.json"
 
@@ -178,6 +187,7 @@ Assert-Contains -Path $gateFinalReviewPath -ExpectedText "$bundleLabel verdict: 
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "$bundleLabel reviewed at: 2026-04-21T21:35:00" -Label "gate_final_review.md"
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "$bundleLabel review method: operator_supplied" -Label "gate_final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Visual verdict: pass" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Review task count: 1 total (0 standard, 1 curated)" -Label "release final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "## Visual review provenance" -Label "release final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Curated - $($bundleLabel): verdict=pass, review_status=reviewed, reviewed_at=2026-04-21T21:35:00, review_method=operator_supplied" -Label "release final_review.md"
 

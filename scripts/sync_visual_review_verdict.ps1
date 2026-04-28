@@ -681,6 +681,14 @@ function New-ReleaseCandidateFinalReviewContent {
 
     $readmeGallery = Get-OptionalPropertyObject -Object $Summary -Name "readme_gallery"
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
+    $reviewTaskSummary = Get-OptionalPropertyObject -Object $Summary.steps.visual_gate -Name "review_task_summary"
+    $reviewTaskSummaryLine = ""
+    if ($null -ne $reviewTaskSummary) {
+        $reviewTaskSummaryLine = "- Review task count: {0} total ({1} standard, {2} curated)" -f `
+            (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "total_count"),
+            (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "standard_count"),
+            (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "curated_count")
+    }
     $visualReviewProvenance = Get-ReleaseVisualReviewProvenanceMarkdown -RepoRoot $RepoRoot -VisualGateStep $Summary.steps.visual_gate
     $releaseSummaryDiscoverySection = New-GateReleaseSummaryDiscoveryMarkdown -RepoRoot $RepoRoot -GateSummary $Summary
     $readmeGalleryStatusLine = switch ($readmeGalleryStatus) {
@@ -716,6 +724,7 @@ function New-ReleaseCandidateFinalReviewContent {
 - Tests: $(Get-OptionalPropertyValue -Object $Summary.steps.tests -Name 'status')
 - Install smoke: $(Get-OptionalPropertyValue -Object $Summary.steps.install_smoke -Name 'status')
 - Visual gate: $(Get-OptionalPropertyValue -Object $Summary.steps.visual_gate -Name 'status')
+$reviewTaskSummaryLine
 $readmeGalleryStatusLine
 
 $visualReviewProvenance$releaseSummaryDiscoverySection## Key outputs
@@ -845,10 +854,14 @@ Write-Step "Updated gate summary and final review"
 if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
     $summary = Get-Content -Raw -LiteralPath $resolvedReleaseSummaryPath | ConvertFrom-Json
     $readmeGallery = Get-OptionalPropertyObject -Object $gateSummary -Name "readme_gallery"
+    $reviewTaskSummary = Get-OptionalPropertyObject -Object $gateSummary -Name "review_task_summary"
 
     Set-PropertyValue -Object $summary -Name "visual_verdict" -Value $overallVerdict
     Set-PropertyValue -Object $summary -Name "readme_gallery" -Value $readmeGallery
     Set-PropertyValue -Object $summary.steps.visual_gate -Name "visual_verdict" -Value $overallVerdict
+    if ($null -ne $reviewTaskSummary) {
+        Set-PropertyValue -Object $summary.steps.visual_gate -Name "review_task_summary" -Value $reviewTaskSummary
+    }
 
     if ($null -ne $documentReview) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "document_verdict" -Value $documentReview.verdict
