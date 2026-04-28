@@ -30,6 +30,19 @@ function Assert-Contains {
     }
 }
 
+function Assert-NotContains {
+    param(
+        [string]$Path,
+        [string]$UnexpectedText,
+        [string]$Label
+    )
+
+    $content = Get-Content -Raw -LiteralPath $Path
+    if ($content -match [regex]::Escape($UnexpectedText)) {
+        throw "$Label unexpectedly contains text '$UnexpectedText': $Path"
+    }
+}
+
 function New-TaskReviewSeed {
     param(
         [string]$Root,
@@ -190,5 +203,17 @@ Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Visual verdict: pas
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Review task count: 1 total (0 standard, 1 curated)" -Label "release final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "## Visual review provenance" -Label "release final_review.md"
 Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Curated - $($bundleLabel): verdict=pass, review_status=reviewed, reviewed_at=2026-04-21T21:35:00, review_method=operator_supplied" -Label "release final_review.md"
+
+$gateSummary.review_task_summary = [pscustomobject]@{ total_count = 1 }
+($gateSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $gateSummaryPath -Encoding UTF8
+& $syncScript `
+    -GateSummaryJson $gateSummaryPath `
+    -ReleaseCandidateSummaryJson $releaseSummaryPath
+
+$releaseSummaryAfterIncompleteCount = Get-Content -Raw -LiteralPath $releaseSummaryPath | ConvertFrom-Json
+$reviewTaskSummaryProperty = $releaseSummaryAfterIncompleteCount.steps.visual_gate.PSObject.Properties["review_task_summary"]
+Assert-True -Condition ($null -eq $reviewTaskSummaryProperty) `
+    -Message "Release summary visual_gate should drop incomplete review_task_summary metadata."
+Assert-NotContains -Path $releaseFinalReviewPath -UnexpectedText "Review task count:" -Label "release final_review.md"
 
 Write-Host "Sync visual review verdict curated visual bundle regression passed."

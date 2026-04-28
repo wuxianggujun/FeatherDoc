@@ -145,6 +145,41 @@ function Set-PropertyValue {
     }
 }
 
+function Remove-PropertyValue {
+    param(
+        [Parameter(Mandatory = $true)]$Object,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -ne $property) {
+        $Object.PSObject.Properties.Remove($Name)
+    }
+}
+
+function Get-CompleteReviewTaskSummary {
+    param([AllowNull()]$Summary)
+
+    if ($null -eq $Summary) {
+        return $null
+    }
+
+    $totalCount = Get-OptionalPropertyValue -Object $Summary -Name "total_count"
+    $standardCount = Get-OptionalPropertyValue -Object $Summary -Name "standard_count"
+    $curatedCount = Get-OptionalPropertyValue -Object $Summary -Name "curated_count"
+    if ([string]::IsNullOrWhiteSpace([string]$totalCount) -or
+        [string]::IsNullOrWhiteSpace([string]$standardCount) -or
+        [string]::IsNullOrWhiteSpace([string]$curatedCount)) {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        total_count = $totalCount
+        standard_count = $standardCount
+        curated_count = $curatedCount
+    }
+}
+
 function Convert-ReviewTimestamp {
     param([AllowNull()]$Value)
 
@@ -681,13 +716,13 @@ function New-ReleaseCandidateFinalReviewContent {
 
     $readmeGallery = Get-OptionalPropertyObject -Object $Summary -Name "readme_gallery"
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
-    $reviewTaskSummary = Get-OptionalPropertyObject -Object $Summary.steps.visual_gate -Name "review_task_summary"
+    $reviewTaskSummary = Get-CompleteReviewTaskSummary -Summary (Get-OptionalPropertyObject -Object $Summary.steps.visual_gate -Name "review_task_summary")
     $reviewTaskSummaryLine = ""
     if ($null -ne $reviewTaskSummary) {
         $reviewTaskSummaryLine = "- Review task count: {0} total ({1} standard, {2} curated)" -f `
-            (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "total_count"),
-            (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "standard_count"),
-            (Get-OptionalPropertyValue -Object $reviewTaskSummary -Name "curated_count")
+            $reviewTaskSummary.total_count,
+            $reviewTaskSummary.standard_count,
+            $reviewTaskSummary.curated_count
     }
     $visualReviewProvenance = Get-ReleaseVisualReviewProvenanceMarkdown -RepoRoot $RepoRoot -VisualGateStep $Summary.steps.visual_gate
     $releaseSummaryDiscoverySection = New-GateReleaseSummaryDiscoveryMarkdown -RepoRoot $RepoRoot -GateSummary $Summary
@@ -854,13 +889,15 @@ Write-Step "Updated gate summary and final review"
 if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
     $summary = Get-Content -Raw -LiteralPath $resolvedReleaseSummaryPath | ConvertFrom-Json
     $readmeGallery = Get-OptionalPropertyObject -Object $gateSummary -Name "readme_gallery"
-    $reviewTaskSummary = Get-OptionalPropertyObject -Object $gateSummary -Name "review_task_summary"
+    $reviewTaskSummary = Get-CompleteReviewTaskSummary -Summary (Get-OptionalPropertyObject -Object $gateSummary -Name "review_task_summary")
 
     Set-PropertyValue -Object $summary -Name "visual_verdict" -Value $overallVerdict
     Set-PropertyValue -Object $summary -Name "readme_gallery" -Value $readmeGallery
     Set-PropertyValue -Object $summary.steps.visual_gate -Name "visual_verdict" -Value $overallVerdict
     if ($null -ne $reviewTaskSummary) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "review_task_summary" -Value $reviewTaskSummary
+    } else {
+        Remove-PropertyValue -Object $summary.steps.visual_gate -Name "review_task_summary"
     }
 
     if ($null -ne $documentReview) {
