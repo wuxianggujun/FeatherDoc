@@ -81,6 +81,7 @@ performance.
 
 ### Tests
 
+- Added `sync_latest_visual_review_verdict_missing_source_path_test.ps1` to verify latest-task pointers without `source.path` fail clearly before gate inference or audit artifacts are written.
 - Stabilized `sync_latest_visual_review_verdict*` regressions with isolated short `output/` run directories so repeated CTest runs stay within the 60-second test budget.
 - Added `sync_latest_visual_review_verdict_conflicting_gates_test.ps1` to ensure mixed latest-task pointers from different visual gates fail before mutating summaries or audit artifacts.
 - Added `sync_latest_visual_review_verdict_no_release_summary_test.ps1` to verify the shortest sign-off helper updates only the gate when no matching release-candidate summary is found.
