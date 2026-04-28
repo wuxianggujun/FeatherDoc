@@ -17,6 +17,7 @@ performance.
 - Added a one-stop project template onboarding script that prepares schema candidates, temporary smoke manifests, render-data workspaces, completeness reports, and review checklists without mutating committed manifests by default.
 - Added `convert_render_data_to_patch_plan.ps1` `output_patch_path` summaries and stricter render-data selector validation before generated patches are written.
 - Added `export_template_render_plan.ps1 -TargetMode resolved-section-targets` plus `-ExportTargetMode` passthrough in the from-patch/from-data render wrappers so render-plan drafts can target effective `section-header` / `section-footer` references directly.
+- Added `-ExportTargetMode` support to render-data workspace preparation, workspace validation, and workspace rendering so prepared workspaces can preserve effective section header/footer selectors end to end.
 
 - Added numbering catalog export/import APIs and CLI automation for stable
   numbering governance, including catalog lint/check/diff/patch/import flows,
@@ -70,6 +71,7 @@ performance.
 - Added PowerShell coverage for the project template onboarding workflow.
 - Added PowerShell regression coverage for render-data conversion summary paths and malformed render-plan selector rejection.
 - Added PowerShell regression coverage for resolved section header/footer render-plan export and from-data section header/footer rendering.
+- Added PowerShell regression coverage for resolved section header/footer workspace preparation, workspace validation inference, workspace rendering, and Word-backed visual review.
 
 - Added unit and CLI coverage for numbering catalog import/export, catalog
   patch/lint/diff/check flows, style-numbering repair with catalog preload,

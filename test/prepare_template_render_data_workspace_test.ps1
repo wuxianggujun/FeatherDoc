@@ -42,12 +42,33 @@ function Assert-ContainsText {
     }
 }
 
+function Find-ExecutableByName {
+    param(
+        [string]$SearchRoot,
+        [string]$TargetName
+    )
+
+    $candidate = Get-ChildItem -Path $SearchRoot -Recurse -File |
+        Where-Object { $_.Name -ieq $TargetName -or $_.Name -ieq ($TargetName + ".exe") } |
+        Sort-Object LastWriteTimeUtc -Descending |
+        Select-Object -First 1
+
+    if ($null -eq $candidate) {
+        throw "Could not find executable '$TargetName' under $SearchRoot."
+    }
+
+    return $candidate.FullName
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedBuildDir = (Resolve-Path $BuildDir).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\prepare_template_render_data_workspace.ps1"
 $convertScriptPath = Join-Path $resolvedRepoRoot "scripts\convert_render_data_to_patch_plan.ps1"
 $sampleDocx = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.docx"
+$partTemplateSampleExecutable = Find-ExecutableByName `
+    -SearchRoot $resolvedBuildDir `
+    -TargetName "featherdoc_sample_part_template_validation"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
@@ -77,6 +98,10 @@ Assert-Equal -Actual $summary.status -Expected "completed" `
     -Message "Workspace summary did not report status=completed."
 Assert-Equal -Actual $summary.operation_count -Expected 4 `
     -Message "Workspace summary should record four pipeline steps."
+Assert-Equal -Actual $summary.export_target_mode -Expected "loaded-parts" `
+    -Message "Workspace summary should default to loaded-parts export target mode."
+Assert-Equal -Actual $summary.steps[0].summary.target_mode -Expected "loaded-parts" `
+    -Message "Workspace export summary should default to loaded-parts target mode."
 Assert-Equal -Actual $summary.steps[0].status -Expected "completed" `
     -Message "Render-plan export step did not complete."
 Assert-Equal -Actual $summary.steps[1].status -Expected "completed" `
@@ -114,6 +139,9 @@ Assert-ContainsText -Text ([string]$summary.next_commands.validate_data) `
 Assert-ContainsText -Text ([string]$summary.next_commands.validate_data) `
     -ExpectedText "-RequireComplete" `
     -Message "Workspace summary validation command should require complete data."
+Assert-ContainsText -Text ([string]$summary.next_commands.validate_data) `
+    -ExpectedText "-ExportTargetMode" `
+    -Message "Workspace summary validation command should preserve export target mode."
 Assert-ContainsText -Text ([string]$summary.next_commands.validate_data) `
     -ExpectedText "-ReportMarkdown" `
     -Message "Workspace summary validation command should write a readable report."
@@ -208,5 +236,65 @@ Assert-Equal -Actual $patch.bookmark_paragraphs[0].paragraphs[1] `
 Assert-Equal -Actual $patch.bookmark_table_rows[0].rows[0][1] `
     -Expected "TODO: line_item_row.row[0].cell[1]" `
     -Message "Workspace patch did not preserve generated table cell placeholders."
+
+
+$partTemplateDir = Join-Path $resolvedWorkingDir "part_template_validation_fixture"
+$partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
+$sectionWorkspaceDir = Join-Path $resolvedWorkingDir "part_template_workspace"
+$sectionSummaryPath = Join-Path $sectionWorkspaceDir "part_template.workspace.summary.json"
+
+& $partTemplateSampleExecutable $partTemplateDir
+if ($LASTEXITCODE -ne 0) {
+    throw "featherdoc_sample_part_template_validation failed."
+}
+
+& $scriptPath `
+    -InputDocx $partTemplateDocx `
+    -WorkspaceDir $sectionWorkspaceDir `
+    -SummaryJson $sectionSummaryPath `
+    -BuildDir $resolvedBuildDir `
+    -ExportTargetMode resolved-section-targets `
+    -SkipBuild
+
+if ($LASTEXITCODE -ne 0) {
+    throw "prepare_template_render_data_workspace.ps1 failed for the section header/footer fixture."
+}
+
+$sectionSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $sectionSummaryPath | ConvertFrom-Json
+$sectionRenderPlan = Get-Content -Raw -Encoding UTF8 -LiteralPath $sectionSummary.render_plan | ConvertFrom-Json
+$sectionMapping = Get-Content -Raw -Encoding UTF8 -LiteralPath $sectionSummary.mapping | ConvertFrom-Json
+$sectionData = Get-Content -Raw -Encoding UTF8 -LiteralPath $sectionSummary.data_skeleton | ConvertFrom-Json
+$sectionStartHere = Get-Content -Raw -Encoding UTF8 -LiteralPath $sectionSummary.start_here
+
+Assert-Equal -Actual $sectionSummary.status -Expected "completed" `
+    -Message "Section workspace summary did not report status=completed."
+Assert-Equal -Actual $sectionSummary.export_target_mode -Expected "resolved-section-targets" `
+    -Message "Section workspace summary did not record export_target_mode."
+Assert-Equal -Actual $sectionSummary.steps[0].summary.target_mode -Expected "resolved-section-targets" `
+    -Message "Section workspace export summary did not record target_mode."
+Assert-ContainsText -Text ([string]$sectionSummary.next_commands.validate_data) `
+    -ExpectedText 'resolved-section-targets' `
+    -Message "Section workspace validation command should preserve the resolved target mode."
+Assert-ContainsText -Text $sectionStartHere `
+    -ExpectedText 'resolved-section-targets' `
+    -Message "Section workspace start-here guide should preserve the resolved target mode."
+
+$sectionHeaderText = @($sectionRenderPlan.bookmark_text | Where-Object { $_.bookmark_name -eq "header_title" })[0]
+$sectionFooterText = @($sectionRenderPlan.bookmark_text | Where-Object { $_.bookmark_name -eq "footer_summary" })[0]
+$sectionHeaderRows = @($sectionMapping.bookmark_table_rows | Where-Object { $_.bookmark_name -eq "header_rows" })[0]
+Assert-Equal -Actual $sectionHeaderText.part -Expected "section-header" `
+    -Message "Section workspace render plan did not export section-header text selectors."
+Assert-Equal -Actual $sectionHeaderText.section -Expected 0 `
+    -Message "Section workspace render plan did not preserve header section=0."
+Assert-Equal -Actual $sectionHeaderText.kind -Expected "default" `
+    -Message "Section workspace render plan did not preserve header kind=default."
+Assert-Equal -Actual $sectionFooterText.part -Expected "section-footer" `
+    -Message "Section workspace render plan did not export section-footer text selectors."
+Assert-Equal -Actual $sectionHeaderRows.part -Expected "section-header" `
+    -Message "Section workspace mapping did not preserve section-header table selectors."
+Assert-Equal -Actual $sectionData.header_title -Expected "TODO: header_title" `
+    -Message "Section workspace data skeleton did not include header_title."
+Assert-True -Condition ($null -ne $sectionData.footer_summary) `
+    -Message "Section workspace data skeleton did not include footer_summary."
 
 Write-Host "Template render-data workspace preparation regression passed."

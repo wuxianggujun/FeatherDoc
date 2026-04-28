@@ -726,7 +726,11 @@ workspace summary. This is the most direct setup when users should edit JSON
 business data first and render the final document later. The prepared
 workspace now also includes a `START_HERE.zh-CN.md` guide that points users to
 the JSON file they should edit first, the validation command that confirms the
-edited data is complete, and the render command they should run next.
+edited data is complete, and the render command they should run next. Pass
+`-ExportTargetMode resolved-section-targets` here when the workspace should keep
+effective `section-header` / `section-footer` selectors; the workspace summary,
+recommended validation command, validation wrapper, and workspace render wrapper
+all preserve that `export_target_mode`.
 
 ```bash
 pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_template_render_data_workspace.ps1 -InputDocx .\samples\chinese_invoice_template.docx -WorkspaceDir .\output\rendered\invoice.workspace -SummaryJson .\output\rendered\invoice.workspace\summary.json -BuildDir build-codex-clang-compat -SkipBuild
@@ -924,7 +928,10 @@ Before rendering, you can validate the whole `template + mapping + data`
 contract with `scripts/validate_render_data_mapping.ps1`. The wrapper exports a
 draft render plan, converts business data into a patch, and replays that patch
 onto the draft so missing mappings, invalid `source` paths, duplicate targets,
-or leftover placeholders fail before the final `.docx` step.
+or leftover placeholders fail before the final `.docx` step. It accepts
+`-ExportTargetMode resolved-section-targets` for effective section header/footer
+selectors and, when run from a prepared workspace, infers the same mode from
+workspace metadata before reporting it in JSON and Markdown summaries.
 
 ```bash
 pwsh -ExecutionPolicy Bypass -File .\scripts\validate_render_data_mapping.ps1 -InputDocx .\samples\chinese_invoice_template.docx -MappingPath .\samples\chinese_invoice_template.render_data_mapping.json -DataPath .\samples\chinese_invoice_template.render_data.json -SummaryJson .\output\rendered\invoice.validation.summary.json -DraftPlanOutput .\output\rendered\invoice.validation.draft.render-plan.json -GeneratedPatchOutput .\output\rendered\invoice.validation.generated.render_patch.json -PatchedPlanOutput .\output\rendered\invoice.validation.patched.render-plan.json -BuildDir build-codex-clang-compat -SkipBuild -RequireComplete

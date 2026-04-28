@@ -5,7 +5,9 @@ Renders a DOCX template from a prepared render-data workspace.
 .DESCRIPTION
 Uses a workspace produced by `prepare_template_render_data_workspace.ps1`,
 resolves the workspace's mapping/data files, and then calls
-`render_template_document_from_data.ps1`.
+`render_template_document_from_data.ps1`. It also reuses the workspace's
+export target mode so section header/footer mappings round-trip without extra
+flags.
 
 This wrapper turns the template-data workflow into two user-facing steps:
 1. prepare the editable workspace,
@@ -22,6 +24,8 @@ param(
     [string]$SummaryJson = "",
     [string]$BuildDir = "",
     [string]$Generator = "NMake Makefiles",
+    [ValidateSet("", "loaded-parts", "resolved-section-targets")]
+    [string]$ExportTargetMode = "",
     [switch]$SkipBuild,
     [string]$PatchPlanOutput = "",
     [string]$DraftPlanOutput = "",
@@ -102,6 +106,31 @@ function Get-OptionalObjectPropertyValue {
     }
 
     return [string]$property.Value
+}
+
+function Resolve-WorkspaceExportTargetMode {
+    param(
+        [string]$RequestedMode,
+        $WorkspaceSummary,
+        $RenderPlanSummary
+    )
+
+    $resolvedMode = $RequestedMode
+    if ([string]::IsNullOrWhiteSpace($resolvedMode)) {
+        $resolvedMode = Get-OptionalObjectPropertyValue -Object $WorkspaceSummary -Name "export_target_mode"
+    }
+    if ([string]::IsNullOrWhiteSpace($resolvedMode)) {
+        $resolvedMode = Get-OptionalObjectPropertyValue -Object $RenderPlanSummary -Name "target_mode"
+    }
+    if ([string]::IsNullOrWhiteSpace($resolvedMode)) {
+        $resolvedMode = "loaded-parts"
+    }
+
+    if (@("loaded-parts", "resolved-section-targets") -notcontains $resolvedMode) {
+        throw "ExportTargetMode must be one of: loaded-parts, resolved-section-targets."
+    }
+
+    return $resolvedMode
 }
 
 function Find-WorkspaceCandidatePath {
@@ -212,6 +241,7 @@ function Build-WorkspaceRenderSummary {
         [string]$BuildDir,
         [string]$Generator,
         [bool]$SkipBuild,
+        [string]$ExportTargetMode,
         [object[]]$Steps,
         [string]$ErrorMessage
     )
@@ -229,6 +259,7 @@ function Build-WorkspaceRenderSummary {
         build_dir = $BuildDir
         generator = $Generator
         skip_build = $SkipBuild
+        export_target_mode = $ExportTargetMode
         operation_count = $Steps.Count
         steps = $Steps
         workflow = [ordered]@{
@@ -269,6 +300,10 @@ $renderPlanSummaryPath = Find-WorkspaceCandidatePath `
     -Patterns @("*.render-plan.summary.json") `
     -Label "render-plan summary"
 $renderPlanSummaryObject = Read-JsonFileIfPresent -Path $renderPlanSummaryPath
+$resolvedExportTargetMode = Resolve-WorkspaceExportTargetMode `
+    -RequestedMode $ExportTargetMode `
+    -WorkspaceSummary $workspaceSummaryObject `
+    -RenderPlanSummary $renderPlanSummaryObject
 
 $resolvedInputDocx = if (-not [string]::IsNullOrWhiteSpace($InputDocx)) {
     Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $InputDocx
@@ -378,6 +413,7 @@ $resolveSummaryObject = [ordered]@{
     data_path = $resolvedDataPath
     mapping_path = $resolvedMappingPath
     build_dir = $resolvedBuildDir
+    export_target_mode = $resolvedExportTargetMode
 }
 
 try {
@@ -393,6 +429,7 @@ try {
         -SummaryJson $nestedSummaryPath `
         -BuildDir $resolvedBuildDir `
         -Generator $effectiveGenerator `
+        -ExportTargetMode $resolvedExportTargetMode `
         -SkipBuild:$effectiveSkipBuild `
         -PatchPlanOutput $resolvedPatchPlanOutput `
         -DraftPlanOutput $resolvedDraftPlanOutput `
@@ -458,6 +495,7 @@ try {
             -BuildDir $resolvedBuildDir `
             -Generator $effectiveGenerator `
             -SkipBuild $effectiveSkipBuild `
+            -ExportTargetMode $resolvedExportTargetMode `
             -Steps @(
                 [pscustomobject](New-StepRecord `
                     -Index 1 `

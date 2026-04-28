@@ -6,7 +6,10 @@ Validates render-data mapping and business data against a DOCX template.
 Runs `export_template_render_plan.ps1`,
 `convert_render_data_to_patch_plan.ps1`, and
 `patch_template_render_plan.ps1` in sequence so mapping/data mismatches fail
-before document rendering starts.
+before document rendering starts. Use `-ExportTargetMode
+resolved-section-targets` when the exported draft should use effective section
+header/footer targets; workspace validation infers this value from workspace
+metadata when the flag is omitted.
 #>
 param(
     [string]$WorkspaceDir = "",
@@ -18,6 +21,8 @@ param(
     [string]$ReportMarkdown = "",
     [string]$BuildDir = "",
     [string]$Generator = "NMake Makefiles",
+    [ValidateSet("", "loaded-parts", "resolved-section-targets")]
+    [string]$ExportTargetMode = "",
     [switch]$SkipBuild,
     [string]$DraftPlanOutput = "",
     [string]$GeneratedPatchOutput = "",
@@ -208,6 +213,31 @@ function Get-ValidationReportPatchCountText {
     return "applied=$applied, requested=$requested"
 }
 
+function Resolve-RenderDataExportTargetMode {
+    param(
+        [string]$RequestedMode,
+        $WorkspaceSummary,
+        $RenderPlanSummary
+    )
+
+    $resolvedMode = $RequestedMode
+    if ([string]::IsNullOrWhiteSpace($resolvedMode)) {
+        $resolvedMode = Get-OptionalObjectPropertyValue -Object $WorkspaceSummary -Name "export_target_mode"
+    }
+    if ([string]::IsNullOrWhiteSpace($resolvedMode)) {
+        $resolvedMode = Get-OptionalObjectPropertyValue -Object $RenderPlanSummary -Name "target_mode"
+    }
+    if ([string]::IsNullOrWhiteSpace($resolvedMode)) {
+        $resolvedMode = "loaded-parts"
+    }
+
+    if (@("loaded-parts", "resolved-section-targets") -notcontains $resolvedMode) {
+        throw "ExportTargetMode must be one of: loaded-parts, resolved-section-targets."
+    }
+
+    return $resolvedMode
+}
+
 function Get-ValidationReportObjectArrayProperty {
     param(
         $Object,
@@ -390,6 +420,7 @@ function New-ValidationReportMarkdown {
     [void]$lines.Add(('- status：`{0}`' -f $status))
     [void]$lines.Add(('- remaining_placeholder_count：`{0}`' -f $remainingPlaceholderText))
     [void]$lines.Add(('- require_complete：`{0}`' -f $requireCompleteText))
+    [void]$lines.Add(('- export_target_mode：`{0}`' -f (Get-OptionalObjectPropertyValue -Object $Summary -Name "export_target_mode")))
     [void]$lines.Add("")
     [void]$lines.Add("## 这次校验了什么")
     [void]$lines.Add("")
@@ -503,6 +534,7 @@ function Build-ValidationSummary {
         [bool]$KeptGeneratedPatch,
         [bool]$KeptPatchedPlan,
         [bool]$RequireComplete,
+        [string]$ExportTargetMode,
         [object]$PatchSummary,
         [object[]]$Steps,
         [string]$ErrorMessage
@@ -527,6 +559,7 @@ function Build-ValidationSummary {
             patched_plan = $KeptPatchedPlan
         }
         require_complete = $RequireComplete
+        export_target_mode = $ExportTargetMode
         operation_count = $Steps.Count
         steps = $Steps
     }
@@ -570,6 +603,10 @@ $renderPlanSummaryPath = Find-WorkspaceCandidatePath `
     -Patterns @("*.render-plan.summary.json") `
     -Label "render-plan summary"
 $renderPlanSummaryObject = Read-JsonFileIfPresent -Path $renderPlanSummaryPath
+$resolvedExportTargetMode = Resolve-RenderDataExportTargetMode `
+    -RequestedMode $ExportTargetMode `
+    -WorkspaceSummary $workspaceSummaryObject `
+    -RenderPlanSummary $renderPlanSummaryObject
 
 $resolvedInputDocx = if (-not [string]::IsNullOrWhiteSpace($InputDocx)) {
     Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $InputDocx
@@ -677,6 +714,7 @@ try {
         -SummaryJson $exportSummaryPath `
         -BuildDir $resolvedBuildDir `
         -Generator $Generator `
+        -TargetMode $resolvedExportTargetMode `
         -SkipBuild:$SkipBuild
     $exportSummaryObject = Read-JsonFileIfPresent -Path $exportSummaryPath
     if ($LASTEXITCODE -ne 0) {
@@ -767,6 +805,7 @@ try {
             -KeptGeneratedPatch (-not [string]::IsNullOrWhiteSpace($GeneratedPatchOutput)) `
             -KeptPatchedPlan (-not [string]::IsNullOrWhiteSpace($PatchedPlanOutput)) `
             -RequireComplete ([bool]$RequireComplete) `
+            -ExportTargetMode $resolvedExportTargetMode `
             -PatchSummary $patchSummaryObject `
             -Steps @(
                 [pscustomobject](New-StepRecord `

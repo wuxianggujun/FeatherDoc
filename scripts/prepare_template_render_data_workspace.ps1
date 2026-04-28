@@ -10,7 +10,9 @@ Runs the template-data preparation pipeline:
 4. lint the generated skeleton against the generated mapping.
 
 The generated workspace is intended for users who want to edit JSON data and
-then render a DOCX with `render_template_document_from_data.ps1`.
+then render a DOCX with `render_template_document_from_data.ps1`. Use
+`-ExportTargetMode resolved-section-targets` when the workspace should keep
+effective section header/footer targets in its render plan and mapping draft.
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -26,6 +28,8 @@ param(
     [int]$DefaultTableCellCount = 1,
     [string]$BuildDir = "",
     [string]$Generator = "NMake Makefiles",
+    [ValidateSet("loaded-parts", "resolved-section-targets")]
+    [string]$ExportTargetMode = "loaded-parts",
     [switch]$SkipBuild
 )
 
@@ -305,6 +309,7 @@ function Build-WorkspaceSummary {
         [string]$BuildDir,
         [string]$Generator,
         [bool]$SkipBuild,
+        [string]$ExportTargetMode,
         [string]$SourceRoot,
         [int]$DefaultParagraphCount,
         [int]$DefaultTableRowCount,
@@ -328,6 +333,7 @@ function Build-WorkspaceSummary {
         build_dir = $BuildDir
         generator = $Generator
         skip_build = $SkipBuild
+        export_target_mode = $ExportTargetMode
         source_root = $SourceRoot
         default_paragraph_count = $DefaultParagraphCount
         default_table_row_count = $DefaultTableRowCount
@@ -407,13 +413,14 @@ $recommendedRenderSummary = Join-Path $resolvedWorkspaceDir ($inputStem + ".rend
 $validateWorkspaceDataCommand = (
     'pwsh -ExecutionPolicy Bypass -File .\scripts\validate_render_data_mapping.ps1 ' +
     '-WorkspaceDir "{0}" -SummaryJson "{1}" -ReportMarkdown "{2}" ' +
-    '-BuildDir "{3}" -Generator "{4}" -RequireComplete'
+    '-BuildDir "{3}" -Generator "{4}" -ExportTargetMode "{5}" -RequireComplete'
 ) -f `
     $resolvedWorkspaceDir, `
     $recommendedValidationSummary, `
     $recommendedValidationReport, `
     $resolvedBuildDir, `
-    $Generator
+    $Generator, `
+    $ExportTargetMode
 if ($SkipBuild) {
     $validateWorkspaceDataCommand += " -SkipBuild"
 }
@@ -466,6 +473,7 @@ try {
         -SummaryJson $renderPlanSummary `
         -BuildDir $resolvedBuildDir `
         -Generator $Generator `
+        -TargetMode $ExportTargetMode `
         -SkipBuild:$SkipBuild
     $exportSummaryObject = Read-JsonFileIfPresent -Path $renderPlanSummary
     if ($LASTEXITCODE -ne 0) {
@@ -597,6 +605,7 @@ try {
             -BuildDir $resolvedBuildDir `
             -Generator $Generator `
             -SkipBuild ([bool]$SkipBuild) `
+            -ExportTargetMode $ExportTargetMode `
             -SourceRoot $SourceRoot `
             -DefaultParagraphCount $DefaultParagraphCount `
             -DefaultTableRowCount $DefaultTableRowCount `
