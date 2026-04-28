@@ -170,6 +170,8 @@ $shortPath = Join-Path $reportDir "release_summary.zh-CN.md"
 Assert-Contains -Path $handoffPath -ExpectedText 'Project version: 1.6.0' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'publish_github_release.ps1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Smoke verdict: pass' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Fixed-grid verdict: undetermined' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'Section page setup verdict: pass' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'Page number fields verdict: pending_manual_review' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'Template table CLI selector verdict: pass' -Label 'release_handoff.md'

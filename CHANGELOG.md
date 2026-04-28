@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added smoke and fixed-grid seeded visual verdicts to release-preflight `release_handoff.md` so the release handoff matches the rest of the metadata bundle.
 - Added smoke and fixed-grid seeded visual verdicts to release-preflight `REVIEWER_CHECKLIST.md` so human review prompts match the rest of the release metadata bundle.
 - Added smoke and fixed-grid seeded visual verdicts to release-preflight `START_HERE.md` and `ARTIFACT_GUIDE.md` so metadata entry points match the full release-note bundle.
 - Added smoke and fixed-grid seeded visual verdicts to release-preflight `release_body.zh-CN.md` and `release_summary.zh-CN.md` so the release note bundle covers the full visual gate flow.

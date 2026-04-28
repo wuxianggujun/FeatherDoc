@@ -148,6 +148,12 @@ function Get-VisualTaskVerdict {
         return $summaryVerdict
     }
 
+    $gateFlow = Get-OptionalPropertyObject -Object $GateSummary -Name $TaskKey
+    $gateFlowVerdict = Get-OptionalPropertyValue -Object $gateFlow -Name "review_verdict"
+    if (-not [string]::IsNullOrWhiteSpace($gateFlowVerdict)) {
+        return $gateFlowVerdict
+    }
+
     $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
     $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
     $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
@@ -514,6 +520,8 @@ $documentTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSum
 $fixedGridTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
 $sectionPageSetupTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
 $sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
@@ -619,6 +627,8 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Project template smoke full coverage required: $(Get-DisplayValue -Value $projectTemplateSmokeRequireFullCoverage)")
 [void]$handoffLines.Add("- Project template smoke candidates registered / unregistered / excluded: $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount))")
 [void]$handoffLines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
+[void]$handoffLines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
+[void]$handoffLines.Add("- Fixed-grid verdict: $(Get-DisplayValue -Value $fixedGridVerdict)")
 [void]$handoffLines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
 [void]$handoffLines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
 [void]$handoffLines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
