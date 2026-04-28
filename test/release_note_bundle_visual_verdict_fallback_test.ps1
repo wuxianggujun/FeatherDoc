@@ -43,7 +43,59 @@ function Assert-LineContainsAll {
     throw "$Label does not contain a line with all expected fragments: $($Fragments -join ', ')"
 }
 
+function Get-OptionalPropertyValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return ""
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property -or $null -eq $property.Value) {
+        return ""
+    }
+
+    return [string]$property.Value
+}
+
+function Get-OptionalPropertyObject {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $null
+    }
+
+    return $property.Value
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+. (Join-Path $resolvedRepoRoot "scripts\release_visual_metadata_helpers.ps1")
+
+$missingReviewTaskSummaryLine = Get-VisualReviewTaskSummaryLine `
+    -VisualGateSummary ([pscustomobject]@{}) `
+    -GateSummary ([pscustomobject]@{})
+if ($missingReviewTaskSummaryLine -ne "") {
+    throw "Missing review_task_summary unexpectedly rendered '$missingReviewTaskSummaryLine'."
+}
+
+$emptyReleaseReviewTaskSummaryLine = Get-VisualReviewTaskSummaryLine `
+    -VisualGateSummary ([pscustomobject]@{ review_task_summary = [pscustomobject]@{ total_count = "" } }) `
+    -GateSummary ([pscustomobject]@{})
+if ($emptyReleaseReviewTaskSummaryLine -ne "") {
+    throw "Incomplete release review_task_summary unexpectedly rendered '$emptyReleaseReviewTaskSummaryLine'."
+}
+
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $reportDir = Join-Path $resolvedWorkingDir "report"
 $installDir = Join-Path $resolvedWorkingDir "install"

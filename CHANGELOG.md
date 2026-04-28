@@ -92,6 +92,7 @@ performance.
 
 ### Tests
 
+- Added missing visual review task-count coverage so legacy release metadata without `review_task_summary` stays clean instead of rendering empty count lines.
 - Added release `final_review.md` assertions for explicit, auto-detected, and `-SkipReleaseBundle` release summary discovery metadata.
 - Added gate final-review assertions for release summary discovery metadata, including explicit, auto-not-found, and `-SkipReleaseBundle` paths.
 - Extended `sync_latest_visual_review_verdict_curated_visual_bundle_test.ps1` to verify `-SkipReleaseBundle` still syncs release summaries while leaving release-note bundle files untouched and marking `release_bundle_refresh_requested=false`.
