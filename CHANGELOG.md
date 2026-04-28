@@ -73,6 +73,7 @@ performance.
 
 ### Changed
 
+- Hardened release metadata review task count rendering so incomplete release-summary metadata falls back to the gate summary instead of emitting blank counts.
 - Mirrored `sync_latest_visual_review_verdict.ps1` release summary discovery metadata into selected release summaries and surfaced it in release `final_review.md` for artifact-only review handoffs.
 - Added a release summary discovery section to `gate_final_review.md` so reviewers can see whether `sync_latest_visual_review_verdict.ps1` used an explicit summary, auto-detected one, or ran gate-only.
 - Added `selected_release_summary_path` and `release_summary_discovery` metadata to `sync_latest_visual_review_verdict.ps1` gate summaries so automation can tell whether release artifacts were refreshed.

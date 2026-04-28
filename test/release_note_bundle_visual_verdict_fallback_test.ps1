@@ -184,9 +184,7 @@ $summary = [ordered]@{
             final_review = $gateFinalReviewPath
             superseded_review_tasks_report = $supersededReviewTasksReportPath
             review_task_summary = [ordered]@{
-                total_count = 5
-                standard_count = 4
-                curated_count = 1
+                total_count = ""
             }
             smoke_reviewed_at = "2026-04-28T12:31:00"
             smoke_review_method = "release_summary_override"

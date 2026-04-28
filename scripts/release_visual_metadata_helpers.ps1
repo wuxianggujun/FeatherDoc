@@ -122,24 +122,51 @@ function Get-VisualTaskReviewMethod {
     return Get-OptionalPropertyValue -Object $gateFlow -Name "review_method"
 }
 
+function Get-CompleteVisualReviewTaskSummary {
+    param($Summary)
+
+    if ($null -eq $Summary) {
+        return $null
+    }
+
+    $totalCount = Get-OptionalPropertyValue -Object $Summary -Name "total_count"
+    $standardCount = Get-OptionalPropertyValue -Object $Summary -Name "standard_count"
+    $curatedCount = Get-OptionalPropertyValue -Object $Summary -Name "curated_count"
+    if ([string]::IsNullOrWhiteSpace($totalCount) -or
+        [string]::IsNullOrWhiteSpace($standardCount) -or
+        [string]::IsNullOrWhiteSpace($curatedCount)) {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        total_count = $totalCount
+        standard_count = $standardCount
+        curated_count = $curatedCount
+    }
+}
+
 function Get-VisualReviewTaskSummaryLine {
     param(
         $VisualGateSummary,
         $GateSummary
     )
 
-    $summary = Get-OptionalPropertyObject -Object $VisualGateSummary -Name "review_task_summary"
-    if ($null -eq $summary) {
-        $summary = Get-OptionalPropertyObject -Object $GateSummary -Name "review_task_summary"
-    }
-    if ($null -eq $summary) {
-        return ""
+    $summaryCandidates = @(
+        (Get-OptionalPropertyObject -Object $VisualGateSummary -Name "review_task_summary"),
+        (Get-OptionalPropertyObject -Object $GateSummary -Name "review_task_summary")
+    )
+
+    foreach ($summaryCandidate in $summaryCandidates) {
+        $summary = Get-CompleteVisualReviewTaskSummary -Summary $summaryCandidate
+        if ($null -ne $summary) {
+            return "Review task count: {0} total ({1} standard, {2} curated)" -f `
+                $summary.total_count,
+                $summary.standard_count,
+                $summary.curated_count
+        }
     }
 
-    return "Review task count: {0} total ({1} standard, {2} curated)" -f `
-        (Get-OptionalPropertyValue -Object $summary -Name "total_count"),
-        (Get-OptionalPropertyValue -Object $summary -Name "standard_count"),
-        (Get-OptionalPropertyValue -Object $summary -Name "curated_count")
+    return ""
 }
 
 function Get-OptionalPropertyArray {
