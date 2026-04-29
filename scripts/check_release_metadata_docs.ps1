@@ -105,10 +105,16 @@ function Write-SummaryJson {
     }
 
     $summary = [pscustomobject]@{
+        summary_schema_version = 1
         status = $Status
         error_message = $ErrorMessage
         summary_json_path = $Path
         repo_root = $RepoRoot
+        checked_document_count = $CheckedDocuments.Count
+        required_marker_count = $PipelineMarkers.Count + $ChecklistMarkers.Count + $PolicyMarkers.Count
+        required_pipeline_marker_count = $PipelineMarkers.Count
+        required_checklist_marker_count = $ChecklistMarkers.Count
+        required_policy_marker_count = $PolicyMarkers.Count
         checked_documents = $CheckedDocuments
         required_pipeline_markers = $PipelineMarkers
         required_checklist_markers = $ChecklistMarkers

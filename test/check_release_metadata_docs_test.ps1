@@ -113,6 +113,12 @@ function Assert-SummaryFailure {
     if ($summary.summary_json_path -ne $expectedSummaryJsonPath) {
         throw "Expected JSON summary path '$expectedSummaryJsonPath', got: $($summary.summary_json_path)"
     }
+    if ($summary.summary_schema_version -ne 1) {
+        throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
+    }
+    if ($summary.required_marker_count -ne 15) {
+        throw "Expected JSON summary to count 15 required markers, got: $($summary.required_marker_count)"
+    }
 }
 
 function New-DocsCase {
@@ -236,6 +242,24 @@ if ($summary.status -ne "passed") {
 $expectedSummaryJsonPath = [System.IO.Path]::GetFullPath($summaryJsonPath)
 if ($summary.summary_json_path -ne $expectedSummaryJsonPath) {
     throw "Expected JSON summary path '$expectedSummaryJsonPath', got: $($summary.summary_json_path)"
+}
+if ($summary.summary_schema_version -ne 1) {
+    throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
+}
+if ($summary.checked_document_count -ne 3) {
+    throw "Expected JSON summary checked document count 3, got: $($summary.checked_document_count)"
+}
+if ($summary.required_pipeline_marker_count -ne 7) {
+    throw "Expected JSON summary pipeline marker count 7, got: $($summary.required_pipeline_marker_count)"
+}
+if ($summary.required_checklist_marker_count -ne 7) {
+    throw "Expected JSON summary checklist marker count 7, got: $($summary.required_checklist_marker_count)"
+}
+if ($summary.required_policy_marker_count -ne 1) {
+    throw "Expected JSON summary policy marker count 1, got: $($summary.required_policy_marker_count)"
+}
+if ($summary.required_marker_count -ne 15) {
+    throw "Expected JSON summary total marker count 15, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 3) {
     throw "Expected JSON summary to list 3 checked documents, got: $($summary.checked_documents.Count)"
