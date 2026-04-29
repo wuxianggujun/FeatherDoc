@@ -209,6 +209,18 @@ GitHub Actions 的 ``windows-msvc.yml`` 现在也会上传一个
 ``skipped`` 的 handoff；正式发版前，仍然要用本地 Windows preflight
 补齐最终截图级结论。
 
+Release metadata 管线参考
+-------------------------
+
+如果需要维护 ``gate_summary.json``、release ``summary.json``、
+``final_review.md`` 或 release note bundle 之间的字段同步规则，优先参考
+:doc:`release_metadata_pipeline_zh`。
+
+这份管线说明把视觉 gate、release candidate preflight、verdict sync、
+release note bundle 和 material safety audit 的职责边界拆开说明，便于在新增
+visual flow 或 curated visual regression bundle 时复用现有 metadata 契约，而
+不是新增一套平行字段格式。
+
 CHANGELOG 维护建议
 --------------------
 

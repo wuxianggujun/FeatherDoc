@@ -75,6 +75,7 @@ performance.
 
 ### Changed
 
+- Linked the release policy documentation to the Chinese release metadata pipeline guide for maintainers updating gate, preflight, sync, and bundle metadata flows.
 - Hardened word visual gate review task counting so empty standard or curated task placeholders are ignored in generated review scope totals.
 - Hardened release preflight summary generation so incomplete visual review task counts are skipped before they enter `summary.json`.
 - Hardened visual verdict sync so incomplete review task counts are dropped from release summaries and omitted from refreshed `final_review.md` output.
