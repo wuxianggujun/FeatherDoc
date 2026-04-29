@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added Chinese release metadata pipeline documentation covering visual gate, preflight, verdict sync, and release-note bundle metadata contracts.
 - Added `write_release_note_bundle.ps1 -SkipMaterialSafetyAudit` for focused regression tests that verify generated bundle content without rerunning the full release material audit.
 - Added release artifact guide and start-here rendering for visual gate review task counts so every internal metadata entry point shows total, standard, and curated review scope.
 - Added release metadata handoff and reviewer checklist rendering for visual gate review task counts so internal sign-off bundles show total, standard, and curated review scope.
