@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added structured failure fields such as `failure_kind`, `failure_relative_path`, and `failure_expected_text` to release metadata docs check JSON summaries.
 - Added `check_release_metadata_docs.ps1 -Quiet` so automation can rely on JSON summaries without success-banner output.
 - Added `summary_json_relative_path` to release metadata docs check JSON summaries for portable automation logs.
 - Added PowerShell edition and version fields to release metadata docs check JSON summaries for environment diagnostics.
@@ -109,6 +110,7 @@ performance.
 
 ### Tests
 
+- Extended release metadata docs checker regressions to assert structured failure metadata for missing markers and UTF-8 BOM rejection.
 - Extended release metadata docs checker regressions to verify quiet mode still writes JSON while suppressing the success marker.
 - Extended release metadata docs checker regressions to assert portable summary JSON relative paths.
 - Extended release metadata docs checker regressions to assert PowerShell environment fields in JSON summaries.

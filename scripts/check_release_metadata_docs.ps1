@@ -25,10 +25,28 @@ function Read-Utf8Text {
         $bytes[0] -eq 0xEF -and
         $bytes[1] -eq 0xBB -and
         $bytes[2] -eq 0xBF) {
+        Set-FailureDetail -Kind "utf8_bom" -Path $Path
         throw "File must be UTF-8 without BOM: $Path"
     }
 
     return [System.Text.Encoding]::UTF8.GetString($bytes)
+}
+
+
+function Set-FailureDetail {
+    param(
+        [string]$Kind,
+        [string]$Label = "",
+        [string]$Path = "",
+        [string]$ExpectedText = "",
+        [int]$LineNumber = 0
+    )
+
+    $script:FailureKind = $Kind
+    $script:FailureLabel = $Label
+    $script:FailurePath = $Path
+    $script:FailureExpectedText = $ExpectedText
+    $script:FailureLineNumber = $LineNumber
 }
 
 function Resolve-OptionalOutputPath {
@@ -159,6 +177,12 @@ function Write-SummaryJson {
         powershell_version = $PSVersionTable.PSVersion.ToString()
         status = $Status
         error_message = $ErrorMessage
+        failure_kind = $script:FailureKind
+        failure_label = $script:FailureLabel
+        failure_path = $script:FailurePath
+        failure_relative_path = Get-RepoRelativePath -BaseRoot $RepoRoot -Path $script:FailurePath
+        failure_expected_text = $script:FailureExpectedText
+        failure_line_number = $script:FailureLineNumber
         summary_json_path = $Path
         summary_json_relative_path = Get-RepoRelativePath -BaseRoot $RepoRoot -Path $Path
         repo_root = $RepoRoot
@@ -184,6 +208,7 @@ function Assert-FileExists {
     )
 
     if (-not (Test-Path -LiteralPath $Path)) {
+        Set-FailureDetail -Kind "missing_file" -Label $Label -Path $Path
         throw "Missing ${Label}: $Path"
     }
 }
@@ -192,10 +217,16 @@ function Assert-ContainsText {
     param(
         [string]$Text,
         [string]$ExpectedText,
-        [string]$Label
+        [string]$Label,
+        [string]$Path = ""
     )
 
     if (-not $Text.Contains($ExpectedText)) {
+        Set-FailureDetail `
+            -Kind "missing_text" `
+            -Label $Label `
+            -Path $Path `
+            -ExpectedText $ExpectedText
         throw "$Label is missing expected text: $ExpectedText"
     }
 }
@@ -209,6 +240,7 @@ function Assert-NoTrailingWhitespace {
     $lines = $Text -split "`r?`n"
     for ($index = 0; $index -lt $lines.Count; ++$index) {
         if ($lines[$index].TrimEnd() -ne $lines[$index]) {
+            Set-FailureDetail -Kind "trailing_whitespace" -Path $Path -LineNumber ($index + 1)
             throw "Trailing whitespace in $Path line $($index + 1)."
         }
     }
@@ -221,9 +253,16 @@ function Assert-NoTabs {
     )
 
     if ($Text.Contains("`t")) {
+        Set-FailureDetail -Kind "tab_character" -Path $Path
         throw "Tab character found in $Path."
     }
 }
+
+$script:FailureKind = ""
+$script:FailureLabel = ""
+$script:FailurePath = ""
+$script:FailureExpectedText = ""
+$script:FailureLineNumber = 0
 
 $pipelineExpectedMarkers = @(
     "run_word_visual_release_gate.ps1",
@@ -290,15 +329,27 @@ try {
     }
 
     foreach ($expected in $pipelineExpectedMarkers) {
-        Assert-ContainsText -Text $pipelineText -ExpectedText $expected -Label "release metadata pipeline doc"
+        Assert-ContainsText `
+            -Text $pipelineText `
+            -ExpectedText $expected `
+            -Label "release metadata pipeline doc" `
+            -Path $pipelinePath
     }
 
     foreach ($expected in $checklistExpectedMarkers) {
-        Assert-ContainsText -Text $checklistText -ExpectedText $expected -Label "release metadata maintenance checklist doc"
+        Assert-ContainsText `
+            -Text $checklistText `
+            -ExpectedText $expected `
+            -Label "release metadata maintenance checklist doc" `
+            -Path $checklistPath
     }
 
     foreach ($expected in $policyExpectedMarkers) {
-        Assert-ContainsText -Text $policyText -ExpectedText $expected -Label "release policy doc"
+        Assert-ContainsText `
+            -Text $policyText `
+            -ExpectedText $expected `
+            -Label "release policy doc" `
+            -Path $policyPath
     }
 
     Write-SummaryJson `
