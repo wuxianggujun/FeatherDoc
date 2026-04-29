@@ -271,7 +271,7 @@ $summary = [ordered]@{
 ($summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 
 $bundleScript = Join-Path $resolvedRepoRoot "scripts\write_release_note_bundle.ps1"
-& $bundleScript -SummaryJson $summaryPath
+& $bundleScript -SummaryJson $summaryPath -SkipMaterialSafetyAudit
 
 $handoffPath = Join-Path $reportDir "release_handoff.md"
 $bodyPath = Join-Path $reportDir "release_body.zh-CN.md"

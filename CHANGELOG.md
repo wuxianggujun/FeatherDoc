@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added `write_release_note_bundle.ps1 -SkipMaterialSafetyAudit` for focused regression tests that verify generated bundle content without rerunning the full release material audit.
 - Added release artifact guide and start-here rendering for visual gate review task counts so every internal metadata entry point shows total, standard, and curated review scope.
 - Added release metadata handoff and reviewer checklist rendering for visual gate review task counts so internal sign-off bundles show total, standard, and curated review scope.
 - Added release preflight propagation for visual gate review task counts so `run_release_candidate_checks.ps1` records total, standard, and curated scope in release summaries and final reviews.
@@ -96,6 +97,7 @@ performance.
 
 ### Tests
 
+- Updated release note bundle visual verdict fallback coverage to skip the material safety audit while preserving generated artifact assertions.
 - Optimized release note bundle visual verdict fallback assertions with cached file reads to reduce Windows CTest timeout risk.
 - Added word visual gate review task-count helper coverage for dictionary and object-shaped task metadata with empty placeholders.
 - Added release preflight helper coverage for complete versus incomplete visual review task-count metadata.

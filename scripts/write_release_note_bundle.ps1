@@ -6,7 +6,8 @@ param(
     [string]$GuideOutputPath = "",
     [string]$ChecklistOutputPath = "",
     [string]$StartHereOutputPath = "",
-    [string]$ReleaseVersion = ""
+    [string]$ReleaseVersion = "",
+    [switch]$SkipMaterialSafetyAudit
 )
 
 Set-StrictMode -Version Latest
@@ -226,14 +227,16 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseVersion)) {
     -SummaryJson $resolvedSummaryPath `
     -OutputPath $resolvedStartHerePath
 
-& $releaseMaterialAuditScript -Path @(
-    $resolvedStartHerePath
-    $resolvedGuidePath
-    $resolvedChecklistPath
-    $resolvedHandoffPath
-    $resolvedBodyPath
-    $resolvedShortPath
-)
+if (-not $SkipMaterialSafetyAudit.IsPresent) {
+    & $releaseMaterialAuditScript -Path @(
+        $resolvedStartHerePath
+        $resolvedGuidePath
+        $resolvedChecklistPath
+        $resolvedHandoffPath
+        $resolvedBodyPath
+        $resolvedShortPath
+    )
+}
 
 Write-Host "Release handoff: $resolvedHandoffPath"
 Write-Host "Release body output: $resolvedBodyPath"
