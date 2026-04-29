@@ -121,7 +121,8 @@ function Assert-SummaryFailure {
         [string]$ExpectedMessage,
         [string]$ExpectedFailureKind,
         [string]$ExpectedFailureRelativePath,
-        [string]$ExpectedFailureExpectedText = ""
+        [string]$ExpectedFailureExpectedText = "",
+        [int]$ExpectedFailureLineNumber = 0
     )
 
     if (-not (Test-Path -LiteralPath $Path)) {
@@ -145,6 +146,10 @@ function Assert-SummaryFailure {
     if (-not [string]::IsNullOrWhiteSpace($ExpectedFailureExpectedText) -and
         $summary.failure_expected_text -ne $ExpectedFailureExpectedText) {
         throw "Expected JSON failure expected text '$ExpectedFailureExpectedText', got: $($summary.failure_expected_text)"
+    }
+    if ($ExpectedFailureLineNumber -gt 0 -and
+        $summary.failure_line_number -ne $ExpectedFailureLineNumber) {
+        throw "Expected JSON failure line number '$ExpectedFailureLineNumber', got: $($summary.failure_line_number)"
     }
 
     $expectedSummaryJsonPath = [System.IO.Path]::GetFullPath($Path)
@@ -334,6 +339,64 @@ Invoke-DocsCheck -CaseRoot $quietCaseRoot -SummaryJson $quietSummaryJsonPath -Qu
 if (-not (Test-Path -LiteralPath $quietSummaryJsonPath)) {
     throw "check_release_metadata_docs.ps1 did not write JSON summary in quiet mode."
 }
+
+
+$missingPolicyCaseRoot = Join-Path $resolvedWorkingDir ("missing-policy-{0}" -f [System.Guid]::NewGuid().ToString("N"))
+$missingPolicyDocsDir = Join-Path $missingPolicyCaseRoot "docs"
+Write-Utf8NoBomFile `
+    -Path (Join-Path $missingPolicyDocsDir "release_metadata_pipeline_zh.rst") `
+    -Text $defaultPipelineText
+Write-Utf8NoBomFile `
+    -Path (Join-Path $missingPolicyDocsDir "release_metadata_maintenance_checklist_zh.rst") `
+    -Text $defaultChecklistText
+$missingPolicySummaryJsonPath = Join-Path $missingPolicyCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingPolicyCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "Missing release policy doc" `
+    -SummaryJson $missingPolicySummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingPolicySummaryJsonPath `
+    -ExpectedMessage "Missing release policy doc" `
+    -ExpectedFailureKind "missing_file" `
+    -ExpectedFailureRelativePath 'docs\release_policy_zh.rst'
+
+$trailingWhitespacePipelineText = $defaultPipelineText.Replace(
+    "- review_task_summary",
+    "- review_task_summary "
+)
+$trailingWhitespaceCaseRoot = New-DocsCase `
+    -Name "trailing-whitespace-pipeline" `
+    -PipelineText $trailingWhitespacePipelineText
+$trailingWhitespaceSummaryJsonPath = Join-Path $trailingWhitespaceCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $trailingWhitespaceCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "Trailing whitespace" `
+    -SummaryJson $trailingWhitespaceSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $trailingWhitespaceSummaryJsonPath `
+    -ExpectedMessage "Trailing whitespace" `
+    -ExpectedFailureKind "trailing_whitespace" `
+    -ExpectedFailureRelativePath 'docs\release_metadata_pipeline_zh.rst' `
+    -ExpectedFailureLineNumber 8
+
+$tabChecklistText = $defaultChecklistText.Replace(
+    "- git diff --check",
+    "- git`t diff --check"
+)
+$tabCaseRoot = New-DocsCase -Name "tab-checklist" -ChecklistText $tabChecklistText
+$tabSummaryJsonPath = Join-Path $tabCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $tabCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "Tab character found" `
+    -SummaryJson $tabSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $tabSummaryJsonPath `
+    -ExpectedMessage "Tab character found" `
+    -ExpectedFailureKind "tab_character" `
+    -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst'
 
 $missingChecklistEntry = $defaultChecklistText.Replace(
     "release_note_bundle_visual_verdict_fallback",

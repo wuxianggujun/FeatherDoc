@@ -110,6 +110,7 @@ performance.
 
 ### Tests
 
+- Extended release metadata docs checker regressions to cover `missing_file`, `trailing_whitespace`, and `tab_character` structured failure kinds.
 - Extended release metadata docs checker regressions to assert structured failure metadata for missing markers and UTF-8 BOM rejection.
 - Extended release metadata docs checker regressions to verify quiet mode still writes JSON while suppressing the success marker.
 - Extended release metadata docs checker regressions to assert portable summary JSON relative paths.
