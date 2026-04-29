@@ -159,6 +159,8 @@ policy 之间的关键引用、字段名和测试入口没有断开。
         -RepoRoot . `
         -SummaryJson .\output\release-metadata-docs-summary.json
 
+CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制台输出成功提示。
+
 检查通过时 JSON 的 ``status`` 为 ``passed``，并包含 ``summary_schema_version``、
 ``checker_name``、``checked_at_utc``、PowerShell 运行环境、``summary_json_path``、
 ``summary_json_relative_path``、文档数量和 marker 数量字段；检查失败时也会

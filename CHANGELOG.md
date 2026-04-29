@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added `check_release_metadata_docs.ps1 -Quiet` so automation can rely on JSON summaries without success-banner output.
 - Added `summary_json_relative_path` to release metadata docs check JSON summaries for portable automation logs.
 - Added PowerShell edition and version fields to release metadata docs check JSON summaries for environment diagnostics.
 - Added `checker_name` and `checked_at_utc` audit fields to release metadata docs check JSON summaries.
@@ -108,6 +109,7 @@ performance.
 
 ### Tests
 
+- Extended release metadata docs checker regressions to verify quiet mode still writes JSON while suppressing the success marker.
 - Extended release metadata docs checker regressions to assert portable summary JSON relative paths.
 - Extended release metadata docs checker regressions to assert PowerShell environment fields in JSON summaries.
 - Extended release metadata docs checker regressions to assert checker identity and UTC timestamp summary fields.

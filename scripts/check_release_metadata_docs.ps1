@@ -1,6 +1,7 @@
 param(
     [string]$RepoRoot = "",
-    [string]$SummaryJson = ""
+    [string]$SummaryJson = "",
+    [switch]$Quiet
 )
 
 Set-StrictMode -Version Latest
@@ -309,7 +310,9 @@ try {
         -ChecklistMarkers $checklistExpectedMarkers `
         -PolicyMarkers $policyExpectedMarkers
 
-    Write-Host "Release metadata docs check passed."
+    if (-not $Quiet) {
+        Write-Host "Release metadata docs check passed."
+    }
 } catch {
     $errorMessage = $_.Exception.Message
     $summaryJsonPath = Resolve-FallbackOutputPath `

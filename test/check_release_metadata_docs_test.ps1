@@ -173,7 +173,8 @@ function Invoke-DocsCheck {
         [string]$CaseRoot,
         [switch]$ShouldFail,
         [string]$ExpectedMessage = "",
-        [string]$SummaryJson = ""
+        [string]$SummaryJson = "",
+        [switch]$Quiet
     )
 
     $failed = $false
@@ -182,6 +183,9 @@ function Invoke-DocsCheck {
     $parameters = @{ RepoRoot = $CaseRoot }
     if (-not [string]::IsNullOrWhiteSpace($SummaryJson)) {
         $parameters.SummaryJson = $SummaryJson
+    }
+    if ($Quiet) {
+        $parameters.Quiet = $true
     }
 
     try {
@@ -208,7 +212,11 @@ function Invoke-DocsCheck {
         throw "check_release_metadata_docs.ps1 failed unexpectedly for ${CaseRoot}: $joinedOutput"
     }
 
-    if ($joinedOutput -notmatch [regex]::Escape("Release metadata docs check passed.")) {
+    if ($Quiet) {
+        if ($joinedOutput -match [regex]::Escape("Release metadata docs check passed.")) {
+            throw "check_release_metadata_docs.ps1 printed the success marker in quiet mode."
+        }
+    } elseif ($joinedOutput -notmatch [regex]::Escape("Release metadata docs check passed.")) {
         throw "check_release_metadata_docs.ps1 did not print the success marker. Output: $joinedOutput"
     }
 }
@@ -305,6 +313,14 @@ Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "release_note_bundle_visual_verdict_fallback" `
     -Message "JSON summary should list required checklist markers."
+
+
+$quietCaseRoot = New-DocsCase -Name "quiet-passing"
+$quietSummaryJsonPath = Join-Path $quietCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck -CaseRoot $quietCaseRoot -SummaryJson $quietSummaryJsonPath -Quiet
+if (-not (Test-Path -LiteralPath $quietSummaryJsonPath)) {
+    throw "check_release_metadata_docs.ps1 did not write JSON summary in quiet mode."
+}
 
 $missingChecklistEntry = $defaultChecklistText.Replace(
     "release_note_bundle_visual_verdict_fallback",
