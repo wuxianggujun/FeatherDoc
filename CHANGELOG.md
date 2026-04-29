@@ -86,6 +86,7 @@ performance.
 
 ### Changed
 
+- Extended release metadata docs checker diagnostics so `tab_character` failures report `failure_line_number`.
 - Linked the release policy documentation to the Chinese release metadata pipeline guide for maintainers updating gate, preflight, sync, and bundle metadata flows.
 - Hardened word visual gate review task counting so empty standard or curated task placeholders are ignored in generated review scope totals.
 - Hardened release preflight summary generation so incomplete visual review task counts are skipped before they enter `summary.json`.
@@ -110,6 +111,7 @@ performance.
 
 ### Tests
 
+- Extended release metadata docs checker regressions to assert line numbers for `tab_character` failures.
 - Extended release metadata docs checker regressions to cover `missing_file`, `trailing_whitespace`, and `tab_character` structured failure kinds.
 - Extended release metadata docs checker regressions to assert structured failure metadata for missing markers and UTF-8 BOM rejection.
 - Extended release metadata docs checker regressions to verify quiet mode still writes JSON while suppressing the success marker.

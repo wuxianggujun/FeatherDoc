@@ -252,9 +252,12 @@ function Assert-NoTabs {
         [string]$Path
     )
 
-    if ($Text.Contains("`t")) {
-        Set-FailureDetail -Kind "tab_character" -Path $Path
-        throw "Tab character found in $Path."
+    $lines = $Text -split "`r?`n"
+    for ($index = 0; $index -lt $lines.Count; ++$index) {
+        if ($lines[$index].Contains("`t")) {
+            Set-FailureDetail -Kind "tab_character" -Path $Path -LineNumber ($index + 1)
+            throw "Tab character found in $Path line $($index + 1)."
+        }
     }
 }
 

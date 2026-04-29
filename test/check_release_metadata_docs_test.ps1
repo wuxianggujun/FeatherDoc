@@ -396,7 +396,8 @@ Assert-SummaryFailure `
     -Path $tabSummaryJsonPath `
     -ExpectedMessage "Tab character found" `
     -ExpectedFailureKind "tab_character" `
-    -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst'
+    -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
+    -ExpectedFailureLineNumber 10
 
 $missingChecklistEntry = $defaultChecklistText.Replace(
     "release_note_bundle_visual_verdict_fallback",
