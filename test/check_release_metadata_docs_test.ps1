@@ -89,6 +89,27 @@ function Assert-ScriptParses {
     }
 }
 
+
+function Assert-SummaryFailure {
+    param(
+        [string]$Path,
+        [string]$ExpectedMessage
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "check_release_metadata_docs.ps1 did not write failure JSON summary: $Path"
+    }
+
+    Assert-FileHasNoBom -Path $Path
+    $summary = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+    if ($summary.status -ne "failed") {
+        throw "Expected JSON summary status to be failed, got: $($summary.status)"
+    }
+    if ($summary.error_message -notmatch [regex]::Escape($ExpectedMessage)) {
+        throw "Expected JSON failure message '$ExpectedMessage', got: $($summary.error_message)"
+    }
+}
+
 function New-DocsCase {
     param(
         [string]$Name,
@@ -224,18 +245,28 @@ $missingChecklistEntry = $defaultChecklistText.Replace(
     "release_note_bundle_visual_verdict_legacy"
 )
 $missingChecklistCaseRoot = New-DocsCase -Name "missing-checklist-entry" -ChecklistText $missingChecklistEntry
+$missingChecklistSummaryJsonPath = Join-Path $missingChecklistCaseRoot "docs-check-summary.json"
 Invoke-DocsCheck `
     -CaseRoot $missingChecklistCaseRoot `
     -ShouldFail `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: release_note_bundle_visual_verdict_fallback" `
+    -SummaryJson $missingChecklistSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingChecklistSummaryJsonPath `
     -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: release_note_bundle_visual_verdict_fallback"
 
 $bomCaseRoot = New-DocsCase -Name "bom-pipeline"
 Write-Utf8BomFile `
     -Path (Join-Path $bomCaseRoot "docs\release_metadata_pipeline_zh.rst") `
     -Text $defaultPipelineText
+$bomSummaryJsonPath = Join-Path $bomCaseRoot "docs-check-summary.json"
 Invoke-DocsCheck `
     -CaseRoot $bomCaseRoot `
     -ShouldFail `
+    -ExpectedMessage "File must be UTF-8 without BOM" `
+    -SummaryJson $bomSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $bomSummaryJsonPath `
     -ExpectedMessage "File must be UTF-8 without BOM"
 
 Write-Host "Release metadata docs checker regression passed."
