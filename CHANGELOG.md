@@ -96,6 +96,7 @@ performance.
 
 ### Tests
 
+- Optimized release note bundle visual verdict fallback assertions with cached file reads to reduce Windows CTest timeout risk.
 - Added word visual gate review task-count helper coverage for dictionary and object-shaped task metadata with empty placeholders.
 - Added release preflight helper coverage for complete versus incomplete visual review task-count metadata.
 - Extended visual verdict sync coverage to verify incomplete review task counts do not survive release-summary refreshes.

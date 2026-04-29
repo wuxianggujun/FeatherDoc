@@ -6,6 +6,31 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$script:TextFileCache = @{}
+$script:LineFileCache = @{}
+
+function Get-CachedFileText {
+    param([string]$Path)
+
+    $cacheKey = [System.IO.Path]::GetFullPath($Path)
+    if (-not $script:TextFileCache.ContainsKey($cacheKey)) {
+        $script:TextFileCache[$cacheKey] = Get-Content -Raw -LiteralPath $Path
+    }
+
+    return $script:TextFileCache[$cacheKey]
+}
+
+function Get-CachedFileLines {
+    param([string]$Path)
+
+    $cacheKey = [System.IO.Path]::GetFullPath($Path)
+    if (-not $script:LineFileCache.ContainsKey($cacheKey)) {
+        $script:LineFileCache[$cacheKey] = Get-Content -LiteralPath $Path
+    }
+
+    return $script:LineFileCache[$cacheKey]
+}
+
 function Assert-Contains {
     param(
         [string]$Path,
@@ -13,7 +38,7 @@ function Assert-Contains {
         [string]$Label
     )
 
-    $content = Get-Content -Raw -LiteralPath $Path
+    $content = Get-CachedFileText -Path $Path
     if ($content -notmatch [regex]::Escape($ExpectedText)) {
         throw "$Label does not contain expected text '$ExpectedText': $Path"
     }
@@ -26,7 +51,7 @@ function Assert-LineContainsAll {
         [string]$Label
     )
 
-    $lines = Get-Content -LiteralPath $Path
+    $lines = Get-CachedFileLines -Path $Path
     foreach ($line in $lines) {
         $lineMatches = $true
         foreach ($fragment in $Fragments) {
@@ -312,6 +337,7 @@ foreach ($fragments in @(
     Assert-LineContainsAll -Path $bodyPath -Fragments $fragments -Label "release_body.zh-CN.md"
 }
 
+$bodyContent = Get-CachedFileText -Path $bodyPath
 foreach ($unexpectedNote in @(
         "smoke contact sheet reviewed",
         "fixed-grid mismatch documented",
@@ -319,7 +345,6 @@ foreach ($unexpectedNote in @(
         "page number fields awaiting reviewer",
         "curated visual evidence checked"
     )) {
-    $bodyContent = Get-Content -Raw -LiteralPath $bodyPath
     if ($bodyContent -match [regex]::Escape($unexpectedNote)) {
         throw "release_body.zh-CN.md unexpectedly rendered review note '$unexpectedNote'."
     }
@@ -334,7 +359,6 @@ foreach ($unexpectedProvenance in @(
         "release_summary_override",
         "operator_supplied"
     )) {
-    $bodyContent = Get-Content -Raw -LiteralPath $bodyPath
     if ($bodyContent -match [regex]::Escape($unexpectedProvenance)) {
         throw "release_body.zh-CN.md unexpectedly rendered review provenance '$unexpectedProvenance'."
     }
