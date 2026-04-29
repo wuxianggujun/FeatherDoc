@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added `summary_json_path` to release metadata docs check JSON summaries so automation can record the resolved output path.
 - Extended `check_release_metadata_docs.ps1 -SummaryJson` to write failed summaries with `error_message` while preserving non-zero exits.
 - Added `check_release_metadata_docs.ps1 -SummaryJson` so release metadata documentation checks can emit machine-readable pass summaries.
 - Added a lightweight release metadata documentation checker for pipeline, maintenance checklist, and release policy cross-reference coverage.
@@ -103,6 +104,7 @@ performance.
 
 ### Tests
 
+- Extended release metadata docs checker regressions to assert `summary_json_path` for passing and failing summaries.
 - Extended release metadata docs checker regressions to cover failed JSON summaries for missing markers and UTF-8 BOM rejection.
 - Extended release metadata docs checker coverage to assert JSON summary output and UTF-8 without BOM encoding.
 - Added focused regression coverage for the release metadata docs checker, including missing checklist markers and UTF-8 BOM rejection.

@@ -108,6 +108,11 @@ function Assert-SummaryFailure {
     if ($summary.error_message -notmatch [regex]::Escape($ExpectedMessage)) {
         throw "Expected JSON failure message '$ExpectedMessage', got: $($summary.error_message)"
     }
+
+    $expectedSummaryJsonPath = [System.IO.Path]::GetFullPath($Path)
+    if ($summary.summary_json_path -ne $expectedSummaryJsonPath) {
+        throw "Expected JSON summary path '$expectedSummaryJsonPath', got: $($summary.summary_json_path)"
+    }
 }
 
 function New-DocsCase {
@@ -227,6 +232,10 @@ Assert-FileHasNoBom -Path $summaryJsonPath
 $summary = Get-Content -Raw -LiteralPath $summaryJsonPath | ConvertFrom-Json
 if ($summary.status -ne "passed") {
     throw "Expected JSON summary status to be passed, got: $($summary.status)"
+}
+$expectedSummaryJsonPath = [System.IO.Path]::GetFullPath($summaryJsonPath)
+if ($summary.summary_json_path -ne $expectedSummaryJsonPath) {
+    throw "Expected JSON summary path '$expectedSummaryJsonPath', got: $($summary.summary_json_path)"
 }
 if ($summary.checked_documents.Count -ne 3) {
     throw "Expected JSON summary to list 3 checked documents, got: $($summary.checked_documents.Count)"
