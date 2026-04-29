@@ -160,9 +160,9 @@ policy 之间的关键引用、字段名和测试入口没有断开。
         -SummaryJson .\output\release-metadata-docs-summary.json
 
 检查通过时 JSON 的 ``status`` 为 ``passed``，并包含 ``summary_schema_version``、
-``checker_name``、``checked_at_utc``、``summary_json_path``、文档数量和 marker
-数量字段；检查失败时也会尽量写出 ``status=failed`` 和 ``error_message``，
-但脚本仍保持失败退出码。
+``checker_name``、``checked_at_utc``、PowerShell 运行环境、``summary_json_path``、
+文档数量和 marker 数量字段；检查失败时也会尽量写出 ``status=failed`` 和
+``error_message``，但脚本仍保持失败退出码。
 
 如果改动检查脚本本身，额外运行独立回归测试：
 

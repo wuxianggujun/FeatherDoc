@@ -107,6 +107,12 @@ function Assert-SummaryAuditFields {
     if ($checkedAtUtc -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$') {
         throw "Expected JSON checked_at_utc to use UTC timestamp format, got: $($Summary.checked_at_utc)"
     }
+    if ([string]::IsNullOrWhiteSpace($Summary.powershell_edition)) {
+        throw "Expected JSON powershell_edition to be populated."
+    }
+    if ($Summary.powershell_version -notmatch '^\d+\.\d+') {
+        throw "Expected JSON powershell_version to start with a version number, got: $($Summary.powershell_version)"
+    }
 }
 
 function Assert-SummaryFailure {

@@ -108,11 +108,17 @@ function Write-SummaryJson {
         "yyyy-MM-ddTHH:mm:ss'Z'",
         [System.Globalization.CultureInfo]::InvariantCulture
     )
+    $powershellEdition = ""
+    if ($PSVersionTable.ContainsKey("PSEdition")) {
+        $powershellEdition = [string]$PSVersionTable.PSEdition
+    }
 
     $summary = [pscustomobject]@{
         summary_schema_version = 1
         checker_name = "check_release_metadata_docs.ps1"
         checked_at_utc = $checkedAtUtc
+        powershell_edition = $powershellEdition
+        powershell_version = $PSVersionTable.PSVersion.ToString()
         status = $Status
         error_message = $ErrorMessage
         summary_json_path = $Path
