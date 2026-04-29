@@ -120,6 +120,7 @@ function Assert-SummaryFailure {
         [string]$Path,
         [string]$ExpectedMessage,
         [string]$ExpectedFailureKind,
+        [string]$ExpectedFailureRuleId = "",
         [string]$ExpectedFailureRelativePath,
         [string]$ExpectedFailureExpectedText = "",
         [int]$ExpectedFailureLineNumber = 0,
@@ -141,6 +142,12 @@ function Assert-SummaryFailure {
     }
     if ($summary.failure_kind -ne $ExpectedFailureKind) {
         throw "Expected JSON failure kind '$ExpectedFailureKind', got: $($summary.failure_kind)"
+    }
+    if ([string]::IsNullOrWhiteSpace($ExpectedFailureRuleId)) {
+        $ExpectedFailureRuleId = "release_metadata_docs.$ExpectedFailureKind"
+    }
+    if ($summary.failure_rule_id -ne $ExpectedFailureRuleId) {
+        throw "Expected JSON failure rule id '$ExpectedFailureRuleId', got: $($summary.failure_rule_id)"
     }
     if ($summary.failure_relative_path -ne $ExpectedFailureRelativePath) {
         throw "Expected JSON failure relative path '$ExpectedFailureRelativePath', got: $($summary.failure_relative_path)"

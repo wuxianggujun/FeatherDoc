@@ -86,6 +86,7 @@ performance.
 
 ### Changed
 
+- Added `failure_rule_id` to release metadata docs checker JSON failures for stable CI aggregation.
 - Extended release metadata docs checker diagnostics so whitespace failures include `failure_excerpt`.
 - Extended release metadata docs checker diagnostics so whitespace failures report `failure_column_number`.
 - Extended release metadata docs checker diagnostics so `tab_character` failures report `failure_line_number`.
@@ -113,6 +114,7 @@ performance.
 
 ### Tests
 
+- Extended release metadata docs checker regressions to assert stable `failure_rule_id` values for structured failures.
 - Extended release metadata docs checker regressions to assert failure excerpts for tab and trailing-whitespace failures.
 - Extended release metadata docs checker regressions to assert column numbers for tab and trailing-whitespace failures.
 - Extended release metadata docs checker regressions to assert line numbers for `tab_character` failures.

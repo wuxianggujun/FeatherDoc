@@ -36,6 +36,7 @@ function Read-Utf8Text {
 function Set-FailureDetail {
     param(
         [string]$Kind,
+        [string]$RuleId = "",
         [string]$Label = "",
         [string]$Path = "",
         [string]$ExpectedText = "",
@@ -44,7 +45,13 @@ function Set-FailureDetail {
         [string]$Excerpt = ""
     )
 
+    if ([string]::IsNullOrWhiteSpace($RuleId) -and
+        -not [string]::IsNullOrWhiteSpace($Kind)) {
+        $RuleId = "release_metadata_docs.$Kind"
+    }
+
     $script:FailureKind = $Kind
+    $script:FailureRuleId = $RuleId
     $script:FailureLabel = $Label
     $script:FailurePath = $Path
     $script:FailureExpectedText = $ExpectedText
@@ -182,6 +189,7 @@ function Write-SummaryJson {
         status = $Status
         error_message = $ErrorMessage
         failure_kind = $script:FailureKind
+        failure_rule_id = $script:FailureRuleId
         failure_label = $script:FailureLabel
         failure_path = $script:FailurePath
         failure_relative_path = Get-RepoRelativePath -BaseRoot $RepoRoot -Path $script:FailurePath
@@ -281,6 +289,7 @@ function Assert-NoTabs {
 }
 
 $script:FailureKind = ""
+$script:FailureRuleId = ""
 $script:FailureLabel = ""
 $script:FailurePath = ""
 $script:FailureExpectedText = ""
