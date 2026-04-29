@@ -137,6 +137,23 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 按非 UTF-8 解析脚本，导致无关的 parser error。
 
 
+自动文档检查
+------------
+
+如果只改 release metadata 维护文档，可以先运行下面的轻量检查脚本。它不会构建
+项目，也不会接入 CTest；用途是确认 pipeline、maintenance checklist 和 release
+policy 之间的关键引用、字段名和测试入口没有断开。
+
+.. code-block:: powershell
+
+    pwsh -NoProfile -ExecutionPolicy Bypass -File `
+        .\scripts\check_release_metadata_docs.ps1 `
+        -RepoRoot .
+
+这条检查不能替代 release metadata 的行为回归测试。只要改动涉及脚本输出或
+metadata 字段同步，仍然需要按上一节的测试矩阵执行对应测试。
+
+
 快速人工复核
 ------------
 

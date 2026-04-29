@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added a lightweight release metadata documentation checker for pipeline, maintenance checklist, and release policy cross-reference coverage.
 - Added a Chinese release metadata maintenance checklist covering field contracts, targeted tests, visual review, and commit hygiene.
 - Added Chinese release metadata pipeline documentation covering visual gate, preflight, verdict sync, and release-note bundle metadata contracts.
 - Added `write_release_note_bundle.ps1 -SkipMaterialSafetyAudit` for focused regression tests that verify generated bundle content without rerunning the full release material audit.
@@ -100,6 +101,7 @@ performance.
 
 ### Tests
 
+- Documented the release metadata docs checker in the maintenance checklist so doc-only changes have a focused validation path.
 - Updated release note bundle visual verdict fallback coverage to skip the material safety audit while preserving generated artifact assertions.
 - Optimized release note bundle visual verdict fallback assertions with cached file reads to reduce Windows CTest timeout risk.
 - Added word visual gate review task-count helper coverage for dictionary and object-shaped task metadata with empty placeholders.
