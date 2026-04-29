@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added `summary_json_relative_path` to release metadata docs check JSON summaries for portable automation logs.
 - Added PowerShell edition and version fields to release metadata docs check JSON summaries for environment diagnostics.
 - Added `checker_name` and `checked_at_utc` audit fields to release metadata docs check JSON summaries.
 - Added `summary_schema_version` and document/marker count fields to release metadata docs check JSON summaries.
@@ -107,6 +108,7 @@ performance.
 
 ### Tests
 
+- Extended release metadata docs checker regressions to assert portable summary JSON relative paths.
 - Extended release metadata docs checker regressions to assert PowerShell environment fields in JSON summaries.
 - Extended release metadata docs checker regressions to assert checker identity and UTC timestamp summary fields.
 - Extended release metadata docs checker regressions to assert JSON schema version and count fields for passing and failing summaries.

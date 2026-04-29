@@ -138,6 +138,9 @@ function Assert-SummaryFailure {
     if ($summary.summary_json_path -ne $expectedSummaryJsonPath) {
         throw "Expected JSON summary path '$expectedSummaryJsonPath', got: $($summary.summary_json_path)"
     }
+    if ($summary.summary_json_relative_path -ne "docs-check-summary.json") {
+        throw "Expected JSON relative summary path docs-check-summary.json, got: $($summary.summary_json_relative_path)"
+    }
     if ($summary.summary_schema_version -ne 1) {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
@@ -268,6 +271,9 @@ if ($summary.status -ne "passed") {
 $expectedSummaryJsonPath = [System.IO.Path]::GetFullPath($summaryJsonPath)
 if ($summary.summary_json_path -ne $expectedSummaryJsonPath) {
     throw "Expected JSON summary path '$expectedSummaryJsonPath', got: $($summary.summary_json_path)"
+}
+if ($summary.summary_json_relative_path -ne "docs-check-summary.json") {
+    throw "Expected JSON relative summary path docs-check-summary.json, got: $($summary.summary_json_relative_path)"
 }
 if ($summary.summary_schema_version -ne 1) {
     throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"

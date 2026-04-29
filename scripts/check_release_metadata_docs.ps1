@@ -88,6 +88,43 @@ function Write-Utf8NoBomFile {
     [System.IO.File]::WriteAllText($Path, $Text, $encoding)
 }
 
+
+function Get-RepoRelativePath {
+    param(
+        [string]$BaseRoot,
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($BaseRoot) -or
+        [string]::IsNullOrWhiteSpace($Path)) {
+        return ""
+    }
+
+    $resolvedBaseRoot = [System.IO.Path]::GetFullPath($BaseRoot)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if (-not $resolvedBaseRoot.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $resolvedBaseRoot += [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    $baseUri = New-Object System.Uri($resolvedBaseRoot)
+    $pathUri = New-Object System.Uri($resolvedPath)
+    if ($baseUri.Scheme -ne $pathUri.Scheme) {
+        return ""
+    }
+
+    $relativeUri = $baseUri.MakeRelativeUri($pathUri)
+    if ($relativeUri.IsAbsoluteUri) {
+        return ""
+    }
+
+    $relativePath = [System.Uri]::UnescapeDataString($relativeUri.ToString())
+    if ($relativePath -match '^\.\./') {
+        return ""
+    }
+
+    return $relativePath.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+}
+
 function Write-SummaryJson {
     param(
         [string]$Path,
@@ -122,6 +159,7 @@ function Write-SummaryJson {
         status = $Status
         error_message = $ErrorMessage
         summary_json_path = $Path
+        summary_json_relative_path = Get-RepoRelativePath -BaseRoot $RepoRoot -Path $Path
         repo_root = $RepoRoot
         checked_document_count = $CheckedDocuments.Count
         required_marker_count = $PipelineMarkers.Count + $ChecklistMarkers.Count + $PolicyMarkers.Count
