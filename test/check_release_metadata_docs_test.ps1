@@ -49,6 +49,35 @@ function Write-Utf8BomFile {
     [System.IO.File]::WriteAllText($Path, $Text, $encoding)
 }
 
+
+function Assert-FileHasNoBom {
+    param([string]$Path)
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 3 -and
+        $bytes[0] -eq 0xEF -and
+        $bytes[1] -eq 0xBB -and
+        $bytes[2] -eq 0xBF) {
+        throw "File must be UTF-8 without BOM: $Path"
+    }
+}
+
+function Assert-ArrayContains {
+    param(
+        [object[]]$Values,
+        [string]$ExpectedValue,
+        [string]$Message
+    )
+
+    foreach ($value in $Values) {
+        if ($value -eq $ExpectedValue) {
+            return
+        }
+    }
+
+    throw $Message
+}
+
 function Assert-ScriptParses {
     param([string]$Path)
 
@@ -82,14 +111,20 @@ function Invoke-DocsCheck {
     param(
         [string]$CaseRoot,
         [switch]$ShouldFail,
-        [string]$ExpectedMessage = ""
+        [string]$ExpectedMessage = "",
+        [string]$SummaryJson = ""
     )
 
     $failed = $false
     $output = @()
 
+    $parameters = @{ RepoRoot = $CaseRoot }
+    if (-not [string]::IsNullOrWhiteSpace($SummaryJson)) {
+        $parameters.SummaryJson = $SummaryJson
+    }
+
     try {
-        $output = @(& $docsCheckScript -RepoRoot $CaseRoot *>&1)
+        $output = @(& $docsCheckScript @parameters *>&1)
     } catch {
         $failed = $true
         $output += $_.Exception.Message
@@ -161,7 +196,28 @@ $defaultPolicyText = @(
 ) -join "`n"
 
 $passingCaseRoot = New-DocsCase -Name "passing"
-Invoke-DocsCheck -CaseRoot $passingCaseRoot
+$summaryJsonPath = Join-Path $passingCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck -CaseRoot $passingCaseRoot -SummaryJson $summaryJsonPath
+
+if (-not (Test-Path -LiteralPath $summaryJsonPath)) {
+    throw "check_release_metadata_docs.ps1 did not write the requested JSON summary."
+}
+Assert-FileHasNoBom -Path $summaryJsonPath
+$summary = Get-Content -Raw -LiteralPath $summaryJsonPath | ConvertFrom-Json
+if ($summary.status -ne "passed") {
+    throw "Expected JSON summary status to be passed, got: $($summary.status)"
+}
+if ($summary.checked_documents.Count -ne 3) {
+    throw "Expected JSON summary to list 3 checked documents, got: $($summary.checked_documents.Count)"
+}
+Assert-ArrayContains `
+    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue 'docs\release_metadata_pipeline_zh.rst' `
+    -Message "JSON summary should list the release metadata pipeline doc."
+Assert-ArrayContains `
+    -Values @($summary.required_checklist_markers) `
+    -ExpectedValue "release_note_bundle_visual_verdict_fallback" `
+    -Message "JSON summary should list required checklist markers."
 
 $missingChecklistEntry = $defaultChecklistText.Replace(
     "release_note_bundle_visual_verdict_fallback",

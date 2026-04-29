@@ -150,6 +150,15 @@ policy 之间的关键引用、字段名和测试入口没有断开。
         .\scripts\check_release_metadata_docs.ps1 `
         -RepoRoot .
 
+需要给自动化留痕时，可以额外输出 JSON 摘要：
+
+.. code-block:: powershell
+
+    pwsh -NoProfile -ExecutionPolicy Bypass -File `
+        .\scripts\check_release_metadata_docs.ps1 `
+        -RepoRoot . `
+        -SummaryJson .\output\release-metadata-docs-summary.json
+
 如果改动检查脚本本身，额外运行独立回归测试：
 
 .. code-block:: powershell

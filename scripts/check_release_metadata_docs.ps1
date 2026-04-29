@@ -1,5 +1,6 @@
 param(
-    [string]$RepoRoot = ""
+    [string]$RepoRoot = "",
+    [string]$SummaryJson = ""
 )
 
 Set-StrictMode -Version Latest
@@ -27,6 +28,66 @@ function Read-Utf8Text {
     }
 
     return [System.Text.Encoding]::UTF8.GetString($bytes)
+}
+
+
+function Resolve-OptionalOutputPath {
+    param(
+        [string]$Path,
+        [string]$BaseRoot
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return ""
+    }
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $BaseRoot $Path))
+}
+
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [string]$Text
+    )
+
+    $parentDir = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parentDir)) {
+        New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+    }
+
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Text, $encoding)
+}
+
+function Write-SummaryJson {
+    param(
+        [string]$Path,
+        [string]$RepoRoot,
+        [object[]]$CheckedDocuments,
+        [string[]]$PipelineMarkers,
+        [string[]]$ChecklistMarkers,
+        [string[]]$PolicyMarkers
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return
+    }
+
+    $summary = [pscustomobject]@{
+        status = "passed"
+        repo_root = $RepoRoot
+        checked_documents = $CheckedDocuments
+        required_pipeline_markers = $PipelineMarkers
+        required_checklist_markers = $ChecklistMarkers
+        required_policy_markers = $PolicyMarkers
+    }
+
+    $json = $summary | ConvertTo-Json -Depth 6
+    Write-Utf8NoBomFile -Path $Path -Text ($json + [Environment]::NewLine)
 }
 
 function Assert-FileExists {
@@ -78,9 +139,27 @@ function Assert-NoTabs {
 }
 
 $resolvedRepoRoot = Resolve-RepoRoot -InputRoot $RepoRoot
-$pipelinePath = Join-Path $resolvedRepoRoot "docs\release_metadata_pipeline_zh.rst"
-$checklistPath = Join-Path $resolvedRepoRoot "docs\release_metadata_maintenance_checklist_zh.rst"
-$policyPath = Join-Path $resolvedRepoRoot "docs\release_policy_zh.rst"
+$summaryJsonPath = Resolve-OptionalOutputPath -Path $SummaryJson -BaseRoot $resolvedRepoRoot
+$checkedDocuments = @(
+    [pscustomobject]@{
+        label = "release metadata pipeline doc"
+        relative_path = "docs\release_metadata_pipeline_zh.rst"
+        path = Join-Path $resolvedRepoRoot "docs\release_metadata_pipeline_zh.rst"
+    },
+    [pscustomobject]@{
+        label = "release metadata maintenance checklist doc"
+        relative_path = "docs\release_metadata_maintenance_checklist_zh.rst"
+        path = Join-Path $resolvedRepoRoot "docs\release_metadata_maintenance_checklist_zh.rst"
+    },
+    [pscustomobject]@{
+        label = "release policy doc"
+        relative_path = "docs\release_policy_zh.rst"
+        path = Join-Path $resolvedRepoRoot "docs\release_policy_zh.rst"
+    }
+)
+$pipelinePath = $checkedDocuments[0].path
+$checklistPath = $checkedDocuments[1].path
+$policyPath = $checkedDocuments[2].path
 
 Assert-FileExists -Path $pipelinePath -Label "release metadata pipeline doc"
 Assert-FileExists -Path $checklistPath -Label "release metadata maintenance checklist doc"
@@ -99,32 +178,44 @@ foreach ($doc in @(
     Assert-NoTabs -Text $doc.Text -Path $doc.Path
 }
 
-foreach ($expected in @(
-        "run_word_visual_release_gate.ps1",
-        "run_release_candidate_checks.ps1",
-        "sync_visual_review_verdict.ps1",
-        "write_release_note_bundle.ps1",
-        "review_task_summary",
-        "assert_release_material_safety.ps1",
-        "-SkipMaterialSafetyAudit"
-    )) {
+$pipelineExpectedMarkers = @(
+    "run_word_visual_release_gate.ps1",
+    "run_release_candidate_checks.ps1",
+    "sync_visual_review_verdict.ps1",
+    "write_release_note_bundle.ps1",
+    "review_task_summary",
+    "assert_release_material_safety.ps1",
+    "-SkipMaterialSafetyAudit"
+)
+$checklistExpectedMarkers = @(
+    ':doc:`release_metadata_pipeline_zh`',
+    "word_visual_release_gate_smoke_verdict",
+    "release_candidate_visual_verdict",
+    "sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle)",
+    "release_note_bundle_visual_verdict_fallback",
+    "public_release_wording_regression_test.ps1",
+    "git diff --check"
+)
+$policyExpectedMarkers = @(':doc:`release_metadata_pipeline_zh`')
+
+foreach ($expected in $pipelineExpectedMarkers) {
     Assert-ContainsText -Text $pipelineText -ExpectedText $expected -Label "release metadata pipeline doc"
 }
 
-foreach ($expected in @(
-        ':doc:`release_metadata_pipeline_zh`',
-        "word_visual_release_gate_smoke_verdict",
-        "release_candidate_visual_verdict",
-        "sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle)",
-        "release_note_bundle_visual_verdict_fallback",
-        "public_release_wording_regression_test.ps1",
-        "git diff --check"
-    )) {
+foreach ($expected in $checklistExpectedMarkers) {
     Assert-ContainsText -Text $checklistText -ExpectedText $expected -Label "release metadata maintenance checklist doc"
 }
 
-Assert-ContainsText -Text $policyText `
-    -ExpectedText ':doc:`release_metadata_pipeline_zh`' `
-    -Label "release policy doc"
+foreach ($expected in $policyExpectedMarkers) {
+    Assert-ContainsText -Text $policyText -ExpectedText $expected -Label "release policy doc"
+}
+
+Write-SummaryJson `
+    -Path $summaryJsonPath `
+    -RepoRoot $resolvedRepoRoot `
+    -CheckedDocuments $checkedDocuments `
+    -PipelineMarkers $pipelineExpectedMarkers `
+    -ChecklistMarkers $checklistExpectedMarkers `
+    -PolicyMarkers $policyExpectedMarkers
 
 Write-Host "Release metadata docs check passed."

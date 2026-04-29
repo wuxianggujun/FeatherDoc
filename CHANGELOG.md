@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added `check_release_metadata_docs.ps1 -SummaryJson` so release metadata documentation checks can emit machine-readable pass summaries.
 - Added a lightweight release metadata documentation checker for pipeline, maintenance checklist, and release policy cross-reference coverage.
 - Added a Chinese release metadata maintenance checklist covering field contracts, targeted tests, visual review, and commit hygiene.
 - Added Chinese release metadata pipeline documentation covering visual gate, preflight, verdict sync, and release-note bundle metadata contracts.
@@ -101,6 +102,7 @@ performance.
 
 ### Tests
 
+- Extended release metadata docs checker coverage to assert JSON summary output and UTF-8 without BOM encoding.
 - Added focused regression coverage for the release metadata docs checker, including missing checklist markers and UTF-8 BOM rejection.
 - Documented the release metadata docs checker in the maintenance checklist so doc-only changes have a focused validation path.
 - Updated release note bundle visual verdict fallback coverage to skip the material safety audit while preserving generated artifact assertions.
