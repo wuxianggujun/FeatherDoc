@@ -39,7 +39,8 @@ function Set-FailureDetail {
         [string]$Label = "",
         [string]$Path = "",
         [string]$ExpectedText = "",
-        [int]$LineNumber = 0
+        [int]$LineNumber = 0,
+        [int]$ColumnNumber = 0
     )
 
     $script:FailureKind = $Kind
@@ -47,6 +48,7 @@ function Set-FailureDetail {
     $script:FailurePath = $Path
     $script:FailureExpectedText = $ExpectedText
     $script:FailureLineNumber = $LineNumber
+    $script:FailureColumnNumber = $ColumnNumber
 }
 
 function Resolve-OptionalOutputPath {
@@ -183,6 +185,7 @@ function Write-SummaryJson {
         failure_relative_path = Get-RepoRelativePath -BaseRoot $RepoRoot -Path $script:FailurePath
         failure_expected_text = $script:FailureExpectedText
         failure_line_number = $script:FailureLineNumber
+        failure_column_number = $script:FailureColumnNumber
         summary_json_path = $Path
         summary_json_relative_path = Get-RepoRelativePath -BaseRoot $RepoRoot -Path $Path
         repo_root = $RepoRoot
@@ -240,8 +243,13 @@ function Assert-NoTrailingWhitespace {
     $lines = $Text -split "`r?`n"
     for ($index = 0; $index -lt $lines.Count; ++$index) {
         if ($lines[$index].TrimEnd() -ne $lines[$index]) {
-            Set-FailureDetail -Kind "trailing_whitespace" -Path $Path -LineNumber ($index + 1)
-            throw "Trailing whitespace in $Path line $($index + 1)."
+            $columnNumber = $lines[$index].TrimEnd().Length + 1
+            Set-FailureDetail `
+                -Kind "trailing_whitespace" `
+                -Path $Path `
+                -LineNumber ($index + 1) `
+                -ColumnNumber $columnNumber
+            throw "Trailing whitespace in $Path line $($index + 1), column $columnNumber."
         }
     }
 }
@@ -254,9 +262,15 @@ function Assert-NoTabs {
 
     $lines = $Text -split "`r?`n"
     for ($index = 0; $index -lt $lines.Count; ++$index) {
-        if ($lines[$index].Contains("`t")) {
-            Set-FailureDetail -Kind "tab_character" -Path $Path -LineNumber ($index + 1)
-            throw "Tab character found in $Path line $($index + 1)."
+        $tabColumnIndex = $lines[$index].IndexOf("`t")
+        if ($tabColumnIndex -ge 0) {
+            $columnNumber = $tabColumnIndex + 1
+            Set-FailureDetail `
+                -Kind "tab_character" `
+                -Path $Path `
+                -LineNumber ($index + 1) `
+                -ColumnNumber $columnNumber
+            throw "Tab character found in $Path line $($index + 1), column $columnNumber."
         }
     }
 }
@@ -266,6 +280,7 @@ $script:FailureLabel = ""
 $script:FailurePath = ""
 $script:FailureExpectedText = ""
 $script:FailureLineNumber = 0
+$script:FailureColumnNumber = 0
 
 $pipelineExpectedMarkers = @(
     "run_word_visual_release_gate.ps1",
