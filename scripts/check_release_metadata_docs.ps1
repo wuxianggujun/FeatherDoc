@@ -104,8 +104,15 @@ function Write-SummaryJson {
         return
     }
 
+    $checkedAtUtc = [DateTime]::UtcNow.ToString(
+        "yyyy-MM-ddTHH:mm:ss'Z'",
+        [System.Globalization.CultureInfo]::InvariantCulture
+    )
+
     $summary = [pscustomobject]@{
         summary_schema_version = 1
+        checker_name = "check_release_metadata_docs.ps1"
+        checked_at_utc = $checkedAtUtc
         status = $Status
         error_message = $ErrorMessage
         summary_json_path = $Path

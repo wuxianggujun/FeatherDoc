@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added `checker_name` and `checked_at_utc` audit fields to release metadata docs check JSON summaries.
 - Added `summary_schema_version` and document/marker count fields to release metadata docs check JSON summaries.
 - Added `summary_json_path` to release metadata docs check JSON summaries so automation can record the resolved output path.
 - Extended `check_release_metadata_docs.ps1 -SummaryJson` to write failed summaries with `error_message` while preserving non-zero exits.
@@ -105,6 +106,7 @@ performance.
 
 ### Tests
 
+- Extended release metadata docs checker regressions to assert checker identity and UTC timestamp summary fields.
 - Extended release metadata docs checker regressions to assert JSON schema version and count fields for passing and failing summaries.
 - Extended release metadata docs checker regressions to assert `summary_json_path` for passing and failing summaries.
 - Extended release metadata docs checker regressions to cover failed JSON summaries for missing markers and UTF-8 BOM rejection.

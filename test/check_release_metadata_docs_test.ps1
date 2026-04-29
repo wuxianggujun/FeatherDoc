@@ -90,6 +90,25 @@ function Assert-ScriptParses {
 }
 
 
+
+function Assert-SummaryAuditFields {
+    param([object]$Summary)
+
+    if ($Summary.checker_name -ne "check_release_metadata_docs.ps1") {
+        throw "Expected JSON checker name check_release_metadata_docs.ps1, got: $($Summary.checker_name)"
+    }
+    $checkedAtUtc = $Summary.checked_at_utc
+    if ($checkedAtUtc -is [DateTime]) {
+        $checkedAtUtc = $checkedAtUtc.ToUniversalTime().ToString(
+            "yyyy-MM-ddTHH:mm:ss'Z'",
+            [System.Globalization.CultureInfo]::InvariantCulture
+        )
+    }
+    if ($checkedAtUtc -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$') {
+        throw "Expected JSON checked_at_utc to use UTC timestamp format, got: $($Summary.checked_at_utc)"
+    }
+}
+
 function Assert-SummaryFailure {
     param(
         [string]$Path,
@@ -116,6 +135,7 @@ function Assert-SummaryFailure {
     if ($summary.summary_schema_version -ne 1) {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
+    Assert-SummaryAuditFields -Summary $summary
     if ($summary.required_marker_count -ne 15) {
         throw "Expected JSON summary to count 15 required markers, got: $($summary.required_marker_count)"
     }
@@ -246,6 +266,7 @@ if ($summary.summary_json_path -ne $expectedSummaryJsonPath) {
 if ($summary.summary_schema_version -ne 1) {
     throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
 }
+Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 3) {
     throw "Expected JSON summary checked document count 3, got: $($summary.checked_document_count)"
 }
