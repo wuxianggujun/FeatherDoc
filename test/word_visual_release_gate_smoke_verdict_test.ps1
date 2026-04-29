@@ -18,6 +18,18 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-Equal {
+    param(
+        $Actual,
+        $Expected,
+        [string]$Message
+    )
+
+    if ($Actual -ne $Expected) {
+        throw "$Message Expected '$Expected', got '$Actual'."
+    }
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
@@ -97,9 +109,69 @@ Assert-ContainsText -Text $scriptText -ExpectedText '$($_.label) review verdict:
     -Message "Release gate final review should surface curated task review verdicts."
 Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-ReviewTaskSummary' `
     -Message "Release gate should derive machine-readable review task summary counts."
+Assert-ContainsText -Text $scriptText -ExpectedText 'function Test-ReviewTaskPresent' `
+    -Message "Release gate should ignore empty review task placeholders while counting tasks."
 Assert-ContainsText -Text $scriptText -ExpectedText '$gateSummary.review_task_summary = Get-ReviewTaskSummary -ReviewTasks $gateSummary.review_tasks' `
     -Message "Release gate should write review task summary metadata into gate_summary.json."
 Assert-ContainsText -Text $scriptText -ExpectedText 'Review task count: $($gateSummary.review_task_summary.total_count) total' `
     -Message "Release gate final review should surface review task summary counts."
+
+$parseTokens = $null
+$parseErrors = $null
+$scriptAst = [System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$parseTokens, [ref]$parseErrors)
+if ($parseErrors.Count -gt 0) {
+    throw "Release gate script has parse errors."
+}
+
+$functionNames = @(
+    "Get-OptionalPropertyValue",
+    "Test-ReviewTaskPresent",
+    "Get-ReviewTaskSummary"
+)
+$functionAsts = $scriptAst.FindAll({
+        param($Node)
+        $Node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+            $functionNames -contains $Node.Name
+    }, $true)
+foreach ($functionName in $functionNames) {
+    $functionAst = $functionAsts | Where-Object { $_.Name -eq $functionName } | Select-Object -First 1
+    if ($null -eq $functionAst) {
+        throw "Missing function used by review task counting: $functionName"
+    }
+
+    Invoke-Expression $functionAst.Extent.Text
+}
+
+$dictionarySummary = Get-ReviewTaskSummary -ReviewTasks ([ordered]@{
+        document = [ordered]@{ task_id = "document-task" }
+        fixed_grid = ""
+        section_page_setup = $null
+        page_number_fields = [ordered]@{ task_id = "page-number-task" }
+        curated_visual_regressions = @(
+            [ordered]@{ id = "curated-task" },
+            "",
+            $null
+        )
+    })
+Assert-Equal -Actual $dictionarySummary.standard_count -Expected 2 `
+    -Message "Dictionary review task summary should ignore empty standard placeholders."
+Assert-Equal -Actual $dictionarySummary.curated_count -Expected 1 `
+    -Message "Dictionary review task summary should ignore empty curated placeholders."
+Assert-Equal -Actual $dictionarySummary.total_count -Expected 3 `
+    -Message "Dictionary review task summary total should match counted tasks."
+
+$objectSummary = Get-ReviewTaskSummary -ReviewTasks ([pscustomobject]@{
+        document = [pscustomobject]@{ task_id = "document-task" }
+        fixed_grid = " "
+        section_page_setup = [pscustomobject]@{ task_id = "section-task" }
+        page_number_fields = $null
+        curated_visual_regressions = @([pscustomobject]@{ id = "curated-task" })
+    })
+Assert-Equal -Actual $objectSummary.standard_count -Expected 2 `
+    -Message "Object review task summary should ignore whitespace standard placeholders."
+Assert-Equal -Actual $objectSummary.curated_count -Expected 1 `
+    -Message "Object review task summary should count curated objects."
+Assert-Equal -Actual $objectSummary.total_count -Expected 3 `
+    -Message "Object review task summary total should match counted tasks."
 
 Write-Host "Word visual release gate smoke verdict regression passed."

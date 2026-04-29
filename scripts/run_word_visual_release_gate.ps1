@@ -329,6 +329,20 @@ function Get-OptionalPropertyValue {
     return $property.Value
 }
 
+function Test-ReviewTaskPresent {
+    param([AllowNull()]$Task)
+
+    if ($null -eq $Task) {
+        return $false
+    }
+
+    if ($Task -is [string]) {
+        return -not [string]::IsNullOrWhiteSpace($Task)
+    }
+
+    return $true
+}
+
 function Add-OptionalSummaryValue {
     param(
         [System.Collections.IDictionary]$Target,
@@ -480,11 +494,17 @@ function Get-ReviewTaskSummary {
     }
 
     foreach ($name in @("document", "fixed_grid", "section_page_setup", "page_number_fields")) {
-        if ($ReviewTasks -is [System.Collections.IDictionary]) {
-            if ($ReviewTasks.Contains($name) -and $null -ne $ReviewTasks[$name]) {
-                $summary.standard_count += 1
+        $task = if ($ReviewTasks -is [System.Collections.IDictionary]) {
+            if ($ReviewTasks.Contains($name)) {
+                $ReviewTasks[$name]
+            } else {
+                $null
             }
-        } elseif ($null -ne (Get-OptionalPropertyValue -Object $ReviewTasks -Name $name)) {
+        } else {
+            Get-OptionalPropertyValue -Object $ReviewTasks -Name $name
+        }
+
+        if (Test-ReviewTaskPresent -Task $task) {
             $summary.standard_count += 1
         }
     }
@@ -500,7 +520,7 @@ function Get-ReviewTaskSummary {
     }
 
     foreach ($task in @($curatedTasks)) {
-        if ($null -ne $task) {
+        if (Test-ReviewTaskPresent -Task $task) {
             $summary.curated_count += 1
         }
     }

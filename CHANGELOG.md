@@ -73,6 +73,7 @@ performance.
 
 ### Changed
 
+- Hardened word visual gate review task counting so empty standard or curated task placeholders are ignored in generated review scope totals.
 - Hardened release preflight summary generation so incomplete visual review task counts are skipped before they enter `summary.json`.
 - Hardened visual verdict sync so incomplete review task counts are dropped from release summaries and omitted from refreshed `final_review.md` output.
 - Hardened release preflight review task-count rendering so incomplete visual gate metadata is omitted instead of producing blank counts in `final_review.md`.
@@ -95,6 +96,7 @@ performance.
 
 ### Tests
 
+- Added word visual gate review task-count helper coverage for dictionary and object-shaped task metadata with empty placeholders.
 - Added release preflight helper coverage for complete versus incomplete visual review task-count metadata.
 - Extended visual verdict sync coverage to verify incomplete review task counts do not survive release-summary refreshes.
 - Added release preflight review task-count coverage so incomplete visual gate summaries do not render empty count lines in `final_review.md`.
