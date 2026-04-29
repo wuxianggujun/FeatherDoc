@@ -150,6 +150,15 @@ policy 之间的关键引用、字段名和测试入口没有断开。
         .\scripts\check_release_metadata_docs.ps1 `
         -RepoRoot .
 
+如果改动检查脚本本身，额外运行独立回归测试：
+
+.. code-block:: powershell
+
+    pwsh -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\check_release_metadata_docs_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir .\output\check-release-metadata-docs-test
+
 这条检查不能替代 release metadata 的行为回归测试。只要改动涉及脚本输出或
 metadata 字段同步，仍然需要按上一节的测试矩阵执行对应测试。
 

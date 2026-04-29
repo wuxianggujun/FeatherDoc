@@ -101,6 +101,7 @@ performance.
 
 ### Tests
 
+- Added focused regression coverage for the release metadata docs checker, including missing checklist markers and UTF-8 BOM rejection.
 - Documented the release metadata docs checker in the maintenance checklist so doc-only changes have a focused validation path.
 - Updated release note bundle visual verdict fallback coverage to skip the material safety audit while preserving generated artifact assertions.
 - Optimized release note bundle visual verdict fallback assertions with cached file reads to reduce Windows CTest timeout risk.
