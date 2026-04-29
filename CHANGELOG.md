@@ -86,6 +86,7 @@ performance.
 
 ### Changed
 
+- Extended release metadata docs checker diagnostics so whitespace failures include `failure_excerpt`.
 - Extended release metadata docs checker diagnostics so whitespace failures report `failure_column_number`.
 - Extended release metadata docs checker diagnostics so `tab_character` failures report `failure_line_number`.
 - Linked the release policy documentation to the Chinese release metadata pipeline guide for maintainers updating gate, preflight, sync, and bundle metadata flows.
@@ -112,6 +113,7 @@ performance.
 
 ### Tests
 
+- Extended release metadata docs checker regressions to assert failure excerpts for tab and trailing-whitespace failures.
 - Extended release metadata docs checker regressions to assert column numbers for tab and trailing-whitespace failures.
 - Extended release metadata docs checker regressions to assert line numbers for `tab_character` failures.
 - Extended release metadata docs checker regressions to cover `missing_file`, `trailing_whitespace`, and `tab_character` structured failure kinds.

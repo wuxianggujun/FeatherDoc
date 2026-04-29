@@ -40,7 +40,8 @@ function Set-FailureDetail {
         [string]$Path = "",
         [string]$ExpectedText = "",
         [int]$LineNumber = 0,
-        [int]$ColumnNumber = 0
+        [int]$ColumnNumber = 0,
+        [string]$Excerpt = ""
     )
 
     $script:FailureKind = $Kind
@@ -49,6 +50,7 @@ function Set-FailureDetail {
     $script:FailureExpectedText = $ExpectedText
     $script:FailureLineNumber = $LineNumber
     $script:FailureColumnNumber = $ColumnNumber
+    $script:FailureExcerpt = $Excerpt
 }
 
 function Resolve-OptionalOutputPath {
@@ -186,6 +188,7 @@ function Write-SummaryJson {
         failure_expected_text = $script:FailureExpectedText
         failure_line_number = $script:FailureLineNumber
         failure_column_number = $script:FailureColumnNumber
+        failure_excerpt = $script:FailureExcerpt
         summary_json_path = $Path
         summary_json_relative_path = Get-RepoRelativePath -BaseRoot $RepoRoot -Path $Path
         repo_root = $RepoRoot
@@ -248,7 +251,8 @@ function Assert-NoTrailingWhitespace {
                 -Kind "trailing_whitespace" `
                 -Path $Path `
                 -LineNumber ($index + 1) `
-                -ColumnNumber $columnNumber
+                -ColumnNumber $columnNumber `
+                -Excerpt ($lines[$index])
             throw "Trailing whitespace in $Path line $($index + 1), column $columnNumber."
         }
     }
@@ -269,7 +273,8 @@ function Assert-NoTabs {
                 -Kind "tab_character" `
                 -Path $Path `
                 -LineNumber ($index + 1) `
-                -ColumnNumber $columnNumber
+                -ColumnNumber $columnNumber `
+                -Excerpt ($lines[$index])
             throw "Tab character found in $Path line $($index + 1), column $columnNumber."
         }
     }
@@ -281,6 +286,7 @@ $script:FailurePath = ""
 $script:FailureExpectedText = ""
 $script:FailureLineNumber = 0
 $script:FailureColumnNumber = 0
+$script:FailureExcerpt = ""
 
 $pipelineExpectedMarkers = @(
     "run_word_visual_release_gate.ps1",

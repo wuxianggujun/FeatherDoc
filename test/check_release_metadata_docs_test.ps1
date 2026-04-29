@@ -123,7 +123,8 @@ function Assert-SummaryFailure {
         [string]$ExpectedFailureRelativePath,
         [string]$ExpectedFailureExpectedText = "",
         [int]$ExpectedFailureLineNumber = 0,
-        [int]$ExpectedFailureColumnNumber = 0
+        [int]$ExpectedFailureColumnNumber = 0,
+        [string]$ExpectedFailureExcerpt = ""
     )
 
     if (-not (Test-Path -LiteralPath $Path)) {
@@ -155,6 +156,10 @@ function Assert-SummaryFailure {
     if ($ExpectedFailureColumnNumber -gt 0 -and
         $summary.failure_column_number -ne $ExpectedFailureColumnNumber) {
         throw "Expected JSON failure column number '$ExpectedFailureColumnNumber', got: $($summary.failure_column_number)"
+    }
+    if ($ExpectedFailureExcerpt.Length -gt 0 -and
+        $summary.failure_excerpt -ne $ExpectedFailureExcerpt) {
+        throw "Expected JSON failure excerpt '$ExpectedFailureExcerpt', got: $($summary.failure_excerpt)"
     }
 
     $expectedSummaryJsonPath = [System.IO.Path]::GetFullPath($Path)
@@ -385,7 +390,8 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "trailing_whitespace" `
     -ExpectedFailureRelativePath 'docs\release_metadata_pipeline_zh.rst' `
     -ExpectedFailureLineNumber 8 `
-    -ExpectedFailureColumnNumber 22
+    -ExpectedFailureColumnNumber 22 `
+    -ExpectedFailureExcerpt "- review_task_summary "
 
 $tabChecklistText = $defaultChecklistText.Replace(
     "- git diff --check",
@@ -404,7 +410,8 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "tab_character" `
     -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
     -ExpectedFailureLineNumber 10 `
-    -ExpectedFailureColumnNumber 6
+    -ExpectedFailureColumnNumber 6 `
+    -ExpectedFailureExcerpt "- git`t diff --check"
 
 $missingChecklistEntry = $defaultChecklistText.Replace(
     "release_note_bundle_visual_verdict_fallback",
