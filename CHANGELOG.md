@@ -10,6 +10,7 @@ performance.
 
 ### Added
 
+- Added `run_word_visual_smoke.ps1 -ShowRevisions` and review mutation visual runner passthrough so Word PDF/PNG evidence can render tracked insertion and deletion markup when validating unresolved revisions.
 - Added typed insertion/deletion revision authoring APIs and matching CLI commands so review workflows can generate Word revision markup before accepting or rejecting it.
 - Added in-place run revision authoring APIs and CLI commands for inserting, deleting, and replacing body runs with Word revision markup.
 - Added paragraph text range revision authoring APIs and CLI commands for inserting, deleting, and replacing body paragraph text across run boundaries.

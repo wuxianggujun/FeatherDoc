@@ -4,6 +4,7 @@ param(
     [int]$Dpi = 144,
     [switch]$SkipBuild,
     [switch]$SkipVisual,
+    [switch]$ShowRevisions,
     [switch]$KeepWordOpen,
     [switch]$VisibleWord,
     [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
@@ -60,7 +61,7 @@ Write-Step "Generating DOCX via $sampleExecutable"
 if ($LASTEXITCODE -ne 0) { throw "Review mutation sample failed." }
 Write-Step "Checking generated DOCX XML evidence"
 Assert-GeneratedDocxEvidence $docxPath
-if (-not $SkipVisual) { Write-Step "Running Word visual smoke for generated DOCX"; & $wordSmokeScript -InputDocx $docxPath -OutputDir $wordSmokeOutputDir -SkipBuild -Dpi $Dpi -KeepWordOpen:$KeepWordOpen.IsPresent -VisibleWord:$VisibleWord.IsPresent -ReviewVerdict $ReviewVerdict -ReviewNote $ReviewNote; if ($LASTEXITCODE -ne 0) { throw "Word visual smoke failed for generated DOCX." } }
+if (-not $SkipVisual) { Write-Step "Running Word visual smoke for generated DOCX"; & $wordSmokeScript -InputDocx $docxPath -OutputDir $wordSmokeOutputDir -SkipBuild -Dpi $Dpi -ShowRevisions:$ShowRevisions.IsPresent -KeepWordOpen:$KeepWordOpen.IsPresent -VisibleWord:$VisibleWord.IsPresent -ReviewVerdict $ReviewVerdict -ReviewNote $ReviewNote; if ($LASTEXITCODE -ne 0) { throw "Word visual smoke failed for generated DOCX." } }
 Write-Step "Completed review mutation visual regression"
 Write-Host "DOCX: $docxPath"
 Write-Host "Visual output: $wordSmokeOutputDir"

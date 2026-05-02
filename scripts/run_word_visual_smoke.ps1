@@ -4,6 +4,7 @@ param(
     [string]$InputDocx = "",
     [int]$Dpi = 144,
     [switch]$SkipBuild,
+    [switch]$ShowRevisions,
     [switch]$KeepWordOpen,
     [switch]$VisibleWord,
     [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
@@ -181,6 +182,7 @@ function Export-DocxToPdf {
         [string]$DocxPath,
         [string]$PdfPath,
         [bool]$Visible,
+        [bool]$ShowRevisions,
         [bool]$KeepOpen
     )
 
@@ -191,7 +193,28 @@ function Export-DocxToPdf {
         $word.Visible = $Visible
         $word.DisplayAlerts = 0
         $document = $word.Documents.Open($DocxPath, $false, $true)
-        $document.ExportAsFixedFormat($PdfPath, 17)
+        $exportItem = 0
+        if ($ShowRevisions) {
+            $exportItem = 7
+            try {
+                $document.PrintRevisions = $true
+            } catch {
+            }
+            try {
+                $document.ShowRevisions = $true
+            } catch {
+            }
+            try {
+                $view = $document.ActiveWindow.View
+                $view.ShowRevisionsAndComments = $true
+                $view.RevisionsView = 0
+                $view.ShowInsertionsAndDeletions = $true
+                $view.ShowFormatChanges = $false
+                $view.RevisionsMode = 1
+            } catch {
+            }
+        }
+        $document.ExportAsFixedFormat($PdfPath, 17, $false, 0, 0, 1, 1, $exportItem)
         if (-not $KeepOpen) {
             $document.Close([ref]$false)
             $word.Quit()
@@ -421,7 +444,7 @@ if (-not $InputDocx) {
 }
 
 Write-Step "Exporting DOCX to PDF through Microsoft Word"
-Export-DocxToPdf -DocxPath $docxPath -PdfPath $pdfPath -Visible $VisibleWord.IsPresent -KeepOpen $KeepWordOpen.IsPresent
+Export-DocxToPdf -DocxPath $docxPath -PdfPath $pdfPath -Visible $VisibleWord.IsPresent -ShowRevisions $ShowRevisions.IsPresent -KeepOpen $KeepWordOpen.IsPresent
 
 $renderPython = Ensure-RenderPython -RepoRoot $repoRoot
 Write-Step "Rendering PDF pages to PNG"
@@ -441,6 +464,9 @@ Assert-RenderedEvidence -Summary $summary -PagesDir $pagesDir -ContactSheetPath 
 $customInput = [bool]$InputDocx
 $generatedAt = (Get-Date).ToString("s")
 $reviewNotes = @(Get-ReviewNotes -CustomInput:$customInput)
+if ($ShowRevisions) {
+    $reviewNotes += "ShowRevisions was enabled, so the Word PDF/PNG evidence should display tracked insertion and deletion markup instead of only the final accepted text."
+}
 $reviewResult = New-WordVisualReviewResult `
     -DocumentPath $docxPath `
     -PdfPath $pdfPath `
