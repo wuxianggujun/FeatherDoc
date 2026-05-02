@@ -283,13 +283,16 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   计数和选中的原始匹配序号；若调用方设置 ``require_unique``，过滤后仍然
   不是唯一匹配时会在写出 plan 前失败，避免批量修订误选目标；插入型请求
   可通过 ``insert_after_match`` 选择写入匹配文本前或匹配文本后，并生成
-  不携带 ``expected_text`` 的零长度插入 plan
+  不携带 ``expected_text`` 的零长度插入 plan；批注型请求可生成
+  ``append_paragraph_text_comment`` / ``append_text_range_comment`` plan，并
+  携带 ``comment_text``、``expected_text``、author / initials / date 元数据，
+  让批量审阅意见和批量修订共用同一套定位、预检与应用入口
 - 段落 / 跨段落 text range 修订 API 的删除和替换 options 支持
   ``expected_text``，CLI 对应命令也支持 ``--expected-text``；写入前会通过
   ``preview_text_range(...)`` 校验目标文本，避免 offset 漂移造成误改；
   mismatch 诊断会携带起止 offset 和分段 preview，便于自动化定位漂移来源
 - ``preview-review-mutation-plan`` 可读取 JSON 批量计划，对段落文本区间和
-  跨段落文本区间修订插入 / 删除 / 替换操作逐项执行只读预检，并在 JSON 输出中返回
+  跨段落文本区间批注，以及修订插入 / 删除 / 替换操作逐项执行只读预检，并在 JSON 输出中返回
   ``expected_text``、实际选中文本和分段 preview，供批量审阅编辑在写入前
   拦截漂移
 - ``apply-review-mutation-plan`` 可复用同一 JSON 计划批量写入修订；执行前会

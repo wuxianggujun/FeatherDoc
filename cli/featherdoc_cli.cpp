@@ -1129,9 +1129,11 @@ struct revision_authoring_options : simple_document_mutation_options {
 };
 
 enum class review_mutation_plan_operation_kind {
+    append_paragraph_text_comment,
     insert_paragraph_text_revision,
     delete_paragraph_text_revision,
     replace_paragraph_text_revision,
+    append_text_range_comment,
     insert_text_range_revision,
     delete_text_range_revision,
     replace_text_range_revision,
@@ -1150,6 +1152,7 @@ struct review_mutation_plan_operation {
     std::string text;
     std::optional<std::string> expected_text;
     std::optional<std::string> author;
+    std::optional<std::string> initials;
     std::optional<std::string> date;
 };
 
@@ -1174,6 +1177,7 @@ struct review_mutation_plan_build_request_operation {
     bool insert_after_match = false;
     std::string text;
     std::optional<std::string> author;
+    std::optional<std::string> initials;
     std::optional<std::string> date;
 };
 
@@ -36526,12 +36530,16 @@ auto read_style_refactor_plan_file(
 auto review_mutation_plan_operation_kind_name(
     review_mutation_plan_operation_kind kind) -> std::string_view {
     switch (kind) {
+    case review_mutation_plan_operation_kind::append_paragraph_text_comment:
+        return "append_paragraph_text_comment";
     case review_mutation_plan_operation_kind::insert_paragraph_text_revision:
         return "insert_paragraph_text_revision";
     case review_mutation_plan_operation_kind::delete_paragraph_text_revision:
         return "delete_paragraph_text_revision";
     case review_mutation_plan_operation_kind::replace_paragraph_text_revision:
         return "replace_paragraph_text_revision";
+    case review_mutation_plan_operation_kind::append_text_range_comment:
+        return "append_text_range_comment";
     case review_mutation_plan_operation_kind::insert_text_range_revision:
         return "insert_text_range_revision";
     case review_mutation_plan_operation_kind::delete_text_range_revision:
@@ -36552,6 +36560,12 @@ auto parse_review_mutation_plan_operation_kind(
         return false;
     }
 
+    if (token == "append_paragraph_text_comment" ||
+        token == "append-paragraph-text-comment") {
+        kind =
+            review_mutation_plan_operation_kind::append_paragraph_text_comment;
+        return true;
+    }
     if (token == "insert_paragraph_text_revision" ||
         token == "insert-paragraph-text-revision") {
         kind =
@@ -36568,6 +36582,11 @@ auto parse_review_mutation_plan_operation_kind(
         token == "replace-paragraph-text-revision") {
         kind =
             review_mutation_plan_operation_kind::replace_paragraph_text_revision;
+        return true;
+    }
+    if (token == "append_text_range_comment" ||
+        token == "append-text-range-comment") {
+        kind = review_mutation_plan_operation_kind::append_text_range_comment;
         return true;
     }
     if (token == "insert_text_range_revision" ||
@@ -36589,9 +36608,11 @@ auto parse_review_mutation_plan_operation_kind(
     return report_json_input_error(
         "review mutation plan file", index,
         "operation kind must be one of "
+        "'append_paragraph_text_comment', "
         "'insert_paragraph_text_revision', "
         "'delete_paragraph_text_revision', "
         "'replace_paragraph_text_revision', "
+        "'append_text_range_comment', "
         "'insert_text_range_revision', "
         "'delete_text_range_revision', or "
         "'replace_text_range_revision' (CLI hyphenated names are also accepted)",
@@ -36669,8 +36690,10 @@ auto parse_review_mutation_plan_operation(
     bool saw_end_paragraph_index = false;
     bool saw_end_text_offset = false;
     bool saw_text = false;
+    bool saw_comment_text = false;
     bool saw_expected_text = false;
     bool saw_author = false;
+    bool saw_initials = false;
     bool saw_date = false;
 
     while (index < content.size()) {
@@ -36800,6 +36823,17 @@ auto parse_review_mutation_plan_operation(
                                          error_message)) {
                 return false;
             }
+        } else if (member_name == "comment_text") {
+            if (saw_comment_text) {
+                error_message =
+                    "JSON review mutation plan operation member 'comment_text' must not be duplicated";
+                return false;
+            }
+            saw_comment_text = true;
+            if (!parse_json_patch_string(content, index, operation.text,
+                                         error_message)) {
+                return false;
+            }
         } else if (member_name == "expected_text") {
             if (saw_expected_text) {
                 error_message =
@@ -36826,6 +36860,19 @@ auto parse_review_mutation_plan_operation(
                 return false;
             }
             operation.author = std::move(author);
+        } else if (member_name == "initials") {
+            if (saw_initials) {
+                error_message =
+                    "JSON review mutation plan operation member 'initials' must not be duplicated";
+                return false;
+            }
+            saw_initials = true;
+            std::string initials;
+            if (!parse_json_patch_string(content, index, initials,
+                                         error_message)) {
+                return false;
+            }
+            operation.initials = std::move(initials);
         } else if (member_name == "date") {
             if (saw_date) {
                 error_message =
@@ -36871,15 +36918,33 @@ auto parse_review_mutation_plan_operation(
         saw_start_paragraph_index && saw_start_text_offset;
 
     switch (operation.kind) {
+    case review_mutation_plan_operation_kind::append_paragraph_text_comment:
+        if (!paragraph_fields_ok || !saw_comment_text) {
+            error_message =
+                "JSON review mutation plan append_paragraph_text_comment operation must contain 'paragraph_index', 'text_offset', 'text_length', and 'comment_text'";
+            return false;
+        }
+        if (operation.text.empty()) {
+            error_message =
+                "JSON review mutation plan append_paragraph_text_comment operation member 'comment_text' must not be empty";
+            return false;
+        }
+        if (saw_text) {
+            error_message =
+                "JSON review mutation plan append_paragraph_text_comment operation does not accept 'text'";
+            return false;
+        }
+        return true;
     case review_mutation_plan_operation_kind::insert_paragraph_text_revision:
         if (!saw_paragraph_index || !saw_text_offset || !saw_text) {
             error_message =
                 "JSON review mutation plan insert_paragraph_text_revision operation must contain 'paragraph_index', 'text_offset', and 'text'";
             return false;
         }
-        if (saw_text_length || saw_expected_text) {
+        if (saw_text_length || saw_comment_text || saw_expected_text ||
+            saw_initials) {
             error_message =
-                "JSON review mutation plan insert_paragraph_text_revision operation does not accept 'text_length' or 'expected_text'";
+                "JSON review mutation plan insert_paragraph_text_revision operation does not accept 'text_length', 'comment_text', 'expected_text', or 'initials'";
             return false;
         }
         return true;
@@ -36889,9 +36954,9 @@ auto parse_review_mutation_plan_operation(
                 "JSON review mutation plan delete_paragraph_text_revision operation must contain 'paragraph_index', 'text_offset', and 'text_length'";
             return false;
         }
-        if (saw_text) {
+        if (saw_text || saw_comment_text || saw_initials) {
             error_message =
-                "JSON review mutation plan delete_paragraph_text_revision operation does not accept 'text'";
+                "JSON review mutation plan delete_paragraph_text_revision operation does not accept 'text', 'comment_text', or 'initials'";
             return false;
         }
         return true;
@@ -36899,6 +36964,28 @@ auto parse_review_mutation_plan_operation(
         if (!paragraph_fields_ok || !saw_text) {
             error_message =
                 "JSON review mutation plan replace_paragraph_text_revision operation must contain 'paragraph_index', 'text_offset', 'text_length', and 'text'";
+            return false;
+        }
+        if (saw_comment_text || saw_initials) {
+            error_message =
+                "JSON review mutation plan replace_paragraph_text_revision operation does not accept 'comment_text' or 'initials'";
+            return false;
+        }
+        return true;
+    case review_mutation_plan_operation_kind::append_text_range_comment:
+        if (!text_range_fields_ok || !saw_comment_text) {
+            error_message =
+                "JSON review mutation plan append_text_range_comment operation must contain 'start_paragraph_index', 'start_text_offset', 'end_paragraph_index', 'end_text_offset', and 'comment_text'";
+            return false;
+        }
+        if (operation.text.empty()) {
+            error_message =
+                "JSON review mutation plan append_text_range_comment operation member 'comment_text' must not be empty";
+            return false;
+        }
+        if (saw_text) {
+            error_message =
+                "JSON review mutation plan append_text_range_comment operation does not accept 'text'";
             return false;
         }
         return true;
@@ -36909,9 +36996,9 @@ auto parse_review_mutation_plan_operation(
             return false;
         }
         if (saw_end_paragraph_index || saw_end_text_offset ||
-            saw_expected_text) {
+            saw_comment_text || saw_expected_text || saw_initials) {
             error_message =
-                "JSON review mutation plan insert_text_range_revision operation does not accept 'end_paragraph_index', 'end_text_offset', or 'expected_text'";
+                "JSON review mutation plan insert_text_range_revision operation does not accept 'end_paragraph_index', 'end_text_offset', 'comment_text', 'expected_text', or 'initials'";
             return false;
         }
         return true;
@@ -36921,9 +37008,9 @@ auto parse_review_mutation_plan_operation(
                 "JSON review mutation plan delete_text_range_revision operation must contain 'start_paragraph_index', 'start_text_offset', 'end_paragraph_index', and 'end_text_offset'";
             return false;
         }
-        if (saw_text) {
+        if (saw_text || saw_comment_text || saw_initials) {
             error_message =
-                "JSON review mutation plan delete_text_range_revision operation does not accept 'text'";
+                "JSON review mutation plan delete_text_range_revision operation does not accept 'text', 'comment_text', or 'initials'";
             return false;
         }
         return true;
@@ -36931,6 +37018,11 @@ auto parse_review_mutation_plan_operation(
         if (!text_range_fields_ok || !saw_text) {
             error_message =
                 "JSON review mutation plan replace_text_range_revision operation must contain 'start_paragraph_index', 'start_text_offset', 'end_paragraph_index', 'end_text_offset', and 'text'";
+            return false;
+        }
+        if (saw_comment_text || saw_initials) {
+            error_message =
+                "JSON review mutation plan replace_text_range_revision operation does not accept 'comment_text' or 'initials'";
             return false;
         }
         return true;
@@ -37170,7 +37262,9 @@ auto parse_review_mutation_plan_build_request_operation(
     bool saw_require_unique = false;
     bool saw_insert_after_match = false;
     bool saw_text = false;
+    bool saw_comment_text = false;
     bool saw_author = false;
+    bool saw_initials = false;
     bool saw_date = false;
 
     while (index < content.size()) {
@@ -37297,6 +37391,17 @@ auto parse_review_mutation_plan_build_request_operation(
                                          error_message)) {
                 return false;
             }
+        } else if (member_name == "comment_text") {
+            if (saw_comment_text) {
+                error_message =
+                    "JSON review mutation plan build request operation member 'comment_text' must not be duplicated";
+                return false;
+            }
+            saw_comment_text = true;
+            if (!parse_json_patch_string(content, index, operation.text,
+                                         error_message)) {
+                return false;
+            }
         } else if (member_name == "author") {
             if (saw_author) {
                 error_message =
@@ -37310,6 +37415,19 @@ auto parse_review_mutation_plan_build_request_operation(
                 return false;
             }
             operation.author = std::move(author);
+        } else if (member_name == "initials") {
+            if (saw_initials) {
+                error_message =
+                    "JSON review mutation plan build request operation member 'initials' must not be duplicated";
+                return false;
+            }
+            saw_initials = true;
+            std::string initials;
+            if (!parse_json_patch_string(content, index, initials,
+                                         error_message)) {
+                return false;
+            }
+            operation.initials = std::move(initials);
         } else if (member_name == "date") {
             if (saw_date) {
                 error_message =
@@ -37347,8 +37465,36 @@ auto parse_review_mutation_plan_build_request_operation(
     }
 
     switch (operation.kind) {
+    case review_mutation_plan_operation_kind::append_paragraph_text_comment:
+    case review_mutation_plan_operation_kind::append_text_range_comment:
+        if (saw_insert_after_match) {
+            error_message =
+                "JSON review mutation plan build request comment operation does not accept 'insert_after_match'";
+            return false;
+        }
+        if (!saw_comment_text) {
+            error_message =
+                "JSON review mutation plan build request comment operation must contain 'comment_text'";
+            return false;
+        }
+        if (operation.text.empty()) {
+            error_message =
+                "JSON review mutation plan build request comment text must not be empty";
+            return false;
+        }
+        if (saw_text) {
+            error_message =
+                "JSON review mutation plan build request comment operation does not accept 'text'";
+            return false;
+        }
+        return true;
     case review_mutation_plan_operation_kind::insert_paragraph_text_revision:
     case review_mutation_plan_operation_kind::insert_text_range_revision:
+        if (saw_comment_text || saw_initials) {
+            error_message =
+                "JSON review mutation plan build request insert operation does not accept 'comment_text' or 'initials'";
+            return false;
+        }
         if (!saw_text) {
             error_message =
                 "JSON review mutation plan build request insert operation must contain 'text'";
@@ -37372,12 +37518,22 @@ auto parse_review_mutation_plan_build_request_operation(
                 "JSON review mutation plan build request delete operation does not accept 'text'";
             return false;
         }
+        if (saw_comment_text || saw_initials) {
+            error_message =
+                "JSON review mutation plan build request delete operation does not accept 'comment_text' or 'initials'";
+            return false;
+        }
         return true;
     case review_mutation_plan_operation_kind::replace_paragraph_text_revision:
     case review_mutation_plan_operation_kind::replace_text_range_revision:
         if (saw_insert_after_match) {
             error_message =
                 "JSON review mutation plan build request replace operation does not accept 'insert_after_match'";
+            return false;
+        }
+        if (saw_comment_text || saw_initials) {
+            error_message =
+                "JSON review mutation plan build request replace operation does not accept 'comment_text' or 'initials'";
             return false;
         }
         if (!saw_text) {
@@ -37536,6 +37692,7 @@ void write_json_review_mutation_plan_operation(
     stream << "{\"kind\":";
     write_json_string(stream, review_mutation_plan_operation_kind_name(operation.kind));
     switch (operation.kind) {
+    case review_mutation_plan_operation_kind::append_paragraph_text_comment:
     case review_mutation_plan_operation_kind::insert_paragraph_text_revision:
     case review_mutation_plan_operation_kind::delete_paragraph_text_revision:
     case review_mutation_plan_operation_kind::replace_paragraph_text_revision:
@@ -37546,21 +37703,28 @@ void write_json_review_mutation_plan_operation(
             stream << ",\"text_length\":" << operation.text_length;
         }
         break;
+    case review_mutation_plan_operation_kind::append_text_range_comment:
     case review_mutation_plan_operation_kind::insert_text_range_revision:
-        stream << ",\"start_paragraph_index\":"
-               << operation.start_paragraph_index
-               << ",\"start_text_offset\":" << operation.start_text_offset;
-        break;
     case review_mutation_plan_operation_kind::delete_text_range_revision:
     case review_mutation_plan_operation_kind::replace_text_range_revision:
         stream << ",\"start_paragraph_index\":"
                << operation.start_paragraph_index
-               << ",\"start_text_offset\":" << operation.start_text_offset
-               << ",\"end_paragraph_index\":" << operation.end_paragraph_index
-               << ",\"end_text_offset\":" << operation.end_text_offset;
+               << ",\"start_text_offset\":" << operation.start_text_offset;
+        if (operation.kind !=
+            review_mutation_plan_operation_kind::insert_text_range_revision) {
+            stream << ",\"end_paragraph_index\":"
+                   << operation.end_paragraph_index
+                   << ",\"end_text_offset\":" << operation.end_text_offset;
+        }
         break;
     }
     if (operation.kind ==
+            review_mutation_plan_operation_kind::append_paragraph_text_comment ||
+        operation.kind ==
+            review_mutation_plan_operation_kind::append_text_range_comment) {
+        stream << ",\"comment_text\":";
+        write_json_string(stream, operation.text);
+    } else if (operation.kind ==
             review_mutation_plan_operation_kind::insert_paragraph_text_revision ||
         operation.kind ==
             review_mutation_plan_operation_kind::replace_paragraph_text_revision ||
@@ -37578,6 +37742,10 @@ void write_json_review_mutation_plan_operation(
     if (operation.author.has_value()) {
         stream << ",\"author\":";
         write_json_string(stream, *operation.author);
+    }
+    if (operation.initials.has_value()) {
+        stream << ",\"initials\":";
+        write_json_string(stream, *operation.initials);
     }
     if (operation.date.has_value()) {
         stream << ",\"date\":";
@@ -37626,11 +37794,26 @@ auto get_review_mutation_plan_range(
     std::size_t &end_paragraph_index, std::size_t &end_text_offset,
     std::string &error_message) -> bool {
     switch (operation.kind) {
+    case review_mutation_plan_operation_kind::append_paragraph_text_comment:
     case review_mutation_plan_operation_kind::insert_paragraph_text_revision:
+        if (operation.kind ==
+                review_mutation_plan_operation_kind::
+                    append_paragraph_text_comment &&
+            operation.text_length >
+                std::numeric_limits<std::size_t>::max() -
+                    operation.text_offset) {
+            error_message = "text range is out of range";
+            return false;
+        }
         start_paragraph_index = operation.paragraph_index;
         start_text_offset = operation.text_offset;
         end_paragraph_index = operation.paragraph_index;
-        end_text_offset = operation.text_offset;
+        end_text_offset =
+            operation.kind ==
+                    review_mutation_plan_operation_kind::
+                        append_paragraph_text_comment
+                ? operation.text_offset + operation.text_length
+                : operation.text_offset;
         return true;
     case review_mutation_plan_operation_kind::delete_paragraph_text_revision:
     case review_mutation_plan_operation_kind::replace_paragraph_text_revision:
@@ -37644,11 +37827,20 @@ auto get_review_mutation_plan_range(
         end_paragraph_index = operation.paragraph_index;
         end_text_offset = operation.text_offset + operation.text_length;
         return true;
+    case review_mutation_plan_operation_kind::append_text_range_comment:
     case review_mutation_plan_operation_kind::insert_text_range_revision:
         start_paragraph_index = operation.start_paragraph_index;
         start_text_offset = operation.start_text_offset;
-        end_paragraph_index = operation.start_paragraph_index;
-        end_text_offset = operation.start_text_offset;
+        end_paragraph_index =
+            operation.kind ==
+                    review_mutation_plan_operation_kind::append_text_range_comment
+                ? operation.end_paragraph_index
+                : operation.start_paragraph_index;
+        end_text_offset =
+            operation.kind ==
+                    review_mutation_plan_operation_kind::append_text_range_comment
+                ? operation.end_text_offset
+                : operation.start_text_offset;
         return true;
     case review_mutation_plan_operation_kind::delete_text_range_revision:
     case review_mutation_plan_operation_kind::replace_text_range_revision:
@@ -37667,6 +37859,13 @@ auto is_review_mutation_plan_insert_operation(
     return kind ==
                review_mutation_plan_operation_kind::insert_paragraph_text_revision ||
            kind == review_mutation_plan_operation_kind::insert_text_range_revision;
+}
+
+auto is_review_mutation_plan_comment_operation(
+    review_mutation_plan_operation_kind kind) -> bool {
+    return kind ==
+               review_mutation_plan_operation_kind::append_paragraph_text_comment ||
+           kind == review_mutation_plan_operation_kind::append_text_range_comment;
 }
 
 auto preview_review_mutation_plan_insertion_point(
@@ -37925,8 +38124,16 @@ auto apply_review_mutation_plan_operation(
     const auto date =
         operation.date.has_value() ? std::string_view(*operation.date)
                                    : std::string_view{};
+    const auto initials =
+        operation.initials.has_value() ? std::string_view(*operation.initials)
+                                       : std::string_view{};
 
     switch (operation.kind) {
+    case review_mutation_plan_operation_kind::append_paragraph_text_comment:
+        return doc.append_paragraph_text_comment(
+                   operation.paragraph_index, operation.text_offset,
+                   operation.text_length, operation.text, author, initials,
+                   date) != 0U;
     case review_mutation_plan_operation_kind::insert_paragraph_text_revision:
         return doc.insert_paragraph_text_revision(
             operation.paragraph_index, operation.text_offset, operation.text,
@@ -37939,6 +38146,11 @@ auto apply_review_mutation_plan_operation(
         return doc.replace_paragraph_text_revision(
             operation.paragraph_index, operation.text_offset,
             operation.text_length, operation.text, author, date);
+    case review_mutation_plan_operation_kind::append_text_range_comment:
+        return doc.append_text_range_comment(
+                   operation.start_paragraph_index, operation.start_text_offset,
+                   operation.end_paragraph_index, operation.end_text_offset,
+                   operation.text, author, initials, date) != 0U;
     case review_mutation_plan_operation_kind::insert_text_range_revision:
         return doc.insert_text_range_revision(operation.start_paragraph_index,
                                               operation.start_text_offset,
@@ -37996,9 +38208,11 @@ auto build_review_mutation_plan_operation_from_match(
     operation.text = request.text;
     operation.expected_text = preview.text;
     operation.author = request.author;
+    operation.initials = request.initials;
     operation.date = request.date;
 
     switch (request.kind) {
+    case review_mutation_plan_operation_kind::append_paragraph_text_comment:
     case review_mutation_plan_operation_kind::insert_paragraph_text_revision:
         if (preview.start_paragraph_index != preview.end_paragraph_index) {
             error_message =
@@ -38006,10 +38220,23 @@ auto build_review_mutation_plan_operation_from_match(
             return false;
         }
         operation.paragraph_index = preview.start_paragraph_index;
-        operation.text_offset = request.insert_after_match
-                                    ? preview.end_text_offset
-                                    : preview.start_text_offset;
-        operation.expected_text = std::nullopt;
+        operation.text_offset =
+            operation.kind ==
+                    review_mutation_plan_operation_kind::
+                        insert_paragraph_text_revision &&
+                    request.insert_after_match
+                ? preview.end_text_offset
+                : preview.start_text_offset;
+        operation.text_length =
+            operation.kind ==
+                    review_mutation_plan_operation_kind::
+                        append_paragraph_text_comment
+                ? preview.text_length
+                : 0U;
+        if (operation.kind ==
+            review_mutation_plan_operation_kind::insert_paragraph_text_revision) {
+            operation.expected_text = std::nullopt;
+        }
         return true;
     case review_mutation_plan_operation_kind::delete_paragraph_text_revision:
     case review_mutation_plan_operation_kind::replace_paragraph_text_revision:
@@ -38022,16 +38249,32 @@ auto build_review_mutation_plan_operation_from_match(
         operation.text_offset = preview.start_text_offset;
         operation.text_length = preview.text_length;
         return true;
+    case review_mutation_plan_operation_kind::append_text_range_comment:
     case review_mutation_plan_operation_kind::insert_text_range_revision:
         operation.start_paragraph_index =
-            request.insert_after_match ? preview.end_paragraph_index
-                                       : preview.start_paragraph_index;
+            operation.kind ==
+                        review_mutation_plan_operation_kind::
+                            insert_text_range_revision &&
+                    request.insert_after_match
+                ? preview.end_paragraph_index
+                : preview.start_paragraph_index;
         operation.start_text_offset = request.insert_after_match
                                           ? preview.end_text_offset
                                           : preview.start_text_offset;
-        operation.end_paragraph_index = operation.start_paragraph_index;
-        operation.end_text_offset = operation.start_text_offset;
-        operation.expected_text = std::nullopt;
+        operation.end_paragraph_index =
+            operation.kind ==
+                    review_mutation_plan_operation_kind::append_text_range_comment
+                ? preview.end_paragraph_index
+                : operation.start_paragraph_index;
+        operation.end_text_offset =
+            operation.kind ==
+                    review_mutation_plan_operation_kind::append_text_range_comment
+                ? preview.end_text_offset
+                : operation.start_text_offset;
+        if (operation.kind ==
+            review_mutation_plan_operation_kind::insert_text_range_revision) {
+            operation.expected_text = std::nullopt;
+        }
         return true;
     case review_mutation_plan_operation_kind::delete_text_range_revision:
     case review_mutation_plan_operation_kind::replace_text_range_revision:

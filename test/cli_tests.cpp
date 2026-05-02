@@ -18399,6 +18399,8 @@ TEST_CASE("cli builds review mutation plans from found text") {
         working_directory / "cli_build_review_mutation_plan_unique.json";
     const fs::path insert_request =
         working_directory / "cli_build_review_mutation_plan_insert.json";
+    const fs::path comment_request =
+        working_directory / "cli_build_review_mutation_plan_comment.json";
     const fs::path paragraph_request =
         working_directory / "cli_build_review_mutation_plan_paragraph.json";
     const fs::path plan =
@@ -18407,10 +18409,14 @@ TEST_CASE("cli builds review mutation plans from found text") {
         working_directory / "cli_build_review_mutation_plan_context_output.json";
     const fs::path insert_plan =
         working_directory / "cli_build_review_mutation_plan_insert_output.json";
+    const fs::path comment_plan =
+        working_directory / "cli_build_review_mutation_plan_comment_output.json";
     const fs::path applied =
         working_directory / "cli_build_review_mutation_plan_applied.docx";
     const fs::path insert_applied =
         working_directory / "cli_build_review_mutation_plan_insert_applied.docx";
+    const fs::path comment_applied =
+        working_directory / "cli_build_review_mutation_plan_comment_applied.docx";
     const fs::path output =
         working_directory / "cli_build_review_mutation_plan_result.json";
     const fs::path inspect_output =
@@ -18418,6 +18424,9 @@ TEST_CASE("cli builds review mutation plans from found text") {
     const fs::path insert_inspect_output =
         working_directory /
         "cli_build_review_mutation_plan_insert_inspect.json";
+    const fs::path comment_inspect_output =
+        working_directory /
+        "cli_build_review_mutation_plan_comment_inspect.json";
 
     remove_if_exists(source);
     remove_if_exists(request);
@@ -18426,15 +18435,19 @@ TEST_CASE("cli builds review mutation plans from found text") {
     remove_if_exists(context_missing_request);
     remove_if_exists(unique_request);
     remove_if_exists(insert_request);
+    remove_if_exists(comment_request);
     remove_if_exists(paragraph_request);
     remove_if_exists(plan);
     remove_if_exists(context_plan);
     remove_if_exists(insert_plan);
+    remove_if_exists(comment_plan);
     remove_if_exists(applied);
     remove_if_exists(insert_applied);
+    remove_if_exists(comment_applied);
     remove_if_exists(output);
     remove_if_exists(inspect_output);
     remove_if_exists(insert_inspect_output);
+    remove_if_exists(comment_inspect_output);
 
     featherdoc::Document source_document(source);
     REQUIRE_FALSE(source_document.create_empty());
@@ -18626,6 +18639,78 @@ TEST_CASE("cli builds review mutation plans from found text") {
              std::string::npos);
 
     write_binary_file(
+        comment_request,
+        R"({"operations":[)"
+        R"({"kind":"append_text_range_comment","find_text":"BetaMiddle TextBeta","comment_text":"Review this cross-paragraph span.","author":"Comment Builder","initials":"CB","date":"2026-05-03T12:45:00Z"},)"
+        R"({"kind":"append_paragraph_text_comment","find_text":"Tail","comment_text":"Check final tail.","author":"Paragraph Commenter","initials":"PC","date":"2026-05-03T12:46:00Z"}]})");
+    CHECK_EQ(run_cli({"build-review-mutation-plan",
+                      source.string(),
+                      "--request-file",
+                      comment_request.string(),
+                      "--output-plan",
+                      comment_plan.string(),
+                      "--json"},
+                     output),
+             0);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("kind":"append_text_range_comment")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("kind":"append_paragraph_text_comment")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("text":"BetaMiddle TextBeta")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("text":"Tail")"), std::string::npos);
+    CHECK(fs::exists(comment_plan));
+    const auto comment_plan_json = read_text_file(comment_plan);
+    CHECK_NE(comment_plan_json.find(R"("comment_text":"Review this cross-paragraph span.")"),
+             std::string::npos);
+    CHECK_NE(comment_plan_json.find(R"("comment_text":"Check final tail.")"),
+             std::string::npos);
+    CHECK_NE(comment_plan_json.find(R"("expected_text":"BetaMiddle TextBeta")"),
+             std::string::npos);
+    CHECK_NE(comment_plan_json.find(R"("expected_text":"Tail")"),
+             std::string::npos);
+    CHECK_NE(comment_plan_json.find(R"("initials":"CB")"),
+             std::string::npos);
+    CHECK_EQ(comment_plan_json.find(R"("insert_after_match")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"preview-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      comment_plan.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(run_cli({"apply-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      comment_plan.string(),
+                      "--output",
+                      comment_applied.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(run_cli({"inspect-review", comment_applied.string(), "--json"},
+                     comment_inspect_output),
+             0);
+    const auto comment_inspect_json = read_text_file(comment_inspect_output);
+    CHECK_NE(comment_inspect_json.find(R"("comments_count":2)"),
+             std::string::npos);
+    CHECK_NE(comment_inspect_json.find(R"("text":"Review this cross-paragraph span.")"),
+             std::string::npos);
+    CHECK_NE(comment_inspect_json.find(R"("text":"Check final tail.")"),
+             std::string::npos);
+    CHECK_NE(comment_inspect_json.find(R"("anchor_text":"BetaMiddle TextBeta")"),
+             std::string::npos);
+    CHECK_NE(comment_inspect_json.find(R"("anchor_text":"Tail")"),
+             std::string::npos);
+    CHECK_NE(comment_inspect_json.find(R"("initials":"CB")"),
+             std::string::npos);
+    CHECK_NE(comment_inspect_json.find(R"("initials":"PC")"),
+             std::string::npos);
+
+    write_binary_file(
         context_missing_request,
         R"({"operations":[{"kind":"delete_text_range_revision","find_text":"Beta","before_text":"Missing context","occurrence":0}]})");
     CHECK_EQ(run_cli({"build-review-mutation-plan",
@@ -18696,15 +18781,19 @@ TEST_CASE("cli builds review mutation plans from found text") {
     remove_if_exists(context_missing_request);
     remove_if_exists(unique_request);
     remove_if_exists(insert_request);
+    remove_if_exists(comment_request);
     remove_if_exists(paragraph_request);
     remove_if_exists(plan);
     remove_if_exists(context_plan);
     remove_if_exists(insert_plan);
+    remove_if_exists(comment_plan);
     remove_if_exists(applied);
     remove_if_exists(insert_applied);
+    remove_if_exists(comment_applied);
     remove_if_exists(output);
     remove_if_exists(inspect_output);
     remove_if_exists(insert_inspect_output);
+    remove_if_exists(comment_inspect_output);
 }
 
 TEST_CASE("cli review mutation plan previews expected text guards") {
