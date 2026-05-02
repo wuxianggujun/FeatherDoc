@@ -2147,6 +2147,17 @@ struct paragraph_revision_run_span {
     std::string text;
 };
 
+struct paragraph_revision_range_segment {
+    pugi::xml_node paragraph;
+    std::size_t text_offset = 0U;
+    std::size_t text_length = 0U;
+};
+
+struct paragraph_revision_range_plan {
+    std::vector<paragraph_revision_range_segment> segments;
+    std::size_t selected_text_length = 0U;
+};
+
 bool revision_range_run_content_supported(pugi::xml_node run) {
     for (auto child = run.first_child(); child != pugi::xml_node{};
          child = child.next_sibling()) {
@@ -2303,6 +2314,107 @@ bool append_revision_runs_from_spans(
         }
     }
     return true;
+}
+
+bool build_paragraph_revision_range_plan(
+    const std::vector<pugi::xml_node> &paragraphs,
+    std::size_t start_paragraph_index, std::size_t start_text_offset,
+    std::size_t end_paragraph_index, std::size_t end_text_offset,
+    paragraph_revision_range_plan &plan, std::string &error_message) {
+    plan = {};
+    error_message.clear();
+    if (start_paragraph_index > end_paragraph_index) {
+        error_message = "text range start must not be after end";
+        return false;
+    }
+    if (start_paragraph_index >= paragraphs.size() ||
+        end_paragraph_index >= paragraphs.size()) {
+        error_message = "paragraph range is out of range";
+        return false;
+    }
+
+    const auto start_spans =
+        collect_paragraph_revision_run_spans(paragraphs[start_paragraph_index]);
+    const auto start_text_length = paragraph_revision_text_length(start_spans);
+    if (start_text_offset > start_text_length) {
+        error_message = "start text offset is out of range";
+        return false;
+    }
+
+    const auto end_spans =
+        collect_paragraph_revision_run_spans(paragraphs[end_paragraph_index]);
+    const auto end_text_length = paragraph_revision_text_length(end_spans);
+    if (end_text_offset > end_text_length) {
+        error_message = "end text offset is out of range";
+        return false;
+    }
+    if (start_paragraph_index == end_paragraph_index &&
+        end_text_offset <= start_text_offset) {
+        error_message = "text range must not be empty";
+        return false;
+    }
+
+    for (std::size_t paragraph_index = start_paragraph_index;
+         paragraph_index <= end_paragraph_index; ++paragraph_index) {
+        const auto spans =
+            collect_paragraph_revision_run_spans(paragraphs[paragraph_index]);
+        const auto paragraph_text_length = paragraph_revision_text_length(spans);
+        const auto segment_start =
+            paragraph_index == start_paragraph_index ? start_text_offset : 0U;
+        const auto segment_end =
+            paragraph_index == end_paragraph_index ? end_text_offset
+                                                   : paragraph_text_length;
+        if (segment_start > paragraph_text_length ||
+            segment_end > paragraph_text_length || segment_end < segment_start) {
+            error_message = "text range is out of range";
+            return false;
+        }
+        if (segment_end == segment_start) {
+            continue;
+        }
+
+        paragraph_revision_range_segment segment;
+        segment.paragraph = paragraphs[paragraph_index];
+        segment.text_offset = segment_start;
+        segment.text_length = segment_end - segment_start;
+        plan.selected_text_length += segment.text_length;
+        plan.segments.push_back(segment);
+    }
+
+    if (plan.selected_text_length == 0U) {
+        error_message = "text range must not be empty";
+        return false;
+    }
+    return true;
+}
+
+bool split_paragraph_revision_range_segments(
+    const std::vector<paragraph_revision_range_segment> &segments) {
+    for (const auto &segment : segments) {
+        if (!split_paragraph_revision_text_at(
+                segment.paragraph, segment.text_offset + segment.text_length) ||
+            !split_paragraph_revision_text_at(segment.paragraph,
+                                              segment.text_offset)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+auto collect_selected_paragraph_revision_spans(
+    const std::vector<paragraph_revision_range_segment> &segments)
+    -> std::vector<std::vector<paragraph_revision_run_span>> {
+    std::vector<std::vector<paragraph_revision_run_span>> selected_segments;
+    selected_segments.reserve(segments.size());
+    for (const auto &segment : segments) {
+        auto selected = paragraph_revision_spans_in_range(
+            segment.paragraph, segment.text_offset, segment.text_length);
+        if (selected.empty()) {
+            return {};
+        }
+        selected_segments.push_back(std::move(selected));
+    }
+    return selected_segments;
 }
 
 bool xml_text_looks_like_omml(std::string_view text) {
@@ -12077,6 +12189,256 @@ bool Document::replace_paragraph_text_revision(
 
     set_revision_metadata(deletion, revision_id, author, date);
     set_revision_metadata(insertion, revision_id + 1L, author, date);
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::insert_text_range_revision(
+    std::size_t paragraph_index, std::size_t text_offset, std::string_view text,
+    std::string_view author, std::string_view date) {
+    return this->insert_paragraph_text_revision(paragraph_index, text_offset, text,
+                                                author, date);
+}
+
+bool Document::delete_text_range_revision(
+    std::size_t start_paragraph_index, std::size_t start_text_offset,
+    std::size_t end_paragraph_index, std::size_t end_text_offset,
+    std::string_view author, std::string_view date) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before deleting a text range revision",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    std::vector<pugi::xml_node> paragraphs;
+    auto paragraph_handle = this->paragraphs();
+    while (paragraph_handle.has_next()) {
+        paragraphs.push_back(paragraph_handle.current);
+        paragraph_handle.next();
+    }
+
+    paragraph_revision_range_plan plan;
+    std::string range_error;
+    if (!build_paragraph_revision_range_plan(
+            paragraphs, start_paragraph_index, start_text_offset,
+            end_paragraph_index, end_text_offset, plan, range_error)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       range_error, std::string{document_xml_entry});
+        return false;
+    }
+    if (!split_paragraph_revision_range_segments(plan.segments)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::operation_not_supported),
+                       "text range revision requires plain text runs",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    const auto selected_segments =
+        collect_selected_paragraph_revision_spans(plan.segments);
+    if (selected_segments.size() != plan.segments.size()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "text range is out of range",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    long revision_id = 1L;
+    collect_revision_ids(this->document, revision_id);
+    for (const auto &part : this->header_parts) {
+        if (part != nullptr) {
+            collect_revision_ids(part->xml, revision_id);
+        }
+    }
+    for (const auto &part : this->footer_parts) {
+        if (part != nullptr) {
+            collect_revision_ids(part->xml, revision_id);
+        }
+    }
+
+    for (std::size_t segment_index = 0U; segment_index < plan.segments.size();
+         ++segment_index) {
+        auto paragraph = plan.segments[segment_index].paragraph;
+        const auto &selected = selected_segments[segment_index];
+        auto revision = paragraph.insert_child_before("w:del", selected.front().run);
+        if (revision == pugi::xml_node{} ||
+            !append_revision_runs_from_spans(revision, selected, "w:delText")) {
+            if (revision != pugi::xml_node{}) {
+                paragraph.remove_child(revision);
+            }
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to delete text range revision",
+                           std::string{document_xml_entry});
+            return false;
+        }
+
+        for (const auto &span : selected) {
+            if (!paragraph.remove_child(span.run)) {
+                paragraph.remove_child(revision);
+                set_last_error(this->last_error_info,
+                               std::make_error_code(std::errc::not_enough_memory),
+                               "failed to delete text range revision",
+                               std::string{document_xml_entry});
+                return false;
+            }
+        }
+
+        set_revision_metadata(revision, revision_id, author, date);
+        ++revision_id;
+    }
+
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::replace_text_range_revision(
+    std::size_t start_paragraph_index, std::size_t start_text_offset,
+    std::size_t end_paragraph_index, std::size_t end_text_offset,
+    std::string_view text, std::string_view author, std::string_view date) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before replacing a text range revision",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    if (text.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "revision text must not be empty",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    std::vector<pugi::xml_node> paragraphs;
+    auto paragraph_handle = this->paragraphs();
+    while (paragraph_handle.has_next()) {
+        paragraphs.push_back(paragraph_handle.current);
+        paragraph_handle.next();
+    }
+
+    paragraph_revision_range_plan plan;
+    std::string range_error;
+    if (!build_paragraph_revision_range_plan(
+            paragraphs, start_paragraph_index, start_text_offset,
+            end_paragraph_index, end_text_offset, plan, range_error)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       range_error, std::string{document_xml_entry});
+        return false;
+    }
+    if (!split_paragraph_revision_range_segments(plan.segments)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::operation_not_supported),
+                       "text range revision requires plain text runs",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    const auto selected_segments =
+        collect_selected_paragraph_revision_spans(plan.segments);
+    if (selected_segments.size() != plan.segments.size()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "text range is out of range",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    long revision_id = 1L;
+    collect_revision_ids(this->document, revision_id);
+    for (const auto &part : this->header_parts) {
+        if (part != nullptr) {
+            collect_revision_ids(part->xml, revision_id);
+        }
+    }
+    for (const auto &part : this->footer_parts) {
+        if (part != nullptr) {
+            collect_revision_ids(part->xml, revision_id);
+        }
+    }
+
+    auto start_paragraph = paragraphs[start_paragraph_index];
+    const auto insertion_before =
+        paragraph_revision_insert_before(start_paragraph, start_text_offset);
+    const auto style_run =
+        paragraph_revision_style_run(start_paragraph, start_text_offset);
+    bool inserted_replacement = false;
+
+    for (std::size_t segment_index = 0U; segment_index < plan.segments.size();
+         ++segment_index) {
+        auto paragraph = plan.segments[segment_index].paragraph;
+        const auto &selected = selected_segments[segment_index];
+        auto deletion = paragraph.insert_child_before("w:del", selected.front().run);
+        if (deletion == pugi::xml_node{} ||
+            !append_revision_runs_from_spans(deletion, selected, "w:delText")) {
+            if (deletion != pugi::xml_node{}) {
+                paragraph.remove_child(deletion);
+            }
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to replace text range revision",
+                           std::string{document_xml_entry});
+            return false;
+        }
+        set_revision_metadata(deletion, revision_id, author, date);
+        ++revision_id;
+
+        if (!inserted_replacement &&
+            plan.segments[segment_index].paragraph == start_paragraph) {
+            auto insertion =
+                paragraph.insert_child_before("w:ins", selected.front().run);
+            if (insertion == pugi::xml_node{} ||
+                append_revision_run(insertion, selected.front().run, "w:t", text) ==
+                    pugi::xml_node{}) {
+                if (insertion != pugi::xml_node{}) {
+                    paragraph.remove_child(insertion);
+                }
+                paragraph.remove_child(deletion);
+                set_last_error(this->last_error_info,
+                               std::make_error_code(std::errc::not_enough_memory),
+                               "failed to replace text range revision",
+                               std::string{document_xml_entry});
+                return false;
+            }
+            set_revision_metadata(insertion, revision_id, author, date);
+            ++revision_id;
+            inserted_replacement = true;
+        }
+
+        for (const auto &span : selected) {
+            if (!paragraph.remove_child(span.run)) {
+                paragraph.remove_child(deletion);
+                set_last_error(this->last_error_info,
+                               std::make_error_code(std::errc::not_enough_memory),
+                               "failed to replace text range revision",
+                               std::string{document_xml_entry});
+                return false;
+            }
+        }
+    }
+
+    if (!inserted_replacement) {
+        auto insertion = insert_revision_node(start_paragraph, "w:ins",
+                                              insertion_before);
+        if (insertion == pugi::xml_node{} ||
+            append_revision_run(insertion, style_run, "w:t", text) ==
+                pugi::xml_node{}) {
+            if (insertion != pugi::xml_node{}) {
+                start_paragraph.remove_child(insertion);
+            }
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to replace text range revision",
+                           std::string{document_xml_entry});
+            return false;
+        }
+        set_revision_metadata(insertion, revision_id, author, date);
+    }
+
     this->last_error_info.clear();
     return true;
 }

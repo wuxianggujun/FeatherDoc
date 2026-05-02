@@ -8,7 +8,7 @@ param(
     [switch]$VisibleWord,
     [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
     [string]$ReviewVerdict = "pending_manual_review",
-    [string]$ReviewNote = "Confirm typed review mutation APIs render run and paragraph range revisions, footnote, endnote, comment marker, hyperlink, and OMML formulas."
+    [string]$ReviewNote = "Confirm typed review mutation APIs render run, paragraph range, cross-paragraph range revisions, footnote, endnote, comment marker, hyperlink, and OMML formulas."
 )
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.IO.Compression
@@ -26,7 +26,7 @@ function Assert-GeneratedDocxEvidence { param([string]$DocxPath)
     $commentsXml=Get-DocxEntryText $DocxPath "word/comments.xml"
     $relationshipsXml=Get-DocxEntryText $DocxPath "word/_rels/document.xml.rels"
     $contentTypesXml=Get-DocxEntryText $DocxPath "[Content_Types].xml"
-    foreach ($text in @("Accepted insertion from revision API","Rejected deletion kept by API","Authored insertion revision accepted by typed API","Authored deletion revision rejected by typed API","Run revision original visible text","accepted in-place replacement revision","accepted paragraph range replacement","Typed API evidence details below","footnoteReference","endnoteReference","commentReference","Typed hyperlink","Removed hyperlink text","m:f","m:rad")) { if (-not $documentXml.Contains($text)) { throw "Missing document review mutation evidence: $text" } }
+    foreach ($text in @("Accepted insertion from revision API","Rejected deletion kept by API","Authored insertion revision accepted by typed API","Authored deletion revision rejected by typed API","Run revision original visible text","accepted in-place replacement revision","accepted paragraph range replacement","accepted cross paragraph range replacement","Typed API evidence details below","footnoteReference","endnoteReference","commentReference","Typed hyperlink","Removed hyperlink text","m:f","m:rad")) { if (-not $documentXml.Contains($text)) { throw "Missing document review mutation evidence: $text" } }
     foreach ($text in @("<w:ins","<w:del","w:delText")) { if ($documentXml.Contains($text)) { throw "Revision markup should have been resolved but found: $text" } }
     if (-not $footnotesXml.Contains("Replaced visual footnote body")) { throw "Missing replaced footnote body evidence" }
     if ($footnotesXml.Contains("Removed visual footnote body")) { throw "Removed footnote body still exists" }

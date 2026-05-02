@@ -124,6 +124,22 @@ bool mutate_with_typed_apis(const fs::path &path) {
         return false;
     }
 
+    auto cross_range_first = body.append_paragraph("Cross Alpha ");
+    auto cross_range_second = body.append_paragraph("Cross Middle Text");
+    auto cross_range_third = body.append_paragraph("Gamma Delta");
+    if (!cross_range_first.has_next() ||
+        !cross_range_first.add_run("Beta").has_next() ||
+        !cross_range_second.has_next() || !cross_range_third.has_next() ||
+        !document.replace_text_range_revision(
+            7U, 12U, 9U, 5U, "accepted cross paragraph range replacement",
+            "Reviewer", "2026-05-02T15:30:00Z") ||
+        !document.accept_revision(0U) || !document.accept_revision(0U) ||
+        !document.accept_revision(0U) || !document.accept_revision(0U)) {
+        std::cerr << "cross paragraph text range revision authoring failed: "
+                  << document.last_error().detail << '\n';
+        return false;
+    }
+
     if (!body || !body.append_paragraph("Typed API evidence details below").has_next()) {
         std::cerr << "failed to append evidence heading\n";
         return false;

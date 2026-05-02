@@ -10515,6 +10515,161 @@ TEST_CASE("revision authoring APIs create paragraph text range revisions") {
     fs::remove(invalid_target);
 }
 
+TEST_CASE("revision authoring APIs create cross-paragraph text range revisions") {
+    namespace fs = std::filesystem;
+
+    const auto write_cross_paragraph_source = [](const fs::path &path) {
+        write_test_docx(path,
+                        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t xml:space="preserve">Alpha </w:t></w:r>
+      <w:r><w:rPr><w:b/></w:rPr><w:t>Beta</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:r><w:t xml:space="preserve">Middle </w:t></w:r>
+      <w:r><w:rPr><w:i/></w:rPr><w:t>Text</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Gamma</w:t></w:r>
+      <w:r><w:t>Delta</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)");
+    };
+
+    const fs::path insert_target =
+        fs::current_path() / "review_revisions_text_range_insert.docx";
+    const fs::path delete_target =
+        fs::current_path() / "review_revisions_text_range_delete.docx";
+    const fs::path replace_target =
+        fs::current_path() / "review_revisions_text_range_replace.docx";
+    const fs::path reject_target =
+        fs::current_path() / "review_revisions_text_range_reject.docx";
+    const fs::path invalid_target =
+        fs::current_path() / "review_revisions_text_range_invalid.docx";
+
+    fs::remove(insert_target);
+    fs::remove(delete_target);
+    fs::remove(replace_target);
+    fs::remove(reject_target);
+    fs::remove(invalid_target);
+
+    write_cross_paragraph_source(insert_target);
+    featherdoc::Document inserted(insert_target);
+    CHECK_FALSE(inserted.open());
+    CHECK(inserted.insert_text_range_revision(1U, 7U, "Inserted ", "Ada",
+                                              "2026-05-02T23:00:00Z"));
+    auto revisions = inserted.list_revisions();
+    REQUIRE_EQ(revisions.size(), 1U);
+    CHECK_EQ(revisions[0].kind, featherdoc::revision_kind::insertion);
+    CHECK_EQ(revisions[0].text, "Inserted ");
+    CHECK_FALSE(inserted.save());
+    featherdoc::Document accepted_insert(insert_target);
+    CHECK_FALSE(accepted_insert.open());
+    CHECK_EQ(accepted_insert.accept_all_revisions(), 1U);
+    CHECK_FALSE(accepted_insert.save());
+    featherdoc::Document accepted_insert_reopened(insert_target);
+    CHECK_FALSE(accepted_insert_reopened.open());
+    CHECK_EQ(collect_document_text(accepted_insert_reopened),
+             "Alpha Beta\nMiddle Inserted Text\nGammaDelta\n");
+
+    write_cross_paragraph_source(delete_target);
+    featherdoc::Document deleted(delete_target);
+    CHECK_FALSE(deleted.open());
+    CHECK(deleted.delete_text_range_revision(
+        0U, 6U, 2U, 5U, "Grace", "2026-05-03T00:00:00Z"));
+    revisions = deleted.list_revisions();
+    REQUIRE_EQ(revisions.size(), 3U);
+    CHECK_EQ(revisions[0].kind, featherdoc::revision_kind::deletion);
+    CHECK_EQ(revisions[0].text, "Beta");
+    CHECK_EQ(revisions[1].kind, featherdoc::revision_kind::deletion);
+    CHECK_EQ(revisions[1].text, "Middle Text");
+    CHECK_EQ(revisions[2].kind, featherdoc::revision_kind::deletion);
+    CHECK_EQ(revisions[2].text, "Gamma");
+    CHECK_EQ(revisions[0].id, "1");
+    CHECK_EQ(revisions[2].id, "3");
+    CHECK_FALSE(deleted.save());
+    auto saved_xml = read_test_docx_entry(delete_target, test_document_xml_entry);
+    CHECK_NE(saved_xml.find(R"(<w:del w:id="1" w:author="Grace" w:date="2026-05-03T00:00:00Z">)"),
+             std::string::npos);
+    CHECK_NE(saved_xml.find(R"(<w:delText>Beta</w:delText>)"),
+             std::string::npos);
+    CHECK_NE(saved_xml.find(R"(<w:delText xml:space="preserve">Middle </w:delText>)"),
+             std::string::npos);
+    CHECK_NE(saved_xml.find(R"(<w:delText>Gamma</w:delText>)"),
+             std::string::npos);
+    featherdoc::Document accepted_delete(delete_target);
+    CHECK_FALSE(accepted_delete.open());
+    CHECK_EQ(accepted_delete.accept_all_revisions(), 3U);
+    CHECK_FALSE(accepted_delete.save());
+    featherdoc::Document accepted_delete_reopened(delete_target);
+    CHECK_FALSE(accepted_delete_reopened.open());
+    CHECK_EQ(collect_document_text(accepted_delete_reopened),
+             "Alpha \n\nDelta\n");
+
+    write_cross_paragraph_source(replace_target);
+    featherdoc::Document replaced(replace_target);
+    CHECK_FALSE(replaced.open());
+    CHECK(replaced.replace_text_range_revision(
+        0U, 6U, 2U, 5U, "Range ", "Linus", "2026-05-03T01:00:00Z"));
+    revisions = replaced.list_revisions();
+    REQUIRE_EQ(revisions.size(), 4U);
+    CHECK_EQ(revisions[0].kind, featherdoc::revision_kind::deletion);
+    CHECK_EQ(revisions[0].text, "Beta");
+    CHECK_EQ(revisions[1].kind, featherdoc::revision_kind::insertion);
+    CHECK_EQ(revisions[1].text, "Range ");
+    CHECK_EQ(revisions[2].kind, featherdoc::revision_kind::deletion);
+    CHECK_EQ(revisions[2].text, "Middle Text");
+    CHECK_EQ(revisions[3].kind, featherdoc::revision_kind::deletion);
+    CHECK_EQ(revisions[3].text, "Gamma");
+    CHECK_FALSE(replaced.save());
+    featherdoc::Document accepted_replace(replace_target);
+    CHECK_FALSE(accepted_replace.open());
+    CHECK_EQ(accepted_replace.accept_all_revisions(), 4U);
+    CHECK_FALSE(accepted_replace.save());
+    featherdoc::Document accepted_replace_reopened(replace_target);
+    CHECK_FALSE(accepted_replace_reopened.open());
+    CHECK_EQ(collect_document_text(accepted_replace_reopened),
+             "Alpha Range \n\nDelta\n");
+
+    write_cross_paragraph_source(reject_target);
+    featherdoc::Document rejected(reject_target);
+    CHECK_FALSE(rejected.open());
+    CHECK(rejected.replace_text_range_revision(0U, 6U, 2U, 5U, "Range "));
+    CHECK_EQ(rejected.reject_all_revisions(), 4U);
+    CHECK_FALSE(rejected.save());
+    featherdoc::Document rejected_reopened(reject_target);
+    CHECK_FALSE(rejected_reopened.open());
+    CHECK_EQ(collect_document_text(rejected_reopened),
+             "Alpha Beta\nMiddle Text\nGammaDelta\n");
+
+    write_cross_paragraph_source(invalid_target);
+    featherdoc::Document invalid_doc(invalid_target);
+    CHECK_FALSE(invalid_doc.open());
+    CHECK_FALSE(invalid_doc.delete_text_range_revision(2U, 0U, 1U, 1U));
+    CHECK_EQ(invalid_doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(invalid_doc.delete_text_range_revision(0U, 11U, 1U, 1U));
+    CHECK_EQ(invalid_doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(invalid_doc.replace_text_range_revision(0U, 10U, 1U, 0U,
+                                                        "bad"));
+    CHECK_EQ(invalid_doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(invalid_doc.replace_text_range_revision(0U, 6U, 2U, 5U, ""));
+    CHECK_EQ(invalid_doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(insert_target);
+    fs::remove(delete_target);
+    fs::remove(replace_target);
+    fs::remove(reject_target);
+    fs::remove(invalid_target);
+}
+
 TEST_CASE("validate_template reports missing required bookmarks") {
     namespace fs = std::filesystem;
 

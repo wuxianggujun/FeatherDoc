@@ -265,14 +265,18 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
 - ``insert_paragraph_text_revision(...)`` / ``delete_paragraph_text_revision(...)`` /
   ``replace_paragraph_text_revision(...)`` 可基于正文段落纯文本 offset / length
   生成跨 run 区间插入、删除和替换修订痕迹
+- ``insert_text_range_revision(...)`` / ``delete_text_range_revision(...)`` /
+  ``replace_text_range_revision(...)`` 可基于正文起止段落和纯文本 offset
+  生成跨段落半开区间插入、删除和替换修订痕迹
 - ``accept_revision(...)`` / ``reject_revision(...)`` 以及批量接受 / 拒绝入口
   已覆盖第一版修订清理工作流
 - ``append_footnote(...)`` / ``replace_footnote(...)`` / ``remove_footnote(...)``
   和对应 endnote API 已覆盖脚注 / 尾注创建、改写和删除
 - ``append_comment(...)`` / ``replace_comment(...)`` / ``remove_comment(...)``
   已覆盖第一版批注创建、改写和删除
-- ``inspect-review`` 以及脚注、尾注、批注、append 修订、run 原位修订和
-  段落文本区间修订 mutation CLI 已可用于一次性自动化处理
+- ``inspect-review`` 以及脚注、尾注、批注、append 修订、run 原位修订、
+  段落文本区间修订和跨段落文本区间修订 mutation CLI 已可用于一次性
+  自动化处理
 - ``compare_semantic(...)`` 与 ``semantic-diff`` 已将脚注、尾注、批注和修订
   纳入语义 diff，JSON 会输出 ``footnote_changes``、``endnote_changes``、
   ``comment_changes`` 与 ``revision_changes``，CLI 可用 ``--no-footnotes`` /
@@ -283,7 +287,7 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
 建议中期继续补：
 
 - comment 回复、resolved 状态和更完整的 comment range 编辑 API
-- 跨段落修订编辑 API、复杂 run 区间诊断和更细粒度冲突诊断
+- 复杂 run 区间诊断、段落标记级修订和更细粒度冲突诊断
 - 审阅对象与复杂模板合并时的冲突解决策略
 
 价值：

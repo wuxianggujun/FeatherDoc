@@ -17975,6 +17975,123 @@ TEST_CASE("cli paragraph text revision authoring creates range revisions") {
     remove_if_exists(inspect_output);
 }
 
+TEST_CASE("cli text range revision authoring creates cross-paragraph revisions") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_text_range_revision_authoring_source.docx";
+    const fs::path inserted =
+        working_directory / "cli_text_range_revision_authoring_inserted.docx";
+    const fs::path deleted =
+        working_directory / "cli_text_range_revision_authoring_deleted.docx";
+    const fs::path replaced =
+        working_directory / "cli_text_range_revision_authoring_replaced.docx";
+    const fs::path output =
+        working_directory / "cli_text_range_revision_authoring.json";
+    const fs::path inspect_output =
+        working_directory / "cli_text_range_revision_authoring_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(deleted);
+    remove_if_exists(replaced);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    featherdoc::Document source_document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+    auto first = source_document.paragraphs();
+    REQUIRE(first.has_next());
+    REQUIRE(first.add_run("Alpha ").has_next());
+    REQUIRE(first.add_run("Beta").has_next());
+    auto second = first.insert_paragraph_after("Middle ");
+    REQUIRE(second.has_next());
+    REQUIRE(second.add_run("Text").has_next());
+    auto third = second.insert_paragraph_after("Gamma ");
+    REQUIRE(third.has_next());
+    REQUIRE(third.add_run("Delta").has_next());
+    REQUIRE_FALSE(source_document.save());
+
+    CHECK_EQ(run_cli({"insert-text-range-revision",
+                      source.string(),
+                      "1",
+                      "7",
+                      "--text",
+                      "CLI cross insertion ",
+                      "--author",
+                      "CLI Cross Author",
+                      "--date",
+                      "2026-05-03T02:00:00Z",
+                      "--output",
+                      inserted.string(),
+                      "--json"},
+                     output),
+             0);
+    auto output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("start_paragraph_index":1)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("start_text_offset":7)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"delete-text-range-revision",
+                      source.string(),
+                      "0",
+                      "6",
+                      "2",
+                      "5",
+                      "--author",
+                      "CLI Cross Reviewer",
+                      "--date",
+                      "2026-05-03T03:00:00Z",
+                      "--output",
+                      deleted.string(),
+                      "--json"},
+                     output),
+             0);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("end_paragraph_index":2)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("end_text_offset":5)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"replace-text-range-revision",
+                      source.string(),
+                      "0",
+                      "6",
+                      "2",
+                      "5",
+                      "--text",
+                      "CLI cross replacement ",
+                      "--author",
+                      "CLI Cross Editor",
+                      "--date",
+                      "2026-05-03T04:00:00Z",
+                      "--output",
+                      replaced.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"inspect-review", replaced.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("revisions_count":4)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Beta")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"CLI cross replacement ")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Middle Text")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Gamma")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"CLI Cross Editor")"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(deleted);
+    remove_if_exists(replaced);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
 TEST_CASE("cli revision mutation accepts and rejects revisions") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_revision_mutation_source.docx";

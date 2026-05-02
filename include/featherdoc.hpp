@@ -2699,6 +2699,19 @@ class Document {
         std::size_t paragraph_index, std::size_t text_offset,
         std::size_t text_length, std::string_view text,
         std::string_view author = {}, std::string_view date = {});
+    [[nodiscard]] bool insert_text_range_revision(
+        std::size_t paragraph_index, std::size_t text_offset,
+        std::string_view text, std::string_view author = {},
+        std::string_view date = {});
+    [[nodiscard]] bool delete_text_range_revision(
+        std::size_t start_paragraph_index, std::size_t start_text_offset,
+        std::size_t end_paragraph_index, std::size_t end_text_offset,
+        std::string_view author = {}, std::string_view date = {});
+    [[nodiscard]] bool replace_text_range_revision(
+        std::size_t start_paragraph_index, std::size_t start_text_offset,
+        std::size_t end_paragraph_index, std::size_t end_text_offset,
+        std::string_view text, std::string_view author = {},
+        std::string_view date = {});
     [[nodiscard]] bool accept_revision(std::size_t revision_index);
     [[nodiscard]] bool reject_revision(std::size_t revision_index);
     [[nodiscard]] std::size_t accept_all_revisions();
