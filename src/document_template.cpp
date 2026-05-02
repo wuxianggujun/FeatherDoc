@@ -2184,6 +2184,7 @@ struct paragraph_revision_run_span {
 
 struct paragraph_revision_range_segment {
     pugi::xml_node paragraph;
+    std::size_t paragraph_index = 0U;
     std::size_t text_offset = 0U;
     std::size_t text_length = 0U;
 };
@@ -2422,6 +2423,7 @@ bool build_paragraph_revision_range_plan(
 
         paragraph_revision_range_segment segment;
         segment.paragraph = paragraphs[paragraph_index];
+        segment.paragraph_index = paragraph_index;
         segment.text_offset = segment_start;
         segment.text_length = segment_end - segment_start;
         plan.selected_text_length += segment.text_length;
@@ -2462,6 +2464,50 @@ auto collect_selected_paragraph_revision_spans(
         selected_segments.push_back(std::move(selected));
     }
     return selected_segments;
+}
+
+auto preview_paragraph_revision_range_segments(
+    std::size_t start_paragraph_index, std::size_t start_text_offset,
+    std::size_t end_paragraph_index, std::size_t end_text_offset,
+    const paragraph_revision_range_plan &plan) -> featherdoc::text_range_preview {
+    featherdoc::text_range_preview preview;
+    preview.start_paragraph_index = start_paragraph_index;
+    preview.start_text_offset = start_text_offset;
+    preview.end_paragraph_index = end_paragraph_index;
+    preview.end_text_offset = end_text_offset;
+    preview.text_length = plan.selected_text_length;
+
+    for (const auto &segment : plan.segments) {
+        featherdoc::text_range_preview_segment preview_segment;
+        preview_segment.paragraph_index = segment.paragraph_index;
+        preview_segment.text_offset = segment.text_offset;
+        preview_segment.text_length = segment.text_length;
+
+        const auto segment_end = segment.text_offset + segment.text_length;
+        for (const auto &span :
+             collect_paragraph_revision_run_spans(segment.paragraph)) {
+            const auto span_start = span.start_offset;
+            const auto span_end = span.start_offset + span.length;
+            if (span_end <= segment.text_offset || span_start >= segment_end) {
+                continue;
+            }
+            if (!revision_range_run_content_supported(span.run)) {
+                preview.plain_text_runs_supported = false;
+            }
+
+            const auto selected_start = std::max(span_start, segment.text_offset);
+            const auto selected_end = std::min(span_end, segment_end);
+            const auto local_start = selected_start - span_start;
+            preview_segment.text.append(
+                std::string_view{span.text}.substr(local_start,
+                                                   selected_end - selected_start));
+        }
+
+        preview.text += preview_segment.text;
+        preview.segments.push_back(std::move(preview_segment));
+    }
+
+    return preview;
 }
 
 bool insert_comment_markers_for_selected_spans(
@@ -13452,6 +13498,46 @@ bool Document::replace_text_range_revision(
 
     this->last_error_info.clear();
     return true;
+}
+
+std::optional<featherdoc::text_range_preview> Document::preview_text_range(
+    std::size_t start_paragraph_index, std::size_t start_text_offset,
+    std::size_t end_paragraph_index, std::size_t end_text_offset) const {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before previewing a text range",
+                       std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    std::vector<pugi::xml_node> paragraphs;
+    auto body =
+        const_cast<pugi::xml_document &>(this->document)
+            .child("w:document")
+            .child("w:body");
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::string_view{child.name()} == "w:p") {
+            paragraphs.push_back(child);
+        }
+    }
+
+    paragraph_revision_range_plan plan;
+    std::string range_error;
+    if (!build_paragraph_revision_range_plan(
+            paragraphs, start_paragraph_index, start_text_offset,
+            end_paragraph_index, end_text_offset, plan, range_error)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       range_error, std::string{document_xml_entry});
+        return std::nullopt;
+    }
+
+    auto preview = preview_paragraph_revision_range_segments(
+        start_paragraph_index, start_text_offset, end_paragraph_index,
+        end_text_offset, plan);
+    this->last_error_info.clear();
+    return preview;
 }
 
 std::vector<featherdoc::revision_summary> Document::list_revisions() const {

@@ -18063,6 +18063,44 @@ TEST_CASE("cli text range revision authoring creates cross-paragraph revisions")
     REQUIRE(third.add_run("Delta").has_next());
     REQUIRE_FALSE(source_document.save());
 
+    CHECK_EQ(run_cli({"preview-text-range",
+                      source.string(),
+                      "0",
+                      "6",
+                      "2",
+                      "5",
+                      "--json"},
+                     output),
+             0);
+    auto output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("command":"preview-text-range")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("start_paragraph_index":0)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("end_paragraph_index":2)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("text_length":20)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("plain_text_runs_supported":true)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("text":"BetaMiddle TextGamma")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("paragraph_index":1,"text_offset":0,"text_length":11,"text":"Middle Text")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"preview-text-range",
+                      source.string(),
+                      "2",
+                      "0",
+                      "1",
+                      "1",
+                      "--json"},
+                     output),
+             1);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("stage":"preview")"), std::string::npos);
+    CHECK_NE(output_json.find("text range start must not be after end"),
+             std::string::npos);
+
     CHECK_EQ(run_cli({"insert-text-range-revision",
                       source.string(),
                       "1",
@@ -18078,7 +18116,7 @@ TEST_CASE("cli text range revision authoring creates cross-paragraph revisions")
                       "--json"},
                      output),
              0);
-    auto output_json = read_text_file(output);
+    output_json = read_text_file(output);
     CHECK_NE(output_json.find(R"("start_paragraph_index":1)"),
              std::string::npos);
     CHECK_NE(output_json.find(R"("start_text_offset":7)"),

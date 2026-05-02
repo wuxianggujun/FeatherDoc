@@ -10801,6 +10801,23 @@ TEST_CASE("revision authoring APIs create cross-paragraph text range revisions")
     write_cross_paragraph_source(delete_target);
     featherdoc::Document deleted(delete_target);
     CHECK_FALSE(deleted.open());
+    const auto preview =
+        deleted.preview_text_range(0U, 6U, 2U, 5U);
+    REQUIRE(preview.has_value());
+    CHECK_EQ(preview->start_paragraph_index, 0U);
+    CHECK_EQ(preview->start_text_offset, 6U);
+    CHECK_EQ(preview->end_paragraph_index, 2U);
+    CHECK_EQ(preview->end_text_offset, 5U);
+    CHECK_EQ(preview->text_length, 20U);
+    CHECK(preview->plain_text_runs_supported);
+    CHECK_EQ(preview->text, "BetaMiddle TextGamma");
+    REQUIRE_EQ(preview->segments.size(), 3U);
+    CHECK_EQ(preview->segments[0].paragraph_index, 0U);
+    CHECK_EQ(preview->segments[0].text, "Beta");
+    CHECK_EQ(preview->segments[1].paragraph_index, 1U);
+    CHECK_EQ(preview->segments[1].text, "Middle Text");
+    CHECK_EQ(preview->segments[2].paragraph_index, 2U);
+    CHECK_EQ(preview->segments[2].text, "Gamma");
     CHECK(deleted.delete_text_range_revision(
         0U, 6U, 2U, 5U, "Grace", "2026-05-03T00:00:00Z"));
     revisions = deleted.list_revisions();
@@ -10871,6 +10888,9 @@ TEST_CASE("revision authoring APIs create cross-paragraph text range revisions")
     write_cross_paragraph_source(invalid_target);
     featherdoc::Document invalid_doc(invalid_target);
     CHECK_FALSE(invalid_doc.open());
+    CHECK_FALSE(invalid_doc.preview_text_range(2U, 0U, 1U, 1U).has_value());
+    CHECK_EQ(invalid_doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
     CHECK_FALSE(invalid_doc.delete_text_range_revision(2U, 0U, 1U, 1U));
     CHECK_EQ(invalid_doc.last_error().code,
              std::make_error_code(std::errc::invalid_argument));

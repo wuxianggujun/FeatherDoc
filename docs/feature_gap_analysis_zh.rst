@@ -269,6 +269,8 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
 - ``insert_text_range_revision(...)`` / ``delete_text_range_revision(...)`` /
   ``replace_text_range_revision(...)`` 可基于正文起止段落和纯文本 offset
   生成跨段落半开区间插入、删除和替换修订痕迹
+- ``preview_text_range(...)`` 可在写入批注或修订前预览正文区间的选中文本、
+  分段文本和 plain-text run 支持状态
 - ``accept_revision(...)`` / ``reject_revision(...)`` 以及批量接受 / 拒绝入口
   已覆盖第一版修订清理工作流
 - ``set_revision_metadata(...)`` 可设置或清除既有修订的 author 和 date

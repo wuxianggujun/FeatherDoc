@@ -2045,6 +2045,9 @@ void print_usage(std::ostream &stream) {
            " [--json]\n"
         << "  featherdoc_cli inspect-hyperlinks <input.docx> [--json]\n"
         << "  featherdoc_cli inspect-review <input.docx> [--json]\n"
+        << "  featherdoc_cli preview-text-range <input.docx>"
+           " <start-paragraph-index> <start-offset>"
+           " <end-paragraph-index> <end-offset> [--json]\n"
         << "  featherdoc_cli inspect-omml <input.docx> [--json]\n"
         << "  featherdoc_cli append-hyperlink <input.docx>"
            " --text <text> --target <url> [--output <path>] [--json]\n"
@@ -19843,6 +19846,36 @@ void write_json_revision_summary(
     stream << '}';
 }
 
+void write_json_text_range_preview_segment(
+    std::ostream &stream,
+    const featherdoc::text_range_preview_segment &segment) {
+    stream << "{\"paragraph_index\":" << segment.paragraph_index
+           << ",\"text_offset\":" << segment.text_offset
+           << ",\"text_length\":" << segment.text_length << ",\"text\":";
+    write_json_string(stream, segment.text);
+    stream << '}';
+}
+
+void write_json_text_range_preview(
+    std::ostream &stream, const featherdoc::text_range_preview &preview) {
+    stream << "{\"start_paragraph_index\":" << preview.start_paragraph_index
+           << ",\"start_text_offset\":" << preview.start_text_offset
+           << ",\"end_paragraph_index\":" << preview.end_paragraph_index
+           << ",\"end_text_offset\":" << preview.end_text_offset
+           << ",\"text_length\":" << preview.text_length
+           << ",\"plain_text_runs_supported\":"
+           << json_bool(preview.plain_text_runs_supported) << ",\"text\":";
+    write_json_string(stream, preview.text);
+    stream << ",\"segments\":[";
+    for (std::size_t index = 0U; index < preview.segments.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_text_range_preview_segment(stream, preview.segments[index]);
+    }
+    stream << "]}";
+}
+
 void write_json_omml_summary(std::ostream &stream,
                              const featherdoc::omml_summary &formula) {
     stream << "{\"index\":" << formula.index
@@ -20386,6 +20419,25 @@ void print_revision_summary(
            << " date=" << optional_display_value(revision.date)
            << " part_entry_name=" << revision.part_entry_name << " text=";
     write_json_string(stream, revision.text);
+}
+
+void print_text_range_preview(std::ostream &stream,
+                              const featherdoc::text_range_preview &preview) {
+    stream << "start_paragraph_index=" << preview.start_paragraph_index
+           << " start_text_offset=" << preview.start_text_offset
+           << " end_paragraph_index=" << preview.end_paragraph_index
+           << " end_text_offset=" << preview.end_text_offset
+           << " text_length=" << preview.text_length
+           << " plain_text_runs_supported="
+           << yes_no(preview.plain_text_runs_supported) << " text=";
+    write_json_string(stream, preview.text);
+    for (const auto &segment : preview.segments) {
+        stream << '\n'
+               << "segment paragraph_index=" << segment.paragraph_index
+               << " text_offset=" << segment.text_offset
+               << " text_length=" << segment.text_length << " text=";
+        write_json_string(stream, segment.text);
+    }
 }
 
 void print_omml_summary(std::ostream &stream,
@@ -46674,6 +46726,85 @@ int main(int argc, char **argv) {
         }
 
         inspect_review(footnotes, endnotes, comments, revisions, json_output);
+        return 0;
+    }
+
+    if (command == "preview-text-range") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 6U) {
+            print_parse_error(
+                command,
+                "preview-text-range expects an input path, start paragraph index, start offset, end paragraph index, and end offset",
+                json_output);
+            return 2;
+        }
+        if (arguments.size() > 7U ||
+            (arguments.size() == 7U && arguments[6] != "--json")) {
+            print_parse_error(command, "unknown option: " +
+                                           std::string(arguments[6]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t start_paragraph_index = 0U;
+        if (!parse_index(arguments[2], start_paragraph_index)) {
+            print_parse_error(command,
+                              "invalid start paragraph index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t start_text_offset = 0U;
+        if (!parse_index(arguments[3], start_text_offset)) {
+            print_parse_error(command,
+                              "invalid start text offset: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t end_paragraph_index = 0U;
+        if (!parse_index(arguments[4], end_paragraph_index)) {
+            print_parse_error(command,
+                              "invalid end paragraph index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t end_text_offset = 0U;
+        if (!parse_index(arguments[5], end_text_offset)) {
+            print_parse_error(command,
+                              "invalid end text offset: " +
+                                  std::string(arguments[5]),
+                              json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           json_output)) {
+            return 1;
+        }
+
+        const auto preview = doc.preview_text_range(
+            start_paragraph_index, start_text_offset, end_paragraph_index,
+            end_text_offset);
+        if (!preview.has_value()) {
+            report_document_error(command, "preview", doc.last_error(),
+                                  json_output);
+            return 1;
+        }
+
+        if (json_output) {
+            std::cout << "{\"command\":\"preview-text-range\",\"ok\":true,"
+                      << "\"preview\":";
+            write_json_text_range_preview(std::cout, *preview);
+            std::cout << "}\n";
+        } else {
+            print_text_range_preview(std::cout, *preview);
+            std::cout << '\n';
+        }
         return 0;
     }
 

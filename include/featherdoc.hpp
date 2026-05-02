@@ -729,6 +729,24 @@ struct revision_metadata_update {
     bool clear_date{false};
 };
 
+struct text_range_preview_segment {
+    std::size_t paragraph_index{};
+    std::size_t text_offset{};
+    std::size_t text_length{};
+    std::string text;
+};
+
+struct text_range_preview {
+    std::size_t start_paragraph_index{};
+    std::size_t start_text_offset{};
+    std::size_t end_paragraph_index{};
+    std::size_t end_text_offset{};
+    std::size_t text_length{};
+    bool plain_text_runs_supported{true};
+    std::string text;
+    std::vector<featherdoc::text_range_preview_segment> segments;
+};
+
 enum class template_slot_kind : std::uint8_t {
     text = 0U,
     table_rows,
@@ -2764,6 +2782,11 @@ class Document {
         std::size_t end_paragraph_index, std::size_t end_text_offset,
         std::string_view text, std::string_view author = {},
         std::string_view date = {});
+    [[nodiscard]] std::optional<featherdoc::text_range_preview>
+    preview_text_range(std::size_t start_paragraph_index,
+                       std::size_t start_text_offset,
+                       std::size_t end_paragraph_index,
+                       std::size_t end_text_offset) const;
     [[nodiscard]] bool set_revision_metadata(
         std::size_t revision_index,
         const featherdoc::revision_metadata_update &metadata);
