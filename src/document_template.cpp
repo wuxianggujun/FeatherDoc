@@ -2711,9 +2711,15 @@ auto ensure_comment_paragraph_id(pugi::xml_node comments_root,
     return para_id;
 }
 
-auto comment_done_by_paragraph_id(const pugi::xml_document &comments_extended)
-    -> std::unordered_map<std::string, bool> {
-    std::unordered_map<std::string, bool> done_by_para_id;
+struct comment_extended_metadata {
+    bool has_done{false};
+    bool done{false};
+    std::optional<std::string> parent_para_id;
+};
+
+auto comment_metadata_by_paragraph_id(const pugi::xml_document &comments_extended)
+    -> std::unordered_map<std::string, comment_extended_metadata> {
+    std::unordered_map<std::string, comment_extended_metadata> metadata_by_para_id;
     const auto root = comments_extended.child("w15:commentsEx");
     for (auto comment_ex = root.child("w15:commentEx");
          comment_ex != pugi::xml_node{};
@@ -2723,27 +2729,40 @@ auto comment_done_by_paragraph_id(const pugi::xml_document &comments_extended)
         if (para_id.empty()) {
             continue;
         }
+        comment_extended_metadata metadata;
         const auto done =
             std::string_view{comment_ex.attribute("w15:done").value()};
-        done_by_para_id[uppercase_hex_string(para_id)] =
-            on_off_attribute_is_true(done);
+        if (!done.empty()) {
+            metadata.has_done = true;
+            metadata.done = on_off_attribute_is_true(done);
+        }
+        const auto parent_para_id =
+            std::string_view{comment_ex.attribute("w15:paraIdParent").value()};
+        if (!parent_para_id.empty()) {
+            metadata.parent_para_id = uppercase_hex_string(parent_para_id);
+        }
+        metadata_by_para_id[uppercase_hex_string(para_id)] = std::move(metadata);
     }
-    return done_by_para_id;
+    return metadata_by_para_id;
 }
 
-void attach_comment_resolved_states(
+void attach_comment_extended_metadata(
     std::vector<featherdoc::review_note_summary> &summaries,
     const pugi::xml_document &comments_document,
     const pugi::xml_document &comments_extended) {
     if (summaries.empty()) {
         return;
     }
-    const auto done_by_para_id = comment_done_by_paragraph_id(comments_extended);
-    if (done_by_para_id.empty()) {
+    const auto metadata_by_para_id =
+        comment_metadata_by_paragraph_id(comments_extended);
+    if (metadata_by_para_id.empty()) {
         return;
     }
 
     const auto root = comments_document.child("w:comments");
+    std::vector<std::optional<std::string>> para_ids_by_index(summaries.size());
+    std::unordered_map<std::string, std::size_t> index_by_para_id;
+    std::unordered_map<std::string, std::string> id_by_para_id;
     std::size_t index = 0U;
     for (auto comment = root.child("w:comment");
          comment != pugi::xml_node{} && index < summaries.size();
@@ -2752,9 +2771,36 @@ void attach_comment_resolved_states(
         if (!para_id.has_value()) {
             continue;
         }
-        const auto match = done_by_para_id.find(*para_id);
-        if (match != done_by_para_id.end()) {
-            summaries[index].resolved = match->second;
+        para_ids_by_index[index] = *para_id;
+        index_by_para_id[*para_id] = index;
+        id_by_para_id[*para_id] = summaries[index].id;
+    }
+
+    for (std::size_t summary_index = 0U; summary_index < summaries.size();
+         ++summary_index) {
+        const auto &para_id = para_ids_by_index[summary_index];
+        if (!para_id.has_value()) {
+            continue;
+        }
+        const auto match = metadata_by_para_id.find(*para_id);
+        if (match == metadata_by_para_id.end()) {
+            continue;
+        }
+        const auto &metadata = match->second;
+        if (metadata.has_done) {
+            summaries[summary_index].resolved = metadata.done;
+        }
+        if (!metadata.parent_para_id.has_value()) {
+            continue;
+        }
+        if (const auto parent_index =
+                index_by_para_id.find(*metadata.parent_para_id);
+            parent_index != index_by_para_id.end()) {
+            summaries[summary_index].parent_index = parent_index->second;
+        }
+        if (const auto parent_id = id_by_para_id.find(*metadata.parent_para_id);
+            parent_id != id_by_para_id.end()) {
+            summaries[summary_index].parent_id = parent_id->second;
         }
     }
 }
@@ -2774,6 +2820,17 @@ auto comment_extended_by_paragraph_id(pugi::xml_node root, std::string_view para
     return {};
 }
 
+auto ensure_comment_extended_by_paragraph_id(pugi::xml_node root,
+                                             std::string_view para_id)
+    -> pugi::xml_node {
+    auto comment_ex = comment_extended_by_paragraph_id(root, para_id);
+    if (comment_ex == pugi::xml_node{}) {
+        comment_ex = root.append_child("w15:commentEx");
+    }
+    ensure_attribute_value(comment_ex, "w15:paraId", uppercase_hex_string(para_id));
+    return comment_ex;
+}
+
 bool remove_comment_extended_by_paragraph_id(pugi::xml_document &comments_extended,
                                              std::string_view para_id) {
     auto root = comments_extended.child("w15:commentsEx");
@@ -2782,6 +2839,50 @@ bool remove_comment_extended_by_paragraph_id(pugi::xml_document &comments_extend
         return false;
     }
     return root.remove_child(comment_ex);
+}
+
+auto child_comment_para_ids_by_parent_para_id(
+    const pugi::xml_document &comments_extended)
+    -> std::unordered_map<std::string, std::vector<std::string>> {
+    std::unordered_map<std::string, std::vector<std::string>> children_by_parent;
+    const auto root = comments_extended.child("w15:commentsEx");
+    for (auto comment_ex = root.child("w15:commentEx");
+         comment_ex != pugi::xml_node{};
+         comment_ex = comment_ex.next_sibling("w15:commentEx")) {
+        const auto para_id =
+            std::string_view{comment_ex.attribute("w15:paraId").value()};
+        const auto parent_para_id =
+            std::string_view{comment_ex.attribute("w15:paraIdParent").value()};
+        if (para_id.empty() || parent_para_id.empty()) {
+            continue;
+        }
+        children_by_parent[uppercase_hex_string(parent_para_id)].push_back(
+            uppercase_hex_string(para_id));
+    }
+    return children_by_parent;
+}
+
+auto comment_thread_para_ids(const pugi::xml_document &comments_extended,
+                             std::string_view root_para_id)
+    -> std::unordered_set<std::string> {
+    const auto children_by_parent =
+        child_comment_para_ids_by_parent_para_id(comments_extended);
+    std::unordered_set<std::string> para_ids;
+    std::vector<std::string> pending{uppercase_hex_string(root_para_id)};
+    while (!pending.empty()) {
+        auto current = std::move(pending.back());
+        pending.pop_back();
+        if (!para_ids.insert(current).second) {
+            continue;
+        }
+        const auto children = children_by_parent.find(current);
+        if (children == children_by_parent.end()) {
+            continue;
+        }
+        pending.insert(pending.end(), children->second.begin(),
+                       children->second.end());
+    }
+    return para_ids;
 }
 
 void remove_comment_markers_by_id(pugi::xml_node node, std::string_view id) {
@@ -10070,6 +10171,8 @@ auto semantic_review_note_summary_value(
            << "\ndate=" << semantic_optional_string(note.date)
            << "\nanchor_text=" << semantic_optional_string(note.anchor_text)
            << "\nresolved=" << (note.resolved ? "true" : "false")
+           << "\nparent_index=" << semantic_optional_numeric(note.parent_index)
+           << "\nparent_id=" << semantic_optional_string(note.parent_id)
            << "\ntext=" << note.text;
     return stream.str();
 }
@@ -11655,7 +11758,7 @@ std::vector<featherdoc::review_note_summary> Document::list_comments() const {
         auto summaries = summarize_comments_from_part(comments_document);
         attach_comment_anchor_text(summaries, anchor_text_by_id);
         if (this->comments_extended_loaded) {
-            attach_comment_resolved_states(
+            attach_comment_extended_metadata(
                 summaries, comments_document,
                 const_cast<pugi::xml_document &>(this->comments_extended));
         } else if (!this->document_path.empty() &&
@@ -11669,7 +11772,7 @@ std::vector<featherdoc::review_note_summary> Document::list_comments() const {
                     this->last_error_info)) {
                 return {};
             }
-            attach_comment_resolved_states(
+            attach_comment_extended_metadata(
                 summaries, comments_document, comments_extended_document);
         }
         this->last_error_info.clear();
@@ -11701,8 +11804,8 @@ std::vector<featherdoc::review_note_summary> Document::list_comments() const {
                                      this->last_error_info)) {
         return {};
     }
-    attach_comment_resolved_states(summaries, comments_document,
-                                   comments_extended_document);
+    attach_comment_extended_metadata(summaries, comments_document,
+                                     comments_extended_document);
     this->last_error_info.clear();
     return summaries;
 }
@@ -11933,6 +12036,116 @@ std::size_t Document::append_text_range_comment(
     }
 
     this->comments_dirty = true;
+    this->last_error_info.clear();
+    return 1U;
+}
+
+std::size_t Document::append_comment_reply(
+    std::size_t parent_comment_index, std::string_view comment_text,
+    std::string_view author, std::string_view initials) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before appending a comment reply",
+                       std::string{document_xml_entry});
+        return 0U;
+    }
+    if (comment_text.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "comment reply text must not be empty",
+                       std::string{comments_xml_entry});
+        return 0U;
+    }
+    if (!this->ensure_comments_part()) {
+        return 0U;
+    }
+
+    auto comments_root = this->comments.child("w:comments");
+    auto parent_comment =
+        comment_by_summary_index(comments_root, parent_comment_index);
+    if (parent_comment == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "parent comment index is out of range",
+                       std::string{comments_xml_entry});
+        return 0U;
+    }
+    const auto parent_para_id = ensure_comment_paragraph_id(
+        comments_root, parent_comment, this->comments_dirty);
+    if (!parent_para_id.has_value()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "parent comment body does not contain a paragraph id target",
+                       std::string{comments_xml_entry});
+        return 0U;
+    }
+    if (!this->ensure_comments_extended_part()) {
+        return 0U;
+    }
+
+    auto extended_root = this->comments_extended.child("w15:commentsEx");
+    auto parent_comment_ex =
+        ensure_comment_extended_by_paragraph_id(extended_root, *parent_para_id);
+    if (parent_comment_ex == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to append parent comment metadata",
+                       std::string{comments_extended_xml_entry});
+        return 0U;
+    }
+
+    const auto comment_id = next_numeric_id(comments_root, "w:comment", 0L);
+    const auto comment_id_text = std::to_string(comment_id);
+    auto reply = comments_root.append_child("w:comment");
+    if (reply == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to append comment reply XML",
+                       std::string{comments_xml_entry});
+        return 0U;
+    }
+    ensure_attribute_value(reply, "w:id", comment_id_text);
+    if (!author.empty()) {
+        ensure_attribute_value(reply, "w:author", author);
+    }
+    if (!initials.empty()) {
+        ensure_attribute_value(reply, "w:initials", initials);
+    }
+    if (!set_comment_text(reply, comment_text)) {
+        comments_root.remove_child(reply);
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to append comment reply text",
+                       std::string{comments_xml_entry});
+        return 0U;
+    }
+
+    const auto reply_para_id =
+        ensure_comment_paragraph_id(comments_root, reply, this->comments_dirty);
+    if (!reply_para_id.has_value()) {
+        comments_root.remove_child(reply);
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "comment reply body does not contain a paragraph id target",
+                       std::string{comments_xml_entry});
+        return 0U;
+    }
+
+    auto reply_comment_ex =
+        ensure_comment_extended_by_paragraph_id(extended_root, *reply_para_id);
+    if (reply_comment_ex == pugi::xml_node{}) {
+        comments_root.remove_child(reply);
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to append comment reply metadata",
+                       std::string{comments_extended_xml_entry});
+        return 0U;
+    }
+    ensure_attribute_value(reply_comment_ex, "w15:paraIdParent",
+                           *parent_para_id);
+
+    this->comments_dirty = true;
+    this->comments_extended_dirty = true;
     this->last_error_info.clear();
     return 1U;
 }
@@ -12173,23 +12386,68 @@ bool Document::remove_comment(std::size_t comment_index) {
     }
     const auto comment_id = std::string{comment.attribute("w:id").value()};
     const auto para_id = comment_paragraph_id(comment);
+    std::unordered_set<std::string> comment_ids_to_remove;
+    if (!comment_id.empty()) {
+        comment_ids_to_remove.insert(comment_id);
+    }
+    std::unordered_set<std::string> para_ids_to_remove;
     if (para_id.has_value() && !this->ensure_comments_extended_loaded()) {
         return false;
     }
-    root.remove_child(comment);
-    remove_comment_markers_by_id(this->document, comment_id);
-    for (auto &part : this->header_parts) {
-        if (part != nullptr) {
-            remove_comment_markers_by_id(part->xml, comment_id);
+
+    if (para_id.has_value()) {
+        para_ids_to_remove =
+            comment_thread_para_ids(this->comments_extended, *para_id);
+        for (auto current = root.child("w:comment");
+             current != pugi::xml_node{};
+             current = current.next_sibling("w:comment")) {
+            const auto current_para_id = comment_paragraph_id(current);
+            if (!current_para_id.has_value() ||
+                !para_ids_to_remove.contains(*current_para_id)) {
+                continue;
+            }
+            const auto current_id =
+                std::string{current.attribute("w:id").value()};
+            if (!current_id.empty()) {
+                comment_ids_to_remove.insert(current_id);
+            }
         }
     }
-    for (auto &part : this->footer_parts) {
-        if (part != nullptr) {
-            remove_comment_markers_by_id(part->xml, comment_id);
+
+    if (comment_id.empty()) {
+        root.remove_child(comment);
+    }
+    for (auto current = root.child("w:comment"); current != pugi::xml_node{};) {
+        const auto next = current.next_sibling("w:comment");
+        const auto current_id = std::string{current.attribute("w:id").value()};
+        if (!current_id.empty() && comment_ids_to_remove.contains(current_id)) {
+            root.remove_child(current);
+        }
+        current = next;
+    }
+
+    for (const auto &removed_comment_id : comment_ids_to_remove) {
+        remove_comment_markers_by_id(this->document, removed_comment_id);
+        for (auto &part : this->header_parts) {
+            if (part != nullptr) {
+                remove_comment_markers_by_id(part->xml, removed_comment_id);
+            }
+        }
+        for (auto &part : this->footer_parts) {
+            if (part != nullptr) {
+                remove_comment_markers_by_id(part->xml, removed_comment_id);
+            }
         }
     }
-    if (para_id.has_value() &&
-        remove_comment_extended_by_paragraph_id(this->comments_extended, *para_id)) {
+
+    bool removed_extended_metadata = false;
+    for (const auto &removed_para_id : para_ids_to_remove) {
+        removed_extended_metadata =
+            remove_comment_extended_by_paragraph_id(this->comments_extended,
+                                                    removed_para_id) ||
+            removed_extended_metadata;
+    }
+    if (removed_extended_metadata) {
         this->comments_extended_dirty = true;
     }
     this->comments_dirty = true;

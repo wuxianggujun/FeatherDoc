@@ -36,8 +36,9 @@ function Assert-GeneratedDocxEvidence { param([string]$DocxPath)
     if ($endnotesXml.Contains("Removed visual endnote body")) { throw "Removed endnote body still exists" }
     if (-not $commentsXml.Contains("Replaced visual comment body")) { throw "Missing replaced comment body evidence" }
     if (-not $commentsXml.Contains("In-place range comment body")) { throw "Missing in-place comment range evidence" }
+    if (-not $commentsXml.Contains("Threaded visual reply body")) { throw "Missing threaded comment reply evidence" }
     if (-not $commentsXml.Contains("w14:paraId")) { throw "Missing comment paragraph id evidence" }
-    foreach ($text in @("<w15:commentEx","w15:done=`"1`"")) { if (-not $commentsExtendedXml.Contains($text)) { throw "Missing resolved comment evidence: $text" } }
+    foreach ($text in @("<w15:commentEx","w15:done=`"1`"","w15:paraIdParent=`"")) { if (-not $commentsExtendedXml.Contains($text)) { throw "Missing threaded or resolved comment evidence: $text" } }
     if ($commentsXml.Contains("Removed visual comment body")) { throw "Removed comment body still exists" }
     foreach ($text in @("/relationships/footnotes","/relationships/endnotes","/relationships/comments","/relationships/commentsExtended","/relationships/hyperlink")) { if (-not $relationshipsXml.Contains($text)) { throw "Missing relationship evidence: $text" } }
     foreach ($text in @("/word/footnotes.xml","/word/endnotes.xml","/word/comments.xml","/word/commentsExtended.xml")) { if (-not $contentTypesXml.Contains($text)) { throw "Missing content type override: $text" } }

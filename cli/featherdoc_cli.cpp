@@ -2118,6 +2118,10 @@ void print_usage(std::ostream &stream) {
            " <end-paragraph-index> <end-offset> --comment-text <text>"
            " [--author <name>] [--initials <text>]"
            " [--output <path>] [--json]\n"
+        << "  featherdoc_cli append-comment-reply <input.docx>"
+           " <parent-comment-index> --comment-text <text>"
+           " [--author <name>] [--initials <text>]"
+           " [--output <path>] [--json]\n"
         << "  featherdoc_cli set-paragraph-text-comment-range <input.docx>"
            " <comment-index> <paragraph-index> <offset> <length>"
            " [--output <path>] [--json]\n"
@@ -19579,6 +19583,10 @@ void write_json_review_note_summary(
     stream << ",\"anchor_text\":";
     write_json_optional_string(stream, note.anchor_text);
     stream << ",\"resolved\":" << json_bool(note.resolved);
+    stream << ",\"parent_index\":";
+    write_json_optional_size(stream, note.parent_index);
+    stream << ",\"parent_id\":";
+    write_json_optional_string(stream, note.parent_id);
     stream << ",\"text\":";
     write_json_string(stream, note.text);
     stream << '}';
@@ -20072,6 +20080,11 @@ auto optional_display_value(const std::optional<std::string> &value)
     return value.has_value() ? *value : std::string{"-"};
 }
 
+auto optional_size_display_value(const std::optional<std::size_t> &value)
+    -> std::string {
+    return value.has_value() ? std::to_string(*value) : std::string{"-"};
+}
+
 void print_content_control_summary(
     std::ostream &stream,
     const featherdoc::content_control_summary &content_control) {
@@ -20124,6 +20137,8 @@ void print_review_note_summary(
            << " date=" << optional_display_value(note.date)
            << " anchor_text=" << optional_display_value(note.anchor_text)
            << " resolved=" << yes_no(note.resolved)
+           << " parent_index=" << optional_size_display_value(note.parent_index)
+           << " parent_id=" << optional_display_value(note.parent_id)
            << " text=";
     write_json_string(stream, note.text);
 }
@@ -47346,6 +47361,67 @@ int main(int argc, char **argv) {
         } else {
             print_simple_document_mutation_result(command, options.output_path,
                                                   1U);
+        }
+        return 0;
+    }
+
+    if (command == "append-comment-reply") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "append-comment-reply expects an input path and parent comment index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t parent_comment_index = 0U;
+        if (!parse_index(arguments[2], parent_comment_index)) {
+            print_parse_error(command,
+                              "invalid parent comment index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        comment_mutation_options options;
+        std::string error_message;
+        if (!parse_comment_mutation_options(arguments, 3U, options, false, true,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        const auto affected = doc.append_comment_reply(
+            parent_comment_index, options.comment_text, options.author,
+            options.initials);
+        if (affected == 0U) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [affected, parent_comment_index](std::ostream &stream) {
+                    write_json_affected_result(stream, affected);
+                    stream << ",\"parent_comment_index\":"
+                           << parent_comment_index;
+                });
+        } else {
+            print_simple_document_mutation_result(command, options.output_path,
+                                                  affected);
         }
         return 0;
     }

@@ -688,6 +688,8 @@ struct review_note_summary {
     std::optional<std::string> date;
     std::optional<std::string> anchor_text;
     bool resolved{false};
+    std::optional<std::size_t> parent_index;
+    std::optional<std::string> parent_id;
     std::string text;
 };
 
@@ -2681,6 +2683,9 @@ class Document {
         std::size_t end_paragraph_index, std::size_t end_text_offset,
         std::string_view comment_text, std::string_view author = {},
         std::string_view initials = {});
+    [[nodiscard]] std::size_t append_comment_reply(
+        std::size_t parent_comment_index, std::string_view comment_text,
+        std::string_view author = {}, std::string_view initials = {});
     [[nodiscard]] bool set_paragraph_text_comment_range(
         std::size_t comment_index, std::size_t paragraph_index,
         std::size_t text_offset, std::size_t text_length);

@@ -255,7 +255,8 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
 正式合同和制度文件经常需要批注和修订痕迹。当前轻量审阅路线已经落地：
 
 - ``list_footnotes()`` / ``list_endnotes()`` 可枚举脚注和尾注正文
-- ``list_comments()`` 可枚举批注作者、时间、锚点原文、resolved 状态和正文
+- ``list_comments()`` 可枚举批注作者、时间、锚点原文、resolved 状态、
+  回复父批注关系和正文
 - ``list_revisions()`` 可枚举插入、删除、移动和属性变更类修订
 - ``append_insertion_revision(...)`` / ``append_deletion_revision(...)`` 可生成
   第一版正文插入 / 删除修订痕迹
@@ -274,6 +275,8 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   和对应 endnote API 已覆盖脚注 / 尾注创建、改写和删除
 - ``append_comment(...)`` / ``replace_comment(...)`` / ``remove_comment(...)``
   已覆盖第一版批注创建、改写和删除
+- ``append_comment_reply(...)`` 可通过 ``commentsExtended.xml`` 为既有批注
+  追加线程化回复，删除父批注时会同步清理子回复
 - ``append_paragraph_text_comment(...)`` / ``append_text_range_comment(...)``
   可把批注原位绑定到正文段落纯文本区间或跨段落半开区间
 - ``set_paragraph_text_comment_range(...)`` /
@@ -484,7 +487,7 @@ P2：可以后置的能力
 优先做：
 
 - 更完整 OMML builder（轻量 text/fraction/script/radical/delimiter/n-ary 构造器与 CLI list / append / replace / remove 已完成）
-- 批注 / 修订 authoring API，例如批注回复、resolved 状态和修订插入 / 删除
+- 批注 / 修订 authoring API，例如更复杂的多范围批注与修订插入 / 删除
 - 更多复杂域 typed builder 和更完整主动字段刷新策略（复杂域写入、单层嵌套和打开时刷新开关已完成）
 
 阶段目标：扩大正式文档覆盖面，同时不破坏项目 typed API 的清晰边界。

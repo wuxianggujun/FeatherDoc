@@ -10111,9 +10111,11 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
              1U);
     CHECK(doc.replace_comment(0U, "Replaced comment"));
     CHECK(doc.set_comment_resolved(0U, true));
+    CHECK_EQ(doc.append_comment_reply(0U, "Reply comment", "Responder", "RS"),
+             1U);
     CHECK_EQ(doc.append_comment("Removed comment text", "Removed comment"), 1U);
-    CHECK(doc.set_comment_resolved(1U, true));
-    CHECK(doc.remove_comment(1U));
+    CHECK(doc.set_comment_resolved(2U, true));
+    CHECK(doc.remove_comment(2U));
 
     auto footnotes = doc.list_footnotes();
     REQUIRE_EQ(footnotes.size(), 1U);
@@ -10122,13 +10124,17 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
     REQUIRE_EQ(endnotes.size(), 1U);
     CHECK_EQ(endnotes.front().text, "Replaced endnote");
     auto comments = doc.list_comments();
-    REQUIRE_EQ(comments.size(), 1U);
+    REQUIRE_EQ(comments.size(), 2U);
     REQUIRE(comments.front().anchor_text.has_value());
     CHECK_EQ(*comments.front().anchor_text, "Commented text");
     CHECK_EQ(comments.front().text, "Replaced comment");
     CHECK(comments.front().resolved);
     REQUIRE(comments.front().author.has_value());
     CHECK_EQ(*comments.front().author, "Reviewer");
+    CHECK_EQ(comments[1].text, "Reply comment");
+    CHECK_EQ(comments[1].parent_index, std::optional<std::size_t>{0U});
+    CHECK_EQ(comments[1].parent_id, std::optional<std::string>{comments[0].id});
+    CHECK_FALSE(comments[1].anchor_text.has_value());
 
     CHECK_FALSE(doc.replace_footnote(4U, "Missing"));
     CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
@@ -10148,12 +10154,14 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
     CHECK_EQ(endnotes_xml.find("Removed endnote"), std::string::npos);
     const auto comments_xml = read_test_docx_entry(target, "word/comments.xml");
     CHECK_NE(comments_xml.find("Replaced comment"), std::string::npos);
+    CHECK_NE(comments_xml.find("Reply comment"), std::string::npos);
     CHECK_EQ(comments_xml.find("Removed comment"), std::string::npos);
     CHECK_NE(comments_xml.find("w14:paraId"), std::string::npos);
     const auto comments_extended_xml =
         read_test_docx_entry(target, "word/commentsExtended.xml");
-    CHECK_EQ(count_substring_occurrences(comments_extended_xml, "<w15:commentEx"), 1U);
+    CHECK_EQ(count_substring_occurrences(comments_extended_xml, "<w15:commentEx"), 2U);
     CHECK_NE(comments_extended_xml.find("w15:done=\"1\""), std::string::npos);
+    CHECK_NE(comments_extended_xml.find("w15:paraIdParent=\""), std::string::npos);
 
     const auto relationships_xml =
         read_test_docx_entry(target, "word/_rels/document.xml.rels");
@@ -10172,17 +10180,35 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
     REQUIRE_EQ(reopened.list_footnotes().size(), 1U);
     REQUIRE_EQ(reopened.list_endnotes().size(), 1U);
     comments = reopened.list_comments();
-    REQUIRE_EQ(comments.size(), 1U);
+    REQUIRE_EQ(comments.size(), 2U);
     CHECK(comments.front().resolved);
+    CHECK_EQ(comments[1].parent_index, std::optional<std::size_t>{0U});
+    CHECK_EQ(comments[1].parent_id, std::optional<std::string>{comments[0].id});
     CHECK(reopened.set_comment_resolved(0U, false));
     comments = reopened.list_comments();
-    REQUIRE_EQ(comments.size(), 1U);
+    REQUIRE_EQ(comments.size(), 2U);
     CHECK_FALSE(comments.front().resolved);
     CHECK_FALSE(reopened.save());
     const auto unresolved_comments_extended_xml =
         read_test_docx_entry(target, "word/commentsExtended.xml");
     CHECK_NE(unresolved_comments_extended_xml.find("w15:done=\"0\""),
              std::string::npos);
+    CHECK_NE(unresolved_comments_extended_xml.find("w15:paraIdParent=\""),
+             std::string::npos);
+
+    CHECK(reopened.remove_comment(0U));
+    comments = reopened.list_comments();
+    CHECK(comments.empty());
+    CHECK_FALSE(reopened.save());
+    const auto removed_thread_comments_xml =
+        read_test_docx_entry(target, "word/comments.xml");
+    CHECK_EQ(removed_thread_comments_xml.find("Replaced comment"), std::string::npos);
+    CHECK_EQ(removed_thread_comments_xml.find("Reply comment"), std::string::npos);
+    const auto removed_thread_comments_extended_xml =
+        read_test_docx_entry(target, "word/commentsExtended.xml");
+    CHECK_EQ(count_substring_occurrences(removed_thread_comments_extended_xml,
+                                         "<w15:commentEx"),
+             0U);
 
     fs::remove(target);
 }

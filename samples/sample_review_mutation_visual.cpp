@@ -194,7 +194,9 @@ bool mutate_with_typed_apis(const fs::path &path) {
             "Reviewer", "RV") != 1U ||
         !document.set_paragraph_text_comment_range(
             1U, comment_range_paragraph_index, 19U, 5U) ||
-        !document.set_comment_resolved(1U, true)) {
+        !document.set_comment_resolved(1U, true) ||
+        document.append_comment_reply(1U, "Threaded visual reply body",
+                                      "Responder", "RS") != 1U) {
         std::cerr << "in-place comment range authoring failed: "
                   << document.last_error().detail << '\n';
         return false;
@@ -237,11 +239,14 @@ bool verify_api(const fs::path &path) {
     const auto equations = document.list_omml();
     return footnotes.size() == 1U && footnotes.front().text == "Replaced visual footnote body" &&
            endnotes.size() == 1U && endnotes.front().text == "Replaced visual endnote body" &&
-           comments.size() == 2U && comments[0].text == "Replaced visual comment body" &&
+           comments.size() == 3U && comments[0].text == "Replaced visual comment body" &&
            comments[0].anchor_text == std::optional<std::string>{"Commented typed API text"} &&
            comments[1].text == "In-place range comment body" &&
            comments[1].anchor_text == std::optional<std::string>{"range"} &&
            comments[1].resolved &&
+           comments[2].text == "Threaded visual reply body" &&
+           comments[2].parent_index == std::optional<std::size_t>{1U} &&
+           comments[2].parent_id == std::optional<std::string>{comments[1].id} &&
            revisions.empty() && hyperlinks.size() == 1U &&
            hyperlinks.front().text == "Typed hyperlink" && equations.size() == 2U;
 }

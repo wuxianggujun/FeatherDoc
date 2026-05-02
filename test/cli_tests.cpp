@@ -18328,6 +18328,10 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
         working_directory / "cli_comment_range_moved.docx";
     const fs::path resolved =
         working_directory / "cli_comment_range_resolved.docx";
+    const fs::path threaded =
+        working_directory / "cli_comment_range_threaded.docx";
+    const fs::path thread_removed =
+        working_directory / "cli_comment_range_thread_removed.docx";
     const fs::path output = working_directory / "cli_comment_range.json";
     const fs::path inspect_output =
         working_directory / "cli_comment_range_inspect.json";
@@ -18338,6 +18342,8 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
     remove_if_exists(paragraph_moved);
     remove_if_exists(range_moved);
     remove_if_exists(resolved);
+    remove_if_exists(threaded);
+    remove_if_exists(thread_removed);
     remove_if_exists(output);
     remove_if_exists(inspect_output);
 
@@ -18479,12 +18485,58 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
              std::string::npos);
     CHECK_NE(resolved_json.find(R"("resolved":true)"), std::string::npos);
 
+    CHECK_EQ(run_cli({"append-comment-reply",
+                      resolved.string(),
+                      "1",
+                      "--comment-text",
+                      "CLI threaded reply",
+                      "--author",
+                      "CLI Responder",
+                      "--initials",
+                      "RS",
+                      "--output",
+                      threaded.string(),
+                      "--json"},
+                     output),
+             0);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("parent_comment_index":1)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-review", threaded.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto threaded_json = read_text_file(inspect_output);
+    CHECK_NE(threaded_json.find(R"("comments_count":3)"), std::string::npos);
+    CHECK_NE(threaded_json.find(R"("text":"CLI threaded reply")"),
+             std::string::npos);
+    CHECK_NE(threaded_json.find(R"("parent_index":1)"), std::string::npos);
+    CHECK_NE(threaded_json.find(R"("parent_id":")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"remove-comment",
+                      threaded.string(),
+                      "1",
+                      "--output",
+                      thread_removed.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(run_cli({"inspect-review", thread_removed.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto thread_removed_json = read_text_file(inspect_output);
+    CHECK_NE(thread_removed_json.find(R"("comments_count":1)"),
+             std::string::npos);
+    CHECK_EQ(thread_removed_json.find("CLI threaded reply"), std::string::npos);
+
     remove_if_exists(source);
     remove_if_exists(paragraph_comment);
     remove_if_exists(cross_comment);
     remove_if_exists(paragraph_moved);
     remove_if_exists(range_moved);
     remove_if_exists(resolved);
+    remove_if_exists(threaded);
+    remove_if_exists(thread_removed);
     remove_if_exists(output);
     remove_if_exists(inspect_output);
 }
