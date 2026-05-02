@@ -280,7 +280,8 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   ``apply-review-mutation-plan`` 批量写入，减少调用方手写 offset 的风险；
   请求还可带 ``before_text`` / ``after_text`` 上下文过滤，在重复正文文本中
   通过邻近文本稳定选择目标匹配，并在 JSON 输出中回显 raw / filtered match
-  计数和选中的原始匹配序号
+  计数和选中的原始匹配序号；若调用方设置 ``require_unique``，过滤后仍然
+  不是唯一匹配时会在写出 plan 前失败，避免批量修订误选目标
 - 段落 / 跨段落 text range 修订 API 的删除和替换 options 支持
   ``expected_text``，CLI 对应命令也支持 ``--expected-text``；写入前会通过
   ``preview_text_range(...)`` 校验目标文本，避免 offset 漂移造成误改；

@@ -18395,6 +18395,8 @@ TEST_CASE("cli builds review mutation plans from found text") {
     const fs::path context_missing_request =
         working_directory /
         "cli_build_review_mutation_plan_context_missing.json";
+    const fs::path unique_request =
+        working_directory / "cli_build_review_mutation_plan_unique.json";
     const fs::path paragraph_request =
         working_directory / "cli_build_review_mutation_plan_paragraph.json";
     const fs::path plan =
@@ -18413,6 +18415,7 @@ TEST_CASE("cli builds review mutation plans from found text") {
     remove_if_exists(missing_request);
     remove_if_exists(context_request);
     remove_if_exists(context_missing_request);
+    remove_if_exists(unique_request);
     remove_if_exists(paragraph_request);
     remove_if_exists(plan);
     remove_if_exists(context_plan);
@@ -18505,7 +18508,7 @@ TEST_CASE("cli builds review mutation plans from found text") {
 
     write_binary_file(
         context_request,
-        R"({"operations":[{"kind":"delete_text_range_revision","find_text":"Beta","before_text":"Middle Text","after_text":" Tail","occurrence":0,"author":"Context Picker","date":"2026-05-03T11:10:00Z"}]})");
+        R"({"operations":[{"kind":"delete_text_range_revision","find_text":"Beta","before_text":"Middle Text","after_text":" Tail","require_unique":true,"occurrence":0,"author":"Context Picker","date":"2026-05-03T11:10:00Z"}]})");
     CHECK_EQ(run_cli({"build-review-mutation-plan",
                       source.string(),
                       "--request-file",
@@ -18521,6 +18524,7 @@ TEST_CASE("cli builds review mutation plans from found text") {
     CHECK_NE(output_json.find(R"("matches_count":1)"), std::string::npos);
     CHECK_NE(output_json.find(R"("selected_match_index":1)"),
              std::string::npos);
+    CHECK_NE(output_json.find(R"("require_unique":true)"), std::string::npos);
     CHECK_NE(output_json.find(R"("before_text":"Middle Text")"),
              std::string::npos);
     CHECK_NE(output_json.find(R"("after_text":" Tail")"), std::string::npos);
@@ -18550,6 +18554,23 @@ TEST_CASE("cli builds review mutation plans from found text") {
     CHECK_NE(output_json.find(R"("raw_matches_count":2)"),
              std::string::npos);
     CHECK_NE(output_json.find("requested text occurrence was not found"),
+             std::string::npos);
+
+    write_binary_file(
+        unique_request,
+        R"({"operations":[{"kind":"delete_text_range_revision","find_text":"Beta","require_unique":true}]})");
+    CHECK_EQ(run_cli({"build-review-mutation-plan",
+                      source.string(),
+                      "--request-file",
+                      unique_request.string(),
+                      "--json"},
+                     output),
+             1);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("matches_count":2)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("raw_matches_count":2)"),
+             std::string::npos);
+    CHECK_NE(output_json.find("requested text did not resolve to a unique match"),
              std::string::npos);
 
     write_binary_file(
@@ -18587,6 +18608,7 @@ TEST_CASE("cli builds review mutation plans from found text") {
     remove_if_exists(missing_request);
     remove_if_exists(context_request);
     remove_if_exists(context_missing_request);
+    remove_if_exists(unique_request);
     remove_if_exists(paragraph_request);
     remove_if_exists(plan);
     remove_if_exists(context_plan);

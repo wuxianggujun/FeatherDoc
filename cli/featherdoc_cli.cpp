@@ -1168,6 +1168,7 @@ struct review_mutation_plan_build_request_operation {
     std::size_t occurrence = 0U;
     std::optional<std::string> before_text;
     std::optional<std::string> after_text;
+    bool require_unique = false;
     std::string text;
     std::optional<std::string> author;
     std::optional<std::string> date;
@@ -1181,6 +1182,7 @@ struct review_mutation_plan_build_resolution {
     std::size_t occurrence = 0U;
     std::optional<std::string> before_text;
     std::optional<std::string> after_text;
+    bool require_unique = false;
     std::size_t raw_matches_count = 0U;
     std::size_t matches_count = 0U;
     std::optional<std::size_t> selected_match_index;
@@ -37063,6 +37065,36 @@ auto consume_review_mutation_plan_build_request_separator(
                                    index, error_detail, error_message);
 }
 
+auto parse_review_mutation_plan_build_request_bool_value(
+    std::string_view content, std::size_t &index, bool &value,
+    std::string_view member_name, std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (content.substr(index, 4U) == "true") {
+        value = true;
+        index += 4U;
+        return true;
+    }
+    if (content.substr(index, 5U) == "false") {
+        value = false;
+        index += 5U;
+        return true;
+    }
+    if (index < content.size() && content[index] == '"') {
+        std::string token;
+        if (!parse_json_patch_string(content, index, token, error_message)) {
+            return false;
+        }
+        if (parse_bool(token, value)) {
+            return true;
+        }
+    }
+
+    error_message =
+        "JSON review mutation plan build request operation member '" +
+        std::string(member_name) + "' must be a boolean";
+    return false;
+}
+
 auto parse_review_mutation_plan_build_request_operation(
     std::string_view content, std::size_t &index,
     review_mutation_plan_build_request_operation &operation,
@@ -37087,6 +37119,7 @@ auto parse_review_mutation_plan_build_request_operation(
     bool saw_occurrence = false;
     bool saw_before_text = false;
     bool saw_after_text = false;
+    bool saw_require_unique = false;
     bool saw_text = false;
     bool saw_author = false;
     bool saw_date = false;
@@ -37180,6 +37213,18 @@ auto parse_review_mutation_plan_build_request_operation(
                 return false;
             }
             operation.after_text = std::move(after_text);
+        } else if (member_name == "require_unique") {
+            if (saw_require_unique) {
+                error_message =
+                    "JSON review mutation plan build request operation member 'require_unique' must not be duplicated";
+                return false;
+            }
+            saw_require_unique = true;
+            if (!parse_review_mutation_plan_build_request_bool_value(
+                    content, index, operation.require_unique, member_name,
+                    error_message)) {
+                return false;
+            }
         } else if (member_name == "text") {
             if (saw_text) {
                 error_message =
@@ -37992,6 +38037,15 @@ auto build_review_mutation_plan_operations(
             return false;
         }
 
+        if (request.require_unique && candidates.size() != 1U) {
+            failed_operation_index = index;
+            failed_matches_count = candidates.size();
+            failed_raw_matches_count = raw_matches.size();
+            error_message =
+                "requested text did not resolve to a unique match";
+            return false;
+        }
+
         if (request.occurrence >= candidates.size()) {
             failed_operation_index = index;
             failed_matches_count = candidates.size();
@@ -38017,6 +38071,7 @@ auto build_review_mutation_plan_operations(
         resolution.occurrence = request.occurrence;
         resolution.before_text = request.before_text;
         resolution.after_text = request.after_text;
+        resolution.require_unique = request.require_unique;
         resolution.raw_matches_count = raw_matches.size();
         resolution.matches_count = candidates.size();
         resolution.selected_match_index = candidate.selected_match_index;
@@ -38154,7 +38209,8 @@ void write_json_review_mutation_plan_build_resolution(
     } else {
         stream << "null";
     }
-    stream << ",\"occurrence\":" << resolution.occurrence
+    stream << ",\"require_unique\":" << json_bool(resolution.require_unique)
+           << ",\"occurrence\":" << resolution.occurrence
            << ",\"raw_matches_count\":" << resolution.raw_matches_count
            << ",\"matches_count\":" << resolution.matches_count
            << ",\"selected_match_index\":";
