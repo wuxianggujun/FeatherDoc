@@ -18382,6 +18382,157 @@ TEST_CASE("cli find text ranges reports paragraph offsets") {
     remove_if_exists(output);
 }
 
+TEST_CASE("cli builds review mutation plans from found text") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_build_review_mutation_plan_source.docx";
+    const fs::path request =
+        working_directory / "cli_build_review_mutation_plan_request.json";
+    const fs::path missing_request =
+        working_directory / "cli_build_review_mutation_plan_missing.json";
+    const fs::path paragraph_request =
+        working_directory / "cli_build_review_mutation_plan_paragraph.json";
+    const fs::path plan =
+        working_directory / "cli_build_review_mutation_plan_output.json";
+    const fs::path applied =
+        working_directory / "cli_build_review_mutation_plan_applied.docx";
+    const fs::path output =
+        working_directory / "cli_build_review_mutation_plan_result.json";
+    const fs::path inspect_output =
+        working_directory / "cli_build_review_mutation_plan_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(request);
+    remove_if_exists(missing_request);
+    remove_if_exists(paragraph_request);
+    remove_if_exists(plan);
+    remove_if_exists(applied);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    featherdoc::Document source_document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+    auto first = source_document.paragraphs();
+    REQUIRE(first.has_next());
+    REQUIRE(first.add_run("Alpha ").has_next());
+    REQUIRE(first.add_run("Beta").has_next());
+    auto second = first.insert_paragraph_after("Middle ");
+    REQUIRE(second.has_next());
+    REQUIRE(second.add_run("Text").has_next());
+    auto third = second.insert_paragraph_after("Beta ");
+    REQUIRE(third.has_next());
+    REQUIRE(third.add_run("Tail").has_next());
+    REQUIRE_FALSE(source_document.save());
+
+    write_binary_file(
+        request,
+        R"({"operations":[)"
+        R"({"kind":"replace_text_range_revision","find_text":"BetaMiddle TextBeta","occurrence":0,"text":"Range ","author":"Plan Builder","date":"2026-05-03T11:00:00Z"},)"
+        R"({"kind":"delete_text_range_revision","find_text":"Tail","occurrence":0,"author":"Plan Cleaner","date":"2026-05-03T11:05:00Z"}]})");
+    CHECK_EQ(run_cli({"build-review-mutation-plan",
+                      source.string(),
+                      "--request-file",
+                      request.string(),
+                      "--output-plan",
+                      plan.string(),
+                      "--json"},
+                     output),
+             0);
+    auto output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("command":"build-review-mutation-plan")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("operations_count":2)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("output_plan_path":")"), std::string::npos);
+    CHECK_NE(output_json.find(R"("find_text":"BetaMiddle TextBeta")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("matches_count":1)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("start_paragraph_index":0)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("end_paragraph_index":2)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("end_text_offset":4)"), std::string::npos);
+    CHECK(fs::exists(plan));
+    const auto plan_json = read_text_file(plan);
+    CHECK_NE(plan_json.find(R"("kind":"replace_text_range_revision")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("expected_text":"BetaMiddle TextBeta")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("text":"Range ")"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("author":"Plan Cleaner")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"preview-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      plan.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"apply-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      plan.string(),
+                      "--output",
+                      applied.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(run_cli({"inspect-review", applied.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("text":"Range ")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Beta")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Middle Text")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Tail")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"Plan Builder")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"Plan Cleaner")"),
+             std::string::npos);
+
+    write_binary_file(
+        missing_request,
+        R"({"operations":[{"kind":"delete_text_range_revision","find_text":"Missing","occurrence":0}]})");
+    CHECK_EQ(run_cli({"build-review-mutation-plan",
+                      source.string(),
+                      "--request-file",
+                      missing_request.string(),
+                      "--json"},
+                     output),
+             1);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("stage":"resolve")"), std::string::npos);
+    CHECK_NE(output_json.find(R"("matches_count":0)"), std::string::npos);
+    CHECK_NE(output_json.find("requested text occurrence was not found"),
+             std::string::npos);
+
+    write_binary_file(
+        paragraph_request,
+        R"({"operations":[{"kind":"replace_paragraph_text_revision","find_text":"BetaMiddle TextBeta","text":"Range "}]})");
+    CHECK_EQ(run_cli({"build-review-mutation-plan",
+                      source.string(),
+                      "--request-file",
+                      paragraph_request.string(),
+                      "--json"},
+                     output),
+             1);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find("matched text crosses paragraphs"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(request);
+    remove_if_exists(missing_request);
+    remove_if_exists(paragraph_request);
+    remove_if_exists(plan);
+    remove_if_exists(applied);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
 TEST_CASE("cli review mutation plan previews expected text guards") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =

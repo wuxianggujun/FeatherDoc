@@ -274,6 +274,10 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
 - ``find_text_ranges(...)`` / ``find-text-ranges`` 可按精确正文文本查找匹配
   位置，返回可直接复用的段落索引、纯文本 offset、分段 preview 和
   plain-text run 支持状态，为后续自动生成审阅修订计划提供定位基础
+- ``build-review-mutation-plan`` 可读取 ``find_text`` / ``occurrence`` 请求，
+  将自然文本定位解析成带 ``expected_text`` guard 的 JSON 修订计划；生成的
+  plan 可继续交给 ``preview-review-mutation-plan`` 预检或
+  ``apply-review-mutation-plan`` 批量写入，减少调用方手写 offset 的风险
 - 段落 / 跨段落 text range 修订 API 的删除和替换 options 支持
   ``expected_text``，CLI 对应命令也支持 ``--expected-text``；写入前会通过
   ``preview_text_range(...)`` 校验目标文本，避免 offset 漂移造成误改；
