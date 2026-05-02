@@ -10235,6 +10235,16 @@ TEST_CASE("review comments can target paragraph text ranges") {
     REQUIRE_EQ(comments.size(), 2U);
     REQUIRE(comments[1].anchor_text.has_value());
     CHECK_EQ(*comments[1].anchor_text, "Beta GammaMiddle TextGamma");
+    CHECK(reopened.set_paragraph_text_comment_range(0U, 0U, 6U, 4U));
+    CHECK(reopened.set_text_range_comment_range(1U, 1U, 0U, 2U, 5U));
+    comments = reopened.list_comments();
+    REQUIRE_EQ(comments.size(), 2U);
+    REQUIRE(comments[0].anchor_text.has_value());
+    CHECK_EQ(*comments[0].anchor_text, "Beta");
+    REQUIRE(comments[1].anchor_text.has_value());
+    CHECK_EQ(*comments[1].anchor_text, "Middle TextGamma");
+    CHECK_EQ(comments[0].text, "Paragraph range comment");
+    CHECK_EQ(comments[1].text, "Cross paragraph comment");
     CHECK(reopened.remove_comment(1U));
     CHECK_FALSE(reopened.save());
     const auto removed_xml = read_test_docx_entry(target, test_document_xml_entry);
@@ -10250,6 +10260,9 @@ TEST_CASE("review comments can target paragraph text ranges") {
     CHECK_EQ(invalid.last_error().code,
              std::make_error_code(std::errc::invalid_argument));
     CHECK_EQ(invalid.append_text_range_comment(0U, 6U, 2U, 5U, ""), 0U);
+    CHECK_EQ(invalid.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(invalid.set_paragraph_text_comment_range(0U, 0U, 0U, 1U));
     CHECK_EQ(invalid.last_error().code,
              std::make_error_code(std::errc::invalid_argument));
 

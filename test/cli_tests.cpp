@@ -18322,6 +18322,10 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
         working_directory / "cli_comment_range_paragraph.docx";
     const fs::path cross_comment =
         working_directory / "cli_comment_range_cross.docx";
+    const fs::path paragraph_moved =
+        working_directory / "cli_comment_range_paragraph_moved.docx";
+    const fs::path range_moved =
+        working_directory / "cli_comment_range_moved.docx";
     const fs::path output = working_directory / "cli_comment_range.json";
     const fs::path inspect_output =
         working_directory / "cli_comment_range_inspect.json";
@@ -18329,6 +18333,8 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
     remove_if_exists(source);
     remove_if_exists(paragraph_comment);
     remove_if_exists(cross_comment);
+    remove_if_exists(paragraph_moved);
+    remove_if_exists(range_moved);
     remove_if_exists(output);
     remove_if_exists(inspect_output);
 
@@ -18406,9 +18412,52 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
     CHECK_NE(inspect_json.find(R"("text":"CLI cross paragraph comment")"),
              std::string::npos);
 
+    CHECK_EQ(run_cli({"set-paragraph-text-comment-range",
+                      cross_comment.string(),
+                      "0",
+                      "0",
+                      "6",
+                      "4",
+                      "--output",
+                      paragraph_moved.string(),
+                      "--json"},
+                     output),
+             0);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("comment_index":0)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("text_length":4)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"set-text-range-comment-range",
+                      paragraph_moved.string(),
+                      "1",
+                      "1",
+                      "0",
+                      "2",
+                      "5",
+                      "--output",
+                      range_moved.string(),
+                      "--json"},
+                     output),
+             0);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("end_paragraph_index":2)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-review", range_moved.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto moved_json = read_text_file(inspect_output);
+    CHECK_NE(moved_json.find(R"("comments_count":2)"), std::string::npos);
+    CHECK_NE(moved_json.find(R"("anchor_text":"Beta")"),
+             std::string::npos);
+    CHECK_NE(moved_json.find(R"("anchor_text":"Middle TextGamma")"),
+             std::string::npos);
+
     remove_if_exists(source);
     remove_if_exists(paragraph_comment);
     remove_if_exists(cross_comment);
+    remove_if_exists(paragraph_moved);
+    remove_if_exists(range_moved);
     remove_if_exists(output);
     remove_if_exists(inspect_output);
 }

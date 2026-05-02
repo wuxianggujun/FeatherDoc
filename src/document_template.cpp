@@ -2429,6 +2429,39 @@ auto collect_selected_paragraph_revision_spans(
     return selected_segments;
 }
 
+bool insert_comment_markers_for_selected_spans(
+    const std::vector<paragraph_revision_range_segment> &segments,
+    const std::vector<std::vector<paragraph_revision_run_span>> &selected_segments,
+    std::string_view comment_id) {
+    if (segments.empty() || selected_segments.empty() ||
+        selected_segments.front().empty() || selected_segments.back().empty()) {
+        return false;
+    }
+
+    auto first_paragraph = segments.front().paragraph;
+    auto last_paragraph = segments.back().paragraph;
+    auto first_run = selected_segments.front().front().run;
+    auto last_run = selected_segments.back().back().run;
+    auto range_start =
+        first_paragraph.insert_child_before("w:commentRangeStart", first_run);
+    auto range_end =
+        last_paragraph.insert_child_after("w:commentRangeEnd", last_run);
+    auto reference_run = range_end == pugi::xml_node{}
+                             ? pugi::xml_node{}
+                             : last_paragraph.insert_child_after("w:r", range_end);
+    auto reference = reference_run == pugi::xml_node{}
+                         ? pugi::xml_node{}
+                         : reference_run.append_child("w:commentReference");
+    if (range_start == pugi::xml_node{} || range_end == pugi::xml_node{} ||
+        reference_run == pugi::xml_node{} || reference == pugi::xml_node{}) {
+        return false;
+    }
+    ensure_attribute_value(range_start, "w:id", comment_id);
+    ensure_attribute_value(range_end, "w:id", comment_id);
+    ensure_attribute_value(reference, "w:id", comment_id);
+    return true;
+}
+
 bool xml_text_looks_like_omml(std::string_view text) {
     const auto first = text.find_first_not_of(" \t\r\n");
     return first != std::string_view::npos && text.substr(first).starts_with("<m:");
@@ -11561,22 +11594,8 @@ std::size_t Document::append_text_range_comment(
 
     const auto comment_id = next_numeric_id(root, "w:comment", 0L);
     const auto comment_id_text = std::to_string(comment_id);
-    auto first_paragraph = plan.segments.front().paragraph;
-    auto last_paragraph = plan.segments.back().paragraph;
-    auto first_run = selected_segments.front().front().run;
-    auto last_run = selected_segments.back().back().run;
-    auto range_start =
-        first_paragraph.insert_child_before("w:commentRangeStart", first_run);
-    auto range_end =
-        last_paragraph.insert_child_after("w:commentRangeEnd", last_run);
-    auto reference_run = range_end == pugi::xml_node{}
-                             ? pugi::xml_node{}
-                             : last_paragraph.insert_child_after("w:r", range_end);
-    auto reference = reference_run == pugi::xml_node{}
-                         ? pugi::xml_node{}
-                         : reference_run.append_child("w:commentReference");
-    if (range_start == pugi::xml_node{} || range_end == pugi::xml_node{} ||
-        reference_run == pugi::xml_node{} || reference == pugi::xml_node{}) {
+    if (!insert_comment_markers_for_selected_spans(
+            plan.segments, selected_segments, comment_id_text)) {
         remove_comment_markers_by_id(this->document, comment_id_text);
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -11584,9 +11603,6 @@ std::size_t Document::append_text_range_comment(
                        std::string{document_xml_entry});
         return 0U;
     }
-    ensure_attribute_value(range_start, "w:id", comment_id_text);
-    ensure_attribute_value(range_end, "w:id", comment_id_text);
-    ensure_attribute_value(reference, "w:id", comment_id_text);
 
     auto comment = root.append_child("w:comment");
     if (comment == pugi::xml_node{}) {
@@ -11617,6 +11633,129 @@ std::size_t Document::append_text_range_comment(
     this->comments_dirty = true;
     this->last_error_info.clear();
     return 1U;
+}
+
+bool Document::set_paragraph_text_comment_range(
+    std::size_t comment_index, std::size_t paragraph_index,
+    std::size_t text_offset, std::size_t text_length) {
+    if (text_length > std::numeric_limits<std::size_t>::max() - text_offset) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "text range is out of range",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    return this->set_text_range_comment_range(comment_index, paragraph_index,
+                                              text_offset, paragraph_index,
+                                              text_offset + text_length);
+}
+
+bool Document::set_text_range_comment_range(
+    std::size_t comment_index, std::size_t start_paragraph_index,
+    std::size_t start_text_offset, std::size_t end_paragraph_index,
+    std::size_t end_text_offset) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before moving a comment range",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    if (end_paragraph_index < start_paragraph_index) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "text range start must not be after end",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    if (!this->ensure_comments_part()) {
+        return false;
+    }
+
+    auto root = this->comments.child("w:comments");
+    auto comment = comment_by_summary_index(root, comment_index);
+    if (comment == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "comment index is out of range",
+                       std::string{comments_xml_entry});
+        return false;
+    }
+    const auto comment_id = std::string{comment.attribute("w:id").value()};
+    if (comment_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "comment id is missing",
+                       std::string{comments_xml_entry});
+        return false;
+    }
+
+    std::vector<pugi::xml_node> paragraphs;
+    auto paragraph_handle = this->paragraphs();
+    while (paragraph_handle.has_next()) {
+        paragraphs.push_back(paragraph_handle.current);
+        paragraph_handle.next();
+    }
+
+    paragraph_revision_range_plan plan;
+    std::string range_error;
+    if (!build_paragraph_revision_range_plan(
+            paragraphs, start_paragraph_index, start_text_offset,
+            end_paragraph_index, end_text_offset, plan, range_error)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       range_error, std::string{document_xml_entry});
+        return false;
+    }
+    if (!split_paragraph_revision_range_segments(plan.segments)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::operation_not_supported),
+                       "comment range requires plain text runs",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    const auto selected_segments =
+        collect_selected_paragraph_revision_spans(plan.segments);
+    if (selected_segments.size() != plan.segments.size()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "text range is out of range",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    if (!selected_paragraph_revision_spans_supported(selected_segments)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::operation_not_supported),
+                       "comment range requires plain text runs",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    remove_comment_markers_by_id(this->document, comment_id);
+    for (auto &part : this->header_parts) {
+        if (part != nullptr) {
+            remove_comment_markers_by_id(part->xml, comment_id);
+        }
+    }
+    for (auto &part : this->footer_parts) {
+        if (part != nullptr) {
+            remove_comment_markers_by_id(part->xml, comment_id);
+        }
+    }
+
+    if (!insert_comment_markers_for_selected_spans(plan.segments,
+                                                   selected_segments,
+                                                   comment_id)) {
+        remove_comment_markers_by_id(this->document, comment_id);
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to move comment range",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    this->last_error_info.clear();
+    return true;
 }
 
 bool Document::replace_comment(std::size_t comment_index,
