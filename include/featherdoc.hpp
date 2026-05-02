@@ -2665,6 +2665,15 @@ class Document {
                                              std::string_view comment_text,
                                              std::string_view author = {},
                                              std::string_view initials = {});
+    [[nodiscard]] std::size_t append_paragraph_text_comment(
+        std::size_t paragraph_index, std::size_t text_offset,
+        std::size_t text_length, std::string_view comment_text,
+        std::string_view author = {}, std::string_view initials = {});
+    [[nodiscard]] std::size_t append_text_range_comment(
+        std::size_t start_paragraph_index, std::size_t start_text_offset,
+        std::size_t end_paragraph_index, std::size_t end_text_offset,
+        std::string_view comment_text, std::string_view author = {},
+        std::string_view initials = {});
     [[nodiscard]] bool replace_comment(std::size_t comment_index,
                                         std::string_view comment_text);
     [[nodiscard]] bool remove_comment(std::size_t comment_index);

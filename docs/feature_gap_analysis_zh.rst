@@ -274,6 +274,8 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   和对应 endnote API 已覆盖脚注 / 尾注创建、改写和删除
 - ``append_comment(...)`` / ``replace_comment(...)`` / ``remove_comment(...)``
   已覆盖第一版批注创建、改写和删除
+- ``append_paragraph_text_comment(...)`` / ``append_text_range_comment(...)``
+  可把批注原位绑定到正文段落纯文本区间或跨段落半开区间
 - ``inspect-review`` 以及脚注、尾注、批注、append 修订、run 原位修订、
   段落文本区间修订和跨段落文本区间修订 mutation CLI 已可用于一次性
   自动化处理
@@ -286,7 +288,7 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
 
 建议中期继续补：
 
-- comment 回复、resolved 状态和更完整的 comment range 编辑 API
+- comment 回复、resolved 状态和批注范围移动 / 扩缩 API
 - 复杂 run 区间诊断、段落标记级修订和更细粒度冲突诊断
 - 审阅对象与复杂模板合并时的冲突解决策略
 

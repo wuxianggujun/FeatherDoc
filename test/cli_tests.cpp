@@ -18315,6 +18315,104 @@ TEST_CASE("cli review note mutation updates notes and comments") {
     remove_if_exists(inspect_output);
 }
 
+TEST_CASE("cli comment range authoring creates in-place comments") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_comment_range_source.docx";
+    const fs::path paragraph_comment =
+        working_directory / "cli_comment_range_paragraph.docx";
+    const fs::path cross_comment =
+        working_directory / "cli_comment_range_cross.docx";
+    const fs::path output = working_directory / "cli_comment_range.json";
+    const fs::path inspect_output =
+        working_directory / "cli_comment_range_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(paragraph_comment);
+    remove_if_exists(cross_comment);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    featherdoc::Document source_document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+    auto first = source_document.paragraphs();
+    REQUIRE(first.has_next());
+    REQUIRE(first.add_run("Alpha ").has_next());
+    REQUIRE(first.add_run("Beta").has_next());
+    REQUIRE(first.add_run(" Gamma").has_next());
+    auto second = first.insert_paragraph_after("Middle ");
+    REQUIRE(second.has_next());
+    REQUIRE(second.add_run("Text").has_next());
+    auto third = second.insert_paragraph_after("Gamma");
+    REQUIRE(third.has_next());
+    REQUIRE(third.add_run("Delta").has_next());
+    REQUIRE_FALSE(source_document.save());
+
+    CHECK_EQ(run_cli({"append-paragraph-text-comment",
+                      source.string(),
+                      "0",
+                      "0",
+                      "3",
+                      "--comment-text",
+                      "CLI paragraph range comment",
+                      "--author",
+                      "CLI Commenter",
+                      "--initials",
+                      "CC",
+                      "--output",
+                      paragraph_comment.string(),
+                      "--json"},
+                     output),
+             0);
+    auto output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("start_paragraph_index":0)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("text_length":3)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"append-text-range-comment",
+                      paragraph_comment.string(),
+                      "0",
+                      "6",
+                      "2",
+                      "5",
+                      "--comment-text",
+                      "CLI cross paragraph comment",
+                      "--author",
+                      "CLI Cross Commenter",
+                      "--initials",
+                      "CX",
+                      "--output",
+                      cross_comment.string(),
+                      "--json"},
+                     output),
+             0);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("end_paragraph_index":2)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("end_text_offset":5)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-review", cross_comment.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("comments_count":2)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("anchor_text":"Alp")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(
+                 R"("anchor_text":"Beta GammaMiddle TextGamma")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"CLI paragraph range comment")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"CLI cross paragraph comment")"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(paragraph_comment);
+    remove_if_exists(cross_comment);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
 TEST_CASE("cli replace-content-control-text rewrites selected content controls") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =

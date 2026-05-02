@@ -16,6 +16,8 @@ performance.
 - Added cross-paragraph text range revision authoring APIs and CLI commands for inserting at a body text position and deleting or replacing half-open ranges across body paragraphs.
 - Added paragraph text range revision evidence to the review mutation visual regression sample and runner.
 - Added cross-paragraph range revision evidence to the review mutation visual regression sample and runner.
+- Added in-place paragraph and cross-paragraph text range comment authoring APIs and CLI commands.
+- Added in-place comment range evidence to the review mutation visual regression sample and runner.
 - Added `review_note_summary::anchor_text` for comments and surfaced it in `inspect-review` text/JSON output so review automation can audit the selected text behind each comment.
 - Added structured failure fields such as `failure_kind`, `failure_relative_path`, and `failure_expected_text` to release metadata docs check JSON summaries.
 - Added `check_release_metadata_docs.ps1 -Quiet` so automation can rely on JSON summaries without success-banner output.

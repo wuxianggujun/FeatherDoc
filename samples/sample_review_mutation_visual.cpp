@@ -68,6 +68,16 @@ bool write_fixture_docx(const fs::path &path) {
     return ok;
 }
 
+std::size_t body_paragraph_count(featherdoc::Document &document) {
+    std::size_t count = 0U;
+    auto paragraph = document.paragraphs();
+    while (paragraph.has_next()) {
+        ++count;
+        paragraph.next();
+    }
+    return count;
+}
+
 bool mutate_with_typed_apis(const fs::path &path) {
     featherdoc::Document document(path);
     if (document.open()) {
@@ -175,6 +185,18 @@ bool mutate_with_typed_apis(const fs::path &path) {
         return false;
     }
 
+    const auto comment_range_paragraph_index = body_paragraph_count(document);
+    auto comment_range_paragraph =
+        body.append_paragraph("In-place commented range text");
+    if (!comment_range_paragraph.has_next() ||
+        document.append_paragraph_text_comment(
+            comment_range_paragraph_index, 9U, 9U, "In-place range comment body",
+            "Reviewer", "RV") != 1U) {
+        std::cerr << "in-place comment range authoring failed: "
+                  << document.last_error().detail << '\n';
+        return false;
+    }
+
     if (document.append_hyperlink("Old typed hyperlink",
                                   "https://old.example/typed") != 1U ||
         !document.replace_hyperlink(0U, "Typed hyperlink",
@@ -212,8 +234,10 @@ bool verify_api(const fs::path &path) {
     const auto equations = document.list_omml();
     return footnotes.size() == 1U && footnotes.front().text == "Replaced visual footnote body" &&
            endnotes.size() == 1U && endnotes.front().text == "Replaced visual endnote body" &&
-           comments.size() == 1U && comments.front().text == "Replaced visual comment body" &&
-           comments.front().anchor_text == std::optional<std::string>{"Commented typed API text"} &&
+           comments.size() == 2U && comments[0].text == "Replaced visual comment body" &&
+           comments[0].anchor_text == std::optional<std::string>{"Commented typed API text"} &&
+           comments[1].text == "In-place range comment body" &&
+           comments[1].anchor_text == std::optional<std::string>{"commented"} &&
            revisions.empty() && hyperlinks.size() == 1U &&
            hyperlinks.front().text == "Typed hyperlink" && equations.size() == 2U;
 }

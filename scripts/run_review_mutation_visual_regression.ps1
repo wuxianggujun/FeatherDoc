@@ -26,13 +26,14 @@ function Assert-GeneratedDocxEvidence { param([string]$DocxPath)
     $commentsXml=Get-DocxEntryText $DocxPath "word/comments.xml"
     $relationshipsXml=Get-DocxEntryText $DocxPath "word/_rels/document.xml.rels"
     $contentTypesXml=Get-DocxEntryText $DocxPath "[Content_Types].xml"
-    foreach ($text in @("Accepted insertion from revision API","Rejected deletion kept by API","Authored insertion revision accepted by typed API","Authored deletion revision rejected by typed API","Run revision original visible text","accepted in-place replacement revision","accepted paragraph range replacement","accepted cross paragraph range replacement","Typed API evidence details below","footnoteReference","endnoteReference","commentReference","Typed hyperlink","Removed hyperlink text","m:f","m:rad")) { if (-not $documentXml.Contains($text)) { throw "Missing document review mutation evidence: $text" } }
+    foreach ($text in @("Accepted insertion from revision API","Rejected deletion kept by API","Authored insertion revision accepted by typed API","Authored deletion revision rejected by typed API","Run revision original visible text","accepted in-place replacement revision","accepted paragraph range replacement","accepted cross paragraph range replacement","In-place ","range text","Typed API evidence details below","footnoteReference","endnoteReference","commentReference","Typed hyperlink","Removed hyperlink text","m:f","m:rad")) { if (-not $documentXml.Contains($text)) { throw "Missing document review mutation evidence: $text" } }
     foreach ($text in @("<w:ins","<w:del","w:delText")) { if ($documentXml.Contains($text)) { throw "Revision markup should have been resolved but found: $text" } }
     if (-not $footnotesXml.Contains("Replaced visual footnote body")) { throw "Missing replaced footnote body evidence" }
     if ($footnotesXml.Contains("Removed visual footnote body")) { throw "Removed footnote body still exists" }
     if (-not $endnotesXml.Contains("Replaced visual endnote body")) { throw "Missing replaced endnote body evidence" }
     if ($endnotesXml.Contains("Removed visual endnote body")) { throw "Removed endnote body still exists" }
     if (-not $commentsXml.Contains("Replaced visual comment body")) { throw "Missing replaced comment body evidence" }
+    if (-not $commentsXml.Contains("In-place range comment body")) { throw "Missing in-place comment range evidence" }
     if ($commentsXml.Contains("Removed visual comment body")) { throw "Removed comment body still exists" }
     foreach ($text in @("/relationships/footnotes","/relationships/endnotes","/relationships/comments","/relationships/hyperlink")) { if (-not $relationshipsXml.Contains($text)) { throw "Missing relationship evidence: $text" } }
     foreach ($text in @("/word/footnotes.xml","/word/endnotes.xml","/word/comments.xml")) { if (-not $contentTypesXml.Contains($text)) { throw "Missing content type override: $text" } }

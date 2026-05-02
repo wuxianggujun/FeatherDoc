@@ -10166,6 +10166,97 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
     fs::remove(target);
 }
 
+TEST_CASE("review comments can target paragraph text ranges") {
+    namespace fs = std::filesystem;
+
+    const auto write_comment_range_source = [](const fs::path &path) {
+        write_test_docx(path,
+                        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t xml:space="preserve">Alpha </w:t></w:r>
+      <w:r><w:rPr><w:b/></w:rPr><w:t>Beta</w:t></w:r>
+      <w:r><w:t xml:space="preserve"> Gamma</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:r><w:t xml:space="preserve">Middle </w:t></w:r>
+      <w:r><w:rPr><w:i/></w:rPr><w:t>Text</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Gamma</w:t></w:r>
+      <w:r><w:t>Delta</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)");
+    };
+
+    const fs::path target =
+        fs::current_path() / "review_comments_text_range.docx";
+    const fs::path invalid_target =
+        fs::current_path() / "review_comments_text_range_invalid.docx";
+    fs::remove(target);
+    fs::remove(invalid_target);
+
+    write_comment_range_source(target);
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+    CHECK_EQ(doc.append_paragraph_text_comment(
+                 0U, 0U, 3U, "Paragraph range comment", "Reviewer", "RV"),
+             1U);
+    CHECK_EQ(doc.append_text_range_comment(
+                 0U, 6U, 2U, 5U, "Cross paragraph comment", "Cross", "CP"),
+             1U);
+
+    auto comments = doc.list_comments();
+    REQUIRE_EQ(comments.size(), 2U);
+    REQUIRE(comments[0].anchor_text.has_value());
+    CHECK_EQ(*comments[0].anchor_text, "Alp");
+    CHECK_EQ(comments[0].text, "Paragraph range comment");
+    REQUIRE(comments[0].author.has_value());
+    CHECK_EQ(*comments[0].author, "Reviewer");
+    REQUIRE(comments[1].anchor_text.has_value());
+    CHECK_EQ(*comments[1].anchor_text, "Beta GammaMiddle TextGamma");
+    CHECK_EQ(comments[1].text, "Cross paragraph comment");
+
+    CHECK_FALSE(doc.save());
+    const auto document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(document_xml, "w:commentRangeStart"), 2U);
+    CHECK_EQ(count_substring_occurrences(document_xml, "w:commentRangeEnd"), 2U);
+    CHECK_EQ(count_substring_occurrences(document_xml, "w:commentReference"), 2U);
+    const auto comments_xml = read_test_docx_entry(target, "word/comments.xml");
+    CHECK_NE(comments_xml.find("Paragraph range comment"), std::string::npos);
+    CHECK_NE(comments_xml.find("Cross paragraph comment"), std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    comments = reopened.list_comments();
+    REQUIRE_EQ(comments.size(), 2U);
+    REQUIRE(comments[1].anchor_text.has_value());
+    CHECK_EQ(*comments[1].anchor_text, "Beta GammaMiddle TextGamma");
+    CHECK(reopened.remove_comment(1U));
+    CHECK_FALSE(reopened.save());
+    const auto removed_xml = read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(removed_xml, "w:commentReference"), 1U);
+
+    write_comment_range_source(invalid_target);
+    featherdoc::Document invalid(invalid_target);
+    CHECK_FALSE(invalid.open());
+    CHECK_EQ(invalid.append_paragraph_text_comment(0U, 6U, 0U, "bad"), 0U);
+    CHECK_EQ(invalid.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(invalid.append_text_range_comment(2U, 0U, 1U, 1U, "bad"), 0U);
+    CHECK_EQ(invalid.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(invalid.append_text_range_comment(0U, 6U, 2U, 5U, ""), 0U);
+    CHECK_EQ(invalid.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+    fs::remove(invalid_target);
+}
+
 TEST_CASE("revisions can be accepted and rejected") {
     namespace fs = std::filesystem;
 
