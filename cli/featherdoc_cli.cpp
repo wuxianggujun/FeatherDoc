@@ -1166,6 +1166,8 @@ struct review_mutation_plan_build_request_operation {
         review_mutation_plan_operation_kind::replace_text_range_revision;
     std::string find_text;
     std::size_t occurrence = 0U;
+    std::optional<std::string> before_text;
+    std::optional<std::string> after_text;
     std::string text;
     std::optional<std::string> author;
     std::optional<std::string> date;
@@ -1177,7 +1179,11 @@ struct review_mutation_plan_build_resolution {
         review_mutation_plan_operation_kind::replace_text_range_revision;
     std::string find_text;
     std::size_t occurrence = 0U;
+    std::optional<std::string> before_text;
+    std::optional<std::string> after_text;
+    std::size_t raw_matches_count = 0U;
     std::size_t matches_count = 0U;
+    std::optional<std::size_t> selected_match_index;
     featherdoc::text_range_preview preview;
 };
 
@@ -37079,6 +37085,8 @@ auto parse_review_mutation_plan_build_request_operation(
     bool saw_kind = false;
     bool saw_find_text = false;
     bool saw_occurrence = false;
+    bool saw_before_text = false;
+    bool saw_after_text = false;
     bool saw_text = false;
     bool saw_author = false;
     bool saw_date = false;
@@ -37136,6 +37144,42 @@ auto parse_review_mutation_plan_build_request_operation(
                                               "occurrence", error_message)) {
                 return false;
             }
+        } else if (member_name == "before_text") {
+            if (saw_before_text) {
+                error_message =
+                    "JSON review mutation plan build request operation member 'before_text' must not be duplicated";
+                return false;
+            }
+            saw_before_text = true;
+            std::string before_text;
+            if (!parse_json_patch_string(content, index, before_text,
+                                         error_message)) {
+                return false;
+            }
+            if (before_text.empty()) {
+                error_message =
+                    "JSON review mutation plan build request operation member 'before_text' must not be empty";
+                return false;
+            }
+            operation.before_text = std::move(before_text);
+        } else if (member_name == "after_text") {
+            if (saw_after_text) {
+                error_message =
+                    "JSON review mutation plan build request operation member 'after_text' must not be duplicated";
+                return false;
+            }
+            saw_after_text = true;
+            std::string after_text;
+            if (!parse_json_patch_string(content, index, after_text,
+                                         error_message)) {
+                return false;
+            }
+            if (after_text.empty()) {
+                error_message =
+                    "JSON review mutation plan build request operation member 'after_text' must not be empty";
+                return false;
+            }
+            operation.after_text = std::move(after_text);
         } else if (member_name == "text") {
             if (saw_text) {
                 error_message =
@@ -37765,23 +37809,173 @@ auto build_review_mutation_plan_operation_from_match(
     return false;
 }
 
+struct review_mutation_plan_build_candidate {
+    featherdoc::text_range_preview preview;
+    std::optional<std::size_t> selected_match_index;
+};
+
+auto map_review_mutation_context_offset(
+    const featherdoc::text_range_preview &preview, std::size_t text_offset,
+    bool prefer_next_segment_at_boundary, std::size_t &paragraph_index,
+    std::size_t &paragraph_text_offset) -> bool {
+    std::size_t global_offset = 0U;
+    std::optional<featherdoc::text_range_preview_segment> previous_segment;
+    for (const auto &segment : preview.segments) {
+        const auto segment_start = global_offset;
+        const auto segment_end = segment_start + segment.text_length;
+        if (text_offset < segment_end) {
+            paragraph_index = segment.paragraph_index;
+            paragraph_text_offset =
+                segment.text_offset + (text_offset - segment_start);
+            return true;
+        }
+        if (text_offset == segment_end) {
+            if (prefer_next_segment_at_boundary) {
+                previous_segment = segment;
+                global_offset = segment_end;
+                continue;
+            }
+            paragraph_index = segment.paragraph_index;
+            paragraph_text_offset = segment.text_offset + segment.text_length;
+            return true;
+        }
+        previous_segment = segment;
+        global_offset = segment_end;
+    }
+
+    if (text_offset == global_offset && previous_segment.has_value()) {
+        paragraph_index = previous_segment->paragraph_index;
+        paragraph_text_offset =
+            previous_segment->text_offset + previous_segment->text_length;
+        return true;
+    }
+
+    return false;
+}
+
+auto review_mutation_preview_has_same_range(
+    const featherdoc::text_range_preview &left,
+    const featherdoc::text_range_preview &right) -> bool {
+    return left.start_paragraph_index == right.start_paragraph_index &&
+           left.start_text_offset == right.start_text_offset &&
+           left.end_paragraph_index == right.end_paragraph_index &&
+           left.end_text_offset == right.end_text_offset;
+}
+
+auto find_review_mutation_raw_match_index(
+    const std::vector<featherdoc::text_range_preview> &raw_matches,
+    const featherdoc::text_range_preview &preview)
+    -> std::optional<std::size_t> {
+    for (std::size_t index = 0U; index < raw_matches.size(); ++index) {
+        if (review_mutation_preview_has_same_range(raw_matches[index],
+                                                   preview)) {
+            return index;
+        }
+    }
+    return std::nullopt;
+}
+
+auto build_review_mutation_plan_candidates(
+    featherdoc::Document &doc,
+    const review_mutation_plan_build_request_operation &request,
+    const std::vector<featherdoc::text_range_preview> &raw_matches,
+    std::vector<review_mutation_plan_build_candidate> &candidates,
+    std::string &error_message) -> bool {
+    candidates.clear();
+
+    const auto has_context =
+        request.before_text.has_value() || request.after_text.has_value();
+    if (!has_context) {
+        candidates.reserve(raw_matches.size());
+        for (std::size_t index = 0U; index < raw_matches.size(); ++index) {
+            review_mutation_plan_build_candidate candidate;
+            candidate.preview = raw_matches[index];
+            candidate.selected_match_index = index;
+            candidates.push_back(std::move(candidate));
+        }
+        return true;
+    }
+
+    std::string context_text;
+    if (request.before_text.has_value()) {
+        context_text += *request.before_text;
+    }
+    const auto inner_start_offset = context_text.size();
+    context_text += request.find_text;
+    const auto inner_end_offset = context_text.size();
+    if (request.after_text.has_value()) {
+        context_text += *request.after_text;
+    }
+
+    auto context_matches = doc.find_text_ranges(context_text);
+    if (const auto &error_info = doc.last_error(); error_info.code) {
+        error_message = !error_info.detail.empty() ? error_info.detail
+                                                   : error_info.code.message();
+        return false;
+    }
+
+    candidates.reserve(context_matches.size());
+    for (const auto &context_preview : context_matches) {
+        std::size_t start_paragraph_index = 0U;
+        std::size_t start_text_offset = 0U;
+        std::size_t end_paragraph_index = 0U;
+        std::size_t end_text_offset = 0U;
+        if (!map_review_mutation_context_offset(
+                context_preview, inner_start_offset, true,
+                start_paragraph_index, start_text_offset) ||
+            !map_review_mutation_context_offset(
+                context_preview, inner_end_offset, false, end_paragraph_index,
+                end_text_offset)) {
+            error_message =
+                "failed to map context match back to requested text range";
+            return false;
+        }
+
+        auto preview = doc.preview_text_range(start_paragraph_index,
+                                              start_text_offset,
+                                              end_paragraph_index,
+                                              end_text_offset);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            error_message = !error_info.detail.empty()
+                                ? error_info.detail
+                                : error_info.code.message();
+            return false;
+        }
+        if (!preview.has_value() || preview->text != request.find_text) {
+            error_message =
+                "context match did not resolve back to requested find_text";
+            return false;
+        }
+
+        review_mutation_plan_build_candidate candidate;
+        candidate.selected_match_index =
+            find_review_mutation_raw_match_index(raw_matches, *preview);
+        candidate.preview = std::move(*preview);
+        candidates.push_back(std::move(candidate));
+    }
+
+    return true;
+}
+
 auto build_review_mutation_plan_operations(
     featherdoc::Document &doc,
     const std::vector<review_mutation_plan_build_request_operation> &requests,
     std::vector<review_mutation_plan_operation> &operations,
     std::vector<review_mutation_plan_build_resolution> &resolutions,
     std::string &error_message, std::size_t &failed_operation_index,
-    std::size_t &failed_matches_count) -> bool {
+    std::size_t &failed_matches_count,
+    std::size_t &failed_raw_matches_count) -> bool {
     operations.clear();
     operations.reserve(requests.size());
     resolutions.clear();
     resolutions.reserve(requests.size());
     failed_operation_index = 0U;
     failed_matches_count = 0U;
+    failed_raw_matches_count = 0U;
 
     for (std::size_t index = 0U; index < requests.size(); ++index) {
         const auto &request = requests[index];
-        auto matches = doc.find_text_ranges(request.find_text);
+        auto raw_matches = doc.find_text_ranges(request.find_text);
         if (const auto &error_info = doc.last_error(); error_info.code) {
             failed_operation_index = index;
             error_message = !error_info.detail.empty()
@@ -37790,19 +37984,29 @@ auto build_review_mutation_plan_operations(
             return false;
         }
 
-        if (request.occurrence >= matches.size()) {
+        std::vector<review_mutation_plan_build_candidate> candidates;
+        if (!build_review_mutation_plan_candidates(
+                doc, request, raw_matches, candidates, error_message)) {
             failed_operation_index = index;
-            failed_matches_count = matches.size();
+            failed_raw_matches_count = raw_matches.size();
+            return false;
+        }
+
+        if (request.occurrence >= candidates.size()) {
+            failed_operation_index = index;
+            failed_matches_count = candidates.size();
+            failed_raw_matches_count = raw_matches.size();
             error_message = "requested text occurrence was not found";
             return false;
         }
 
-        const auto &preview = matches[request.occurrence];
+        const auto &candidate = candidates[request.occurrence];
         review_mutation_plan_operation operation;
         if (!build_review_mutation_plan_operation_from_match(
-                request, preview, operation, error_message)) {
+                request, candidate.preview, operation, error_message)) {
             failed_operation_index = index;
-            failed_matches_count = matches.size();
+            failed_matches_count = candidates.size();
+            failed_raw_matches_count = raw_matches.size();
             return false;
         }
 
@@ -37811,8 +38015,12 @@ auto build_review_mutation_plan_operations(
         resolution.kind = request.kind;
         resolution.find_text = request.find_text;
         resolution.occurrence = request.occurrence;
-        resolution.matches_count = matches.size();
-        resolution.preview = preview;
+        resolution.before_text = request.before_text;
+        resolution.after_text = request.after_text;
+        resolution.raw_matches_count = raw_matches.size();
+        resolution.matches_count = candidates.size();
+        resolution.selected_match_index = candidate.selected_match_index;
+        resolution.preview = candidate.preview;
         resolutions.push_back(std::move(resolution));
         operations.push_back(std::move(operation));
     }
@@ -37934,9 +38142,28 @@ void write_json_review_mutation_plan_build_resolution(
                       review_mutation_plan_operation_kind_name(resolution.kind));
     stream << ",\"find_text\":";
     write_json_string(stream, resolution.find_text);
+    stream << ",\"before_text\":";
+    if (resolution.before_text.has_value()) {
+        write_json_string(stream, *resolution.before_text);
+    } else {
+        stream << "null";
+    }
+    stream << ",\"after_text\":";
+    if (resolution.after_text.has_value()) {
+        write_json_string(stream, *resolution.after_text);
+    } else {
+        stream << "null";
+    }
     stream << ",\"occurrence\":" << resolution.occurrence
+           << ",\"raw_matches_count\":" << resolution.raw_matches_count
            << ",\"matches_count\":" << resolution.matches_count
-           << ",\"preview\":";
+           << ",\"selected_match_index\":";
+    if (resolution.selected_match_index.has_value()) {
+        stream << *resolution.selected_match_index;
+    } else {
+        stream << "null";
+    }
+    stream << ",\"preview\":";
     write_json_text_range_preview(stream, resolution.preview);
     stream << '}';
 }
@@ -37969,14 +38196,16 @@ void write_json_review_mutation_plan_build_result(
 
 void write_json_review_mutation_plan_build_failure(
     std::ostream &stream, std::string_view stage, std::string_view message,
-    std::size_t operation_index, std::size_t matches_count) {
+    std::size_t operation_index, std::size_t matches_count,
+    std::size_t raw_matches_count) {
     stream << "{\"command\":\"build-review-mutation-plan\",\"ok\":false"
            << ",\"stage\":";
     write_json_string(stream, stage);
     stream << ",\"message\":";
     write_json_string(stream, message);
     stream << ",\"operation_index\":" << operation_index
-           << ",\"matches_count\":" << matches_count << "}\n";
+           << ",\"matches_count\":" << matches_count
+           << ",\"raw_matches_count\":" << raw_matches_count << "}\n";
 }
 
 void print_review_mutation_plan_preview(
@@ -48548,13 +48777,15 @@ int main(int argc, char **argv) {
         std::vector<review_mutation_plan_build_resolution> resolutions;
         std::size_t failed_operation_index = 0U;
         std::size_t failed_matches_count = 0U;
+        std::size_t failed_raw_matches_count = 0U;
         if (!build_review_mutation_plan_operations(
                 doc, requests, operations, resolutions, error_message,
-                failed_operation_index, failed_matches_count)) {
+                failed_operation_index, failed_matches_count,
+                failed_raw_matches_count)) {
             if (json_output) {
                 write_json_review_mutation_plan_build_failure(
                     std::cout, "resolve", error_message, failed_operation_index,
-                    failed_matches_count);
+                    failed_matches_count, failed_raw_matches_count);
             } else {
                 std::cerr << error_message << '\n';
             }
@@ -48566,7 +48797,7 @@ int main(int argc, char **argv) {
                                              error_message)) {
             if (json_output) {
                 write_json_review_mutation_plan_build_failure(
-                    std::cout, "write", error_message, 0U, 0U);
+                    std::cout, "write", error_message, 0U, 0U, 0U);
             } else {
                 std::cerr << error_message << '\n';
             }

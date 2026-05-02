@@ -27,6 +27,7 @@ performance.
 - Added text range preview diagnostics so API and CLI callers can verify selected body text ranges before writing comments or revisions.
 - Added `find_text_ranges(...)` and `find-text-ranges` so automation can locate exact body text matches and reuse returned paragraph offsets for review mutation plans.
 - Added `build-review-mutation-plan` so callers can resolve `find_text` requests into guarded review mutation plan JSON before previewing or applying batch revisions.
+- Added `before_text` / `after_text` context filters to `build-review-mutation-plan` requests so repeated body text can be resolved by surrounding text instead of brittle occurrence-only selection.
 - Added API-level `expected_text` safeguards for paragraph and cross-paragraph text range revision delete/replace authoring.
 - Added `--expected-text` safeguards to paragraph and cross-paragraph text range revision CLI delete/replace commands so automation can fail before mutating when selected text has drifted.
 - Extended `expected_text` mismatch diagnostics with selected range offsets and segment previews for API and CLI revision authoring.
