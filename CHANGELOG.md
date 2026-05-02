@@ -24,6 +24,7 @@ performance.
 - Added comment metadata update authoring so existing comments and replies can set or clear author, initials, and date fields.
 - Added revision metadata update authoring so existing revisions can set or clear author and date fields.
 - Added text range preview diagnostics so API and CLI callers can verify selected body text ranges before writing comments or revisions.
+- Added `--expected-text` safeguards to paragraph and cross-paragraph text range revision CLI delete/replace commands so automation can fail before mutating when selected text has drifted.
 - Added in-place comment range evidence to the review mutation visual regression sample and runner.
 - Added `review_note_summary::anchor_text` for comments and surfaced it in `inspect-review` text/JSON output so review automation can audit the selected text behind each comment.
 - Added structured failure fields such as `failure_kind`, `failure_relative_path`, and `failure_expected_text` to release metadata docs check JSON summaries.

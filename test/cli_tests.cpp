@@ -17972,6 +17972,8 @@ TEST_CASE("cli paragraph text revision authoring creates range revisions") {
                       "0",
                       "5",
                       "6",
+                      "--expected-text",
+                      "Middle",
                       "--author",
                       "CLI Range Reviewer",
                       "--date",
@@ -18107,6 +18109,21 @@ TEST_CASE("cli text range revision authoring creates cross-paragraph revisions")
                       "7",
                       "--text",
                       "CLI cross insertion ",
+                      "--expected-text",
+                      "Text",
+                      "--json"},
+                     output),
+             2);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find("insert-text-range-revision does not accept --expected-text"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"insert-text-range-revision",
+                      source.string(),
+                      "1",
+                      "7",
+                      "--text",
+                      "CLI cross insertion ",
                       "--author",
                       "CLI Cross Author",
                       "--date",
@@ -18128,6 +18145,28 @@ TEST_CASE("cli text range revision authoring creates cross-paragraph revisions")
                       "6",
                       "2",
                       "5",
+                      "--expected-text",
+                      "Wrong selected text",
+                      "--output",
+                      deleted.string(),
+                      "--json"},
+                     output),
+             1);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("stage":"validate")"), std::string::npos);
+    CHECK_NE(output_json.find(R"("expected_text":"Wrong selected text")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("actual_text":"BetaMiddle TextGamma")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"delete-text-range-revision",
+                      source.string(),
+                      "0",
+                      "6",
+                      "2",
+                      "5",
+                      "--expected-text",
+                      "BetaMiddle TextGamma",
                       "--author",
                       "CLI Cross Reviewer",
                       "--date",
@@ -18151,6 +18190,8 @@ TEST_CASE("cli text range revision authoring creates cross-paragraph revisions")
                       "5",
                       "--text",
                       "CLI cross replacement ",
+                      "--expected-text",
+                      "BetaMiddle TextGamma",
                       "--author",
                       "CLI Cross Editor",
                       "--date",

@@ -271,6 +271,9 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   生成跨段落半开区间插入、删除和替换修订痕迹
 - ``preview_text_range(...)`` 可在写入批注或修订前预览正文区间的选中文本、
   分段文本和 plain-text run 支持状态
+- 段落 / 跨段落 text range 修订 CLI 的删除和替换命令支持
+  ``--expected-text``，写入前会通过 ``preview_text_range(...)`` 校验目标文本，
+  避免 offset 漂移造成误改
 - ``accept_revision(...)`` / ``reject_revision(...)`` 以及批量接受 / 拒绝入口
   已覆盖第一版修订清理工作流
 - ``set_revision_metadata(...)`` 可设置或清除既有修订的 author 和 date

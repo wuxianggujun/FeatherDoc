@@ -1121,9 +1121,11 @@ struct revision_authoring_options : simple_document_mutation_options {
     std::string text;
     std::string author;
     std::string date;
+    std::string expected_text;
     bool has_text = false;
     bool has_author = false;
     bool has_date = false;
+    bool has_expected_text = false;
 };
 
 struct revision_metadata_mutation_options : simple_document_mutation_options {
@@ -2081,9 +2083,11 @@ void print_usage(std::ostream &stream) {
            " [--author <name>] [--date <iso>] [--output <path>] [--json]\n"
         << "  featherdoc_cli delete-paragraph-text-revision <input.docx>"
            " <paragraph-index> <offset> <length>"
+           " [--expected-text <text>]"
            " [--author <name>] [--date <iso>] [--output <path>] [--json]\n"
         << "  featherdoc_cli replace-paragraph-text-revision <input.docx>"
            " <paragraph-index> <offset> <length> --text <text>"
+           " [--expected-text <text>]"
            " [--author <name>] [--date <iso>] [--output <path>] [--json]\n"
         << "  featherdoc_cli insert-text-range-revision <input.docx>"
            " <paragraph-index> <offset> --text <text>"
@@ -2091,10 +2095,12 @@ void print_usage(std::ostream &stream) {
         << "  featherdoc_cli delete-text-range-revision <input.docx>"
            " <start-paragraph-index> <start-offset>"
            " <end-paragraph-index> <end-offset>"
+           " [--expected-text <text>]"
            " [--author <name>] [--date <iso>] [--output <path>] [--json]\n"
         << "  featherdoc_cli replace-text-range-revision <input.docx>"
            " <start-paragraph-index> <start-offset>"
            " <end-paragraph-index> <end-offset> --text <text>"
+           " [--expected-text <text>]"
            " [--author <name>] [--date <iso>] [--output <path>] [--json]\n"
         << "  featherdoc_cli accept-revision <input.docx> <revision-index>"
            " [--output <path>] [--json]\n"
@@ -14011,7 +14017,10 @@ auto parse_revision_authoring_options(
     revision_authoring_options &options, std::string &error_message,
     bool require_text = true,
     std::string_view text_forbidden_error =
-        "delete-run-revision does not accept --text") -> bool {
+        "delete-run-revision does not accept --text",
+    bool allow_expected_text = false,
+    std::string_view expected_text_forbidden_error =
+        "this revision command does not accept --expected-text") -> bool {
     for (std::size_t index = start_index; index < arguments.size(); ++index) {
         const auto argument = arguments[index];
         if (argument == "--text") {
@@ -14055,6 +14064,25 @@ auto parse_revision_authoring_options(
             }
             options.date = std::string(arguments[index + 1U]);
             options.has_date = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--expected-text") {
+            if (!allow_expected_text) {
+                error_message = std::string{expected_text_forbidden_error};
+                return false;
+            }
+            if (options.has_expected_text) {
+                error_message = "duplicate --expected-text option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --expected-text";
+                return false;
+            }
+            options.expected_text = std::string(arguments[index + 1U]);
+            options.has_expected_text = true;
             ++index;
             continue;
         }
@@ -25988,6 +26016,60 @@ auto report_document_error(std::string_view command, std::string_view stage,
                            bool json_output) -> bool {
     return report_operation_failure(command, stage, "operation failed", error_info,
                                     json_output);
+}
+
+auto report_expected_revision_text_mismatch(std::string_view command,
+                                            std::string_view expected_text,
+                                            std::string_view actual_text,
+                                            bool json_output) -> bool {
+    constexpr std::string_view message =
+        "expected text did not match selected text";
+    if (json_output) {
+        std::cerr << "{\"command\":";
+        write_json_string(std::cerr, command);
+        std::cerr << ",\"ok\":false,\"stage\":\"validate\",\"message\":";
+        write_json_string(std::cerr, message);
+        std::cerr << ",\"expected_text\":";
+        write_json_string(std::cerr, expected_text);
+        std::cerr << ",\"actual_text\":";
+        write_json_string(std::cerr, actual_text);
+        std::cerr << "}\n";
+        return false;
+    }
+
+    std::cerr << message << '\n' << "expected_text=";
+    write_json_string(std::cerr, expected_text);
+    std::cerr << '\n' << "actual_text=";
+    write_json_string(std::cerr, actual_text);
+    std::cerr << '\n';
+    return false;
+}
+
+auto validate_revision_expected_text(featherdoc::Document &doc,
+                                     std::string_view command,
+                                     const revision_authoring_options &options,
+                                     std::size_t start_paragraph_index,
+                                     std::size_t start_text_offset,
+                                     std::size_t end_paragraph_index,
+                                     std::size_t end_text_offset) -> bool {
+    if (!options.has_expected_text) {
+        return true;
+    }
+
+    const auto preview = doc.preview_text_range(
+        start_paragraph_index, start_text_offset, end_paragraph_index,
+        end_text_offset);
+    if (!preview.has_value()) {
+        return report_document_error(command, "preview", doc.last_error(),
+                                     options.json_output);
+    }
+
+    if (preview->text != options.expected_text) {
+        return report_expected_revision_text_mismatch(
+            command, options.expected_text, preview->text, options.json_output);
+    }
+
+    return true;
 }
 
 template <typename ExtraWriter>
@@ -47162,7 +47244,9 @@ int main(int argc, char **argv) {
         const auto options_start = insert_revision ? 4U : 5U;
         if (!parse_revision_authoring_options(
                 arguments, options_start, options, error_message, require_text,
-                "delete-paragraph-text-revision does not accept --text")) {
+                "delete-paragraph-text-revision does not accept --text",
+                !insert_revision,
+                "insert-paragraph-text-revision does not accept --expected-text")) {
             print_parse_error(command, error_message, json_output);
             return 2;
         }
@@ -47170,6 +47254,27 @@ int main(int argc, char **argv) {
         if (!open_document(path_type(std::string(arguments[1])), doc, command,
                            options.json_output)) {
             return 1;
+        }
+
+        if (!insert_revision) {
+            if (text_length >
+                std::numeric_limits<std::size_t>::max() - text_offset) {
+                featherdoc::document_error_info error_info{};
+                error_info.code =
+                    std::make_error_code(std::errc::invalid_argument);
+                error_info.entry_name = "word/document.xml";
+                error_info.detail = "text range is out of range";
+                report_operation_failure(command, "validate",
+                                         "text range is out of range",
+                                         error_info, options.json_output);
+                return 1;
+            }
+
+            if (!validate_revision_expected_text(
+                    doc, command, options, paragraph_index, text_offset,
+                    paragraph_index, text_offset + text_length)) {
+                return 1;
+            }
         }
 
         bool ok = false;
@@ -47275,13 +47380,22 @@ int main(int argc, char **argv) {
         const auto options_start = insert_revision ? 4U : 6U;
         if (!parse_revision_authoring_options(
                 arguments, options_start, options, error_message, require_text,
-                "delete-text-range-revision does not accept --text")) {
+                "delete-text-range-revision does not accept --text",
+                !insert_revision,
+                "insert-text-range-revision does not accept --expected-text")) {
             print_parse_error(command, error_message, json_output);
             return 2;
         }
 
         if (!open_document(path_type(std::string(arguments[1])), doc, command,
                            options.json_output)) {
+            return 1;
+        }
+
+        if (!insert_revision &&
+            !validate_revision_expected_text(
+                doc, command, options, start_paragraph_index, start_text_offset,
+                end_paragraph_index, end_text_offset)) {
             return 1;
         }
 
