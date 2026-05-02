@@ -10745,6 +10745,14 @@ TEST_CASE("revision authoring APIs create paragraph text range revisions") {
              std::string::npos);
     CHECK_NE(guarded.last_error().detail.find("actual: ha Beta"),
              std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("start_paragraph_index: 0"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("text_offset=3"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("text_length=7"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("text=ha Beta"),
+             std::string::npos);
     CHECK_EQ(guarded.list_revisions().size(), 0U);
     CHECK_EQ(collect_document_text(guarded), "Alpha Beta Gamma\n");
 
@@ -10945,6 +10953,14 @@ TEST_CASE("revision authoring APIs create cross-paragraph text range revisions")
              std::string::npos);
     CHECK_NE(guarded.last_error().detail.find(
                  "actual: BetaMiddle TextGamma"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("start_paragraph_index: 0"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("end_paragraph_index: 2"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("paragraph_index=1"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("text=Middle Text"),
              std::string::npos);
     CHECK_EQ(guarded.list_revisions().size(), 0U);
     CHECK_EQ(collect_document_text(guarded),

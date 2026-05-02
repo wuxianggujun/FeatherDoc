@@ -2510,16 +2510,32 @@ auto preview_paragraph_revision_range_segments(
     return preview;
 }
 
-auto revision_expected_text_mismatch_detail(std::string_view expected_text,
-                                            std::string_view actual_text)
+auto revision_expected_text_mismatch_detail(
+    std::string_view expected_text,
+    const featherdoc::text_range_preview &preview)
     -> std::string {
-    std::string detail{"expected text did not match selected text"};
-    detail += " (expected: ";
-    detail += expected_text;
-    detail += ", actual: ";
-    detail += actual_text;
-    detail += ')';
-    return detail;
+    std::ostringstream detail;
+    detail << "expected text did not match selected text"
+           << " (expected: " << expected_text
+           << ", actual: " << preview.text
+           << ", start_paragraph_index: " << preview.start_paragraph_index
+           << ", start_text_offset: " << preview.start_text_offset
+           << ", end_paragraph_index: " << preview.end_paragraph_index
+           << ", end_text_offset: " << preview.end_text_offset
+           << ", text_length: " << preview.text_length
+           << ", segments: [";
+    for (std::size_t index = 0U; index < preview.segments.size(); ++index) {
+        if (index != 0U) {
+            detail << "; ";
+        }
+        const auto &segment = preview.segments[index];
+        detail << "paragraph_index=" << segment.paragraph_index
+               << " text_offset=" << segment.text_offset
+               << " text_length=" << segment.text_length
+               << " text=" << segment.text;
+    }
+    detail << "])";
+    return detail.str();
 }
 
 auto validate_revision_expected_text(
@@ -2536,7 +2552,7 @@ auto validate_revision_expected_text(
 
     set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
                    revision_expected_text_mismatch_detail(*options.expected_text,
-                                                         preview.text),
+                                                          preview),
                    std::string{document_xml_entry});
     return false;
 }

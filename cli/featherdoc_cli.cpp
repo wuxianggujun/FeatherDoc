@@ -26020,7 +26020,7 @@ auto report_document_error(std::string_view command, std::string_view stage,
 
 auto report_expected_revision_text_mismatch(std::string_view command,
                                             std::string_view expected_text,
-                                            std::string_view actual_text,
+                                            const featherdoc::text_range_preview &preview,
                                             bool json_output) -> bool {
     constexpr std::string_view message =
         "expected text did not match selected text";
@@ -26032,7 +26032,9 @@ auto report_expected_revision_text_mismatch(std::string_view command,
         std::cerr << ",\"expected_text\":";
         write_json_string(std::cerr, expected_text);
         std::cerr << ",\"actual_text\":";
-        write_json_string(std::cerr, actual_text);
+        write_json_string(std::cerr, preview.text);
+        std::cerr << ",\"preview\":";
+        write_json_text_range_preview(std::cerr, preview);
         std::cerr << "}\n";
         return false;
     }
@@ -26040,7 +26042,9 @@ auto report_expected_revision_text_mismatch(std::string_view command,
     std::cerr << message << '\n' << "expected_text=";
     write_json_string(std::cerr, expected_text);
     std::cerr << '\n' << "actual_text=";
-    write_json_string(std::cerr, actual_text);
+    write_json_string(std::cerr, preview.text);
+    std::cerr << '\n' << "selected_range=";
+    print_text_range_preview(std::cerr, preview);
     std::cerr << '\n';
     return false;
 }
@@ -26066,7 +26070,7 @@ auto validate_revision_expected_text(featherdoc::Document &doc,
 
     if (preview->text != options.expected_text) {
         return report_expected_revision_text_mismatch(
-            command, options.expected_text, preview->text, options.json_output);
+            command, options.expected_text, *preview, options.json_output);
     }
 
     return true;

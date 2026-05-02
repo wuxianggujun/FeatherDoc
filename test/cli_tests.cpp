@@ -18158,6 +18158,13 @@ TEST_CASE("cli text range revision authoring creates cross-paragraph revisions")
              std::string::npos);
     CHECK_NE(output_json.find(R"("actual_text":"BetaMiddle TextGamma")"),
              std::string::npos);
+    CHECK_NE(output_json.find(R"("preview":{)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("start_paragraph_index":0)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("end_paragraph_index":2)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("paragraph_index":1,"text_offset":0,"text_length":11,"text":"Middle Text")"),
+             std::string::npos);
 
     CHECK_EQ(run_cli({"delete-text-range-revision",
                       source.string(),
