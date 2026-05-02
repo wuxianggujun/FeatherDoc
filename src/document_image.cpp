@@ -174,6 +174,15 @@ auto image_content_type_for_extension(std::string_view extension) -> std::string
     if (extension == "bmp") {
         return "image/bmp";
     }
+    if (extension == "svg") {
+        return "image/svg+xml";
+    }
+    if (extension == "webp") {
+        return "image/webp";
+    }
+    if (extension == "tif" || extension == "tiff") {
+        return "image/tiff";
+    }
 
     return {};
 }
@@ -1874,16 +1883,23 @@ bool Document::append_drawing_image_part(
         display_name = "image-" + drawing_id_text + "." + extension;
     }
 
-    auto image_paragraph = featherdoc::detail::insert_paragraph_node(parent, insert_before);
-    if (image_paragraph == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to append an image paragraph",
-                       std::string{xml_entry_name});
-        return false;
+    auto run = pugi::xml_node{};
+    if (std::string_view{parent.name()} == "w:r" &&
+        insert_before == pugi::xml_node{}) {
+        run = parent;
+    } else {
+        auto image_paragraph = featherdoc::detail::insert_paragraph_node(parent, insert_before);
+        if (image_paragraph == pugi::xml_node{}) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to append an image paragraph",
+                           std::string{xml_entry_name});
+            return false;
+        }
+
+        run = image_paragraph.append_child("w:r");
     }
 
-    auto run = image_paragraph.append_child("w:r");
     auto drawing = run.append_child("w:drawing");
     const auto drawing_node_name =
         floating_options.has_value() ? "wp:anchor" : "wp:inline";

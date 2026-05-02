@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Runs a one-stop onboarding workflow for a project DOCX/DOTX template.
 
@@ -141,6 +141,14 @@ function Get-JsonInt {
     return 0
 }
 
+function Get-JsonArray {
+    param($Object, [string]$Name)
+    if ($null -eq $Object) { return @() }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property -or $null -eq $property.Value) { return @() }
+    return @($property.Value | Where-Object { $null -ne $_ })
+}
+
 function Write-TempSmokeManifest {
     param([string]$RepoRoot, [string]$Path, [string]$Name, [string]$InputDocx, [string]$SchemaFile, [string]$TargetMode, [string]$GeneratedSchema, [string]$VisualOutputDir, [bool]$VisualEnabled)
     $entry = [ordered]@{
@@ -217,8 +225,30 @@ function New-ManualReview {
     $lines.Add("- schema_output: ``$($Summary.schema_output)``") | Out-Null
     $lines.Add("- workspace_dir: ``$($Summary.workspace_dir)``") | Out-Null
     $lines.Add("- temporary_smoke_manifest: ``$($Summary.temporary_smoke_manifest)``") | Out-Null
+    $lines.Add("- project_template_smoke_summary: ``$($Summary.project_template_smoke_summary)``") | Out-Null
+    $lines.Add("- schema_patch_review_count: ``$($Summary.schema_patch_review_count)``") | Out-Null
+    $lines.Add("- schema_patch_review_changed_count: ``$($Summary.schema_patch_review_changed_count)``") | Out-Null
+    $lines.Add("- schema_patch_approval_pending_count: ``$($Summary.schema_patch_approval_pending_count)``") | Out-Null
+    $lines.Add("- schema_patch_approval_approved_count: ``$($Summary.schema_patch_approval_approved_count)``") | Out-Null
+    $lines.Add("- schema_patch_approval_rejected_count: ``$($Summary.schema_patch_approval_rejected_count)``") | Out-Null
     $lines.Add("- validation_issue: ``$($Summary.validation_issue)``") | Out-Null
     $lines.Add("") | Out-Null
+    if (@($Summary.schema_patch_reviews).Count -gt 0) {
+        $lines.Add("## Schema Patch Reviews") | Out-Null
+        $lines.Add("") | Out-Null
+        foreach ($review in @($Summary.schema_patch_reviews)) {
+            $lines.Add("- ``$($review.name)``: changed=``$($review.changed)`` baseline_slots=``$($review.baseline_slot_count)`` generated_slots=``$($review.generated_slot_count)`` review=``$($review.review_json)``") | Out-Null
+        }
+        $lines.Add("") | Out-Null
+    }
+    if (@($Summary.schema_patch_approval_items).Count -gt 0) {
+        $lines.Add("## Schema Patch Approvals") | Out-Null
+        $lines.Add("") | Out-Null
+        foreach ($approval in @($Summary.schema_patch_approval_items)) {
+            $lines.Add("- ``$($approval.name)``: status=``$($approval.status)`` decision=``$($approval.decision)`` candidate=``$($approval.schema_update_candidate)`` approval=``$($approval.approval_result)`` review=``$($approval.review_json)`` action=``$($approval.action)``") | Out-Null
+        }
+        $lines.Add("") | Out-Null
+    }
     $lines.Add("## Steps") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($step in $Steps) {
@@ -276,6 +306,7 @@ $strictValidationReportPath = Join-Path $reportDir "render_data_validation.stric
 $renderedDocxPath = Join-Path $renderedDir ($safeName + ".rendered.docx")
 $renderSummaryPath = Join-Path $reportDir "render_from_workspace.summary.json"
 $visualSmokeOutputDir = Join-Path $smokeDir "visual"
+$smokeSummaryPath = Join-Path $smokeDir "summary.json"
 $startHerePath = Join-Path $resolvedOutputDir "START_HERE.zh-CN.md"
 $manualReviewPath = Join-Path $reportDir "manual_review.md"
 
@@ -423,6 +454,9 @@ if ($RegisterManifest -and -not $failed) {
 }
 
 $workspaceSummary = Read-JsonIfPresent -Path $workspaceSummaryPath
+$smokeSummary = Read-JsonIfPresent -Path $smokeSummaryPath
+$schemaPatchReviews = Get-JsonArray -Object $smokeSummary -Name "schema_patch_reviews"
+$schemaPatchApprovalItems = Get-JsonArray -Object $smokeSummary -Name "schema_patch_approval_items"
 $dataSkeleton = Get-JsonString -Object $workspaceSummary -Name "data_skeleton"
 $mappingPath = Get-JsonString -Object $workspaceSummary -Name "mapping"
 $renderPlanPath = Get-JsonString -Object $workspaceSummary -Name "render_plan"
@@ -454,6 +488,14 @@ $summary["start_here"] = $startHerePath
 $summary["manual_review"] = $manualReviewPath
 $summary["schema_output"] = $schemaPath
 $summary["temporary_smoke_manifest"] = $temporaryManifestPath
+$summary["project_template_smoke_summary"] = $smokeSummaryPath
+$summary["schema_patch_review_count"] = Get-JsonInt -Object $smokeSummary -Name "schema_patch_review_count"
+$summary["schema_patch_review_changed_count"] = Get-JsonInt -Object $smokeSummary -Name "schema_patch_review_changed_count"
+$summary["schema_patch_reviews"] = @($schemaPatchReviews)
+$summary["schema_patch_approval_pending_count"] = Get-JsonInt -Object $smokeSummary -Name "schema_patch_approval_pending_count"
+$summary["schema_patch_approval_approved_count"] = Get-JsonInt -Object $smokeSummary -Name "schema_patch_approval_approved_count"
+$summary["schema_patch_approval_rejected_count"] = Get-JsonInt -Object $smokeSummary -Name "schema_patch_approval_rejected_count"
+$summary["schema_patch_approval_items"] = @($schemaPatchApprovalItems)
 $summary["workspace_dir"] = $workspaceDir
 $summary["workspace_summary"] = $workspaceSummaryPath
 $summary["render_plan"] = $renderPlanPath

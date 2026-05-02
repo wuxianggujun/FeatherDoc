@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <initializer_list>
+#include <iosfwd>
 #include <memory>
 #include <optional>
 #include <span>
@@ -223,6 +224,20 @@ class TableRow {
     TableRow &next();
 };
 
+struct table_position {
+    featherdoc::table_position_horizontal_reference horizontal_reference{
+        featherdoc::table_position_horizontal_reference::margin};
+    std::int32_t horizontal_offset_twips{0};
+    featherdoc::table_position_vertical_reference vertical_reference{
+        featherdoc::table_position_vertical_reference::paragraph};
+    std::int32_t vertical_offset_twips{0};
+    std::optional<std::uint32_t> left_from_text_twips;
+    std::optional<std::uint32_t> right_from_text_twips;
+    std::optional<std::uint32_t> top_from_text_twips;
+    std::optional<std::uint32_t> bottom_from_text_twips;
+    std::optional<featherdoc::table_overlap> overlap;
+};
+
 // Table consists of one or more TableRow objects
 class Table {
   private:
@@ -285,6 +300,9 @@ class Table {
     [[nodiscard]] std::optional<std::uint32_t> cell_spacing_twips() const;
     [[nodiscard]] bool set_cell_spacing_twips(std::uint32_t spacing_twips);
     [[nodiscard]] bool clear_cell_spacing();
+    [[nodiscard]] std::optional<featherdoc::table_position> position() const;
+    [[nodiscard]] bool set_position(featherdoc::table_position position);
+    [[nodiscard]] bool clear_position();
     [[nodiscard]] std::optional<std::uint32_t> cell_margin_twips(
         featherdoc::cell_margin_edge edge) const;
     [[nodiscard]] bool set_cell_margin_twips(featherdoc::cell_margin_edge edge,
@@ -387,12 +405,41 @@ enum class content_control_kind : std::uint8_t {
     unknown,
 };
 
+enum class content_control_form_kind : std::uint8_t {
+    rich_text = 0U,
+    plain_text,
+    picture,
+    checkbox,
+    drop_down_list,
+    combo_box,
+    date,
+    repeating_section,
+    group,
+    unknown,
+};
+
+struct content_control_list_item {
+    std::string display_text;
+    std::string value;
+};
+
 struct content_control_summary {
     std::size_t index{};
     featherdoc::content_control_kind kind{featherdoc::content_control_kind::unknown};
+    featherdoc::content_control_form_kind form_kind{
+        featherdoc::content_control_form_kind::rich_text};
     std::optional<std::string> tag;
     std::optional<std::string> alias;
     std::optional<std::string> id;
+    std::optional<std::string> lock;
+    std::optional<std::string> data_binding_store_item_id;
+    std::optional<std::string> data_binding_xpath;
+    std::optional<std::string> data_binding_prefix_mappings;
+    std::optional<bool> checked;
+    std::optional<std::string> date_format;
+    std::optional<std::string> date_locale;
+    std::optional<std::size_t> selected_list_item;
+    std::vector<featherdoc::content_control_list_item> list_items;
     bool showing_placeholder{false};
     std::string text;
 
@@ -403,6 +450,264 @@ struct content_control_summary {
     [[nodiscard]] bool has_alias() const noexcept {
         return this->alias.has_value() && !this->alias->empty();
     }
+};
+
+struct content_control_form_state_options {
+    std::optional<std::string> lock;
+    bool clear_lock{false};
+    bool clear_data_binding{false};
+    std::optional<std::string> data_binding_store_item_id;
+    std::optional<std::string> data_binding_xpath;
+    std::optional<std::string> data_binding_prefix_mappings;
+    std::optional<bool> checked;
+    std::optional<std::string> selected_list_item;
+    std::optional<std::string> date_text;
+    std::optional<std::string> date_format;
+    std::optional<std::string> date_locale;
+};
+
+struct custom_xml_data_binding_sync_item {
+    std::string part_entry_name;
+    std::size_t content_control_index{};
+    std::optional<std::string> tag;
+    std::optional<std::string> alias;
+    std::string store_item_id;
+    std::string xpath;
+    std::string previous_text;
+    std::string value;
+};
+
+struct custom_xml_data_binding_sync_issue {
+    std::string part_entry_name;
+    std::optional<std::size_t> content_control_index;
+    std::optional<std::string> tag;
+    std::optional<std::string> alias;
+    std::string store_item_id;
+    std::string xpath;
+    std::string reason;
+};
+
+struct custom_xml_data_binding_sync_result {
+    std::size_t scanned_content_controls{};
+    std::size_t bound_content_controls{};
+    std::size_t synced_content_controls{};
+    std::vector<featherdoc::custom_xml_data_binding_sync_item> synced_items;
+    std::vector<featherdoc::custom_xml_data_binding_sync_issue> issues;
+
+    [[nodiscard]] bool has_issues() const noexcept {
+        return !this->issues.empty();
+    }
+};
+
+struct hyperlink_summary {
+    std::size_t index{};
+    std::string text;
+    std::optional<std::string> relationship_id;
+    std::optional<std::string> target;
+    std::optional<std::string> anchor;
+    bool external{false};
+};
+
+enum class field_kind : std::uint8_t {
+    page = 0U,
+    total_pages,
+    table_of_contents,
+    reference,
+    page_reference,
+    style_reference,
+    document_property,
+    date,
+    hyperlink,
+    sequence,
+    index,
+    index_entry,
+    custom,
+};
+
+struct field_summary {
+    std::size_t index{};
+    featherdoc::field_kind kind{featherdoc::field_kind::custom};
+    std::string instruction;
+    std::string result_text;
+    bool dirty{false};
+    bool locked{false};
+    bool complex{false};
+    std::size_t depth{0U};
+};
+
+struct omml_summary {
+    std::size_t index{};
+    bool display{false};
+    std::string text;
+    std::string xml;
+};
+
+[[nodiscard]] std::string make_omml_text(std::string_view text,
+                                          bool display = false);
+[[nodiscard]] std::string make_omml_fraction(std::string_view numerator,
+                                              std::string_view denominator,
+                                              bool display = true);
+[[nodiscard]] std::string make_omml_superscript(std::string_view base,
+                                                 std::string_view superscript,
+                                                 bool display = false);
+[[nodiscard]] std::string make_omml_subscript(std::string_view base,
+                                               std::string_view subscript,
+                                               bool display = false);
+[[nodiscard]] std::string make_omml_radical(std::string_view radicand,
+                                             std::string_view degree = {},
+                                             bool display = true);
+[[nodiscard]] std::string make_omml_delimiter(std::string_view expression,
+                                               std::string_view begin = "(",
+                                               std::string_view end = ")",
+                                               bool display = false);
+[[nodiscard]] std::string make_omml_nary(std::string_view operator_character,
+                                          std::string_view expression,
+                                          std::string_view lower_limit = {},
+                                          std::string_view upper_limit = {},
+                                          bool display = true);
+
+struct field_state_options {
+    bool dirty{false};
+    bool locked{false};
+};
+
+enum class complex_field_instruction_fragment_kind : std::uint8_t {
+    text = 0U,
+    nested_field,
+};
+
+struct complex_field_instruction_fragment {
+    featherdoc::complex_field_instruction_fragment_kind kind{
+        featherdoc::complex_field_instruction_fragment_kind::text};
+    std::string text;
+    std::string instruction;
+    std::string result_text;
+    featherdoc::field_state_options state{};
+};
+
+struct complex_field_options {
+    featherdoc::field_state_options state{};
+};
+
+[[nodiscard]] featherdoc::complex_field_instruction_fragment
+complex_field_text_fragment(std::string_view text);
+[[nodiscard]] featherdoc::complex_field_instruction_fragment
+complex_field_nested_fragment(
+    std::string_view instruction, std::string_view result_text = {},
+    featherdoc::field_state_options state = {});
+
+struct table_of_contents_field_options {
+    std::uint32_t min_outline_level{1U};
+    std::uint32_t max_outline_level{3U};
+    bool hyperlinks{true};
+    bool hide_page_numbers_in_web_layout{true};
+    bool use_outline_levels{true};
+    featherdoc::field_state_options state{};
+};
+
+struct reference_field_options {
+    bool hyperlink{true};
+    bool preserve_formatting{true};
+    featherdoc::field_state_options state{};
+};
+
+struct page_reference_field_options {
+    bool hyperlink{true};
+    bool relative_position{false};
+    bool preserve_formatting{true};
+    featherdoc::field_state_options state{};
+};
+
+struct style_reference_field_options {
+    bool paragraph_number{false};
+    bool relative_position{false};
+    bool preserve_formatting{true};
+    featherdoc::field_state_options state{};
+};
+
+struct document_property_field_options {
+    bool preserve_formatting{true};
+    featherdoc::field_state_options state{};
+};
+
+struct date_field_options {
+    std::string format{"yyyy-MM-dd"};
+    bool preserve_formatting{true};
+    featherdoc::field_state_options state{};
+};
+
+struct hyperlink_field_options {
+    std::optional<std::string> anchor;
+    std::optional<std::string> tooltip;
+    bool preserve_formatting{true};
+    featherdoc::field_state_options state{};
+};
+
+struct sequence_field_options {
+    std::string number_format{"ARABIC"};
+    std::optional<std::uint32_t> restart_value;
+    bool preserve_formatting{true};
+    featherdoc::field_state_options state{};
+};
+
+struct caption_field_options {
+    std::string number_format{"ARABIC"};
+    std::optional<std::uint32_t> restart_value;
+    std::string separator{": "};
+    bool preserve_formatting{true};
+    featherdoc::field_state_options state{};
+};
+
+struct index_field_options {
+    std::optional<std::uint32_t> columns;
+    bool preserve_formatting{true};
+    featherdoc::field_state_options state{};
+};
+
+struct index_entry_field_options {
+    std::optional<std::string> subentry;
+    std::optional<std::string> bookmark_name;
+    std::optional<std::string> cross_reference;
+    bool bold_page_number{false};
+    bool italic_page_number{false};
+    featherdoc::field_state_options state{};
+};
+
+enum class review_note_kind : std::uint8_t {
+    footnote = 0U,
+    endnote,
+    comment,
+};
+
+struct review_note_summary {
+    std::size_t index{};
+    featherdoc::review_note_kind kind{featherdoc::review_note_kind::footnote};
+    std::string id;
+    std::optional<std::string> author;
+    std::optional<std::string> initials;
+    std::optional<std::string> date;
+    std::optional<std::string> anchor_text;
+    std::string text;
+};
+
+enum class revision_kind : std::uint8_t {
+    insertion = 0U,
+    deletion,
+    move_from,
+    move_to,
+    paragraph_property_change,
+    run_property_change,
+    unknown,
+};
+
+struct revision_summary {
+    std::size_t index{};
+    featherdoc::revision_kind kind{featherdoc::revision_kind::unknown};
+    std::string id;
+    std::optional<std::string> author;
+    std::optional<std::string> date;
+    std::string part_entry_name;
+    std::string text;
 };
 
 enum class template_slot_kind : std::uint8_t {
@@ -488,6 +793,35 @@ struct template_schema {
     std::vector<featherdoc::template_schema_entry> entries;
 };
 
+enum class template_schema_scan_target_mode : std::uint8_t {
+    related_parts = 0U,
+    section_targets,
+    resolved_section_targets,
+};
+
+struct template_schema_scan_options {
+    featherdoc::template_schema_scan_target_mode target_mode{
+        featherdoc::template_schema_scan_target_mode::related_parts};
+    bool include_bookmark_slots{true};
+    bool include_content_control_slots{true};
+};
+
+struct template_schema_scan_skipped_bookmark {
+    featherdoc::template_schema_part_selector target{};
+    std::string entry_name;
+    featherdoc::bookmark_summary bookmark;
+    std::string reason;
+};
+
+struct template_schema_scan_result {
+    featherdoc::template_schema schema;
+    std::vector<featherdoc::template_schema_scan_skipped_bookmark> skipped_bookmarks;
+
+    [[nodiscard]] std::size_t slot_count() const noexcept {
+        return this->schema.entries.size();
+    }
+};
+
 struct template_schema_slot_selector {
     featherdoc::template_schema_part_selector target{};
     std::string bookmark_name;
@@ -549,44 +883,20 @@ struct template_schema_patch_summary {
     }
 };
 
-[[nodiscard]] template_schema_normalization_summary normalize_template_schema(
-    featherdoc::template_schema &schema);
-[[nodiscard]] template_schema_patch_summary merge_template_schema(
-    featherdoc::template_schema &base, const featherdoc::template_schema &overlay);
-[[nodiscard]] template_schema_patch_summary apply_template_schema_patch(
-    featherdoc::template_schema &schema, const featherdoc::template_schema_patch &patch);
-[[nodiscard]] template_schema_patch_summary preview_template_schema_patch(
-    const featherdoc::template_schema &schema,
-    const featherdoc::template_schema_patch &patch);
-[[nodiscard]] template_schema_patch_summary preview_template_schema_patch(
-    const featherdoc::template_schema &left,
-    const featherdoc::template_schema &right);
-[[nodiscard]] featherdoc::template_schema_patch build_template_schema_patch(
-    const featherdoc::template_schema &left, const featherdoc::template_schema &right);
-[[nodiscard]] template_schema_patch_summary replace_template_schema_target(
-    featherdoc::template_schema &schema,
-    const featherdoc::template_schema_part_selector &target,
-    std::span<const featherdoc::template_schema_entry> entries);
-[[nodiscard]] template_schema_patch_summary replace_template_schema_target(
-    featherdoc::template_schema &schema,
-    const featherdoc::template_schema_part_selector &target,
-    std::initializer_list<featherdoc::template_schema_entry> entries);
-[[nodiscard]] template_schema_patch_summary upsert_template_schema_slot(
-    featherdoc::template_schema &schema, const featherdoc::template_schema_entry &entry);
-[[nodiscard]] template_schema_patch_summary remove_template_schema_target(
-    featherdoc::template_schema &schema,
-    const featherdoc::template_schema_part_selector &target);
-[[nodiscard]] template_schema_patch_summary remove_template_schema_slot(
-    featherdoc::template_schema &schema,
-    const featherdoc::template_schema_slot_selector &slot);
-[[nodiscard]] template_schema_patch_summary rename_template_schema_slot(
-    featherdoc::template_schema &schema,
-    const featherdoc::template_schema_slot_selector &slot,
-    std::string_view new_bookmark_name);
-[[nodiscard]] template_schema_patch_summary update_template_schema_slot(
-    featherdoc::template_schema &schema,
-    const featherdoc::template_schema_slot_selector &slot,
-    const featherdoc::template_schema_slot_update &update);
+struct template_schema_patch_review_summary {
+    std::size_t baseline_slot_count{};
+    std::optional<std::size_t> generated_slot_count;
+    std::size_t patch_upsert_slot_count{};
+    std::size_t patch_remove_target_count{};
+    std::size_t patch_remove_slot_count{};
+    std::size_t patch_rename_slot_count{};
+    std::size_t patch_update_slot_count{};
+    featherdoc::template_schema_patch_summary preview{};
+
+    [[nodiscard]] bool changed() const noexcept {
+        return this->preview.changed();
+    }
+};
 
 struct template_schema_part_validation_result {
     featherdoc::template_schema_part_selector target{};
@@ -612,6 +922,154 @@ struct template_schema_validation_result {
         return true;
     }
 };
+
+enum class template_onboarding_issue_severity : std::uint8_t {
+    info = 0U,
+    warning,
+    error,
+};
+
+enum class template_onboarding_next_action_kind : std::uint8_t {
+    fix_template_slots = 0U,
+    create_schema_baseline,
+    review_schema_patch,
+    prepare_render_data,
+    run_project_template_smoke,
+};
+
+struct template_onboarding_issue {
+    featherdoc::template_onboarding_issue_severity severity{
+        featherdoc::template_onboarding_issue_severity::info};
+    std::string code;
+    std::string message;
+    std::optional<featherdoc::template_schema_part_selector> target;
+    std::optional<std::string> slot_name;
+};
+
+struct template_onboarding_next_action {
+    featherdoc::template_onboarding_next_action_kind kind{
+        featherdoc::template_onboarding_next_action_kind::prepare_render_data};
+    std::string code;
+    std::string message;
+    bool blocking{false};
+};
+
+struct template_onboarding_options {
+    featherdoc::template_schema_scan_options scan_options{};
+    std::optional<featherdoc::template_schema> baseline_schema;
+    bool validate_scanned_schema{true};
+    bool validate_baseline_schema{true};
+};
+
+struct template_onboarding_result {
+    featherdoc::template_schema_scan_result scan{};
+    bool baseline_schema_available{false};
+    std::optional<featherdoc::template_schema_validation_result>
+        scanned_schema_validation;
+    std::optional<featherdoc::template_schema_validation_result> baseline_validation;
+    std::optional<featherdoc::template_schema_patch> schema_patch;
+    std::optional<featherdoc::template_schema_patch_review_summary> patch_review;
+    std::vector<featherdoc::template_onboarding_issue> issues;
+    std::vector<featherdoc::template_onboarding_next_action> next_actions;
+
+    [[nodiscard]] std::size_t slot_count() const noexcept {
+        return this->scan.slot_count();
+    }
+
+    [[nodiscard]] bool has_errors() const noexcept {
+        for (const auto &issue : this->issues) {
+            if (issue.severity ==
+                featherdoc::template_onboarding_issue_severity::error) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    [[nodiscard]] bool has_warnings() const noexcept {
+        for (const auto &issue : this->issues) {
+            if (issue.severity ==
+                featherdoc::template_onboarding_issue_severity::warning) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    [[nodiscard]] bool requires_schema_review() const noexcept {
+        return this->patch_review.has_value() && this->patch_review->changed();
+    }
+
+    [[nodiscard]] bool ready_for_render_data() const noexcept {
+        return !this->has_errors() && !this->requires_schema_review();
+    }
+
+    [[nodiscard]] bool ready_for_project_smoke() const noexcept {
+        return this->baseline_schema_available && this->ready_for_render_data();
+    }
+
+    explicit operator bool() const noexcept {
+        return !this->has_errors();
+    }
+};
+
+[[nodiscard]] template_schema_normalization_summary normalize_template_schema(
+    featherdoc::template_schema &schema);
+[[nodiscard]] template_schema_patch_summary merge_template_schema(
+    featherdoc::template_schema &base, const featherdoc::template_schema &overlay);
+[[nodiscard]] template_schema_patch_summary apply_template_schema_patch(
+    featherdoc::template_schema &schema, const featherdoc::template_schema_patch &patch);
+[[nodiscard]] template_schema_patch_summary preview_template_schema_patch(
+    const featherdoc::template_schema &schema,
+    const featherdoc::template_schema_patch &patch);
+[[nodiscard]] template_schema_patch_summary preview_template_schema_patch(
+    const featherdoc::template_schema &left,
+    const featherdoc::template_schema &right);
+[[nodiscard]] featherdoc::template_schema_patch build_template_schema_patch(
+    const featherdoc::template_schema &left, const featherdoc::template_schema &right);
+[[nodiscard]] featherdoc::template_schema_patch_review_summary
+make_template_schema_patch_review_summary(
+    const featherdoc::template_schema &baseline,
+    const featherdoc::template_schema_patch &patch);
+[[nodiscard]] featherdoc::template_schema_patch_review_summary
+make_template_schema_patch_review_summary(
+    const featherdoc::template_schema &baseline,
+    const featherdoc::template_schema &generated);
+void write_template_schema_patch_review_json(
+    std::ostream &stream,
+    const featherdoc::template_schema_patch_review_summary &summary);
+[[nodiscard]] std::string template_schema_patch_review_json(
+    const featherdoc::template_schema_patch_review_summary &summary);
+[[nodiscard]] template_schema_patch_summary replace_template_schema_target(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_part_selector &target,
+    std::span<const featherdoc::template_schema_entry> entries);
+[[nodiscard]] template_schema_patch_summary replace_template_schema_target(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_part_selector &target,
+    std::initializer_list<featherdoc::template_schema_entry> entries);
+[[nodiscard]] template_schema_patch_summary upsert_template_schema_slot(
+    featherdoc::template_schema &schema, const featherdoc::template_schema_entry &entry);
+[[nodiscard]] template_schema_patch_summary remove_template_schema_target(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_part_selector &target);
+[[nodiscard]] template_schema_patch_summary rename_template_schema_target(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_part_selector &source_target,
+    const featherdoc::template_schema_part_selector &target);
+[[nodiscard]] template_schema_patch_summary remove_template_schema_slot(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_slot_selector &slot);
+[[nodiscard]] template_schema_patch_summary rename_template_schema_slot(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_slot_selector &slot,
+    std::string_view new_bookmark_name);
+[[nodiscard]] template_schema_patch_summary update_template_schema_slot(
+    featherdoc::template_schema &schema,
+    const featherdoc::template_schema_slot_selector &slot,
+    const featherdoc::template_schema_slot_update &update);
 
 enum class page_orientation : std::uint8_t {
     portrait = 0U,
@@ -1116,6 +1574,46 @@ struct character_style_definition {
     std::optional<bool> run_rtl;
 };
 
+struct table_style_margins_definition {
+    std::optional<std::uint32_t> top_twips;
+    std::optional<std::uint32_t> left_twips;
+    std::optional<std::uint32_t> bottom_twips;
+    std::optional<std::uint32_t> right_twips;
+};
+
+struct table_style_borders_definition {
+    std::optional<featherdoc::border_definition> top;
+    std::optional<featherdoc::border_definition> left;
+    std::optional<featherdoc::border_definition> bottom;
+    std::optional<featherdoc::border_definition> right;
+    std::optional<featherdoc::border_definition> inside_horizontal;
+    std::optional<featherdoc::border_definition> inside_vertical;
+};
+
+struct table_style_paragraph_spacing_definition {
+    std::optional<std::uint32_t> before_twips;
+    std::optional<std::uint32_t> after_twips;
+    std::optional<std::uint32_t> line_twips;
+    std::optional<featherdoc::paragraph_line_spacing_rule> line_rule;
+};
+
+struct table_style_region_definition {
+    std::optional<std::string> fill_color;
+    std::optional<std::string> text_color;
+    std::optional<bool> bold;
+    std::optional<bool> italic;
+    std::optional<std::uint32_t> font_size_points;
+    std::optional<std::string> font_family;
+    std::optional<std::string> east_asia_font_family;
+    std::optional<featherdoc::cell_vertical_alignment> cell_vertical_alignment;
+    std::optional<featherdoc::cell_text_direction> cell_text_direction;
+    std::optional<featherdoc::paragraph_alignment> paragraph_alignment;
+    std::optional<featherdoc::table_style_paragraph_spacing_definition>
+        paragraph_spacing;
+    std::optional<featherdoc::table_style_margins_definition> cell_margins;
+    std::optional<featherdoc::table_style_borders_definition> borders;
+};
+
 struct table_style_definition {
     std::string name;
     std::optional<std::string> based_on;
@@ -1123,6 +1621,107 @@ struct table_style_definition {
     bool is_semi_hidden{false};
     bool is_unhide_when_used{false};
     bool is_quick_format{false};
+    std::optional<featherdoc::table_style_region_definition> whole_table;
+    std::optional<featherdoc::table_style_region_definition> first_row;
+    std::optional<featherdoc::table_style_region_definition> last_row;
+    std::optional<featherdoc::table_style_region_definition> first_column;
+    std::optional<featherdoc::table_style_region_definition> last_column;
+    std::optional<featherdoc::table_style_region_definition> banded_rows;
+    std::optional<featherdoc::table_style_region_definition> banded_columns;
+    std::optional<featherdoc::table_style_region_definition> second_banded_rows;
+    std::optional<featherdoc::table_style_region_definition> second_banded_columns;
+};
+
+struct table_style_border_summary {
+    std::optional<std::string> style;
+    std::optional<std::uint32_t> size_eighth_points;
+    std::optional<std::string> color;
+    std::optional<std::uint32_t> space_points;
+};
+
+struct table_style_borders_summary {
+    std::optional<featherdoc::table_style_border_summary> top;
+    std::optional<featherdoc::table_style_border_summary> left;
+    std::optional<featherdoc::table_style_border_summary> bottom;
+    std::optional<featherdoc::table_style_border_summary> right;
+    std::optional<featherdoc::table_style_border_summary> inside_horizontal;
+    std::optional<featherdoc::table_style_border_summary> inside_vertical;
+};
+
+struct table_style_region_summary {
+    std::optional<std::string> fill_color;
+    std::optional<std::string> text_color;
+    std::optional<bool> bold;
+    std::optional<bool> italic;
+    std::optional<std::uint32_t> font_size_points;
+    std::optional<std::string> font_family;
+    std::optional<std::string> east_asia_font_family;
+    std::optional<featherdoc::cell_vertical_alignment> cell_vertical_alignment;
+    std::optional<featherdoc::cell_text_direction> cell_text_direction;
+    std::optional<featherdoc::paragraph_alignment> paragraph_alignment;
+    std::optional<featherdoc::table_style_paragraph_spacing_definition>
+        paragraph_spacing;
+    std::optional<featherdoc::table_style_margins_definition> cell_margins;
+    std::optional<featherdoc::table_style_borders_summary> borders;
+};
+
+struct table_style_definition_summary {
+    featherdoc::style_summary style;
+    std::optional<featherdoc::table_style_region_summary> whole_table;
+    std::optional<featherdoc::table_style_region_summary> first_row;
+    std::optional<featherdoc::table_style_region_summary> last_row;
+    std::optional<featherdoc::table_style_region_summary> first_column;
+    std::optional<featherdoc::table_style_region_summary> last_column;
+    std::optional<featherdoc::table_style_region_summary> banded_rows;
+    std::optional<featherdoc::table_style_region_summary> banded_columns;
+    std::optional<featherdoc::table_style_region_summary> second_banded_rows;
+    std::optional<featherdoc::table_style_region_summary> second_banded_columns;
+};
+
+struct table_style_region_audit_issue {
+    std::string style_id;
+    std::string style_name;
+    std::string region;
+    std::string issue_type;
+    std::size_t property_count{0};
+    std::string suggestion;
+};
+
+struct table_style_region_audit_report {
+    std::size_t table_style_count{0};
+    std::size_t region_count{0};
+    std::vector<featherdoc::table_style_region_audit_issue> issues;
+
+    [[nodiscard]] std::size_t issue_count() const noexcept {
+        return this->issues.size();
+    }
+
+    [[nodiscard]] bool ok() const noexcept {
+        return this->issues.empty();
+    }
+};
+
+struct table_style_inheritance_audit_issue {
+    std::string style_id;
+    std::string style_name;
+    std::string based_on_style_id;
+    std::string based_on_style_kind;
+    std::string issue_type;
+    std::vector<std::string> inheritance_chain;
+    std::string suggestion;
+};
+
+struct table_style_inheritance_audit_report {
+    std::size_t table_style_count{0};
+    std::vector<featherdoc::table_style_inheritance_audit_issue> issues;
+
+    [[nodiscard]] std::size_t issue_count() const noexcept {
+        return this->issues.size();
+    }
+
+    [[nodiscard]] bool ok() const noexcept {
+        return this->issues.empty();
+    }
 };
 
 struct numbering_definition_summary {
@@ -1185,10 +1784,239 @@ struct table_inspection_summary {
     std::size_t index{0};
     std::optional<std::string> style_id;
     std::optional<std::uint32_t> width_twips;
+    std::optional<featherdoc::table_position> position;
     std::size_t row_count{0};
     std::size_t column_count{0};
     std::vector<std::optional<std::uint32_t>> column_widths;
     std::string text;
+};
+
+
+enum class document_semantic_diff_change_kind : std::uint8_t {
+    added = 0U,
+    removed,
+    changed,
+};
+
+struct document_semantic_diff_options {
+    bool compare_paragraphs{true};
+    bool compare_tables{true};
+    bool compare_images{true};
+    bool compare_content_controls{true};
+    bool compare_fields{true};
+    bool compare_styles{true};
+    bool compare_numbering{true};
+    bool compare_footnotes{true};
+    bool compare_endnotes{true};
+    bool compare_comments{true};
+    bool compare_revisions{true};
+    bool compare_sections{true};
+    bool compare_template_parts{true};
+    bool compare_resolved_section_template_parts{true};
+    bool compare_image_relationship_ids{false};
+    bool compare_content_control_ids{false};
+    bool align_sequences_by_content{true};
+    std::size_t alignment_cell_limit{250000U};
+};
+
+struct document_semantic_diff_category_summary {
+    std::size_t left_count{0};
+    std::size_t right_count{0};
+    std::size_t added_count{0};
+    std::size_t removed_count{0};
+    std::size_t changed_count{0};
+    std::size_t unchanged_count{0};
+
+    [[nodiscard]] std::size_t change_count() const noexcept {
+        return this->added_count + this->removed_count + this->changed_count;
+    }
+
+    [[nodiscard]] bool different() const noexcept {
+        return this->change_count() != 0U;
+    }
+};
+
+struct document_semantic_diff_field_change {
+    std::string field_path;
+    std::string left_value;
+    std::string right_value;
+};
+
+struct document_semantic_diff_change {
+    featherdoc::document_semantic_diff_change_kind kind{
+        featherdoc::document_semantic_diff_change_kind::changed};
+    std::optional<std::size_t> left_index;
+    std::optional<std::size_t> right_index;
+    std::string field;
+    std::string left_value;
+    std::string right_value;
+    std::vector<featherdoc::document_semantic_diff_field_change> field_changes;
+};
+
+struct document_semantic_diff_part_result {
+    featherdoc::template_schema_part_selector target{};
+    std::string entry_name;
+    std::optional<std::size_t> left_resolved_from_section_index;
+    std::optional<std::size_t> right_resolved_from_section_index;
+    featherdoc::document_semantic_diff_category_summary paragraphs;
+    featherdoc::document_semantic_diff_category_summary tables;
+    featherdoc::document_semantic_diff_category_summary images;
+    featherdoc::document_semantic_diff_category_summary content_controls;
+    featherdoc::document_semantic_diff_category_summary fields;
+    std::vector<featherdoc::document_semantic_diff_change> paragraph_changes;
+    std::vector<featherdoc::document_semantic_diff_change> table_changes;
+    std::vector<featherdoc::document_semantic_diff_change> image_changes;
+    std::vector<featherdoc::document_semantic_diff_change> content_control_changes;
+    std::vector<featherdoc::document_semantic_diff_change> field_changes;
+
+    [[nodiscard]] std::size_t change_count() const noexcept {
+        return this->paragraphs.change_count() + this->tables.change_count() +
+               this->images.change_count() +
+               this->content_controls.change_count() +
+               this->fields.change_count();
+    }
+
+    [[nodiscard]] bool different() const noexcept {
+        return this->change_count() != 0U;
+    }
+};
+
+struct document_semantic_diff_result {
+    featherdoc::document_semantic_diff_category_summary paragraphs;
+    featherdoc::document_semantic_diff_category_summary tables;
+    featherdoc::document_semantic_diff_category_summary images;
+    featherdoc::document_semantic_diff_category_summary content_controls;
+    featherdoc::document_semantic_diff_category_summary fields;
+    featherdoc::document_semantic_diff_category_summary styles;
+    featherdoc::document_semantic_diff_category_summary numbering;
+    featherdoc::document_semantic_diff_category_summary footnotes;
+    featherdoc::document_semantic_diff_category_summary endnotes;
+    featherdoc::document_semantic_diff_category_summary comments;
+    featherdoc::document_semantic_diff_category_summary revisions;
+    featherdoc::document_semantic_diff_category_summary sections;
+    featherdoc::document_semantic_diff_category_summary template_parts;
+    std::vector<featherdoc::document_semantic_diff_change> paragraph_changes;
+    std::vector<featherdoc::document_semantic_diff_change> table_changes;
+    std::vector<featherdoc::document_semantic_diff_change> image_changes;
+    std::vector<featherdoc::document_semantic_diff_change> content_control_changes;
+    std::vector<featherdoc::document_semantic_diff_change> field_changes;
+    std::vector<featherdoc::document_semantic_diff_change> style_changes;
+    std::vector<featherdoc::document_semantic_diff_change> numbering_changes;
+    std::vector<featherdoc::document_semantic_diff_change> footnote_changes;
+    std::vector<featherdoc::document_semantic_diff_change> endnote_changes;
+    std::vector<featherdoc::document_semantic_diff_change> comment_changes;
+    std::vector<featherdoc::document_semantic_diff_change> revision_changes;
+    std::vector<featherdoc::document_semantic_diff_change> section_changes;
+    std::vector<featherdoc::document_semantic_diff_part_result> template_part_results;
+
+    [[nodiscard]] std::size_t change_count() const noexcept {
+        return this->paragraphs.change_count() + this->tables.change_count() +
+               this->images.change_count() +
+               this->content_controls.change_count() +
+               this->fields.change_count() + this->styles.change_count() +
+               this->numbering.change_count() + this->footnotes.change_count() +
+               this->endnotes.change_count() + this->comments.change_count() +
+               this->revisions.change_count() + this->sections.change_count() +
+               this->template_parts.change_count();
+    }
+
+    [[nodiscard]] bool different() const noexcept {
+        return this->change_count() != 0U;
+    }
+};
+
+struct table_style_look_consistency_issue {
+    std::size_t table_index{0};
+    std::string style_id;
+    std::string issue_type;
+    std::string region;
+    std::string required_style_look_flag;
+    std::optional<bool> actual_value;
+    bool expected_value{true};
+    std::string suggestion;
+};
+
+struct table_style_look_consistency_report {
+    std::size_t table_count{0};
+    std::vector<featherdoc::table_style_look_consistency_issue> issues;
+
+    [[nodiscard]] std::size_t issue_count() const noexcept {
+        return this->issues.size();
+    }
+
+    [[nodiscard]] bool ok() const noexcept {
+        return this->issues.empty();
+    }
+};
+
+struct table_style_look_repair_report {
+    featherdoc::table_style_look_consistency_report before;
+    featherdoc::table_style_look_consistency_report after;
+    std::size_t changed_table_count{0};
+
+    [[nodiscard]] bool changed() const noexcept {
+        return this->changed_table_count > 0U;
+    }
+
+    [[nodiscard]] bool ok() const noexcept {
+        return this->after.ok();
+    }
+};
+
+struct table_style_quality_audit_report {
+    featherdoc::table_style_region_audit_report region_audit;
+    featherdoc::table_style_inheritance_audit_report inheritance_audit;
+    featherdoc::table_style_look_consistency_report style_look;
+
+    [[nodiscard]] std::size_t issue_count() const noexcept {
+        return this->region_audit.issue_count() +
+               this->inheritance_audit.issue_count() +
+               this->style_look.issue_count();
+    }
+
+    [[nodiscard]] bool ok() const noexcept {
+        return this->issue_count() == 0U;
+    }
+};
+
+struct table_style_quality_fix_item {
+    std::string source;
+    std::string issue_type;
+    std::optional<std::size_t> table_index;
+    std::string style_id;
+    std::string style_name;
+    std::string region;
+    std::string action;
+    bool automatic{false};
+    std::string command;
+    std::string suggestion;
+};
+
+struct table_style_quality_fix_plan {
+    featherdoc::table_style_quality_audit_report audit;
+    std::vector<featherdoc::table_style_quality_fix_item> items;
+
+    [[nodiscard]] std::size_t issue_count() const noexcept {
+        return this->audit.issue_count();
+    }
+
+    [[nodiscard]] std::size_t automatic_fix_count() const noexcept {
+        auto count = std::size_t{0U};
+        for (const auto &item : this->items) {
+            if (item.automatic) {
+                ++count;
+            }
+        }
+        return count;
+    }
+
+    [[nodiscard]] std::size_t manual_fix_count() const noexcept {
+        return this->items.size() - this->automatic_fix_count();
+    }
+
+    [[nodiscard]] bool ok() const noexcept {
+        return this->audit.ok();
+    }
 };
 
 struct template_table_selector {
@@ -1291,8 +2119,74 @@ class TemplatePart {
         const std::filesystem::path &image_path, std::uint32_t width_px,
         std::uint32_t height_px,
         featherdoc::floating_image_options options = {});
-    [[nodiscard]] bool append_page_number_field();
-    [[nodiscard]] bool append_total_pages_field();
+    [[nodiscard]] bool append_page_number_field(
+        featherdoc::field_state_options state = {});
+    [[nodiscard]] bool append_total_pages_field(
+        featherdoc::field_state_options state = {});
+    [[nodiscard]] std::vector<featherdoc::field_summary> list_fields() const;
+    [[nodiscard]] bool append_field(
+        std::string_view instruction, std::string_view result_text = {},
+        featherdoc::field_state_options state = {});
+    [[nodiscard]] bool append_complex_field(
+        std::string_view instruction, std::string_view result_text = {},
+        featherdoc::complex_field_options options = {});
+    [[nodiscard]] bool append_complex_field(
+        std::span<const featherdoc::complex_field_instruction_fragment> instruction_fragments,
+        std::string_view result_text = {},
+        featherdoc::complex_field_options options = {});
+    [[nodiscard]] bool append_complex_field(
+        std::initializer_list<featherdoc::complex_field_instruction_fragment> instruction_fragments,
+        std::string_view result_text = {},
+        featherdoc::complex_field_options options = {});
+    [[nodiscard]] bool append_table_of_contents_field(
+        featherdoc::table_of_contents_field_options options = {},
+        std::string_view result_text = "Update table of contents in Word");
+    [[nodiscard]] bool append_reference_field(
+        std::string_view bookmark_name,
+        featherdoc::reference_field_options options = {},
+        std::string_view result_text = {});
+    [[nodiscard]] bool append_page_reference_field(
+        std::string_view bookmark_name,
+        featherdoc::page_reference_field_options options = {},
+        std::string_view result_text = {});
+    [[nodiscard]] bool append_style_reference_field(
+        std::string_view style_name,
+        featherdoc::style_reference_field_options options = {},
+        std::string_view result_text = {});
+    [[nodiscard]] bool append_document_property_field(
+        std::string_view property_name,
+        featherdoc::document_property_field_options options = {},
+        std::string_view result_text = {});
+    [[nodiscard]] bool append_date_field(
+        featherdoc::date_field_options options = {},
+        std::string_view result_text = {});
+    [[nodiscard]] bool append_hyperlink_field(
+        std::string_view target,
+        featherdoc::hyperlink_field_options options = {},
+        std::string_view result_text = {});
+    [[nodiscard]] bool append_sequence_field(
+        std::string_view identifier,
+        featherdoc::sequence_field_options options = {},
+        std::string_view result_text = "1");
+    [[nodiscard]] bool append_caption(
+        std::string_view label, std::string_view caption_text,
+        featherdoc::caption_field_options options = {},
+        std::string_view number_result_text = "1");
+    [[nodiscard]] bool append_index_field(
+        featherdoc::index_field_options options = {},
+        std::string_view result_text = "Update index in Word");
+    [[nodiscard]] bool append_index_entry_field(
+        std::string_view entry_text,
+        featherdoc::index_entry_field_options options = {},
+        std::string_view result_text = {});
+    [[nodiscard]] bool replace_field(std::size_t field_index,
+                                     std::string_view instruction,
+                                     std::string_view result_text = {});
+    [[nodiscard]] std::vector<featherdoc::omml_summary> list_omml() const;
+    [[nodiscard]] bool append_omml(std::string_view omml_xml);
+    [[nodiscard]] bool replace_omml(std::size_t omml_index,
+                                    std::string_view omml_xml);
+    [[nodiscard]] bool remove_omml(std::size_t omml_index);
     [[nodiscard]] std::vector<featherdoc::table_inspection_summary> inspect_tables();
     [[nodiscard]] std::optional<featherdoc::table_inspection_summary>
     inspect_table(std::size_t table_index);
@@ -1321,6 +2215,14 @@ class TemplatePart {
         std::string_view bookmark_name) const;
     [[nodiscard]] std::vector<content_control_summary>
     list_content_controls() const;
+    [[nodiscard]] std::vector<featherdoc::hyperlink_summary>
+    list_hyperlinks() const;
+    [[nodiscard]] std::size_t append_hyperlink(std::string_view text,
+                                               std::string_view target);
+    [[nodiscard]] bool replace_hyperlink(std::size_t hyperlink_index,
+                                          std::string_view text,
+                                          std::string_view target);
+    [[nodiscard]] bool remove_hyperlink(std::size_t hyperlink_index);
     [[nodiscard]] std::vector<content_control_summary>
     find_content_controls_by_tag(std::string_view tag) const;
     [[nodiscard]] std::vector<content_control_summary>
@@ -1329,6 +2231,34 @@ class TemplatePart {
         std::string_view tag, std::string_view replacement);
     [[nodiscard]] std::size_t replace_content_control_text_by_alias(
         std::string_view alias, std::string_view replacement);
+    [[nodiscard]] std::size_t set_content_control_form_state_by_tag(
+        std::string_view tag,
+        const featherdoc::content_control_form_state_options &options);
+    [[nodiscard]] std::size_t set_content_control_form_state_by_alias(
+        std::string_view alias,
+        const featherdoc::content_control_form_state_options &options);
+    [[nodiscard]] std::size_t replace_content_control_with_paragraphs_by_tag(
+        std::string_view tag, const std::vector<std::string> &paragraphs);
+    [[nodiscard]] std::size_t replace_content_control_with_paragraphs_by_alias(
+        std::string_view alias, const std::vector<std::string> &paragraphs);
+    [[nodiscard]] std::size_t replace_content_control_with_table_rows_by_tag(
+        std::string_view tag, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_content_control_with_table_rows_by_alias(
+        std::string_view alias, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_content_control_with_table_by_tag(
+        std::string_view tag, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_content_control_with_table_by_alias(
+        std::string_view alias, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_content_control_with_image_by_tag(
+        std::string_view tag, const std::filesystem::path &image_path);
+    [[nodiscard]] std::size_t replace_content_control_with_image_by_tag(
+        std::string_view tag, const std::filesystem::path &image_path,
+        std::uint32_t width_px, std::uint32_t height_px);
+    [[nodiscard]] std::size_t replace_content_control_with_image_by_alias(
+        std::string_view alias, const std::filesystem::path &image_path);
+    [[nodiscard]] std::size_t replace_content_control_with_image_by_alias(
+        std::string_view alias, const std::filesystem::path &image_path,
+        std::uint32_t width_px, std::uint32_t height_px);
     [[nodiscard]] std::optional<std::size_t> find_table_index_by_bookmark(
         std::string_view bookmark_name) const;
     [[nodiscard]] std::optional<std::size_t> find_table_index(
@@ -1418,6 +2348,7 @@ class Document {
         bool apply_changes);
     [[nodiscard]] std::error_code ensure_even_and_odd_headers_enabled();
     [[nodiscard]] std::optional<bool> inspect_even_and_odd_headers_enabled();
+    [[nodiscard]] std::optional<bool> inspect_update_fields_on_open_enabled();
     [[nodiscard]] pugi::xml_node section_properties(std::size_t section_index) const;
     [[nodiscard]] pugi::xml_node ensure_section_properties(std::size_t section_index);
     [[nodiscard]] bool ensure_title_page_enabled(pugi::xml_node section_properties);
@@ -1503,6 +2434,20 @@ class Document {
         std::uint32_t height_px, featherdoc::floating_image_options options);
     [[nodiscard]] std::vector<drawing_image_info> drawing_images_in_part(
         std::string_view entry_name) const;
+    [[nodiscard]] std::vector<featherdoc::hyperlink_summary> list_hyperlinks_in_part(
+        pugi::xml_document &xml_document, std::string_view entry_name) const;
+    [[nodiscard]] std::size_t append_hyperlink_in_part(
+        pugi::xml_document &xml_document, std::string_view entry_name,
+        std::string_view text, std::string_view target);
+    [[nodiscard]] bool replace_hyperlink_in_part(
+        pugi::xml_document &xml_document, std::string_view entry_name,
+        std::size_t hyperlink_index, std::string_view text,
+        std::string_view target);
+    [[nodiscard]] bool remove_hyperlink_in_part(
+        pugi::xml_document &xml_document, std::string_view entry_name,
+        std::size_t hyperlink_index);
+    [[nodiscard]] bool ensure_review_notes_part(featherdoc::review_note_kind kind);
+    [[nodiscard]] bool ensure_comments_part();
     [[nodiscard]] bool extract_drawing_image_from_part(
         std::string_view entry_name, std::size_t image_index,
         const std::filesystem::path &output_path) const;
@@ -1525,6 +2470,11 @@ class Document {
         pugi::xml_document &xml_document, std::string_view entry_name,
         std::string_view bookmark_name, const std::filesystem::path &image_path,
         std::optional<std::pair<std::uint32_t, std::uint32_t>> dimensions);
+    [[nodiscard]] std::size_t replace_content_control_with_image_in_part(
+        pugi::xml_document &xml_document, std::string_view entry_name,
+        std::string_view value, bool match_tag,
+        const std::filesystem::path &image_path,
+        std::optional<std::pair<std::uint32_t, std::uint32_t>> dimensions);
     [[nodiscard]] std::size_t replace_bookmark_with_floating_image_in_part(
         pugi::xml_document &xml_document, std::string_view entry_name,
         std::string_view bookmark_name, const std::filesystem::path &image_path,
@@ -1543,6 +2493,9 @@ class Document {
     pugi::xml_document settings;
     pugi::xml_document numbering;
     pugi::xml_document styles;
+    pugi::xml_document footnotes;
+    pugi::xml_document endnotes;
+    pugi::xml_document comments;
     std::vector<std::unique_ptr<xml_part_state>> header_parts;
     std::vector<std::unique_ptr<xml_part_state>> footer_parts;
     std::vector<image_part_state> image_parts;
@@ -1552,6 +2505,9 @@ class Document {
     bool has_settings_part{false};
     bool has_numbering_part{false};
     bool has_styles_part{false};
+    bool has_footnotes_part{false};
+    bool has_endnotes_part{false};
+    bool has_comments_part{false};
     bool document_relationships_dirty{false};
     bool content_types_loaded{false};
     bool content_types_dirty{false};
@@ -1561,6 +2517,12 @@ class Document {
     bool numbering_dirty{false};
     bool styles_loaded{false};
     bool styles_dirty{false};
+    bool footnotes_loaded{false};
+    bool footnotes_dirty{false};
+    bool endnotes_loaded{false};
+    bool endnotes_dirty{false};
+    bool comments_loaded{false};
+    bool comments_dirty{false};
     mutable std::unordered_set<std::string> removed_related_part_entries;
     std::unordered_set<std::string> removed_archive_entries;
     mutable document_error_info last_error_info;
@@ -1578,6 +2540,9 @@ class Document {
     void set_path(std::filesystem::path);
     [[nodiscard]] const std::filesystem::path &path() const;
     [[nodiscard]] std::error_code open();
+    [[nodiscard]] bool enable_update_fields_on_open();
+    [[nodiscard]] bool clear_update_fields_on_open();
+    [[nodiscard]] std::optional<bool> update_fields_on_open_enabled();
     [[nodiscard]] std::error_code save() const;
     [[nodiscard]] std::error_code save_as(std::filesystem::path) const;
     [[nodiscard]] bool is_open() const;
@@ -1670,14 +2635,114 @@ class Document {
         std::string_view bookmark_name) const;
     [[nodiscard]] std::vector<content_control_summary>
     list_content_controls() const;
+    [[nodiscard]] std::optional<featherdoc::document_semantic_diff_result>
+    compare_semantic(
+        const Document &other,
+        featherdoc::document_semantic_diff_options options = {}) const;
+    [[nodiscard]] std::optional<custom_xml_data_binding_sync_result>
+    sync_content_controls_from_custom_xml();
     [[nodiscard]] std::vector<content_control_summary>
     find_content_controls_by_tag(std::string_view tag) const;
     [[nodiscard]] std::vector<content_control_summary>
     find_content_controls_by_alias(std::string_view alias) const;
+    [[nodiscard]] std::vector<featherdoc::review_note_summary>
+    list_footnotes() const;
+    [[nodiscard]] std::size_t append_footnote(std::string_view reference_text,
+                                              std::string_view note_text);
+    [[nodiscard]] bool replace_footnote(std::size_t note_index,
+                                         std::string_view note_text);
+    [[nodiscard]] bool remove_footnote(std::size_t note_index);
+    [[nodiscard]] std::vector<featherdoc::review_note_summary>
+    list_endnotes() const;
+    [[nodiscard]] std::size_t append_endnote(std::string_view reference_text,
+                                             std::string_view note_text);
+    [[nodiscard]] bool replace_endnote(std::size_t note_index,
+                                        std::string_view note_text);
+    [[nodiscard]] bool remove_endnote(std::size_t note_index);
+    [[nodiscard]] std::vector<featherdoc::review_note_summary>
+    list_comments() const;
+    [[nodiscard]] std::size_t append_comment(std::string_view selected_text,
+                                             std::string_view comment_text,
+                                             std::string_view author = {},
+                                             std::string_view initials = {});
+    [[nodiscard]] bool replace_comment(std::size_t comment_index,
+                                        std::string_view comment_text);
+    [[nodiscard]] bool remove_comment(std::size_t comment_index);
+    [[nodiscard]] std::vector<featherdoc::revision_summary>
+    list_revisions() const;
+    [[nodiscard]] std::size_t append_insertion_revision(
+        std::string_view text, std::string_view author = {},
+        std::string_view date = {});
+    [[nodiscard]] std::size_t append_deletion_revision(
+        std::string_view text, std::string_view author = {},
+        std::string_view date = {});
+    [[nodiscard]] bool insert_run_revision_after(
+        std::size_t paragraph_index, std::size_t run_index,
+        std::string_view text, std::string_view author = {},
+        std::string_view date = {});
+    [[nodiscard]] bool delete_run_revision(
+        std::size_t paragraph_index, std::size_t run_index,
+        std::string_view author = {}, std::string_view date = {});
+    [[nodiscard]] bool replace_run_revision(
+        std::size_t paragraph_index, std::size_t run_index,
+        std::string_view text, std::string_view author = {},
+        std::string_view date = {});
+    [[nodiscard]] bool insert_paragraph_text_revision(
+        std::size_t paragraph_index, std::size_t text_offset,
+        std::string_view text, std::string_view author = {},
+        std::string_view date = {});
+    [[nodiscard]] bool delete_paragraph_text_revision(
+        std::size_t paragraph_index, std::size_t text_offset,
+        std::size_t text_length, std::string_view author = {},
+        std::string_view date = {});
+    [[nodiscard]] bool replace_paragraph_text_revision(
+        std::size_t paragraph_index, std::size_t text_offset,
+        std::size_t text_length, std::string_view text,
+        std::string_view author = {}, std::string_view date = {});
+    [[nodiscard]] bool accept_revision(std::size_t revision_index);
+    [[nodiscard]] bool reject_revision(std::size_t revision_index);
+    [[nodiscard]] std::size_t accept_all_revisions();
+    [[nodiscard]] std::size_t reject_all_revisions();
+    [[nodiscard]] std::vector<featherdoc::hyperlink_summary>
+    list_hyperlinks() const;
+    [[nodiscard]] std::size_t append_hyperlink(std::string_view text,
+                                               std::string_view target);
+    [[nodiscard]] bool replace_hyperlink(std::size_t hyperlink_index,
+                                          std::string_view text,
+                                          std::string_view target);
+    [[nodiscard]] bool remove_hyperlink(std::size_t hyperlink_index);
     [[nodiscard]] std::size_t replace_content_control_text_by_tag(
         std::string_view tag, std::string_view replacement);
     [[nodiscard]] std::size_t replace_content_control_text_by_alias(
         std::string_view alias, std::string_view replacement);
+    [[nodiscard]] std::size_t set_content_control_form_state_by_tag(
+        std::string_view tag,
+        const featherdoc::content_control_form_state_options &options);
+    [[nodiscard]] std::size_t set_content_control_form_state_by_alias(
+        std::string_view alias,
+        const featherdoc::content_control_form_state_options &options);
+    [[nodiscard]] std::size_t replace_content_control_with_paragraphs_by_tag(
+        std::string_view tag, const std::vector<std::string> &paragraphs);
+    [[nodiscard]] std::size_t replace_content_control_with_paragraphs_by_alias(
+        std::string_view alias, const std::vector<std::string> &paragraphs);
+    [[nodiscard]] std::size_t replace_content_control_with_table_rows_by_tag(
+        std::string_view tag, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_content_control_with_table_rows_by_alias(
+        std::string_view alias, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_content_control_with_table_by_tag(
+        std::string_view tag, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_content_control_with_table_by_alias(
+        std::string_view alias, const std::vector<std::vector<std::string>> &rows);
+    [[nodiscard]] std::size_t replace_content_control_with_image_by_tag(
+        std::string_view tag, const std::filesystem::path &image_path);
+    [[nodiscard]] std::size_t replace_content_control_with_image_by_tag(
+        std::string_view tag, const std::filesystem::path &image_path,
+        std::uint32_t width_px, std::uint32_t height_px);
+    [[nodiscard]] std::size_t replace_content_control_with_image_by_alias(
+        std::string_view alias, const std::filesystem::path &image_path);
+    [[nodiscard]] std::size_t replace_content_control_with_image_by_alias(
+        std::string_view alias, const std::filesystem::path &image_path,
+        std::uint32_t width_px, std::uint32_t height_px);
     [[nodiscard]] template_validation_result validate_template(
         std::span<const template_slot_requirement> requirements) const;
     [[nodiscard]] template_validation_result validate_template(
@@ -1690,6 +2755,15 @@ class Document {
         std::initializer_list<featherdoc::template_schema_entry> entries) const;
     [[nodiscard]] featherdoc::template_schema_validation_result
     validate_template_schema(const featherdoc::template_schema &schema) const;
+    [[nodiscard]] std::optional<featherdoc::template_schema_scan_result>
+    scan_template_schema(
+        featherdoc::template_schema_scan_options options = {});
+    [[nodiscard]] std::optional<featherdoc::template_schema_patch>
+    build_template_schema_patch_from_scan(
+        const featherdoc::template_schema &baseline,
+        featherdoc::template_schema_scan_options options = {});
+    [[nodiscard]] std::optional<featherdoc::template_onboarding_result>
+    onboard_template(featherdoc::template_onboarding_options options = {});
     [[nodiscard]] std::size_t replace_bookmark_with_paragraphs(
         std::string_view bookmark_name, const std::vector<std::string> &paragraphs);
     [[nodiscard]] std::size_t replace_bookmark_with_table_rows(
@@ -1795,6 +2869,12 @@ class Document {
     [[nodiscard]] bool ensure_table_style(
         std::string_view style_id,
         const featherdoc::table_style_definition &definition);
+    [[nodiscard]] std::optional<featherdoc::table_style_definition_summary>
+    find_table_style_definition(std::string_view style_id);
+    [[nodiscard]] featherdoc::table_style_region_audit_report
+    audit_table_style_regions(std::optional<std::string_view> style_id = std::nullopt);
+    [[nodiscard]] featherdoc::table_style_inheritance_audit_report
+    audit_table_style_inheritance(std::optional<std::string_view> style_id = std::nullopt);
     [[nodiscard]] std::optional<std::string> style_run_font_family(std::string_view style_id);
     [[nodiscard]] std::optional<std::string> style_run_east_asia_font_family(
         std::string_view style_id);
@@ -1862,6 +2942,12 @@ class Document {
     [[nodiscard]] std::vector<featherdoc::table_inspection_summary> inspect_tables();
     [[nodiscard]] std::optional<featherdoc::table_inspection_summary>
     inspect_table(std::size_t table_index);
+    [[nodiscard]] featherdoc::table_style_look_consistency_report
+    check_table_style_look_consistency();
+    [[nodiscard]] featherdoc::table_style_look_repair_report
+    repair_table_style_look_consistency();
+    [[nodiscard]] featherdoc::table_style_quality_audit_report audit_table_style_quality();
+    [[nodiscard]] featherdoc::table_style_quality_fix_plan plan_table_style_quality_fixes();
     [[nodiscard]] std::vector<featherdoc::table_cell_inspection_summary>
     inspect_table_cells(std::size_t table_index);
     [[nodiscard]] std::optional<featherdoc::table_cell_inspection_summary>
@@ -1873,6 +2959,11 @@ class Document {
     inspect_paragraph_runs(std::size_t paragraph_index);
     [[nodiscard]] std::optional<featherdoc::run_inspection_summary>
     inspect_paragraph_run(std::size_t paragraph_index, std::size_t run_index);
+    [[nodiscard]] std::vector<featherdoc::omml_summary> list_omml() const;
+    [[nodiscard]] bool append_omml(std::string_view omml_xml);
+    [[nodiscard]] bool replace_omml(std::size_t omml_index,
+                                    std::string_view omml_xml);
+    [[nodiscard]] bool remove_omml(std::size_t omml_index);
 
     Paragraph &paragraphs();
     Table &tables();

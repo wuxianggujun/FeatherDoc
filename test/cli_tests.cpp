@@ -100,6 +100,18 @@ auto find_numbering_level_xml_node(pugi::xml_node abstract_num, std::string_view
     return {};
 }
 
+auto find_table_style_region_xml_node(pugi::xml_node style, std::string_view type_name)
+    -> pugi::xml_node {
+    for (auto region = style.child("w:tblStylePr"); region != pugi::xml_node{};
+         region = region.next_sibling("w:tblStylePr")) {
+        if (std::string_view{region.attribute("w:type").value()} == type_name) {
+            return region;
+        }
+    }
+
+    return {};
+}
+
 void create_cli_reference_fixture(const fs::path &path) {
     create_cli_fixture(path);
 
@@ -385,6 +397,278 @@ void create_cli_schema_v2_template_validation_fixture(const fs::path &path) {
 }
 
 
+void create_cli_semantic_diff_fixture(const fs::path &path,
+                                      std::string_view status,
+                                      std::string_view customer,
+                                      std::string_view amount) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+)";
+    const auto document_xml = std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>Semantic diff report</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Status: )"} + std::string{status} + R"(</w:t></w:r></w:p>
+    <w:sdt>
+      <w:sdtPr>
+        <w:alias w:val="Customer Name"/>
+        <w:tag w:val="customer_name"/>
+      </w:sdtPr>
+      <w:sdtContent><w:p><w:r><w:t>)" + std::string{customer} + R"(</w:t></w:r></w:p></w:sdtContent>
+    </w:sdt>
+    <w:tbl>
+      <w:tr><w:tc><w:p><w:r><w:t>Total</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>)" + std::string{amount} + R"(</w:t></w:r></w:p></w:tc></w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    zip_close(archive);
+}
+
+
+void create_cli_semantic_diff_field_fixture(
+    const fs::path &path, std::uint32_t toc_max_level,
+    std::string_view reference_result, std::uint32_t sequence_restart,
+    std::string_view sequence_result) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+)";
+    const auto document_xml = std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>Semantic field diff report</w:t></w:r></w:p>
+    <w:p><w:fldSimple w:instr=" TOC \o &quot;1-)"} +
+                              std::to_string(toc_max_level) +
+                              R"(&quot; \h \z \u "><w:r><w:t>TOC placeholder</w:t></w:r></w:fldSimple></w:p>
+    <w:p><w:fldSimple w:instr=" REF target_bookmark \h \* MERGEFORMAT "><w:r><w:t>)" +
+                              std::string{reference_result} +
+                              R"(</w:t></w:r></w:fldSimple></w:p>
+    <w:p><w:fldSimple w:instr=" SEQ Figure \* ARABIC \r )" +
+                              std::to_string(sequence_restart) +
+                              R"( \* MERGEFORMAT "><w:r><w:t>)" +
+                              std::string{sequence_result} +
+                              R"(</w:t></w:r></w:fldSimple></w:p>
+  </w:body>
+</w:document>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    zip_close(archive);
+}
+
+
+
+void create_cli_semantic_diff_style_numbering_fixture(
+    const fs::path &path, std::string_view style_name,
+    std::string_view based_on, std::string_view numbering_name,
+    featherdoc::list_kind numbering_kind, std::uint32_t numbering_start,
+    std::string_view numbering_pattern) {
+    remove_if_exists(path);
+
+    featherdoc::Document document(path);
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("CLI semantic style and numbering diff fixture"));
+
+    auto style = featherdoc::paragraph_style_definition{};
+    style.name = std::string{style_name};
+    style.based_on = std::string{based_on};
+    style.is_quick_format = true;
+    REQUIRE(document.ensure_paragraph_style("CliSemanticDiffHeading", style));
+
+    auto numbering = featherdoc::numbering_definition{};
+    numbering.name = std::string{numbering_name};
+    numbering.levels = {featherdoc::numbering_level_definition{
+        numbering_kind, numbering_start, 0U, std::string{numbering_pattern}}};
+    const auto numbering_id = document.ensure_numbering_definition(numbering);
+    REQUIRE(numbering_id.has_value());
+    REQUIRE(document.set_paragraph_style_numbering("CliSemanticDiffHeading",
+                                                   *numbering_id, 0U));
+    REQUIRE_FALSE(document.save());
+}
+
+
+void create_cli_semantic_diff_part_fixture(
+    const fs::path &path, std::string_view body_text,
+    std::string_view header_text, std::string_view footer_text) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target="header1.xml"/>
+  <Relationship Id="rId3"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+                Target="footer1.xml"/>
+</Relationships>
+)";
+
+    auto document_xml = std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>)"};
+    document_xml += body_text;
+    document_xml += R"(</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+      <w:footerReference w:type="default" r:id="rId3"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)";
+
+    auto header_xml = std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>)"};
+    header_xml += header_text;
+    header_xml += R"(</w:t></w:r></w:p>
+</w:hdr>
+)";
+
+    auto footer_xml = std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>)"};
+    footer_xml += footer_text;
+    footer_xml += R"(</w:t></w:r></w:p>
+</w:ftr>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/header1.xml", header_xml));
+    REQUIRE(write_archive_entry(archive, "word/footer1.xml", footer_xml));
+    zip_close(archive);
+}
+
+
+void create_cli_semantic_diff_paragraph_fixture(
+    const fs::path &path, const std::vector<std::string_view> &paragraphs) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+)";
+
+    auto document_xml = std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+)"};
+    for (const auto paragraph : paragraphs) {
+        document_xml += "    <w:p><w:r><w:t>";
+        document_xml += paragraph;
+        document_xml += "</w:t></w:r></w:p>\n";
+    }
+    document_xml += R"(  </w:body>
+</w:document>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    zip_close(archive);
+}
+
 void create_cli_content_controls_fixture(const fs::path &path) {
     remove_if_exists(path);
 
@@ -488,6 +772,340 @@ void create_cli_content_controls_fixture(const fs::path &path) {
     REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
                                 document_relationships_xml));
     REQUIRE(write_archive_entry(archive, "word/header1.xml", header_xml));
+    zip_close(archive);
+}
+
+void create_cli_content_control_forms_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">
+  <w:body>
+    <w:p>
+      <w:r><w:t>Approved: </w:t></w:r>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Approved"/>
+          <w:tag w:val="approved"/>
+          <w:id w:val="101"/>
+          <w:lock w:val="sdtContentLocked"/>
+          <w14:checkbox>
+            <w14:checked w14:val="1"/>
+          </w14:checkbox>
+        </w:sdtPr>
+        <w:sdtContent><w:r><w:t>☒</w:t></w:r></w:sdtContent>
+      </w:sdt>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Status: </w:t></w:r>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Status"/>
+          <w:tag w:val="status"/>
+          <w:id w:val="102"/>
+          <w:dropDownList>
+            <w:listItem w:displayText="Draft" w:value="draft"/>
+            <w:listItem w:displayText="Approved" w:value="approved"/>
+          </w:dropDownList>
+        </w:sdtPr>
+        <w:sdtContent><w:r><w:t>Approved</w:t></w:r></w:sdtContent>
+      </w:sdt>
+    </w:p>
+    <w:sdt>
+      <w:sdtPr>
+        <w:alias w:val="Due Date"/>
+        <w:tag w:val="due_date"/>
+        <w:id w:val="103"/>
+        <w:dataBinding w:storeItemID="{33333333-3333-3333-3333-333333333333}" w:xpath="/invoice/dueDate" w:prefixMappings="xmlns:fd=&quot;urn:featherdoc&quot;"/>
+        <w:date>
+          <w:dateFormat w:val="yyyy-MM-dd"/>
+          <w:lid w:val="en-US"/>
+        </w:date>
+      </w:sdtPr>
+      <w:sdtContent>
+        <w:p><w:r><w:t>2026-05-01</w:t></w:r></w:p>
+      </w:sdtContent>
+    </w:sdt>
+  </w:body>
+</w:document>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    zip_close(archive);
+}
+
+void create_cli_review_inspection_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/footnotes.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>
+  <Override PartName="/word/endnotes.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"/>
+  <Override PartName="/word/comments.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+            xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+  <w:body>
+    <w:p>
+      <w:hyperlink r:id="rHyperlink">
+        <w:r><w:t>Open docs</w:t></w:r>
+      </w:hyperlink>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Footnote mark</w:t></w:r>
+      <w:r><w:footnoteReference w:id="2"/></w:r>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Endnote mark</w:t></w:r>
+      <w:r><w:endnoteReference w:id="3"/></w:r>
+    </w:p>
+    <w:p>
+      <w:commentRangeStart w:id="4"/>
+      <w:r><w:t>Commented text</w:t></w:r>
+      <w:commentRangeEnd w:id="4"/>
+      <w:r><w:commentReference w:id="4"/></w:r>
+    </w:p>
+    <w:p>
+      <w:ins w:id="5" w:author="Ada" w:date="2026-04-01T00:00:00Z">
+        <w:r><w:t>Inserted review text</w:t></w:r>
+      </w:ins>
+    </w:p>
+    <w:p>
+      <w:del w:id="6" w:author="Ada" w:date="2026-04-02T00:00:00Z">
+        <w:r><w:delText>Deleted review text</w:delText></w:r>
+      </w:del>
+    </w:p>
+    <w:p>
+      <m:oMath><m:r><m:t>x+1</m:t></m:r></m:oMath>
+    </w:p>
+    <m:oMathPara>
+      <m:oMath><m:r><m:t>y=2</m:t></m:r></m:oMath>
+    </m:oMathPara>
+    <w:sectPr/>
+  </w:body>
+</w:document>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rHyperlink"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+                Target="https://example.com/docs"
+                TargetMode="External"/>
+  <Relationship Id="rFootnotes"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
+                Target="footnotes.xml"/>
+  <Relationship Id="rEndnotes"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"
+                Target="endnotes.xml"/>
+  <Relationship Id="rComments"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+                Target="comments.xml"/>
+</Relationships>
+)";
+    constexpr auto footnotes_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:footnote w:id="2">
+    <w:p><w:r><w:t>Footnote body</w:t></w:r></w:p>
+  </w:footnote>
+</w:footnotes>
+)";
+    constexpr auto endnotes_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:endnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:endnote w:id="3">
+    <w:p><w:r><w:t>Endnote body</w:t></w:r></w:p>
+  </w:endnote>
+</w:endnotes>
+)";
+    constexpr auto comments_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:comment w:id="4" w:author="Reviewer" w:initials="RV" w:date="2026-04-03T00:00:00Z">
+    <w:p><w:r><w:t>Reviewer note</w:t></w:r></w:p>
+  </w:comment>
+</w:comments>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/footnotes.xml", footnotes_xml));
+    REQUIRE(write_archive_entry(archive, "word/endnotes.xml", endnotes_xml));
+    REQUIRE(write_archive_entry(archive, "word/comments.xml", comments_xml));
+    zip_close(archive);
+}
+
+void create_cli_semantic_diff_review_fixture(
+    const fs::path &path, std::string_view footnote_text,
+    std::string_view endnote_text, std::string_view comment_text,
+    std::string_view revision_text, std::string_view revision_author) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/footnotes.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>
+  <Override PartName="/word/endnotes.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"/>
+  <Override PartName="/word/comments.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/>
+</Types>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rFootnotes"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
+                Target="footnotes.xml"/>
+  <Relationship Id="rEndnotes"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"
+                Target="endnotes.xml"/>
+  <Relationship Id="rComments"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+                Target="comments.xml"/>
+</Relationships>
+)";
+
+    auto document_xml = std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p>
+      <w:r><w:t>Footnote mark</w:t></w:r>
+      <w:r><w:footnoteReference w:id="2"/></w:r>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Endnote mark</w:t></w:r>
+      <w:r><w:endnoteReference w:id="3"/></w:r>
+    </w:p>
+    <w:p>
+      <w:commentRangeStart w:id="4"/>
+      <w:r><w:t>Commented text</w:t></w:r>
+      <w:commentRangeEnd w:id="4"/>
+      <w:r><w:commentReference w:id="4"/></w:r>
+    </w:p>
+    <w:p>
+      <w:ins w:id="5" w:author=")"};
+    document_xml += revision_author;
+    document_xml += R"(" w:date="2026-05-01T10:00:00Z"><w:r><w:t>)";
+    document_xml += revision_text;
+    document_xml += R"(</w:t></w:r></w:ins>
+    </w:p>
+    <w:sectPr/>
+  </w:body>
+</w:document>
+)";
+
+    auto footnotes_xml = std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:footnote w:id="2"><w:p><w:r><w:t>)"};
+    footnotes_xml += footnote_text;
+    footnotes_xml += R"(</w:t></w:r></w:p></w:footnote>
+</w:footnotes>
+)";
+
+    auto endnotes_xml = std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:endnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:endnote w:id="3"><w:p><w:r><w:t>)"};
+    endnotes_xml += endnote_text;
+    endnotes_xml += R"(</w:t></w:r></w:p></w:endnote>
+</w:endnotes>
+)";
+
+    auto comments_xml = std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:comment w:id="4" w:author="Reviewer" w:initials="RV" w:date="2026-05-01T12:00:00Z">
+    <w:p><w:r><w:t>)"};
+    comments_xml += comment_text;
+    comments_xml += R"(</w:t></w:r></w:p>
+  </w:comment>
+</w:comments>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/footnotes.xml", footnotes_xml));
+    REQUIRE(write_archive_entry(archive, "word/endnotes.xml", endnotes_xml));
+    REQUIRE(write_archive_entry(archive, "word/comments.xml", comments_xml));
     zip_close(archive);
 }
 
@@ -1088,6 +1706,279 @@ void create_cli_table_inspection_fixture(const fs::path &path) {
     REQUIRE(paragraph.has_next());
     auto inserted_paragraph = paragraph.insert_paragraph_after("line2");
     REQUIRE(inserted_paragraph.has_next());
+
+    REQUIRE_FALSE(document.save());
+}
+
+void create_cli_table_style_region_audit_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body><w:p/><w:sectPr/></w:body>
+</w:document>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+</Relationships>
+)";
+    constexpr auto styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="SparseTable">
+    <w:name w:val="Sparse Table"/>
+    <w:tblPr/>
+    <w:tblStylePr w:type="firstRow"/>
+    <w:tblStylePr w:type="band1Horz">
+      <w:tcPr><w:shd w:fill="F2F2F2"/></w:tcPr>
+    </w:tblStylePr>
+  </w:style>
+  <w:style w:type="table" w:styleId="CleanTable">
+    <w:name w:val="Clean Table"/>
+    <w:tblStylePr w:type="firstRow"><w:rPr><w:b/></w:rPr></w:tblStylePr>
+  </w:style>
+</w:styles>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/styles.xml", styles_xml));
+    zip_close(archive);
+}
+
+void create_cli_table_style_inheritance_audit_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body><w:p/><w:sectPr/></w:body>
+</w:document>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+</Relationships>
+)";
+    constexpr auto styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="BaseTable">
+    <w:name w:val="Base Table"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="ChildTable">
+    <w:name w:val="Child Table"/>
+    <w:basedOn w:val="BaseTable"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="MissingBaseTable">
+    <w:name w:val="Missing Base Table"/>
+    <w:basedOn w:val="MissingTable"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="ParagraphBasedTable">
+    <w:name w:val="Paragraph Based Table"/>
+    <w:basedOn w:val="Normal"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="CycleA">
+    <w:name w:val="Cycle A"/>
+    <w:basedOn w:val="CycleB"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="CycleB">
+    <w:name w:val="Cycle B"/>
+    <w:basedOn w:val="CycleA"/>
+  </w:style>
+</w:styles>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/styles.xml", styles_xml));
+    zip_close(archive);
+}
+
+void create_cli_table_style_quality_audit_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblStyle w:val="QualityLookTable"/>
+        <w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
+      </w:tblPr>
+      <w:tblGrid><w:gridCol w:w="2400"/></w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="2400" w:type="dxa"/></w:tcPr>
+          <w:p><w:r><w:t>seed</w:t></w:r></w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:sectPr/>
+  </w:body>
+</w:document>
+)";
+    constexpr auto document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+</Relationships>
+)";
+    constexpr auto styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="SparseTable">
+    <w:name w:val="Sparse Table"/>
+    <w:tblPr/>
+  </w:style>
+  <w:style w:type="table" w:styleId="MissingBaseTable">
+    <w:name w:val="Missing Base Table"/>
+    <w:basedOn w:val="MissingTable"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="QualityLookTable">
+    <w:name w:val="Quality Look Table"/>
+    <w:tblStylePr w:type="firstRow"><w:rPr><w:b/></w:rPr></w:tblStylePr>
+  </w:style>
+</w:styles>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(path.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "word/_rels/document.xml.rels",
+                                document_relationships_xml));
+    REQUIRE(write_archive_entry(archive, "word/styles.xml", styles_xml));
+    zip_close(archive);
+}
+
+void create_cli_table_style_look_check_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    featherdoc::Document document(path);
+    REQUIRE_FALSE(document.create_empty());
+
+    auto first_row = featherdoc::table_style_region_definition{};
+    first_row.fill_color = std::string{"1F4E79"};
+
+    auto second_banded_rows = featherdoc::table_style_region_definition{};
+    second_banded_rows.fill_color = std::string{"F2F2F2"};
+
+    auto table_style = featherdoc::table_style_definition{};
+    table_style.name = "Look Check Table";
+    table_style.first_row = first_row;
+    table_style.second_banded_rows = second_banded_rows;
+    REQUIRE(document.ensure_table_style("LookCheckTable", table_style));
+
+    auto table = document.append_table(2U, 2U);
+    REQUIRE(table.has_next());
+    REQUIRE(table.set_style_id("LookCheckTable"));
+
+    auto style_look = featherdoc::table_style_look{};
+    style_look.first_row = false;
+    style_look.first_column = false;
+    style_look.banded_rows = false;
+    REQUIRE(table.set_style_look(style_look));
 
     REQUIRE_FALSE(document.save());
 }
@@ -4445,11 +5336,77 @@ TEST_CASE("cli ensure-table-style creates a table style with catalog flags") {
                       "TableGrid",
                       "--unhide-when-used",
                       "true",
-                      "--quick-format",
-                      "true",
-                      "--output",
-                      updated.string(),
-                      "--json"},
+                       "--quick-format",
+                       "true",
+                       "--style-fill",
+                       "whole_table:DDEEFF",
+                       "--style-text-color",
+                       "whole_table:333333",
+                       "--style-bold",
+                       "whole_table:false",
+                       "--style-italic",
+                       "whole_table:false",
+                       "--style-font-size",
+                       "whole_table:11",
+                       "--style-font-family",
+                       "whole_table:Aptos",
+                       "--style-east-asia-font-family",
+                       "whole_table:Microsoft YaHei",
+                       "--style-cell-vertical-alignment",
+                       "whole_table:center",
+                       "--style-cell-text-direction",
+                       "whole_table:left_to_right_top_to_bottom",
+                       "--style-paragraph-alignment",
+                       "whole_table:center",
+                       "--style-paragraph-spacing-before",
+                       "whole_table:120",
+                       "--style-paragraph-spacing-after",
+                       "whole_table:80",
+                       "--style-paragraph-line-spacing",
+                       "whole_table:360:exact",
+                       "--style-margin",
+                       "whole_table:left:120",
+                       "--style-margin",
+                       "whole_table:right:160",
+                       "--style-border",
+                       "whole_table:top:single:12:4472C4",
+                       "--style-fill",
+                       "first_row:1F4E79",
+                       "--style-text-color",
+                       "first_row:FFFFFF",
+                       "--style-bold",
+                       "first_row:true",
+                       "--style-italic",
+                       "first_row:true",
+                       "--style-font-size",
+                       "first_row:14",
+                       "--style-font-family",
+                       "first_row:Aptos Display",
+                       "--style-east-asia-font-family",
+                       "first_row:SimHei",
+                       "--style-cell-vertical-alignment",
+                       "first_row:bottom",
+                       "--style-cell-text-direction",
+                       "first_row:top_to_bottom_right_to_left",
+                       "--style-paragraph-alignment",
+                       "first_row:right",
+                       "--style-paragraph-spacing-after",
+                       "first_row:120",
+                       "--style-paragraph-line-spacing",
+                       "first_row:240:at_least",
+                       "--style-border",
+                       "first_row:bottom:double_line:8:1F4E79",
+                       "--style-fill",
+                       "second_banded_rows:F2F2F2",
+                       "--style-text-color",
+                       "second_banded_rows:666666",
+                       "--style-fill",
+                       "second_banded_columns:E2F0D9",
+                       "--style-cell-vertical-alignment",
+                       "second_banded_columns:top",
+                       "--output",
+                       updated.string(),
+                       "--json"},
                      output),
              0);
     CHECK_EQ(
@@ -4477,7 +5434,187 @@ TEST_CASE("cli ensure-table-style creates a table style with catalog flags") {
     CHECK(style.child("w:qFormat") != pugi::xml_node{});
     CHECK(style.child("w:semiHidden") == pugi::xml_node{});
     CHECK(style.child("w:unhideWhenUsed") != pugi::xml_node{});
-    CHECK(style.child("w:tblPr") == pugi::xml_node{});
+    const auto table_properties = style.child("w:tblPr");
+    REQUIRE(table_properties != pugi::xml_node{});
+    CHECK_EQ(std::string_view{table_properties.child("w:tblCellMar")
+                                  .child("w:left")
+                                  .attribute("w:w")
+                                  .value()},
+             "120");
+    CHECK_EQ(std::string_view{table_properties.child("w:tblBorders")
+                                  .child("w:top")
+                                  .attribute("w:color")
+                                  .value()},
+             "4472C4");
+    CHECK_EQ(std::string_view{style.child("w:tcPr").child("w:shd").attribute("w:fill").value()},
+             "DDEEFF");
+    CHECK_EQ(std::string_view{style.child("w:tcPr")
+                                  .child("w:vAlign")
+                                  .attribute("w:val")
+                                  .value()},
+             "center");
+    CHECK_EQ(std::string_view{style.child("w:tcPr")
+                                  .child("w:textDirection")
+                                  .attribute("w:val")
+                                  .value()},
+             "lrTb");
+    CHECK_EQ(std::string_view{style.child("w:pPr")
+                                  .child("w:jc")
+                                  .attribute("w:val")
+                                  .value()},
+             "center");
+    const auto whole_paragraph_spacing_node =
+        style.child("w:pPr").child("w:spacing");
+    REQUIRE(whole_paragraph_spacing_node != pugi::xml_node{});
+    CHECK_EQ(std::string_view{whole_paragraph_spacing_node.attribute("w:before")
+                                  .value()},
+             "120");
+    CHECK_EQ(std::string_view{whole_paragraph_spacing_node.attribute("w:after")
+                                  .value()},
+             "80");
+    CHECK_EQ(std::string_view{whole_paragraph_spacing_node.attribute("w:line")
+                                  .value()},
+             "360");
+    CHECK_EQ(std::string_view{whole_paragraph_spacing_node.attribute("w:lineRule")
+                                  .value()},
+             "exact");
+    CHECK_EQ(std::string_view{style.child("w:rPr")
+                                  .child("w:color")
+                                  .attribute("w:val")
+                                  .value()},
+             "333333");
+    CHECK_EQ(std::string_view{style.child("w:rPr")
+                                  .child("w:b")
+                                  .attribute("w:val")
+                                  .value()},
+             "0");
+    CHECK_EQ(std::string_view{style.child("w:rPr")
+                                  .child("w:i")
+                                  .attribute("w:val")
+                                  .value()},
+             "0");
+    CHECK_EQ(std::string_view{style.child("w:rPr")
+                                  .child("w:sz")
+                                  .attribute("w:val")
+                                  .value()},
+             "22");
+    CHECK_EQ(std::string_view{style.child("w:rPr")
+                                  .child("w:szCs")
+                                  .attribute("w:val")
+                                  .value()},
+             "22");
+    CHECK_EQ(std::string_view{style.child("w:rPr")
+                                  .child("w:rFonts")
+                                  .attribute("w:ascii")
+                                  .value()},
+             "Aptos");
+    CHECK_EQ(std::string_view{style.child("w:rPr")
+                                  .child("w:rFonts")
+                                  .attribute("w:eastAsia")
+                                  .value()},
+             "Microsoft YaHei");
+    const auto first_row_region = find_table_style_region_xml_node(style, "firstRow");
+    REQUIRE(first_row_region != pugi::xml_node{});
+    CHECK_EQ(std::string_view{first_row_region.child("w:tcPr")
+                                  .child("w:shd")
+                                  .attribute("w:fill")
+                                  .value()},
+             "1F4E79");
+    CHECK_EQ(std::string_view{first_row_region.child("w:tcPr")
+                                  .child("w:vAlign")
+                                  .attribute("w:val")
+                                  .value()},
+             "bottom");
+    CHECK_EQ(std::string_view{first_row_region.child("w:tcPr")
+                                  .child("w:textDirection")
+                                  .attribute("w:val")
+                                  .value()},
+             "tbRl");
+    CHECK_EQ(std::string_view{first_row_region.child("w:pPr")
+                                  .child("w:jc")
+                                  .attribute("w:val")
+                                  .value()},
+             "right");
+    const auto first_row_paragraph_spacing_node =
+        first_row_region.child("w:pPr").child("w:spacing");
+    REQUIRE(first_row_paragraph_spacing_node != pugi::xml_node{});
+    CHECK_EQ(std::string_view{first_row_paragraph_spacing_node.attribute("w:after")
+                                  .value()},
+             "120");
+    CHECK_EQ(std::string_view{first_row_paragraph_spacing_node.attribute("w:line")
+                                  .value()},
+             "240");
+    CHECK_EQ(std::string_view{first_row_paragraph_spacing_node.attribute("w:lineRule")
+                                  .value()},
+             "atLeast");
+    CHECK_EQ(std::string_view{first_row_region.child("w:rPr")
+                                  .child("w:color")
+                                  .attribute("w:val")
+                                  .value()},
+             "FFFFFF");
+    CHECK_EQ(std::string_view{first_row_region.child("w:rPr")
+                                  .child("w:b")
+                                  .attribute("w:val")
+                                  .value()},
+             "1");
+    CHECK_EQ(std::string_view{first_row_region.child("w:rPr")
+                                  .child("w:i")
+                                  .attribute("w:val")
+                                  .value()},
+             "1");
+    CHECK_EQ(std::string_view{first_row_region.child("w:rPr")
+                                  .child("w:sz")
+                                  .attribute("w:val")
+                                  .value()},
+             "28");
+    CHECK_EQ(std::string_view{first_row_region.child("w:rPr")
+                                  .child("w:szCs")
+                                  .attribute("w:val")
+                                  .value()},
+             "28");
+    CHECK_EQ(std::string_view{first_row_region.child("w:rPr")
+                                  .child("w:rFonts")
+                                  .attribute("w:ascii")
+                                  .value()},
+             "Aptos Display");
+    CHECK_EQ(std::string_view{first_row_region.child("w:rPr")
+                                  .child("w:rFonts")
+                                  .attribute("w:eastAsia")
+                                  .value()},
+             "SimHei");
+    CHECK_EQ(std::string_view{first_row_region.child("w:tcPr")
+                                  .child("w:tcBorders")
+                                  .child("w:bottom")
+                                  .attribute("w:val")
+                                  .value()},
+             "double");
+
+    const auto second_banded_rows_region =
+        find_table_style_region_xml_node(style, "band2Horz");
+    REQUIRE(second_banded_rows_region != pugi::xml_node{});
+    CHECK_EQ(std::string_view{second_banded_rows_region.child("w:tcPr")
+                                  .child("w:shd")
+                                  .attribute("w:fill")
+                                  .value()},
+             "F2F2F2");
+    CHECK_EQ(std::string_view{second_banded_rows_region.child("w:rPr")
+                                  .child("w:color")
+                                  .attribute("w:val")
+                                  .value()},
+             "666666");
+    const auto second_banded_columns_region =
+        find_table_style_region_xml_node(style, "band2Vert");
+    REQUIRE(second_banded_columns_region != pugi::xml_node{});
+    CHECK_EQ(std::string_view{second_banded_columns_region.child("w:tcPr")
+                                  .child("w:shd")
+                                  .attribute("w:fill")
+                                  .value()},
+             "E2F0D9");
+    CHECK_EQ(std::string_view{second_banded_columns_region.child("w:tcPr")
+                                  .child("w:vAlign")
+                                  .attribute("w:val")
+                                  .value()},
+             "top");
 
     remove_if_exists(source);
     remove_if_exists(updated);
@@ -6032,6 +7169,7 @@ TEST_CASE("cli inspect-tables lists body tables in text mode and supports single
         std::string::npos);
     CHECK_NE(inspect_text.find("column_widths=[1800,5400]"),
              std::string::npos);
+    CHECK_NE(inspect_text.find("position=none"), std::string::npos);
     CHECK_NE(inspect_text.find("r0c0"), std::string::npos);
     CHECK_NE(inspect_text.find("merged-top"), std::string::npos);
 
@@ -6042,6 +7180,7 @@ TEST_CASE("cli inspect-tables lists body tables in text mode and supports single
         read_text_file(single_output),
         std::string{
             "{\"table\":{\"index\":1,\"style_id\":null,\"width_twips\":null,"
+            "\"position\":null,"
             "\"row_count\":2,\"column_count\":3,"
             "\"column_widths\":[1200,2200,3200],"
             "\"text\":\"merged-top\\ttop-right\\nbottom-left\\tbottom-middle\\t"
@@ -6050,6 +7189,1280 @@ TEST_CASE("cli inspect-tables lists body tables in text mode and supports single
     remove_if_exists(source);
     remove_if_exists(inspect_output);
     remove_if_exists(single_output);
+}
+
+TEST_CASE("cli plans table position preset application") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_table_position_plan_source.docx";
+    const fs::path positioned =
+        working_directory / "cli_table_position_plan_positioned.docx";
+    const fs::path applied_from_plan =
+        working_directory / "cli_table_position_plan_applied.docx";
+    const fs::path stale_applied_from_plan =
+        working_directory / "cli_table_position_plan_stale_applied.docx";
+    const fs::path source_plan_output =
+        working_directory /
+        "cli_table_position_plan_source-table-position-paragraph-callout.docx";
+    const fs::path positioned_plan_output =
+        working_directory /
+        "cli_table_position_plan_positioned-table-position-page-corner.docx";
+    const fs::path custom_plan_output =
+        working_directory / "cli_table_position_plan_custom_output.docx";
+    const fs::path json_output =
+        working_directory / "cli_table_position_plan_output.json";
+    const fs::path text_output =
+        working_directory / "cli_table_position_plan_output.txt";
+    const fs::path saved_plan =
+        working_directory / "cli_table_position_plan_saved.json";
+    const fs::path saved_plan_stdout =
+        working_directory / "cli_table_position_plan_saved_stdout.json";
+    const fs::path stale_plan =
+        working_directory / "cli_table_position_plan_stale.json";
+    const fs::path missing_fingerprint_plan =
+        working_directory / "cli_table_position_plan_missing_fingerprint.json";
+    const fs::path clean_output =
+        working_directory / "cli_table_position_plan_clean.json";
+    const fs::path fail_output =
+        working_directory / "cli_table_position_plan_fail.json";
+    const fs::path set_output =
+        working_directory / "cli_table_position_plan_set.json";
+    const fs::path apply_output =
+        working_directory / "cli_table_position_plan_apply.json";
+    const fs::path stale_apply_output =
+        working_directory / "cli_table_position_plan_stale_apply.json";
+    const fs::path dry_run_output =
+        working_directory / "cli_table_position_plan_dry_run.json";
+    const fs::path missing_fingerprint_apply_output =
+        working_directory / "cli_table_position_plan_missing_fingerprint_apply.json";
+    const fs::path apply_inspect_output =
+        working_directory / "cli_table_position_plan_apply_inspect.json";
+    const fs::path replace_output =
+        working_directory / "cli_table_position_plan_replace.json";
+    const fs::path review_output =
+        working_directory / "cli_table_position_plan_review.json";
+    const fs::path override_output =
+        working_directory / "cli_table_position_plan_override.json";
+
+    remove_if_exists(source);
+    remove_if_exists(positioned);
+    remove_if_exists(applied_from_plan);
+    remove_if_exists(stale_applied_from_plan);
+    remove_if_exists(custom_plan_output);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(saved_plan);
+    remove_if_exists(saved_plan_stdout);
+    remove_if_exists(stale_plan);
+    remove_if_exists(missing_fingerprint_plan);
+    remove_if_exists(clean_output);
+    remove_if_exists(fail_output);
+    remove_if_exists(set_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(stale_apply_output);
+    remove_if_exists(dry_run_output);
+    remove_if_exists(missing_fingerprint_apply_output);
+    remove_if_exists(apply_inspect_output);
+    remove_if_exists(replace_output);
+    remove_if_exists(review_output);
+    remove_if_exists(override_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"plan-table-position-presets",
+                      source.string(),
+                      "--preset",
+                      "paragraph-callout",
+                      "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("command":"plan-table-position-presets")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
+    CHECK_NE(json.find(R"("input_path":)"), std::string::npos);
+    CHECK_NE(json.find(json_quote(source.string())), std::string::npos);
+    CHECK_NE(json.find(R"("preset":"paragraph-callout")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("table_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("set_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("already_matching_table_indices":[])"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("review_table_indices":[])"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("plan_item_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("automatic_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("automatic_table_indices":[0,1])"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("table_fingerprints":[)"), std::string::npos);
+    CHECK_NE(json.find(R"("fingerprint":{)"), std::string::npos);
+    CHECK_NE(json.find(R"("row_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("column_count":3)"), std::string::npos);
+    CHECK_NE(json.find(
+                 R"("recommended_batch_command":"set-table-position <input.docx> all --preset paragraph-callout")"),
+             std::string::npos);
+    CHECK_NE(json.find("\"resolved_output_path\":" +
+                       json_quote(source_plan_output.string())),
+             std::string::npos);
+    CHECK_NE(json.find("\"resolved_recommended_batch_command\":\"set-table-position " +
+                       json_escape_text(source.string()) +
+                       " all --preset paragraph-callout --output " +
+                       json_escape_text(source_plan_output.string()) + "\""),
+             std::string::npos);
+    CHECK_NE(json.find(R"("action":"set-preset")"), std::string::npos);
+    CHECK_NE(json.find(
+                 R"("recommended_command":"set-table-position <input.docx> 0 --preset paragraph-callout")"),
+             std::string::npos);
+    CHECK_NE(json.find("\"resolved_recommended_command\":\"set-table-position " +
+                       json_escape_text(source.string()) +
+                       " 0 --preset paragraph-callout --output " +
+                       json_escape_text(source_plan_output.string()) + "\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"plan-table-position-presets",
+                      source.string(),
+                      "--preset",
+                      "paragraph-callout"},
+                     text_output),
+             0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("table_position_preset_plan: changes"),
+             std::string::npos);
+    CHECK_NE(text.find("input_path: " + source.string()),
+             std::string::npos);
+    CHECK_NE(text.find("set_count: 2"), std::string::npos);
+    CHECK_NE(text.find("already_matching_table_indices: []"),
+             std::string::npos);
+    CHECK_NE(text.find("review_table_indices: []"), std::string::npos);
+    CHECK_NE(text.find("automatic_count: 2"), std::string::npos);
+    CHECK_NE(text.find("automatic_table_indices: [0,1]"),
+             std::string::npos);
+    CHECK_NE(text.find("recommended_batch_command: set-table-position <input.docx> all --preset paragraph-callout"),
+             std::string::npos);
+    CHECK_NE(text.find("resolved_output_path: " + source_plan_output.string()),
+             std::string::npos);
+    CHECK_NE(text.find("resolved_recommended_batch_command: set-table-position " +
+                       source.string() + " all --preset paragraph-callout --output " +
+                       source_plan_output.string()),
+             std::string::npos);
+    CHECK_NE(text.find("recommended_command=\"set-table-position <input.docx> 0 --preset paragraph-callout\""),
+             std::string::npos);
+    CHECK_NE(text.find("resolved_output_path=\"" +
+                       source_plan_output.string() + "\""),
+             std::string::npos);
+    CHECK_NE(text.find("resolved_recommended_command=\"set-table-position " +
+                       source.string() + " 0 --preset paragraph-callout --output " +
+                       source_plan_output.string() + "\""),
+             std::string::npos);
+
+    CHECK_NE(text.find("fingerprint_rows=2"), std::string::npos);
+    CHECK_NE(text.find("fingerprint_columns=3"), std::string::npos);
+
+
+    CHECK_EQ(run_cli({"plan-table-position-presets",
+                      source.string(),
+                      "--preset",
+                      "paragraph-callout",
+                      "--fail-on-change",
+                      "--json"},
+                     fail_output),
+             1);
+    CHECK_NE(read_text_file(fail_output).find(R"("fail_on_change":true)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"plan-table-position-presets",
+                      source.string(),
+                      "--preset",
+                      "paragraph-callout",
+                      "--output-plan",
+                      saved_plan.string(),
+                      "--json"},
+                     saved_plan_stdout),
+             0);
+    const auto saved_plan_stdout_json = read_text_file(saved_plan_stdout);
+    const auto saved_plan_json = read_text_file(saved_plan);
+    CHECK_EQ(saved_plan_json, saved_plan_stdout_json);
+    CHECK_NE(saved_plan_json.find(R"("input_path":)"), std::string::npos);
+    CHECK_NE(saved_plan_json.find(json_quote(source.string())),
+             std::string::npos);
+    CHECK_NE(saved_plan_json.find(R"("output_plan_path":)"),
+             std::string::npos);
+    CHECK_NE(saved_plan_json.find(json_quote(saved_plan.string())),
+             std::string::npos);
+    CHECK_NE(saved_plan_json.find(R"("automatic_table_indices":[0,1])"),
+             std::string::npos);
+    CHECK_NE(saved_plan_json.find(R"("table_fingerprints":[)"),
+             std::string::npos);
+    CHECK_NE(saved_plan_json.find(R"("fingerprint":{)"), std::string::npos);
+    CHECK_NE(saved_plan_json.find("\"resolved_output_path\":" +
+                                  json_quote(source_plan_output.string())),
+             std::string::npos);
+    CHECK_NE(saved_plan_json.find("\"resolved_recommended_batch_command\":\"set-table-position " +
+                                  json_escape_text(source.string()) +
+                                  " all --preset paragraph-callout --output " +
+                                  json_escape_text(source_plan_output.string()) +
+                                  "\""),
+             std::string::npos);
+
+    auto stale_plan_json = saved_plan_json;
+    const auto stale_text_offset = stale_plan_json.find("r0c0");
+    REQUIRE_NE(stale_text_offset, std::string::npos);
+    stale_plan_json.replace(stale_text_offset, std::string{"r0c0"}.size(),
+                            "r0c0-stale");
+    write_binary_file(stale_plan, stale_plan_json);
+    CHECK_EQ(run_cli({"apply-table-position-plan",
+                      stale_plan.string(),
+                      "--output",
+                      stale_applied_from_plan.string(),
+                      "--json"},
+                     stale_apply_output),
+             1);
+    const auto stale_apply_json = read_text_file(stale_apply_output);
+    CHECK_NE(stale_apply_json.find(R"("message":"table fingerprint mismatch")"),
+             std::string::npos);
+    CHECK_NE(stale_apply_json.find(
+                 "table fingerprint changed since plan was generated: table 0"),
+             std::string::npos);
+    CHECK_NE(stale_apply_json.find("changed fields: text expected=r0c0-stale"),
+             std::string::npos);
+    CHECK_NE(stale_apply_json.find("current=r0c0"), std::string::npos);
+    CHECK_FALSE(fs::exists(stale_applied_from_plan));
+
+    auto missing_fingerprint_plan_json = saved_plan_json;
+    const auto fingerprint_key_offset =
+        missing_fingerprint_plan_json.find(R"(,"table_fingerprints")");
+    REQUIRE_NE(fingerprint_key_offset, std::string::npos);
+    const auto fingerprint_next_key_offset =
+        missing_fingerprint_plan_json.find(R"(,"items")", fingerprint_key_offset + 1U);
+    REQUIRE_NE(fingerprint_next_key_offset, std::string::npos);
+    missing_fingerprint_plan_json.erase(
+        fingerprint_key_offset, fingerprint_next_key_offset - fingerprint_key_offset);
+    write_binary_file(missing_fingerprint_plan, missing_fingerprint_plan_json);
+    CHECK_EQ(run_cli({"apply-table-position-plan",
+                      missing_fingerprint_plan.string(),
+                      "--dry-run",
+                      "--json"},
+                     missing_fingerprint_apply_output),
+             1);
+    const auto missing_fingerprint_apply_json =
+        read_text_file(missing_fingerprint_apply_output);
+    CHECK_NE(missing_fingerprint_apply_json.find(R"("message":"invalid argument")"),
+             std::string::npos);
+    CHECK_NE(missing_fingerprint_apply_json.find("table_fingerprints"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"apply-table-position-plan",
+                      saved_plan.string(),
+                      "--dry-run",
+                      "--json"},
+                     dry_run_output),
+             0);
+    const auto dry_run_json = read_text_file(dry_run_output);
+    CHECK_NE(dry_run_json.find(R"("command":"apply-table-position-plan")"),
+             std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("dry_run":true)"), std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("table_count":2)"), std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("fingerprint_checked_count":2)"),
+             std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("would_apply_count":2)"),
+             std::string::npos);
+    CHECK_NE(dry_run_json.find(R"("table_indices":[0,1])"),
+             std::string::npos);
+    CHECK_NE(dry_run_json.find("\"resolved_output_path\":" +
+                               json_quote(source_plan_output.string())),
+             std::string::npos);
+    CHECK_FALSE(fs::exists(source_plan_output));
+
+    CHECK_EQ(run_cli({"plan-table-position-presets",
+                      source.string(),
+                      "--preset",
+                      "paragraph-callout",
+                      "--output",
+                      custom_plan_output.string(),
+                      "--json"},
+                     override_output),
+             0);
+    const auto override_json = read_text_file(override_output);
+    CHECK_NE(override_json.find("\"output_path\":" +
+                                json_quote(custom_plan_output.string())),
+             std::string::npos);
+    CHECK_NE(override_json.find("\"resolved_output_path\":" +
+                                json_quote(custom_plan_output.string())),
+             std::string::npos);
+    CHECK_NE(override_json.find("\"resolved_recommended_batch_command\":\"set-table-position " +
+                                json_escape_text(source.string()) +
+                                " all --preset paragraph-callout --output " +
+                                json_escape_text(custom_plan_output.string()) +
+                                "\""),
+             std::string::npos);
+    CHECK_FALSE(fs::exists(custom_plan_output));
+
+    CHECK_EQ(run_cli({"apply-table-position-plan",
+                      saved_plan.string(),
+                      "--output",
+                      applied_from_plan.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    const auto apply_json = read_text_file(apply_output);
+    CHECK_NE(apply_json.find(R"("command":"apply-table-position-plan")"),
+             std::string::npos);
+    CHECK_NE(apply_json.find(R"("applied_count":2)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("table_indices":[0,1])"), std::string::npos);
+    CHECK_NE(apply_json.find("\"input_path\":" + json_quote(source.string())),
+             std::string::npos);
+    CHECK_NE(apply_json.find(R"("preset":"paragraph-callout")"),
+             std::string::npos);
+    CHECK_NE(apply_json.find(R"("table_count":2)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("fingerprint_checked_count":2)"),
+             std::string::npos);
+    CHECK(fs::exists(applied_from_plan));
+    CHECK_FALSE(fs::exists(source_plan_output));
+    CHECK_EQ(run_cli({"inspect-tables", applied_from_plan.string(), "--json"},
+                     apply_inspect_output),
+             0);
+    const auto apply_inspect_json = read_text_file(apply_inspect_output);
+    CHECK_NE(apply_inspect_json.find(R"("position":{)"), std::string::npos);
+    CHECK_NE(apply_inspect_json.find(R"("horizontal_reference":"column")"),
+             std::string::npos);
+    CHECK_NE(apply_inspect_json.find(R"("vertical_reference":"paragraph")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"set-table-position",
+                      source.string(),
+                      "all",
+                      "--preset",
+                      "paragraph-callout",
+                      "--output",
+                      positioned.string(),
+                      "--json"},
+                     set_output),
+             0);
+    CHECK_EQ(run_cli({"plan-table-position-presets",
+                      positioned.string(),
+                      "--preset",
+                      "paragraph-callout",
+                      "--json"},
+                     clean_output),
+             0);
+    const auto clean_json = read_text_file(clean_output);
+    CHECK_NE(clean_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(clean_json.find(R"("already_matching_count":2)"),
+             std::string::npos);
+    CHECK_NE(clean_json.find(R"("already_matching_table_indices":[0,1])"),
+             std::string::npos);
+    CHECK_NE(clean_json.find(R"("review_table_indices":[])"),
+             std::string::npos);
+    CHECK_NE(clean_json.find(R"("automatic_count":0)"), std::string::npos);
+    CHECK_NE(clean_json.find(R"("automatic_table_indices":[])"),
+             std::string::npos);
+    CHECK_NE(clean_json.find(R"("recommended_batch_command":null)"),
+             std::string::npos);
+    CHECK_NE(clean_json.find(R"("resolved_output_path":null)"),
+             std::string::npos);
+    CHECK_NE(clean_json.find(R"("resolved_recommended_batch_command":null)"),
+             std::string::npos);
+    CHECK_NE(clean_json.find(R"("plan_item_count":0)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"plan-table-position-presets",
+                      positioned.string(),
+                      "--preset",
+                      "page-corner",
+                      "--json"},
+                     review_output),
+             0);
+    const auto review_json = read_text_file(review_output);
+    CHECK_NE(review_json.find(R"("review_count":2)"), std::string::npos);
+    CHECK_NE(review_json.find(R"("review_table_indices":[0,1])"),
+             std::string::npos);
+    CHECK_NE(review_json.find(R"("automatic_table_indices":[])"),
+             std::string::npos);
+    CHECK_NE(review_json.find(R"("recommended_batch_command":null)"),
+             std::string::npos);
+    CHECK_NE(review_json.find(R"("resolved_output_path":null)"),
+             std::string::npos);
+    CHECK_NE(review_json.find(R"("resolved_recommended_batch_command":null)"),
+             std::string::npos);
+    CHECK_NE(review_json.find(R"("action":"review-existing-position")"),
+             std::string::npos);
+    CHECK_NE(review_json.find("\"resolved_recommended_command\":\"inspect-tables " +
+                              json_escape_text(positioned.string()) +
+                              " --table 0 --json\""),
+             std::string::npos);
+    CHECK_EQ(review_json.find(" --output "), std::string::npos);
+
+    CHECK_EQ(run_cli({"plan-table-position-presets",
+                      positioned.string(),
+                      "--preset",
+                      "page-corner",
+                      "--replace-positioned",
+                      "--json"},
+                     replace_output),
+             0);
+    const auto replace_json = read_text_file(replace_output);
+    CHECK_NE(replace_json.find(R"("replace_positioned":true)"),
+             std::string::npos);
+    CHECK_NE(replace_json.find(R"("replace_count":2)"), std::string::npos);
+    CHECK_NE(replace_json.find(R"("already_matching_table_indices":[])"),
+             std::string::npos);
+    CHECK_NE(replace_json.find(R"("review_table_indices":[])"),
+             std::string::npos);
+    CHECK_NE(replace_json.find(R"("automatic_table_indices":[0,1])"),
+             std::string::npos);
+    CHECK_NE(replace_json.find(
+                 R"("recommended_batch_command":"set-table-position <input.docx> all --preset page-corner")"),
+             std::string::npos);
+    CHECK_NE(replace_json.find("\"resolved_output_path\":" +
+                               json_quote(positioned_plan_output.string())),
+             std::string::npos);
+    CHECK_NE(replace_json.find("\"resolved_recommended_batch_command\":\"set-table-position " +
+                               json_escape_text(positioned.string()) +
+                               " all --preset page-corner --output " +
+                               json_escape_text(positioned_plan_output.string()) +
+                               "\""),
+             std::string::npos);
+    CHECK_NE(replace_json.find(R"("action":"replace-preset")"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(positioned);
+    remove_if_exists(applied_from_plan);
+    remove_if_exists(stale_applied_from_plan);
+    remove_if_exists(custom_plan_output);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(saved_plan);
+    remove_if_exists(saved_plan_stdout);
+    remove_if_exists(stale_plan);
+    remove_if_exists(missing_fingerprint_plan);
+    remove_if_exists(clean_output);
+    remove_if_exists(fail_output);
+    remove_if_exists(set_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(stale_apply_output);
+    remove_if_exists(dry_run_output);
+    remove_if_exists(missing_fingerprint_apply_output);
+    remove_if_exists(apply_inspect_output);
+    remove_if_exists(replace_output);
+    remove_if_exists(review_output);
+    remove_if_exists(override_output);
+}
+
+TEST_CASE("cli table position commands set inspect and clear body table position") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_table_position_source.docx";
+    const fs::path positioned = working_directory / "cli_table_position_set.docx";
+    const fs::path cleared = working_directory / "cli_table_position_cleared.docx";
+    const fs::path preset_positioned =
+        working_directory / "cli_table_position_preset_set.docx";
+    const fs::path all_positioned =
+        working_directory / "cli_table_position_all_set.docx";
+    const fs::path list_positioned =
+        working_directory / "cli_table_position_list_set.docx";
+    const fs::path all_cleared =
+        working_directory / "cli_table_position_all_cleared.docx";
+    const fs::path list_cleared =
+        working_directory / "cli_table_position_list_cleared.docx";
+    const fs::path set_output =
+        working_directory / "cli_table_position_set_output.json";
+    const fs::path inspect_output =
+        working_directory / "cli_table_position_inspect_output.json";
+    const fs::path clear_output =
+        working_directory / "cli_table_position_clear_output.json";
+    const fs::path inspect_cleared_output =
+        working_directory / "cli_table_position_inspect_cleared_output.json";
+    const fs::path preset_output =
+        working_directory / "cli_table_position_preset_output.json";
+    const fs::path all_output =
+        working_directory / "cli_table_position_all_output.json";
+    const fs::path list_output =
+        working_directory / "cli_table_position_list_output.json";
+    const fs::path clear_all_output =
+        working_directory / "cli_table_position_clear_all_output.json";
+    const fs::path clear_list_output =
+        working_directory / "cli_table_position_clear_list_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(positioned);
+    remove_if_exists(cleared);
+    remove_if_exists(preset_positioned);
+    remove_if_exists(all_positioned);
+    remove_if_exists(list_positioned);
+    remove_if_exists(all_cleared);
+    remove_if_exists(list_cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_cleared_output);
+    remove_if_exists(preset_output);
+    remove_if_exists(all_output);
+    remove_if_exists(list_output);
+    remove_if_exists(clear_all_output);
+    remove_if_exists(clear_list_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"set-table-position",
+                      source.string(),
+                      "0",
+                      "--horizontal-reference",
+                      "page",
+                      "--horizontal-offset",
+                      "720",
+                      "--vertical-reference",
+                      "paragraph",
+                      "--vertical-offset",
+                      "-120",
+                      "--left-from-text",
+                      "144",
+                      "--right-from-text",
+                      "288",
+                      "--top-from-text",
+                      "72",
+                      "--bottom-from-text",
+                      "216",
+                      "--overlap",
+                      "never",
+                      "--output",
+                      positioned.string(),
+                      "--json"},
+                     set_output),
+             0);
+    CHECK_EQ(
+        read_text_file(set_output),
+        std::string{
+            "{\"command\":\"set-table-position\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_indices\":[0],\"positions\":[{\"horizontal_reference\":\"page\","
+            "\"horizontal_offset_twips\":720,\"vertical_reference\":\"paragraph\","
+            "\"vertical_offset_twips\":-120,\"left_from_text_twips\":144,"
+            "\"right_from_text_twips\":288,\"top_from_text_twips\":72,"
+            "\"bottom_from_text_twips\":216,\"overlap\":\"never\"}]}\n"});
+
+    const auto positioned_document_xml = read_docx_entry(positioned, "word/document.xml");
+    pugi::xml_document positioned_xml_document;
+    REQUIRE(positioned_xml_document.load_string(positioned_document_xml.c_str()));
+    const auto positioned_table_properties = positioned_xml_document.child("w:document")
+                                                 .child("w:body")
+                                                 .child("w:tbl")
+                                                 .child("w:tblPr");
+    REQUIRE(positioned_table_properties != pugi::xml_node{});
+    const auto table_position = positioned_table_properties.child("w:tblpPr");
+    REQUIRE(table_position != pugi::xml_node{});
+    CHECK_EQ(std::string_view{table_position.attribute("w:horzAnchor").value()},
+             "page");
+    CHECK_EQ(std::string_view{table_position.attribute("w:tblpX").value()},
+             "720");
+    CHECK_EQ(std::string_view{table_position.attribute("w:vertAnchor").value()},
+             "text");
+    CHECK_EQ(std::string_view{table_position.attribute("w:tblpY").value()},
+             "-120");
+    CHECK_EQ(std::string_view{table_position.attribute("w:leftFromText").value()},
+             "144");
+    CHECK_EQ(std::string_view{table_position.attribute("w:rightFromText").value()},
+             "288");
+    CHECK_EQ(std::string_view{table_position.attribute("w:topFromText").value()},
+             "72");
+    CHECK_EQ(std::string_view{table_position.attribute("w:bottomFromText").value()},
+             "216");
+    CHECK_EQ(std::string_view{table_position.attribute("w:tblOverlap").value()},
+             "never");
+
+    featherdoc::Document reopened(positioned);
+    REQUIRE_FALSE(reopened.open());
+    auto reopened_table = reopened.tables();
+    REQUIRE(reopened_table.has_next());
+    const auto reopened_position = reopened_table.position();
+    REQUIRE(reopened_position.has_value());
+    CHECK_EQ(reopened_position->horizontal_reference,
+             featherdoc::table_position_horizontal_reference::page);
+    CHECK_EQ(reopened_position->horizontal_offset_twips, 720);
+    CHECK_EQ(reopened_position->vertical_reference,
+             featherdoc::table_position_vertical_reference::paragraph);
+    CHECK_EQ(reopened_position->vertical_offset_twips, -120);
+    REQUIRE(reopened_position->left_from_text_twips.has_value());
+    CHECK_EQ(*reopened_position->left_from_text_twips, 144U);
+    REQUIRE(reopened_position->right_from_text_twips.has_value());
+    CHECK_EQ(*reopened_position->right_from_text_twips, 288U);
+    REQUIRE(reopened_position->top_from_text_twips.has_value());
+    CHECK_EQ(*reopened_position->top_from_text_twips, 72U);
+    REQUIRE(reopened_position->bottom_from_text_twips.has_value());
+    CHECK_EQ(*reopened_position->bottom_from_text_twips, 216U);
+    REQUIRE(reopened_position->overlap.has_value());
+    CHECK_EQ(*reopened_position->overlap, featherdoc::table_overlap::never);
+
+    CHECK_EQ(run_cli({"inspect-tables", positioned.string(), "--table", "0", "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find("\"position\":{\"horizontal_reference\":\"page\","),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"horizontal_offset_twips\":720"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"vertical_reference\":\"paragraph\""),
+             std::string::npos);
+    CHECK_NE(inspect_json.find("\"vertical_offset_twips\":-120"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"set-table-position",
+                      source.string(),
+                      "0",
+                      "--preset",
+                      "page-corner",
+                      "--horizontal-offset",
+                      "360",
+                      "--bottom-from-text",
+                      "288",
+                      "--output",
+                      preset_positioned.string(),
+                      "--json"},
+                     preset_output),
+             0);
+    CHECK_EQ(
+        read_text_file(preset_output),
+        std::string{
+            "{\"command\":\"set-table-position\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_indices\":[0],\"positions\":[{\"horizontal_reference\":\"page\","
+            "\"horizontal_offset_twips\":360,\"vertical_reference\":\"page\","
+            "\"vertical_offset_twips\":720,\"left_from_text_twips\":144,"
+            "\"right_from_text_twips\":144,\"top_from_text_twips\":144,"
+            "\"bottom_from_text_twips\":288,\"overlap\":\"never\"}]}\n"});
+
+    const auto preset_document_xml =
+        read_docx_entry(preset_positioned, "word/document.xml");
+    pugi::xml_document preset_xml_document;
+    REQUIRE(preset_xml_document.load_string(preset_document_xml.c_str()));
+    const auto preset_table_position = preset_xml_document.child("w:document")
+                                           .child("w:body")
+                                           .child("w:tbl")
+                                           .child("w:tblPr")
+                                           .child("w:tblpPr");
+    REQUIRE(preset_table_position != pugi::xml_node{});
+    CHECK_EQ(
+        std::string_view{preset_table_position.attribute("w:horzAnchor").value()},
+        "page");
+    CHECK_EQ(std::string_view{preset_table_position.attribute("w:tblpX").value()},
+             "360");
+    CHECK_EQ(
+        std::string_view{preset_table_position.attribute("w:vertAnchor").value()},
+        "page");
+    CHECK_EQ(std::string_view{preset_table_position.attribute("w:tblpY").value()},
+             "720");
+    CHECK_EQ(
+        std::string_view{preset_table_position.attribute("w:bottomFromText").value()},
+        "288");
+    CHECK_EQ(
+        std::string_view{preset_table_position.attribute("w:tblOverlap").value()},
+        "never");
+
+    CHECK_EQ(run_cli({"set-table-position",
+                      source.string(),
+                      "all",
+                      "--preset",
+                      "paragraph-callout",
+                      "--output",
+                      all_positioned.string(),
+                      "--json"},
+                     all_output),
+             0);
+    CHECK_EQ(
+        read_text_file(all_output),
+        std::string{
+            "{\"command\":\"set-table-position\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_indices\":[0,1],\"positions\":["
+            "{\"horizontal_reference\":\"column\",\"horizontal_offset_twips\":0,"
+            "\"vertical_reference\":\"paragraph\",\"vertical_offset_twips\":0,"
+            "\"left_from_text_twips\":144,\"right_from_text_twips\":144,"
+            "\"top_from_text_twips\":72,\"bottom_from_text_twips\":72,"
+            "\"overlap\":\"never\"},"
+            "{\"horizontal_reference\":\"column\",\"horizontal_offset_twips\":0,"
+            "\"vertical_reference\":\"paragraph\",\"vertical_offset_twips\":0,"
+            "\"left_from_text_twips\":144,\"right_from_text_twips\":144,"
+            "\"top_from_text_twips\":72,\"bottom_from_text_twips\":72,"
+            "\"overlap\":\"never\"}]}\n"});
+
+    const auto all_document_xml = read_docx_entry(all_positioned, "word/document.xml");
+    pugi::xml_document all_xml_document;
+    REQUIRE(all_xml_document.load_string(all_document_xml.c_str()));
+    const auto all_body = all_xml_document.child("w:document").child("w:body");
+    std::size_t all_positioned_table_count = 0U;
+    for (auto table_node = all_body.child("w:tbl"); table_node != pugi::xml_node{};
+         table_node = table_node.next_sibling("w:tbl")) {
+        const auto table_position = table_node.child("w:tblPr").child("w:tblpPr");
+        REQUIRE(table_position != pugi::xml_node{});
+        CHECK_EQ(std::string_view{table_position.attribute("w:horzAnchor").value()},
+                 "text");
+        CHECK_EQ(std::string_view{table_position.attribute("w:vertAnchor").value()},
+                 "text");
+        CHECK_EQ(std::string_view{table_position.attribute("w:tblOverlap").value()},
+                 "never");
+        ++all_positioned_table_count;
+    }
+    CHECK_EQ(all_positioned_table_count, 2U);
+
+    CHECK_EQ(run_cli({"set-table-position",
+                      source.string(),
+                      "0",
+                      "--table",
+                      "1",
+                      "--preset",
+                      "margin-anchor",
+                      "--output",
+                      list_positioned.string(),
+                      "--json"},
+                     list_output),
+             0);
+    CHECK_EQ(
+        read_text_file(list_output),
+        std::string{
+            "{\"command\":\"set-table-position\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_indices\":[0,1],\"positions\":["
+            "{\"horizontal_reference\":\"margin\",\"horizontal_offset_twips\":0,"
+            "\"vertical_reference\":\"paragraph\",\"vertical_offset_twips\":0,"
+            "\"left_from_text_twips\":144,\"right_from_text_twips\":144,"
+            "\"top_from_text_twips\":72,\"bottom_from_text_twips\":72,"
+            "\"overlap\":\"never\"},"
+            "{\"horizontal_reference\":\"margin\",\"horizontal_offset_twips\":0,"
+            "\"vertical_reference\":\"paragraph\",\"vertical_offset_twips\":0,"
+            "\"left_from_text_twips\":144,\"right_from_text_twips\":144,"
+            "\"top_from_text_twips\":72,\"bottom_from_text_twips\":72,"
+            "\"overlap\":\"never\"}]}\n"});
+
+    CHECK_EQ(run_cli({"clear-table-position",
+                      positioned.string(),
+                      "0",
+                      "--output",
+                      cleared.string(),
+                      "--json"},
+                     clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(clear_output),
+        std::string{
+            "{\"command\":\"clear-table-position\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_indices\":[0],\"positions\":[null]}\n"});
+
+    const auto cleared_document_xml = read_docx_entry(cleared, "word/document.xml");
+    pugi::xml_document cleared_xml_document;
+    REQUIRE(cleared_xml_document.load_string(cleared_document_xml.c_str()));
+    const auto cleared_table_properties = cleared_xml_document.child("w:document")
+                                              .child("w:body")
+                                              .child("w:tbl")
+                                              .child("w:tblPr");
+    REQUIRE(cleared_table_properties != pugi::xml_node{});
+    CHECK(cleared_table_properties.child("w:tblpPr") == pugi::xml_node{});
+
+    CHECK_EQ(run_cli({"inspect-tables", cleared.string(), "--table", "0", "--json"},
+                     inspect_cleared_output),
+             0);
+    CHECK_NE(read_text_file(inspect_cleared_output).find("\"position\":null"),
+             std::string::npos);
+
+
+    CHECK_EQ(run_cli({"clear-table-position",
+                      all_positioned.string(),
+                      "all",
+                      "--output",
+                      all_cleared.string(),
+                      "--json"},
+                     clear_all_output),
+             0);
+    CHECK_EQ(
+        read_text_file(clear_all_output),
+        std::string{
+            "{\"command\":\"clear-table-position\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_indices\":[0,1],\"positions\":[null,null]}\n"});
+
+    const auto all_cleared_document_xml =
+        read_docx_entry(all_cleared, "word/document.xml");
+    pugi::xml_document all_cleared_xml_document;
+    REQUIRE(all_cleared_xml_document.load_string(all_cleared_document_xml.c_str()));
+    const auto all_cleared_body =
+        all_cleared_xml_document.child("w:document").child("w:body");
+    std::size_t all_cleared_table_count = 0U;
+    for (auto table_node = all_cleared_body.child("w:tbl");
+         table_node != pugi::xml_node{};
+         table_node = table_node.next_sibling("w:tbl")) {
+        CHECK(table_node.child("w:tblPr").child("w:tblpPr") == pugi::xml_node{});
+        ++all_cleared_table_count;
+    }
+    CHECK_EQ(all_cleared_table_count, 2U);
+
+    CHECK_EQ(run_cli({"clear-table-position",
+                      list_positioned.string(),
+                      "0",
+                      "--table",
+                      "1",
+                      "--output",
+                      list_cleared.string(),
+                      "--json"},
+                     clear_list_output),
+             0);
+    CHECK_EQ(
+        read_text_file(clear_list_output),
+        std::string{
+            "{\"command\":\"clear-table-position\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_indices\":[0,1],\"positions\":[null,null]}\n"});
+
+    const auto list_cleared_document_xml =
+        read_docx_entry(list_cleared, "word/document.xml");
+    pugi::xml_document list_cleared_xml_document;
+    REQUIRE(
+        list_cleared_xml_document.load_string(list_cleared_document_xml.c_str()));
+    const auto list_cleared_body =
+        list_cleared_xml_document.child("w:document").child("w:body");
+    std::size_t list_cleared_table_count = 0U;
+    for (auto table_node = list_cleared_body.child("w:tbl");
+         table_node != pugi::xml_node{};
+         table_node = table_node.next_sibling("w:tbl")) {
+        CHECK(table_node.child("w:tblPr").child("w:tblpPr") == pugi::xml_node{});
+        ++list_cleared_table_count;
+    }
+    CHECK_EQ(list_cleared_table_count, 2U);
+    remove_if_exists(source);
+    remove_if_exists(positioned);
+    remove_if_exists(cleared);
+    remove_if_exists(preset_positioned);
+    remove_if_exists(all_positioned);
+    remove_if_exists(list_positioned);
+    remove_if_exists(all_cleared);
+    remove_if_exists(list_cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_cleared_output);
+    remove_if_exists(preset_output);
+    remove_if_exists(all_output);
+    remove_if_exists(list_output);
+    remove_if_exists(clear_all_output);
+    remove_if_exists(clear_list_output);
+}
+
+TEST_CASE("cli audit-table-style-regions reports empty table style regions") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_audit_table_style_regions_source.docx";
+    const fs::path json_output =
+        working_directory / "cli_audit_table_style_regions_output.json";
+    const fs::path text_output =
+        working_directory / "cli_audit_table_style_regions_output.txt";
+    const fs::path clean_output =
+        working_directory / "cli_audit_table_style_regions_clean.json";
+    const fs::path fail_output =
+        working_directory / "cli_audit_table_style_regions_fail.json";
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(clean_output);
+    remove_if_exists(fail_output);
+
+    create_cli_table_style_region_audit_fixture(source);
+
+    CHECK_EQ(run_cli({"audit-table-style-regions", source.string(), "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("command":"audit-table-style-regions")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
+    CHECK_NE(json.find(R"("table_style_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("region_count":4)"), std::string::npos);
+    CHECK_NE(json.find(R"("issue_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("style_id":"SparseTable")"), std::string::npos);
+    CHECK_NE(json.find(R"("region":"whole_table")"), std::string::npos);
+    CHECK_NE(json.find(R"("region":"first_row")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-table-style-regions", source.string()}, text_output), 0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("table_style_region_audit: issues"), std::string::npos);
+    CHECK_NE(text.find("issue_count: 2"), std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-table-style-regions",
+                      source.string(),
+                      "--style",
+                      "CleanTable",
+                      "--json"},
+                     clean_output),
+             0);
+    const auto clean_json = read_text_file(clean_output);
+    CHECK_NE(clean_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(clean_json.find(R"("style_id":"CleanTable")"), std::string::npos);
+    CHECK_NE(clean_json.find(R"("issue_count":0)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-table-style-regions",
+                      source.string(),
+                      "--fail-on-issue",
+                      "--json"},
+                     fail_output),
+             1);
+    CHECK_NE(read_text_file(fail_output).find(R"("fail_on_issue":true)"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(clean_output);
+    remove_if_exists(fail_output);
+}
+
+TEST_CASE("cli audit-table-style-inheritance reports invalid based_on chains") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_audit_table_style_inheritance_source.docx";
+    const fs::path json_output =
+        working_directory / "cli_audit_table_style_inheritance_output.json";
+    const fs::path text_output =
+        working_directory / "cli_audit_table_style_inheritance_output.txt";
+    const fs::path clean_output =
+        working_directory / "cli_audit_table_style_inheritance_clean.json";
+    const fs::path fail_output =
+        working_directory / "cli_audit_table_style_inheritance_fail.json";
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(clean_output);
+    remove_if_exists(fail_output);
+
+    create_cli_table_style_inheritance_audit_fixture(source);
+
+    CHECK_EQ(run_cli({"audit-table-style-inheritance", source.string(), "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("command":"audit-table-style-inheritance")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
+    CHECK_NE(json.find(R"("table_style_count":6)"), std::string::npos);
+    CHECK_NE(json.find(R"("issue_count":4)"), std::string::npos);
+    CHECK_NE(json.find(R"("issue_type":"missing_based_on")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("issue_type":"based_on_not_table")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("issue_type":"inheritance_cycle")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("based_on_style_id":"MissingTable")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("based_on_style_kind":"paragraph")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("inheritance_chain":["CycleA","CycleB","CycleA"])"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-table-style-inheritance", source.string()}, text_output),
+             0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("table_style_inheritance_audit: issues"),
+             std::string::npos);
+    CHECK_NE(text.find("chain=CycleA -> CycleB -> CycleA"), std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-table-style-inheritance",
+                      source.string(),
+                      "--style",
+                      "ChildTable",
+                      "--json"},
+                     clean_output),
+             0);
+    const auto clean_json = read_text_file(clean_output);
+    CHECK_NE(clean_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(clean_json.find(R"("style_id":"ChildTable")"), std::string::npos);
+    CHECK_NE(clean_json.find(R"("issue_count":0)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-table-style-inheritance",
+                      source.string(),
+                      "--fail-on-issue",
+                      "--json"},
+                     fail_output),
+             1);
+    CHECK_NE(read_text_file(fail_output).find(R"("fail_on_issue":true)"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(clean_output);
+    remove_if_exists(fail_output);
+}
+
+TEST_CASE("cli audit-table-style-quality aggregates table style gates") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_audit_table_style_quality_source.docx";
+    const fs::path json_output =
+        working_directory / "cli_audit_table_style_quality_output.json";
+    const fs::path text_output =
+        working_directory / "cli_audit_table_style_quality_output.txt";
+    const fs::path fail_output =
+        working_directory / "cli_audit_table_style_quality_fail.json";
+    const fs::path plan_json_output =
+        working_directory / "cli_plan_table_style_quality_fixes_output.json";
+    const fs::path plan_text_output =
+        working_directory / "cli_plan_table_style_quality_fixes_output.txt";
+    const fs::path plan_fail_output =
+        working_directory / "cli_plan_table_style_quality_fixes_fail.json";
+    const fs::path applied =
+        working_directory / "cli_apply_table_style_quality_fixes_applied.docx";
+    const fs::path apply_output =
+        working_directory / "cli_apply_table_style_quality_fixes_output.json";
+    const fs::path after_quality_output =
+        working_directory / "cli_apply_table_style_quality_fixes_after.json";
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(fail_output);
+    remove_if_exists(plan_json_output);
+    remove_if_exists(plan_text_output);
+    remove_if_exists(plan_fail_output);
+    remove_if_exists(applied);
+    remove_if_exists(apply_output);
+    remove_if_exists(after_quality_output);
+    remove_if_exists(applied);
+    remove_if_exists(apply_output);
+    remove_if_exists(after_quality_output);
+
+    create_cli_table_style_quality_audit_fixture(source);
+
+    CHECK_EQ(run_cli({"audit-table-style-quality", source.string(), "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("command":"audit-table-style-quality")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
+    CHECK_NE(json.find(R"("issue_count":3)"), std::string::npos);
+    CHECK_NE(json.find(R"("region_issue_count":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("inheritance_issue_count":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("style_look_issue_count":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("region_audit")"), std::string::npos);
+    CHECK_NE(json.find(R"("inheritance_audit")"), std::string::npos);
+    CHECK_NE(json.find(R"("style_look")"), std::string::npos);
+    CHECK_NE(json.find(R"("issue_type":"empty_region")"), std::string::npos);
+    CHECK_NE(json.find(R"("issue_type":"missing_based_on")"), std::string::npos);
+    CHECK_NE(json.find(R"("issue_type":"style_look_disabled")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-table-style-quality", source.string()}, text_output),
+             0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("table_style_quality_audit: issues"), std::string::npos);
+    CHECK_NE(text.find("region_issue_count: 1"), std::string::npos);
+    CHECK_NE(text.find("inheritance_issue_count: 1"), std::string::npos);
+    CHECK_NE(text.find("style_look_issue_count: 1"), std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-table-style-quality",
+                      source.string(),
+                      "--fail-on-issue",
+                      "--json"},
+                     fail_output),
+             1);
+    CHECK_NE(read_text_file(fail_output).find(R"("fail_on_issue":true)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"plan-table-style-quality-fixes", source.string(), "--json"},
+                     plan_json_output),
+             0);
+    const auto plan_json = read_text_file(plan_json_output);
+    CHECK_NE(plan_json.find(R"("command":"plan-table-style-quality-fixes")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("plan_item_count":3)"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("automatic_fix_count":1)"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("manual_fix_count":2)"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("action":"edit_table_style_region")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("action":"create_or_clear_based_on")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("action":"repair_table_style_look")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("recommended_command":"repair-table-style-look --plan-only")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"plan-table-style-quality-fixes", source.string()},
+                     plan_text_output),
+             0);
+    const auto plan_text = read_text_file(plan_text_output);
+    CHECK_NE(plan_text.find("table_style_quality_fix_plan: issues"),
+             std::string::npos);
+    CHECK_NE(plan_text.find("automatic_fix_count: 1"), std::string::npos);
+    CHECK_NE(plan_text.find("manual_fix_count: 2"), std::string::npos);
+
+    CHECK_EQ(run_cli({"plan-table-style-quality-fixes",
+                      source.string(),
+                      "--fail-on-issue",
+                      "--json"},
+                     plan_fail_output),
+             1);
+    CHECK_NE(read_text_file(plan_fail_output).find(R"("fail_on_issue":true)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"apply-table-style-quality-fixes",
+                      source.string(),
+                      "--look-only",
+                      "--output",
+                      applied.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    const auto apply_json = read_text_file(apply_output);
+    CHECK_NE(apply_json.find(R"("command":"apply-table-style-quality-fixes")"),
+             std::string::npos);
+    CHECK_NE(apply_json.find(R"("mode":"look_only")"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("before_issue_count":3)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("after_issue_count":2)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("before_automatic_fix_count":1)"),
+             std::string::npos);
+    CHECK_NE(apply_json.find(R"("after_automatic_fix_count":0)"),
+             std::string::npos);
+    CHECK_NE(apply_json.find(R"("changed_table_count":1)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"audit-table-style-quality", applied.string(), "--json"},
+                     after_quality_output),
+             0);
+    const auto after_quality_json = read_text_file(after_quality_output);
+    CHECK_NE(after_quality_json.find(R"("issue_count":2)"), std::string::npos);
+    CHECK_NE(after_quality_json.find(R"("region_issue_count":1)"),
+             std::string::npos);
+    CHECK_NE(after_quality_json.find(R"("inheritance_issue_count":1)"),
+             std::string::npos);
+    CHECK_NE(after_quality_json.find(R"("style_look_issue_count":0)"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(fail_output);
+    remove_if_exists(plan_json_output);
+    remove_if_exists(plan_text_output);
+    remove_if_exists(plan_fail_output);
+}
+
+TEST_CASE("cli check-table-style-look reports disabled conditional flags") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_check_table_style_look_source.docx";
+    const fs::path json_output =
+        working_directory / "cli_check_table_style_look_output.json";
+    const fs::path text_output =
+        working_directory / "cli_check_table_style_look_output.txt";
+    const fs::path fail_output =
+        working_directory / "cli_check_table_style_look_fail.json";
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(fail_output);
+
+    create_cli_table_style_look_check_fixture(source);
+
+    CHECK_EQ(run_cli({"check-table-style-look", source.string(), "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("command":"check-table-style-look")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
+    CHECK_NE(json.find(R"("table_count":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("issue_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("region":"first_row")"), std::string::npos);
+    CHECK_NE(json.find(R"("required_style_look_flag":"first_row")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("actual_value":false)"), std::string::npos);
+    CHECK_NE(json.find(R"("region":"second_banded_rows")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("required_style_look_flag":"banded_rows")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"check-table-style-look", source.string()}, text_output), 0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("table_style_look_consistency: issues"),
+             std::string::npos);
+    CHECK_NE(text.find("issue_count: 2"), std::string::npos);
+    CHECK_NE(text.find("region=second_banded_rows"), std::string::npos);
+
+    CHECK_EQ(run_cli({"check-table-style-look",
+                      source.string(),
+                      "--fail-on-issue",
+                      "--json"},
+                     fail_output),
+             1);
+    CHECK_NE(read_text_file(fail_output).find(R"("fail_on_issue":true)"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(fail_output);
+}
+
+TEST_CASE("cli repair-table-style-look applies conditional flags") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_repair_table_style_look_source.docx";
+    const fs::path repaired =
+        working_directory / "cli_repair_table_style_look_repaired.docx";
+    const fs::path plan_output =
+        working_directory / "cli_repair_table_style_look_plan.json";
+    const fs::path apply_output =
+        working_directory / "cli_repair_table_style_look_apply.json";
+    const fs::path check_output =
+        working_directory / "cli_repair_table_style_look_check.json";
+
+    remove_if_exists(source);
+    remove_if_exists(repaired);
+    remove_if_exists(plan_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(check_output);
+
+    create_cli_table_style_look_check_fixture(source);
+
+    CHECK_EQ(run_cli({"repair-table-style-look",
+                      source.string(),
+                      "--plan-only",
+                      "--json"},
+                     plan_output),
+             0);
+    const auto plan_json = read_text_file(plan_output);
+    CHECK_NE(plan_json.find(R"("command":"repair-table-style-look")"),
+             std::string::npos);
+    CHECK_NE(plan_json.find(R"("mode":"plan")"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("before_issue_count":2)"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("after_issue_count":null)"), std::string::npos);
+    CHECK_NE(plan_json.find(R"("applicable_issue_count":2)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"repair-table-style-look",
+                      source.string(),
+                      "--apply",
+                      "--output",
+                      repaired.string(),
+                      "--json"},
+                     apply_output),
+             0);
+    const auto apply_json = read_text_file(apply_output);
+    CHECK_NE(apply_json.find(R"("mode":"apply")"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("before_issue_count":2)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("after_issue_count":0)"), std::string::npos);
+    CHECK_NE(apply_json.find(R"("changed_table_count":1)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"check-table-style-look", repaired.string(), "--json"},
+                     check_output),
+             0);
+    const auto check_json = read_text_file(check_output);
+    CHECK_NE(check_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(check_json.find(R"("issue_count":0)"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(repaired);
+    remove_if_exists(plan_output);
+    remove_if_exists(apply_output);
+    remove_if_exists(check_output);
 }
 
 TEST_CASE("cli inspect-table-cells supports row filtering and single-cell json output") {
@@ -14135,6 +16548,1656 @@ TEST_CASE("cli inspect-content-controls lists and filters content controls") {
     remove_if_exists(parse_output);
 }
 
+TEST_CASE("cli inspect-content-controls reports form state") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_content_control_forms_source.docx";
+    const fs::path json_output =
+        working_directory / "cli_content_control_forms.json";
+    const fs::path text_output =
+        working_directory / "cli_content_control_forms.txt";
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+
+    create_cli_content_control_forms_fixture(source);
+
+    CHECK_EQ(run_cli({"inspect-content-controls", source.string(), "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("count":3)"), std::string::npos);
+    CHECK_NE(json.find(R"("form_kind":"checkbox")"), std::string::npos);
+    CHECK_NE(json.find(R"("lock":"sdtContentLocked")"), std::string::npos);
+    CHECK_NE(json.find(R"("checked":true)"), std::string::npos);
+    CHECK_NE(json.find(R"("form_kind":"drop_down_list")"), std::string::npos);
+    CHECK_NE(json.find(R"("selected_list_item":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("display_text":"Approved","value":"approved")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("form_kind":"date")"), std::string::npos);
+    CHECK_NE(json.find(R"("date_format":"yyyy-MM-dd")"), std::string::npos);
+    CHECK_NE(json.find(R"("date_locale":"en-US")"), std::string::npos);
+    CHECK_NE(json.find(R"("data_binding_store_item_id":"{33333333-3333-3333-3333-333333333333}")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("data_binding_xpath":"/invoice/dueDate")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("data_binding_prefix_mappings":"xmlns:fd=\"urn:featherdoc\"")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-content-controls", source.string()}, text_output),
+             0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("form_kind=checkbox"), std::string::npos);
+    CHECK_NE(text.find("checked=yes"), std::string::npos);
+    CHECK_NE(text.find("list_items=2"), std::string::npos);
+    CHECK_NE(text.find("date_format=yyyy-MM-dd"), std::string::npos);
+    CHECK_NE(text.find("data_binding_xpath=/invoice/dueDate"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+}
+
+TEST_CASE("cli set-content-control-form-state mutates form controls") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_content_control_form_state_source.docx";
+    const fs::path checkbox_updated =
+        working_directory / "cli_content_control_form_state_checkbox.docx";
+    const fs::path status_updated =
+        working_directory / "cli_content_control_form_state_status.docx";
+    const fs::path date_updated =
+        working_directory / "cli_content_control_form_state_date.docx";
+    const fs::path binding_updated =
+        working_directory / "cli_content_control_form_state_binding.docx";
+    const fs::path binding_cleared =
+        working_directory / "cli_content_control_form_state_binding_cleared.docx";
+    const fs::path checkbox_output =
+        working_directory / "cli_content_control_form_state_checkbox.json";
+    const fs::path status_output =
+        working_directory / "cli_content_control_form_state_status.json";
+    const fs::path date_output =
+        working_directory / "cli_content_control_form_state_date.json";
+    const fs::path binding_output =
+        working_directory / "cli_content_control_form_state_binding.json";
+    const fs::path binding_clear_output =
+        working_directory / "cli_content_control_form_state_binding_clear.json";
+    const fs::path inspect_output =
+        working_directory / "cli_content_control_form_state_inspect.json";
+    const fs::path parse_output =
+        working_directory / "cli_content_control_form_state_parse.json";
+    const fs::path missing_output =
+        working_directory / "cli_content_control_form_state_missing.json";
+
+    remove_if_exists(source);
+    remove_if_exists(checkbox_updated);
+    remove_if_exists(status_updated);
+    remove_if_exists(date_updated);
+    remove_if_exists(binding_updated);
+    remove_if_exists(binding_cleared);
+    remove_if_exists(checkbox_output);
+    remove_if_exists(status_output);
+    remove_if_exists(date_output);
+    remove_if_exists(binding_output);
+    remove_if_exists(binding_clear_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(parse_output);
+    remove_if_exists(missing_output);
+
+    create_cli_content_control_forms_fixture(source);
+
+    CHECK_EQ(run_cli({"set-content-control-form-state",
+                      source.string(),
+                      "--tag",
+                      "approved",
+                      "--checked",
+                      "false",
+                      "--clear-lock",
+                      "--output",
+                      checkbox_updated.string(),
+                      "--json"},
+                     checkbox_output),
+             0);
+    const auto checkbox_json = read_text_file(checkbox_output);
+    CHECK_NE(checkbox_json.find(R"("command":"set-content-control-form-state")"),
+             std::string::npos);
+    CHECK_NE(checkbox_json.find(R"("selector":{"kind":"tag","value":"approved"})"),
+             std::string::npos);
+    CHECK_NE(checkbox_json.find(R"("updated":1)"), std::string::npos);
+    CHECK_NE(checkbox_json.find(R"("checked":false)"), std::string::npos);
+    CHECK_NE(checkbox_json.find(R"("clear_lock":true)"), std::string::npos);
+    auto document_xml = read_docx_entry(checkbox_updated, "word/document.xml");
+    CHECK_NE(document_xml.find(R"(w14:checked w14:val="0")"),
+             std::string::npos);
+    CHECK_EQ(document_xml.find(R"(<w:lock w:val="sdtContentLocked"/>)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"set-content-control-form-state",
+                      checkbox_updated.string(),
+                      "--alias",
+                      "Status",
+                      "--selected-item",
+                      "draft",
+                      "--lock",
+                      "sdtLocked",
+                      "--output",
+                      status_updated.string(),
+                      "--json"},
+                     status_output),
+             0);
+    const auto status_json = read_text_file(status_output);
+    CHECK_NE(status_json.find(R"("selector":{"kind":"alias","value":"Status"})"),
+             std::string::npos);
+    CHECK_NE(status_json.find(R"("selected_item":"draft")"),
+             std::string::npos);
+    CHECK_NE(status_json.find(R"("lock":"sdtLocked")"), std::string::npos);
+    document_xml = read_docx_entry(status_updated, "word/document.xml");
+    CHECK_NE(document_xml.find(R"(<w:t>Draft</w:t>)"), std::string::npos);
+    CHECK_NE(document_xml.find("w:lock w:val=\"sdtLocked\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"set-content-control-form-state",
+                      status_updated.string(),
+                      "--tag",
+                      "due_date",
+                      "--date-text",
+                      "2026-06-01",
+                      "--date-format",
+                      "yyyy/MM/dd",
+                      "--date-locale",
+                      "zh-CN",
+                      "--output",
+                      date_updated.string(),
+                      "--json"},
+                     date_output),
+             0);
+    const auto date_json = read_text_file(date_output);
+    CHECK_NE(date_json.find(R"("date_text":"2026-06-01")"),
+             std::string::npos);
+    CHECK_NE(date_json.find(R"("date_format":"yyyy/MM/dd")"),
+             std::string::npos);
+    CHECK_NE(date_json.find(R"("date_locale":"zh-CN")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"set-content-control-form-state",
+                      date_updated.string(),
+                      "--tag",
+                      "due_date",
+                      "--data-binding-store-item-id",
+                      "{44444444-4444-4444-4444-444444444444}",
+                      "--data-binding-xpath",
+                      "/invoice/finalDueDate",
+                      "--data-binding-prefix-mappings",
+                      "xmlns:fd=\"urn:featherdoc\"",
+                      "--output",
+                      binding_updated.string(),
+                      "--json"},
+                     binding_output),
+             0);
+    const auto binding_json = read_text_file(binding_output);
+    CHECK_NE(binding_json.find(
+                 R"("data_binding_store_item_id":"{44444444-4444-4444-4444-444444444444}")"),
+             std::string::npos);
+    CHECK_NE(binding_json.find(R"("data_binding_xpath":"/invoice/finalDueDate")"),
+             std::string::npos);
+    document_xml = read_docx_entry(binding_updated, "word/document.xml");
+    CHECK_NE(document_xml.find("w:dataBinding"), std::string::npos);
+    CHECK_NE(document_xml.find("/invoice/finalDueDate"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-content-controls", binding_updated.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("checked":false)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"☐")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("lock":"sdtLocked")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("selected_list_item":0)"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Draft")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("date_format":"yyyy/MM/dd")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("date_locale":"zh-CN")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"2026-06-01")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("data_binding_xpath":"/invoice/finalDueDate")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"set-content-control-form-state",
+                      binding_updated.string(),
+                      "--tag",
+                      "due_date",
+                      "--clear-data-binding",
+                      "--output",
+                      binding_cleared.string(),
+                      "--json"},
+                     binding_clear_output),
+             0);
+    const auto binding_clear_json = read_text_file(binding_clear_output);
+    CHECK_NE(binding_clear_json.find(R"("clear_data_binding":true)"),
+             std::string::npos);
+    document_xml = read_docx_entry(binding_cleared, "word/document.xml");
+    CHECK_EQ(document_xml.find("w:dataBinding"), std::string::npos);
+
+    CHECK_EQ(run_cli({"set-content-control-form-state",
+                      source.string(),
+                      "--tag",
+                      "approved",
+                      "--json"},
+                     parse_output),
+             2);
+    CHECK_NE(read_text_file(parse_output).find(
+                 "set-content-control-form-state expects at least one form-state option"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"set-content-control-form-state",
+                      source.string(),
+                      "--tag",
+                      "missing",
+                      "--checked",
+                      "true",
+                      "--json"},
+                     missing_output),
+             1);
+    CHECK_NE(read_text_file(missing_output).find(
+                 "matching content control not found"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(checkbox_updated);
+    remove_if_exists(status_updated);
+    remove_if_exists(date_updated);
+    remove_if_exists(binding_updated);
+    remove_if_exists(binding_cleared);
+    remove_if_exists(checkbox_output);
+    remove_if_exists(status_output);
+    remove_if_exists(date_output);
+    remove_if_exists(binding_output);
+    remove_if_exists(binding_clear_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(parse_output);
+    remove_if_exists(missing_output);
+}
+
+TEST_CASE("cli sync-content-controls-from-custom-xml updates bound text") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_content_control_custom_xml_source.docx";
+    const fs::path updated =
+        working_directory / "cli_content_control_custom_xml_synced.docx";
+    const fs::path output =
+        working_directory / "cli_content_control_custom_xml_sync.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    constexpr auto relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+)";
+    constexpr auto content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+)";
+    constexpr auto document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:sdt>
+      <w:sdtPr>
+        <w:alias w:val="Due Date"/>
+        <w:tag w:val="due_date"/>
+        <w:dataBinding w:storeItemID="{66666666-6666-6666-6666-666666666666}" w:xpath="/invoice/dueDate"/>
+      </w:sdtPr>
+      <w:sdtContent><w:p><w:r><w:t>Pending date</w:t></w:r></w:p></w:sdtContent>
+    </w:sdt>
+  </w:body>
+</w:document>
+)";
+    constexpr auto custom_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<invoice><dueDate>2026-08-20</dueDate></invoice>
+)";
+    constexpr auto item_props =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ds:datastoreItem ds:itemID="{66666666-6666-6666-6666-666666666666}"
+                  xmlns:ds="http://schemas.openxmlformats.org/officeDocument/2006/customXml">
+  <ds:schemaRefs/>
+</ds:datastoreItem>
+)";
+    constexpr auto item_relationships =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXmlProps"
+                Target="itemProps1.xml"/>
+</Relationships>
+)";
+
+    int zip_error = 0;
+    zip_t *archive = zip_openwitherror(source.string().c_str(),
+                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
+                                       &zip_error);
+    REQUIRE(archive != nullptr);
+    REQUIRE(write_archive_entry(archive, "_rels/.rels", relationships_xml));
+    REQUIRE(write_archive_entry(archive, "[Content_Types].xml", content_types_xml));
+    REQUIRE(write_archive_entry(archive, "word/document.xml", document_xml));
+    REQUIRE(write_archive_entry(archive, "customXml/item1.xml", custom_xml));
+    REQUIRE(write_archive_entry(archive, "customXml/itemProps1.xml", item_props));
+    REQUIRE(write_archive_entry(archive, "customXml/_rels/item1.xml.rels",
+                                item_relationships));
+    zip_close(archive);
+
+    CHECK_EQ(run_cli({"sync-content-controls-from-custom-xml",
+                      source.string(),
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find(R"("command":"sync-content-controls-from-custom-xml")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("synced_content_controls":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("value":"2026-08-20")"), std::string::npos);
+    CHECK_NE(json.find(R"("issue_count":0)"), std::string::npos);
+
+    const auto document_xml_after = read_docx_entry(updated, "word/document.xml");
+    CHECK_NE(document_xml_after.find(R"(<w:t>2026-08-20</w:t>)"),
+             std::string::npos);
+    CHECK_EQ(document_xml_after.find("Pending date"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli semantic-diff reports document changes and can fail on diff") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left = working_directory / "cli_semantic_diff_left.docx";
+    const fs::path right = working_directory / "cli_semantic_diff_right.docx";
+    const fs::path json_output = working_directory / "cli_semantic_diff.json";
+    const fs::path fail_output = working_directory / "cli_semantic_diff_fail.json";
+    const fs::path text_output = working_directory / "cli_semantic_diff.txt";
+    const fs::path changed_text_output =
+        working_directory / "cli_semantic_diff_changed.txt";
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(json_output);
+    remove_if_exists(fail_output);
+    remove_if_exists(text_output);
+
+    create_cli_semantic_diff_fixture(left, "draft", "Ada Lovelace", "$120");
+    create_cli_semantic_diff_fixture(right, "approved", "Grace Hopper", "$150");
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("command":"semantic-diff")"), std::string::npos);
+    CHECK_NE(json.find(R"("different":true)"), std::string::npos);
+    CHECK_NE(json.find(R"("change_count":3)"), std::string::npos);
+    CHECK_NE(json.find(R"("paragraph_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("table_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("content_control_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("section_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("sections":{"left_count":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("field_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("field_path":"text")"), std::string::npos);
+    CHECK_NE(json.find("Status: draft"), std::string::npos);
+    CHECK_NE(json.find("Grace Hopper"), std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(),
+                      "--fail-on-diff", "--json"},
+                     fail_output),
+             1);
+    const auto fail_json = read_text_file(fail_output);
+    CHECK_NE(fail_json.find(R"("fail_on_diff":true)"), std::string::npos);
+    CHECK_NE(fail_json.find(R"("different":true)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string()},
+                     changed_text_output),
+             0);
+    const auto changed_text = read_text_file(changed_text_output);
+    CHECK_NE(changed_text.find("paragraph_change[0].field[0]: text"),
+             std::string::npos);
+    CHECK_NE(changed_text.find("content_control_change[0].field[0]: text"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), left.string()}, text_output), 0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("different: no"), std::string::npos);
+    CHECK_NE(text.find("change_count: 0"), std::string::npos);
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(json_output);
+    remove_if_exists(fail_output);
+    remove_if_exists(text_output);
+    remove_if_exists(changed_text_output);
+}
+
+
+
+
+
+TEST_CASE("cli semantic-diff reports TOC REF and SEQ field changes") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left = working_directory / "cli_semantic_diff_fields_left.docx";
+    const fs::path right = working_directory / "cli_semantic_diff_fields_right.docx";
+    const fs::path json_output = working_directory / "cli_semantic_diff_fields.json";
+    const fs::path disabled_output =
+        working_directory / "cli_semantic_diff_fields_disabled.json";
+    const fs::path text_output = working_directory / "cli_semantic_diff_fields.txt";
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(json_output);
+    remove_if_exists(disabled_output);
+    remove_if_exists(text_output);
+
+    create_cli_semantic_diff_field_fixture(left, 2U, "Referenced heading", 1U,
+                                           "Figure 1");
+    create_cli_semantic_diff_field_fixture(right, 3U, "Approved heading", 2U,
+                                           "Figure 2");
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json",
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls", "--no-sections"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("fields":{"left_count":3)"), std::string::npos);
+    CHECK_NE(json.find(R"("field_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("field":"field")"), std::string::npos);
+    CHECK_NE(json.find(R"("kind":"changed")"), std::string::npos);
+    CHECK_NE(json.find(R"("field_path":"instruction")"), std::string::npos);
+    CHECK_NE(json.find(R"("field_path":"result_text")"), std::string::npos);
+    CHECK_NE(json.find("kind=table_of_contents"), std::string::npos);
+    CHECK_NE(json.find("kind=reference"), std::string::npos);
+    CHECK_NE(json.find("kind=sequence"), std::string::npos);
+    CHECK_NE(json.find("Approved heading"), std::string::npos);
+    CHECK_NE(json.find(R"("template_part_results")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json",
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls", "--no-sections", "--no-fields"},
+                     disabled_output),
+             0);
+    const auto disabled_json = read_text_file(disabled_output);
+    CHECK_NE(disabled_json.find(R"("change_count":0)"), std::string::npos);
+    CHECK_NE(disabled_json.find(R"("fields":{"left_count":0)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(),
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls", "--no-sections"},
+                     text_output),
+             0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("fields: left=3 right=3 added=0 removed=0 changed=3"),
+             std::string::npos);
+    CHECK_NE(text.find("field_change[0]: changed left=0 right=0 field=field"),
+             std::string::npos);
+    CHECK_NE(text.find("field_change[0].field[0]: instruction"),
+             std::string::npos);
+    CHECK_NE(text.find("template_part_field_change[0]"), std::string::npos);
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(json_output);
+    remove_if_exists(disabled_output);
+    remove_if_exists(text_output);
+}
+
+
+
+TEST_CASE("cli semantic-diff reports style and numbering summary changes") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left =
+        working_directory / "cli_semantic_diff_style_numbering_left.docx";
+    const fs::path right =
+        working_directory / "cli_semantic_diff_style_numbering_right.docx";
+    const fs::path json_output =
+        working_directory / "cli_semantic_diff_style_numbering.json";
+    const fs::path disabled_output =
+        working_directory / "cli_semantic_diff_style_numbering_disabled.json";
+    const fs::path text_output =
+        working_directory / "cli_semantic_diff_style_numbering.txt";
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(json_output);
+    remove_if_exists(disabled_output);
+    remove_if_exists(text_output);
+
+    create_cli_semantic_diff_style_numbering_fixture(
+        left, "CLI Draft Heading", "Heading1", "CliDraftOutline",
+        featherdoc::list_kind::decimal, 1U, "%1.");
+    create_cli_semantic_diff_style_numbering_fixture(
+        right, "CLI Approved Heading", "Title", "CliApprovedOutline",
+        featherdoc::list_kind::bullet, 3U, "o");
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json",
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls", "--no-fields", "--no-sections",
+                      "--no-template-parts"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("change_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("styles":{")"), std::string::npos);
+    CHECK_NE(json.find(R"("numbering":{")"), std::string::npos);
+    CHECK_NE(json.find(R"("style_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("numbering_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("field":"style")"), std::string::npos);
+    CHECK_NE(json.find(R"("field":"numbering")"), std::string::npos);
+    CHECK_NE(json.find(R"("field_path":"name")"), std::string::npos);
+    CHECK_NE(json.find(R"("field_path":"levels.kind")"), std::string::npos);
+    CHECK_NE(json.find("CLI Approved Heading"), std::string::npos);
+    CHECK_NE(json.find("kind=bullet"), std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json",
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls", "--no-fields", "--no-sections",
+                      "--no-template-parts", "--no-styles", "--no-numbering"},
+                     disabled_output),
+             0);
+    const auto disabled_json = read_text_file(disabled_output);
+    CHECK_NE(disabled_json.find(R"("change_count":0)"), std::string::npos);
+    CHECK_NE(disabled_json.find(R"("styles":{"left_count":0)"),
+             std::string::npos);
+    CHECK_NE(disabled_json.find(R"("numbering":{"left_count":0)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(),
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls", "--no-fields", "--no-sections",
+                      "--no-template-parts"},
+                     text_output),
+             0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("styles: left="), std::string::npos);
+    CHECK_NE(text.find("numbering: left="), std::string::npos);
+    CHECK_NE(text.find("style_change[0]: changed"), std::string::npos);
+    CHECK_NE(text.find("numbering_change[0]: changed"), std::string::npos);
+    CHECK_NE(text.find("style_change[0].field[0]: name"), std::string::npos);
+    CHECK_NE(text.find("numbering_change[0].field"), std::string::npos);
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(json_output);
+    remove_if_exists(disabled_output);
+    remove_if_exists(text_output);
+}
+
+
+TEST_CASE("cli semantic-diff reports review object changes") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left = working_directory / "cli_semantic_diff_review_left.docx";
+    const fs::path right = working_directory / "cli_semantic_diff_review_right.docx";
+    const fs::path json_output = working_directory / "cli_semantic_diff_review.json";
+    const fs::path disabled_output =
+        working_directory / "cli_semantic_diff_review_disabled.json";
+    const fs::path text_output = working_directory / "cli_semantic_diff_review.txt";
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(json_output);
+    remove_if_exists(disabled_output);
+    remove_if_exists(text_output);
+
+    create_cli_semantic_diff_review_fixture(
+        left, "CLI original footnote", "CLI original endnote",
+        "CLI original comment", "CLI inserted draft", "Ada");
+    create_cli_semantic_diff_review_fixture(
+        right, "CLI approved footnote", "CLI approved endnote",
+        "CLI approved comment", "CLI inserted approved", "Grace");
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json",
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls", "--no-fields", "--no-styles",
+                      "--no-numbering", "--no-sections", "--no-template-parts"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("change_count":4)"), std::string::npos);
+    CHECK_NE(json.find(R"("footnotes":{"left_count":1,"right_count":1)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("endnotes":{"left_count":1,"right_count":1)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("comments":{"left_count":1,"right_count":1)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("revisions":{"left_count":1,"right_count":1)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("footnote_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("endnote_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("comment_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("revision_changes")"), std::string::npos);
+    CHECK_NE(json.find(R"("field":"footnote")"), std::string::npos);
+    CHECK_NE(json.find(R"("field":"endnote")"), std::string::npos);
+    CHECK_NE(json.find(R"("field":"comment")"), std::string::npos);
+    CHECK_NE(json.find(R"("field":"revision")"), std::string::npos);
+    CHECK_NE(json.find(R"("field_path":"text")"), std::string::npos);
+    CHECK_NE(json.find(R"("field_path":"author")"), std::string::npos);
+    CHECK_NE(json.find("CLI approved footnote"), std::string::npos);
+    CHECK_NE(json.find("CLI inserted approved"), std::string::npos);
+    CHECK_NE(json.find("Grace"), std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json",
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls", "--no-fields", "--no-styles",
+                      "--no-numbering", "--no-sections", "--no-template-parts",
+                      "--no-footnotes", "--no-endnotes", "--no-comments",
+                      "--no-revisions"},
+                     disabled_output),
+             0);
+    const auto disabled_json = read_text_file(disabled_output);
+    CHECK_NE(disabled_json.find(R"("change_count":0)"), std::string::npos);
+    CHECK_NE(disabled_json.find(R"("footnotes":{"left_count":0)"),
+             std::string::npos);
+    CHECK_NE(disabled_json.find(R"("revisions":{"left_count":0)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(),
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls", "--no-fields", "--no-styles",
+                      "--no-numbering", "--no-sections", "--no-template-parts"},
+                     text_output),
+             0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("footnotes: left=1 right=1"), std::string::npos);
+    CHECK_NE(text.find("endnotes: left=1 right=1"), std::string::npos);
+    CHECK_NE(text.find("comments: left=1 right=1"), std::string::npos);
+    CHECK_NE(text.find("revisions: left=1 right=1"), std::string::npos);
+    CHECK_NE(text.find("footnote_change[0]: changed"), std::string::npos);
+    CHECK_NE(text.find("revision_change[0].field"), std::string::npos);
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(json_output);
+    remove_if_exists(disabled_output);
+    remove_if_exists(text_output);
+}
+
+
+TEST_CASE("cli semantic-diff can isolate section page setup changes") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left = working_directory / "cli_semantic_diff_section_left.docx";
+    const fs::path right = working_directory / "cli_semantic_diff_section_right.docx";
+    const fs::path output = working_directory / "cli_semantic_diff_section.json";
+    const fs::path disabled_output =
+        working_directory / "cli_semantic_diff_section_disabled.json";
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(output);
+    remove_if_exists(disabled_output);
+
+    create_cli_page_setup_fixture(left);
+    create_cli_page_setup_fixture(right);
+
+    featherdoc::Document right_doc(right);
+    REQUIRE_FALSE(right_doc.open());
+    auto setup = featherdoc::section_page_setup{};
+    setup.orientation = featherdoc::page_orientation::landscape;
+    setup.width_twips = 15840U;
+    setup.height_twips = 12240U;
+    setup.margins.top_twips = 720U;
+    setup.margins.right_twips = 1800U;
+    setup.margins.bottom_twips = 1080U;
+    setup.margins.left_twips = 1800U;
+    setup.margins.header_twips = 360U;
+    setup.margins.footer_twips = 540U;
+    setup.page_number_start = 5U;
+    REQUIRE(right_doc.set_section_page_setup(0, setup));
+    REQUIRE_FALSE(right_doc.save());
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json",
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls"},
+                     output),
+             0);
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find(R"("sections":{"left_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("section_changes")"), std::string::npos);
+    CHECK_NE(json.find("orientation=portrait"), std::string::npos);
+    CHECK_NE(json.find("orientation=landscape"), std::string::npos);
+    CHECK_NE(json.find("page_number_start=5"), std::string::npos);
+    CHECK_NE(json.find(R"("field_path":"page_setup.orientation")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("field_path":"page_setup.width")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json",
+                      "--no-paragraphs", "--no-tables", "--no-images",
+                      "--no-content-controls", "--no-sections"},
+                     disabled_output),
+             0);
+    const auto disabled_json = read_text_file(disabled_output);
+    CHECK_NE(disabled_json.find(R"("change_count":0)"), std::string::npos);
+    CHECK_NE(disabled_json.find(R"("sections":{"left_count":0)"),
+             std::string::npos);
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(output);
+    remove_if_exists(disabled_output);
+}
+
+TEST_CASE("cli semantic-diff reports header and footer template part changes") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left = working_directory / "cli_semantic_diff_part_left.docx";
+    const fs::path right = working_directory / "cli_semantic_diff_part_right.docx";
+    const fs::path json_output = working_directory / "cli_semantic_diff_part.json";
+    const fs::path disabled_output =
+        working_directory / "cli_semantic_diff_part_disabled.json";
+    const fs::path text_output = working_directory / "cli_semantic_diff_part.txt";
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(json_output);
+    remove_if_exists(disabled_output);
+    remove_if_exists(text_output);
+
+    create_cli_semantic_diff_part_fixture(left, "Body stable", "Header draft",
+                                          "Footer draft");
+    create_cli_semantic_diff_part_fixture(right, "Body stable", "Header approved",
+                                          "Footer approved");
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("change_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("template_parts":{"left_count":2)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("changed_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("template_part_results")"), std::string::npos);
+    CHECK_NE(json.find(R"("part":"header")"), std::string::npos);
+    CHECK_NE(json.find(R"("part":"section-header")"), std::string::npos);
+    CHECK_NE(json.find(R"("part":"section-footer")"), std::string::npos);
+    CHECK_NE(json.find(R"("part_index":0)"), std::string::npos);
+    CHECK_NE(json.find(R"("section_index":0)"), std::string::npos);
+    CHECK_NE(json.find(R"("reference_kind":"default")"), std::string::npos);
+    CHECK_NE(json.find(R"("left_resolved_from_section_index":0)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("right_resolved_from_section_index":0)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("entry_name":"word/header1.xml")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("entry_name":"word/footer1.xml")"),
+             std::string::npos);
+    CHECK_NE(json.find("Header draft"), std::string::npos);
+    CHECK_NE(json.find("Header approved"), std::string::npos);
+    CHECK_NE(json.find("Footer approved"), std::string::npos);
+    CHECK_NE(json.find(R"("field_path":"text")"), std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json",
+                      "--no-template-parts"},
+                     disabled_output),
+             0);
+    const auto disabled_json = read_text_file(disabled_output);
+    CHECK_NE(disabled_json.find(R"("change_count":0)"), std::string::npos);
+    CHECK_NE(disabled_json.find(R"("template_parts":{"left_count":0)"),
+             std::string::npos);
+
+    const fs::path physical_only_output =
+        working_directory / "cli_semantic_diff_part_physical_only.json";
+    remove_if_exists(physical_only_output);
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json",
+                      "--no-resolved-section-template-parts"},
+                     physical_only_output),
+             0);
+    const auto physical_only_json = read_text_file(physical_only_output);
+    CHECK_NE(physical_only_json.find(R"("change_count":2)"), std::string::npos);
+    CHECK_EQ(physical_only_json.find(R"("part":"section-header")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string()}, text_output),
+             0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("template_part[1]: part=header index=0"), std::string::npos);
+    CHECK_NE(text.find("template_part[2]: part=footer index=0"), std::string::npos);
+    CHECK_NE(text.find("template_part[3]: part=section-header section=0 kind=default"),
+             std::string::npos);
+    CHECK_NE(text.find("template_part[4]: part=section-footer section=0 kind=default"),
+             std::string::npos);
+    CHECK_NE(text.find("template_part_paragraph_change[0].field[0]: text"),
+             std::string::npos);
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(json_output);
+    remove_if_exists(disabled_output);
+    remove_if_exists(physical_only_output);
+    remove_if_exists(text_output);
+}
+
+TEST_CASE("cli semantic-diff aligns inserted paragraphs by content") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left = working_directory / "cli_semantic_diff_align_left.docx";
+    const fs::path right = working_directory / "cli_semantic_diff_align_right.docx";
+    const fs::path aligned_output = working_directory / "cli_semantic_diff_align.json";
+    const fs::path index_output = working_directory / "cli_semantic_diff_index.json";
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(aligned_output);
+    remove_if_exists(index_output);
+
+    create_cli_semantic_diff_paragraph_fixture(left, {"Intro", "Scope", "Total"});
+    create_cli_semantic_diff_paragraph_fixture(
+        right, {"Intro", "Inserted approval note", "Scope", "Total"});
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(), "--json"},
+                     aligned_output),
+             0);
+    const auto aligned_json = read_text_file(aligned_output);
+    CHECK_NE(aligned_json.find(R"("align_sequences_by_content":true)"),
+             std::string::npos);
+    CHECK_NE(aligned_json.find(R"("added_count":1)"), std::string::npos);
+    CHECK_NE(aligned_json.find(R"("changed_count":0)"), std::string::npos);
+    CHECK_NE(aligned_json.find(R"("unchanged_count":3)"), std::string::npos);
+    CHECK_NE(aligned_json.find("Inserted approval note"), std::string::npos);
+
+    CHECK_EQ(run_cli({"semantic-diff", left.string(), right.string(),
+                      "--index-alignment", "--json"},
+                     index_output),
+             0);
+    const auto index_json = read_text_file(index_output);
+    CHECK_NE(index_json.find(R"("align_sequences_by_content":false)"),
+             std::string::npos);
+    CHECK_NE(index_json.find(R"("changed_count":2)"), std::string::npos);
+
+    remove_if_exists(left);
+    remove_if_exists(right);
+    remove_if_exists(aligned_output);
+    remove_if_exists(index_output);
+}
+
+TEST_CASE("cli inspect-hyperlinks lists document hyperlinks") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_inspect_hyperlinks_source.docx";
+    const fs::path text_output =
+        working_directory / "cli_inspect_hyperlinks.txt";
+    const fs::path json_output =
+        working_directory / "cli_inspect_hyperlinks.json";
+
+    remove_if_exists(source);
+    remove_if_exists(text_output);
+    remove_if_exists(json_output);
+
+    create_cli_review_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"inspect-hyperlinks", source.string()}, text_output), 0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("hyperlinks: 1"), std::string::npos);
+    CHECK_NE(text.find("Open docs"), std::string::npos);
+    CHECK_NE(text.find("https://example.com/docs"), std::string::npos);
+    CHECK_NE(text.find("external=yes"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-hyperlinks", source.string(), "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("count":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("text":"Open docs")"), std::string::npos);
+    CHECK_NE(json.find(R"("relationship_id":"rHyperlink")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("target":"https://example.com/docs")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("external":true)"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(text_output);
+    remove_if_exists(json_output);
+}
+
+TEST_CASE("cli inspect-review lists notes comments and revisions") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_inspect_review_source.docx";
+    const fs::path text_output = working_directory / "cli_inspect_review.txt";
+    const fs::path json_output = working_directory / "cli_inspect_review.json";
+
+    remove_if_exists(source);
+    remove_if_exists(text_output);
+    remove_if_exists(json_output);
+
+    create_cli_review_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"inspect-review", source.string()}, text_output), 0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("footnotes: 1"), std::string::npos);
+    CHECK_NE(text.find("Footnote body"), std::string::npos);
+    CHECK_NE(text.find("endnotes: 1"), std::string::npos);
+    CHECK_NE(text.find("Endnote body"), std::string::npos);
+    CHECK_NE(text.find("comments: 1"), std::string::npos);
+    CHECK_NE(text.find("Reviewer note"), std::string::npos);
+    CHECK_NE(text.find("anchor_text=Commented text"), std::string::npos);
+    CHECK_NE(text.find("revisions: 2"), std::string::npos);
+    CHECK_NE(text.find("kind=insertion"), std::string::npos);
+    CHECK_NE(text.find("kind=deletion"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-review", source.string(), "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("footnotes_count":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("endnotes_count":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("comments_count":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("revisions_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("kind":"comment")"), std::string::npos);
+    CHECK_NE(json.find(R"("author":"Reviewer")"), std::string::npos);
+    CHECK_NE(json.find(R"("anchor_text":"Commented text")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("text":"Inserted review text")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("text":"Deleted review text")"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(text_output);
+    remove_if_exists(json_output);
+}
+
+TEST_CASE("cli inspect-omml lists inline and display formulas") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_inspect_omml_source.docx";
+    const fs::path text_output = working_directory / "cli_inspect_omml.txt";
+    const fs::path json_output = working_directory / "cli_inspect_omml.json";
+
+    remove_if_exists(source);
+    remove_if_exists(text_output);
+    remove_if_exists(json_output);
+
+    create_cli_review_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"inspect-omml", source.string()}, text_output), 0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("formulas: 2"), std::string::npos);
+    CHECK_NE(text.find("display=no"), std::string::npos);
+    CHECK_NE(text.find("display=yes"), std::string::npos);
+    CHECK_NE(text.find("x+1"), std::string::npos);
+    CHECK_NE(text.find("y=2"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-omml", source.string(), "--json"}, json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("display":false)"), std::string::npos);
+    CHECK_NE(json.find(R"("display":true)"), std::string::npos);
+    CHECK_NE(json.find(R"("text":"x+1")"), std::string::npos);
+    CHECK_NE(json.find(R"("text":"y=2")"), std::string::npos);
+    CHECK_NE(json.find("<m:oMath"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(text_output);
+    remove_if_exists(json_output);
+}
+
+TEST_CASE("cli hyperlink mutation appends replaces and removes links") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_hyperlink_mutation_source.docx";
+    const fs::path appended = working_directory / "cli_hyperlink_mutation_appended.docx";
+    const fs::path replaced = working_directory / "cli_hyperlink_mutation_replaced.docx";
+    const fs::path removed = working_directory / "cli_hyperlink_mutation_removed.docx";
+    const fs::path output = working_directory / "cli_hyperlink_mutation.json";
+    const fs::path inspect_output = working_directory / "cli_hyperlink_mutation_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(appended);
+    remove_if_exists(replaced);
+    remove_if_exists(removed);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    create_cli_review_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"append-hyperlink",
+                      source.string(),
+                      "--text",
+                      "Added link",
+                      "--target",
+                      "https://example.com/added",
+                      "--output",
+                      appended.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_NE(read_text_file(output).find(R"("affected":1)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"replace-hyperlink",
+                      appended.string(),
+                      "0",
+                      "--text",
+                      "Changed docs",
+                      "--target",
+                      "https://example.com/changed",
+                      "--output",
+                      replaced.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_NE(read_text_file(output).find(R"("command":"replace-hyperlink")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"remove-hyperlink",
+                      replaced.string(),
+                      "1",
+                      "--output",
+                      removed.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"inspect-hyperlinks", removed.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("count":1)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Changed docs")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("target":"https://example.com/changed")"),
+             std::string::npos);
+    CHECK_EQ(inspect_json.find("https://example.com/added"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(appended);
+    remove_if_exists(replaced);
+    remove_if_exists(removed);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli omml mutation appends replaces and removes formulas") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_omml_mutation_source.docx";
+    const fs::path appended = working_directory / "cli_omml_mutation_appended.docx";
+    const fs::path replaced = working_directory / "cli_omml_mutation_replaced.docx";
+    const fs::path removed = working_directory / "cli_omml_mutation_removed.docx";
+    const fs::path output = working_directory / "cli_omml_mutation.json";
+    const fs::path inspect_output = working_directory / "cli_omml_mutation_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(appended);
+    remove_if_exists(replaced);
+    remove_if_exists(removed);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    create_cli_review_inspection_fixture(source);
+
+    const std::string appended_xml =
+        R"(<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:r><m:t>z=3</m:t></m:r></m:oMath>)";
+    const std::string replacement_xml =
+        R"(<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:r><m:t>q=4</m:t></m:r></m:oMath>)";
+
+    CHECK_EQ(run_cli({"append-omml",
+                      source.string(),
+                      "--xml",
+                      appended_xml,
+                      "--output",
+                      appended.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_NE(read_text_file(output).find(R"("affected":1)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"replace-omml",
+                      appended.string(),
+                      "0",
+                      "--xml",
+                      replacement_xml,
+                      "--output",
+                      replaced.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"remove-omml",
+                      replaced.string(),
+                      "1",
+                      "--output",
+                      removed.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"inspect-omml", removed.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("count":2)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"q=4")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"z=3")"), std::string::npos);
+    CHECK_EQ(inspect_json.find(R"("text":"y=2")"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(appended);
+    remove_if_exists(replaced);
+    remove_if_exists(removed);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli revision authoring appends insertion and deletion revisions") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_revision_authoring_source.docx";
+    const fs::path inserted = working_directory / "cli_revision_authoring_inserted.docx";
+    const fs::path deleted = working_directory / "cli_revision_authoring_deleted.docx";
+    const fs::path output = working_directory / "cli_revision_authoring.json";
+    const fs::path inspect_output = working_directory / "cli_revision_authoring_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(deleted);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    create_cli_review_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"append-insertion-revision",
+                      source.string(),
+                      "--text",
+                      "CLI inserted revision",
+                      "--author",
+                      "CLI Author",
+                      "--date",
+                      "2026-05-02T12:00:00Z",
+                      "--output",
+                      inserted.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_NE(read_text_file(output).find(R"("affected":1)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"append-deletion-revision",
+                      inserted.string(),
+                      "--text",
+                      "CLI deleted revision",
+                      "--author",
+                      "CLI Reviewer",
+                      "--date",
+                      "2026-05-02T13:00:00Z",
+                      "--output",
+                      deleted.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_NE(read_text_file(output).find(R"("affected":1)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-review", deleted.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("revisions_count":4)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("kind":"insertion")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("kind":"deletion")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"CLI Author")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"CLI Reviewer")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"CLI inserted revision")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"CLI deleted revision")"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(deleted);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli run revision authoring creates in-place revisions") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_run_revision_authoring_source.docx";
+    const fs::path inserted = working_directory / "cli_run_revision_authoring_inserted.docx";
+    const fs::path deleted = working_directory / "cli_run_revision_authoring_deleted.docx";
+    const fs::path replaced = working_directory / "cli_run_revision_authoring_replaced.docx";
+    const fs::path output = working_directory / "cli_run_revision_authoring.json";
+    const fs::path inspect_output = working_directory / "cli_run_revision_authoring_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(deleted);
+    remove_if_exists(replaced);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    featherdoc::Document source_document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+    auto source_paragraph = source_document.paragraphs();
+    REQUIRE(source_paragraph.has_next());
+    REQUIRE(source_paragraph.add_run("Left ").has_next());
+    REQUIRE(source_paragraph.add_run("Middle").has_next());
+    REQUIRE(source_paragraph.add_run(" Right").has_next());
+    REQUIRE_FALSE(source_document.save());
+
+    CHECK_EQ(run_cli({"insert-run-revision-after",
+                      source.string(),
+                      "0",
+                      "0",
+                      "--text",
+                      "CLI in-place insertion",
+                      "--author",
+                      "CLI Run Author",
+                      "--date",
+                      "2026-05-02T17:00:00Z",
+                      "--output",
+                      inserted.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_NE(read_text_file(output).find(R"("paragraph_index":0)"),
+             std::string::npos);
+    CHECK_NE(read_text_file(output).find(R"("run_index":0)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"delete-run-revision",
+                      inserted.string(),
+                      "0",
+                      "1",
+                      "--author",
+                      "CLI Run Reviewer",
+                      "--date",
+                      "2026-05-02T18:00:00Z",
+                      "--output",
+                      deleted.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"replace-run-revision",
+                      deleted.string(),
+                      "0",
+                      "1",
+                      "--text",
+                      "CLI replacement",
+                      "--author",
+                      "CLI Run Editor",
+                      "--date",
+                      "2026-05-02T19:00:00Z",
+                      "--output",
+                      replaced.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"inspect-review", replaced.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("revisions_count":4)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"CLI in-place insertion")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Middle")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":" Right")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"CLI replacement")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"CLI Run Author")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"CLI Run Reviewer")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"CLI Run Editor")"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(deleted);
+    remove_if_exists(replaced);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli paragraph text revision authoring creates range revisions") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_paragraph_text_revision_authoring_source.docx";
+    const fs::path inserted =
+        working_directory / "cli_paragraph_text_revision_authoring_inserted.docx";
+    const fs::path deleted =
+        working_directory / "cli_paragraph_text_revision_authoring_deleted.docx";
+    const fs::path replaced =
+        working_directory / "cli_paragraph_text_revision_authoring_replaced.docx";
+    const fs::path output =
+        working_directory / "cli_paragraph_text_revision_authoring.json";
+    const fs::path inspect_output =
+        working_directory / "cli_paragraph_text_revision_authoring_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(deleted);
+    remove_if_exists(replaced);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    featherdoc::Document source_document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+    auto source_paragraph = source_document.paragraphs();
+    REQUIRE(source_paragraph.has_next());
+    REQUIRE(source_paragraph.add_run("Left ").has_next());
+    REQUIRE(source_paragraph.add_run("Middle").has_next());
+    REQUIRE(source_paragraph.add_run(" Right").has_next());
+    REQUIRE_FALSE(source_document.save());
+
+    CHECK_EQ(run_cli({"insert-paragraph-text-revision",
+                      source.string(),
+                      "0",
+                      "5",
+                      "--text",
+                      "CLI range insertion ",
+                      "--author",
+                      "CLI Range Author",
+                      "--date",
+                      "2026-05-02T20:00:00Z",
+                      "--output",
+                      inserted.string(),
+                      "--json"},
+                     output),
+             0);
+    auto output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("paragraph_index":0)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("text_offset":5)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"delete-paragraph-text-revision",
+                      inserted.string(),
+                      "0",
+                      "5",
+                      "6",
+                      "--author",
+                      "CLI Range Reviewer",
+                      "--date",
+                      "2026-05-02T21:00:00Z",
+                      "--output",
+                      deleted.string(),
+                      "--json"},
+                     output),
+             0);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("text_length":6)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"replace-paragraph-text-revision",
+                      deleted.string(),
+                      "0",
+                      "5",
+                      "6",
+                      "--text",
+                      "CLI range replacement",
+                      "--author",
+                      "CLI Range Editor",
+                      "--date",
+                      "2026-05-02T22:00:00Z",
+                      "--output",
+                      replaced.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"inspect-review", replaced.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("revisions_count":4)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"CLI range insertion ")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Middle")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":" Right")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"CLI range replacement")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"CLI Range Author")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"CLI Range Reviewer")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"CLI Range Editor")"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(deleted);
+    remove_if_exists(replaced);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli revision mutation accepts and rejects revisions") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_revision_mutation_source.docx";
+    const fs::path accepted = working_directory / "cli_revision_mutation_accepted.docx";
+    const fs::path clean = working_directory / "cli_revision_mutation_clean.docx";
+    const fs::path output = working_directory / "cli_revision_mutation.json";
+    const fs::path inspect_output = working_directory / "cli_revision_mutation_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(accepted);
+    remove_if_exists(clean);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    create_cli_review_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"accept-revision",
+                      source.string(),
+                      "0",
+                      "--output",
+                      accepted.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_NE(read_text_file(output).find(R"("affected":1)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-review", accepted.string(), "--json"},
+                     inspect_output),
+             0);
+    CHECK_NE(read_text_file(inspect_output).find(R"("revisions_count":1)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"reject-all-revisions",
+                      accepted.string(),
+                      "--output",
+                      clean.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_NE(read_text_file(output).find(R"("affected":1)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-review", clean.string(), "--json"},
+                     inspect_output),
+             0);
+    CHECK_NE(read_text_file(inspect_output).find(R"("revisions_count":0)"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(accepted);
+    remove_if_exists(clean);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
+TEST_CASE("cli review note mutation updates notes and comments") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_review_note_mutation_source.docx";
+    const fs::path footnote_added = working_directory / "cli_review_note_footnote_added.docx";
+    const fs::path footnote_replaced = working_directory / "cli_review_note_footnote_replaced.docx";
+    const fs::path footnote_removed = working_directory / "cli_review_note_footnote_removed.docx";
+    const fs::path endnote_added = working_directory / "cli_review_note_endnote_added.docx";
+    const fs::path endnote_replaced = working_directory / "cli_review_note_endnote_replaced.docx";
+    const fs::path endnote_removed = working_directory / "cli_review_note_endnote_removed.docx";
+    const fs::path comment_added = working_directory / "cli_review_note_comment_added.docx";
+    const fs::path comment_replaced = working_directory / "cli_review_note_comment_replaced.docx";
+    const fs::path final_doc = working_directory / "cli_review_note_final.docx";
+    const fs::path output = working_directory / "cli_review_note_mutation.json";
+    const fs::path inspect_output = working_directory / "cli_review_note_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(footnote_added);
+    remove_if_exists(footnote_replaced);
+    remove_if_exists(footnote_removed);
+    remove_if_exists(endnote_added);
+    remove_if_exists(endnote_replaced);
+    remove_if_exists(endnote_removed);
+    remove_if_exists(comment_added);
+    remove_if_exists(comment_replaced);
+    remove_if_exists(final_doc);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    create_cli_review_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"append-footnote",
+                      source.string(),
+                      "--reference-text",
+                      "Added footnote mark ",
+                      "--note-text",
+                      "Added footnote body",
+                      "--output",
+                      footnote_added.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(run_cli({"replace-footnote",
+                      footnote_added.string(),
+                      "0",
+                      "--note-text",
+                      "Changed footnote body",
+                      "--output",
+                      footnote_replaced.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(run_cli({"remove-footnote",
+                      footnote_replaced.string(),
+                      "1",
+                      "--output",
+                      footnote_removed.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"append-endnote",
+                      footnote_removed.string(),
+                      "--reference-text",
+                      "Added endnote mark ",
+                      "--note-text",
+                      "Added endnote body",
+                      "--output",
+                      endnote_added.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(run_cli({"replace-endnote",
+                      endnote_added.string(),
+                      "0",
+                      "--note-text",
+                      "Changed endnote body",
+                      "--output",
+                      endnote_replaced.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(run_cli({"remove-endnote",
+                      endnote_replaced.string(),
+                      "1",
+                      "--output",
+                      endnote_removed.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"append-comment",
+                      endnote_removed.string(),
+                      "--selected-text",
+                      "New commented text",
+                      "--comment-text",
+                      "Added comment body",
+                      "--author",
+                      "CLI Reviewer",
+                      "--initials",
+                      "CR",
+                      "--output",
+                      comment_added.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(run_cli({"inspect-review", comment_added.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto appended_comment_json = read_text_file(inspect_output);
+    CHECK_NE(appended_comment_json.find(R"("comments_count":2)"),
+             std::string::npos);
+    CHECK_NE(appended_comment_json.find(R"("anchor_text":"New commented text")"),
+             std::string::npos);
+    CHECK_NE(appended_comment_json.find(R"("text":"Added comment body")"),
+             std::string::npos);
+    CHECK_EQ(run_cli({"replace-comment",
+                      comment_added.string(),
+                      "0",
+                      "--comment-text",
+                      "Changed comment body",
+                      "--output",
+                      comment_replaced.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(run_cli({"remove-comment",
+                      comment_replaced.string(),
+                      "1",
+                      "--output",
+                      final_doc.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"inspect-review", final_doc.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("footnotes_count":1)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("endnotes_count":1)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("comments_count":1)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Changed footnote body")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Changed endnote body")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("anchor_text":"Commented text")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Changed comment body")"),
+             std::string::npos);
+    CHECK_EQ(inspect_json.find("Added footnote body"), std::string::npos);
+    CHECK_EQ(inspect_json.find("Added endnote body"), std::string::npos);
+    CHECK_EQ(inspect_json.find("Added comment body"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(footnote_added);
+    remove_if_exists(footnote_replaced);
+    remove_if_exists(footnote_removed);
+    remove_if_exists(endnote_added);
+    remove_if_exists(endnote_replaced);
+    remove_if_exists(endnote_removed);
+    remove_if_exists(comment_added);
+    remove_if_exists(comment_replaced);
+    remove_if_exists(final_doc);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
 TEST_CASE("cli replace-content-control-text rewrites selected content controls") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =
@@ -14887,6 +18950,151 @@ TEST_CASE("cli append-image requires width and height together") {
 
     remove_if_exists(source);
     remove_if_exists(image);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli replace-content-control-paragraphs replaces tagged controls") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_content_control_paragraphs_source.docx";
+    const fs::path updated =
+        working_directory / "cli_content_control_paragraphs_updated.docx";
+    const fs::path output =
+        working_directory / "cli_content_control_paragraphs.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_content_controls_fixture(source);
+
+    CHECK_EQ(run_cli({"replace-content-control-paragraphs",
+                      source.string(),
+                      "--tag",
+                      "customer_name",
+                      "--paragraph",
+                      "First replacement paragraph",
+                      "--paragraph",
+                      "Second replacement paragraph",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find(R"("command":"replace-content-control-paragraphs")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("selector":{"kind":"tag","value":"customer_name"})"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("replaced":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("paragraph_count":2)"), std::string::npos);
+
+    const auto document_xml = read_docx_entry(updated, "word/document.xml");
+    CHECK_NE(document_xml.find("First replacement paragraph"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("Second replacement paragraph"),
+             std::string::npos);
+    CHECK_EQ(document_xml.find("Ada Lovelace"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli replace-content-control-table-rows expands tagged row controls") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_content_control_rows_source.docx";
+    const fs::path updated =
+        working_directory / "cli_content_control_rows_updated.docx";
+    const fs::path output = working_directory / "cli_content_control_rows.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_content_controls_fixture(source);
+
+    CHECK_EQ(run_cli({"replace-content-control-table-rows",
+                      source.string(),
+                      "--tag",
+                      "line_items",
+                      "--row",
+                      "SKU-A",
+                      "--row",
+                      "SKU-B",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find(R"("command":"replace-content-control-table-rows")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("row_count":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("rows":[["SKU-A"],["SKU-B"]])"),
+             std::string::npos);
+
+    const auto document_xml = read_docx_entry(updated, "word/document.xml");
+    CHECK_NE(document_xml.find("SKU-A"), std::string::npos);
+    CHECK_NE(document_xml.find("SKU-B"), std::string::npos);
+    CHECK_EQ(document_xml.find("SKU-1"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli replace-content-control-image replaces tagged controls") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_content_control_image_source.docx";
+    const fs::path updated =
+        working_directory / "cli_content_control_image_updated.docx";
+    const fs::path image_path = working_directory / "cli_content_control_image.png";
+    const fs::path output = working_directory / "cli_content_control_image.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(image_path);
+    remove_if_exists(output);
+
+    create_cli_content_controls_fixture(source);
+    write_binary_file(image_path, tiny_png_data());
+
+    CHECK_EQ(run_cli({"replace-content-control-image",
+                      source.string(),
+                      image_path.string(),
+                      "--tag",
+                      "customer_name",
+                      "--width",
+                      "24",
+                      "--height",
+                      "24",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find(R"("command":"replace-content-control-image")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("selector":{"kind":"tag","value":"customer_name"})"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("replaced":1)"), std::string::npos);
+    CHECK_NE(json.find(R"("content_type":"image/png")"), std::string::npos);
+
+    const auto document_xml = read_docx_entry(updated, "word/document.xml");
+    CHECK_NE(document_xml.find("w:drawing"), std::string::npos);
+    CHECK_EQ(document_xml.find("Ada Lovelace"), std::string::npos);
+    CHECK_FALSE(read_docx_entry(updated, "word/media/image1.png").empty());
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(image_path);
     remove_if_exists(output);
 }
 
@@ -18399,6 +22607,116 @@ TEST_CASE("cli preview-template-schema-patch writes generated output patch file"
     remove_if_exists(preview_output);
 }
 
+
+TEST_CASE("cli template schema patch review json writes stable file") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path left_schema =
+        working_directory / "cli_template_schema_patch_review_left.json";
+    const fs::path right_schema =
+        working_directory / "cli_template_schema_patch_review_right.json";
+    const fs::path preview_patch_output =
+        working_directory / "cli_template_schema_patch_review_preview_patch.json";
+    const fs::path build_patch_output =
+        working_directory / "cli_template_schema_patch_review_build_patch.json";
+    const fs::path preview_review_output =
+        working_directory / "cli_template_schema_patch_review_preview.json";
+    const fs::path build_review_output =
+        working_directory / "cli_template_schema_patch_review_build.json";
+    const fs::path preview_output =
+        working_directory / "cli_template_schema_patch_review_preview_summary.json";
+    const fs::path build_output =
+        working_directory / "cli_template_schema_patch_review_build_summary.json";
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(preview_patch_output);
+    remove_if_exists(build_patch_output);
+    remove_if_exists(preview_review_output);
+    remove_if_exists(build_review_output);
+    remove_if_exists(preview_output);
+    remove_if_exists(build_output);
+
+    write_binary_file(left_schema,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\","
+                          "\"required\":false},"
+                          "{\"bookmark\":\"obsolete\",\"kind\":\"text\","
+                          "\"required\":true}]}]}"});
+    write_binary_file(right_schema,
+                      std::string{
+                          "{\"targets\":[{\"part\":\"body\",\"slots\":["
+                          "{\"bookmark\":\"customer\",\"kind\":\"text\","
+                          "\"required\":true},"
+                          "{\"content_control_tag\":\"order_no\","
+                          "\"kind\":\"text\",\"required\":true}]}]}"});
+
+    const std::string expected_review_json{
+        R"({"schema":"featherdoc.template_schema_patch_review.v1","baseline_slot_count":2,"generated_slot_count":2,"patch":{"upsert_slot_count":1,"remove_target_count":0,"remove_slot_count":1,"rename_slot_count":0,"update_slot_count":1},"preview":{"removed_targets":0,"removed_slots":1,"renamed_slots":0,"inserted_slots":1,"replaced_slots":1,"changed":true},"changed":true})"};
+
+    CHECK_EQ(run_cli({"preview-template-schema-patch",
+                      left_schema.string(),
+                      right_schema.string(),
+                      "--output-patch",
+                      preview_patch_output.string(),
+                      "--review-json",
+                      preview_review_output.string(),
+                      "--json"},
+                     preview_output),
+             0);
+    CHECK_EQ(read_text_file(preview_output),
+             std::string{
+                 "{\"command\":\"preview-template-schema-patch\",\"ok\":true,"
+                 "\"output_patch_path\":\""} +
+                 json_escape_text(preview_patch_output.string()) +
+                 "\",\"review_json_path\":\"" +
+                 json_escape_text(preview_review_output.string()) +
+                 "\",\"left_slot_count\":2,\"right_slot_count\":2,"
+                 "\"upsert_slot_count\":1,\"remove_target_count\":0,"
+                 "\"remove_slot_count\":1,\"rename_slot_count\":0,"
+                 "\"update_slot_count\":1,\"removed_targets\":0,"
+                 "\"removed_slots\":1,\"renamed_slots\":0,"
+                 "\"inserted_slots\":1,\"replaced_slots\":1,"
+                 "\"changed\":true}\n");
+    CHECK_EQ(read_text_file(preview_review_output), expected_review_json + "\n");
+
+    CHECK_EQ(run_cli({"build-template-schema-patch",
+                      left_schema.string(),
+                      right_schema.string(),
+                      "--output",
+                      build_patch_output.string(),
+                      "--review-json",
+                      build_review_output.string(),
+                      "--json"},
+                     build_output),
+             0);
+    CHECK_EQ(read_text_file(build_output),
+             std::string{
+                 "{\"command\":\"build-template-schema-patch\",\"ok\":true,"
+                 "\"output_path\":\""} +
+                 json_escape_text(build_patch_output.string()) +
+                 "\",\"review_json_path\":\"" +
+                 json_escape_text(build_review_output.string()) +
+                 "\",\"added_target_count\":0,\"removed_target_count\":0,"
+                 "\"changed_target_count\":1,"
+                 "\"generated_remove_target_count\":0,"
+                 "\"generated_remove_slot_count\":1,"
+                 "\"generated_rename_slot_count\":0,"
+                 "\"generated_update_slot_count\":1,"
+                 "\"generated_upsert_target_count\":1,"
+                 "\"empty_patch\":false}\n");
+    CHECK_EQ(read_text_file(build_review_output), expected_review_json + "\n");
+
+    remove_if_exists(left_schema);
+    remove_if_exists(right_schema);
+    remove_if_exists(preview_patch_output);
+    remove_if_exists(build_patch_output);
+    remove_if_exists(preview_review_output);
+    remove_if_exists(build_review_output);
+    remove_if_exists(preview_output);
+    remove_if_exists(build_output);
+}
+
 TEST_CASE("cli build-template-schema-patch generates reusable patch output") {
     const fs::path working_directory = fs::current_path();
     const fs::path left_schema =
@@ -19607,6 +23925,344 @@ TEST_CASE("cli append total pages field materializes a missing section footer") 
     remove_if_exists(output);
 }
 
+TEST_CASE("cli append typed reference fields updates body") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_append_typed_reference_fields_source.docx";
+    const fs::path page_ref_updated =
+        working_directory / "cli_append_typed_reference_fields_pageref.docx";
+    const fs::path style_ref_updated =
+        working_directory / "cli_append_typed_reference_fields_styleref.docx";
+    const fs::path property_updated =
+        working_directory / "cli_append_typed_reference_fields_property.docx";
+    const fs::path date_updated =
+        working_directory / "cli_append_typed_reference_fields_date.docx";
+    const fs::path hyperlink_updated =
+        working_directory / "cli_append_typed_reference_fields_hyperlink.docx";
+    const fs::path output =
+        working_directory / "cli_append_typed_reference_fields_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(page_ref_updated);
+    remove_if_exists(style_ref_updated);
+    remove_if_exists(property_updated);
+    remove_if_exists(date_updated);
+    remove_if_exists(hyperlink_updated);
+    remove_if_exists(output);
+
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"append-page-reference-field", source.string(),
+                      "target_bookmark", "--part", "body", "--relative-position",
+                      "--result-text", "3", "--output", page_ref_updated.string(),
+                      "--json"},
+                     output),
+             0);
+    auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-page-reference-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"page_reference\""), std::string::npos);
+    CHECK_NE(json.find("\"field_argument\":\"target_bookmark\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"result_text\":\"3\""), std::string::npos);
+
+    CHECK_EQ(run_cli({"append-style-reference-field", page_ref_updated.string(),
+                      "Heading 1", "--part", "body", "--paragraph-number",
+                      "--relative-position", "--result-text", "Section heading",
+                      "--output", style_ref_updated.string(), "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-style-reference-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"style_reference\""), std::string::npos);
+    CHECK_NE(json.find("\"field_argument\":\"Heading 1\""), std::string::npos);
+
+    CHECK_EQ(run_cli({"append-document-property-field", style_ref_updated.string(),
+                      "Title", "--part", "body", "--result-text", "FeatherDoc",
+                      "--output", property_updated.string(), "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-document-property-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"document_property\""), std::string::npos);
+    CHECK_NE(json.find("\"field_argument\":\"Title\""), std::string::npos);
+
+    CHECK_EQ(run_cli({"append-date-field", property_updated.string(), "--part",
+                      "body", "--format", "yyyy-MM-dd", "--result-text",
+                      "2026-05-01", "--dirty", "--output",
+                      date_updated.string(), "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-date-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"date\""), std::string::npos);
+    CHECK_NE(json.find("\"result_text\":\"2026-05-01\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"append-hyperlink-field", date_updated.string(),
+                      "https://example.com/report", "--part", "body",
+                      "--anchor", "target_bookmark", "--tooltip",
+                      "Open target heading", "--result-text", "Open report",
+                      "--locked", "--output", hyperlink_updated.string(),
+                      "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-hyperlink-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"hyperlink\""), std::string::npos);
+    CHECK_NE(json.find("\"field_argument\":\"https://example.com/report\""),
+             std::string::npos);
+
+    const auto document_xml = read_docx_entry(hyperlink_updated, "word/document.xml");
+    CHECK_NE(document_xml.find("PAGEREF target_bookmark \\h \\p \\* MERGEFORMAT"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("STYLEREF &quot;Heading 1&quot; \\n \\p \\* MERGEFORMAT"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("DOCPROPERTY Title \\* MERGEFORMAT"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("DATE \\@ &quot;yyyy-MM-dd&quot; \\* MERGEFORMAT"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("HYPERLINK &quot;https://example.com/report&quot; "
+                               "\\l &quot;target_bookmark&quot; "
+                               "\\o &quot;Open target heading&quot; \\* MERGEFORMAT"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("w:dirty=\"true\""), std::string::npos);
+    CHECK_NE(document_xml.find("w:fldLock=\"true\""), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(page_ref_updated);
+    remove_if_exists(style_ref_updated);
+    remove_if_exists(property_updated);
+    remove_if_exists(date_updated);
+    remove_if_exists(hyperlink_updated);
+    remove_if_exists(output);
+}
+
+
+TEST_CASE("cli append caption and index fields updates body") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_append_caption_index_fields_source.docx";
+    const fs::path caption_updated =
+        working_directory / "cli_append_caption_index_fields_caption.docx";
+    const fs::path entry_updated =
+        working_directory / "cli_append_caption_index_fields_entry.docx";
+    const fs::path index_updated =
+        working_directory / "cli_append_caption_index_fields_index.docx";
+    const fs::path output =
+        working_directory / "cli_append_caption_index_fields_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(caption_updated);
+    remove_if_exists(entry_updated);
+    remove_if_exists(index_updated);
+    remove_if_exists(output);
+
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"append-caption", source.string(), "Figure", "--part",
+                      "body", "--text", "Architecture overview",
+                      "--number-result", "7", "--restart", "7",
+                      "--output", caption_updated.string(), "--json"},
+                     output),
+             0);
+    auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-caption\""), std::string::npos);
+    CHECK_NE(json.find("\"field\":\"caption\""), std::string::npos);
+    CHECK_NE(json.find("\"field_argument\":\"Figure\""), std::string::npos);
+    CHECK_NE(json.find("\"caption_text\":\"Architecture overview\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"number_result_text\":\"7\""), std::string::npos);
+    CHECK_NE(json.find("\"restart\":7"), std::string::npos);
+
+    CHECK_EQ(run_cli({"append-index-entry-field", caption_updated.string(),
+                      "FeatherDoc", "--part", "body", "--subentry", "API",
+                      "--bookmark", "target_bookmark", "--cross-reference",
+                      "See API", "--bold-page-number", "--italic-page-number",
+                      "--locked", "--output", entry_updated.string(), "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-index-entry-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"index_entry\""), std::string::npos);
+    CHECK_NE(json.find("\"field_argument\":\"FeatherDoc\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"subentry\":\"API\""), std::string::npos);
+    CHECK_NE(json.find("\"bookmark\":\"target_bookmark\""), std::string::npos);
+    CHECK_NE(json.find("\"cross_reference\":\"See API\""), std::string::npos);
+
+    CHECK_EQ(run_cli({"append-index-field", entry_updated.string(), "--part",
+                      "body", "--columns", "2", "--result-text",
+                      "Index placeholder", "--dirty", "--output",
+                      index_updated.string(), "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-index-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"index\""), std::string::npos);
+    CHECK_NE(json.find("\"columns\":2"), std::string::npos);
+    CHECK_NE(json.find("\"result_text\":\"Index placeholder\""),
+             std::string::npos);
+
+    const auto document_xml = read_docx_entry(index_updated, "word/document.xml");
+    CHECK_NE(document_xml.find("Figure"), std::string::npos);
+    CHECK_NE(document_xml.find("Architecture overview"), std::string::npos);
+    CHECK_NE(document_xml.find("SEQ Figure \\* ARABIC \\r 7 \\* MERGEFORMAT"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("XE &quot;FeatherDoc:API&quot; \\r target_bookmark "
+                               "\\t &quot;See API&quot; \\b \\i"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("INDEX \\c &quot;2&quot; \\* MERGEFORMAT"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("w:dirty=\"true\""), std::string::npos);
+    CHECK_NE(document_xml.find("w:fldLock=\"true\""), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(caption_updated);
+    remove_if_exists(entry_updated);
+    remove_if_exists(index_updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli append complex nested field updates body") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_append_complex_field_source.docx";
+    const fs::path simple_updated =
+        working_directory / "cli_append_complex_field_simple.docx";
+    const fs::path nested_updated =
+        working_directory / "cli_append_complex_field_nested.docx";
+    const fs::path output =
+        working_directory / "cli_append_complex_field_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(simple_updated);
+    remove_if_exists(nested_updated);
+    remove_if_exists(output);
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"append-complex-field", source.string(), "--part",
+                      "body", "--instruction", " IF 1 = 1 \\\"Yes\\\" \\\"No\\\" ",
+                      "--result-text", "Yes", "--dirty", "--locked",
+                      "--output", simple_updated.string(), "--json"},
+                     output),
+             0);
+    auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-complex-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"complex\""), std::string::npos);
+    CHECK_NE(json.find("\"instruction\":"), std::string::npos);
+    CHECK_NE(json.find("\"result_text\":\"Yes\""), std::string::npos);
+
+    CHECK_EQ(run_cli({"append-complex-field", simple_updated.string(), "--part",
+                      "body", "--instruction-before", " IF ",
+                      "--nested-instruction", " MERGEFIELD CustomerName ",
+                      "--nested-result-text", "Ada", "--instruction-after",
+                      " = \\\"Ada\\\" \\\"Matched\\\" \\\"Other\\\" ",
+                      "--result-text", "Matched", "--output",
+                      nested_updated.string(), "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"nested_instruction\":\" MERGEFIELD CustomerName \""),
+             std::string::npos);
+    CHECK_NE(json.find("\"nested_result_text\":\"Ada\""), std::string::npos);
+
+    const auto document_xml = read_docx_entry(nested_updated, "word/document.xml");
+    const auto count_occurrences = [](const std::string &text,
+                                      std::string_view needle) {
+        std::size_t count = 0U;
+        std::size_t position = 0U;
+        while ((position = text.find(needle, position)) != std::string::npos) {
+            ++count;
+            position += needle.size();
+        }
+        return count;
+    };
+    CHECK_EQ(count_occurrences(document_xml, "w:fldCharType=\"begin\""), 3U);
+    CHECK_EQ(count_occurrences(document_xml, "w:fldCharType=\"separate\""), 3U);
+    CHECK_EQ(count_occurrences(document_xml, "w:fldCharType=\"end\""), 3U);
+    CHECK_NE(document_xml.find("IF 1 = 1"), std::string::npos);
+    CHECK_NE(document_xml.find("MERGEFIELD CustomerName"), std::string::npos);
+    CHECK_NE(document_xml.find("Matched"), std::string::npos);
+    CHECK_NE(document_xml.find("w:dirty=\"true\""), std::string::npos);
+    CHECK_NE(document_xml.find("w:fldLock=\"true\""), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(simple_updated);
+    remove_if_exists(nested_updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli can inspect and toggle update fields on open") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_update_fields_on_open_source.docx";
+    const fs::path enabled_docx =
+        working_directory / "cli_update_fields_on_open_enabled.docx";
+    const fs::path disabled_docx =
+        working_directory / "cli_update_fields_on_open_disabled.docx";
+    const fs::path output =
+        working_directory / "cli_update_fields_on_open_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(enabled_docx);
+    remove_if_exists(disabled_docx);
+    remove_if_exists(output);
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"inspect-update-fields-on-open", source.string(), "--json"},
+                     output),
+             0);
+    auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"inspect-update-fields-on-open\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"update_fields_on_open\":false"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"set-update-fields-on-open", source.string(), "--enable",
+                      "--output", enabled_docx.string(), "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"set-update-fields-on-open\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"update_fields_on_open\":true"), std::string::npos);
+
+    auto settings_xml = read_docx_entry(enabled_docx, "word/settings.xml");
+    CHECK_NE(settings_xml.find("<w:updateFields"), std::string::npos);
+    CHECK_NE(settings_xml.find("w:val=\"1\""), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-update-fields-on-open", enabled_docx.string(),
+                      "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"update_fields_on_open\":true"), std::string::npos);
+
+    CHECK_EQ(run_cli({"set-update-fields-on-open", enabled_docx.string(),
+                      "--disable", "--output", disabled_docx.string(), "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"update_fields_on_open\":false"),
+             std::string::npos);
+
+    settings_xml = read_docx_entry(disabled_docx, "word/settings.xml");
+    CHECK_EQ(settings_xml.find("<w:updateFields"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(enabled_docx);
+    remove_if_exists(disabled_docx);
+    remove_if_exists(output);
+}
+
 TEST_CASE("cli append page number field reports json parse errors") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =
@@ -19617,7 +24273,63 @@ TEST_CASE("cli append page number field reports json parse errors") {
     remove_if_exists(source);
     remove_if_exists(output);
 
+    CHECK_EQ(run_cli({"append-page-reference-field", source.string(), "--part",
+                      "body", "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"append-page-reference-field\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"append-page-reference-field "
+            "expects <bookmark-name>\"}\n"});
+
     create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"append-hyperlink-field", source.string(), "--part",
+                      "body", "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"append-hyperlink-field\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"append-hyperlink-field "
+            "expects <target>\"}\n"});
+
+
+    CHECK_EQ(run_cli({"append-caption", source.string(), "--part", "body",
+                      "--text", "Caption", "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"append-caption\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"append-caption expects "
+            "<label>\"}\n"});
+
+    CHECK_EQ(run_cli({"append-caption", source.string(), "Figure", "--part",
+                      "body", "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"append-caption\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"append-caption requires "
+            "--text <caption-text>\"}\n"});
+
+    CHECK_EQ(run_cli({"append-index-entry-field", source.string(), "--part",
+                      "body", "--json"},
+                     output),
+             2);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"append-index-entry-field\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"append-index-entry-field "
+            "expects <entry-text>\"}\n"});
 
     CHECK_EQ(run_cli({"append-page-number-field", source.string(), "--part",
                       "section-header", "--json"},

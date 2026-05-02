@@ -102,6 +102,7 @@ function Get-VisualTaskDir {
 }
 
 . (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
 
 function Get-RepoRelativePath {
     param(
@@ -233,6 +234,14 @@ $projectTemplateSmokeOutputDir = Get-OptionalPropertyValue -Object $projectTempl
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeOutputDir)) {
     $projectTemplateSmokeOutputDir = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "output_dir"
 }
+$projectTemplateSmokeSchemaApprovalHistoryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_patch_approval_history_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalHistoryJson)) {
+    $projectTemplateSmokeSchemaApprovalHistoryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_patch_approval_history_json"
+}
+$projectTemplateSmokeSchemaApprovalHistoryMarkdown = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_patch_approval_history_markdown"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalHistoryMarkdown)) {
+    $projectTemplateSmokeSchemaApprovalHistoryMarkdown = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_patch_approval_history_markdown"
+}
 $projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeStep -Name "candidate_coverage"
 if ($null -eq $projectTemplateSmokeCandidateCoverage) {
     $projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeSummary -Name "candidate_coverage"
@@ -358,6 +367,7 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("")
 [void]$lines.Add("- Generated at: $(Get-Date -Format s)")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
+[void]$lines.Add("- Release blockers: $(Get-ReleaseBlockerCount -Summary $summary)")
 [void]$lines.Add("- Template schema manifest status: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
 [void]$lines.Add("- Template schema manifest passed: $(Get-DisplayValue -Value $templateSchemaManifestPassed)")
 [void]$lines.Add("- Template schema manifest entries / drifts: $(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
@@ -396,6 +406,7 @@ if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
 [void]$lines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Summary JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
+Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
 [void]$lines.Add("")
 [void]$lines.Add("## Start Here")
 [void]$lines.Add("")
@@ -418,6 +429,8 @@ if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
 [void]$lines.Add("- Project template smoke summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryPath)")
 [void]$lines.Add("- Project template smoke output dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeOutputDir)")
 [void]$lines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
+[void]$lines.Add("- Project template schema approval history JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryJson)")
+[void]$lines.Add("- Project template schema approval history Markdown: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryMarkdown)")
 [void]$lines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$lines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$lines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")

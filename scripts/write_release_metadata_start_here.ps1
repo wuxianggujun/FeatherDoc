@@ -63,6 +63,7 @@ function Get-OptionalPropertyObject {
 }
 
 . (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
 
 function Get-DisplayValue {
     param([string]$Value)
@@ -411,6 +412,7 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add("## Verification Snapshot")
 [void]$lines.Add("")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
+[void]$lines.Add("- Release blockers: $(Get-ReleaseBlockerCount -Summary $summary)")
 [void]$lines.Add("- Template schema gate status: $(Get-DisplayValue -Value $templateSchemaStatus)")
 [void]$lines.Add("- Template schema matches baseline: $(Get-DisplayValue -Value $templateSchemaMatches)")
 [void]$lines.Add("- Template schema drift counts (added/removed/changed): $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $templateSchemaAddedTargetCount, $templateSchemaRemovedTargetCount, $templateSchemaChangedTargetCount))")
@@ -457,6 +459,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
     [void]$lines.Add("- $($curatedVisualReview.label) review method: $(Get-DisplayValue -Value $curatedVisualReview.review_method)")
     [void]$lines.Add("- $($curatedVisualReview.label) review note: $(Get-DisplayValue -Value $curatedVisualReview.review_note)")
 }
+Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
 
 [void]$lines.Add("")
 [void]$lines.Add("## Template Schema Evidence")

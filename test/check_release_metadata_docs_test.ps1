@@ -285,7 +285,7 @@ $defaultChecklistText = @(
     '- word_visual_release_gate_smoke_verdict',
     '- release_candidate_visual_verdict',
     '- sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle)',
-    '- release_note_bundle_visual_verdict_fallback',
+    '- release_note_bundle_visual_verdict_metadata',
     '- public_release_wording_regression_test.ps1',
     '- git diff --check',
     ''
@@ -346,7 +346,7 @@ Assert-ArrayContains `
     -Message "JSON summary should list the release metadata pipeline doc."
 Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
-    -ExpectedValue "release_note_bundle_visual_verdict_fallback" `
+    -ExpectedValue "release_note_bundle_visual_verdict_metadata" `
     -Message "JSON summary should list required checklist markers."
 
 
@@ -421,22 +421,22 @@ Assert-SummaryFailure `
     -ExpectedFailureExcerpt "- git`t diff --check"
 
 $missingChecklistEntry = $defaultChecklistText.Replace(
-    "release_note_bundle_visual_verdict_fallback",
-    "release_note_bundle_visual_verdict_legacy"
+    "release_note_bundle_visual_verdict_metadata",
+    "release_note_bundle_visual_verdict_removed"
 )
 $missingChecklistCaseRoot = New-DocsCase -Name "missing-checklist-entry" -ChecklistText $missingChecklistEntry
 $missingChecklistSummaryJsonPath = Join-Path $missingChecklistCaseRoot "docs-check-summary.json"
 Invoke-DocsCheck `
     -CaseRoot $missingChecklistCaseRoot `
     -ShouldFail `
-    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: release_note_bundle_visual_verdict_fallback" `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: release_note_bundle_visual_verdict_metadata" `
     -SummaryJson $missingChecklistSummaryJsonPath
 Assert-SummaryFailure `
     -Path $missingChecklistSummaryJsonPath `
-    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: release_note_bundle_visual_verdict_fallback" `
+    -ExpectedMessage "release metadata maintenance checklist doc is missing expected text: release_note_bundle_visual_verdict_metadata" `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
-    -ExpectedFailureExpectedText "release_note_bundle_visual_verdict_fallback"
+    -ExpectedFailureExpectedText "release_note_bundle_visual_verdict_metadata"
 
 $bomCaseRoot = New-DocsCase -Name "bom-pipeline"
 Write-Utf8BomFile `

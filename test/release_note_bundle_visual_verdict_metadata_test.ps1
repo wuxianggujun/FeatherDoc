@@ -130,8 +130,8 @@ $smokeTaskDir = Join-Path $taskOutputRoot "smoke"
 $fixedGridTaskDir = Join-Path $taskOutputRoot "fixed-grid"
 $sectionPageSetupTaskDir = Join-Path $taskOutputRoot "section-page-setup"
 $pageNumberFieldsTaskDir = Join-Path $taskOutputRoot "page-number-fields"
-$curatedBundleId = "curated-review-verdict-fallback"
-$curatedBundleLabel = "Curated review verdict fallback"
+$curatedBundleId = "curated-review-verdict-metadata"
+$curatedBundleLabel = "Curated review verdict metadata"
 $curatedBundleTaskDir = Join-Path $taskOutputRoot $curatedBundleId
 $supersededReviewTasksReportPath = Join-Path $taskOutputRoot "superseded_review_tasks.json"
 
@@ -315,11 +315,11 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields reviewed at: 2026-04-28T12:34:00" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields review method: operator_supplied" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Page number fields review note: page number fields awaiting reviewer" -Label $assertion.Label
-    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback verdict: pass" -Label $assertion.Label
-    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback review status: reviewed" -Label $assertion.Label
-    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback reviewed at: 2026-04-28T12:35:00" -Label $assertion.Label
-    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback review method: operator_supplied" -Label $assertion.Label
-    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict fallback review note: curated visual evidence checked" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata verdict: pass" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata review status: reviewed" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata reviewed at: 2026-04-28T12:35:00" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata review method: operator_supplied" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata review note: curated visual evidence checked" -Label $assertion.Label
 }
 
 foreach ($fragments in @(
@@ -331,8 +331,8 @@ foreach ($fragments in @(
         @("Section page setup review status", "reviewed"),
         @("Page number fields verdict", "pending_manual_review"),
         @("Page number fields review status", "reviewed"),
-        @("Curated review verdict fallback verdict", "pass"),
-        @("Curated review verdict fallback review status", "reviewed")
+        @("Curated review verdict metadata verdict", "pass"),
+        @("Curated review verdict metadata review status", "reviewed")
     )) {
     Assert-LineContainsAll -Path $bodyPath -Fragments $fragments -Label "release_body.zh-CN.md"
 }
@@ -369,9 +369,9 @@ foreach ($fragment in @(
         'fixed-grid=`fail`',
         'section page setup=`undetermined`',
         'page number fields=`pending_manual_review`',
-        'Curated review verdict fallback=`pass`'
+        'Curated review verdict metadata=`pass`'
     )) {
     Assert-Contains -Path $shortPath -ExpectedText $fragment -Label "release_summary.zh-CN.md"
 }
 
-Write-Host "Release note bundle visual verdict fallback regression passed."
+Write-Host "Release note bundle visual verdict metadata regression passed."

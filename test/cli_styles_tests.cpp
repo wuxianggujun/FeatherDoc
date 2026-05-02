@@ -67,6 +67,149 @@ TEST_CASE("cli inspect-styles supports single-style json output and errors") {
     remove_if_exists(missing_output);
 }
 
+TEST_CASE("cli inspect-table-style reports typed definition json") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_table_style_definition_source.docx";
+    const fs::path json_output = working_directory / "cli_table_style_definition.json";
+    const fs::path text_output = working_directory / "cli_table_style_definition.txt";
+    const fs::path error_output = working_directory / "cli_table_style_definition_error.json";
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(error_output);
+
+    {
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.create_empty());
+
+        auto whole_margins = featherdoc::table_style_margins_definition{};
+        whole_margins.left_twips = 120U;
+        whole_margins.right_twips = 160U;
+        auto whole_borders = featherdoc::table_style_borders_definition{};
+        whole_borders.top = featherdoc::border_definition{
+            featherdoc::border_style::single, 12U, "4472C4", 0U};
+        auto whole_table = featherdoc::table_style_region_definition{};
+        whole_table.fill_color = std::string{"DDEEFF"};
+        whole_table.text_color = std::string{"1F1F1F"};
+        whole_table.bold = false;
+        whole_table.italic = false;
+        whole_table.font_size_points = 11U;
+        whole_table.font_family = std::string{"Aptos"};
+        whole_table.east_asia_font_family = std::string{"Microsoft YaHei"};
+        whole_table.cell_vertical_alignment = featherdoc::cell_vertical_alignment::center;
+        whole_table.cell_text_direction =
+            featherdoc::cell_text_direction::left_to_right_top_to_bottom;
+        whole_table.paragraph_alignment = featherdoc::paragraph_alignment::center;
+        auto whole_paragraph_spacing =
+            featherdoc::table_style_paragraph_spacing_definition{};
+        whole_paragraph_spacing.before_twips = 120U;
+        whole_paragraph_spacing.after_twips = 80U;
+        whole_paragraph_spacing.line_twips = 360U;
+        whole_paragraph_spacing.line_rule =
+            featherdoc::paragraph_line_spacing_rule::exact;
+        whole_table.paragraph_spacing = whole_paragraph_spacing;
+        whole_table.cell_margins = whole_margins;
+        whole_table.borders = whole_borders;
+
+        auto first_row_borders = featherdoc::table_style_borders_definition{};
+        first_row_borders.bottom = featherdoc::border_definition{
+            featherdoc::border_style::double_line, 8U, "1F4E79", 0U};
+        auto first_row = featherdoc::table_style_region_definition{};
+        first_row.fill_color = std::string{"1F4E79"};
+        first_row.text_color = std::string{"FFFFFF"};
+        first_row.bold = true;
+        first_row.italic = true;
+        first_row.font_size_points = 14U;
+        first_row.font_family = std::string{"Aptos Display"};
+        first_row.east_asia_font_family = std::string{"SimHei"};
+        first_row.cell_vertical_alignment = featherdoc::cell_vertical_alignment::bottom;
+        first_row.cell_text_direction =
+            featherdoc::cell_text_direction::top_to_bottom_right_to_left;
+        first_row.paragraph_alignment = featherdoc::paragraph_alignment::right;
+        auto first_row_paragraph_spacing =
+            featherdoc::table_style_paragraph_spacing_definition{};
+        first_row_paragraph_spacing.after_twips = 120U;
+        first_row_paragraph_spacing.line_twips = 240U;
+        first_row_paragraph_spacing.line_rule =
+            featherdoc::paragraph_line_spacing_rule::at_least;
+        first_row.paragraph_spacing = first_row_paragraph_spacing;
+        first_row.borders = first_row_borders;
+
+        auto second_banded_rows = featherdoc::table_style_region_definition{};
+        second_banded_rows.fill_color = std::string{"F2F2F2"};
+        second_banded_rows.text_color = std::string{"666666"};
+
+        auto second_banded_columns = featherdoc::table_style_region_definition{};
+        second_banded_columns.fill_color = std::string{"E2F0D9"};
+        second_banded_columns.cell_vertical_alignment =
+            featherdoc::cell_vertical_alignment::top;
+
+        auto definition = featherdoc::table_style_definition{};
+        definition.name = "Invoice Grid";
+        definition.based_on = std::string{"TableGrid"};
+        definition.is_quick_format = true;
+        definition.whole_table = whole_table;
+        definition.first_row = first_row;
+        definition.second_banded_rows = second_banded_rows;
+        definition.second_banded_columns = second_banded_columns;
+
+        REQUIRE(document.ensure_table_style("InvoiceGrid", definition));
+        REQUIRE_FALSE(document.save());
+    }
+
+    CHECK_EQ(run_cli({"inspect-table-style", source.string(), "InvoiceGrid", "--json"},
+                     json_output),
+             0);
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("table_style_definition":{"style":{"style_id":"InvoiceGrid")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("whole_table":{"fill_color":"DDEEFF","text_color":"1F1F1F","bold":false,"italic":false,"font_size_points":11,"font_family":"Aptos","east_asia_font_family":"Microsoft YaHei","cell_vertical_alignment":"center","cell_text_direction":"left_to_right_top_to_bottom","paragraph_alignment":"center")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("paragraph_spacing":{"before_twips":120,"after_twips":80,"line_twips":360,"line_rule":"exact"})"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("left_twips":120)"), std::string::npos);
+    CHECK_NE(json.find(R"("top":{"style":"single","size_eighth_points":12,"color":"4472C4","space_points":0})"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("first_row":{"fill_color":"1F4E79","text_color":"FFFFFF","bold":true,"italic":true,"font_size_points":14,"font_family":"Aptos Display","east_asia_font_family":"SimHei","cell_vertical_alignment":"bottom","cell_text_direction":"top_to_bottom_right_to_left","paragraph_alignment":"right")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("paragraph_spacing":{"before_twips":null,"after_twips":120,"line_twips":240,"line_rule":"at_least"})"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("bottom":{"style":"double","size_eighth_points":8,"color":"1F4E79","space_points":0})"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("second_banded_rows":{"fill_color":"F2F2F2","text_color":"666666")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("second_banded_columns":{"fill_color":"E2F0D9")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-table-style", source.string(), "InvoiceGrid"}, text_output), 0);
+    const auto text = read_text_file(text_output);
+    CHECK_NE(text.find("style_id: InvoiceGrid"), std::string::npos);
+    CHECK_NE(text.find("region_whole_table: fill_color=DDEEFF text_color=1F1F1F bold=false italic=false font_size_points=11 font_family=Aptos east_asia_font_family=Microsoft YaHei cell_vertical_alignment=center cell_text_direction=left_to_right_top_to_bottom paragraph_alignment=center"),
+             std::string::npos);
+    CHECK_NE(text.find("paragraph_spacing_before_twips=120 paragraph_spacing_after_twips=80 paragraph_spacing_line_twips=360 paragraph_spacing_line_rule=exact"),
+             std::string::npos);
+    CHECK_NE(text.find("region_first_row: fill_color=1F4E79 text_color=FFFFFF bold=true italic=true font_size_points=14 font_family=Aptos Display east_asia_font_family=SimHei cell_vertical_alignment=bottom cell_text_direction=top_to_bottom_right_to_left paragraph_alignment=right"),
+             std::string::npos);
+    CHECK_NE(text.find("paragraph_spacing_before_twips=- paragraph_spacing_after_twips=120 paragraph_spacing_line_twips=240 paragraph_spacing_line_rule=at_least"),
+             std::string::npos);
+    CHECK_NE(text.find("region_second_banded_rows: fill_color=F2F2F2 text_color=666666"),
+             std::string::npos);
+    CHECK_NE(text.find("region_second_banded_columns: fill_color=E2F0D9"),
+             std::string::npos);
+    CHECK_NE(text.find("border_top: style=single"), std::string::npos);
+
+    CHECK_EQ(run_cli({"inspect-table-style", source.string(), "Normal", "--json"},
+                     error_output),
+             1);
+    CHECK_NE(read_text_file(error_output).find("is not a table style"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(json_output);
+    remove_if_exists(text_output);
+    remove_if_exists(error_output);
+}
+
 TEST_CASE("cli inspect-styles reports style usage for a single style") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_styles_usage_source.docx";

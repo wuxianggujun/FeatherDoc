@@ -91,7 +91,7 @@ Assert-ContainsText -Text $visualMetadataHelperText `
     -Message "release_visual_metadata_helpers.ps1 should read curated review_method values."
 Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$verdict = Get-OptionalPropertyValue -Object $Source -Name "review_verdict"' `
-    -Message "release_visual_metadata_helpers.ps1 should read curated review_verdict fallback values."
+    -Message "release_visual_metadata_helpers.ps1 should read curated review_verdict values directly."
 Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '(Get-OptionalPropertyArray -Object $reviewTasks -Name "curated_visual_regressions")' `
     -Message "release_visual_metadata_helpers.ps1 should merge curated review task metadata."

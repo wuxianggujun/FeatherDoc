@@ -61,9 +61,17 @@
 7. 本地 Word visual release gate 已执行，至少覆盖常规 smoke 与
    fixed-grid merge/unmerge quartet，以及本轮涉及的 section page setup、
    page number fields 和 curated visual regression bundles，可在真实 Word
-   渲染下排查明显回归。
-8. 公开 API 变更已经反映到样例、测试和文档中。
-9. 完成以上检查后再打 tag / 创建 release。
+   渲染下排查明显回归。如果本轮涉及 table style quality 或 ``tblLook``
+   自动修复，请额外给 visual gate / release candidate checks 传入
+   ``-IncludeTableStyleQuality``，将 ``table-style-quality`` before/after
+   证据包纳入 curated visual regression bundle；人工审查时可用
+   ``open_latest_word_review_task.ps1 -SourceKind table-style-quality-visual-regression-bundle``
+   直接打开最新任务。
+8. 如果本次纳入 project template smoke，``schema_patch_approval_gate_status``
+   不能为 ``blocked``，且 ``schema_patch_approval_compliance_issue_count`` /
+   ``schema_patch_approval_invalid_result_count`` 必须为 ``0``。
+9. 公开 API 变更已经反映到样例、测试和文档中。
+10. 完成以上检查后再打 tag / 创建 release。
 
 当前推荐的最低验证命令：
 
@@ -184,7 +192,21 @@ report：
 verdict；``release_handoff.md``、``ARTIFACT_GUIDE.md`` 和
 ``REVIEWER_CHECKLIST.md`` 还会继续给出对应 review task 路径，以及
 ``open_latest_word_review_task.ps1 -SourceKind <bundle-key>-visual-regression-bundle``
-这类 bundle-specific 打开命令。
+这类 bundle-specific 打开命令。表格样式质量证据包的专名 source kind 是
+``table-style-quality-visual-regression-bundle``，稳定指针是
+``latest_table-style-quality-visual-regression-bundle_task.json``；一键
+``sync_latest_visual_review_verdict.ps1`` 会自动读取它并回灌 verdict。
+若 release summary 顶层 ``release_blockers`` 非空，``START_HERE.md``、
+``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、``release_handoff.md`` 与
+``release_body.zh-CN.md`` 会同步展示 blocker count、稳定 id、issue keys 与
+修复动作；reviewer checklist 会要求先清空 blocker 后才能继续公开发布。
+发布 bundle 生成前还会要求 ``release_blocker_count`` 与 ``release_blockers``
+实际条目数一致，并校验 blocker ``id`` 唯一且 ``source``、``status``、
+``severity``、``action`` 非空；任一结构问题都会阻止继续生成公开交接材料。
+已知 blocker ``action`` 还会在 reviewer checklist 中展开为固定修复指引，要求 reviewer
+完成对应证据更新、metadata 同步和 release note bundle 再生成后才能继续发布。未知
+``action`` 不会掩盖 blocker，也不会阻断 bundle 生成；checklist 会标记未登记 runbook，
+要求维护者补标准指引。
 如果只想单独复跑 fixed-grid merge/unmerge 四件套，并生成可截图签收的
 review task，可另外执行：
 

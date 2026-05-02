@@ -182,14 +182,12 @@ function Resolve-BundleAggregateContactSheetPath {
         [string]$BundleLabel
     )
 
-    foreach ($fileName in @("before_after_contact_sheet.png", "contact_sheet.png")) {
-        $candidate = Join-Path $AggregateEvidenceDir $fileName
-        if (Test-Path $candidate) {
-            return (Resolve-Path $candidate).Path
-        }
+    $candidate = Join-Path $AggregateEvidenceDir "before_after_contact_sheet.png"
+    if (Test-Path $candidate) {
+        return (Resolve-Path $candidate).Path
     }
 
-    throw "$BundleLabel is incomplete, missing an aggregate contact sheet under: $AggregateEvidenceDir"
+    throw "$BundleLabel is incomplete, missing aggregate-evidence\before_after_contact_sheet.png under: $AggregateEvidenceDir"
 }
 
 function Resolve-FixedGridRegressionBundle {

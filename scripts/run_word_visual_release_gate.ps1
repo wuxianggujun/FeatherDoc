@@ -110,6 +110,7 @@ param(
     [string]$SectionPartRefsBuildDir = "build-section-part-refs-visual-nmake",
     [string]$RunFontLanguageBuildDir = "build-run-font-language-visual-nmake",
     [string]$EnsureStyleBuildDir = "build-ensure-style-visual-nmake",
+    [string]$TableStyleQualityBuildDir = "build-codex-clang-compat",
     [string]$TemplateTableCliBookmarkBuildDir = "build-template-table-cli-bookmark-visual-nmake",
     [string]$TemplateTableCliColumnBuildDir = "build-template-table-cli-column-visual-nmake",
     [string]$TemplateTableCliDirectColumnBuildDir = "build-template-table-cli-direct-column-visual-nmake",
@@ -160,6 +161,7 @@ param(
     [switch]$SkipSectionPartRefs,
     [switch]$SkipRunFontLanguage,
     [switch]$SkipEnsureStyle,
+    [switch]$IncludeTableStyleQuality,
     [switch]$SkipTemplateTableCliBookmark,
     [switch]$SkipTemplateTableCliColumn,
     [switch]$SkipTemplateTableCliDirectColumn,
@@ -553,14 +555,12 @@ function Resolve-AggregateContactSheetPath {
         [string]$Label
     )
 
-    foreach ($fileName in @("before_after_contact_sheet.png", "contact_sheet.png")) {
-        $candidate = Join-Path $AggregateEvidenceDir $fileName
-        if (Test-Path $candidate) {
-            return $candidate
-        }
+    $candidate = Join-Path $AggregateEvidenceDir "before_after_contact_sheet.png"
+    if (Test-Path $candidate) {
+        return $candidate
     }
 
-    throw "Expected $Label aggregate contact sheet was not found under: $AggregateEvidenceDir"
+    throw "Expected $Label aggregate-evidence\before_after_contact_sheet.png was not found under: $AggregateEvidenceDir"
 }
 
 function New-VisualRegressionRefreshCommand {
@@ -688,6 +688,7 @@ if (
     $SkipSectionPartRefs -and
     $SkipRunFontLanguage -and
     $SkipEnsureStyle -and
+    (-not $IncludeTableStyleQuality.IsPresent) -and
     $SkipTemplateTableCliBookmark -and
     $SkipTemplateTableCliColumn -and
     $SkipTemplateTableCliDirectColumn -and
@@ -743,6 +744,7 @@ $resolvedSectionOrderOutputDir = Join-Path $resolvedGateOutputDir "section-order
 $resolvedSectionPartRefsOutputDir = Join-Path $resolvedGateOutputDir "section-part-refs"
 $resolvedRunFontLanguageOutputDir = Join-Path $resolvedGateOutputDir "run-font-language"
 $resolvedEnsureStyleOutputDir = Join-Path $resolvedGateOutputDir "ensure-style"
+$resolvedTableStyleQualityOutputDir = Join-Path $resolvedGateOutputDir "table-style-quality"
 $resolvedTemplateTableCliBookmarkOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-bookmark"
 $resolvedTemplateTableCliColumnOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-column"
 $resolvedTemplateTableCliDirectColumnOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-direct-column"
@@ -834,6 +836,8 @@ $runFontLanguageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoo
     -TargetPath $resolvedRunFontLanguageOutputDir -Label "Run font language output directory"
 $ensureStyleOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedEnsureStyleOutputDir -Label "Ensure style output directory"
+$tableStyleQualityOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableStyleQualityOutputDir -Label "Table style quality output directory"
 $templateTableCliBookmarkOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedTemplateTableCliBookmarkOutputDir -Label "Template table CLI bookmark output directory"
 $templateTableCliColumnOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
@@ -898,6 +902,7 @@ $sectionOrderScript = Join-Path $repoRoot "scripts\run_section_order_visual_regr
 $sectionPartRefsScript = Join-Path $repoRoot "scripts\run_section_part_refs_visual_regression.ps1"
 $runFontLanguageScript = Join-Path $repoRoot "scripts\run_run_font_language_visual_regression.ps1"
 $ensureStyleScript = Join-Path $repoRoot "scripts\run_ensure_style_visual_regression.ps1"
+$tableStyleQualityScript = Join-Path $repoRoot "scripts\run_table_style_quality_visual_regression.ps1"
 $templateTableCliBookmarkScript = Join-Path $repoRoot "scripts\run_template_table_cli_bookmark_visual_regression.ps1"
 $templateTableCliColumnScript = Join-Path $repoRoot "scripts\run_template_table_cli_column_visual_regression.ps1"
 $templateTableCliDirectColumnScript = Join-Path $repoRoot "scripts\run_template_table_cli_direct_column_visual_regression.ps1"
@@ -1221,6 +1226,15 @@ $curatedVisualFlowDescriptors = @(
         output_dir = $resolvedEnsureStyleOutputDir
         output_dir_for_child = $ensureStyleOutputDirForChild
         script_path = $ensureStyleScript
+    },
+    [ordered]@{
+        id = "table-style-quality"
+        label = "Table style quality"
+        skip = (-not $IncludeTableStyleQuality.IsPresent)
+        build_dir = $TableStyleQualityBuildDir
+        output_dir = $resolvedTableStyleQualityOutputDir
+        output_dir_for_child = $tableStyleQualityOutputDirForChild
+        script_path = $tableStyleQualityScript
     },
     [ordered]@{
         id = "template-table-cli-bookmark"

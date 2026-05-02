@@ -88,7 +88,20 @@ task 误算进 review scope。
 当视觉 gate 完成后，preflight 会把 ``gate_summary.json`` 中的
 ``visual_verdict``、各 flow 的 review verdict、review status、review note、
 review provenance，以及完整的 ``review_task_summary`` 同步到
-``summary.json`` 的 ``steps.visual_gate`` 下。
+``summary.json`` 的 ``steps.visual_gate`` 下。若同时运行 project template smoke，
+preflight 还会把 schema approval 的 pending / approved / rejected / compliance /
+invalid-result 计数写入 ``steps.project_template_smoke``；当
+``schema_patch_approval_gate_status`` 为 ``blocked`` 时，preflight 会把该步骤标记为
+failed 并阻断 release candidate。只要启用了 project template smoke，preflight 还会自动调用
+``write_project_template_schema_approval_history.ps1``，在 release report 目录生成
+``project_template_schema_approval_history.json`` 与 ``project_template_schema_approval_history.md``，
+并把路径写回 ``summary.json``、``final_review.md``、``ARTIFACT_GUIDE.md`` 与
+``REVIEWER_CHECKLIST.md``。历史报表会突出最近一次 blocking reason，并按模板 entry
+汇总历史状态，帮助 reviewer 持续观察 schema approval gate 的 blocked、pending 与
+passed 趋势。若 gate 被阻断，顶层 ``release_blockers`` 会同步追加稳定 id 为
+``project_template_smoke.schema_approval`` 的 blocker，并写入 ``release_blocker_count``，
+CI、发布面板或自动化通知可以直接读取阻断条目、issue keys、审批明细与修复动作，
+无需再解析 ``final_review.md``。
 
 如果 ``review_task_summary`` 不完整，preflight 不应把它写入 release summary，
 也不应在 ``final_review.md`` 中渲染空计数行。
@@ -134,6 +147,21 @@ Markdown 文件。
 - ``release_body.zh-CN.md``
 - ``release_summary.zh-CN.md``
 
+当 ``summary.json`` 顶层存在 ``release_blockers`` 时，bundle 会在
+``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``、
+``release_handoff.md`` 与 ``release_body.zh-CN.md`` 中渲染 blocker count、
+稳定 blocker id、issue keys、阻断条目和修复动作。``REVIEWER_CHECKLIST.md``
+还会生成必须先清空 ``release_blockers`` 的 stop checklist，确保人工交接不会漏看
+机器字段里的发布阻断原因。bundle 生成前会校验 ``release_blocker_count`` 必须等于
+``release_blockers`` 的实际条目数，同时要求每个 blocker 的 ``id``、``source``、
+``status``、``severity`` 与 ``action`` 非空且 ``id`` 不重复；不一致会直接失败，
+避免交接文档展示错误或不可追溯的阻断信息。``REVIEWER_CHECKLIST.md`` 会把已知
+``action`` 映射为固定人工 runbook，例如 schema approval blocker 的
+``fix_schema_patch_approval_result`` 会提示 reviewer 更新 approval result、补齐审计字段、
+重新同步 schema approval metadata 并重新生成 release note bundle。未知 ``action`` 不会
+阻断 bundle 生成，但 checklist 会标记未登记 runbook，提醒维护者把新 action 加入
+``release_blocker_metadata_helpers.ps1`` 的注册表和固定指引。
+
 内部 handoff 文件可以展示更完整的 reviewer metadata，例如：
 
 - ``review_status``
@@ -160,8 +188,7 @@ release note bundle 在读取视觉评审 metadata 时遵循下面的原则：
 1. 优先读取 release summary 中 ``steps.visual_gate`` 的同轮字段。
 2. release summary 缺字段或字段不完整时，回退读取 gate summary。
 3. ``review_task_summary`` 必须完整才渲染；不完整时视为缺失。
-4. curated visual regression 优先读取 ``review_verdict``，必要时兼容旧的
-   ``verdict`` 字段。
+4. curated visual regression 读取 ``review_verdict`` 作为唯一 verdict 字段。
 5. ``reviewed_at`` 需要保持文化无关的 ``yyyy-MM-ddTHH:mm:ss`` 输出格式。
 
 这些规则集中在 ``release_visual_metadata_helpers.ps1``，避免 handoff、artifact
@@ -210,7 +237,7 @@ guide、reviewer checklist、start-here 和 release note body 各自实现一套
 3. 如果改动影响 bundle 输出，至少覆盖：
 
    - ``release_note_bundle_version``
-   - ``release_note_bundle_visual_verdict_fallback``
+   - ``release_note_bundle_visual_verdict_metadata``
    - ``release_visual_verdict_metadata_consistency``
 
 4. 如果改动影响 verdict 同步，至少覆盖：

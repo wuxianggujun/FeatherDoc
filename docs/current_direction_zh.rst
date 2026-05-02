@@ -66,10 +66,11 @@
 
 - ``.docx`` 的打开、保存、另存为、从空文档创建与诊断
 - 段落 / Run / 表格 / 图片 / 分节 / 页眉页脚的结构化编辑
-- 样式目录检查、最小样式定义编辑、样式继承检查与部分重构
-- 托管列表、自定义编号定义、样式挂接编号
-- 书签模板填充、模板表格扩展、block 显隐、文档级 template schema 校验
-- 页面设置、页码字段、总页数字段
+- 样式目录检查、样式定义编辑、样式继承检查、usage report 与受控重构
+- 托管列表、自定义编号定义、样式挂接编号、numbering catalog JSON 治理
+- 书签模板填充、content control 纯文本与富内容替换、模板表格扩展、block 显隐
+- 文档级 template schema 校验、扫描、patch、baseline gate 与审批摘要
+- 页面设置、通用字段（含 TOC / REF / SEQ 与页码字段）、表格样式定义与第一版浮动表格定位
 - CLI 驱动的 inspection / mutation 流程
 - 基于 ``Microsoft Word`` 的截图级可视化回归
 
@@ -100,15 +101,19 @@
 - ``export-template-schema``（已覆盖书签与 content control slot）
 - ``normalize-template-schema``
 - ``diff-template-schema``
+- ``template_schema_patch`` / ``apply_template_schema_patch(...)`` /
+  ``build_template_schema_patch(...)``
+- ``scan_template_schema(...)`` / ``build_template_schema_patch_from_scan(...)``
 - ``check-template-schema``
+- schema patch review JSON、schema approval gate 与审批历史报表
 - ``run_project_template_smoke.ps1``
 
 接下来更值得补的是：
 
-1. schema 的高层 mutation / patch API，而不是只停留在导出和对比
-2. template schema 的 lint / migration / review 工作流
-3. project template smoke 的维护体验和仓库级准入规则
-4. 让“接入一个真实业务模板”变成更短、更稳定的流程
+1. 基于真实业务模板语料校准 rename / update 建议的置信度
+2. 多项目 schema approval、release gate 和审批历史的维护体验
+3. 真实模板 onboarding 报告，让接入、校验、生成、回归变成短流程
+4. schema migration 的人工复核入口和更明确的修复建议分流
 
 这条线的目标是：
 
@@ -126,7 +131,7 @@
 这条线当前已经覆盖：
 
 - 样式目录 inspection
-- 最小 paragraph / character / table style definition
+- paragraph / character style definition 与 table style region definition
 - style inheritance inspection
 - 单样式 / 全量 style usage report（find_style_usage / list_style_usage / inspect-styles --usage）
 - style run property materialization
@@ -169,8 +174,8 @@
 
 接下来更值得补的是：
 
-1. 更完整的 custom table style property editing
-2. floating table positioning 或同等级别的版式定位能力
+1. 更完整的 custom table style property editing 覆盖面
+2. 浮动表格环绕距离、重叠控制和更多 ``w:tblpPr`` 细节
 3. 更高层的页面与区段版式组合 helper
 4. 围绕“生成后无需人工微调”的交付质量打磨
 
@@ -185,9 +190,9 @@
 至少在当前阶段，下面这些方向不该抢在前面：
 
 1. 加密或密码保护 ``.docx`` 的支持
-2. 完整的 ``OMML`` 公式写入器
-3. 批注、修订、审阅痕迹的完整 typed API
-4. content control 的富内容替换和复杂表单系统
+2. 完整的 ``OMML`` 公式构造器
+3. 批注、修订、审阅痕迹的完整 authoring API
+4. content control 的复杂表单系统和全量表单状态 API
 5. 纯粹为了命令数量好看而继续堆 CLI 子命令
 6. 为历史兼容性长期保留低价值旧接口
 

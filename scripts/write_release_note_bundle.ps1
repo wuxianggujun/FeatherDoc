@@ -13,6 +13,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+
 function Resolve-RepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 }
@@ -115,6 +117,7 @@ if (-not (Test-Path -LiteralPath $resolvedSummaryPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+Assert-ReleaseBlockerMetadataQuality -Summary $summary -Context $resolvedSummaryPath
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 
 $resolvedHandoffPath = if ([string]::IsNullOrWhiteSpace($HandoffOutputPath)) {

@@ -68,6 +68,7 @@ function Get-OptionalPropertyObject {
 }
 
 . (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
 
 function Get-DisplayValue {
     param([string]$Value)
@@ -985,6 +986,7 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("")
 [void]$lines.Add("## 验证结论")
 [void]$lines.Add("- 执行状态：$($summary.execution_status)")
+[void]$lines.Add("- Release blockers：$(Get-ReleaseBlockerCount -Summary $summary)")
 [void]$lines.Add("- MSVC configure/build：$($summary.steps.configure.status) / $($summary.steps.build.status)")
 [void]$lines.Add("- ctest：$($summary.steps.tests.status)")
 [void]$lines.Add("- template schema manifest gate：$(Get-DisplayValue -Value $templateSchemaManifestStatus)")
@@ -1016,6 +1018,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 }
 [void]$lines.Add("- README 展示图刷新：$(if ($readmeGalleryStatus) { $readmeGalleryStatus } else { 'unknown' })")
 [void]$lines.Add("- 说明：$validationNote")
+Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot -Heading "## 发布阻断项"
 [void]$lines.Add("")
 [void]$lines.Add("## 安装包入口")
 [void]$lines.Add("- 以下路径使用安装树相对位置，不包含本机绝对目录。")

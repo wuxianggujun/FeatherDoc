@@ -132,6 +132,7 @@ function Get-VisualTaskDir {
 }
 
 . (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
 
 function Get-RepoRelativePath {
     param(
@@ -298,6 +299,26 @@ $projectTemplateSmokePendingReviewCount = Get-OptionalPropertyValue -Object $pro
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokePendingReviewCount)) {
     $projectTemplateSmokePendingReviewCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "manual_review_pending_count"
 }
+$projectTemplateSmokeSchemaApprovalGateStatus = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_patch_approval_gate_status"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalGateStatus)) {
+    $projectTemplateSmokeSchemaApprovalGateStatus = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_patch_approval_gate_status"
+}
+$projectTemplateSmokeSchemaApprovalComplianceIssueCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_patch_approval_compliance_issue_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalComplianceIssueCount)) {
+    $projectTemplateSmokeSchemaApprovalComplianceIssueCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_patch_approval_compliance_issue_count"
+}
+$projectTemplateSmokeSchemaApprovalInvalidResultCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_patch_approval_invalid_result_count"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalInvalidResultCount)) {
+    $projectTemplateSmokeSchemaApprovalInvalidResultCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_patch_approval_invalid_result_count"
+}
+$projectTemplateSmokeSchemaApprovalHistoryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_patch_approval_history_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalHistoryJson)) {
+    $projectTemplateSmokeSchemaApprovalHistoryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_patch_approval_history_json"
+}
+$projectTemplateSmokeSchemaApprovalHistoryMarkdown = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_patch_approval_history_markdown"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalHistoryMarkdown)) {
+    $projectTemplateSmokeSchemaApprovalHistoryMarkdown = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_patch_approval_history_markdown"
+}
 $projectTemplateSmokeManifestPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "manifest_path"
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeManifestPath)) {
     $projectTemplateSmokeManifestPath = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "manifest_path"
@@ -341,6 +362,9 @@ if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeExcludedCandidateCount)) {
 $projectTemplateSmokeHasUnregisteredCandidates = -not [string]::IsNullOrWhiteSpace($projectTemplateSmokeUnregisteredCandidateCount) -and $projectTemplateSmokeUnregisteredCandidateCount -ne "0"
 $projectTemplateSmokeHasDirtySchemaBaselines = -not [string]::IsNullOrWhiteSpace($projectTemplateSmokeDirtySchemaBaselineCount) -and $projectTemplateSmokeDirtySchemaBaselineCount -ne "0"
 $projectTemplateSmokeHasSchemaBaselineDrifts = -not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaBaselineDriftCount) -and $projectTemplateSmokeSchemaBaselineDriftCount -ne "0"
+$projectTemplateSmokeSchemaApprovalGateBlocked = $projectTemplateSmokeSchemaApprovalGateStatus -eq "blocked" -or `
+    (-not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalComplianceIssueCount) -and $projectTemplateSmokeSchemaApprovalComplianceIssueCount -ne "0") -or `
+    (-not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalInvalidResultCount) -and $projectTemplateSmokeSchemaApprovalInvalidResultCount -ne "0")
 
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
@@ -433,6 +457,7 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("# Release Reviewer Checklist")
 [void]$lines.Add("")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
+[void]$lines.Add("- Release blockers: $(Get-ReleaseBlockerCount -Summary $summary)")
 [void]$lines.Add("- Template schema gate status: $(Get-DisplayValue -Value $templateSchemaStatus)")
 [void]$lines.Add("- Template schema matches baseline: $(Get-DisplayValue -Value $templateSchemaMatches)")
 [void]$lines.Add("- Template schema drift counts (added/removed/changed): $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $templateSchemaAddedTargetCount, $templateSchemaRemovedTargetCount, $templateSchemaChangedTargetCount))")
@@ -488,6 +513,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$lines.Add("- Superseded task audit: $(Get-DisplayPath -RepoRoot $repoRoot -Path $supersededReviewTasksReportPath)")
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
+Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
 [void]$lines.Add("")
 [void]$lines.Add("## Step 1: Read The Release Notes")
 [void]$lines.Add("")
@@ -499,6 +525,17 @@ Add-CheckboxLine -Lines $lines -Text ('Open `release_handoff.md` and confirm the
 [void]$lines.Add("## Step 2: Check The Verification State")
 [void]$lines.Add("")
 Add-CheckboxLine -Lines $lines -Text ('Confirm `summary.json` reports the expected step statuses: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath))
+if ((Get-ReleaseBlockerCount -Summary $summary) -gt 0) {
+    Add-CheckboxLine -Lines $lines -Text ('Stop here until `release_blockers` is empty; current count is `{0}`.' -f (Get-ReleaseBlockerCount -Summary $summary))
+    foreach ($releaseBlocker in @(Get-ReleaseBlockers -Summary $summary)) {
+        Add-CheckboxLine -Lines $lines -Text ('Resolve release blocker `{0}` before public release: {1}' -f `
+                (Get-ReleaseBlockerPropertyValue -Object $releaseBlocker -Name "id"),
+                (Get-ReleaseBlockerSummaryText -Blocker $releaseBlocker))
+        foreach ($guidanceLine in @(Get-ReleaseBlockerActionGuidanceLines -Blocker $releaseBlocker -RepoRoot $repoRoot -ReleaseSummaryJson $resolvedSummaryPath)) {
+            Add-CheckboxLine -Lines $lines -Text $guidanceLine
+        }
+    }
+}
 Add-CheckboxLine -Lines $lines -Text ('Confirm `final_review.md` still matches the current release status: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $finalReviewPath))
 if (-not [string]::IsNullOrWhiteSpace($supersededReviewTasksCount)) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm `superseded_review_tasks.json` reports zero stale task directories or intentionally explains any preserved older tasks (current count: {0}): {1}' -f `
@@ -551,6 +588,18 @@ if ($projectTemplateSmokeRequested -eq "True" -or $projectTemplateSmokeStatus -n
 
     if ($projectTemplateSmokeHasSchemaBaselineDrifts) {
         Add-CheckboxLine -Lines $lines -Text ('Stop here until project template smoke reports zero schema baseline drifts; current drift count is `{0}`.' -f $projectTemplateSmokeSchemaBaselineDriftCount)
+    }
+
+    if ($projectTemplateSmokeSchemaApprovalGateBlocked) {
+        Add-CheckboxLine -Lines $lines -Text ('Stop here until project template smoke schema approval gate is not blocked; current gate status is `{0}`, compliance issues `{1}`, invalid results `{2}`.' -f $projectTemplateSmokeSchemaApprovalGateStatus, $projectTemplateSmokeSchemaApprovalComplianceIssueCount, $projectTemplateSmokeSchemaApprovalInvalidResultCount)
+    } elseif ($projectTemplateSmokeStatus -ne "not_requested") {
+        Add-CheckboxLine -Lines $lines -Text ('Confirm project template smoke schema approval gate status is not `blocked`.')
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalHistoryMarkdown)) {
+        Add-CheckboxLine -Lines $lines -Text ('Open the project template schema approval history trend report before approving schema drift handoff: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryMarkdown))
+    } elseif (-not [string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalHistoryJson)) {
+        Add-CheckboxLine -Lines $lines -Text ('Open the project template schema approval history JSON before approving schema drift handoff: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryJson))
     }
 
     if ($projectTemplateSmokeRequireFullCoverage -eq "True" -and $projectTemplateSmokeHasUnregisteredCandidates) {
@@ -637,10 +686,12 @@ if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
 [void]$lines.Add("## Stop Conditions")
 [void]$lines.Add("")
 [void]$lines.Add('- Do not approve for public release when `execution_status` is not `pass`.')
+[void]$lines.Add('- Do not approve for public release when `release_blocker_count` is non-zero or `release_blockers` is not empty.')
 [void]$lines.Add('- Do not approve for public release when a requested template schema gate does not report `matches = true`.')
 [void]$lines.Add('- Do not approve for public release when a requested template schema manifest gate does not report `passed = true`.')
 [void]$lines.Add('- Do not approve for public release when a requested project template smoke gate does not report `passed = true`.')
 [void]$lines.Add('- Do not approve for public release when requested project template smoke reports non-zero dirty schema baselines.')
+[void]$lines.Add('- Do not approve for public release when requested project template smoke schema approval gate reports `blocked` or non-zero compliance issues.')
 [void]$lines.Add('- Do not approve for public release when a requested project template smoke visual verdict is neither `pass` nor `not_applicable`.')
 [void]$lines.Add('- Do not approve for public release when the final local visual verdict is not `pass`.')
 [void]$lines.Add("- Do not treat a CI-only artifact with visual gate = skipped as the final screenshot-backed release signoff.")

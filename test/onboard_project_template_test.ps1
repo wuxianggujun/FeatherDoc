@@ -73,6 +73,12 @@ Assert-Equal -Actual $summary.template_name -Expected "invoice-template" `
 Assert-ContainsText -Text ([string]$summary.validation_issue) `
     -ExpectedText "validation_not_executed_in_plan_only_mode=true" `
     -Message "Plan-only onboarding should record an explicit not-executed hint."
+Assert-Equal -Actual ([int]$summary.schema_patch_approval_pending_count) -Expected 0 `
+    -Message "Plan-only onboarding without smoke should expose zero pending schema approvals."
+Assert-Equal -Actual ([int]$summary.schema_patch_approval_approved_count) -Expected 0 `
+    -Message "Plan-only onboarding without smoke should expose zero approved schema approvals."
+Assert-Equal -Actual ([int]$summary.schema_patch_approval_rejected_count) -Expected 0 `
+    -Message "Plan-only onboarding without smoke should expose zero rejected schema approvals."
 
 $steps = @($summary.steps)
 Assert-True -Condition ($steps.Count -ge 6) `
@@ -107,6 +113,10 @@ Assert-ContainsText -Text $manualReview -ExpectedText "Review Checklist" `
     -Message "Manual review should include a checklist."
 Assert-ContainsText -Text $manualReview -ExpectedText "schema_output" `
     -Message "Manual review should summarize schema output."
+Assert-ContainsText -Text $manualReview -ExpectedText "schema_patch_approval_pending_count" `
+    -Message "Manual review should expose schema patch approval count."
+Assert-ContainsText -Text $manualReview -ExpectedText "schema_patch_approval_approved_count" `
+    -Message "Manual review should expose approved schema patch approval count."
 
 Assert-True -Condition ([int]$summary.remaining_placeholder_count -ge 0) `
     -Message "Summary should expose remaining placeholder count."

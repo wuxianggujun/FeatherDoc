@@ -24,6 +24,9 @@ Optional explicit release-candidate report/summary.json path.
 .PARAMETER SkipReleaseBundle
 Skips -RefreshReleaseBundle even when a release-candidate summary is found.
 
+.PARAMETER SkipSupersededReviewTaskAudit
+Skips the superseded review-task audit when a focused caller only needs verdict sync.
+
 .EXAMPLE
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1
 #>
@@ -31,7 +34,8 @@ param(
     [string]$TaskOutputRoot = "",
     [string]$OutputSearchRoot = "output",
     [string]$ReleaseCandidateSummaryJson = "",
-    [switch]$SkipReleaseBundle
+    [switch]$SkipReleaseBundle,
+    [switch]$SkipSupersededReviewTaskAudit
 )
 
 Set-StrictMode -Version Latest
@@ -654,21 +658,25 @@ Update-ReleaseSummaryTaskDirsFromPointers `
     -ReleaseSummaryPath $resolvedReleaseSummaryPath `
     -LatestPointerDescriptors $latestPointerDescriptors
 
-$auditScript = Join-Path $repoRoot "scripts\find_superseded_review_tasks.ps1"
-$supersededReviewTasksReportPath = Join-Path $resolvedTaskOutputRoot "superseded_review_tasks.json"
-Invoke-ChildPowerShell -ScriptPath $auditScript `
-    -Arguments @(
-        "-TaskOutputRoot"
-        $resolvedTaskOutputRoot
-        "-ReportPath"
-        $supersededReviewTasksReportPath
-    ) `
-    -FailureMessage "Failed to audit superseded review tasks."
-Write-Step "Updated superseded review-task report: $supersededReviewTasksReportPath"
-Update-AuditReportMetadata `
-    -GateSummaryPath $resolvedGateSummaryPath `
-    -ReleaseSummaryPath $resolvedReleaseSummaryPath `
-    -ReportPath $supersededReviewTasksReportPath
+if (-not $SkipSupersededReviewTaskAudit.IsPresent) {
+    $auditScript = Join-Path $repoRoot "scripts\find_superseded_review_tasks.ps1"
+    $supersededReviewTasksReportPath = Join-Path $resolvedTaskOutputRoot "superseded_review_tasks.json"
+    Invoke-ChildPowerShell -ScriptPath $auditScript `
+        -Arguments @(
+            "-TaskOutputRoot"
+            $resolvedTaskOutputRoot
+            "-ReportPath"
+            $supersededReviewTasksReportPath
+        ) `
+        -FailureMessage "Failed to audit superseded review tasks."
+    Write-Step "Updated superseded review-task report: $supersededReviewTasksReportPath"
+    Update-AuditReportMetadata `
+        -GateSummaryPath $resolvedGateSummaryPath `
+        -ReleaseSummaryPath $resolvedReleaseSummaryPath `
+        -ReportPath $supersededReviewTasksReportPath
+} else {
+    Write-Step "Skipped superseded review-task audit."
+}
 
 $delegateScript = Join-Path $repoRoot "scripts\sync_visual_review_verdict.ps1"
 $delegateArgs = @(

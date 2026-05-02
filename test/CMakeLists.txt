@@ -6,10 +6,10 @@ add_executable(
 target_link_libraries(
     unit_tests
     PRIVATE FeatherDoc::FeatherDoc
-)
-if(MSVC)
-    target_compile_options(unit_tests PRIVATE /bigobj)
-endif()
+  )
+  if(MSVC)
+    target_compile_options(unit_tests PRIVATE /bigobj /utf-8)
+  endif()
 featherdoc_copy_runtime_dlls(unit_tests)
 
 add_test(
@@ -59,17 +59,32 @@ if(WIN32)
 
         add_test(
             NAME
-            release_note_bundle_visual_verdict_fallback
+            release_note_bundle_visual_verdict_metadata
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}
             -ExecutionPolicy
             Bypass
             -File
-            ${CMAKE_CURRENT_SOURCE_DIR}/release_note_bundle_visual_verdict_fallback_test.ps1
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_note_bundle_visual_verdict_metadata_test.ps1
             -RepoRoot
             ${PROJECT_SOURCE_DIR}
             -WorkingDir
-            ${CMAKE_CURRENT_BINARY_DIR}/release_note_bundle_visual_verdict_fallback
+            ${CMAKE_CURRENT_BINARY_DIR}/release_note_bundle_visual_verdict_metadata
+        )
+
+        add_test(
+            NAME
+            release_blocker_action_registry
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_blocker_action_registry_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_blocker_action_registry
         )
 
         add_test(
@@ -207,6 +222,36 @@ if(WIN32)
 
         add_test(
             NAME
+            prepare_visual_regression_bundle_review_task
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/prepare_visual_regression_bundle_review_task_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/prepare_visual_regression_bundle_review_task
+        )
+
+        add_test(
+            NAME
+            refresh_readme_visual_assets
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/refresh_readme_visual_assets_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/refresh_readme_visual_assets
+        )
+
+        add_test(
+            NAME
             prepare_section_page_setup_review_task
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}
@@ -327,6 +372,23 @@ if(WIN32)
 
         add_test(
             NAME
+            table_style_quality_visual_regression
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/table_style_quality_visual_regression_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -BuildDir
+            ${PROJECT_BINARY_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/table_style_quality_visual_regression
+        )
+
+        add_test(
+            NAME
             sync_visual_review_verdict_section_page_setup
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}
@@ -428,6 +490,21 @@ if(WIN32)
             ${PROJECT_SOURCE_DIR}
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_curated_visual_bundle
+        )
+
+        add_test(
+            NAME
+            sync_latest_visual_review_verdict_table_style_quality
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/sync_latest_visual_review_verdict_table_style_quality_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/sync_latest_visual_review_verdict_table_style_quality
         )
 
         add_test(
@@ -831,6 +908,89 @@ if(WIN32)
                 ${PROJECT_BINARY_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/check_numbering_catalog_manifest
+            )
+
+            add_test(
+                NAME
+                check_template_schema_baseline
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/check_template_schema_baseline_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/check_template_schema_baseline
+            )
+
+            add_test(
+                NAME
+                check_template_schema_manifest
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/check_template_schema_manifest_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/check_template_schema_manifest
+            )
+
+            add_test(
+                NAME
+                run_project_template_smoke_schema_review
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/run_project_template_smoke_schema_review_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/run_project_template_smoke_schema_review
+            )
+
+            add_test(
+                NAME
+                sync_project_template_schema_approval
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/sync_project_template_schema_approval_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/sync_project_template_schema_approval
+            )
+
+            add_test(
+                NAME
+                write_project_template_schema_approval_history
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/write_project_template_schema_approval_history_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/write_project_template_schema_approval_history
             )
         endif()
 

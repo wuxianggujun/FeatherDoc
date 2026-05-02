@@ -191,6 +191,31 @@ int main(int argc, char **argv) {
     table_style.is_semi_hidden = false;
     table_style.is_unhide_when_used = false;
     table_style.is_quick_format = true;
+    auto whole_table_region = featherdoc::table_style_region_definition{};
+    whole_table_region.fill_color = std::string{"F7FBFF"};
+    auto whole_table_margins = featherdoc::table_style_margins_definition{};
+    whole_table_margins.top_twips = 80U;
+    whole_table_margins.left_twips = 120U;
+    whole_table_margins.bottom_twips = 80U;
+    whole_table_margins.right_twips = 120U;
+    whole_table_region.cell_margins = whole_table_margins;
+    auto whole_table_borders = featherdoc::table_style_borders_definition{};
+    whole_table_borders.top = featherdoc::border_definition{
+        featherdoc::border_style::single, 8U, "4472C4", 0U};
+    whole_table_borders.bottom = featherdoc::border_definition{
+        featherdoc::border_style::single, 8U, "4472C4", 0U};
+    whole_table_borders.inside_horizontal = featherdoc::border_definition{
+        featherdoc::border_style::dotted, 4U, "A5A5A5", 0U};
+    whole_table_region.borders = whole_table_borders;
+    table_style.whole_table = whole_table_region;
+
+    auto header_region = featherdoc::table_style_region_definition{};
+    header_region.fill_color = std::string{"1F4E79"};
+    auto header_borders = featherdoc::table_style_borders_definition{};
+    header_borders.bottom = featherdoc::border_definition{
+        featherdoc::border_style::double_line, 8U, "1F4E79", 0U};
+    header_region.borders = header_borders;
+    table_style.first_row = header_region;
     if (!doc.ensure_table_style("ReviewTable", table_style)) {
         print_document_error(doc, "ensure_table_style(ReviewTable)");
         return 1;

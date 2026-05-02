@@ -16,7 +16,10 @@ FeatherDoc is a modernized C++ library for reading and writing Microsoft Word
 - Scriptable `featherdoc_cli` workflows for inspection, one-shot rewrites,
   numbering catalog governance, style refactor plans, and visual validation
 - Template schema validation, bookmark filling, content-control inspection,
-  and content-control schema slots / plain-text replacement by tag or alias
+  form-state mutation, and content-control text / paragraph / table / image
+  replacement by tag or alias
+- Lightweight typed APIs and CLI workflows for fields, hyperlinks, review notes,
+  revisions, and OMML formulas
 - MSVC-safe XML parsing on `open()` and streamed ZIP rewrite on `save()`
 
 ## Build
@@ -346,7 +349,15 @@ Or for a curated visual regression bundle emitted by the release gate:
 powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 `
     -SourceKind template-table-cli-selector-visual-regression-bundle `
     -PrintPrompt
+
+powershell -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 `
+    -SourceKind table-style-quality-visual-regression-bundle `
+    -PrintPrompt
 ```
+
+The `table-style-quality` bundle is emitted only when the release gate or
+release-candidate preflight is run with `-IncludeTableStyleQuality`; its stable
+pointer is `latest_table-style-quality-visual-regression-bundle_task.json`.
 
 For automation-friendly raw outputs, use:
 
@@ -486,7 +497,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_ver
 That shortest sync path now walks every `latest_*_task.json` pointer it can
 resolve under the task root, so later curated visual-regression bundle tasks
 from `run_word_visual_release_gate.ps1` are promoted together with the classic
-document / fixed-grid / section-page-setup / page-number-fields tasks.
+document / fixed-grid / section-page-setup / page-number-fields tasks. For the
+opt-in table style quality flow, that includes
+`latest_table-style-quality-visual-regression-bundle_task.json` and the matching
+`table-style-quality-visual-regression-bundle` source kind.
 
 If you need to override the inferred gate/release paths manually, use:
 
@@ -520,13 +534,33 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps
 featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file numbering-catalog.patch.json --output numbering-catalog.patched.json --json
 featherdoc_cli lint-numbering-catalog numbering-catalog.patched.json --json
 featherdoc_cli diff-numbering-catalog numbering-catalog.json numbering-catalog.patched.json --fail-on-diff --json
+featherdoc_cli semantic-diff before.docx after.docx --fail-on-diff --json
 featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-catalog.patched.json --output target-numbering.docx --json
 featherdoc_cli inspect-page-setup input.docx --section 1 --json
 featherdoc_cli inspect-bookmarks input.docx --part header --index 0 --bookmark header_rows --json
 featherdoc_cli inspect-content-controls input.docx --tag customer_name --json
 featherdoc_cli replace-content-control-text input.docx --tag customer_name --text "Ada Lovelace" --output content-control-text.docx --json
+featherdoc_cli set-content-control-form-state input.docx --tag approved --checked false --clear-lock --output content-control-form.docx --json
+featherdoc_cli replace-content-control-paragraphs input.docx --tag summary --paragraph "Line one" --paragraph "Line two" --output content-control-paragraphs.docx --json
+featherdoc_cli replace-content-control-table-rows input.docx --tag line_items --row "SKU-1" --cell "2" --cell "$10" --output content-control-rows.docx --json
+featherdoc_cli replace-content-control-image input.docx assets/logo.png --alias "Logo" --width 120 --height 40 --output content-control-image.docx --json
+featherdoc_cli inspect-hyperlinks input.docx --json
+featherdoc_cli inspect-review input.docx --json
+featherdoc_cli inspect-omml input.docx --json
+featherdoc_cli append-hyperlink input.docx --text "OpenAI" --target https://openai.com --output link.docx --json
+featherdoc_cli accept-all-revisions input.docx --output accepted.docx --json
 featherdoc_cli inspect-images input.docx --relationship-id rId5 --json
-featherdoc_cli ensure-table-style input.docx ReportTable --name "Report Table" --based-on TableGrid --output styled.docx --json
+featherdoc_cli ensure-table-style input.docx ReportTable --name "Report Table" --based-on TableGrid --style-text-color whole_table:333333 --style-bold first_row:true --style-italic first_row:true --style-font-size first_row:14 --style-font-family "first_row:Aptos Display" --style-east-asia-font-family first_row:SimHei --style-cell-vertical-alignment first_row:bottom --style-cell-text-direction first_row:top_to_bottom_right_to_left --style-paragraph-alignment first_row:right --style-paragraph-spacing-after first_row:120 --style-paragraph-line-spacing first_row:240:at_least --style-fill second_banded_rows:F2F2F2 --output styled.docx --json
+featherdoc_cli inspect-table-style input.docx ReportTable --json
+featherdoc_cli audit-table-style-regions input.docx --fail-on-issue --json
+featherdoc_cli audit-table-style-inheritance input.docx --fail-on-issue --json
+featherdoc_cli audit-table-style-quality input.docx --fail-on-issue --json
+featherdoc_cli plan-table-style-quality-fixes input.docx --json
+featherdoc_cli apply-table-style-quality-fixes input.docx --look-only --output quality-fixed.docx --json
+powershell -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1 -BuildDir build-codex-clang-compat -OutputDir output/table-style-quality-visual-regression -SkipBuild
+powershell -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 -SkipConfigure -SkipBuild -IncludeTableStyleQuality
+featherdoc_cli check-table-style-look input.docx --fail-on-issue --json
+featherdoc_cli repair-table-style-look input.docx --apply --output repaired-style-look.docx --json
 featherdoc_cli inspect-header-parts input.docx --json
 featherdoc_cli inspect-footer-parts input.docx
 featherdoc_cli insert-section input.docx 1 --no-inherit --output inserted.docx --json
@@ -546,6 +580,17 @@ featherdoc_cli show-section-footer input.docx 2 --json
 featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
 featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
 featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
+featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --result-text "Page reference" --output page-ref.docx --json
+featherdoc_cli append-style-reference-field input.docx "Heading 1" --part body --paragraph-number --result-text "Section heading" --output style-ref.docx --json
+featherdoc_cli append-document-property-field input.docx Title --part body --result-text "Document title" --output doc-property.docx --json
+featherdoc_cli append-date-field input.docx --part body --format "yyyy-MM-dd" --result-text "2026-05-01" --dirty --output date-field.docx --json
+featherdoc_cli append-hyperlink-field input.docx https://example.com/report --part body --anchor target_heading --tooltip "Open target heading" --result-text "Open report" --locked --output hyperlink-field.docx --json
+featherdoc_cli append-caption input.docx Figure --part body --text "Architecture overview" --number-result "1" --output caption.docx --json
+featherdoc_cli append-index-entry-field input.docx FeatherDoc --part body --subentry API --bookmark target_heading --cross-reference "See API" --output xe.docx --json
+featherdoc_cli append-index-field input.docx --part body --columns 2 --result-text "Index placeholder" --output index.docx --json
+featherdoc_cli append-complex-field input.docx --part body --instruction-before " IF " --nested-instruction " MERGEFIELD CustomerName " --nested-result-text "Ada" --instruction-after " = \"Ada\" \"Matched\" \"Other\" " --result-text "Matched" --output complex-field.docx --json
+featherdoc_cli inspect-update-fields-on-open input.docx --json
+featherdoc_cli set-update-fields-on-open input.docx --enable --output update-fields.docx --json
 featherdoc_cli set-template-table-from-json report.docx --bookmark line_items_table --patch-file row_patch.json --output report-updated.docx --json
 featherdoc_cli set-template-tables-from-json report.docx --patch-file multi_table_patch.json --output report-updated.docx --json
 featherdoc_cli validate-template input.docx --part body --slot customer:text --slot line_items:table_rows --json
@@ -1049,7 +1094,16 @@ featherdoc_cli clear-paragraph-list input.docx 10 --output cleared-list.docx --j
 # Template inspection and bookmark-driven edits
 featherdoc_cli inspect-template-paragraphs input.docx --part header --index 0 --paragraph 0 --json
 featherdoc_cli inspect-content-controls input.docx --part body --alias "Customer Name" --json
+featherdoc_cli semantic-diff before.docx after.docx --json
+featherdoc_cli semantic-diff before.docx after.docx --index-alignment --json
 featherdoc_cli replace-content-control-text input.docx --part body --alias "Customer Name" --text "Ada Lovelace" --output content-control-text.docx --json
+featherdoc_cli set-content-control-form-state input.docx --part body --tag status --selected-item draft --lock sdtLocked --output content-control-form.docx --json
+featherdoc_cli replace-content-control-paragraphs input.docx --part body --tag summary --paragraph "Line one" --paragraph "Line two" --output content-control-paragraphs.docx --json
+featherdoc_cli replace-content-control-table input.docx --part body --alias "Line Items" --row "SKU-1" --cell "2" --cell "$10" --output content-control-table.docx --json
+featherdoc_cli replace-content-control-image input.docx assets/logo.png --part body --tag logo --width 120 --height 40 --output content-control-image.docx --json
+featherdoc_cli inspect-hyperlinks input.docx --json
+featherdoc_cli inspect-review input.docx --json
+featherdoc_cli inspect-omml input.docx --json
 featherdoc_cli inspect-template-tables input.docx --part body --table 0 --json
 featherdoc_cli inspect-template-table-rows input.docx 0 --row 1 --json
 featherdoc_cli inspect-template-table-cells input.docx 0 --row 1 --cell 1 --json
@@ -1073,6 +1127,11 @@ featherdoc_cli replace-image input.docx replacement.png --relationship-id rId5 -
 featherdoc_cli remove-image input.docx --relationship-id rId5 --output image-removed.docx --json
 featherdoc_cli append-image input.docx badge.png --width 96 --height 48 --output image-appended.docx --json
 featherdoc_cli append-total-pages-field input.docx --part section-footer --section 1 --kind first --output total-pages.docx --json
+featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --output page-ref.docx --json
+featherdoc_cli append-date-field input.docx --part body --format "yyyy-MM-dd" --dirty --output date-field.docx --json
+featherdoc_cli append-hyperlink-field input.docx https://example.com/report --part body --result-text "Open report" --locked --output hyperlink-field.docx --json
+featherdoc_cli append-caption input.docx Figure --part body --text "Architecture overview" --output caption.docx --json
+featherdoc_cli append-index-field input.docx --part body --columns 2 --output index.docx --json
 ```
 
 `assign-section-header` / `assign-section-footer` make a section reuse an
@@ -1319,10 +1378,26 @@ you want to get done:
   `list_bookmarks()`, `validate_template()`, `fill_bookmarks()`,
   `replace_bookmark_with_*()`, `body_template()`, `header_template()`,
   `footer_template()`, `list_content_controls()`,
-  `find_content_controls_by_*()`, `replace_content_control_text_by_*()`
-- Work with images and page-number fields:
+  `find_content_controls_by_*()`, `replace_content_control_text_by_*()`,
+  `replace_content_control_with_*()`
+- Work with images and fields:
   `append_image()`, `append_floating_image()`, `replace_*image()`,
-  `append_page_number_field()`, `append_total_pages_field()`
+  `list_fields()`, `append_field()`, `append_table_of_contents_field()`,
+  `append_reference_field()`, `append_page_reference_field()`,
+  `append_style_reference_field()`, `append_document_property_field()`,
+  `append_date_field()`, `append_hyperlink_field()`, `append_sequence_field()`,
+  `append_caption()`, `append_index_entry_field()`, `append_index_field()`, `append_complex_field()`,
+  `replace_field()`, `append_page_number_field()`,
+  `append_total_pages_field()`
+- Work with hyperlinks, review objects, and OMML formulas:
+  `list_hyperlinks()`, `append_hyperlink()`, `replace_hyperlink()`,
+  `remove_hyperlink()`, `list_footnotes()`, `append_footnote()`,
+  `replace_footnote()`, `remove_footnote()`, `list_endnotes()`,
+  `append_endnote()`, `replace_endnote()`, `remove_endnote()`,
+  `list_comments()`, `append_comment()`, `replace_comment()`,
+  `remove_comment()`, `list_revisions()`, `accept_*revision*()`,
+  `reject_*revision*()`, `list_omml()`, `append_omml()`,
+  `replace_omml()`, `remove_omml()`, and `make_omml_*()` helpers such as `make_omml_delimiter()` and `make_omml_nary()`
 - Work with sections, headers/footers, and page setup:
   `inspect_sections()`, `get_section_page_setup()`, `set_section_page_setup()`,
   `ensure_*header*()`, `ensure_*footer*()`, `append_section()`,
@@ -1345,8 +1420,13 @@ you want to get done:
   `set_paragraph_style_outline_level()`,
   `rebase_paragraph_style_based_on()`
 - Prefer the CLI for scriptable inspection or one-shot rewrites:
-  `inspect-*`, `validate-template`, `append-page-number-field`,
-  `set-section-page-setup`
+  `inspect-*`, `inspect-hyperlinks`, `inspect-review`, `inspect-omml`,
+  `validate-template`, `replace-content-control-*`, `append-hyperlink`,
+  `accept-all-revisions`, `append-page-number-field`,
+  `append-page-reference-field`, `append-style-reference-field`,
+  `append-document-property-field`, `append-date-field`,
+  `append-hyperlink-field`, `append-caption`, `append-index-entry-field`,
+  `append-index-field`, `set-section-page-setup`
 
 For fuller parameter details, runnable samples, and edge-case notes, continue
 into `docs/index.rst`; its `Task-Oriented API Map` and
@@ -1450,8 +1530,8 @@ inserted.rows().cells().set_text("inserted");
 Use `Table::set_width_twips(...)`, `set_column_width_twips(...)`,
 `clear_column_width()`, `set_style_id(...)`, `set_border(...)`,
 `set_layout_mode(...)`, `set_alignment(...)`, `set_indent_twips(...)`,
-`set_cell_spacing_twips(...)`, `set_cell_margin_twips(...)`, and
-`set_style_look(...)`
+`set_cell_spacing_twips(...)`, `set_cell_margin_twips(...)`,
+`set_position(...)`, and `set_style_look(...)`
 alongside `TableCell::set_text(...)`, `get_text()`, `set_width_twips(...)`,
 `Table::remove()`, `insert_table_before()`, `insert_table_after()`,
 `insert_table_like_before()`, `insert_table_like_after()`,
@@ -1466,6 +1546,7 @@ table layout editing without dropping down to raw WordprocessingML.
 `width_twips()` reports an explicit `dxa` width when present,
 `column_width_twips(column_index)` reports the current `w:tblGrid` width for
 one grid column, `style_id()` reports the current table style reference,
+`position()` reports first-pass floating table placement from `w:tblpPr`,
 `style_look()` reports the current first/last row or column emphasis together
 with row/column banding flags, `layout_mode()` reports the current auto-fit
 mode, `alignment()` / `indent_twips()` report table placement,
@@ -1504,7 +1585,7 @@ they do not rescale or discard the saved `w:gridCol` / `w:tcW` widths.
 When a table later re-runs fixed-grid normalization, any manual
 `TableCell::set_width_twips(...)` / `clear_width()` edits on cells covered by
 that complete grid are overwritten back to the summed `w:gridCol` widths.
-For reopened legacy fixed-layout tables whose saved `w:tcW` no longer matches
+For reopened fixed-layout tables whose saved `w:tcW` no longer matches
 `w:gridCol`, reapplying `set_layout_mode(featherdoc::table_layout_mode::fixed)`
 forces that same normalization pass.
 The same normalization also runs when those reopened fixed-layout tables go
@@ -1552,6 +1633,16 @@ table.set_layout_mode(featherdoc::table_layout_mode::fixed);
 table.set_alignment(featherdoc::table_alignment::center);
 table.set_indent_twips(240);
 table.set_cell_spacing_twips(120);
+
+featherdoc::table_position position;
+position.horizontal_reference =
+    featherdoc::table_position_horizontal_reference::page;
+position.horizontal_offset_twips = 720;
+position.vertical_reference =
+    featherdoc::table_position_vertical_reference::paragraph;
+position.vertical_offset_twips = 0;
+table.set_position(position);
+
 table.set_cell_margin_twips(featherdoc::cell_margin_edge::left, 96);
 table.set_cell_margin_twips(featherdoc::cell_margin_edge::right, 96);
 table.set_border(featherdoc::table_border_edge::inside_vertical,
@@ -2019,6 +2110,31 @@ For a runnable document-level sample, build
 `featherdoc_cli validate-template-schema ...`, which also accepts
 `--schema-file <path>` for reusable JSON schema contracts.
 
+For first-time project onboarding of a real template, call
+`Document::onboard_template(...)` before building render data. It reuses schema
+scan, validation, and patch review to return discovered slots, baseline drift,
+blocking issues, and suggested next actions.
+
+```cpp
+featherdoc::Document doc("invoice-template.docx");
+doc.open();
+
+featherdoc::template_onboarding_options options{};
+options.baseline_schema = existing_schema; // omit for first-time onboarding
+
+const auto onboarding = doc.onboard_template(options);
+if (!onboarding.has_value()) {
+    throw std::runtime_error(doc.last_error().detail);
+}
+if (onboarding->has_errors()) {
+    throw std::runtime_error(onboarding->issues.front().message);
+}
+
+if (onboarding->requires_schema_review()) {
+    // Review onboarding->schema_patch / onboarding->patch_review first.
+}
+```
+
 The schema-file flow accepts either compact string slots such as
 `"header_title:text"` or structured slot objects:
 
@@ -2484,7 +2600,35 @@ library.
 Use `doc.inspect_tables()` or `doc.inspect_table(table_index)` when you need
 table-level style/width/grid/text metadata from the core library.
 Use `featherdoc_cli inspect-tables` when you need the same table inspection
-metadata from the command line.
+metadata from the command line. Use `featherdoc_cli set-table-position` and
+`clear-table-position` to add or remove a body table `w:tblpPr` floating
+position with margin/page/column horizontal references, margin/page/paragraph
+vertical references, signed twips offsets, optional text wrapping distances,
+and overlap policy. `set-table-position --preset paragraph-callout|page-corner|margin-anchor`
+provides migration-friendly defaults that can still be overridden by the
+fine-grained offset, wrapping, and overlap options. Use `<table-index|all>`
+with repeated `--table <index>` entries when the same preset should be applied
+to several body tables in one mutation; `clear-table-position` accepts the same
+target syntax and returns `table_indices` / `positions` for every table-position mutation JSON.
+Use `plan-table-position-presets --preset <name>` first when you want a read-only
+migration plan that identifies unpositioned tables, already matching tables, and
+existing positions that should be reviewed before replacement. The plan also
+returns `input_path`, `automatic_table_indices`,
+`already_matching_table_indices`, `review_table_indices`, templated
+`recommended_*` commands, and copy-ready `resolved_recommended_*` commands for
+reviewed execution. When automatic changes exist, `resolved_output_path` is
+derived as `<stem>-table-position-<preset>.docx` unless `--output <docx>` is
+provided, and that path is appended through `--output` so copied commands do not
+overwrite the source DOCX. Pass `--output-plan <plan.json>` to persist the same
+JSON plan for CI artifacts or handoff review. After review,
+`apply-table-position-plan <plan.json>` can replay the structured plan without
+executing the command strings embedded in the JSON. Plans now include lightweight
+`table_fingerprints`, and replay validates table style, width, row/column counts,
+column widths, and text summaries before writing so stale plans are rejected with changed-field diagnostics. Use
+`apply-table-position-plan --dry-run --json` to
+validate a saved plan without writing the DOCX and reject saved plans that lack
+`table_fingerprints`; dry-run and successful replay both report `table_count` and
+`fingerprint_checked_count` for CI audit logs.
 Use `doc.inspect_table_cells(table_index)` or
 `doc.inspect_table_cell(table_index, row_index, cell_index)` when you need
 cell-level width/span/layout/text metadata from the core library.
@@ -2599,7 +2743,7 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   `insert_section()`, removed through `remove_section()`, and reordered through
   `move_section()`. Header/footer part indexes can now also be reordered
   through `move_header_part()` / `move_footer_part()`.
-- Word equations (`OMML`) are not surfaced through a typed equation API.
+- Word equations (`OMML`) now have a lightweight typed API for listing, appending raw OMML fragments, replacing indexed equations, removing equations, and building common text/fraction/script/radical/delimiter/n-ary snippets through `make_omml_text()`, `make_omml_fraction()`, `make_omml_superscript()`, `make_omml_subscript()`, `make_omml_radical()`, `make_omml_delimiter()`, and `make_omml_nary()`; the matching CLI inspection/mutation commands are `inspect-omml`, `append-omml`, `replace-omml`, and `remove-omml`. A more complete equation layout builder remains future work.
 - Tables can now be appended, extended structurally, given explicit cell,
   column, and table widths, merged horizontally and vertically, assigned
   table/cell
@@ -2607,9 +2751,11 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   the page, pointed at existing table style ids, given basic table-level
   default cell margins and cell shading/margins, assigned row heights,
   controlled for page splitting, assigned cell vertical alignment, marked to
-  repeat header rows, and retuned through `tblLook` style-routing flags, but
-  there is still no high-level API for custom table style definitions or
-  floating table positioning.
+  repeat header rows, retuned through `tblLook` style-routing flags, and now
+  given first-pass custom table style definitions through `ensure_table_style(...)`
+  for whole-table and conditional-region borders, fills, text colors, bold/italic flags, font sizes, font families, cell vertical alignment, text direction, paragraph alignment, paragraph spacing, line spacing, cell margins, and first/second band regions, and
+  inspected back through `find_table_style_definition(...)` /
+  `featherdoc_cli inspect-table-style --json`; `audit-table-style-regions` can flag empty declared table-style regions, `audit-table-style-inheritance` can gate missing, cross-type, or cyclic table-style `basedOn` chains, `audit-table-style-quality` can aggregate those definition gates with table instance `tblLook` checks for CI, `plan-table-style-quality-fixes` can split quality findings into automatic `tblLook` repairs and manual style-definition work, `apply-table-style-quality-fixes --look-only` can write only the safe `tblLook` repairs, `scripts/run_table_style_quality_visual_regression.ps1` can archive before/after Word renders, contact sheets, and pixel summaries for visual validation, `check-table-style-look` can gate table instance `tblLook` flags against conditional regions, and `repair-table-style-look` can apply the safe flag fixes. Floating table positioning is now available through `Table::set_position(...)` / `position()` / `clear_position()` over `w:tblpPr`, including horizontal/vertical references, signed twips offsets, optional text wrapping distances, overlap policy, presets, batch targeting, plan/apply replay, and Word-rendered visual validation.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences. Custom numbering definitions and
   paragraph-style numbering are now supported through
@@ -2687,12 +2833,58 @@ unique same-name relink, and catalog import pre-repairs.
   occurrence constraints. Content controls can now be enumerated through
   `list_content_controls()` / `TemplatePart::list_content_controls()`,
   filtered by tag or alias through the `inspect-content-controls` CLI,
-  rewritten from the CLI through `replace-content-control-text`, and rewritten
-  as plain text through `replace_content_control_text_by_tag(...)` /
+  rewritten from the CLI through `replace-content-control-text`,
+  `replace-content-control-paragraphs`, `replace-content-control-table`,
+  `replace-content-control-table-rows`, and `replace-content-control-image`,
+  and rewritten as plain text through `replace_content_control_text_by_tag(...)` /
   `replace_content_control_text_by_alias(...)` on `Document` or `TemplatePart`.
-  Content controls can also participate in template schema export and validation
+  C++ callers can also replace matching content controls with paragraphs, table
+  rows, whole plain-text tables, or images through
+  `replace_content_control_with_paragraphs_by_*()`,
+  `replace_content_control_with_table_rows_by_*()`, and
+  `replace_content_control_with_table_by_*()`, plus
+  `replace_content_control_with_image_by_*()`. The visual regression fixtures are
+  `scripts/run_content_control_rich_replacement_visual_regression.ps1` and
+  `scripts/run_content_control_image_replacement_visual_regression.ps1`. Content
+  controls can also participate in template schema export and validation
   through `content_control_tag` / `content_control_alias` slot selectors.
-  Structured rich-content replacement is still future work. Document-level
+  Lightweight form-state inspection now reports form kind, lock, `w:dataBinding`
+  store item / XPath / prefix mappings, checkbox state, date format/locale, and
+  list items; form-state mutation now supports checkbox checked state,
+  dropdown/combo-box selected item, date text/format/locale, lock set/clear, and
+  dataBinding set/clear through C++ APIs and `set-content-control-form-state`;
+  document-level `sync_content_controls_from_custom_xml()` plus
+  `sync-content-controls-from-custom-xml` can now read matching `customXml/item*.xml`
+  parts and refresh bound content-control display text from `w:dataBinding` XPath values.
+  Document-level semantic diff is now available through
+  `compare_semantic(...)` / `document_semantic_diff_result` and the
+  `semantic-diff` CLI, covering paragraphs, table summaries, drawing images,
+  content controls, generic fields (including TOC / REF / SEQ kind,
+  instruction, result text, dirty / locked, complex, and depth metadata),
+  style summaries, numbering definitions, footnotes, endnotes, comments,
+  revisions, section/page setup summaries, and typed `body` / `header` /
+  `footer` template part results. JSON now includes `fields`, `field_changes`,
+  `styles`, `style_changes`, `numbering`, `numbering_changes`, `footnotes`,
+  `footnote_changes`, `endnotes`, `endnote_changes`, `comments`,
+  `comment_changes`, `revisions`, `revision_changes`, `template_parts`,
+  and `template_part_results`, while
+  changed items continue to expose field-level `field_changes` and
+  `--fail-on-diff`. The part results also
+  include resolved `section-header` / `section-footer` views with
+  `section_index`, `reference_kind`, and left/right
+  `*_resolved_from_section_index` metadata so inherited section headers/footers
+  can be audited without double-counting the physical header/footer totals.
+  Content-aware sequence alignment is enabled by default to avoid cascaded false
+  positives after insertions; use `--index-alignment` for positional comparison,
+  `--alignment-cell-limit <count>` to cap alignment cost, `--no-fields` to skip
+  field-object comparison, `--no-styles` / `--no-numbering` to suppress style or
+  numbering catalog comparison, `--no-footnotes` / `--no-endnotes` /
+  `--no-comments` / `--no-revisions` to suppress review-object comparison,
+  `--no-template-parts` when only body-level buckets are desired, or
+  `--no-resolved-section-template-parts` when only physical part
+  details are desired. Visual proofs are `scripts/run_semantic_diff_visual_regression.ps1`
+  and the field-focused `scripts/run_generic_fields_visual_regression.ps1`.
+  Document-level
   multi-part schema validation is now available through
   `validate_template_schema(...)` plus
   `featherdoc_cli validate-template-schema`, and reusable JSON schema files can

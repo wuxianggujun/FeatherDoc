@@ -311,7 +311,7 @@ $checklistExpectedMarkers = @(
     "word_visual_release_gate_smoke_verdict",
     "release_candidate_visual_verdict",
     "sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle)",
-    "release_note_bundle_visual_verdict_fallback",
+    "release_note_bundle_visual_verdict_metadata",
     "public_release_wording_regression_test.ps1",
     "git diff --check"
 )

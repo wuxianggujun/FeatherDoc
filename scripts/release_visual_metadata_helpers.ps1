@@ -50,10 +50,7 @@ function Get-VisualTaskVerdict {
         return $gateFlowVerdict
     }
 
-    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
-    $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
-    $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
-    return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
+    return ""
 }
 
 function Get-VisualTaskReviewStatus {
@@ -251,10 +248,7 @@ function Merge-CuratedVisualReviewEntry {
         $Entry.label = $label
     }
 
-    $verdict = Get-OptionalPropertyValue -Object $Source -Name "verdict"
-    if ([string]::IsNullOrWhiteSpace($verdict)) {
-        $verdict = Get-OptionalPropertyValue -Object $Source -Name "review_verdict"
-    }
+    $verdict = Get-OptionalPropertyValue -Object $Source -Name "review_verdict"
     if (-not [string]::IsNullOrWhiteSpace($verdict)) {
         $Entry.verdict = $verdict
     }

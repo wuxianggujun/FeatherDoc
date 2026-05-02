@@ -14,6 +14,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_manifest.ps1 
     -ManifestPath .\baselines\template-schema\manifest.json `
     -BuildDir build-codex-clang-column-visual-verify `
     -RepairedSchemaOutputDir .\output\template-schema-manifest-repairs `
+    -ReviewJsonOutputDir .\output\template-schema-manifest-reviews `
     -SkipBuild
 #>
 param(
@@ -22,6 +23,7 @@ param(
     [string]$Generator = "NMake Makefiles",
     [string]$OutputDir = "output/template-schema-manifest-checks",
     [string]$RepairedSchemaOutputDir = "",
+    [string]$ReviewJsonOutputDir = "",
     [switch]$SkipBuild
 )
 
@@ -166,9 +168,17 @@ $resolvedRepairedSchemaOutputDir = if ([string]::IsNullOrWhiteSpace($RepairedSch
 } else {
     Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $RepairedSchemaOutputDir -AllowMissing
 }
+$resolvedReviewJsonOutputDir = if ([string]::IsNullOrWhiteSpace($ReviewJsonOutputDir)) {
+    ""
+} else {
+    Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $ReviewJsonOutputDir -AllowMissing
+}
 New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
 if (-not [string]::IsNullOrWhiteSpace($resolvedRepairedSchemaOutputDir)) {
     New-Item -ItemType Directory -Path $resolvedRepairedSchemaOutputDir -Force | Out-Null
+}
+if (-not [string]::IsNullOrWhiteSpace($resolvedReviewJsonOutputDir)) {
+    New-Item -ItemType Directory -Path $resolvedReviewJsonOutputDir -Force | Out-Null
 }
 
 $manifest = Get-Content -Raw -LiteralPath $resolvedManifestPath | ConvertFrom-Json
@@ -196,22 +206,29 @@ foreach ($entry in $entries) {
         -TargetName $prepareSampleTarget `
         -InputDocx $inputDocx
     $schemaFile = Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath ([string]$entry.schema_file)
-    $generatedOutput = if ([string]::IsNullOrWhiteSpace([string]$entry.generated_output)) {
+    $generatedOutputValue = Resolve-OptionalManifestPropertyValue -Entry $entry -Name "generated_output"
+    $generatedOutput = if ([string]::IsNullOrWhiteSpace($generatedOutputValue)) {
         Join-Path $resolvedOutputDir ($name + ".generated.schema.json")
     } else {
-        Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath ([string]$entry.generated_output) -AllowMissing
+        Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $generatedOutputValue -AllowMissing
     }
-    $targetModeArgs = Resolve-TargetModeArgs -TargetMode ([string]$entry.target_mode)
+    $targetModeArgs = Resolve-TargetModeArgs -TargetMode (Resolve-OptionalManifestPropertyValue -Entry $entry -Name "target_mode")
 
     $outputDirectory = [System.IO.Path]::GetDirectoryName($generatedOutput)
     if (-not [string]::IsNullOrWhiteSpace($outputDirectory)) {
         New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     }
 
+    $artifactStem = Get-ManifestArtifactStem -Name $name
     $repairedOutput = if ([string]::IsNullOrWhiteSpace($resolvedRepairedSchemaOutputDir)) {
         ""
     } else {
-        Join-Path $resolvedRepairedSchemaOutputDir ((Get-ManifestArtifactStem -Name $name) + ".repaired.schema.json")
+        Join-Path $resolvedRepairedSchemaOutputDir ($artifactStem + ".repaired.schema.json")
+    }
+    $reviewJsonOutput = if ([string]::IsNullOrWhiteSpace($resolvedReviewJsonOutputDir)) {
+        ""
+    } else {
+        Join-Path $resolvedReviewJsonOutputDir ($artifactStem + ".schema.review.json")
     }
 
     Write-Step "Checking baseline '$name'"
@@ -229,6 +246,12 @@ foreach ($entry in $entries) {
         $scriptArgs += @(
             "-RepairedSchemaOutput"
             $repairedOutput
+        )
+    }
+    if (-not [string]::IsNullOrWhiteSpace($reviewJsonOutput)) {
+        $scriptArgs += @(
+            "-ReviewJsonOutput"
+            $reviewJsonOutput
         )
     }
     if ($SkipBuild) {
@@ -273,6 +296,7 @@ foreach ($entry in $entries) {
         schema_lint_entry_name_issue_count = [int]$lintParsed.entry_name_issue_count
         generated_output_path = [string]$checkParsed.generated_output_path
         repaired_schema_output_path = if ($repairParsed) { [string]$repairParsed.output_path } else { "" }
+        schema_patch_review_output_path = $reviewJsonOutput
         added_target_count = [int]$checkParsed.added_target_count
         removed_target_count = [int]$checkParsed.removed_target_count
         changed_target_count = [int]$checkParsed.changed_target_count
@@ -293,6 +317,7 @@ $summary = [ordered]@{
     workspace = $repoRoot
     build_dir = $resolvedBuildDir
     repaired_schema_output_dir = $resolvedRepairedSchemaOutputDir
+    review_json_output_dir = $resolvedReviewJsonOutputDir
     entry_count = $results.Count
     drift_count = @($results | Where-Object { -not $_.matches }).Count
     dirty_baseline_count = @($results | Where-Object { -not $_.schema_lint_clean }).Count

@@ -61,8 +61,7 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 - gate summary 和 release summary 的 ``visual_verdict`` 一致。
 - 标准 flow 的 ``review_verdict``、``review_status``、``review_note``、
   ``reviewed_at``、``review_method`` 同步规则一致。
-- curated visual regression 优先读取 ``review_verdict``，仅在兼容旧数据时回退
-  ``verdict``。
+- curated visual regression 只读取 ``review_verdict`` 字段。
 - ``reviewed_at`` 输出保持 ``yyyy-MM-ddTHH:mm:ss`` 格式，避免文化区域差异。
 
 涉及公开 release 正文时，必须确认：
@@ -121,7 +120,7 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 .. code-block:: powershell
 
     ctest --test-dir build-codex-clang-compat `
-        -R "^(release_note_bundle_version|release_note_bundle_visual_verdict_fallback|release_visual_verdict_metadata_consistency)$" `
+        -R "^(release_note_bundle_version|release_note_bundle_visual_verdict_metadata|release_visual_verdict_metadata_consistency)$" `
         --output-on-failure `
         --timeout 60
 
@@ -256,6 +255,19 @@ operator note、review method 或内部 reviewed_at provenance。
 --------
 
 - 能集中在 helper 的逻辑，不要分散复制到多个 writer。
+- ``release_blockers`` / ``release_blocker_count`` 这类阻断字段必须同时覆盖
+  机器 summary、handoff、artifact guide、reviewer checklist、start-here 和必要的
+  release body 摘要，避免 CI 面板与人工交接文档不一致。
+- ``release_blocker_count`` 必须是 ``release_blockers`` 的派生数量；bundle writer
+  需要在生成前快速失败，而不是静默渲染不一致的 blocker count。
+- 每个 blocker 必须包含非空 ``id``、``source``、``status``、``severity`` 与
+  ``action``，且 ``id`` 不能重复，确保 reviewer 能稳定追踪阻断来源和修复动作。
+- 新增 blocker ``action`` 时优先在 shared helper 中登记固定 checklist runbook，
+  不要只把机器 action 原样丢给 reviewer。
+- 未登记 ``action`` 可以继续生成 bundle，但 reviewer checklist 必须显示
+  unregistered runbook 提醒，直到维护者补齐注册表和标准指引。
+- ``release_blocker_action_registry_test.ps1`` 应覆盖注册表里的每个 ``action``，
+  确保登记 action 时同步产出非空 checklist runbook。
 - 机器字段优先保持结构稳定；展示文字可以由 writer 负责格式化。
 - 公共 release material 默认走安全审计。
 - 新增字段时同步补 release summary、final review、bundle writer 和回归测试。

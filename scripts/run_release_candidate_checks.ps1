@@ -69,6 +69,7 @@ param(
     [switch]$SkipVisualGate,
     [switch]$SkipSectionPageSetup,
     [switch]$SkipPageNumberFields,
+    [switch]$IncludeTableStyleQuality,
     [string]$TemplateSchemaInputDocx = "",
     [string]$TemplateSchemaBaseline = "",
     [string]$TemplateSchemaGeneratedOutput = "",
@@ -669,6 +670,321 @@ function Get-ProjectTemplateSmokeDirtySchemaBaselineCount {
     return [int]$counts.dirty
 }
 
+function Get-OptionalIntegerProperty {
+    param(
+        [AllowNull()]$Object,
+        [string]$Name,
+        [int]$DefaultValue = 0
+    )
+
+    $value = Get-OptionalPropertyValue -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return $DefaultValue
+    }
+
+    return [int]$value
+}
+
+function Get-OptionalObjectArrayProperty {
+    param(
+        [AllowNull()]$Object,
+        [string]$Name
+    )
+
+    $value = Get-OptionalPropertyValue -Object $Object -Name $Name
+    if ($null -eq $value) {
+        return @()
+    }
+    if ($value -is [string]) {
+        return @($value)
+    }
+    if ($value -is [System.Collections.IEnumerable]) {
+        return @($value | Where-Object { $null -ne $_ })
+    }
+
+    return @($value)
+}
+
+function Get-SchemaPatchApprovalGateStatus {
+    param(
+        [int]$PendingCount,
+        [int]$ApprovalItemCount,
+        [int]$InvalidResultCount,
+        [int]$ComplianceIssueCount
+    )
+
+    if ($ComplianceIssueCount -gt 0 -or $InvalidResultCount -gt 0) {
+        return "blocked"
+    }
+    if ($PendingCount -gt 0) {
+        return "pending"
+    }
+    if ($ApprovalItemCount -gt 0) {
+        return "passed"
+    }
+
+    return "not_required"
+}
+
+function Get-SchemaPatchApprovalItemCount {
+    param(
+        [int]$PendingCount,
+        [int]$ApprovedCount,
+        [int]$RejectedCount,
+        [object[]]$ApprovalItems
+    )
+
+    $countedItems = $PendingCount + $ApprovedCount + $RejectedCount
+    if ($ApprovalItems.Count -gt $countedItems) {
+        return $ApprovalItems.Count
+    }
+
+    return $countedItems
+}
+
+function Get-ProjectTemplateSmokeSchemaApprovalGateInfo {
+    param([AllowNull()]$Summary)
+
+    $approvalItems = @(Get-OptionalObjectArrayProperty -Object $Summary -Name "schema_patch_approval_items")
+    $invalidResultCount = Get-OptionalIntegerProperty -Object $Summary -Name "schema_patch_approval_invalid_result_count"
+    if ($invalidResultCount -eq 0 -and $approvalItems.Count -gt 0) {
+        $invalidResultCount = @($approvalItems | Where-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "status") -eq "invalid_result" }).Count
+    }
+
+    $pendingCount = Get-OptionalIntegerProperty -Object $Summary -Name "schema_patch_approval_pending_count"
+    $approvedCount = Get-OptionalIntegerProperty -Object $Summary -Name "schema_patch_approval_approved_count"
+    $rejectedCount = Get-OptionalIntegerProperty -Object $Summary -Name "schema_patch_approval_rejected_count"
+    $complianceIssueCount = Get-OptionalIntegerProperty -Object $Summary -Name "schema_patch_approval_compliance_issue_count"
+    $approvalItemCount = Get-SchemaPatchApprovalItemCount `
+        -PendingCount $pendingCount `
+        -ApprovedCount $approvedCount `
+        -RejectedCount $rejectedCount `
+        -ApprovalItems $approvalItems
+    $gateStatus = Get-SchemaPatchApprovalGateStatus `
+        -PendingCount $pendingCount `
+        -ApprovalItemCount $approvalItemCount `
+        -InvalidResultCount $invalidResultCount `
+        -ComplianceIssueCount $complianceIssueCount
+
+    return [pscustomobject]@{
+        pending_count = $pendingCount
+        approved_count = $approvedCount
+        rejected_count = $rejectedCount
+        compliance_issue_count = $complianceIssueCount
+        invalid_result_count = $invalidResultCount
+        item_count = $approvalItemCount
+        gate_status = $gateStatus
+        gate_blocked = ($gateStatus -eq "blocked")
+    }
+}
+
+function New-ProjectTemplateSchemaApprovalReleaseBlockerItem {
+    param([AllowNull()]$Item)
+
+    $status = [string](Get-OptionalPropertyValue -Object $Item -Name "status")
+    $action = [string](Get-OptionalPropertyValue -Object $Item -Name "action")
+    if ([string]::IsNullOrWhiteSpace($action) -and $status -eq "invalid_result") {
+        $action = "fix_schema_patch_approval_result"
+    }
+
+    return [pscustomobject]@{
+        name = [string](Get-OptionalPropertyValue -Object $Item -Name "name")
+        status = $status
+        decision = [string](Get-OptionalPropertyValue -Object $Item -Name "decision")
+        action = $action
+        compliance_issue_count = Get-OptionalIntegerProperty -Object $Item -Name "compliance_issue_count"
+        compliance_issues = @(Get-OptionalObjectArrayProperty -Object $Item -Name "compliance_issues")
+        approval_result = [string](Get-OptionalPropertyValue -Object $Item -Name "approval_result")
+        schema_update_candidate = [string](Get-OptionalPropertyValue -Object $Item -Name "schema_update_candidate")
+        review_json = [string](Get-OptionalPropertyValue -Object $Item -Name "review_json")
+    }
+}
+
+function Get-ProjectTemplateSchemaApprovalBlockedItems {
+    param([object[]]$ApprovalItems)
+
+    return @(
+        $ApprovalItems | Where-Object {
+            $status = [string](Get-OptionalPropertyValue -Object $_ -Name "status")
+            $complianceIssueCount = Get-OptionalIntegerProperty -Object $_ -Name "compliance_issue_count"
+            $status -eq "invalid_result" -or $complianceIssueCount -gt 0
+        } | ForEach-Object {
+            New-ProjectTemplateSchemaApprovalReleaseBlockerItem -Item $_
+        }
+    )
+}
+
+function Get-ProjectTemplateSchemaApprovalIssueKeys {
+    param([object[]]$BlockedItems)
+
+    return @(
+        $BlockedItems |
+            ForEach-Object { @(Get-OptionalObjectArrayProperty -Object $_ -Name "compliance_issues") } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+            Sort-Object -Unique
+    )
+}
+
+function New-ProjectTemplateSchemaApprovalReleaseBlocker {
+    param(
+        [AllowNull()]$ProjectTemplateSmokeSummary,
+        [AllowNull()]$HistorySummary,
+        [string]$SummaryJsonPath,
+        [string]$HistoryJsonPath,
+        [string]$HistoryMarkdownPath
+    )
+
+    $gateInfo = Get-ProjectTemplateSmokeSchemaApprovalGateInfo -Summary $ProjectTemplateSmokeSummary
+    $latestBlockingSummary = Get-OptionalPropertyValue -Object $HistorySummary -Name "latest_blocking_summary"
+    $latestBlockingStatus = [string](Get-OptionalPropertyValue -Object $latestBlockingSummary -Name "status")
+    $historyBlocked = $latestBlockingStatus -eq "blocked"
+
+    if (-not [bool]$gateInfo.gate_blocked) {
+        return $null
+    }
+
+    $approvalItems = @(Get-OptionalObjectArrayProperty -Object $ProjectTemplateSmokeSummary -Name "schema_patch_approval_items")
+    $blockedItems = @(Get-ProjectTemplateSchemaApprovalBlockedItems -ApprovalItems $approvalItems)
+    if ($historyBlocked) {
+        $historyBlockedItems = @(Get-OptionalObjectArrayProperty -Object $latestBlockingSummary -Name "items" |
+            ForEach-Object { New-ProjectTemplateSchemaApprovalReleaseBlockerItem -Item $_ })
+        if ($historyBlockedItems.Count -gt 0) {
+            $blockedItems = $historyBlockedItems
+        }
+    }
+
+    $issueKeys = @(Get-ProjectTemplateSchemaApprovalIssueKeys -BlockedItems $blockedItems)
+    if ($historyBlocked) {
+        $historyIssueKeys = @(Get-OptionalObjectArrayProperty -Object $latestBlockingSummary -Name "issue_keys" |
+            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+            Sort-Object -Unique)
+        if ($historyIssueKeys.Count -gt 0) {
+            $issueKeys = $historyIssueKeys
+        }
+    }
+
+    $blockingSummaryJson = [string](Get-OptionalPropertyValue -Object $latestBlockingSummary -Name "summary_json")
+    if ([string]::IsNullOrWhiteSpace($blockingSummaryJson)) {
+        $blockingSummaryJson = $SummaryJsonPath
+    }
+    $blockedItemCount = $blockedItems.Count
+    if ($historyBlocked) {
+        $historyBlockedItemCount = Get-OptionalIntegerProperty -Object $latestBlockingSummary -Name "blocked_item_count" -DefaultValue $blockedItemCount
+        if ($historyBlockedItemCount -gt 0) {
+            $blockedItemCount = $historyBlockedItemCount
+        }
+    }
+
+    return [pscustomobject]@{
+        id = "project_template_smoke.schema_approval"
+        source = "project_template_smoke"
+        severity = "error"
+        status = "blocked"
+        message = "Project template smoke schema approval gate blocked."
+        gate_status = "blocked"
+        pending_count = [int]$gateInfo.pending_count
+        approved_count = [int]$gateInfo.approved_count
+        rejected_count = [int]$gateInfo.rejected_count
+        compliance_issue_count = [int]$gateInfo.compliance_issue_count
+        invalid_result_count = [int]$gateInfo.invalid_result_count
+        blocked_item_count = [int]$blockedItemCount
+        issue_keys = $issueKeys
+        summary_json = $blockingSummaryJson
+        history_json = $HistoryJsonPath
+        history_markdown = $HistoryMarkdownPath
+        action = "fix_schema_patch_approval_result"
+        items = $blockedItems
+    }
+}
+
+function Set-ProjectTemplateSchemaApprovalReleaseBlocker {
+    param(
+        [System.Collections.IDictionary]$ReleaseSummary,
+        [AllowNull()]$Blocker
+    )
+
+    $blockers = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($existingBlocker in @(Get-OptionalObjectArrayProperty -Object $ReleaseSummary -Name "release_blockers")) {
+        $existingId = [string](Get-OptionalPropertyValue -Object $existingBlocker -Name "id")
+        if ($existingId -ne "project_template_smoke.schema_approval") {
+            [void]$blockers.Add($existingBlocker)
+        }
+    }
+    if ($null -ne $Blocker) {
+        [void]$blockers.Add($Blocker)
+    }
+
+    $ReleaseSummary["release_blockers"] = $blockers.ToArray()
+    $ReleaseSummary["release_blocker_count"] = $blockers.Count
+}
+
+function Read-ProjectTemplateSchemaApprovalHistorySummary {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+}
+
+function Get-ProjectTemplateSchemaApprovalHistoryInputList {
+    param(
+        [string]$ReleaseSummaryPath,
+        [string]$ProjectTemplateSmokeSummaryPath
+    )
+
+    $summaryPaths = New-Object 'System.Collections.Generic.List[string]'
+    if (-not [string]::IsNullOrWhiteSpace($ProjectTemplateSmokeSummaryPath) -and
+        (Test-Path -LiteralPath $ProjectTemplateSmokeSummaryPath)) {
+        [void]$summaryPaths.Add($ProjectTemplateSmokeSummaryPath)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ReleaseSummaryPath) -and
+        (Test-Path -LiteralPath $ReleaseSummaryPath)) {
+        [void]$summaryPaths.Add($ReleaseSummaryPath)
+    }
+
+    return @($summaryPaths.ToArray() | Sort-Object -Unique)
+}
+
+function Invoke-ProjectTemplateSchemaApprovalHistory {
+    param(
+        [string]$ScriptPath,
+        [string]$ReleaseSummaryPath,
+        [string]$ProjectTemplateSmokeSummaryPath,
+        [string]$OutputJson,
+        [string]$OutputMarkdown
+    )
+
+    $summaryPaths = @(Get-ProjectTemplateSchemaApprovalHistoryInputList `
+            -ReleaseSummaryPath $ReleaseSummaryPath `
+            -ProjectTemplateSmokeSummaryPath $ProjectTemplateSmokeSummaryPath)
+    if ($summaryPaths.Count -eq 0) {
+        return [pscustomobject]@{
+            status = "skipped"
+            input_count = 0
+        }
+    }
+
+    Invoke-ChildPowerShell -ScriptPath $ScriptPath `
+        -Arguments @(
+            "-SummaryJson"
+            ($summaryPaths -join ",")
+            "-OutputJson"
+            $OutputJson
+            "-OutputMarkdown"
+            $OutputMarkdown
+        ) `
+        -FailureMessage "Failed to write project template schema approval history."
+
+    return [pscustomobject]@{
+        status = "completed"
+        input_count = $summaryPaths.Count
+    }
+}
+
+
+
 function Parse-InstallSmokeOutput {
     param([string[]]$Lines)
 
@@ -830,11 +1146,14 @@ $releaseBodyZhCnPath = Join-Path $reportDir "release_body.zh-CN.md"
 $releaseSummaryZhCnPath = Join-Path $reportDir "release_summary.zh-CN.md"
 $artifactGuidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
+$schemaApprovalHistoryJsonPath = Join-Path $reportDir "project_template_schema_approval_history.json"
+$schemaApprovalHistoryMarkdownPath = Join-Path $reportDir "project_template_schema_approval_history.md"
 $startHerePath = Join-Path $resolvedSummaryOutputDir "START_HERE.md"
 $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smoke.ps1"
 $templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
 $templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
 $projectTemplateSmokeScript = Join-Path $repoRoot "scripts\run_project_template_smoke.ps1"
+$projectTemplateSchemaApprovalHistoryScript = Join-Path $repoRoot "scripts\write_project_template_schema_approval_history.ps1"
 $projectTemplateSmokeDiscoverScript = Join-Path $repoRoot "scripts\discover_project_template_smoke_candidates.ps1"
 $visualGateScript = Join-Path $repoRoot "scripts\run_word_visual_release_gate.ps1"
 $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
@@ -923,6 +1242,8 @@ $summary = [ordered]@{
     execution_status = "running"
     failed_step = ""
     error = ""
+    release_blockers = @()
+    release_blocker_count = 0
     release_handoff = $releaseHandoffPath
     release_body_zh_cn = $releaseBodyZhCnPath
     release_summary_zh_cn = $releaseSummaryZhCnPath
@@ -955,6 +1276,18 @@ $summary = [ordered]@{
         excluded_candidate_count = 0
         dirty_schema_baseline_count = 0
         schema_baseline_drift_count = 0
+        schema_patch_approval_pending_count = 0
+        schema_patch_approval_approved_count = 0
+        schema_patch_approval_rejected_count = 0
+        schema_patch_approval_compliance_issue_count = 0
+        schema_patch_approval_invalid_result_count = 0
+        schema_patch_approval_gate_status = "not_required"
+        schema_patch_approval_gate_blocked = $false
+        schema_patch_approval_history_status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
+        schema_patch_approval_history_json = if ($projectTemplateSmokeRequested) { $schemaApprovalHistoryJsonPath } else { "" }
+        schema_patch_approval_history_markdown = if ($projectTemplateSmokeRequested) { $schemaApprovalHistoryMarkdownPath } else { "" }
+        schema_patch_approval_history_input_count = 0
+        schema_patch_approval_history_error = ""
         candidate_coverage = [ordered]@{
             status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
             require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
@@ -979,6 +1312,18 @@ $summary = [ordered]@{
             status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
             dirty_schema_baseline_count = 0
             schema_baseline_drift_count = 0
+            schema_patch_approval_pending_count = 0
+            schema_patch_approval_approved_count = 0
+            schema_patch_approval_rejected_count = 0
+            schema_patch_approval_compliance_issue_count = 0
+            schema_patch_approval_invalid_result_count = 0
+            schema_patch_approval_gate_status = "not_required"
+            schema_patch_approval_gate_blocked = $false
+            schema_patch_approval_history_status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
+            schema_patch_approval_history_json = if ($projectTemplateSmokeRequested) { $schemaApprovalHistoryJsonPath } else { "" }
+            schema_patch_approval_history_markdown = if ($projectTemplateSmokeRequested) { $schemaApprovalHistoryMarkdownPath } else { "" }
+            schema_patch_approval_history_input_count = 0
+            schema_patch_approval_history_error = ""
             candidate_coverage = [ordered]@{
                 status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
                 require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
@@ -1326,6 +1671,7 @@ try {
         $projectTemplateSmokeSchemaBaselineCounts = Get-ProjectTemplateSmokeSchemaBaselineCounts -Summary $projectTemplateSmokeInfo
         $projectTemplateSmokeDirtySchemaBaselineCount = Get-ProjectTemplateSmokeDirtySchemaBaselineCount -Summary $projectTemplateSmokeInfo
         $projectTemplateSmokeSchemaBaselineDriftCount = [int]$projectTemplateSmokeSchemaBaselineCounts.drift
+        $projectTemplateSmokeApprovalGate = Get-ProjectTemplateSmokeSchemaApprovalGateInfo -Summary $projectTemplateSmokeInfo
         $summary.steps.project_template_smoke.status = if ($projectTemplateSmokeExitCode -eq 0) {
             "completed"
         } else {
@@ -1344,6 +1690,13 @@ try {
         $summary.steps.project_template_smoke.manual_review_pending_count = [int]$projectTemplateSmokeInfo.manual_review_pending_count
         $summary.steps.project_template_smoke.visual_review_undetermined_count = [int]$projectTemplateSmokeInfo.visual_review_undetermined_count
         $summary.steps.project_template_smoke.overall_status = [string]$projectTemplateSmokeInfo.overall_status
+        $summary.steps.project_template_smoke.schema_patch_approval_pending_count = [int]$projectTemplateSmokeApprovalGate.pending_count
+        $summary.steps.project_template_smoke.schema_patch_approval_approved_count = [int]$projectTemplateSmokeApprovalGate.approved_count
+        $summary.steps.project_template_smoke.schema_patch_approval_rejected_count = [int]$projectTemplateSmokeApprovalGate.rejected_count
+        $summary.steps.project_template_smoke.schema_patch_approval_compliance_issue_count = [int]$projectTemplateSmokeApprovalGate.compliance_issue_count
+        $summary.steps.project_template_smoke.schema_patch_approval_invalid_result_count = [int]$projectTemplateSmokeApprovalGate.invalid_result_count
+        $summary.steps.project_template_smoke.schema_patch_approval_gate_status = [string]$projectTemplateSmokeApprovalGate.gate_status
+        $summary.steps.project_template_smoke.schema_patch_approval_gate_blocked = [bool]$projectTemplateSmokeApprovalGate.gate_blocked
 
         $summary.project_template_smoke.summary_json = $resolvedProjectTemplateSmokeSummaryPath
         $summary.project_template_smoke.manifest_path = [string]$projectTemplateSmokeInfo.manifest_path
@@ -1358,6 +1711,22 @@ try {
         $summary.project_template_smoke.manual_review_pending_count = [int]$projectTemplateSmokeInfo.manual_review_pending_count
         $summary.project_template_smoke.visual_review_undetermined_count = [int]$projectTemplateSmokeInfo.visual_review_undetermined_count
         $summary.project_template_smoke.overall_status = [string]$projectTemplateSmokeInfo.overall_status
+        $summary.project_template_smoke.schema_patch_approval_pending_count = [int]$projectTemplateSmokeApprovalGate.pending_count
+        $summary.project_template_smoke.schema_patch_approval_approved_count = [int]$projectTemplateSmokeApprovalGate.approved_count
+        $summary.project_template_smoke.schema_patch_approval_rejected_count = [int]$projectTemplateSmokeApprovalGate.rejected_count
+        $summary.project_template_smoke.schema_patch_approval_compliance_issue_count = [int]$projectTemplateSmokeApprovalGate.compliance_issue_count
+        $summary.project_template_smoke.schema_patch_approval_invalid_result_count = [int]$projectTemplateSmokeApprovalGate.invalid_result_count
+        $summary.project_template_smoke.schema_patch_approval_gate_status = [string]$projectTemplateSmokeApprovalGate.gate_status
+        $summary.project_template_smoke.schema_patch_approval_gate_blocked = [bool]$projectTemplateSmokeApprovalGate.gate_blocked
+        $summary.project_template_smoke.schema_patch_approval_history_json = $schemaApprovalHistoryJsonPath
+        $summary.project_template_smoke.schema_patch_approval_history_markdown = $schemaApprovalHistoryMarkdownPath
+        $summary.steps.project_template_smoke.schema_patch_approval_history_json = $schemaApprovalHistoryJsonPath
+        $summary.steps.project_template_smoke.schema_patch_approval_history_markdown = $schemaApprovalHistoryMarkdownPath
+
+        if ([bool]$projectTemplateSmokeApprovalGate.gate_blocked) {
+            $summary.steps.project_template_smoke.status = "failed"
+            throw "Project template smoke schema approval gate blocked."
+        }
 
         if ($projectTemplateSmokeExitCode -ne 0) {
             $failedEntryCount = [int]$projectTemplateSmokeInfo.failed_entry_count
@@ -1446,6 +1815,7 @@ try {
             "-SectionPartRefsBuildDir",
             "-RunFontLanguageBuildDir",
             "-EnsureStyleBuildDir",
+            "-TableStyleQualityBuildDir",
             "-TemplateTableCliBookmarkBuildDir",
             "-TemplateTableCliColumnBuildDir",
             "-TemplateTableCliDirectColumnBuildDir",
@@ -1501,6 +1871,9 @@ try {
                 $argumentName
                 $resolvedBuildDir
             )
+        }
+        if ($IncludeTableStyleQuality) {
+            $visualGateArgs += "-IncludeTableStyleQuality"
         }
         if ($SkipReviewTasks) {
             $visualGateArgs += "-SkipReviewTasks"
@@ -1588,6 +1961,48 @@ try {
 } finally {
     ($summary | ConvertTo-Json -Depth 8) | Set-Content -Path $summaryPath -Encoding UTF8
 
+    if ($projectTemplateSmokeRequested) {
+        try {
+            $historyInfo = Invoke-ProjectTemplateSchemaApprovalHistory `
+                -ScriptPath $projectTemplateSchemaApprovalHistoryScript `
+                -ReleaseSummaryPath $summaryPath `
+                -ProjectTemplateSmokeSummaryPath $summary.project_template_smoke.summary_json `
+                -OutputJson $schemaApprovalHistoryJsonPath `
+                -OutputMarkdown $schemaApprovalHistoryMarkdownPath
+            $summary.project_template_smoke.schema_patch_approval_history_status = [string]$historyInfo.status
+            $summary.project_template_smoke.schema_patch_approval_history_input_count = [int]$historyInfo.input_count
+            $summary.project_template_smoke.schema_patch_approval_history_error = ""
+            $summary.steps.project_template_smoke.schema_patch_approval_history_status = [string]$historyInfo.status
+            $summary.steps.project_template_smoke.schema_patch_approval_history_input_count = [int]$historyInfo.input_count
+            $summary.steps.project_template_smoke.schema_patch_approval_history_error = ""
+        } catch {
+            $historyError = $_.Exception.Message
+            $summary.project_template_smoke.schema_patch_approval_history_status = "failed"
+            $summary.project_template_smoke.schema_patch_approval_history_error = $historyError
+            $summary.steps.project_template_smoke.schema_patch_approval_history_status = "failed"
+            $summary.steps.project_template_smoke.schema_patch_approval_history_error = $historyError
+            Write-Step "Project template schema approval history generation failed: $historyError"
+        }
+
+        $schemaApprovalHistorySummary = Read-ProjectTemplateSchemaApprovalHistorySummary -Path $schemaApprovalHistoryJsonPath
+        $projectTemplateSmokeSummaryForBlocker = if (-not [string]::IsNullOrWhiteSpace($summary.project_template_smoke.summary_json) -and
+            (Test-Path -LiteralPath $summary.project_template_smoke.summary_json)) {
+            Get-Content -Raw -Encoding UTF8 -LiteralPath $summary.project_template_smoke.summary_json | ConvertFrom-Json
+        } else {
+            $summary.project_template_smoke
+        }
+        $schemaApprovalReleaseBlocker = New-ProjectTemplateSchemaApprovalReleaseBlocker `
+            -ProjectTemplateSmokeSummary $projectTemplateSmokeSummaryForBlocker `
+            -HistorySummary $schemaApprovalHistorySummary `
+            -SummaryJsonPath $summary.project_template_smoke.summary_json `
+            -HistoryJsonPath $summary.project_template_smoke.schema_patch_approval_history_json `
+            -HistoryMarkdownPath $summary.project_template_smoke.schema_patch_approval_history_markdown
+        Set-ProjectTemplateSchemaApprovalReleaseBlocker `
+            -ReleaseSummary $summary `
+            -Blocker $schemaApprovalReleaseBlocker
+        ($summary | ConvertTo-Json -Depth 10) | Set-Content -Path $summaryPath -Encoding UTF8
+    }
+
     $repoRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $repoRoot
     $summaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summaryPath
     $buildDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedBuildDir
@@ -1609,6 +2024,8 @@ try {
     $releaseSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseSummaryZhCnPath
     $artifactGuideDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $artifactGuidePath
     $reviewerChecklistDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $reviewerChecklistPath
+    $schemaApprovalHistoryJsonDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.schema_patch_approval_history_json
+    $schemaApprovalHistoryMarkdownDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.schema_patch_approval_history_markdown
     $startHereDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
 
     $readmeGalleryStatusLine = switch ($summary.readme_gallery.status) {
@@ -1639,6 +2056,7 @@ try {
 - Execution status: $($summary.execution_status)
 - Failed step: $($summary.failed_step)
 - Error: $($summary.error)
+- Release blockers: $($summary.release_blocker_count)
 - MSVC bootstrap mode: $($summary.msvc_bootstrap_mode)
 
 ## Step status
@@ -1673,6 +2091,10 @@ $visualGateReviewSummary
 - Project template smoke candidate coverage: $($summary.project_template_smoke.registered_candidate_count)/$($summary.project_template_smoke.unregistered_candidate_count)/$($summary.project_template_smoke.excluded_candidate_count) registered/unregistered/excluded
 - Project template smoke dirty schema baselines: $($summary.project_template_smoke.dirty_schema_baseline_count)
 - Project template smoke schema baseline drifts: $($summary.project_template_smoke.schema_baseline_drift_count)
+- Project template smoke schema approval gate: $($summary.project_template_smoke.schema_patch_approval_gate_status)
+- Project template smoke schema approval compliance issues: $($summary.project_template_smoke.schema_patch_approval_compliance_issue_count)
+- Project template smoke schema approval invalid results: $($summary.project_template_smoke.schema_patch_approval_invalid_result_count)
+- Project template smoke schema approval history: $($summary.project_template_smoke.schema_patch_approval_history_status) ($schemaApprovalHistoryJsonDisplayPath, $schemaApprovalHistoryMarkdownDisplayPath)
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath
@@ -1716,4 +2138,8 @@ Write-Host "Release body output: $releaseBodyZhCnPath"
 Write-Host "Release summary output: $releaseSummaryZhCnPath"
 Write-Host "Artifact guide: $artifactGuidePath"
 Write-Host "Reviewer checklist: $reviewerChecklistPath"
+if ($projectTemplateSmokeRequested) {
+    Write-Host "Project template schema approval history JSON: $schemaApprovalHistoryJsonPath"
+    Write-Host "Project template schema approval history Markdown: $schemaApprovalHistoryMarkdownPath"
+}
 Write-Host "Start here: $startHerePath"

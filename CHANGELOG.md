@@ -10,6 +10,11 @@ performance.
 
 ### Added
 
+- Added typed insertion/deletion revision authoring APIs and matching CLI commands so review workflows can generate Word revision markup before accepting or rejecting it.
+- Added in-place run revision authoring APIs and CLI commands for inserting, deleting, and replacing body runs with Word revision markup.
+- Added paragraph text range revision authoring APIs and CLI commands for inserting, deleting, and replacing body paragraph text across run boundaries.
+- Added paragraph text range revision evidence to the review mutation visual regression sample and runner.
+- Added `review_note_summary::anchor_text` for comments and surfaced it in `inspect-review` text/JSON output so review automation can audit the selected text behind each comment.
 - Added structured failure fields such as `failure_kind`, `failure_relative_path`, and `failure_expected_text` to release metadata docs check JSON summaries.
 - Added `check_release_metadata_docs.ps1 -Quiet` so automation can rely on JSON summaries without success-banner output.
 - Added `summary_json_relative_path` to release metadata docs check JSON summaries for portable automation logs.
@@ -86,6 +91,7 @@ performance.
 
 ### Changed
 
+- Extended semantic diff review-note fingerprints so comment anchor text changes are reported alongside comment body changes.
 - Added `failure_rule_id` to release metadata docs checker JSON failures for stable CI aggregation.
 - Extended release metadata docs checker diagnostics so whitespace failures include `failure_excerpt`.
 - Extended release metadata docs checker diagnostics so whitespace failures report `failure_column_number`.
@@ -102,7 +108,9 @@ performance.
 - Added deterministic release-summary discovery ordering so `sync_latest_visual_review_verdict.ps1` breaks equal timestamp candidates by path and keeps repeated syncs stable.
 - Validated explicit `sync_latest_visual_review_verdict.ps1 -ReleaseCandidateSummaryJson` JSON before mutating gate summaries, preventing half-written sign-off state when the release summary is unreadable.
 - Refactored release visual verdict metadata collection into a shared helper so release handoff, artifact guide, start-here, reviewer checklist, and release-note writers resolve standard and curated visual verdicts consistently.
-- Updated release metadata bundle writers so curated visual regression entries also use same-run `review_verdict` values when no legacy `verdict` field is present.
+- Updated release metadata bundle writers so curated visual regression entries use the current `review_verdict` field without accepting the removed `verdict` shape.
+- Removed old README visual asset refresh source-bundle fallbacks so refreshed gallery images must come from the reviewed task-local evidence.
+- Removed the visual regression bundle `contact_sheet.png` aggregate contact-sheet fallback; curated bundle review tasks now require `aggregate-evidence/before_after_contact_sheet.png`.
 - Updated template schema patch generation to preserve slot source selectors in generated `remove_slots` and `rename_slots` entries, keeping content-control and bookmark-oriented schemas round-trippable.
 
 - Updated README, Chinese README, Sphinx docs, current-direction notes, and
@@ -112,8 +120,16 @@ performance.
   suggestion filtering, and the remaining real-corpus confidence calibration
   work.
 
+### Fixed
+
+- Fixed MSVC unit-test compilation for existing UTF-8 literals by enabling
+  `/utf-8` on `unit_tests` and using explicit UTF-8 byte literals for checkbox
+  content-control fallback text.
+
 ### Tests
 
+- Added revision authoring coverage for C++ APIs, CLI commands, in-place run revision flows, paragraph text range flows, and review mutation visual regression evidence.
+- Added review comment anchor coverage for C++ APIs, CLI inspection/mutation flows, semantic diff, and review inspection/mutation visual regressions.
 - Extended release metadata docs checker regressions to assert stable `failure_rule_id` values for structured failures.
 - Extended release metadata docs checker regressions to assert failure excerpts for tab and trailing-whitespace failures.
 - Extended release metadata docs checker regressions to assert column numbers for tab and trailing-whitespace failures.
@@ -130,13 +146,15 @@ performance.
 - Extended release metadata docs checker coverage to assert JSON summary output and UTF-8 without BOM encoding.
 - Added focused regression coverage for the release metadata docs checker, including missing checklist markers and UTF-8 BOM rejection.
 - Documented the release metadata docs checker in the maintenance checklist so doc-only changes have a focused validation path.
-- Updated release note bundle visual verdict fallback coverage to skip the material safety audit while preserving generated artifact assertions.
-- Optimized release note bundle visual verdict fallback assertions with cached file reads to reduce Windows CTest timeout risk.
+- Updated release note bundle visual verdict metadata coverage to skip the material safety audit while preserving generated artifact assertions.
+- Optimized release note bundle visual verdict metadata assertions with cached file reads to reduce Windows CTest timeout risk.
+- Added README visual asset refresh coverage to reject missing task-local evidence even when source manifests point to older evidence bundles.
+- Added visual regression bundle review-task coverage to require `before_after_contact_sheet.png` and reject old aggregate `contact_sheet.png`-only bundles.
 - Added word visual gate review task-count helper coverage for dictionary and object-shaped task metadata with empty placeholders.
 - Added release preflight helper coverage for complete versus incomplete visual review task-count metadata.
 - Extended visual verdict sync coverage to verify incomplete review task counts do not survive release-summary refreshes.
 - Added release preflight review task-count coverage so incomplete visual gate summaries do not render empty count lines in `final_review.md`.
-- Added missing visual review task-count coverage so legacy release metadata without `review_task_summary` stays clean instead of rendering empty count lines.
+- Added missing visual review task-count coverage so incomplete release metadata without `review_task_summary` stays clean instead of rendering empty count lines.
 - Added release `final_review.md` assertions for explicit, auto-detected, and `-SkipReleaseBundle` release summary discovery metadata.
 - Added gate final-review assertions for release summary discovery metadata, including explicit, auto-not-found, and `-SkipReleaseBundle` paths.
 - Extended `sync_latest_visual_review_verdict_curated_visual_bundle_test.ps1` to verify `-SkipReleaseBundle` still syncs release summaries while leaving release-note bundle files untouched and marking `release_bundle_refresh_requested=false`.

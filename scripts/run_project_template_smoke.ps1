@@ -533,6 +533,204 @@ function Get-OptionalTemplateSchemaCommandJsonObject {
     return $jsonLine | ConvertFrom-Json
 }
 
+function Read-JsonFileIfPresent {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or
+        -not [System.IO.File]::Exists($Path)) {
+        return $null
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+}
+
+function New-SchemaPatchReviewSummary {
+    param($ReviewJson)
+
+    if ($null -eq $ReviewJson) {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        schema = [string]$ReviewJson.schema
+        baseline_slot_count = [int]$ReviewJson.baseline_slot_count
+        generated_slot_count = [int]$ReviewJson.generated_slot_count
+        changed = [bool]$ReviewJson.changed
+        upsert_slot_count = [int]$ReviewJson.patch.upsert_slot_count
+        remove_target_count = [int]$ReviewJson.patch.remove_target_count
+        remove_slot_count = [int]$ReviewJson.patch.remove_slot_count
+        rename_slot_count = [int]$ReviewJson.patch.rename_slot_count
+        update_slot_count = [int]$ReviewJson.patch.update_slot_count
+        removed_targets = [int]$ReviewJson.preview.removed_targets
+        removed_slots = [int]$ReviewJson.preview.removed_slots
+        renamed_slots = [int]$ReviewJson.preview.renamed_slots
+        inserted_slots = [int]$ReviewJson.preview.inserted_slots
+        replaced_slots = [int]$ReviewJson.preview.replaced_slots
+    }
+}
+
+function Normalize-SchemaPatchApprovalDecision {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return "pending"
+    }
+
+    switch ($Value.Trim().ToLowerInvariant()) {
+        "approve" { return "approved" }
+        "approved" { return "approved" }
+        "accept" { return "approved" }
+        "accepted" { return "approved" }
+        "reject" { return "rejected" }
+        "rejected" { return "rejected" }
+        "needs_changes" { return "needs_changes" }
+        "needs-changes" { return "needs_changes" }
+        "changes_requested" { return "needs_changes" }
+        "pending" { return "pending" }
+        "pending_review" { return "pending" }
+        default { return "invalid" }
+    }
+}
+
+function Test-SchemaPatchApprovalResultCompliance {
+    param(
+        [string]$Decision,
+        $ApprovalResult
+    )
+
+    $issues = New-Object 'System.Collections.Generic.List[string]'
+    if ($Decision -in @("approved", "rejected", "needs_changes")) {
+        $reviewer = Get-OptionalObjectPropertyValue -Object $ApprovalResult -Name "reviewer"
+        if ([string]::IsNullOrWhiteSpace($reviewer)) {
+            [void]$issues.Add("missing_reviewer")
+        }
+
+        $reviewedAt = Get-OptionalObjectPropertyValue -Object $ApprovalResult -Name "reviewed_at"
+        if ([string]::IsNullOrWhiteSpace($reviewedAt)) {
+            [void]$issues.Add("missing_reviewed_at")
+        }
+    }
+
+    return [pscustomobject]@{
+        issue_count = $issues.Count
+        issues = $issues.ToArray()
+    }
+}
+
+function Get-SchemaPatchApprovalGateStatus {
+    param(
+        [int]$PendingCount,
+        [int]$ApprovalItemCount,
+        [int]$InvalidResultCount,
+        [int]$ComplianceIssueCount
+    )
+
+    if ($ComplianceIssueCount -gt 0 -or $InvalidResultCount -gt 0) {
+        return "blocked"
+    }
+    if ($PendingCount -gt 0) {
+        return "pending"
+    }
+    if ($ApprovalItemCount -gt 0) {
+        return "passed"
+    }
+
+    return "not_required"
+}
+
+function New-SchemaPatchApprovalResultTemplate {
+    param(
+        [string]$Name,
+        $SchemaBaseline
+    )
+
+    return [ordered]@{
+        schema = "featherdoc.template_schema_patch_approval_result.v1"
+        entry_name = $Name
+        decision = "pending"
+        reviewer = ""
+        reviewed_at = ""
+        note = ""
+        schema_file = Get-OptionalObjectPropertyValue -Object $SchemaBaseline -Name "schema_file"
+        schema_update_candidate = Get-OptionalObjectPropertyValue -Object $SchemaBaseline -Name "generated_output"
+        review_json = Get-OptionalObjectPropertyValue -Object $SchemaBaseline -Name "schema_patch_review_output_path"
+    }
+}
+
+function New-SchemaPatchApprovalSummary {
+    param(
+        [string]$Name,
+        $SchemaBaseline,
+        $ApprovalResult,
+        [string]$ApprovalResultPath
+    )
+
+    $reviewSummary = Get-OptionalObjectPropertyObject -Object $SchemaBaseline -Name "schema_patch_review"
+    if ($null -eq $reviewSummary) {
+        return $null
+    }
+
+    $changed = [bool]$reviewSummary.changed
+    $decision = if ($changed) {
+        Normalize-SchemaPatchApprovalDecision -Value (Get-OptionalObjectPropertyValue -Object $ApprovalResult -Name "decision")
+    } else {
+        "not_required"
+    }
+
+    $compliance = Test-SchemaPatchApprovalResultCompliance `
+        -Decision $decision `
+        -ApprovalResult $ApprovalResult
+    $status = switch ($decision) {
+        "not_required" { "not_required" }
+        "approved" { "approved" }
+        "rejected" { "rejected" }
+        "needs_changes" { "needs_changes" }
+        "invalid" { "invalid_result" }
+        default { "pending_review" }
+    }
+    if ($changed -and [int]$compliance.issue_count -gt 0) {
+        $status = "invalid_result"
+    }
+    $action = switch ($status) {
+        "not_required" { "none" }
+        "approved" { "promote_schema_update_candidate" }
+        "rejected" { "update_template_or_schema_before_retry" }
+        "needs_changes" { "update_template_or_schema_before_retry" }
+        "invalid_result" { "fix_schema_patch_approval_result" }
+        default { "review_schema_update_candidate" }
+    }
+    $pending = $changed -and $status -in @("pending_review", "invalid_result")
+
+    return [pscustomobject]@{
+        name = $Name
+        required = $changed
+        pending = $pending
+        approved = ($changed -and $status -eq "approved")
+        status = $status
+        decision = $decision
+        action = $action
+        compliance_issue_count = [int]$compliance.issue_count
+        compliance_issues = $compliance.issues
+        schema_file = Get-OptionalObjectPropertyValue -Object $SchemaBaseline -Name "schema_file"
+        schema_update_candidate = Get-OptionalObjectPropertyValue -Object $SchemaBaseline -Name "generated_output"
+        review_json = Get-OptionalObjectPropertyValue -Object $SchemaBaseline -Name "schema_patch_review_output_path"
+        approval_result = $ApprovalResultPath
+        repaired_schema_candidate = Get-OptionalObjectPropertyValue -Object $SchemaBaseline -Name "repaired_schema_output_path"
+        reviewer = Get-OptionalObjectPropertyValue -Object $ApprovalResult -Name "reviewer"
+        reviewed_at = Get-OptionalObjectPropertyValue -Object $ApprovalResult -Name "reviewed_at"
+        note = Get-OptionalObjectPropertyValue -Object $ApprovalResult -Name "note"
+        baseline_slot_count = [int]$reviewSummary.baseline_slot_count
+        generated_slot_count = [int]$reviewSummary.generated_slot_count
+        upsert_slot_count = [int]$reviewSummary.upsert_slot_count
+        remove_target_count = [int]$reviewSummary.remove_target_count
+        remove_slot_count = [int]$reviewSummary.remove_slot_count
+        rename_slot_count = [int]$reviewSummary.rename_slot_count
+        update_slot_count = [int]$reviewSummary.update_slot_count
+        inserted_slots = [int]$reviewSummary.inserted_slots
+        replaced_slots = [int]$reviewSummary.replaced_slots
+    }
+}
+
 function Invoke-BaselineCheck {
     param(
         [string]$ScriptPath,
@@ -540,6 +738,7 @@ function Invoke-BaselineCheck {
         [string]$SchemaFile,
         [string]$GeneratedSchemaOutput,
         [string]$RepairedSchemaOutput,
+        [string]$ReviewJsonOutput,
         [string]$BuildDir,
         [string]$TargetMode,
         [bool]$SkipBuildRequested,
@@ -560,6 +759,12 @@ function Invoke-BaselineCheck {
         $scriptArgs += @(
             "-RepairedSchemaOutput"
             $RepairedSchemaOutput
+        )
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ReviewJsonOutput)) {
+        $scriptArgs += @(
+            "-ReviewJsonOutput"
+            $ReviewJsonOutput
         )
     }
     if ($SkipBuildRequested) {
@@ -597,6 +802,7 @@ function Invoke-BaselineCheck {
     $repairJson = Get-OptionalTemplateSchemaCommandJsonObject `
         -Lines $lines `
         -Command "repair-template-schema"
+    $reviewJson = Read-JsonFileIfPresent -Path $ReviewJsonOutput
 
     return [pscustomobject]@{
         ExitCode = $exitCode
@@ -604,6 +810,8 @@ function Invoke-BaselineCheck {
         Json = $checkJson
         LintJson = $lintJson
         RepairJson = $repairJson
+        ReviewJson = $reviewJson
+        ReviewSummary = New-SchemaPatchReviewSummary -ReviewJson $reviewJson
     }
 }
 
@@ -694,11 +902,63 @@ function Write-SummaryMarkdown {
         $dirtySchemaBaselineCount = "0"
     }
     $lines.Add("- Dirty schema baselines: $dirtySchemaBaselineCount")
+    $schemaPatchReviewCount = Get-OptionalObjectPropertyValue -Object $Summary -Name "schema_patch_review_count"
+    $schemaPatchReviewChangedCount = Get-OptionalObjectPropertyValue -Object $Summary -Name "schema_patch_review_changed_count"
+    if ([string]::IsNullOrWhiteSpace($schemaPatchReviewCount)) {
+        $schemaPatchReviewCount = "0"
+    }
+    if ([string]::IsNullOrWhiteSpace($schemaPatchReviewChangedCount)) {
+        $schemaPatchReviewChangedCount = "0"
+    }
+    $schemaPatchApprovalPendingCount = Get-OptionalObjectPropertyValue -Object $Summary -Name "schema_patch_approval_pending_count"
+    if ([string]::IsNullOrWhiteSpace($schemaPatchApprovalPendingCount)) {
+        $schemaPatchApprovalPendingCount = "0"
+    }
+    $lines.Add("- Schema patch reviews: $schemaPatchReviewCount")
+    $lines.Add("- Changed schema patch reviews: $schemaPatchReviewChangedCount")
+    $schemaPatchApprovalApprovedCount = Get-OptionalObjectPropertyValue -Object $Summary -Name "schema_patch_approval_approved_count"
+    $schemaPatchApprovalRejectedCount = Get-OptionalObjectPropertyValue -Object $Summary -Name "schema_patch_approval_rejected_count"
+    $schemaPatchApprovalInvalidResultCount = Get-OptionalObjectPropertyValue -Object $Summary -Name "schema_patch_approval_invalid_result_count"
+    $schemaPatchApprovalGateStatus = Get-OptionalObjectPropertyValue -Object $Summary -Name "schema_patch_approval_gate_status"
+    $schemaPatchApprovalComplianceIssueCount = Get-OptionalObjectPropertyValue -Object $Summary -Name "schema_patch_approval_compliance_issue_count"
+    if ([string]::IsNullOrWhiteSpace($schemaPatchApprovalApprovedCount)) {
+        $schemaPatchApprovalApprovedCount = "0"
+    }
+    if ([string]::IsNullOrWhiteSpace($schemaPatchApprovalRejectedCount)) {
+        $schemaPatchApprovalRejectedCount = "0"
+    }
+    if ([string]::IsNullOrWhiteSpace($schemaPatchApprovalComplianceIssueCount)) {
+        $schemaPatchApprovalComplianceIssueCount = "0"
+    }
+    if ([string]::IsNullOrWhiteSpace($schemaPatchApprovalInvalidResultCount)) {
+        $schemaPatchApprovalInvalidResultCount = "0"
+    }
+    if ([string]::IsNullOrWhiteSpace($schemaPatchApprovalGateStatus)) {
+        $schemaPatchApprovalGateStatus = "not_required"
+    }
+    $lines.Add("- Schema patch approvals pending: $schemaPatchApprovalPendingCount")
+    $lines.Add("- Schema patch approvals approved: $schemaPatchApprovalApprovedCount")
+    $lines.Add("- Schema patch approvals rejected: $schemaPatchApprovalRejectedCount")
+    $lines.Add("- Schema patch approval compliance issues: $schemaPatchApprovalComplianceIssueCount")
+    $lines.Add("- Schema patch approval invalid results: $schemaPatchApprovalInvalidResultCount")
+    $lines.Add("- Schema patch approval gate status: $schemaPatchApprovalGateStatus")
     $lines.Add("- Visual smoke entries: $($Summary.visual_entry_count)")
     $lines.Add("- Visual verdict: $($Summary.visual_verdict)")
     $lines.Add("- Entries with pending visual review: $($Summary.manual_review_pending_count)")
     $lines.Add("- Entries with undetermined visual review: $($Summary.visual_review_undetermined_count)")
     $lines.Add("")
+
+    $schemaPatchApprovalItems = Get-OptionalObjectArrayProperty -Object $Summary -Name "schema_patch_approval_items"
+    if (@($schemaPatchApprovalItems).Count -gt 0) {
+        $lines.Add("## Schema Patch Approvals")
+        $lines.Add("")
+        foreach ($approval in @($schemaPatchApprovalItems)) {
+            $complianceIssues = Get-OptionalObjectArrayProperty -Object $approval -Name "compliance_issues"
+            $complianceText = if (@($complianceIssues).Count -gt 0) { " compliance_issues=$($complianceIssues -join ',')" } else { "" }
+            $lines.Add("- $($approval.name): status=$($approval.status) decision=$($approval.decision) candidate=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $approval.schema_update_candidate) approval=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $approval.approval_result) review=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $approval.review_json) action=$($approval.action)$complianceText")
+        }
+        $lines.Add("")
+    }
 
     foreach ($entry in $Summary.entries) {
         $lines.Add("## $($entry.name)")
@@ -720,6 +980,8 @@ function Write-SummaryMarkdown {
         $schemaBaseline = $entry.checks.schema_baseline
         if ($schemaBaseline.enabled) {
             $schemaBaselineLog = Get-OptionalObjectPropertyValue -Object $schemaBaseline -Name "log_path"
+            $schemaPatchReviewOutputPath = Get-OptionalObjectPropertyValue -Object $schemaBaseline -Name "schema_patch_review_output_path"
+            $schemaPatchReview = Get-OptionalObjectPropertyObject -Object $schemaBaseline -Name "schema_patch_review"
             $schemaLintClean = Get-OptionalObjectPropertyValue -Object $schemaBaseline -Name "schema_lint_clean"
             $schemaLintIssueCount = Get-OptionalObjectPropertyValue -Object $schemaBaseline -Name "schema_lint_issue_count"
             if ([string]::IsNullOrWhiteSpace($schemaLintClean)) {
@@ -729,6 +991,15 @@ function Write-SummaryMarkdown {
                 $schemaLintIssueCount = "(not available)"
             }
             $lines.Add("- Schema baseline: matches=$($schemaBaseline.matches) schema_lint_clean=$schemaLintClean schema_lint_issue_count=$schemaLintIssueCount log=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $schemaBaselineLog)")
+            if ($null -ne $schemaPatchReview) {
+                $lines.Add("- Schema patch review: changed=$($schemaPatchReview.changed) baseline_slots=$($schemaPatchReview.baseline_slot_count) generated_slots=$($schemaPatchReview.generated_slot_count) inserted_slots=$($schemaPatchReview.inserted_slots) replaced_slots=$($schemaPatchReview.replaced_slots) review=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $schemaPatchReviewOutputPath)")
+            }
+            $schemaPatchApproval = Get-OptionalObjectPropertyObject -Object $schemaBaseline -Name "schema_patch_approval"
+            if ($null -ne $schemaPatchApproval) {
+                $complianceIssues = Get-OptionalObjectArrayProperty -Object $schemaPatchApproval -Name "compliance_issues"
+                $complianceText = if (@($complianceIssues).Count -gt 0) { " compliance_issues=$($complianceIssues -join ',')" } else { "" }
+                $lines.Add("- Schema patch approval: status=$($schemaPatchApproval.status) decision=$($schemaPatchApproval.decision) required=$($schemaPatchApproval.required) pending=$($schemaPatchApproval.pending) candidate=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $schemaPatchApproval.schema_update_candidate) approval=$(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $schemaPatchApproval.approval_result) action=$($schemaPatchApproval.action)$complianceText")
+            }
             $repairedSchemaOutputPath = Get-OptionalObjectPropertyValue -Object $schemaBaseline -Name "repaired_schema_output_path"
             if (-not [string]::IsNullOrWhiteSpace($repairedSchemaOutputPath)) {
                 $lines.Add("- Schema baseline repaired candidate: $(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $repairedSchemaOutputPath)")
@@ -1052,6 +1323,24 @@ foreach ($entry in $entries) {
                         -AllowMissing
                 }
                 Ensure-PathParent -Path $resolvedRepairedOutput
+                $reviewJsonOutput = Resolve-OptionalManifestPropertyValue -Entry $schemaBaselineBlock -Name "review_json_output"
+                if ([string]::IsNullOrWhiteSpace($reviewJsonOutput)) {
+                    $reviewJsonOutput = Join-Path $entryDir "schema_patch_review.json"
+                }
+                $resolvedReviewJsonOutput = Resolve-ManifestPathValue `
+                    -RepoRoot $repoRoot `
+                    -InputPath $reviewJsonOutput `
+                    -AllowMissing
+                Ensure-PathParent -Path $resolvedReviewJsonOutput
+                $approvalResultPath = Resolve-OptionalManifestPropertyValue -Entry $schemaBaselineBlock -Name "approval_result"
+                if ([string]::IsNullOrWhiteSpace($approvalResultPath)) {
+                    $approvalResultPath = Join-Path $entryDir "schema_patch_approval_result.json"
+                }
+                $resolvedApprovalResultPath = Resolve-ManifestPathValue `
+                    -RepoRoot $repoRoot `
+                    -InputPath $approvalResultPath `
+                    -AllowMissing
+                Ensure-PathParent -Path $resolvedApprovalResultPath
 
                 $targetMode = Resolve-OptionalManifestPropertyValue -Entry $schemaBaselineBlock -Name "target_mode"
                 if ([string]::IsNullOrWhiteSpace($targetMode)) {
@@ -1065,6 +1354,7 @@ foreach ($entry in $entries) {
                     -SchemaFile $resolvedSchemaFile `
                     -GeneratedSchemaOutput $resolvedGeneratedOutput `
                     -RepairedSchemaOutput $resolvedRepairedOutput `
+                    -ReviewJsonOutput $resolvedReviewJsonOutput `
                     -BuildDir $BuildDir `
                     -TargetMode $targetMode `
                     -SkipBuildRequested ([bool]$SkipBuild.IsPresent) `
@@ -1073,6 +1363,8 @@ foreach ($entry in $entries) {
                 $schemaBaselineResult.schema_file = $resolvedSchemaFile
                 $schemaBaselineResult.generated_output = $resolvedGeneratedOutput
                 $schemaBaselineResult.repaired_output = $resolvedRepairedOutput
+                $schemaBaselineResult.schema_patch_review_output_path = $resolvedReviewJsonOutput
+                $schemaBaselineResult.schema_patch_approval_result_path = $resolvedApprovalResultPath
                 $schemaBaselineResult.target_mode = $targetMode
                 $schemaBaselineResult.exit_code = [int]$result.ExitCode
                 $schemaBaselineResult.matches = [bool]$result.Json.matches
@@ -1091,6 +1383,33 @@ foreach ($entry in $entries) {
                 $schemaBaselineResult.log_path = $logPath
                 $schemaBaselineResult.result = $result.Json
                 $schemaBaselineResult.lint_result = $result.LintJson
+                if ($null -ne $result.ReviewSummary) {
+                    $schemaBaselineResult.schema_patch_review = $result.ReviewSummary
+                }
+                if ($null -ne $result.ReviewJson) {
+                    $schemaBaselineResult.schema_patch_review_json = $result.ReviewJson
+                }
+                $approvalResult = $null
+                if ($null -ne $result.ReviewSummary -and [bool]$result.ReviewSummary.changed) {
+                    if (-not [System.IO.File]::Exists($resolvedApprovalResultPath)) {
+                        $approvalTemplate = New-SchemaPatchApprovalResultTemplate `
+                            -Name $name `
+                            -SchemaBaseline $schemaBaselineResult
+                        ($approvalTemplate | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $resolvedApprovalResultPath -Encoding UTF8
+                    }
+                    $approvalResult = Read-JsonFileIfPresent -Path $resolvedApprovalResultPath
+                    if ($null -ne $approvalResult) {
+                        $schemaBaselineResult.schema_patch_approval_result = $approvalResult
+                    }
+                }
+                $schemaPatchApproval = New-SchemaPatchApprovalSummary `
+                    -Name $name `
+                    -SchemaBaseline $schemaBaselineResult `
+                    -ApprovalResult $approvalResult `
+                    -ApprovalResultPath $resolvedApprovalResultPath
+                if ($null -ne $schemaPatchApproval) {
+                    $schemaBaselineResult.schema_patch_approval = $schemaPatchApproval
+                }
                 if ($null -ne $result.RepairJson) {
                     $schemaBaselineResult.repair_result = $result.RepairJson
                 }
@@ -1228,6 +1547,58 @@ $visualSmokeResults = @(
     }
 )
 $visualEntryCount = $visualSmokeResults.Count
+$schemaPatchReviews = @(
+    foreach ($result in $results) {
+        $checks = Get-OptionalObjectPropertyObject -Object $result -Name "checks"
+        $schemaBaseline = Get-OptionalObjectPropertyObject -Object $checks -Name "schema_baseline"
+        $reviewSummary = Get-OptionalObjectPropertyObject -Object $schemaBaseline -Name "schema_patch_review"
+        if ($null -ne $reviewSummary) {
+            [pscustomobject]@{
+                name = [string]$result.name
+                review_json = Get-OptionalObjectPropertyValue -Object $schemaBaseline -Name "schema_patch_review_output_path"
+                changed = [bool]$reviewSummary.changed
+                baseline_slot_count = [int]$reviewSummary.baseline_slot_count
+                generated_slot_count = [int]$reviewSummary.generated_slot_count
+                upsert_slot_count = [int]$reviewSummary.upsert_slot_count
+                remove_target_count = [int]$reviewSummary.remove_target_count
+                remove_slot_count = [int]$reviewSummary.remove_slot_count
+                rename_slot_count = [int]$reviewSummary.rename_slot_count
+                update_slot_count = [int]$reviewSummary.update_slot_count
+                inserted_slots = [int]$reviewSummary.inserted_slots
+                replaced_slots = [int]$reviewSummary.replaced_slots
+            }
+        }
+    }
+)
+$schemaPatchReviewChangedCount = @($schemaPatchReviews | Where-Object { $_.changed }).Count
+$schemaPatchApprovalItems = @(
+    foreach ($result in $results) {
+        $checks = Get-OptionalObjectPropertyObject -Object $result -Name "checks"
+        $schemaBaseline = Get-OptionalObjectPropertyObject -Object $checks -Name "schema_baseline"
+        $schemaPatchApproval = Get-OptionalObjectPropertyObject -Object $schemaBaseline -Name "schema_patch_approval"
+        if ($null -ne $schemaPatchApproval -and [bool]$schemaPatchApproval.required) {
+            $schemaPatchApproval
+        }
+    }
+)
+$schemaPatchApprovalPendingCount = @($schemaPatchApprovalItems | Where-Object { [bool]$_.pending }).Count
+$schemaPatchApprovalApprovedCount = @($schemaPatchApprovalItems | Where-Object { [bool]$_.approved }).Count
+$schemaPatchApprovalRejectedCount = @($schemaPatchApprovalItems | Where-Object { $_.status -in @("rejected", "needs_changes", "invalid_result") }).Count
+$schemaPatchApprovalInvalidResultCount = @($schemaPatchApprovalItems | Where-Object { $_.status -eq "invalid_result" }).Count
+$schemaPatchApprovalComplianceIssueCount = 0
+foreach ($item in @($schemaPatchApprovalItems)) {
+    $itemComplianceIssueCount = Get-OptionalObjectPropertyValue -Object $item -Name "compliance_issue_count"
+    if (-not [string]::IsNullOrWhiteSpace($itemComplianceIssueCount)) {
+        $schemaPatchApprovalComplianceIssueCount += [int]$itemComplianceIssueCount
+    }
+}
+$schemaPatchApprovalItemCount = @($schemaPatchApprovalItems).Count
+$schemaPatchApprovalGateStatus = Get-SchemaPatchApprovalGateStatus `
+    -PendingCount $schemaPatchApprovalPendingCount `
+    -ApprovalItemCount $schemaPatchApprovalItemCount `
+    -InvalidResultCount $schemaPatchApprovalInvalidResultCount `
+    -ComplianceIssueCount $schemaPatchApprovalComplianceIssueCount
+$schemaPatchApprovalGateBlocked = $schemaPatchApprovalGateStatus -eq "blocked"
 $visualVerdict = Get-ProjectTemplateSmokeVisualVerdict -VisualSmokeResults $visualSmokeResults
 $overallStatus = Get-ProjectTemplateSmokeOverallStatus `
     -SummaryPassed $summaryPassed `
@@ -1243,6 +1614,17 @@ $summary = [ordered]@{
     entry_count = $results.Count
     failed_entry_count = $failedEntryCount
     dirty_schema_baseline_count = $dirtySchemaBaselineCount
+    schema_patch_review_count = $schemaPatchReviews.Count
+    schema_patch_review_changed_count = $schemaPatchReviewChangedCount
+    schema_patch_reviews = $schemaPatchReviews
+    schema_patch_approval_pending_count = $schemaPatchApprovalPendingCount
+    schema_patch_approval_approved_count = $schemaPatchApprovalApprovedCount
+    schema_patch_approval_rejected_count = $schemaPatchApprovalRejectedCount
+    schema_patch_approval_compliance_issue_count = $schemaPatchApprovalComplianceIssueCount
+    schema_patch_approval_invalid_result_count = $schemaPatchApprovalInvalidResultCount
+    schema_patch_approval_gate_status = $schemaPatchApprovalGateStatus
+    schema_patch_approval_gate_blocked = $schemaPatchApprovalGateBlocked
+    schema_patch_approval_items = $schemaPatchApprovalItems
     visual_entry_count = $visualEntryCount
     visual_verdict = $visualVerdict
     manual_review_pending_count = $manualReviewPendingCount

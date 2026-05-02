@@ -66,7 +66,7 @@ $pendingResult = New-WordVisualReviewResult `
 Assert-Equal -Actual $pendingResult.status -Expected "pending_review" `
     -Message "Default review result should stay pending."
 Assert-Equal -Actual $pendingResult.verdict -Expected "undecided" `
-    -Message "Default review result should preserve the legacy undecided verdict."
+    -Message "Default review result should keep the undecided verdict."
 Assert-True -Condition (-not ($pendingResult.PSObject.Properties.Name -contains "reviewed_at")) `
     -Message "Pending review result should not record reviewed_at."
 
@@ -122,5 +122,16 @@ Assert-ContainsText -Text $runScript -ExpectedText "[string]`$ReviewVerdict" `
     -Message "run_word_visual_smoke.ps1 should expose ReviewVerdict."
 Assert-ContainsText -Text $runScript -ExpectedText "New-WordVisualReviewResult" `
     -Message "run_word_visual_smoke.ps1 should use the shared review result helper."
+
+$releaseGateScriptPath = Join-Path (Join-Path $resolvedRepoRoot "scripts") "run_word_visual_release_gate.ps1"
+$releaseGateScript = Get-Content -Raw -LiteralPath $releaseGateScriptPath
+Assert-ContainsText -Text $releaseGateScript -ExpectedText '[switch]$IncludeTableStyleQuality' `
+    -Message "Table style quality visual gate should be opt-in."
+Assert-ContainsText -Text $releaseGateScript -ExpectedText 'id = "table-style-quality"' `
+    -Message "Word visual release gate should register the table style quality curated bundle."
+Assert-ContainsText -Text $releaseGateScript -ExpectedText 'skip = (-not $IncludeTableStyleQuality.IsPresent)' `
+    -Message "Table style quality visual curated bundle should remain skipped unless explicitly requested."
+Assert-ContainsText -Text $releaseGateScript -ExpectedText 'run_table_style_quality_visual_regression.ps1' `
+    -Message "Word visual release gate should call the table style quality visual regression script."
 
 Write-Host "Word visual review report regression passed."

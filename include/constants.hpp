@@ -71,6 +71,37 @@ enum class table_alignment : std::uint8_t {
     right,
 };
 
+enum class table_position_horizontal_reference : std::uint8_t {
+    margin = 0U,
+    page,
+    column,
+};
+
+enum class table_position_vertical_reference : std::uint8_t {
+    margin = 0U,
+    page,
+    paragraph,
+};
+
+enum class table_overlap : std::uint8_t {
+    allow = 0U,
+    never,
+};
+
+enum class paragraph_alignment : std::uint8_t {
+    left = 0U,
+    center,
+    right,
+    justified,
+    distribute,
+};
+
+enum class paragraph_line_spacing_rule : std::uint8_t {
+    automatic = 0U,
+    at_least,
+    exact,
+};
+
 enum class row_height_rule : std::uint8_t {
     automatic = 0U,
     at_least,
