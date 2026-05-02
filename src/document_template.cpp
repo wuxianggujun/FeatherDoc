@@ -34,6 +34,8 @@ constexpr auto document_relationships_xml_entry =
 constexpr auto footnotes_xml_entry = std::string_view{"word/footnotes.xml"};
 constexpr auto endnotes_xml_entry = std::string_view{"word/endnotes.xml"};
 constexpr auto comments_xml_entry = std::string_view{"word/comments.xml"};
+constexpr auto comments_extended_xml_entry =
+    std::string_view{"word/commentsExtended.xml"};
 constexpr auto unavailable_template_part_detail =
     std::string_view{"template part is not available"};
 constexpr auto page_number_field_instruction = std::string_view{" PAGE "};
@@ -44,17 +46,29 @@ constexpr auto endnotes_relationship_type = std::string_view{
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"};
 constexpr auto comments_relationship_type = std::string_view{
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"};
+constexpr auto comments_extended_relationship_type = std::string_view{
+    "http://schemas.microsoft.com/office/2011/relationships/commentsExtended"};
 constexpr auto footnotes_content_type = std::string_view{
     "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"};
 constexpr auto endnotes_content_type = std::string_view{
     "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"};
 constexpr auto comments_content_type = std::string_view{
     "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"};
+constexpr auto comments_extended_content_type = std::string_view{
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"};
 constexpr auto footnotes_relationship_target = std::string_view{"footnotes.xml"};
 constexpr auto endnotes_relationship_target = std::string_view{"endnotes.xml"};
 constexpr auto comments_relationship_target = std::string_view{"comments.xml"};
+constexpr auto comments_extended_relationship_target =
+    std::string_view{"commentsExtended.xml"};
 constexpr auto wordprocessingml_namespace_uri = std::string_view{
     "http://schemas.openxmlformats.org/wordprocessingml/2006/main"};
+constexpr auto wordprocessingml_2010_namespace_uri =
+    std::string_view{"http://schemas.microsoft.com/office/word/2010/wordml"};
+constexpr auto wordprocessingml_2012_namespace_uri =
+    std::string_view{"http://schemas.microsoft.com/office/word/2012/wordml"};
+constexpr auto markup_compatibility_namespace_uri =
+    std::string_view{"http://schemas.openxmlformats.org/markup-compatibility/2006"};
 constexpr auto hyperlink_relationship_type = std::string_view{
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"};
 constexpr auto office_document_relationships_namespace_uri = std::string_view{
@@ -1757,6 +1771,26 @@ auto related_part_entry_for_type(const pugi::xml_document &relationships_documen
     return std::string{fallback_entry};
 }
 
+auto optional_related_part_entry_for_type(
+    const pugi::xml_document &relationships_document,
+    std::string_view relationship_type) -> std::optional<std::string> {
+    const auto relationships = relationships_document.child("Relationships");
+    for (auto relationship = relationships.child("Relationship");
+         relationship != pugi::xml_node{};
+         relationship = relationship.next_sibling("Relationship")) {
+        if (std::string_view{relationship.attribute("Type").value()} !=
+            relationship_type) {
+            continue;
+        }
+        const auto target =
+            std::string_view{relationship.attribute("Target").value()};
+        if (!target.empty()) {
+            return normalize_related_word_entry_name(target);
+        }
+    }
+    return std::nullopt;
+}
+
 auto read_docx_entry_text(const std::filesystem::path &document_path,
                           std::string_view entry_name,
                           std::string &content,
@@ -2583,6 +2617,11 @@ bool ensure_document_relationship(pugi::xml_document &relationships_document,
     return true;
 }
 
+void ensure_wordprocessingml_2010_namespace(pugi::xml_node root);
+void ensure_wordprocessingml_2012_namespace(pugi::xml_node root);
+void ensure_markup_compatibility_ignorable(pugi::xml_node root,
+                                           std::string_view prefix);
+
 pugi::xml_node comment_by_summary_index(pugi::xml_node root, std::size_t comment_index) {
     std::size_t current_index = 0;
     for (auto comment = root.child("w:comment"); comment != pugi::xml_node{};
@@ -2593,6 +2632,156 @@ pugi::xml_node comment_by_summary_index(pugi::xml_node root, std::size_t comment
         ++current_index;
     }
     return {};
+}
+
+bool on_off_attribute_is_true(std::string_view value) {
+    return value == "1" || value == "true" || value == "on";
+}
+
+std::string uppercase_hex_string(std::string_view value) {
+    std::string result;
+    result.reserve(value.size());
+    for (const char ch : value) {
+        result.push_back(static_cast<char>(
+            std::toupper(static_cast<unsigned char>(ch))));
+    }
+    return result;
+}
+
+std::string format_hex8(std::uint32_t value) {
+    constexpr auto digits = std::string_view{"0123456789ABCDEF"};
+    std::string result(8U, '0');
+    for (std::size_t index = 0U; index < result.size(); ++index) {
+        const auto shift = static_cast<unsigned>((result.size() - index - 1U) * 4U);
+        result[index] = digits[(value >> shift) & 0x0FU];
+    }
+    return result;
+}
+
+auto comment_paragraph_id(pugi::xml_node comment) -> std::optional<std::string> {
+    const auto paragraph = comment.child("w:p");
+    if (paragraph == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+    auto value = std::string_view{paragraph.attribute("w14:paraId").value()};
+    if (value.empty()) {
+        value = std::string_view{paragraph.attribute("w15:paraId").value()};
+    }
+    if (value.empty()) {
+        return std::nullopt;
+    }
+    return uppercase_hex_string(value);
+}
+
+auto next_comment_paragraph_id(pugi::xml_node comments_root) -> std::string {
+    std::unordered_set<std::string> used_ids;
+    for (auto comment = comments_root.child("w:comment");
+         comment != pugi::xml_node{};
+         comment = comment.next_sibling("w:comment")) {
+        if (const auto id = comment_paragraph_id(comment); id.has_value()) {
+            used_ids.insert(*id);
+        }
+    }
+
+    for (std::uint32_t value = 1U;; ++value) {
+        auto candidate = format_hex8(value);
+        if (!used_ids.contains(candidate)) {
+            return candidate;
+        }
+    }
+}
+
+auto ensure_comment_paragraph_id(pugi::xml_node comments_root,
+                                 pugi::xml_node comment, bool &comments_dirty)
+    -> std::optional<std::string> {
+    if (const auto existing = comment_paragraph_id(comment); existing.has_value()) {
+        return existing;
+    }
+
+    auto paragraph = comment.child("w:p");
+    if (paragraph == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto para_id = next_comment_paragraph_id(comments_root);
+    ensure_wordprocessingml_2010_namespace(comments_root);
+    ensure_markup_compatibility_ignorable(comments_root, "w14");
+    ensure_attribute_value(paragraph, "w14:paraId", para_id);
+    comments_dirty = true;
+    return para_id;
+}
+
+auto comment_done_by_paragraph_id(const pugi::xml_document &comments_extended)
+    -> std::unordered_map<std::string, bool> {
+    std::unordered_map<std::string, bool> done_by_para_id;
+    const auto root = comments_extended.child("w15:commentsEx");
+    for (auto comment_ex = root.child("w15:commentEx");
+         comment_ex != pugi::xml_node{};
+         comment_ex = comment_ex.next_sibling("w15:commentEx")) {
+        const auto para_id =
+            std::string_view{comment_ex.attribute("w15:paraId").value()};
+        if (para_id.empty()) {
+            continue;
+        }
+        const auto done =
+            std::string_view{comment_ex.attribute("w15:done").value()};
+        done_by_para_id[uppercase_hex_string(para_id)] =
+            on_off_attribute_is_true(done);
+    }
+    return done_by_para_id;
+}
+
+void attach_comment_resolved_states(
+    std::vector<featherdoc::review_note_summary> &summaries,
+    const pugi::xml_document &comments_document,
+    const pugi::xml_document &comments_extended) {
+    if (summaries.empty()) {
+        return;
+    }
+    const auto done_by_para_id = comment_done_by_paragraph_id(comments_extended);
+    if (done_by_para_id.empty()) {
+        return;
+    }
+
+    const auto root = comments_document.child("w:comments");
+    std::size_t index = 0U;
+    for (auto comment = root.child("w:comment");
+         comment != pugi::xml_node{} && index < summaries.size();
+         comment = comment.next_sibling("w:comment"), ++index) {
+        const auto para_id = comment_paragraph_id(comment);
+        if (!para_id.has_value()) {
+            continue;
+        }
+        const auto match = done_by_para_id.find(*para_id);
+        if (match != done_by_para_id.end()) {
+            summaries[index].resolved = match->second;
+        }
+    }
+}
+
+auto comment_extended_by_paragraph_id(pugi::xml_node root, std::string_view para_id)
+    -> pugi::xml_node {
+    const auto normalized_para_id = uppercase_hex_string(para_id);
+    for (auto comment_ex = root.child("w15:commentEx");
+         comment_ex != pugi::xml_node{};
+         comment_ex = comment_ex.next_sibling("w15:commentEx")) {
+        const auto candidate =
+            std::string_view{comment_ex.attribute("w15:paraId").value()};
+        if (uppercase_hex_string(candidate) == normalized_para_id) {
+            return comment_ex;
+        }
+    }
+    return {};
+}
+
+bool remove_comment_extended_by_paragraph_id(pugi::xml_document &comments_extended,
+                                             std::string_view para_id) {
+    auto root = comments_extended.child("w15:commentsEx");
+    auto comment_ex = comment_extended_by_paragraph_id(root, para_id);
+    if (root == pugi::xml_node{} || comment_ex == pugi::xml_node{}) {
+        return false;
+    }
+    return root.remove_child(comment_ex);
 }
 
 void remove_comment_markers_by_id(pugi::xml_node node, std::string_view id) {
@@ -2687,6 +2876,77 @@ void ensure_wordprocessingml_namespace(pugi::xml_node root) {
     }
 }
 
+void ensure_wordprocessingml_2010_namespace(pugi::xml_node root) {
+    if (root == pugi::xml_node{}) {
+        return;
+    }
+
+    auto word_namespace = root.attribute("xmlns:w14");
+    if (word_namespace == pugi::xml_attribute{}) {
+        word_namespace = root.append_attribute("xmlns:w14");
+    }
+    if (word_namespace != pugi::xml_attribute{}) {
+        word_namespace.set_value(
+            std::string{wordprocessingml_2010_namespace_uri}.c_str());
+    }
+}
+
+void ensure_markup_compatibility_ignorable(pugi::xml_node root,
+                                           std::string_view prefix) {
+    if (root == pugi::xml_node{} || prefix.empty()) {
+        return;
+    }
+
+    auto markup_namespace = root.attribute("xmlns:mc");
+    if (markup_namespace == pugi::xml_attribute{}) {
+        markup_namespace = root.append_attribute("xmlns:mc");
+    }
+    if (markup_namespace != pugi::xml_attribute{}) {
+        markup_namespace.set_value(
+            std::string{markup_compatibility_namespace_uri}.c_str());
+    }
+
+    auto ignorable = root.attribute("mc:Ignorable");
+    if (ignorable == pugi::xml_attribute{}) {
+        ignorable = root.append_attribute("mc:Ignorable");
+    }
+    if (ignorable == pugi::xml_attribute{}) {
+        return;
+    }
+    const auto value = std::string_view{ignorable.value()};
+    if (value.empty()) {
+        ignorable.set_value(std::string{prefix}.c_str());
+        return;
+    }
+
+    std::istringstream tokens{std::string{value}};
+    for (std::string token; tokens >> token;) {
+        if (token == prefix) {
+            return;
+        }
+    }
+
+    auto updated = std::string{value};
+    updated.push_back(' ');
+    updated += prefix;
+    ignorable.set_value(updated.c_str());
+}
+
+void ensure_wordprocessingml_2012_namespace(pugi::xml_node root) {
+    if (root == pugi::xml_node{}) {
+        return;
+    }
+
+    auto word_namespace = root.attribute("xmlns:w15");
+    if (word_namespace == pugi::xml_attribute{}) {
+        word_namespace = root.append_attribute("xmlns:w15");
+    }
+    if (word_namespace != pugi::xml_attribute{}) {
+        word_namespace.set_value(
+            std::string{wordprocessingml_2012_namespace_uri}.c_str());
+    }
+}
+
 bool append_review_separator(pugi::xml_node root, const char *note_node_name,
                              const char *separator_child_name, std::string_view type,
                              std::string_view id) {
@@ -2726,6 +2986,17 @@ bool initialize_comments_document(pugi::xml_document &xml_document) {
         return false;
     }
     ensure_wordprocessingml_namespace(root);
+    return true;
+}
+
+bool initialize_comments_extended_document(pugi::xml_document &xml_document) {
+    xml_document.reset();
+    auto root = xml_document.append_child("w15:commentsEx");
+    if (root == pugi::xml_node{}) {
+        return false;
+    }
+    ensure_wordprocessingml_2012_namespace(root);
+    ensure_markup_compatibility_ignorable(root, "w15");
     return true;
 }
 
@@ -9798,6 +10069,7 @@ auto semantic_review_note_summary_value(
            << "\ninitials=" << semantic_optional_string(note.initials)
            << "\ndate=" << semantic_optional_string(note.date)
            << "\nanchor_text=" << semantic_optional_string(note.anchor_text)
+           << "\nresolved=" << (note.resolved ? "true" : "false")
            << "\ntext=" << note.text;
     return stream.str();
 }
@@ -11379,9 +11651,27 @@ std::vector<featherdoc::review_note_summary> Document::list_comments() const {
     }
 
     if (this->comments_loaded) {
-        auto summaries = summarize_comments_from_part(
-            const_cast<pugi::xml_document &>(this->comments));
+        auto &comments_document = const_cast<pugi::xml_document &>(this->comments);
+        auto summaries = summarize_comments_from_part(comments_document);
         attach_comment_anchor_text(summaries, anchor_text_by_id);
+        if (this->comments_extended_loaded) {
+            attach_comment_resolved_states(
+                summaries, comments_document,
+                const_cast<pugi::xml_document &>(this->comments_extended));
+        } else if (!this->document_path.empty() &&
+                   std::filesystem::exists(this->document_path)) {
+            const auto entry_name = related_part_entry_for_type(
+                this->document_relationships, comments_extended_relationship_type,
+                comments_extended_xml_entry);
+            pugi::xml_document comments_extended_document;
+            if (!load_optional_docx_xml_part(
+                    this->document_path, entry_name, comments_extended_document,
+                    this->last_error_info)) {
+                return {};
+            }
+            attach_comment_resolved_states(
+                summaries, comments_document, comments_extended_document);
+        }
         this->last_error_info.clear();
         return summaries;
     }
@@ -11401,6 +11691,18 @@ std::vector<featherdoc::review_note_summary> Document::list_comments() const {
 
     auto summaries = summarize_comments_from_part(comments_document);
     attach_comment_anchor_text(summaries, anchor_text_by_id);
+    const auto comments_extended_entry_name = related_part_entry_for_type(
+        this->document_relationships, comments_extended_relationship_type,
+        comments_extended_xml_entry);
+    pugi::xml_document comments_extended_document;
+    if (!load_optional_docx_xml_part(this->document_path,
+                                     comments_extended_entry_name,
+                                     comments_extended_document,
+                                     this->last_error_info)) {
+        return {};
+    }
+    attach_comment_resolved_states(summaries, comments_document,
+                                   comments_extended_document);
     this->last_error_info.clear();
     return summaries;
 }
@@ -11758,6 +12060,59 @@ bool Document::set_text_range_comment_range(
     return true;
 }
 
+bool Document::set_comment_resolved(std::size_t comment_index, bool resolved) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before setting comment resolved state",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    if (!this->ensure_comments_part()) {
+        return false;
+    }
+
+    auto comments_root = this->comments.child("w:comments");
+    auto comment = comment_by_summary_index(comments_root, comment_index);
+    if (comment == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "comment index is out of range",
+                       std::string{comments_xml_entry});
+        return false;
+    }
+    const auto para_id =
+        ensure_comment_paragraph_id(comments_root, comment, this->comments_dirty);
+    if (!para_id.has_value()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "comment body does not contain a paragraph id target",
+                       std::string{comments_xml_entry});
+        return false;
+    }
+
+    if (!this->ensure_comments_extended_part()) {
+        return false;
+    }
+    auto extended_root = this->comments_extended.child("w15:commentsEx");
+    auto comment_ex = comment_extended_by_paragraph_id(extended_root, *para_id);
+    if (comment_ex == pugi::xml_node{}) {
+        comment_ex = extended_root.append_child("w15:commentEx");
+    }
+    if (comment_ex == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to append extended comment metadata",
+                       std::string{comments_extended_xml_entry});
+        return false;
+    }
+    ensure_attribute_value(comment_ex, "w15:paraId", *para_id);
+    ensure_attribute_value(comment_ex, "w15:done", resolved ? "1" : "0");
+
+    this->comments_extended_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::replace_comment(std::size_t comment_index,
                                std::string_view comment_text) {
     if (!this->is_open()) {
@@ -11817,6 +12172,10 @@ bool Document::remove_comment(std::size_t comment_index) {
         return false;
     }
     const auto comment_id = std::string{comment.attribute("w:id").value()};
+    const auto para_id = comment_paragraph_id(comment);
+    if (para_id.has_value() && !this->ensure_comments_extended_loaded()) {
+        return false;
+    }
     root.remove_child(comment);
     remove_comment_markers_by_id(this->document, comment_id);
     for (auto &part : this->header_parts) {
@@ -11828,6 +12187,10 @@ bool Document::remove_comment(std::size_t comment_index) {
         if (part != nullptr) {
             remove_comment_markers_by_id(part->xml, comment_id);
         }
+    }
+    if (para_id.has_value() &&
+        remove_comment_extended_by_paragraph_id(this->comments_extended, *para_id)) {
+        this->comments_extended_dirty = true;
     }
     this->comments_dirty = true;
     this->last_error_info.clear();
@@ -14076,6 +14439,98 @@ bool Document::ensure_comments_part() {
 
     this->has_comments_part = true;
     this->comments_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::ensure_comments_extended_loaded() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before loading comment metadata",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    if (this->comments_extended_loaded) {
+        return true;
+    }
+
+    this->comments_extended.reset();
+    this->has_comments_extended_part = false;
+    bool loaded_existing_part = false;
+    if (this->has_source_archive && !this->document_path.empty() &&
+        std::filesystem::exists(this->document_path)) {
+        const auto entry_name = optional_related_part_entry_for_type(
+            this->document_relationships, comments_extended_relationship_type);
+        if (entry_name.has_value()) {
+            if (!load_optional_docx_xml_part(
+                    this->document_path, *entry_name, this->comments_extended,
+                    this->last_error_info)) {
+                return false;
+            }
+            loaded_existing_part =
+                this->comments_extended.document_element() != pugi::xml_node{};
+        }
+    }
+
+    if (!loaded_existing_part &&
+        !initialize_comments_extended_document(this->comments_extended)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to initialize extended comments part",
+                       std::string{comments_extended_xml_entry});
+        return false;
+    }
+
+    this->comments_extended_loaded = true;
+    this->has_comments_extended_part = loaded_existing_part;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::ensure_comments_extended_part() {
+    if (const auto error = this->ensure_content_types_loaded()) {
+        return false;
+    }
+    if (!this->ensure_comments_extended_loaded()) {
+        return false;
+    }
+
+    auto root = this->comments_extended.child("w15:commentsEx");
+    if (root == pugi::xml_node{}) {
+        if (!initialize_comments_extended_document(this->comments_extended)) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to initialize extended comments part",
+                           std::string{comments_extended_xml_entry});
+            return false;
+        }
+        root = this->comments_extended.child("w15:commentsEx");
+    }
+    if (root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "extended comments part has an unsupported root",
+                       std::string{comments_extended_xml_entry});
+        return false;
+    }
+    ensure_wordprocessingml_2012_namespace(root);
+
+    if (!ensure_document_relationship(
+            this->document_relationships, this->has_document_relationships_part,
+            this->document_relationships_dirty, this->last_error_info,
+            comments_extended_relationship_type,
+            comments_extended_relationship_target)) {
+        return false;
+    }
+    if (!add_content_type_override(this->content_types, this->content_types_dirty,
+                                   this->last_error_info,
+                                   comments_extended_xml_entry,
+                                   comments_extended_content_type)) {
+        return false;
+    }
+
+    this->has_comments_extended_part = true;
+    this->comments_extended_dirty = true;
     this->last_error_info.clear();
     return true;
 }

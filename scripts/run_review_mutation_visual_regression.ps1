@@ -24,6 +24,7 @@ function Assert-GeneratedDocxEvidence { param([string]$DocxPath)
     $footnotesXml=Get-DocxEntryText $DocxPath "word/footnotes.xml"
     $endnotesXml=Get-DocxEntryText $DocxPath "word/endnotes.xml"
     $commentsXml=Get-DocxEntryText $DocxPath "word/comments.xml"
+    $commentsExtendedXml=Get-DocxEntryText $DocxPath "word/commentsExtended.xml"
     $relationshipsXml=Get-DocxEntryText $DocxPath "word/_rels/document.xml.rels"
     $contentTypesXml=Get-DocxEntryText $DocxPath "[Content_Types].xml"
     foreach ($text in @("Accepted insertion from revision API","Rejected deletion kept by API","Authored insertion revision accepted by typed API","Authored deletion revision rejected by typed API","Run revision original visible text","accepted in-place replacement revision","accepted paragraph range replacement","accepted cross paragraph range replacement","In-place ","commented","Typed API evidence details below","footnoteReference","endnoteReference","commentReference","Typed hyperlink","Removed hyperlink text","m:f","m:rad")) { if (-not $documentXml.Contains($text)) { throw "Missing document review mutation evidence: $text" } }
@@ -35,9 +36,11 @@ function Assert-GeneratedDocxEvidence { param([string]$DocxPath)
     if ($endnotesXml.Contains("Removed visual endnote body")) { throw "Removed endnote body still exists" }
     if (-not $commentsXml.Contains("Replaced visual comment body")) { throw "Missing replaced comment body evidence" }
     if (-not $commentsXml.Contains("In-place range comment body")) { throw "Missing in-place comment range evidence" }
+    if (-not $commentsXml.Contains("w14:paraId")) { throw "Missing comment paragraph id evidence" }
+    foreach ($text in @("<w15:commentEx","w15:done=`"1`"")) { if (-not $commentsExtendedXml.Contains($text)) { throw "Missing resolved comment evidence: $text" } }
     if ($commentsXml.Contains("Removed visual comment body")) { throw "Removed comment body still exists" }
-    foreach ($text in @("/relationships/footnotes","/relationships/endnotes","/relationships/comments","/relationships/hyperlink")) { if (-not $relationshipsXml.Contains($text)) { throw "Missing relationship evidence: $text" } }
-    foreach ($text in @("/word/footnotes.xml","/word/endnotes.xml","/word/comments.xml")) { if (-not $contentTypesXml.Contains($text)) { throw "Missing content type override: $text" } }
+    foreach ($text in @("/relationships/footnotes","/relationships/endnotes","/relationships/comments","/relationships/commentsExtended","/relationships/hyperlink")) { if (-not $relationshipsXml.Contains($text)) { throw "Missing relationship evidence: $text" } }
+    foreach ($text in @("/word/footnotes.xml","/word/endnotes.xml","/word/comments.xml","/word/commentsExtended.xml")) { if (-not $contentTypesXml.Contains($text)) { throw "Missing content type override: $text" } }
 }
 $repoRoot=Resolve-RepoRoot
 $resolvedBuildDir=Resolve-RepoPath $repoRoot $BuildDir

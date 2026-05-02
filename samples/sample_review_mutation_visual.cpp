@@ -193,7 +193,8 @@ bool mutate_with_typed_apis(const fs::path &path) {
             comment_range_paragraph_index, 9U, 9U, "In-place range comment body",
             "Reviewer", "RV") != 1U ||
         !document.set_paragraph_text_comment_range(
-            1U, comment_range_paragraph_index, 19U, 5U)) {
+            1U, comment_range_paragraph_index, 19U, 5U) ||
+        !document.set_comment_resolved(1U, true)) {
         std::cerr << "in-place comment range authoring failed: "
                   << document.last_error().detail << '\n';
         return false;
@@ -240,6 +241,7 @@ bool verify_api(const fs::path &path) {
            comments[0].anchor_text == std::optional<std::string>{"Commented typed API text"} &&
            comments[1].text == "In-place range comment body" &&
            comments[1].anchor_text == std::optional<std::string>{"range"} &&
+           comments[1].resolved &&
            revisions.empty() && hyperlinks.size() == 1U &&
            hyperlinks.front().text == "Typed hyperlink" && equations.size() == 2U;
 }

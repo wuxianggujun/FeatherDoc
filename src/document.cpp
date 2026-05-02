@@ -24,6 +24,8 @@ constexpr auto styles_xml_entry = std::string_view{"word/styles.xml"};
 constexpr auto footnotes_xml_entry = std::string_view{"word/footnotes.xml"};
 constexpr auto endnotes_xml_entry = std::string_view{"word/endnotes.xml"};
 constexpr auto comments_xml_entry = std::string_view{"word/comments.xml"};
+constexpr auto comments_extended_xml_entry =
+    std::string_view{"word/commentsExtended.xml"};
 constexpr auto office_document_relationships_namespace_uri = std::string_view{
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships"};
 constexpr auto header_relationship_type = std::string_view{
@@ -38,6 +40,8 @@ constexpr auto endnotes_relationship_type = std::string_view{
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"};
 constexpr auto comments_relationship_type = std::string_view{
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"};
+constexpr auto comments_extended_relationship_type = std::string_view{
+    "http://schemas.microsoft.com/office/2011/relationships/commentsExtended"};
 constexpr auto header_content_type = std::string_view{
     "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"};
 constexpr auto footer_content_type = std::string_view{
@@ -50,6 +54,8 @@ constexpr auto endnotes_content_type = std::string_view{
     "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"};
 constexpr auto comments_content_type = std::string_view{
     "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"};
+constexpr auto comments_extended_content_type = std::string_view{
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"};
 constexpr auto empty_document_xml = std::string_view{
     R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -1039,6 +1045,7 @@ std::error_code Document::create_empty() {
     this->has_footnotes_part = false;
     this->has_endnotes_part = false;
     this->has_comments_part = false;
+    this->has_comments_extended_part = false;
     this->document_relationships_dirty = false;
     this->content_types_loaded = false;
     this->content_types_dirty = false;
@@ -1054,6 +1061,8 @@ std::error_code Document::create_empty() {
     this->endnotes_dirty = false;
     this->comments_loaded = false;
     this->comments_dirty = false;
+    this->comments_extended_loaded = false;
+    this->comments_extended_dirty = false;
     this->removed_related_part_entries.clear();
     this->removed_archive_entries.clear();
     this->document.reset();
@@ -1065,6 +1074,7 @@ std::error_code Document::create_empty() {
     this->footnotes.reset();
     this->endnotes.reset();
     this->comments.reset();
+    this->comments_extended.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
@@ -1503,6 +1513,7 @@ void Document::set_path(std::filesystem::path file_path) {
     this->has_footnotes_part = false;
     this->has_endnotes_part = false;
     this->has_comments_part = false;
+    this->has_comments_extended_part = false;
     this->document_relationships_dirty = false;
     this->content_types_loaded = false;
     this->content_types_dirty = false;
@@ -1518,6 +1529,8 @@ void Document::set_path(std::filesystem::path file_path) {
     this->endnotes_dirty = false;
     this->comments_loaded = false;
     this->comments_dirty = false;
+    this->comments_extended_loaded = false;
+    this->comments_extended_dirty = false;
     this->removed_related_part_entries.clear();
     this->removed_archive_entries.clear();
     this->document.reset();
@@ -1529,6 +1542,7 @@ void Document::set_path(std::filesystem::path file_path) {
     this->footnotes.reset();
     this->endnotes.reset();
     this->comments.reset();
+    this->comments_extended.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
@@ -1548,6 +1562,7 @@ std::error_code Document::open() {
     this->has_footnotes_part = false;
     this->has_endnotes_part = false;
     this->has_comments_part = false;
+    this->has_comments_extended_part = false;
     this->document_relationships_dirty = false;
     this->content_types_loaded = false;
     this->content_types_dirty = false;
@@ -1563,6 +1578,8 @@ std::error_code Document::open() {
     this->endnotes_dirty = false;
     this->comments_loaded = false;
     this->comments_dirty = false;
+    this->comments_extended_loaded = false;
+    this->comments_extended_dirty = false;
     this->removed_related_part_entries.clear();
     this->removed_archive_entries.clear();
     this->document.reset();
@@ -1574,6 +1591,7 @@ std::error_code Document::open() {
     this->footnotes.reset();
     this->endnotes.reset();
     this->comments.reset();
+    this->comments_extended.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
@@ -1997,6 +2015,10 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     if (this->has_comments_part && (this->comments_dirty || !this->has_source_archive)) {
         rewritten_entries.insert(std::string{comments_xml_entry});
     }
+    if (this->has_comments_extended_part &&
+        (this->comments_extended_dirty || !this->has_source_archive)) {
+        rewritten_entries.insert(std::string{comments_extended_xml_entry});
+    }
     for (const auto &part : this->header_parts) {
         rewritten_entries.insert(part->entry_name);
         if (!part->relationships_entry_name.empty()) {
@@ -2132,6 +2154,11 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     if (!result && this->has_comments_part &&
         (this->comments_dirty || !this->has_source_archive)) {
         write_xml_entry(comments_xml_entry, this->comments);
+    }
+
+    if (!result && this->has_comments_extended_part &&
+        (this->comments_extended_dirty || !this->has_source_archive)) {
+        write_xml_entry(comments_extended_xml_entry, this->comments_extended);
     }
 
     if (!result) {

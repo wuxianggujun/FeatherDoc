@@ -687,6 +687,7 @@ struct review_note_summary {
     std::optional<std::string> initials;
     std::optional<std::string> date;
     std::optional<std::string> anchor_text;
+    bool resolved{false};
     std::string text;
 };
 
@@ -2448,6 +2449,8 @@ class Document {
         std::size_t hyperlink_index);
     [[nodiscard]] bool ensure_review_notes_part(featherdoc::review_note_kind kind);
     [[nodiscard]] bool ensure_comments_part();
+    [[nodiscard]] bool ensure_comments_extended_loaded();
+    [[nodiscard]] bool ensure_comments_extended_part();
     [[nodiscard]] bool extract_drawing_image_from_part(
         std::string_view entry_name, std::size_t image_index,
         const std::filesystem::path &output_path) const;
@@ -2496,6 +2499,7 @@ class Document {
     pugi::xml_document footnotes;
     pugi::xml_document endnotes;
     pugi::xml_document comments;
+    pugi::xml_document comments_extended;
     std::vector<std::unique_ptr<xml_part_state>> header_parts;
     std::vector<std::unique_ptr<xml_part_state>> footer_parts;
     std::vector<image_part_state> image_parts;
@@ -2508,6 +2512,7 @@ class Document {
     bool has_footnotes_part{false};
     bool has_endnotes_part{false};
     bool has_comments_part{false};
+    bool has_comments_extended_part{false};
     bool document_relationships_dirty{false};
     bool content_types_loaded{false};
     bool content_types_dirty{false};
@@ -2523,6 +2528,8 @@ class Document {
     bool endnotes_dirty{false};
     bool comments_loaded{false};
     bool comments_dirty{false};
+    bool comments_extended_loaded{false};
+    bool comments_extended_dirty{false};
     mutable std::unordered_set<std::string> removed_related_part_entries;
     std::unordered_set<std::string> removed_archive_entries;
     mutable document_error_info last_error_info;
@@ -2681,6 +2688,8 @@ class Document {
         std::size_t comment_index, std::size_t start_paragraph_index,
         std::size_t start_text_offset, std::size_t end_paragraph_index,
         std::size_t end_text_offset);
+    [[nodiscard]] bool set_comment_resolved(std::size_t comment_index,
+                                             bool resolved);
     [[nodiscard]] bool replace_comment(std::size_t comment_index,
                                         std::string_view comment_text);
     [[nodiscard]] bool remove_comment(std::size_t comment_index);

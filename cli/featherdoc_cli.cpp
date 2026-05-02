@@ -2125,6 +2125,8 @@ void print_usage(std::ostream &stream) {
            " <comment-index> <start-paragraph-index> <start-offset>"
            " <end-paragraph-index> <end-offset>"
            " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-comment-resolved <input.docx>"
+           " <comment-index> <true|false> [--output <path>] [--json]\n"
         << "  featherdoc_cli replace-comment <input.docx> <comment-index>"
            " --comment-text <text> [--output <path>] [--json]\n"
         << "  featherdoc_cli remove-comment <input.docx> <comment-index>"
@@ -19576,6 +19578,7 @@ void write_json_review_note_summary(
     write_json_optional_string(stream, note.date);
     stream << ",\"anchor_text\":";
     write_json_optional_string(stream, note.anchor_text);
+    stream << ",\"resolved\":" << json_bool(note.resolved);
     stream << ",\"text\":";
     write_json_string(stream, note.text);
     stream << '}';
@@ -20120,6 +20123,7 @@ void print_review_note_summary(
            << " initials=" << optional_display_value(note.initials)
            << " date=" << optional_display_value(note.date)
            << " anchor_text=" << optional_display_value(note.anchor_text)
+           << " resolved=" << yes_no(note.resolved)
            << " text=";
     write_json_string(stream, note.text);
 }
@@ -47338,6 +47342,74 @@ int main(int argc, char **argv) {
                                << end_paragraph_index
                                << ",\"end_text_offset\":" << end_text_offset;
                     }
+                });
+        } else {
+            print_simple_document_mutation_result(command, options.output_path,
+                                                  1U);
+        }
+        return 0;
+    }
+
+    if (command == "set-comment-resolved") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                std::string(command) +
+                    " expects an input path, comment index, and resolved value",
+                json_output);
+            return 2;
+        }
+
+        std::size_t comment_index = 0U;
+        if (!parse_index(arguments[2], comment_index)) {
+            print_parse_error(command,
+                              "invalid comment index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        bool resolved = false;
+        if (!parse_bool(arguments[3], resolved)) {
+            print_parse_error(command,
+                              "invalid resolved value: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        simple_document_mutation_options options;
+        std::string error_message;
+        if (!parse_simple_document_mutation_options(arguments, 4U, options,
+                                                    error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.set_comment_resolved(comment_index, resolved)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [comment_index, resolved](std::ostream &stream) {
+                    write_json_affected_result(stream, 1U);
+                    stream << ",\"comment_index\":" << comment_index
+                           << ",\"resolved\":" << json_bool(resolved);
                 });
         } else {
             print_simple_document_mutation_result(command, options.output_path,

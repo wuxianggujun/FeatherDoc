@@ -18,6 +18,7 @@ performance.
 - Added cross-paragraph range revision evidence to the review mutation visual regression sample and runner.
 - Added in-place paragraph and cross-paragraph text range comment authoring APIs and CLI commands.
 - Added comment range retargeting APIs and CLI commands so existing comments can move to paragraph or cross-paragraph text ranges.
+- Added comment resolved-state authoring through `commentsExtended.xml`, with API, CLI, inspection, and visual-regression coverage.
 - Added in-place comment range evidence to the review mutation visual regression sample and runner.
 - Added `review_note_summary::anchor_text` for comments and surfaced it in `inspect-review` text/JSON output so review automation can audit the selected text behind each comment.
 - Added structured failure fields such as `failure_kind`, `failure_relative_path`, and `failure_expected_text` to release metadata docs check JSON summaries.

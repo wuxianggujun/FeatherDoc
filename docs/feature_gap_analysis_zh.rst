@@ -255,7 +255,7 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
 正式合同和制度文件经常需要批注和修订痕迹。当前轻量审阅路线已经落地：
 
 - ``list_footnotes()`` / ``list_endnotes()`` 可枚举脚注和尾注正文
-- ``list_comments()`` 可枚举批注作者、时间、锚点原文和正文
+- ``list_comments()`` 可枚举批注作者、时间、锚点原文、resolved 状态和正文
 - ``list_revisions()`` 可枚举插入、删除、移动和属性变更类修订
 - ``append_insertion_revision(...)`` / ``append_deletion_revision(...)`` 可生成
   第一版正文插入 / 删除修订痕迹
@@ -278,6 +278,8 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   可把批注原位绑定到正文段落纯文本区间或跨段落半开区间
 - ``set_paragraph_text_comment_range(...)`` /
   ``set_text_range_comment_range(...)`` 可移动或扩缩已有批注锚点范围
+- ``set_comment_resolved(...)`` 可通过 ``commentsExtended.xml`` 设置或清除
+  既有批注的 resolved / done 状态
 - ``inspect-review`` 以及脚注、尾注、批注、append 修订、run 原位修订、
   段落文本区间修订和跨段落文本区间修订 mutation CLI 已可用于一次性
   自动化处理
@@ -290,7 +292,7 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
 
 建议中期继续补：
 
-- comment 回复、resolved 状态和批注多范围 / 线程化元数据 API
+- comment 回复、批注多范围 / 线程化元数据 API
 - 复杂 run 区间诊断、段落标记级修订和更细粒度冲突诊断
 - 审阅对象与复杂模板合并时的冲突解决策略
 
