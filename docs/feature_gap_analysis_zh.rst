@@ -271,6 +271,9 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   生成跨段落半开区间插入、删除和替换修订痕迹
 - ``preview_text_range(...)`` 可在写入批注或修订前预览正文区间的选中文本、
   分段文本和 plain-text run 支持状态
+- ``find_text_ranges(...)`` / ``find-text-ranges`` 可按精确正文文本查找匹配
+  位置，返回可直接复用的段落索引、纯文本 offset、分段 preview 和
+  plain-text run 支持状态，为后续自动生成审阅修订计划提供定位基础
 - 段落 / 跨段落 text range 修订 API 的删除和替换 options 支持
   ``expected_text``，CLI 对应命令也支持 ``--expected-text``；写入前会通过
   ``preview_text_range(...)`` 校验目标文本，避免 offset 漂移造成误改；

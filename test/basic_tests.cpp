@@ -10994,6 +10994,69 @@ TEST_CASE("revision authoring APIs create cross-paragraph text range revisions")
     fs::remove(invalid_target);
 }
 
+TEST_CASE("find text ranges locates body text across paragraphs") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "find_text_ranges_body.docx";
+    fs::remove(target);
+    write_test_docx(target,
+                    R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t xml:space="preserve">Alpha </w:t></w:r>
+      <w:r><w:t>Beta</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:r><w:t xml:space="preserve">Middle </w:t></w:r>
+      <w:r><w:t>Text</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Beta</w:t></w:r>
+      <w:r><w:t xml:space="preserve"> Tail</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)");
+
+    featherdoc::Document document(target);
+    CHECK_FALSE(document.open());
+
+    const auto beta_matches = document.find_text_ranges("Beta");
+    REQUIRE_EQ(beta_matches.size(), 2U);
+    CHECK_EQ(beta_matches[0].start_paragraph_index, 0U);
+    CHECK_EQ(beta_matches[0].start_text_offset, 6U);
+    CHECK_EQ(beta_matches[0].end_paragraph_index, 0U);
+    CHECK_EQ(beta_matches[0].end_text_offset, 10U);
+    CHECK_EQ(beta_matches[0].text, "Beta");
+    CHECK_EQ(beta_matches[1].start_paragraph_index, 2U);
+    CHECK_EQ(beta_matches[1].start_text_offset, 0U);
+    CHECK_EQ(beta_matches[1].end_paragraph_index, 2U);
+    CHECK_EQ(beta_matches[1].end_text_offset, 4U);
+    CHECK_EQ(beta_matches[1].text, "Beta");
+
+    const auto cross_match = document.find_text_ranges("BetaMiddle TextBeta");
+    REQUIRE_EQ(cross_match.size(), 1U);
+    CHECK_EQ(cross_match[0].start_paragraph_index, 0U);
+    CHECK_EQ(cross_match[0].start_text_offset, 6U);
+    CHECK_EQ(cross_match[0].end_paragraph_index, 2U);
+    CHECK_EQ(cross_match[0].end_text_offset, 4U);
+    CHECK_EQ(cross_match[0].text, "BetaMiddle TextBeta");
+    REQUIRE_EQ(cross_match[0].segments.size(), 3U);
+    CHECK_EQ(cross_match[0].segments[0].text, "Beta");
+    CHECK_EQ(cross_match[0].segments[1].text, "Middle Text");
+    CHECK_EQ(cross_match[0].segments[2].text, "Beta");
+
+    CHECK(document.find_text_ranges("Missing").empty());
+    CHECK_FALSE(document.last_error().code);
+    CHECK(document.find_text_ranges("").empty());
+    CHECK_EQ(document.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+}
+
 TEST_CASE("validate_template reports missing required bookmarks") {
     namespace fs = std::filesystem;
 

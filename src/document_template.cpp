@@ -13694,6 +13694,157 @@ std::optional<featherdoc::text_range_preview> Document::preview_text_range(
     return preview;
 }
 
+std::vector<featherdoc::text_range_preview> Document::find_text_ranges(
+    std::string_view text) const {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before finding text ranges",
+                       std::string{document_xml_entry});
+        return {};
+    }
+    if (text.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "search text must not be empty",
+                       std::string{document_xml_entry});
+        return {};
+    }
+
+    struct paragraph_text_range {
+        std::size_t paragraph_index{};
+        std::size_t global_start{};
+        std::size_t text_length{};
+    };
+
+    std::vector<pugi::xml_node> paragraphs;
+    std::vector<paragraph_text_range> paragraph_ranges;
+    std::string document_text;
+    auto body =
+        const_cast<pugi::xml_document &>(this->document)
+            .child("w:document")
+            .child("w:body");
+    std::size_t paragraph_index = 0U;
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::string_view{child.name()} != "w:p") {
+            continue;
+        }
+
+        paragraphs.push_back(child);
+        paragraph_text_range range;
+        range.paragraph_index = paragraph_index;
+        range.global_start = document_text.size();
+        for (const auto &span : collect_paragraph_revision_run_spans(child)) {
+            document_text += span.text;
+        }
+        range.text_length = document_text.size() - range.global_start;
+        paragraph_ranges.push_back(range);
+        ++paragraph_index;
+    }
+
+    const auto map_match_start =
+        [&paragraph_ranges](std::size_t global_offset, std::size_t &mapped_paragraph,
+                            std::size_t &mapped_offset) -> bool {
+        if (paragraph_ranges.empty()) {
+            return false;
+        }
+        for (const auto &range : paragraph_ranges) {
+            if (range.text_length == 0U) {
+                continue;
+            }
+            const auto range_end = range.global_start + range.text_length;
+            if (global_offset < range_end) {
+                mapped_paragraph = range.paragraph_index;
+                mapped_offset = global_offset - range.global_start;
+                return true;
+            }
+        }
+
+        const auto &last = paragraph_ranges.back();
+        mapped_paragraph = last.paragraph_index;
+        mapped_offset = last.text_length;
+        return true;
+    };
+
+    const auto map_match_end =
+        [&paragraph_ranges](std::size_t global_offset, std::size_t &mapped_paragraph,
+                            std::size_t &mapped_offset) -> bool {
+        if (paragraph_ranges.empty()) {
+            return false;
+        }
+
+        std::optional<paragraph_text_range> previous_text_range;
+        for (const auto &range : paragraph_ranges) {
+            if (range.text_length == 0U) {
+                continue;
+            }
+            const auto range_end = range.global_start + range.text_length;
+            if (global_offset > range.global_start && global_offset <= range_end) {
+                mapped_paragraph = range.paragraph_index;
+                mapped_offset = global_offset - range.global_start;
+                return true;
+            }
+            if (global_offset == range.global_start &&
+                previous_text_range.has_value()) {
+                mapped_paragraph = previous_text_range->paragraph_index;
+                mapped_offset = previous_text_range->text_length;
+                return true;
+            }
+            previous_text_range = range;
+        }
+
+        if (previous_text_range.has_value()) {
+            mapped_paragraph = previous_text_range->paragraph_index;
+            mapped_offset = previous_text_range->text_length;
+            return true;
+        }
+
+        const auto &last = paragraph_ranges.back();
+        mapped_paragraph = last.paragraph_index;
+        mapped_offset = last.text_length;
+        return true;
+    };
+
+    std::vector<featherdoc::text_range_preview> matches;
+    std::size_t search_offset = 0U;
+    while (search_offset <= document_text.size()) {
+        const auto match_offset = document_text.find(text, search_offset);
+        if (match_offset == std::string::npos) {
+            break;
+        }
+
+        std::size_t start_paragraph_index = 0U;
+        std::size_t start_text_offset = 0U;
+        std::size_t end_paragraph_index = 0U;
+        std::size_t end_text_offset = 0U;
+        if (!map_match_start(match_offset, start_paragraph_index,
+                             start_text_offset) ||
+            !map_match_end(match_offset + text.size(), end_paragraph_index,
+                           end_text_offset)) {
+            break;
+        }
+
+        paragraph_revision_range_plan plan;
+        std::string range_error;
+        if (!build_paragraph_revision_range_plan(
+                paragraphs, start_paragraph_index, start_text_offset,
+                end_paragraph_index, end_text_offset, plan, range_error)) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           range_error, std::string{document_xml_entry});
+            return {};
+        }
+
+        matches.push_back(preview_paragraph_revision_range_segments(
+            start_paragraph_index, start_text_offset, end_paragraph_index,
+            end_text_offset, plan));
+        search_offset = match_offset + 1U;
+    }
+
+    this->last_error_info.clear();
+    return matches;
+}
+
 std::vector<featherdoc::revision_summary> Document::list_revisions() const {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,

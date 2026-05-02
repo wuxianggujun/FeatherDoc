@@ -18298,6 +18298,90 @@ TEST_CASE("cli text range revision authoring creates cross-paragraph revisions")
     remove_if_exists(inspect_output);
 }
 
+TEST_CASE("cli find text ranges reports paragraph offsets") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_find_text_ranges_source.docx";
+    const fs::path output =
+        working_directory / "cli_find_text_ranges_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    featherdoc::Document source_document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+    auto first = source_document.paragraphs();
+    REQUIRE(first.has_next());
+    REQUIRE(first.add_run("Alpha ").has_next());
+    REQUIRE(first.add_run("Beta").has_next());
+    auto second = first.insert_paragraph_after("Middle ");
+    REQUIRE(second.has_next());
+    REQUIRE(second.add_run("Text").has_next());
+    auto third = second.insert_paragraph_after("Beta ");
+    REQUIRE(third.has_next());
+    REQUIRE(third.add_run("Tail").has_next());
+    REQUIRE_FALSE(source_document.save());
+
+    CHECK_EQ(run_cli({"find-text-ranges",
+                      source.string(),
+                      "--text",
+                      "Beta",
+                      "--json"},
+                     output),
+             0);
+    auto output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("command":"find-text-ranges")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("query":"Beta")"), std::string::npos);
+    CHECK_NE(output_json.find(R"("matches_count":2)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("start_paragraph_index":0)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("start_text_offset":6)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("start_paragraph_index":2)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("start_text_offset":0)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"find-text-ranges",
+                      source.string(),
+                      "--text",
+                      "BetaMiddle TextBeta",
+                      "--json"},
+                     output),
+             0);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("matches_count":1)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("text":"BetaMiddle TextBeta")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("end_paragraph_index":2)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("end_text_offset":4)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("paragraph_index":1,"text_offset":0,"text_length":11,"text":"Middle Text")"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"find-text-ranges", source.string(), "--json"}, output),
+             2);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find("missing --text"), std::string::npos);
+
+    CHECK_EQ(run_cli({"find-text-ranges",
+                      source.string(),
+                      "--text",
+                      "",
+                      "--json"},
+                     output),
+             1);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("stage":"find")"), std::string::npos);
+    CHECK_NE(output_json.find("search text must not be empty"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+}
+
 TEST_CASE("cli review mutation plan previews expected text guards") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =

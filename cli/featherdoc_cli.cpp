@@ -2083,6 +2083,8 @@ void print_usage(std::ostream &stream) {
         << "  featherdoc_cli preview-text-range <input.docx>"
            " <start-paragraph-index> <start-offset>"
            " <end-paragraph-index> <end-offset> [--json]\n"
+        << "  featherdoc_cli find-text-ranges <input.docx>"
+           " --text <text> [--json]\n"
         << "  featherdoc_cli preview-review-mutation-plan <input.docx>"
            " --plan-file <plan.json> [--json]\n"
         << "  featherdoc_cli apply-review-mutation-plan <input.docx>"
@@ -19941,6 +19943,25 @@ void write_json_text_range_preview(
     stream << "]}";
 }
 
+void write_json_text_range_matches(
+    std::ostream &stream, std::string_view command, std::string_view query,
+    const std::vector<featherdoc::text_range_preview> &matches) {
+    stream << "{\"command\":";
+    write_json_string(stream, command);
+    stream << ",\"ok\":true,\"query\":";
+    write_json_string(stream, query);
+    stream << ",\"matches_count\":" << matches.size() << ",\"matches\":[";
+    for (std::size_t index = 0U; index < matches.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        stream << "{\"index\":" << index << ",\"preview\":";
+        write_json_text_range_preview(stream, matches[index]);
+        stream << '}';
+    }
+    stream << "]}\n";
+}
+
 void write_json_omml_summary(std::ostream &stream,
                              const featherdoc::omml_summary &formula) {
     stream << "{\"index\":" << formula.index
@@ -20503,6 +20524,19 @@ void print_text_range_preview(std::ostream &stream,
                << " text_length=" << segment.text_length << " text=";
         write_json_string(stream, segment.text);
     }
+}
+
+void print_text_range_matches(
+    std::ostream &stream, std::string_view query,
+    const std::vector<featherdoc::text_range_preview> &matches) {
+    stream << "query=";
+    write_json_string(stream, query);
+    stream << " matches_count=" << matches.size();
+    for (std::size_t index = 0U; index < matches.size(); ++index) {
+        stream << '\n' << "match index=" << index << ' ';
+        print_text_range_preview(stream, matches[index]);
+    }
+    stream << '\n';
 }
 
 void print_omml_summary(std::ostream &stream,
@@ -47788,6 +47822,66 @@ int main(int argc, char **argv) {
         }
 
         inspect_review(footnotes, endnotes, comments, revisions, json_output);
+        return 0;
+    }
+
+    if (command == "find-text-ranges") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command, "find-text-ranges expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        std::optional<std::string> query_text;
+        for (std::size_t index = 2U; index < arguments.size(); ++index) {
+            const auto argument = arguments[index];
+            if (argument == "--text") {
+                if (query_text.has_value()) {
+                    print_parse_error(command, "duplicate --text option",
+                                      json_output);
+                    return 2;
+                }
+                if (index + 1U >= arguments.size()) {
+                    print_parse_error(command, "missing value after --text",
+                                      json_output);
+                    return 2;
+                }
+                query_text = std::string(arguments[index + 1U]);
+                ++index;
+                continue;
+            }
+            if (argument == "--json") {
+                continue;
+            }
+
+            print_parse_error(command, "unknown option: " + std::string(argument),
+                              json_output);
+            return 2;
+        }
+
+        if (!query_text.has_value()) {
+            print_parse_error(command, "missing --text <text>", json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           json_output)) {
+            return 1;
+        }
+
+        const auto matches = doc.find_text_ranges(*query_text);
+        if (const auto &error_info = doc.last_error(); error_info.code) {
+            report_document_error(command, "find", error_info, json_output);
+            return 1;
+        }
+
+        if (json_output) {
+            write_json_text_range_matches(std::cout, command, *query_text,
+                                          matches);
+        } else {
+            print_text_range_matches(std::cout, *query_text, matches);
+        }
         return 0;
     }
 

@@ -2810,6 +2810,8 @@ class Document {
                        std::size_t start_text_offset,
                        std::size_t end_paragraph_index,
                        std::size_t end_text_offset) const;
+    [[nodiscard]] std::vector<featherdoc::text_range_preview>
+    find_text_ranges(std::string_view text) const;
     [[nodiscard]] bool set_revision_metadata(
         std::size_t revision_index,
         const featherdoc::revision_metadata_update &metadata);
