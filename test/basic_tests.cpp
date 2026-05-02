@@ -10365,6 +10365,57 @@ TEST_CASE("review comments can target paragraph text ranges") {
     fs::remove(invalid_target);
 }
 
+TEST_CASE("review comment inspection preserves nested anchor text") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "review_comments_nested_anchor_text.docx";
+    fs::remove(target);
+
+    write_test_docx(
+        target,
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r><w:t xml:space="preserve">Alpha </w:t></w:r>
+      <w:r><w:t>Beta</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)");
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+    CHECK_EQ(doc.append_paragraph_text_comment(
+                 0U, 0U, 10U, "Outer comment", "Outer", "OC",
+                 "2026-05-03T14:00:00Z"),
+             1U);
+    CHECK_EQ(doc.append_paragraph_text_comment(
+                 0U, 6U, 4U, "Inner comment", "Inner", "IC",
+                 "2026-05-03T14:01:00Z"),
+             1U);
+
+    auto comments = doc.list_comments();
+    REQUIRE_EQ(comments.size(), 2U);
+    REQUIRE(comments[0].anchor_text.has_value());
+    CHECK_EQ(*comments[0].anchor_text, "Alpha Beta");
+    REQUIRE(comments[1].anchor_text.has_value());
+    CHECK_EQ(*comments[1].anchor_text, "Beta");
+    CHECK_FALSE(doc.save());
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    comments = reopened.list_comments();
+    REQUIRE_EQ(comments.size(), 2U);
+    REQUIRE(comments[0].anchor_text.has_value());
+    CHECK_EQ(*comments[0].anchor_text, "Alpha Beta");
+    REQUIRE(comments[1].anchor_text.has_value());
+    CHECK_EQ(*comments[1].anchor_text, "Beta");
+
+    fs::remove(target);
+}
+
 TEST_CASE("revisions can be accepted and rejected") {
     namespace fs = std::filesystem;
 

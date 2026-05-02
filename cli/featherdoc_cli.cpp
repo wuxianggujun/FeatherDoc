@@ -37946,6 +37946,28 @@ auto compare_review_mutation_plan_range_end(
         right.end_paragraph_index, right.end_text_offset);
 }
 
+auto is_review_mutation_plan_range_empty(
+    const review_mutation_plan_range &range) -> bool {
+    return compare_review_mutation_plan_position(
+               range.start_paragraph_index, range.start_text_offset,
+               range.end_paragraph_index, range.end_text_offset) == 0;
+}
+
+auto review_mutation_plan_ranges_overlap(
+    const review_mutation_plan_range &left,
+    const review_mutation_plan_range &right) -> bool {
+    if (is_review_mutation_plan_range_empty(left) ||
+        is_review_mutation_plan_range_empty(right)) {
+        return false;
+    }
+    return compare_review_mutation_plan_position(
+               left.start_paragraph_index, left.start_text_offset,
+               right.end_paragraph_index, right.end_text_offset) < 0 &&
+           compare_review_mutation_plan_position(
+               right.start_paragraph_index, right.start_text_offset,
+               left.end_paragraph_index, left.end_text_offset) < 0;
+}
+
 auto collect_review_mutation_plan_ranges(
     const std::vector<review_mutation_plan_operation> &operations,
     std::vector<review_mutation_plan_range> &ranges,
@@ -37977,39 +37999,22 @@ auto find_review_mutation_plan_overlap(
         return true;
     }
 
-    std::stable_sort(ranges.begin(), ranges.end(),
-                     [](const auto &left, const auto &right) {
-                         const auto start_order =
-                             compare_review_mutation_plan_range_start(left,
-                                                                      right);
-                         if (start_order != 0) {
-                             return start_order < 0;
-                         }
-                         return compare_review_mutation_plan_range_end(left,
-                                                                       right) < 0;
-                     });
-
-    for (std::size_t index = 1U; index < ranges.size(); ++index) {
-        const auto &previous = ranges[index - 1U];
-        const auto &current = ranges[index];
-        if (previous.operation_index == current.operation_index) {
-            continue;
-        }
-        const auto previous_is_empty =
-            compare_review_mutation_plan_position(
-                previous.start_paragraph_index, previous.start_text_offset,
-                previous.end_paragraph_index, previous.end_text_offset) == 0;
-        const auto current_is_empty =
-            compare_review_mutation_plan_position(
-                current.start_paragraph_index, current.start_text_offset,
-                current.end_paragraph_index, current.end_text_offset) == 0;
-        if (previous_is_empty || current_is_empty) {
-            continue;
-        }
-
-        if (compare_review_mutation_plan_position(
-                current.start_paragraph_index, current.start_text_offset,
-                previous.end_paragraph_index, previous.end_text_offset) < 0) {
+    for (std::size_t left_index = 0U; left_index < ranges.size();
+         ++left_index) {
+        for (std::size_t right_index = left_index + 1U;
+             right_index < ranges.size(); ++right_index) {
+            const auto &previous = ranges[left_index];
+            const auto &current = ranges[right_index];
+            const auto previous_is_comment =
+                is_review_mutation_plan_comment_operation(
+                    operations[previous.operation_index].kind);
+            const auto current_is_comment =
+                is_review_mutation_plan_comment_operation(
+                    operations[current.operation_index].kind);
+            if ((previous_is_comment && current_is_comment) ||
+                !review_mutation_plan_ranges_overlap(previous, current)) {
+                continue;
+            }
             error_message = "review mutation plan operation ranges overlap: "
                             "operation " +
                             std::to_string(previous.operation_index) +
@@ -38033,10 +38038,23 @@ auto build_review_mutation_plan_apply_order(
     }
 
     std::stable_sort(ranges.begin(), ranges.end(),
-                     [](const auto &left, const auto &right) {
+                     [&operations](const auto &left, const auto &right) {
+                         const auto left_is_comment =
+                             is_review_mutation_plan_comment_operation(
+                                 operations[left.operation_index].kind);
+                         const auto right_is_comment =
+                             is_review_mutation_plan_comment_operation(
+                                 operations[right.operation_index].kind);
                          const auto start_order =
                              compare_review_mutation_plan_range_start(left,
                                                                       right);
+                         if (left_is_comment && right_is_comment) {
+                             if (start_order != 0) {
+                                 return start_order < 0;
+                             }
+                             return compare_review_mutation_plan_range_end(
+                                        left, right) > 0;
+                         }
                          if (start_order != 0) {
                              return start_order > 0;
                          }

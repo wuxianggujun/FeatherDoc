@@ -1916,47 +1916,59 @@ auto summarize_comments_from_part(pugi::xml_document &xml_document)
 void collect_comment_anchor_text_by_id(
     pugi::xml_node node,
     std::unordered_map<std::string, std::string> &anchor_text_by_id,
-    std::optional<std::string> &active_comment_id) {
+    std::vector<std::string> &active_comment_ids) {
     for (auto child = node.first_child(); child != pugi::xml_node{};
          child = child.next_sibling()) {
         const auto name = std::string_view{child.name()};
         if (name == "w:commentRangeStart") {
             const auto id = std::string{child.attribute("w:id").value()};
             if (!id.empty()) {
-                active_comment_id = id;
+                active_comment_ids.push_back(id);
                 anchor_text_by_id.try_emplace(id, std::string{});
             }
             continue;
         }
 
         if (name == "w:commentRangeEnd") {
-            const auto id = std::string_view{child.attribute("w:id").value()};
-            if (active_comment_id.has_value() && *active_comment_id == id) {
-                active_comment_id.reset();
+            const auto id = std::string{child.attribute("w:id").value()};
+            if (!id.empty()) {
+                const auto match =
+                    std::find(active_comment_ids.rbegin(),
+                              active_comment_ids.rend(), id);
+                if (match != active_comment_ids.rend()) {
+                    active_comment_ids.erase(std::next(match).base());
+                }
             }
             continue;
         }
 
-        if (active_comment_id.has_value()) {
+        if (!active_comment_ids.empty()) {
             if (name == "w:t" || name == "w:delText") {
-                anchor_text_by_id[*active_comment_id] += child.text().get();
+                for (const auto &active_comment_id : active_comment_ids) {
+                    anchor_text_by_id[active_comment_id] += child.text().get();
+                }
             } else if (name == "w:tab") {
-                anchor_text_by_id[*active_comment_id].push_back('\t');
+                for (const auto &active_comment_id : active_comment_ids) {
+                    anchor_text_by_id[active_comment_id].push_back('\t');
+                }
             } else if (name == "w:br" || name == "w:cr") {
-                anchor_text_by_id[*active_comment_id].push_back('\n');
+                for (const auto &active_comment_id : active_comment_ids) {
+                    anchor_text_by_id[active_comment_id].push_back('\n');
+                }
             }
         }
 
         collect_comment_anchor_text_by_id(child, anchor_text_by_id,
-                                          active_comment_id);
+                                          active_comment_ids);
     }
 }
 
 auto comment_anchor_text_by_id_from_part(pugi::xml_node root)
     -> std::unordered_map<std::string, std::string> {
     std::unordered_map<std::string, std::string> anchor_text_by_id;
-    std::optional<std::string> active_comment_id;
-    collect_comment_anchor_text_by_id(root, anchor_text_by_id, active_comment_id);
+    std::vector<std::string> active_comment_ids;
+    collect_comment_anchor_text_by_id(root, anchor_text_by_id,
+                                      active_comment_ids);
     return anchor_text_by_id;
 }
 

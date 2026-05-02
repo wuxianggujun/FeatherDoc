@@ -19044,6 +19044,76 @@ TEST_CASE("cli review mutation plan applies guarded revisions atomically") {
     remove_if_exists(inspect_output);
 }
 
+TEST_CASE("cli review mutation plan allows overlapping comment anchors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_review_mutation_plan_comment_overlap_source.docx";
+    const fs::path applied =
+        working_directory / "cli_review_mutation_plan_comment_overlap_output.docx";
+    const fs::path plan =
+        working_directory / "cli_review_mutation_plan_comment_overlap.json";
+    const fs::path output =
+        working_directory / "cli_review_mutation_plan_comment_overlap_output.json";
+    const fs::path inspect_output =
+        working_directory / "cli_review_mutation_plan_comment_overlap_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(applied);
+    remove_if_exists(plan);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    featherdoc::Document source_document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+    auto paragraph = source_document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    REQUIRE(paragraph.add_run("Alpha ").has_next());
+    REQUIRE(paragraph.add_run("Beta").has_next());
+    REQUIRE_FALSE(source_document.save());
+
+    write_binary_file(
+        plan,
+        R"({"operations":[)"
+        R"({"kind":"append_paragraph_text_comment","paragraph_index":0,"text_offset":0,"text_length":10,"comment_text":"Check the full phrase.","expected_text":"Alpha Beta","author":"Outer Commenter","initials":"OC","date":"2026-05-03T14:00:00Z"},)"
+        R"({"kind":"append_paragraph_text_comment","paragraph_index":0,"text_offset":6,"text_length":4,"comment_text":"Check the nested word.","expected_text":"Beta","author":"Inner Commenter","initials":"IC","date":"2026-05-03T14:01:00Z"}]})");
+    CHECK_EQ(run_cli({"apply-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      plan.string(),
+                      "--output",
+                      applied.string(),
+                      "--json"},
+                     output),
+             0);
+    auto output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("operations_count":2)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("applied_count":2)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("failed_count":0)"), std::string::npos);
+    CHECK(fs::exists(applied));
+
+    CHECK_EQ(run_cli({"inspect-review", applied.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("comments_count":2)"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("anchor_text":"Alpha Beta")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("anchor_text":"Beta")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Check the full phrase.")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Check the nested word.")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("initials":"OC")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("initials":"IC")"), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(applied);
+    remove_if_exists(plan);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
 TEST_CASE("cli revision mutation accepts and rejects revisions") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_revision_mutation_source.docx";

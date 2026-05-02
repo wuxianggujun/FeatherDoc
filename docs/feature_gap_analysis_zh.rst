@@ -295,9 +295,10 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   跨段落文本区间批注，以及修订插入 / 删除 / 替换操作逐项执行只读预检，并在 JSON 输出中返回
   ``expected_text``、实际选中文本和分段 preview，供批量审阅编辑在写入前
   拦截漂移
-- ``apply-review-mutation-plan`` 可复用同一 JSON 计划批量写入修订；执行前会
-  对全部操作先做 preview / ``expected_text`` guard，拒绝重叠范围，并按正文
-  位置从后往前写入，降低多操作批量应用时的 offset 漂移风险
+- ``apply-review-mutation-plan`` 可复用同一 JSON 计划批量写入修订和批注；
+  执行前会对全部操作先做 preview / ``expected_text`` guard；仍会拒绝涉及
+  正文变更的重叠范围，但允许多个只读批注锚点重叠或嵌套，并保留
+  ``inspect-review`` 可审计的完整外层锚点文本
 - ``accept_revision(...)`` / ``reject_revision(...)`` 以及批量接受 / 拒绝入口
   已覆盖第一版修订清理工作流
 - ``set_revision_metadata(...)`` 可设置或清除既有修订的 author 和 date
