@@ -274,9 +274,10 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
 - ``append_footnote(...)`` / ``replace_footnote(...)`` / ``remove_footnote(...)``
   和对应 endnote API 已覆盖脚注 / 尾注创建、改写和删除
 - ``append_comment(...)`` / ``replace_comment(...)`` / ``remove_comment(...)``
-  已覆盖第一版批注创建、改写和删除
+  已覆盖批注创建、改写和删除；创建时可写入 author / initials / date
 - ``append_comment_reply(...)`` 可通过 ``commentsExtended.xml`` 为既有批注
-  追加线程化回复，删除父批注时会同步清理子回复
+  追加线程化回复，并可写入 author / initials / date；删除父批注时会同步
+  清理子回复
 - ``append_paragraph_text_comment(...)`` / ``append_text_range_comment(...)``
   可把批注原位绑定到正文段落纯文本区间或跨段落半开区间
 - ``set_paragraph_text_comment_range(...)`` /

@@ -18248,6 +18248,8 @@ TEST_CASE("cli review note mutation updates notes and comments") {
                       "CLI Reviewer",
                       "--initials",
                       "CR",
+                      "--date",
+                      "2026-05-02T11:00:00Z",
                       "--output",
                       comment_added.string(),
                       "--json"},
@@ -18262,6 +18264,8 @@ TEST_CASE("cli review note mutation updates notes and comments") {
     CHECK_NE(appended_comment_json.find(R"("anchor_text":"New commented text")"),
              std::string::npos);
     CHECK_NE(appended_comment_json.find(R"("text":"Added comment body")"),
+             std::string::npos);
+    CHECK_NE(appended_comment_json.find(R"("date":"2026-05-02T11:00:00Z")"),
              std::string::npos);
     CHECK_EQ(run_cli({"replace-comment",
                       comment_added.string(),
@@ -18373,6 +18377,8 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
                       "CLI Commenter",
                       "--initials",
                       "CC",
+                      "--date",
+                      "2026-05-02T10:00:00Z",
                       "--output",
                       paragraph_comment.string(),
                       "--json"},
@@ -18395,6 +18401,8 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
                       "CLI Cross Commenter",
                       "--initials",
                       "CX",
+                      "--date",
+                      "2026-05-02T10:10:00Z",
                       "--output",
                       cross_comment.string(),
                       "--json"},
@@ -18419,6 +18427,10 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
     CHECK_NE(inspect_json.find(R"("text":"CLI paragraph range comment")"),
              std::string::npos);
     CHECK_NE(inspect_json.find(R"("text":"CLI cross paragraph comment")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("date":"2026-05-02T10:00:00Z")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("date":"2026-05-02T10:10:00Z")"),
              std::string::npos);
 
     CHECK_EQ(run_cli({"set-paragraph-text-comment-range",
@@ -18494,6 +18506,8 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
                       "CLI Responder",
                       "--initials",
                       "RS",
+                      "--date",
+                      "2026-05-02T10:20:00Z",
                       "--output",
                       threaded.string(),
                       "--json"},
@@ -18509,6 +18523,8 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
     const auto threaded_json = read_text_file(inspect_output);
     CHECK_NE(threaded_json.find(R"("comments_count":3)"), std::string::npos);
     CHECK_NE(threaded_json.find(R"("text":"CLI threaded reply")"),
+             std::string::npos);
+    CHECK_NE(threaded_json.find(R"("date":"2026-05-02T10:20:00Z")"),
              std::string::npos);
     CHECK_NE(threaded_json.find(R"("parent_index":1)"), std::string::npos);
     CHECK_NE(threaded_json.find(R"("parent_id":")"), std::string::npos);

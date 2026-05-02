@@ -37,6 +37,7 @@ function Assert-GeneratedDocxEvidence { param([string]$DocxPath)
     if (-not $commentsXml.Contains("Replaced visual comment body")) { throw "Missing replaced comment body evidence" }
     if (-not $commentsXml.Contains("In-place range comment body")) { throw "Missing in-place comment range evidence" }
     if (-not $commentsXml.Contains("Threaded visual reply body")) { throw "Missing threaded comment reply evidence" }
+    foreach ($text in @('w:date="2026-05-02T12:00:00Z"','w:date="2026-05-02T12:10:00Z"','w:date="2026-05-02T12:20:00Z"')) { if (-not $commentsXml.Contains($text)) { throw "Missing dated comment evidence: $text" } }
     if (-not $commentsXml.Contains("w14:paraId")) { throw "Missing comment paragraph id evidence" }
     foreach ($text in @("<w15:commentEx","w15:done=`"1`"","w15:paraIdParent=`"")) { if (-not $commentsExtendedXml.Contains($text)) { throw "Missing threaded or resolved comment evidence: $text" } }
     if ($commentsXml.Contains("Removed visual comment body")) { throw "Removed comment body still exists" }

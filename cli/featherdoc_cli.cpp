@@ -1105,10 +1105,12 @@ struct comment_mutation_options : simple_document_mutation_options {
     std::string comment_text;
     std::string author;
     std::string initials;
+    std::string date;
     bool has_selected_text = false;
     bool has_comment_text = false;
     bool has_author = false;
     bool has_initials = false;
+    bool has_date = false;
 };
 
 struct revision_authoring_options : simple_document_mutation_options {
@@ -2107,20 +2109,20 @@ void print_usage(std::ostream &stream) {
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli append-comment <input.docx>"
            " --selected-text <text> --comment-text <text>"
-           " [--author <name>] [--initials <text>]"
+           " [--author <name>] [--initials <text>] [--date <iso>]"
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli append-paragraph-text-comment <input.docx>"
            " <paragraph-index> <offset> <length> --comment-text <text>"
-           " [--author <name>] [--initials <text>]"
+           " [--author <name>] [--initials <text>] [--date <iso>]"
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli append-text-range-comment <input.docx>"
            " <start-paragraph-index> <start-offset>"
            " <end-paragraph-index> <end-offset> --comment-text <text>"
-           " [--author <name>] [--initials <text>]"
+           " [--author <name>] [--initials <text>] [--date <iso>]"
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli append-comment-reply <input.docx>"
            " <parent-comment-index> --comment-text <text>"
-           " [--author <name>] [--initials <text>]"
+           " [--author <name>] [--initials <text>] [--date <iso>]"
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli set-paragraph-text-comment-range <input.docx>"
            " <comment-index> <paragraph-index> <offset> <length>"
@@ -14322,6 +14324,21 @@ auto parse_comment_mutation_options(
             }
             options.initials = std::string(arguments[index + 1U]);
             options.has_initials = true;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--date") {
+            if (options.has_date) {
+                error_message = "duplicate --date option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --date";
+                return false;
+            }
+            options.date = std::string(arguments[index + 1U]);
+            options.has_date = true;
             ++index;
             continue;
         }
@@ -47194,12 +47211,13 @@ int main(int argc, char **argv) {
         if (paragraph_range) {
             affected = doc.append_paragraph_text_comment(
                 start_paragraph_index, start_text_offset, text_length,
-                options.comment_text, options.author, options.initials);
+                options.comment_text, options.author, options.initials,
+                options.date);
         } else {
             affected = doc.append_text_range_comment(
                 start_paragraph_index, start_text_offset, end_paragraph_index,
                 end_text_offset, options.comment_text, options.author,
-                options.initials);
+                options.initials, options.date);
         }
         if (affected == 0U) {
             report_document_error(command, "mutate", doc.last_error(),
@@ -47399,7 +47417,7 @@ int main(int argc, char **argv) {
 
         const auto affected = doc.append_comment_reply(
             parent_comment_index, options.comment_text, options.author,
-            options.initials);
+            options.initials, options.date);
         if (affected == 0U) {
             report_document_error(command, "mutate", doc.last_error(),
                                   options.json_output);
@@ -47535,7 +47553,7 @@ int main(int argc, char **argv) {
         if (append) {
             affected = doc.append_comment(options.selected_text,
                                           options.comment_text, options.author,
-                                          options.initials);
+                                          options.initials, options.date);
         } else if (replace) {
             affected = doc.replace_comment(comment_index, options.comment_text) ? 1U
                                                                                 : 0U;

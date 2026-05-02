@@ -176,7 +176,8 @@ bool mutate_with_typed_apis(const fs::path &path) {
     }
 
     if (document.append_comment("Commented typed API text",
-                                "Original visual comment", "Reviewer", "RV") != 1U ||
+                                "Original visual comment", "Reviewer", "RV",
+                                "2026-05-02T12:00:00Z") != 1U ||
         !document.replace_comment(0U, "Replaced visual comment body") ||
         document.append_comment("Removed comment text",
                                 "Removed visual comment body") != 1U ||
@@ -191,12 +192,13 @@ bool mutate_with_typed_apis(const fs::path &path) {
     if (!comment_range_paragraph.has_next() ||
         document.append_paragraph_text_comment(
             comment_range_paragraph_index, 9U, 9U, "In-place range comment body",
-            "Reviewer", "RV") != 1U ||
+            "Reviewer", "RV", "2026-05-02T12:10:00Z") != 1U ||
         !document.set_paragraph_text_comment_range(
             1U, comment_range_paragraph_index, 19U, 5U) ||
         !document.set_comment_resolved(1U, true) ||
         document.append_comment_reply(1U, "Threaded visual reply body",
-                                      "Responder", "RS") != 1U) {
+                                      "Responder", "RS",
+                                      "2026-05-02T12:20:00Z") != 1U) {
         std::cerr << "in-place comment range authoring failed: "
                   << document.last_error().detail << '\n';
         return false;
@@ -241,12 +243,15 @@ bool verify_api(const fs::path &path) {
            endnotes.size() == 1U && endnotes.front().text == "Replaced visual endnote body" &&
            comments.size() == 3U && comments[0].text == "Replaced visual comment body" &&
            comments[0].anchor_text == std::optional<std::string>{"Commented typed API text"} &&
+           comments[0].date == std::optional<std::string>{"2026-05-02T12:00:00Z"} &&
            comments[1].text == "In-place range comment body" &&
            comments[1].anchor_text == std::optional<std::string>{"range"} &&
            comments[1].resolved &&
+           comments[1].date == std::optional<std::string>{"2026-05-02T12:10:00Z"} &&
            comments[2].text == "Threaded visual reply body" &&
            comments[2].parent_index == std::optional<std::size_t>{1U} &&
            comments[2].parent_id == std::optional<std::string>{comments[1].id} &&
+           comments[2].date == std::optional<std::string>{"2026-05-02T12:20:00Z"} &&
            revisions.empty() && hyperlinks.size() == 1U &&
            hyperlinks.front().text == "Typed hyperlink" && equations.size() == 2U;
 }

@@ -2673,19 +2673,22 @@ class Document {
     [[nodiscard]] std::size_t append_comment(std::string_view selected_text,
                                              std::string_view comment_text,
                                              std::string_view author = {},
-                                             std::string_view initials = {});
+                                             std::string_view initials = {},
+                                             std::string_view date = {});
     [[nodiscard]] std::size_t append_paragraph_text_comment(
         std::size_t paragraph_index, std::size_t text_offset,
         std::size_t text_length, std::string_view comment_text,
-        std::string_view author = {}, std::string_view initials = {});
+        std::string_view author = {}, std::string_view initials = {},
+        std::string_view date = {});
     [[nodiscard]] std::size_t append_text_range_comment(
         std::size_t start_paragraph_index, std::size_t start_text_offset,
         std::size_t end_paragraph_index, std::size_t end_text_offset,
         std::string_view comment_text, std::string_view author = {},
-        std::string_view initials = {});
+        std::string_view initials = {}, std::string_view date = {});
     [[nodiscard]] std::size_t append_comment_reply(
         std::size_t parent_comment_index, std::string_view comment_text,
-        std::string_view author = {}, std::string_view initials = {});
+        std::string_view author = {}, std::string_view initials = {},
+        std::string_view date = {});
     [[nodiscard]] bool set_paragraph_text_comment_range(
         std::size_t comment_index, std::size_t paragraph_index,
         std::size_t text_offset, std::size_t text_length);

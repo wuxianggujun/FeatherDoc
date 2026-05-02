@@ -11813,7 +11813,8 @@ std::vector<featherdoc::review_note_summary> Document::list_comments() const {
 std::size_t Document::append_comment(std::string_view selected_text,
                                      std::string_view comment_text,
                                      std::string_view author,
-                                     std::string_view initials) {
+                                     std::string_view initials,
+                                     std::string_view date) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before appending a comment",
@@ -11857,6 +11858,9 @@ std::size_t Document::append_comment(std::string_view selected_text,
     }
     if (!initials.empty()) {
         ensure_attribute_value(comment, "w:initials", initials);
+    }
+    if (!date.empty()) {
+        ensure_attribute_value(comment, "w:date", date);
     }
     if (!set_comment_text(comment, comment_text)) {
         root.remove_child(comment);
@@ -11903,7 +11907,8 @@ std::size_t Document::append_comment(std::string_view selected_text,
 std::size_t Document::append_paragraph_text_comment(
     std::size_t paragraph_index, std::size_t text_offset,
     std::size_t text_length, std::string_view comment_text,
-    std::string_view author, std::string_view initials) {
+    std::string_view author, std::string_view initials,
+    std::string_view date) {
     if (text_length > std::numeric_limits<std::size_t>::max() - text_offset) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
@@ -11914,14 +11919,14 @@ std::size_t Document::append_paragraph_text_comment(
     return this->append_text_range_comment(paragraph_index, text_offset,
                                            paragraph_index,
                                            text_offset + text_length,
-                                           comment_text, author, initials);
+                                           comment_text, author, initials, date);
 }
 
 std::size_t Document::append_text_range_comment(
     std::size_t start_paragraph_index, std::size_t start_text_offset,
     std::size_t end_paragraph_index, std::size_t end_text_offset,
     std::string_view comment_text, std::string_view author,
-    std::string_view initials) {
+    std::string_view initials, std::string_view date) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before appending a text range comment",
@@ -12025,6 +12030,12 @@ std::size_t Document::append_text_range_comment(
     if (!initials.empty()) {
         ensure_attribute_value(comment, "w:initials", initials);
     }
+    if (!date.empty()) {
+        ensure_attribute_value(comment, "w:date", date);
+    }
+    if (!date.empty()) {
+        ensure_attribute_value(comment, "w:date", date);
+    }
     if (!set_comment_text(comment, comment_text)) {
         root.remove_child(comment);
         remove_comment_markers_by_id(this->document, comment_id_text);
@@ -12042,7 +12053,8 @@ std::size_t Document::append_text_range_comment(
 
 std::size_t Document::append_comment_reply(
     std::size_t parent_comment_index, std::string_view comment_text,
-    std::string_view author, std::string_view initials) {
+    std::string_view author, std::string_view initials,
+    std::string_view date) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before appending a comment reply",
@@ -12110,6 +12122,9 @@ std::size_t Document::append_comment_reply(
     }
     if (!initials.empty()) {
         ensure_attribute_value(reply, "w:initials", initials);
+    }
+    if (!date.empty()) {
+        ensure_attribute_value(reply, "w:date", date);
     }
     if (!set_comment_text(reply, comment_text)) {
         comments_root.remove_child(reply);

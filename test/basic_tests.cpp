@@ -10107,11 +10107,13 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
     CHECK_EQ(doc.append_endnote("Removed endnote anchor ", "Removed endnote"), 1U);
     CHECK(doc.remove_endnote(1U));
 
-    CHECK_EQ(doc.append_comment("Commented text", "Original comment", "Reviewer", "RV"),
+    CHECK_EQ(doc.append_comment("Commented text", "Original comment", "Reviewer", "RV",
+                                "2026-05-02T08:00:00Z"),
              1U);
     CHECK(doc.replace_comment(0U, "Replaced comment"));
     CHECK(doc.set_comment_resolved(0U, true));
-    CHECK_EQ(doc.append_comment_reply(0U, "Reply comment", "Responder", "RS"),
+    CHECK_EQ(doc.append_comment_reply(0U, "Reply comment", "Responder", "RS",
+                                      "2026-05-02T08:05:00Z"),
              1U);
     CHECK_EQ(doc.append_comment("Removed comment text", "Removed comment"), 1U);
     CHECK(doc.set_comment_resolved(2U, true));
@@ -10131,9 +10133,13 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
     CHECK(comments.front().resolved);
     REQUIRE(comments.front().author.has_value());
     CHECK_EQ(*comments.front().author, "Reviewer");
+    CHECK_EQ(comments.front().date,
+             std::optional<std::string>{"2026-05-02T08:00:00Z"});
     CHECK_EQ(comments[1].text, "Reply comment");
     CHECK_EQ(comments[1].parent_index, std::optional<std::size_t>{0U});
     CHECK_EQ(comments[1].parent_id, std::optional<std::string>{comments[0].id});
+    CHECK_EQ(comments[1].date,
+             std::optional<std::string>{"2026-05-02T08:05:00Z"});
     CHECK_FALSE(comments[1].anchor_text.has_value());
 
     CHECK_FALSE(doc.replace_footnote(4U, "Missing"));
@@ -10155,6 +10161,10 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
     const auto comments_xml = read_test_docx_entry(target, "word/comments.xml");
     CHECK_NE(comments_xml.find("Replaced comment"), std::string::npos);
     CHECK_NE(comments_xml.find("Reply comment"), std::string::npos);
+    CHECK_NE(comments_xml.find("w:date=\"2026-05-02T08:00:00Z\""),
+             std::string::npos);
+    CHECK_NE(comments_xml.find("w:date=\"2026-05-02T08:05:00Z\""),
+             std::string::npos);
     CHECK_EQ(comments_xml.find("Removed comment"), std::string::npos);
     CHECK_NE(comments_xml.find("w14:paraId"), std::string::npos);
     const auto comments_extended_xml =
@@ -10182,8 +10192,12 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
     comments = reopened.list_comments();
     REQUIRE_EQ(comments.size(), 2U);
     CHECK(comments.front().resolved);
+    CHECK_EQ(comments.front().date,
+             std::optional<std::string>{"2026-05-02T08:00:00Z"});
     CHECK_EQ(comments[1].parent_index, std::optional<std::size_t>{0U});
     CHECK_EQ(comments[1].parent_id, std::optional<std::string>{comments[0].id});
+    CHECK_EQ(comments[1].date,
+             std::optional<std::string>{"2026-05-02T08:05:00Z"});
     CHECK(reopened.set_comment_resolved(0U, false));
     comments = reopened.list_comments();
     REQUIRE_EQ(comments.size(), 2U);
@@ -10250,10 +10264,12 @@ TEST_CASE("review comments can target paragraph text ranges") {
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.open());
     CHECK_EQ(doc.append_paragraph_text_comment(
-                 0U, 0U, 3U, "Paragraph range comment", "Reviewer", "RV"),
+                 0U, 0U, 3U, "Paragraph range comment", "Reviewer", "RV",
+                 "2026-05-02T09:00:00Z"),
              1U);
     CHECK_EQ(doc.append_text_range_comment(
-                 0U, 6U, 2U, 5U, "Cross paragraph comment", "Cross", "CP"),
+                 0U, 6U, 2U, 5U, "Cross paragraph comment", "Cross", "CP",
+                 "2026-05-02T09:10:00Z"),
              1U);
 
     auto comments = doc.list_comments();
@@ -10263,9 +10279,13 @@ TEST_CASE("review comments can target paragraph text ranges") {
     CHECK_EQ(comments[0].text, "Paragraph range comment");
     REQUIRE(comments[0].author.has_value());
     CHECK_EQ(*comments[0].author, "Reviewer");
+    CHECK_EQ(comments[0].date,
+             std::optional<std::string>{"2026-05-02T09:00:00Z"});
     REQUIRE(comments[1].anchor_text.has_value());
     CHECK_EQ(*comments[1].anchor_text, "Beta GammaMiddle TextGamma");
     CHECK_EQ(comments[1].text, "Cross paragraph comment");
+    CHECK_EQ(comments[1].date,
+             std::optional<std::string>{"2026-05-02T09:10:00Z"});
 
     CHECK_FALSE(doc.save());
     const auto document_xml = read_test_docx_entry(target, test_document_xml_entry);
@@ -10275,6 +10295,10 @@ TEST_CASE("review comments can target paragraph text ranges") {
     const auto comments_xml = read_test_docx_entry(target, "word/comments.xml");
     CHECK_NE(comments_xml.find("Paragraph range comment"), std::string::npos);
     CHECK_NE(comments_xml.find("Cross paragraph comment"), std::string::npos);
+    CHECK_NE(comments_xml.find("w:date=\"2026-05-02T09:00:00Z\""),
+             std::string::npos);
+    CHECK_NE(comments_xml.find("w:date=\"2026-05-02T09:10:00Z\""),
+             std::string::npos);
 
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
@@ -10282,6 +10306,10 @@ TEST_CASE("review comments can target paragraph text ranges") {
     REQUIRE_EQ(comments.size(), 2U);
     REQUIRE(comments[1].anchor_text.has_value());
     CHECK_EQ(*comments[1].anchor_text, "Beta GammaMiddle TextGamma");
+    CHECK_EQ(comments[0].date,
+             std::optional<std::string>{"2026-05-02T09:00:00Z"});
+    CHECK_EQ(comments[1].date,
+             std::optional<std::string>{"2026-05-02T09:10:00Z"});
     CHECK(reopened.set_paragraph_text_comment_range(0U, 0U, 6U, 4U));
     CHECK(reopened.set_text_range_comment_range(1U, 1U, 0U, 2U, 5U));
     comments = reopened.list_comments();
