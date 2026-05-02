@@ -693,6 +693,15 @@ struct review_note_summary {
     std::string text;
 };
 
+struct comment_metadata_update {
+    std::optional<std::string> author;
+    std::optional<std::string> initials;
+    std::optional<std::string> date;
+    bool clear_author{false};
+    bool clear_initials{false};
+    bool clear_date{false};
+};
+
 enum class revision_kind : std::uint8_t {
     insertion = 0U,
     deletion,
@@ -2689,6 +2698,9 @@ class Document {
         std::size_t parent_comment_index, std::string_view comment_text,
         std::string_view author = {}, std::string_view initials = {},
         std::string_view date = {});
+    [[nodiscard]] bool set_comment_metadata(
+        std::size_t comment_index,
+        const featherdoc::comment_metadata_update &metadata);
     [[nodiscard]] bool set_paragraph_text_comment_range(
         std::size_t comment_index, std::size_t paragraph_index,
         std::size_t text_offset, std::size_t text_length);

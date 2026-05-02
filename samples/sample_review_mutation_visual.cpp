@@ -203,6 +203,15 @@ bool mutate_with_typed_apis(const fs::path &path) {
                   << document.last_error().detail << '\n';
         return false;
     }
+    featherdoc::comment_metadata_update reply_metadata;
+    reply_metadata.author = "Updated Responder";
+    reply_metadata.clear_initials = true;
+    reply_metadata.date = "2026-05-02T12:25:00Z";
+    if (!document.set_comment_metadata(2U, reply_metadata)) {
+        std::cerr << "comment metadata update failed: "
+                  << document.last_error().detail << '\n';
+        return false;
+    }
 
     if (document.append_hyperlink("Old typed hyperlink",
                                   "https://old.example/typed") != 1U ||
@@ -249,9 +258,11 @@ bool verify_api(const fs::path &path) {
            comments[1].resolved &&
            comments[1].date == std::optional<std::string>{"2026-05-02T12:10:00Z"} &&
            comments[2].text == "Threaded visual reply body" &&
+           comments[2].author == std::optional<std::string>{"Updated Responder"} &&
+           !comments[2].initials.has_value() &&
            comments[2].parent_index == std::optional<std::size_t>{1U} &&
            comments[2].parent_id == std::optional<std::string>{comments[1].id} &&
-           comments[2].date == std::optional<std::string>{"2026-05-02T12:20:00Z"} &&
+           comments[2].date == std::optional<std::string>{"2026-05-02T12:25:00Z"} &&
            revisions.empty() && hyperlinks.size() == 1U &&
            hyperlinks.front().text == "Typed hyperlink" && equations.size() == 2U;
 }

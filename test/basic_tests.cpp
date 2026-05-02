@@ -10142,6 +10142,19 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
              std::optional<std::string>{"2026-05-02T08:05:00Z"});
     CHECK_FALSE(comments[1].anchor_text.has_value());
 
+    featherdoc::comment_metadata_update metadata_update;
+    metadata_update.author = "Updated Reviewer";
+    metadata_update.clear_initials = true;
+    metadata_update.date = "2026-05-02T08:30:00Z";
+    CHECK(doc.set_comment_metadata(0U, metadata_update));
+    comments = doc.list_comments();
+    REQUIRE_EQ(comments.size(), 2U);
+    CHECK_EQ(comments.front().author,
+             std::optional<std::string>{"Updated Reviewer"});
+    CHECK_FALSE(comments.front().initials.has_value());
+    CHECK_EQ(comments.front().date,
+             std::optional<std::string>{"2026-05-02T08:30:00Z"});
+
     CHECK_FALSE(doc.replace_footnote(4U, "Missing"));
     CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
     CHECK_EQ(doc.last_error().detail, "footnote index is out of range");
@@ -10161,9 +10174,13 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
     const auto comments_xml = read_test_docx_entry(target, "word/comments.xml");
     CHECK_NE(comments_xml.find("Replaced comment"), std::string::npos);
     CHECK_NE(comments_xml.find("Reply comment"), std::string::npos);
-    CHECK_NE(comments_xml.find("w:date=\"2026-05-02T08:00:00Z\""),
+    CHECK_NE(comments_xml.find("w:author=\"Updated Reviewer\""),
+             std::string::npos);
+    CHECK_NE(comments_xml.find("w:date=\"2026-05-02T08:30:00Z\""),
              std::string::npos);
     CHECK_NE(comments_xml.find("w:date=\"2026-05-02T08:05:00Z\""),
+             std::string::npos);
+    CHECK_EQ(comments_xml.find("w:date=\"2026-05-02T08:00:00Z\""),
              std::string::npos);
     CHECK_EQ(comments_xml.find("Removed comment"), std::string::npos);
     CHECK_NE(comments_xml.find("w14:paraId"), std::string::npos);
@@ -10192,8 +10209,11 @@ TEST_CASE("review notes comments can be appended replaced removed and saved") {
     comments = reopened.list_comments();
     REQUIRE_EQ(comments.size(), 2U);
     CHECK(comments.front().resolved);
+    CHECK_EQ(comments.front().author,
+             std::optional<std::string>{"Updated Reviewer"});
+    CHECK_FALSE(comments.front().initials.has_value());
     CHECK_EQ(comments.front().date,
-             std::optional<std::string>{"2026-05-02T08:00:00Z"});
+             std::optional<std::string>{"2026-05-02T08:30:00Z"});
     CHECK_EQ(comments[1].parent_index, std::optional<std::size_t>{0U});
     CHECK_EQ(comments[1].parent_id, std::optional<std::string>{comments[0].id});
     CHECK_EQ(comments[1].date,

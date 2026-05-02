@@ -18334,6 +18334,8 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
         working_directory / "cli_comment_range_resolved.docx";
     const fs::path threaded =
         working_directory / "cli_comment_range_threaded.docx";
+    const fs::path metadata_updated =
+        working_directory / "cli_comment_range_metadata.docx";
     const fs::path thread_removed =
         working_directory / "cli_comment_range_thread_removed.docx";
     const fs::path output = working_directory / "cli_comment_range.json";
@@ -18347,6 +18349,7 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
     remove_if_exists(range_moved);
     remove_if_exists(resolved);
     remove_if_exists(threaded);
+    remove_if_exists(metadata_updated);
     remove_if_exists(thread_removed);
     remove_if_exists(output);
     remove_if_exists(inspect_output);
@@ -18529,8 +18532,33 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
     CHECK_NE(threaded_json.find(R"("parent_index":1)"), std::string::npos);
     CHECK_NE(threaded_json.find(R"("parent_id":")"), std::string::npos);
 
-    CHECK_EQ(run_cli({"remove-comment",
+    CHECK_EQ(run_cli({"set-comment-metadata",
                       threaded.string(),
+                      "2",
+                      "--author",
+                      "CLI Updated Responder",
+                      "--clear-initials",
+                      "--date",
+                      "2026-05-02T10:25:00Z",
+                      "--output",
+                      metadata_updated.string(),
+                      "--json"},
+                     output),
+             0);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("comment_index":2)"), std::string::npos);
+    CHECK_EQ(run_cli({"inspect-review", metadata_updated.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto metadata_json = read_text_file(inspect_output);
+    CHECK_NE(metadata_json.find(R"("author":"CLI Updated Responder")"),
+             std::string::npos);
+    CHECK_NE(metadata_json.find(R"("date":"2026-05-02T10:25:00Z")"),
+             std::string::npos);
+    CHECK_NE(metadata_json.find(R"("initials":null)"), std::string::npos);
+
+    CHECK_EQ(run_cli({"remove-comment",
+                      metadata_updated.string(),
                       "1",
                       "--output",
                       thread_removed.string(),
@@ -18552,6 +18580,7 @@ TEST_CASE("cli comment range authoring creates in-place comments") {
     remove_if_exists(range_moved);
     remove_if_exists(resolved);
     remove_if_exists(threaded);
+    remove_if_exists(metadata_updated);
     remove_if_exists(thread_removed);
     remove_if_exists(output);
     remove_if_exists(inspect_output);

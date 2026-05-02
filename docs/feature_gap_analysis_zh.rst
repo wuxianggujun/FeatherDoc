@@ -284,6 +284,8 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   ``set_text_range_comment_range(...)`` 可移动或扩缩已有批注锚点范围
 - ``set_comment_resolved(...)`` 可通过 ``commentsExtended.xml`` 设置或清除
   既有批注的 resolved / done 状态
+- ``set_comment_metadata(...)`` 可设置或清除既有批注 / 回复的 author、
+  initials 和 date
 - ``inspect-review`` 以及脚注、尾注、批注、append 修订、run 原位修订、
   段落文本区间修订和跨段落文本区间修订 mutation CLI 已可用于一次性
   自动化处理
