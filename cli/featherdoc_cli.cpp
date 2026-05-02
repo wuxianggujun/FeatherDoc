@@ -1128,6 +1128,37 @@ struct revision_authoring_options : simple_document_mutation_options {
     bool has_expected_text = false;
 };
 
+enum class review_mutation_plan_operation_kind {
+    delete_paragraph_text_revision,
+    replace_paragraph_text_revision,
+    delete_text_range_revision,
+    replace_text_range_revision,
+};
+
+struct review_mutation_plan_operation {
+    review_mutation_plan_operation_kind kind =
+        review_mutation_plan_operation_kind::delete_paragraph_text_revision;
+    std::size_t paragraph_index = 0U;
+    std::size_t text_offset = 0U;
+    std::size_t text_length = 0U;
+    std::size_t start_paragraph_index = 0U;
+    std::size_t start_text_offset = 0U;
+    std::size_t end_paragraph_index = 0U;
+    std::size_t end_text_offset = 0U;
+    std::string text;
+    std::optional<std::string> expected_text;
+};
+
+struct review_mutation_plan_preview_result {
+    std::size_t index = 0U;
+    review_mutation_plan_operation_kind kind =
+        review_mutation_plan_operation_kind::delete_paragraph_text_revision;
+    bool ok = false;
+    std::string message;
+    std::optional<std::string> expected_text;
+    std::optional<featherdoc::text_range_preview> preview;
+};
+
 struct revision_metadata_mutation_options : simple_document_mutation_options {
     featherdoc::revision_metadata_update metadata;
 };
@@ -2050,6 +2081,8 @@ void print_usage(std::ostream &stream) {
         << "  featherdoc_cli preview-text-range <input.docx>"
            " <start-paragraph-index> <start-offset>"
            " <end-paragraph-index> <end-offset> [--json]\n"
+        << "  featherdoc_cli preview-review-mutation-plan <input.docx>"
+           " --plan-file <plan.json> [--json]\n"
         << "  featherdoc_cli inspect-omml <input.docx> [--json]\n"
         << "  featherdoc_cli append-hyperlink <input.docx>"
            " --text <text> --target <url> [--output <path>] [--json]\n"
@@ -36417,6 +36450,652 @@ auto read_style_refactor_plan_file(
     return true;
 }
 
+auto review_mutation_plan_operation_kind_name(
+    review_mutation_plan_operation_kind kind) -> std::string_view {
+    switch (kind) {
+    case review_mutation_plan_operation_kind::delete_paragraph_text_revision:
+        return "delete_paragraph_text_revision";
+    case review_mutation_plan_operation_kind::replace_paragraph_text_revision:
+        return "replace_paragraph_text_revision";
+    case review_mutation_plan_operation_kind::delete_text_range_revision:
+        return "delete_text_range_revision";
+    case review_mutation_plan_operation_kind::replace_text_range_revision:
+        return "replace_text_range_revision";
+    }
+
+    return "delete_paragraph_text_revision";
+}
+
+auto parse_review_mutation_plan_operation_kind(
+    std::string_view content, std::size_t &index,
+    review_mutation_plan_operation_kind &kind, std::string &error_message)
+    -> bool {
+    std::string token;
+    if (!parse_json_patch_string(content, index, token, error_message)) {
+        return false;
+    }
+
+    if (token == "delete_paragraph_text_revision" ||
+        token == "delete-paragraph-text-revision") {
+        kind =
+            review_mutation_plan_operation_kind::delete_paragraph_text_revision;
+        return true;
+    }
+    if (token == "replace_paragraph_text_revision" ||
+        token == "replace-paragraph-text-revision") {
+        kind =
+            review_mutation_plan_operation_kind::replace_paragraph_text_revision;
+        return true;
+    }
+    if (token == "delete_text_range_revision" ||
+        token == "delete-text-range-revision") {
+        kind = review_mutation_plan_operation_kind::delete_text_range_revision;
+        return true;
+    }
+    if (token == "replace_text_range_revision" ||
+        token == "replace-text-range-revision") {
+        kind = review_mutation_plan_operation_kind::replace_text_range_revision;
+        return true;
+    }
+
+    return report_json_input_error(
+        "review mutation plan file", index,
+        "operation kind must be one of "
+        "'delete_paragraph_text_revision', "
+        "'replace_paragraph_text_revision', "
+        "'delete_text_range_revision', or "
+        "'replace_text_range_revision' (CLI hyphenated names are also accepted)",
+        error_message);
+}
+
+auto read_review_mutation_plan_content(const path_type &plan_path,
+                                       std::string &content,
+                                       std::string &error_message) -> bool {
+    std::ifstream stream(plan_path, std::ios::binary);
+    if (!stream.good()) {
+        error_message = "failed to read review mutation plan file: " +
+                        plan_path.string();
+        return false;
+    }
+
+    content.assign(std::istreambuf_iterator<char>(stream),
+                   std::istreambuf_iterator<char>());
+    return true;
+}
+
+auto consume_review_mutation_plan_separator(std::string_view content,
+                                            std::size_t &index,
+                                            char close_char,
+                                            std::string_view error_detail,
+                                            bool &closed,
+                                            std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size()) {
+        return report_json_input_error("review mutation plan file", index,
+                                       "unexpected end of JSON", error_message);
+    }
+    if (content[index] == ',') {
+        ++index;
+        skip_json_patch_whitespace(content, index);
+        closed = false;
+        return true;
+    }
+    if (content[index] == close_char) {
+        ++index;
+        closed = true;
+        return true;
+    }
+
+    return report_json_input_error("review mutation plan file", index,
+                                   error_detail, error_message);
+}
+
+auto parse_review_mutation_plan_operation(
+    std::string_view content, std::size_t &index,
+    review_mutation_plan_operation &operation, std::string &error_message)
+    -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("review mutation plan file", index,
+                                       "expected operation object",
+                                       error_message);
+    }
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        return report_json_input_error("review mutation plan file", index,
+                                       "operation object must not be empty",
+                                       error_message);
+    }
+
+    bool saw_kind = false;
+    bool saw_paragraph_index = false;
+    bool saw_text_offset = false;
+    bool saw_text_length = false;
+    bool saw_start_paragraph_index = false;
+    bool saw_start_text_offset = false;
+    bool saw_end_paragraph_index = false;
+    bool saw_end_text_offset = false;
+    bool saw_text = false;
+    bool saw_expected_text = false;
+
+    while (index < content.size()) {
+        std::string member_name;
+        if (!parse_json_patch_string(content, index, member_name,
+                                     error_message)) {
+            return false;
+        }
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size() || content[index] != ':') {
+            return report_json_input_error(
+                "review mutation plan file", index,
+                "expected ':' after operation object member", error_message);
+        }
+        ++index;
+
+        if (member_name == "kind") {
+            if (saw_kind) {
+                error_message =
+                    "JSON review mutation plan operation member 'kind' must not be duplicated";
+                return false;
+            }
+            saw_kind = true;
+            if (!parse_review_mutation_plan_operation_kind(
+                    content, index, operation.kind, error_message)) {
+                return false;
+            }
+        } else if (member_name == "paragraph_index") {
+            if (saw_paragraph_index) {
+                error_message =
+                    "JSON review mutation plan operation member 'paragraph_index' must not be duplicated";
+                return false;
+            }
+            saw_paragraph_index = true;
+            if (!parse_json_patch_index_value(content, index,
+                                              operation.paragraph_index,
+                                              "paragraph_index",
+                                              error_message)) {
+                return false;
+            }
+        } else if (member_name == "text_offset") {
+            if (saw_text_offset) {
+                error_message =
+                    "JSON review mutation plan operation member 'text_offset' must not be duplicated";
+                return false;
+            }
+            saw_text_offset = true;
+            if (!parse_json_patch_index_value(content, index,
+                                              operation.text_offset,
+                                              "text_offset",
+                                              error_message)) {
+                return false;
+            }
+        } else if (member_name == "text_length") {
+            if (saw_text_length) {
+                error_message =
+                    "JSON review mutation plan operation member 'text_length' must not be duplicated";
+                return false;
+            }
+            saw_text_length = true;
+            if (!parse_json_patch_index_value(content, index,
+                                              operation.text_length,
+                                              "text_length",
+                                              error_message)) {
+                return false;
+            }
+        } else if (member_name == "start_paragraph_index") {
+            if (saw_start_paragraph_index) {
+                error_message =
+                    "JSON review mutation plan operation member 'start_paragraph_index' must not be duplicated";
+                return false;
+            }
+            saw_start_paragraph_index = true;
+            if (!parse_json_patch_index_value(content, index,
+                                              operation.start_paragraph_index,
+                                              "start_paragraph_index",
+                                              error_message)) {
+                return false;
+            }
+        } else if (member_name == "start_text_offset") {
+            if (saw_start_text_offset) {
+                error_message =
+                    "JSON review mutation plan operation member 'start_text_offset' must not be duplicated";
+                return false;
+            }
+            saw_start_text_offset = true;
+            if (!parse_json_patch_index_value(content, index,
+                                              operation.start_text_offset,
+                                              "start_text_offset",
+                                              error_message)) {
+                return false;
+            }
+        } else if (member_name == "end_paragraph_index") {
+            if (saw_end_paragraph_index) {
+                error_message =
+                    "JSON review mutation plan operation member 'end_paragraph_index' must not be duplicated";
+                return false;
+            }
+            saw_end_paragraph_index = true;
+            if (!parse_json_patch_index_value(content, index,
+                                              operation.end_paragraph_index,
+                                              "end_paragraph_index",
+                                              error_message)) {
+                return false;
+            }
+        } else if (member_name == "end_text_offset") {
+            if (saw_end_text_offset) {
+                error_message =
+                    "JSON review mutation plan operation member 'end_text_offset' must not be duplicated";
+                return false;
+            }
+            saw_end_text_offset = true;
+            if (!parse_json_patch_index_value(content, index,
+                                              operation.end_text_offset,
+                                              "end_text_offset",
+                                              error_message)) {
+                return false;
+            }
+        } else if (member_name == "text") {
+            if (saw_text) {
+                error_message =
+                    "JSON review mutation plan operation member 'text' must not be duplicated";
+                return false;
+            }
+            saw_text = true;
+            if (!parse_json_patch_string(content, index, operation.text,
+                                         error_message)) {
+                return false;
+            }
+        } else if (member_name == "expected_text") {
+            if (saw_expected_text) {
+                error_message =
+                    "JSON review mutation plan operation member 'expected_text' must not be duplicated";
+                return false;
+            }
+            saw_expected_text = true;
+            std::string expected_text;
+            if (!parse_json_patch_string(content, index, expected_text,
+                                         error_message)) {
+                return false;
+            }
+            operation.expected_text = std::move(expected_text);
+        } else {
+            if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+        }
+
+        bool closed = false;
+        if (!consume_review_mutation_plan_separator(
+                content, index, '}',
+                "expected ',' or '}' after operation object member", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            break;
+        }
+    }
+
+    if (!saw_kind) {
+        error_message =
+            "JSON review mutation plan operation must contain 'kind'";
+        return false;
+    }
+
+    const auto paragraph_fields_ok =
+        saw_paragraph_index && saw_text_offset && saw_text_length;
+    const auto text_range_fields_ok =
+        saw_start_paragraph_index && saw_start_text_offset &&
+        saw_end_paragraph_index && saw_end_text_offset;
+
+    switch (operation.kind) {
+    case review_mutation_plan_operation_kind::delete_paragraph_text_revision:
+        if (!paragraph_fields_ok) {
+            error_message =
+                "JSON review mutation plan delete_paragraph_text_revision operation must contain 'paragraph_index', 'text_offset', and 'text_length'";
+            return false;
+        }
+        if (saw_text) {
+            error_message =
+                "JSON review mutation plan delete_paragraph_text_revision operation does not accept 'text'";
+            return false;
+        }
+        return true;
+    case review_mutation_plan_operation_kind::replace_paragraph_text_revision:
+        if (!paragraph_fields_ok || !saw_text) {
+            error_message =
+                "JSON review mutation plan replace_paragraph_text_revision operation must contain 'paragraph_index', 'text_offset', 'text_length', and 'text'";
+            return false;
+        }
+        return true;
+    case review_mutation_plan_operation_kind::delete_text_range_revision:
+        if (!text_range_fields_ok) {
+            error_message =
+                "JSON review mutation plan delete_text_range_revision operation must contain 'start_paragraph_index', 'start_text_offset', 'end_paragraph_index', and 'end_text_offset'";
+            return false;
+        }
+        if (saw_text) {
+            error_message =
+                "JSON review mutation plan delete_text_range_revision operation does not accept 'text'";
+            return false;
+        }
+        return true;
+    case review_mutation_plan_operation_kind::replace_text_range_revision:
+        if (!text_range_fields_ok || !saw_text) {
+            error_message =
+                "JSON review mutation plan replace_text_range_revision operation must contain 'start_paragraph_index', 'start_text_offset', 'end_paragraph_index', 'end_text_offset', and 'text'";
+            return false;
+        }
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_review_mutation_plan_operations(
+    std::string_view content, std::size_t &index,
+    std::vector<review_mutation_plan_operation> &operations,
+    std::string &error_message) -> bool {
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '[') {
+        return report_json_input_error("review mutation plan file", index,
+                                       "expected operations array",
+                                       error_message);
+    }
+
+    operations.clear();
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == ']') {
+        ++index;
+        return true;
+    }
+
+    while (index < content.size()) {
+        review_mutation_plan_operation operation;
+        if (!parse_review_mutation_plan_operation(content, index, operation,
+                                                  error_message)) {
+            return false;
+        }
+        operations.push_back(std::move(operation));
+
+        bool closed = false;
+        if (!consume_review_mutation_plan_separator(
+                content, index, ']',
+                "expected ',' or ']' after operations array item", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            return true;
+        }
+    }
+
+    return report_json_input_error("review mutation plan file", index,
+                                   "unterminated operations array",
+                                   error_message);
+}
+
+auto read_review_mutation_plan_file(
+    const path_type &plan_path,
+    std::vector<review_mutation_plan_operation> &operations,
+    std::string &error_message) -> bool {
+    std::string content;
+    if (!read_review_mutation_plan_content(plan_path, content, error_message)) {
+        return false;
+    }
+
+    std::size_t index = 0U;
+    skip_json_patch_whitespace(content, index);
+    if (index >= content.size() || content[index] != '{') {
+        return report_json_input_error("review mutation plan file", index,
+                                       "expected root object", error_message);
+    }
+
+    ++index;
+    skip_json_patch_whitespace(content, index);
+    if (index < content.size() && content[index] == '}') {
+        return report_json_input_error("review mutation plan file", index,
+                                       "root object must not be empty",
+                                       error_message);
+    }
+
+    bool saw_operations = false;
+    while (index < content.size()) {
+        std::string member_name;
+        if (!parse_json_patch_string(content, index, member_name,
+                                     error_message)) {
+            return false;
+        }
+        skip_json_patch_whitespace(content, index);
+        if (index >= content.size() || content[index] != ':') {
+            return report_json_input_error(
+                "review mutation plan file", index,
+                "expected ':' after root object member", error_message);
+        }
+        ++index;
+
+        if (member_name == "operations") {
+            if (saw_operations) {
+                error_message =
+                    "JSON review mutation plan root member 'operations' must not be duplicated";
+                return false;
+            }
+            saw_operations = true;
+            if (!parse_review_mutation_plan_operations(
+                    content, index, operations, error_message)) {
+                return false;
+            }
+        } else {
+            if (!skip_json_patch_value(content, index, error_message)) {
+                return false;
+            }
+        }
+
+        bool closed = false;
+        if (!consume_review_mutation_plan_separator(
+                content, index, '}',
+                "expected ',' or '}' after root object member", closed,
+                error_message)) {
+            return false;
+        }
+        if (closed) {
+            break;
+        }
+    }
+
+    skip_json_patch_whitespace(content, index);
+    if (index != content.size()) {
+        return report_json_input_error("review mutation plan file", index,
+                                       "unexpected trailing content after root object",
+                                       error_message);
+    }
+
+    if (!saw_operations) {
+        error_message =
+            "JSON review mutation plan file must contain an 'operations' array";
+        return false;
+    }
+    if (operations.empty()) {
+        error_message =
+            "JSON review mutation plan file must contain at least one operation";
+        return false;
+    }
+
+    return true;
+}
+
+auto get_review_mutation_plan_range(
+    const review_mutation_plan_operation &operation,
+    std::size_t &start_paragraph_index, std::size_t &start_text_offset,
+    std::size_t &end_paragraph_index, std::size_t &end_text_offset,
+    std::string &error_message) -> bool {
+    switch (operation.kind) {
+    case review_mutation_plan_operation_kind::delete_paragraph_text_revision:
+    case review_mutation_plan_operation_kind::replace_paragraph_text_revision:
+        if (operation.text_length >
+            std::numeric_limits<std::size_t>::max() - operation.text_offset) {
+            error_message = "text range is out of range";
+            return false;
+        }
+        start_paragraph_index = operation.paragraph_index;
+        start_text_offset = operation.text_offset;
+        end_paragraph_index = operation.paragraph_index;
+        end_text_offset = operation.text_offset + operation.text_length;
+        return true;
+    case review_mutation_plan_operation_kind::delete_text_range_revision:
+    case review_mutation_plan_operation_kind::replace_text_range_revision:
+        start_paragraph_index = operation.start_paragraph_index;
+        start_text_offset = operation.start_text_offset;
+        end_paragraph_index = operation.end_paragraph_index;
+        end_text_offset = operation.end_text_offset;
+        return true;
+    }
+
+    return false;
+}
+
+auto preview_review_mutation_plan_operations(
+    featherdoc::Document &doc,
+    const std::vector<review_mutation_plan_operation> &operations)
+    -> std::vector<review_mutation_plan_preview_result> {
+    std::vector<review_mutation_plan_preview_result> results;
+    results.reserve(operations.size());
+
+    for (std::size_t index = 0U; index < operations.size(); ++index) {
+        const auto &operation = operations[index];
+        review_mutation_plan_preview_result result;
+        result.index = index;
+        result.kind = operation.kind;
+        result.expected_text = operation.expected_text;
+
+        std::size_t start_paragraph_index = 0U;
+        std::size_t start_text_offset = 0U;
+        std::size_t end_paragraph_index = 0U;
+        std::size_t end_text_offset = 0U;
+        if (!get_review_mutation_plan_range(
+                operation, start_paragraph_index, start_text_offset,
+                end_paragraph_index, end_text_offset, result.message)) {
+            result.ok = false;
+            results.push_back(std::move(result));
+            continue;
+        }
+
+        auto preview = doc.preview_text_range(
+            start_paragraph_index, start_text_offset, end_paragraph_index,
+            end_text_offset);
+        if (!preview.has_value()) {
+            result.ok = false;
+            const auto &error_info = doc.last_error();
+            result.message = !error_info.detail.empty()
+                                 ? error_info.detail
+                                 : error_info.code.message();
+            results.push_back(std::move(result));
+            continue;
+        }
+
+        result.preview = *preview;
+        if (operation.expected_text.has_value() &&
+            preview->text != *operation.expected_text) {
+            result.ok = false;
+            result.message = "expected text did not match selected text";
+            results.push_back(std::move(result));
+            continue;
+        }
+
+        result.ok = true;
+        result.message = "ok";
+        results.push_back(std::move(result));
+    }
+
+    return results;
+}
+
+void write_json_review_mutation_plan_preview_result(
+    std::ostream &stream,
+    const review_mutation_plan_preview_result &result) {
+    stream << "{\"index\":" << result.index << ",\"kind\":";
+    write_json_string(stream, review_mutation_plan_operation_kind_name(result.kind));
+    stream << ",\"ok\":" << json_bool(result.ok) << ",\"message\":";
+    write_json_string(stream, result.message);
+    stream << ",\"expected_text\":";
+    if (result.expected_text.has_value()) {
+        write_json_string(stream, *result.expected_text);
+    } else {
+        stream << "null";
+    }
+    stream << ",\"actual_text\":";
+    if (result.preview.has_value()) {
+        write_json_string(stream, result.preview->text);
+    } else {
+        stream << "null";
+    }
+    stream << ",\"preview\":";
+    if (result.preview.has_value()) {
+        write_json_text_range_preview(stream, *result.preview);
+    } else {
+        stream << "null";
+    }
+    stream << '}';
+}
+
+void write_json_review_mutation_plan_preview(
+    std::ostream &stream,
+    const std::vector<review_mutation_plan_preview_result> &results) {
+    const auto failed_count =
+        static_cast<std::size_t>(std::count_if(results.begin(), results.end(),
+                                               [](const auto &result) {
+                                                   return !result.ok;
+                                               }));
+    stream << "{\"command\":\"preview-review-mutation-plan\",\"ok\":"
+           << json_bool(failed_count == 0U)
+           << ",\"operations_count\":" << results.size()
+           << ",\"failed_count\":" << failed_count << ",\"operations\":[";
+    for (std::size_t index = 0U; index < results.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+        write_json_review_mutation_plan_preview_result(stream, results[index]);
+    }
+    stream << "]}\n";
+}
+
+void print_review_mutation_plan_preview(
+    std::ostream &stream,
+    const std::vector<review_mutation_plan_preview_result> &results) {
+    const auto failed_count =
+        static_cast<std::size_t>(std::count_if(results.begin(), results.end(),
+                                               [](const auto &result) {
+                                                   return !result.ok;
+                                               }));
+    stream << "ok=" << yes_no(failed_count == 0U)
+           << " operations_count=" << results.size()
+           << " failed_count=" << failed_count;
+
+    for (const auto &result : results) {
+        stream << '\n'
+               << "operation index=" << result.index
+               << " kind="
+               << review_mutation_plan_operation_kind_name(result.kind)
+               << " ok=" << yes_no(result.ok) << " message=";
+        write_json_string(stream, result.message);
+        if (result.expected_text.has_value()) {
+            stream << " expected_text=";
+            write_json_string(stream, *result.expected_text);
+        }
+        if (result.preview.has_value()) {
+            stream << " actual_text=";
+            write_json_string(stream, result.preview->text);
+            stream << '\n';
+            print_text_range_preview(stream, *result.preview);
+        }
+    }
+    stream << '\n';
+}
+
 auto consume_style_refactor_rollback_separator(std::string_view content,
                                                 std::size_t &index,
                                                 char close_char,
@@ -46813,6 +47492,76 @@ int main(int argc, char **argv) {
 
         inspect_review(footnotes, endnotes, comments, revisions, json_output);
         return 0;
+    }
+
+    if (command == "preview-review-mutation-plan") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command,
+                              "preview-review-mutation-plan expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        std::optional<path_type> plan_file_path;
+        for (std::size_t index = 2U; index < arguments.size(); ++index) {
+            const auto argument = arguments[index];
+            if (argument == "--plan-file") {
+                if (plan_file_path.has_value()) {
+                    print_parse_error(command, "duplicate --plan-file option",
+                                      json_output);
+                    return 2;
+                }
+                if (index + 1U >= arguments.size()) {
+                    print_parse_error(command, "missing path after --plan-file",
+                                      json_output);
+                    return 2;
+                }
+                plan_file_path = path_type(std::string(arguments[index + 1U]));
+                ++index;
+                continue;
+            }
+            if (argument == "--json") {
+                continue;
+            }
+
+            print_parse_error(command, "unknown option: " + std::string(argument),
+                              json_output);
+            return 2;
+        }
+
+        if (!plan_file_path.has_value()) {
+            print_parse_error(command, "missing --plan-file <plan.json>",
+                              json_output);
+            return 2;
+        }
+
+        std::vector<review_mutation_plan_operation> operations;
+        std::string error_message;
+        if (!read_review_mutation_plan_file(*plan_file_path, operations,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           json_output)) {
+            return 1;
+        }
+
+        const auto results =
+            preview_review_mutation_plan_operations(doc, operations);
+        const auto failed_count =
+            static_cast<std::size_t>(std::count_if(
+                results.begin(), results.end(),
+                [](const auto &result) { return !result.ok; }));
+
+        if (json_output) {
+            write_json_review_mutation_plan_preview(std::cout, results);
+        } else {
+            print_review_mutation_plan_preview(std::cout, results);
+        }
+        return failed_count == 0U ? 0 : 1;
     }
 
     if (command == "preview-text-range") {

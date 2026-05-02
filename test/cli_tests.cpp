@@ -18298,6 +18298,114 @@ TEST_CASE("cli text range revision authoring creates cross-paragraph revisions")
     remove_if_exists(inspect_output);
 }
 
+TEST_CASE("cli review mutation plan previews expected text guards") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_review_mutation_plan_preview_source.docx";
+    const fs::path success_plan =
+        working_directory / "cli_review_mutation_plan_preview_success.json";
+    const fs::path mismatch_plan =
+        working_directory / "cli_review_mutation_plan_preview_mismatch.json";
+    const fs::path invalid_plan =
+        working_directory / "cli_review_mutation_plan_preview_invalid.json";
+    const fs::path output =
+        working_directory / "cli_review_mutation_plan_preview_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(success_plan);
+    remove_if_exists(mismatch_plan);
+    remove_if_exists(invalid_plan);
+    remove_if_exists(output);
+
+    featherdoc::Document source_document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+    auto first = source_document.paragraphs();
+    REQUIRE(first.has_next());
+    REQUIRE(first.add_run("Alpha ").has_next());
+    REQUIRE(first.add_run("Beta").has_next());
+    auto second = first.insert_paragraph_after("Middle ");
+    REQUIRE(second.has_next());
+    REQUIRE(second.add_run("Text").has_next());
+    auto third = second.insert_paragraph_after("Gamma ");
+    REQUIRE(third.has_next());
+    REQUIRE(third.add_run("Delta").has_next());
+    REQUIRE_FALSE(source_document.save());
+
+    write_binary_file(
+        success_plan,
+        R"({"operations":[)"
+        R"({"kind":"delete_paragraph_text_revision","paragraph_index":1,"text_offset":0,"text_length":11,"expected_text":"Middle Text"},)"
+        R"({"kind":"replace-text-range-revision","start_paragraph_index":0,"start_text_offset":6,"end_paragraph_index":2,"end_text_offset":5,"text":"Range ","expected_text":"BetaMiddle TextGamma"}]})");
+    CHECK_EQ(run_cli({"preview-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      success_plan.string(),
+                      "--json"},
+                     output),
+             0);
+    auto output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("command":"preview-review-mutation-plan")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("operations_count":2)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("failed_count":0)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("kind":"delete_paragraph_text_revision")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("kind":"replace_text_range_revision")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("expected_text":"Middle Text")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("actual_text":"Middle Text")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("actual_text":"BetaMiddle TextGamma")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("paragraph_index":1,"text_offset":0,"text_length":11,"text":"Middle Text")"),
+             std::string::npos);
+
+    write_binary_file(
+        mismatch_plan,
+        R"({"operations":[)"
+        R"({"kind":"delete_text_range_revision","start_paragraph_index":0,"start_text_offset":6,"end_paragraph_index":2,"end_text_offset":5,"expected_text":"Wrong selected text"}]})");
+    CHECK_EQ(run_cli({"preview-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      mismatch_plan.string(),
+                      "--json"},
+                     output),
+             1);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("ok":false)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("failed_count":1)"), std::string::npos);
+    CHECK_NE(output_json.find("expected text did not match selected text"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("expected_text":"Wrong selected text")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("actual_text":"BetaMiddle TextGamma")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("preview":{)"), std::string::npos);
+
+    write_binary_file(
+        invalid_plan,
+        R"({"operations":[{"kind":"replace_paragraph_text_revision","paragraph_index":0,"text_offset":0,"text_length":5}]})");
+    CHECK_EQ(run_cli({"preview-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      invalid_plan.string(),
+                      "--json"},
+                     output),
+             2);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("stage":"parse")"), std::string::npos);
+    CHECK_NE(output_json.find("replace_paragraph_text_revision operation must contain"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(success_plan);
+    remove_if_exists(mismatch_plan);
+    remove_if_exists(invalid_plan);
+    remove_if_exists(output);
+}
+
 TEST_CASE("cli revision mutation accepts and rejects revisions") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_revision_mutation_source.docx";
