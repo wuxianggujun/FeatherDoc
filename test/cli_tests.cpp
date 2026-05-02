@@ -17967,6 +17967,74 @@ TEST_CASE("cli paragraph text revision authoring creates range revisions") {
     CHECK_NE(output_json.find(R"("paragraph_index":0)"), std::string::npos);
     CHECK_NE(output_json.find(R"("text_offset":5)"), std::string::npos);
 
+    CHECK_EQ(run_cli({"insert-paragraph-text-revision",
+                      source.string(),
+                      "0",
+                      "5",
+                      "--text",
+                      "CLI range insertion ",
+                      "--expected-text",
+                      "Middle",
+                      "--json"},
+                     output),
+             2);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find("insert-paragraph-text-revision does not accept --expected-text"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"delete-paragraph-text-revision",
+                      inserted.string(),
+                      "0",
+                      "5",
+                      "6",
+                      "--expected-text",
+                      "Middle",
+                      "--expected-text",
+                      "Middle",
+                      "--json"},
+                     output),
+             2);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find("duplicate --expected-text option"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"delete-paragraph-text-revision",
+                      inserted.string(),
+                      "0",
+                      "5",
+                      "6",
+                      "--expected-text"},
+                     output),
+             2);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find("missing value after --expected-text"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"delete-paragraph-text-revision",
+                      inserted.string(),
+                      "0",
+                      "5",
+                      "6",
+                      "--expected-text",
+                      "Wrong paragraph text",
+                      "--output",
+                      deleted.string(),
+                      "--json"},
+                     output),
+             1);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("stage":"validate")"), std::string::npos);
+    CHECK_NE(output_json.find(R"("expected_text":"Wrong paragraph text")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("actual_text":"Middle")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("preview":{)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("start_paragraph_index":0)"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("text_length":6)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("paragraph_index":0,"text_offset":5,"text_length":6,"text":"Middle")"),
+             std::string::npos);
+
     CHECK_EQ(run_cli({"delete-paragraph-text-revision",
                       inserted.string(),
                       "0",

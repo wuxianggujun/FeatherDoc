@@ -27,6 +27,7 @@ performance.
 - Added API-level `expected_text` safeguards for paragraph and cross-paragraph text range revision delete/replace authoring.
 - Added `--expected-text` safeguards to paragraph and cross-paragraph text range revision CLI delete/replace commands so automation can fail before mutating when selected text has drifted.
 - Extended `expected_text` mismatch diagnostics with selected range offsets and segment previews for API and CLI revision authoring.
+- Expanded CLI regression coverage for paragraph `--expected-text` mismatch and parse failures.
 - Added in-place comment range evidence to the review mutation visual regression sample and runner.
 - Added `review_note_summary::anchor_text` for comments and surfaced it in `inspect-review` text/JSON output so review automation can audit the selected text behind each comment.
 - Added structured failure fields such as `failure_kind`, `failure_relative_path`, and `failure_expected_text` to release metadata docs check JSON summaries.
