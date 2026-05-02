@@ -10465,12 +10465,31 @@ TEST_CASE("revision authoring APIs append insertion and deletion markup") {
     CHECK_EQ(*revisions[1].author, "Grace");
     CHECK_EQ(revisions[1].text, "Deleted authored revision");
 
+    featherdoc::revision_metadata_update insertion_metadata;
+    insertion_metadata.author = "Ada Updated";
+    insertion_metadata.date = "2026-05-02T10:30:00Z";
+    CHECK(doc.set_revision_metadata(0U, insertion_metadata));
+    featherdoc::revision_metadata_update deletion_metadata;
+    deletion_metadata.clear_author = true;
+    deletion_metadata.date = "2026-05-02T11:30:00Z";
+    CHECK(doc.set_revision_metadata(1U, deletion_metadata));
+    revisions = doc.list_revisions();
+    REQUIRE_EQ(revisions.size(), 2U);
+    CHECK_EQ(revisions[0].author,
+             std::optional<std::string>{"Ada Updated"});
+    CHECK_EQ(revisions[0].date,
+             std::optional<std::string>{"2026-05-02T10:30:00Z"});
+    CHECK_FALSE(revisions[1].author.has_value());
+    CHECK_EQ(revisions[1].date,
+             std::optional<std::string>{"2026-05-02T11:30:00Z"});
+
     CHECK_FALSE(doc.save());
     const auto saved_xml = read_test_docx_entry(target, test_document_xml_entry);
-    CHECK_NE(saved_xml.find(R"(<w:ins w:id="1" w:author="Ada" w:date="2026-05-02T10:00:00Z">)"),
+    CHECK_NE(saved_xml.find(R"(<w:ins w:id="1" w:author="Ada Updated" w:date="2026-05-02T10:30:00Z">)"),
              std::string::npos);
-    CHECK_NE(saved_xml.find(R"(<w:del w:id="2" w:author="Grace" w:date="2026-05-02T11:00:00Z">)"),
+    CHECK_NE(saved_xml.find(R"(<w:del w:id="2" w:date="2026-05-02T11:30:00Z">)"),
              std::string::npos);
+    CHECK_EQ(saved_xml.find("Grace"), std::string::npos);
     CHECK_NE(saved_xml.find("<w:t>Inserted authored revision</w:t>"),
              std::string::npos);
     CHECK_NE(saved_xml.find("<w:delText>Deleted authored revision</w:delText>"),
@@ -10479,6 +10498,10 @@ TEST_CASE("revision authoring APIs append insertion and deletion markup") {
     featherdoc::Document invalid_doc(target);
     CHECK_FALSE(invalid_doc.open());
     CHECK_EQ(invalid_doc.append_insertion_revision(""), 0U);
+    CHECK_EQ(invalid_doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    featherdoc::revision_metadata_update empty_metadata;
+    CHECK_FALSE(invalid_doc.set_revision_metadata(0U, empty_metadata));
     CHECK_EQ(invalid_doc.last_error().code,
              std::make_error_code(std::errc::invalid_argument));
 

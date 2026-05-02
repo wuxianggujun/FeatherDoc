@@ -2126,8 +2126,9 @@ bool set_revision_run_text_content(pugi::xml_node run, const char *text_node_nam
     return true;
 }
 
-bool set_revision_metadata(pugi::xml_node revision, long revision_id,
-                           std::string_view author, std::string_view date) {
+bool set_revision_identity_metadata(pugi::xml_node revision, long revision_id,
+                                    std::string_view author,
+                                    std::string_view date) {
     if (revision == pugi::xml_node{}) {
         return false;
     }
@@ -12733,7 +12734,7 @@ bool Document::insert_run_revision_after(
             collect_revision_ids(part->xml, next_id);
         }
     }
-    set_revision_metadata(revision, next_id, author, date);
+    set_revision_identity_metadata(revision, next_id, author, date);
     this->last_error_info.clear();
     return true;
 }
@@ -12806,7 +12807,7 @@ bool Document::delete_run_revision(
             collect_revision_ids(part->xml, next_id);
         }
     }
-    set_revision_metadata(revision, next_id, author, date);
+    set_revision_identity_metadata(revision, next_id, author, date);
     this->last_error_info.clear();
     return true;
 }
@@ -12893,8 +12894,8 @@ bool Document::replace_run_revision(
                        std::string{document_xml_entry});
         return false;
     }
-    set_revision_metadata(deletion, revision_id, author, date);
-    set_revision_metadata(insertion, revision_id + 1L, author, date);
+    set_revision_identity_metadata(deletion, revision_id, author, date);
+    set_revision_identity_metadata(insertion, revision_id + 1L, author, date);
     this->last_error_info.clear();
     return true;
 }
@@ -12976,7 +12977,7 @@ bool Document::insert_paragraph_text_revision(
             collect_revision_ids(part->xml, revision_id);
         }
     }
-    set_revision_metadata(revision, revision_id, author, date);
+    set_revision_identity_metadata(revision, revision_id, author, date);
     this->last_error_info.clear();
     return true;
 }
@@ -13078,7 +13079,7 @@ bool Document::delete_paragraph_text_revision(
             collect_revision_ids(part->xml, revision_id);
         }
     }
-    set_revision_metadata(revision, revision_id, author, date);
+    set_revision_identity_metadata(revision, revision_id, author, date);
     this->last_error_info.clear();
     return true;
 }
@@ -13197,8 +13198,8 @@ bool Document::replace_paragraph_text_revision(
         }
     }
 
-    set_revision_metadata(deletion, revision_id, author, date);
-    set_revision_metadata(insertion, revision_id + 1L, author, date);
+    set_revision_identity_metadata(deletion, revision_id, author, date);
+    set_revision_identity_metadata(insertion, revision_id + 1L, author, date);
     this->last_error_info.clear();
     return true;
 }
@@ -13297,7 +13298,7 @@ bool Document::delete_text_range_revision(
             }
         }
 
-        set_revision_metadata(revision, revision_id, author, date);
+        set_revision_identity_metadata(revision, revision_id, author, date);
         ++revision_id;
     }
 
@@ -13394,7 +13395,7 @@ bool Document::replace_text_range_revision(
                            std::string{document_xml_entry});
             return false;
         }
-        set_revision_metadata(deletion, revision_id, author, date);
+        set_revision_identity_metadata(deletion, revision_id, author, date);
         ++revision_id;
 
         if (!inserted_replacement &&
@@ -13414,7 +13415,7 @@ bool Document::replace_text_range_revision(
                                std::string{document_xml_entry});
                 return false;
             }
-            set_revision_metadata(insertion, revision_id, author, date);
+            set_revision_identity_metadata(insertion, revision_id, author, date);
             ++revision_id;
             inserted_replacement = true;
         }
@@ -13446,7 +13447,7 @@ bool Document::replace_text_range_revision(
                            std::string{document_xml_entry});
             return false;
         }
-        set_revision_metadata(insertion, revision_id, author, date);
+        set_revision_identity_metadata(insertion, revision_id, author, date);
     }
 
     this->last_error_info.clear();
@@ -13477,6 +13478,70 @@ std::vector<featherdoc::revision_summary> Document::list_revisions() const {
 
     this->last_error_info.clear();
     return summaries;
+}
+
+bool Document::set_revision_metadata(
+    std::size_t revision_index,
+    const featherdoc::revision_metadata_update &metadata) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before setting revision metadata",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    const auto has_change = metadata.author.has_value() ||
+                            metadata.date.has_value() ||
+                            metadata.clear_author || metadata.clear_date;
+    if (!has_change) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "revision metadata update must contain at least one change",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    if ((metadata.author.has_value() && metadata.clear_author) ||
+        (metadata.date.has_value() && metadata.clear_date)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "revision metadata cannot be set and cleared in the same update",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    std::vector<pugi::xml_node> revision_nodes;
+    collect_revision_nodes_in_order(this->document, revision_nodes);
+    for (auto &part : this->header_parts) {
+        if (part != nullptr) {
+            collect_revision_nodes_in_order(part->xml, revision_nodes);
+        }
+    }
+    for (auto &part : this->footer_parts) {
+        if (part != nullptr) {
+            collect_revision_nodes_in_order(part->xml, revision_nodes);
+        }
+    }
+    if (revision_index >= revision_nodes.size()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "revision index is out of range",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    auto revision = revision_nodes[revision_index];
+    if (metadata.author.has_value()) {
+        ensure_attribute_value(revision, "w:author", *metadata.author);
+    } else if (metadata.clear_author) {
+        revision.remove_attribute("w:author");
+    }
+    if (metadata.date.has_value()) {
+        ensure_attribute_value(revision, "w:date", *metadata.date);
+    } else if (metadata.clear_date) {
+        revision.remove_attribute("w:date");
+    }
+
+    this->last_error_info.clear();
+    return true;
 }
 
 bool Document::accept_revision(std::size_t revision_index) {

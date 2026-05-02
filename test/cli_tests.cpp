@@ -17700,12 +17700,18 @@ TEST_CASE("cli revision authoring appends insertion and deletion revisions") {
     const fs::path source = working_directory / "cli_revision_authoring_source.docx";
     const fs::path inserted = working_directory / "cli_revision_authoring_inserted.docx";
     const fs::path deleted = working_directory / "cli_revision_authoring_deleted.docx";
+    const fs::path metadata_updated =
+        working_directory / "cli_revision_authoring_metadata_updated.docx";
+    const fs::path metadata_cleared =
+        working_directory / "cli_revision_authoring_metadata_cleared.docx";
     const fs::path output = working_directory / "cli_revision_authoring.json";
     const fs::path inspect_output = working_directory / "cli_revision_authoring_inspect.json";
 
     remove_if_exists(source);
     remove_if_exists(inserted);
     remove_if_exists(deleted);
+    remove_if_exists(metadata_updated);
+    remove_if_exists(metadata_cleared);
     remove_if_exists(output);
     remove_if_exists(inspect_output);
 
@@ -17757,9 +17763,55 @@ TEST_CASE("cli revision authoring appends insertion and deletion revisions") {
     CHECK_NE(inspect_json.find(R"("text":"CLI deleted revision")"),
              std::string::npos);
 
+    CHECK_EQ(run_cli({"set-revision-metadata",
+                      deleted.string(),
+                      "2",
+                      "--author",
+                      "CLI Updated Author",
+                      "--date",
+                      "2026-05-02T12:30:00Z",
+                      "--output",
+                      metadata_updated.string(),
+                      "--json"},
+                     output),
+             0);
+    const auto metadata_output_json = read_text_file(output);
+    CHECK_NE(metadata_output_json.find(R"("affected":1)"), std::string::npos);
+    CHECK_NE(metadata_output_json.find(R"("revision_index":2)"),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"set-revision-metadata",
+                      metadata_updated.string(),
+                      "3",
+                      "--clear-author",
+                      "--date",
+                      "2026-05-02T13:30:00Z",
+                      "--output",
+                      metadata_cleared.string(),
+                      "--json"},
+                     output),
+             0);
+
+    CHECK_EQ(run_cli({"inspect-review", metadata_cleared.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto metadata_inspect_json = read_text_file(inspect_output);
+    CHECK_NE(metadata_inspect_json.find(R"("revisions_count":4)"),
+             std::string::npos);
+    CHECK_NE(metadata_inspect_json.find(R"("author":"CLI Updated Author")"),
+             std::string::npos);
+    CHECK_NE(metadata_inspect_json.find(R"("date":"2026-05-02T12:30:00Z")"),
+             std::string::npos);
+    CHECK_NE(metadata_inspect_json.find(R"("date":"2026-05-02T13:30:00Z")"),
+             std::string::npos);
+    CHECK_EQ(metadata_inspect_json.find(R"("author":"CLI Reviewer")"),
+             std::string::npos);
+
     remove_if_exists(source);
     remove_if_exists(inserted);
     remove_if_exists(deleted);
+    remove_if_exists(metadata_updated);
+    remove_if_exists(metadata_cleared);
     remove_if_exists(output);
     remove_if_exists(inspect_output);
 }

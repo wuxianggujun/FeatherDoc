@@ -1126,6 +1126,10 @@ struct revision_authoring_options : simple_document_mutation_options {
     bool has_date = false;
 };
 
+struct revision_metadata_mutation_options : simple_document_mutation_options {
+    featherdoc::revision_metadata_update metadata;
+};
+
 struct content_control_table_replacement_options
     : bookmark_table_replacement_options {
     std::optional<std::string> tag;
@@ -2096,6 +2100,11 @@ void print_usage(std::ostream &stream) {
         << "  featherdoc_cli accept-all-revisions <input.docx>"
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli reject-all-revisions <input.docx>"
+           " [--output <path>] [--json]\n"
+        << "  featherdoc_cli set-revision-metadata <input.docx>"
+           " <revision-index>"
+           " [--author <name>|--clear-author]"
+           " [--date <iso>|--clear-date]"
            " [--output <path>] [--json]\n"
         << "  featherdoc_cli append-footnote <input.docx>"
            " --reference-text <text> --note-text <text>"
@@ -14076,6 +14085,91 @@ auto parse_revision_authoring_options(
     }
     if (!require_text && options.has_text) {
         error_message = std::string{text_forbidden_error};
+        return false;
+    }
+    return true;
+}
+
+auto parse_revision_metadata_mutation_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    revision_metadata_mutation_options &options,
+    std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--author") {
+            if (options.metadata.author.has_value() ||
+                options.metadata.clear_author) {
+                error_message =
+                    "--author conflicts with or duplicates --clear-author";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --author";
+                return false;
+            }
+            options.metadata.author = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+        if (argument == "--clear-author") {
+            if (options.metadata.author.has_value() ||
+                options.metadata.clear_author) {
+                error_message =
+                    "--clear-author conflicts with or duplicates --author";
+                return false;
+            }
+            options.metadata.clear_author = true;
+            continue;
+        }
+        if (argument == "--date") {
+            if (options.metadata.date.has_value() ||
+                options.metadata.clear_date) {
+                error_message = "--date conflicts with or duplicates --clear-date";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --date";
+                return false;
+            }
+            options.metadata.date = std::string(arguments[index + 1U]);
+            ++index;
+            continue;
+        }
+        if (argument == "--clear-date") {
+            if (options.metadata.date.has_value() ||
+                options.metadata.clear_date) {
+                error_message = "--clear-date conflicts with or duplicates --date";
+                return false;
+            }
+            options.metadata.clear_date = true;
+            continue;
+        }
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.metadata.author.has_value() &&
+        !options.metadata.date.has_value() && !options.metadata.clear_author &&
+        !options.metadata.clear_date) {
+        error_message = "expected at least one revision metadata option";
         return false;
     }
     return true;
@@ -47098,6 +47192,63 @@ int main(int argc, char **argv) {
                                << end_paragraph_index
                                << ",\"end_text_offset\":" << end_text_offset;
                     }
+                });
+        } else {
+            print_simple_document_mutation_result(command, options.output_path,
+                                                  1U);
+        }
+        return 0;
+    }
+
+    if (command == "set-revision-metadata") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "set-revision-metadata expects an input path and revision index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t revision_index = 0U;
+        if (!parse_index(arguments[2], revision_index)) {
+            print_parse_error(command,
+                              "invalid revision index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        revision_metadata_mutation_options options;
+        std::string error_message;
+        if (!parse_revision_metadata_mutation_options(arguments, 3U, options,
+                                                      error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (!doc.set_revision_metadata(revision_index, options.metadata)) {
+            report_document_error(command, "mutate", doc.last_error(),
+                                  options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [revision_index](std::ostream &stream) {
+                    write_json_affected_result(stream, 1U);
+                    stream << ",\"revision_index\":" << revision_index;
                 });
         } else {
             print_simple_document_mutation_result(command, options.output_path,

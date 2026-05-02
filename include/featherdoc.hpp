@@ -722,6 +722,13 @@ struct revision_summary {
     std::string text;
 };
 
+struct revision_metadata_update {
+    std::optional<std::string> author;
+    std::optional<std::string> date;
+    bool clear_author{false};
+    bool clear_date{false};
+};
+
 enum class template_slot_kind : std::uint8_t {
     text = 0U,
     table_rows,
@@ -2757,6 +2764,9 @@ class Document {
         std::size_t end_paragraph_index, std::size_t end_text_offset,
         std::string_view text, std::string_view author = {},
         std::string_view date = {});
+    [[nodiscard]] bool set_revision_metadata(
+        std::size_t revision_index,
+        const featherdoc::revision_metadata_update &metadata);
     [[nodiscard]] bool accept_revision(std::size_t revision_index);
     [[nodiscard]] bool reject_revision(std::size_t revision_index);
     [[nodiscard]] std::size_t accept_all_revisions();

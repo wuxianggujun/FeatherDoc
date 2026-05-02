@@ -22,6 +22,7 @@ performance.
 - Added comment reply threading through `commentsExtended.xml`, including API, CLI, inspection metadata, recursive reply cleanup, and visual-regression evidence.
 - Added comment creation date authoring for comments, text-range comments, and threaded replies through API and CLI.
 - Added comment metadata update authoring so existing comments and replies can set or clear author, initials, and date fields.
+- Added revision metadata update authoring so existing revisions can set or clear author and date fields.
 - Added in-place comment range evidence to the review mutation visual regression sample and runner.
 - Added `review_note_summary::anchor_text` for comments and surfaced it in `inspect-review` text/JSON output so review automation can audit the selected text behind each comment.
 - Added structured failure fields such as `failure_kind`, `failure_relative_path`, and `failure_expected_text` to release metadata docs check JSON summaries.

@@ -271,6 +271,7 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   生成跨段落半开区间插入、删除和替换修订痕迹
 - ``accept_revision(...)`` / ``reject_revision(...)`` 以及批量接受 / 拒绝入口
   已覆盖第一版修订清理工作流
+- ``set_revision_metadata(...)`` 可设置或清除既有修订的 author 和 date
 - ``append_footnote(...)`` / ``replace_footnote(...)`` / ``remove_footnote(...)``
   和对应 endnote API 已覆盖脚注 / 尾注创建、改写和删除
 - ``append_comment(...)`` / ``replace_comment(...)`` / ``remove_comment(...)``
