@@ -18406,6 +18406,146 @@ TEST_CASE("cli review mutation plan previews expected text guards") {
     remove_if_exists(output);
 }
 
+TEST_CASE("cli review mutation plan applies guarded revisions atomically") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_review_mutation_plan_apply_source.docx";
+    const fs::path applied =
+        working_directory / "cli_review_mutation_plan_apply_output.docx";
+    const fs::path mismatch_output =
+        working_directory / "cli_review_mutation_plan_apply_mismatch.docx";
+    const fs::path overlap_output =
+        working_directory / "cli_review_mutation_plan_apply_overlap.docx";
+    const fs::path success_plan =
+        working_directory / "cli_review_mutation_plan_apply_success.json";
+    const fs::path mismatch_plan =
+        working_directory / "cli_review_mutation_plan_apply_mismatch.json";
+    const fs::path overlap_plan =
+        working_directory / "cli_review_mutation_plan_apply_overlap.json";
+    const fs::path output =
+        working_directory / "cli_review_mutation_plan_apply_output.json";
+    const fs::path inspect_output =
+        working_directory / "cli_review_mutation_plan_apply_inspect.json";
+
+    remove_if_exists(source);
+    remove_if_exists(applied);
+    remove_if_exists(mismatch_output);
+    remove_if_exists(overlap_output);
+    remove_if_exists(success_plan);
+    remove_if_exists(mismatch_plan);
+    remove_if_exists(overlap_plan);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+
+    featherdoc::Document source_document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+    auto first = source_document.paragraphs();
+    REQUIRE(first.has_next());
+    REQUIRE(first.add_run("Alpha ").has_next());
+    REQUIRE(first.add_run("Beta").has_next());
+    auto second = first.insert_paragraph_after("Middle ");
+    REQUIRE(second.has_next());
+    REQUIRE(second.add_run("Text").has_next());
+    auto third = second.insert_paragraph_after("Gamma ");
+    REQUIRE(third.has_next());
+    REQUIRE(third.add_run("Delta").has_next());
+    auto fourth = third.insert_paragraph_after("Tail ");
+    REQUIRE(fourth.has_next());
+    REQUIRE(fourth.add_run("End").has_next());
+    REQUIRE_FALSE(source_document.save());
+
+    write_binary_file(
+        success_plan,
+        R"({"operations":[)"
+        R"({"kind":"replace_paragraph_text_revision","paragraph_index":0,"text_offset":6,"text_length":4,"text":"BETA","expected_text":"Beta","author":"Plan Editor","date":"2026-05-03T10:00:00Z"},)"
+        R"({"kind":"delete-paragraph-text-revision","paragraph_index":1,"text_offset":0,"text_length":11,"expected_text":"Middle Text","author":"Plan Reviewer","date":"2026-05-03T10:05:00Z"},)"
+        R"({"kind":"replace_text_range_revision","start_paragraph_index":2,"start_text_offset":0,"end_paragraph_index":3,"end_text_offset":4,"text":"Cross ","expected_text":"Gamma DeltaTail","author":"Plan Cross Editor","date":"2026-05-03T10:10:00Z"}]})");
+    CHECK_EQ(run_cli({"apply-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      success_plan.string(),
+                      "--output",
+                      applied.string(),
+                      "--json"},
+                     output),
+             0);
+    auto output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("command":"apply-review-mutation-plan")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("operations_count":3)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("applied_count":3)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("failed_count":0)"), std::string::npos);
+    CHECK(fs::exists(applied));
+
+    CHECK_EQ(run_cli({"inspect-review", applied.string(), "--json"},
+                     inspect_output),
+             0);
+    const auto inspect_json = read_text_file(inspect_output);
+    CHECK_NE(inspect_json.find(R"("text":"Beta")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"BETA")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Middle Text")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Gamma Delta")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Tail")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("text":"Cross ")"), std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"Plan Editor")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"Plan Reviewer")"),
+             std::string::npos);
+    CHECK_NE(inspect_json.find(R"("author":"Plan Cross Editor")"),
+             std::string::npos);
+
+    write_binary_file(
+        mismatch_plan,
+        R"({"operations":[{"kind":"replace_paragraph_text_revision","paragraph_index":0,"text_offset":6,"text_length":4,"text":"BETA","expected_text":"Wrong"}]})");
+    CHECK_EQ(run_cli({"apply-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      mismatch_plan.string(),
+                      "--output",
+                      mismatch_output.string(),
+                      "--json"},
+                     output),
+             1);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("stage":"preflight")"), std::string::npos);
+    CHECK_NE(output_json.find(R"("failed_count":1)"), std::string::npos);
+    CHECK_NE(output_json.find("expected text did not match selected text"),
+             std::string::npos);
+    CHECK_FALSE(fs::exists(mismatch_output));
+
+    write_binary_file(
+        overlap_plan,
+        R"({"operations":[)"
+        R"({"kind":"delete_paragraph_text_revision","paragraph_index":1,"text_offset":0,"text_length":11,"expected_text":"Middle Text"},)"
+        R"({"kind":"replace_text_range_revision","start_paragraph_index":0,"start_text_offset":6,"end_paragraph_index":2,"end_text_offset":5,"text":"Range ","expected_text":"BetaMiddle TextGamma"}]})");
+    CHECK_EQ(run_cli({"apply-review-mutation-plan",
+                      source.string(),
+                      "--plan-file",
+                      overlap_plan.string(),
+                      "--output",
+                      overlap_output.string(),
+                      "--json"},
+                     output),
+             1);
+    output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("stage":"validate")"), std::string::npos);
+    CHECK_NE(output_json.find("operation ranges overlap"), std::string::npos);
+    CHECK_FALSE(fs::exists(overlap_output));
+
+    remove_if_exists(source);
+    remove_if_exists(applied);
+    remove_if_exists(mismatch_output);
+    remove_if_exists(overlap_output);
+    remove_if_exists(success_plan);
+    remove_if_exists(mismatch_plan);
+    remove_if_exists(overlap_plan);
+    remove_if_exists(output);
+    remove_if_exists(inspect_output);
+}
+
 TEST_CASE("cli revision mutation accepts and rejects revisions") {
     const fs::path working_directory = fs::current_path();
     const fs::path source = working_directory / "cli_revision_mutation_source.docx";

@@ -29,6 +29,7 @@ performance.
 - Extended `expected_text` mismatch diagnostics with selected range offsets and segment previews for API and CLI revision authoring.
 - Expanded CLI regression coverage for paragraph `--expected-text` mismatch and parse failures.
 - Added `preview-review-mutation-plan` so automation can preflight JSON batches of paragraph and cross-paragraph revision delete/replace operations before mutating DOCX files.
+- Added `apply-review-mutation-plan` for guarded JSON batch revision authoring with full-plan preflight, overlap rejection, and descending-position application to reduce offset drift.
 - Added in-place comment range evidence to the review mutation visual regression sample and runner.
 - Added `review_note_summary::anchor_text` for comments and surfaced it in `inspect-review` text/JSON output so review automation can audit the selected text behind each comment.
 - Added structured failure fields such as `failure_kind`, `failure_relative_path`, and `failure_expected_text` to release metadata docs check JSON summaries.
