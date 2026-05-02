@@ -32,6 +32,7 @@ performance.
 - Added insertion revision operations to review mutation JSON plans, including `build-review-mutation-plan` insertion before or after matched body text.
 - Added paragraph and cross-paragraph comment operations to review mutation JSON plans so `build-review-mutation-plan` can batch author guarded review comments from found body text.
 - Added nested/overlapping comment-anchor coverage so `inspect-review` preserves full anchor text for outer comments while review mutation plans still reject overlapping text-changing operations.
+- Added `set_comment_resolved` review mutation plan operations with comment index, anchor text, and resolved-state preflight guards.
 - Added API-level `expected_text` safeguards for paragraph and cross-paragraph text range revision delete/replace authoring.
 - Added `--expected-text` safeguards to paragraph and cross-paragraph text range revision CLI delete/replace commands so automation can fail before mutating when selected text has drifted.
 - Extended `expected_text` mismatch diagnostics with selected range offsets and segment previews for API and CLI revision authoring.
