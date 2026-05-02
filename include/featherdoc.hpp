@@ -729,6 +729,12 @@ struct revision_metadata_update {
     bool clear_date{false};
 };
 
+struct revision_text_range_options {
+    std::string author;
+    std::string date;
+    std::optional<std::string> expected_text;
+};
+
 struct text_range_preview_segment {
     std::size_t paragraph_index{};
     std::size_t text_offset{};
@@ -2765,10 +2771,18 @@ class Document {
         std::size_t paragraph_index, std::size_t text_offset,
         std::size_t text_length, std::string_view author = {},
         std::string_view date = {});
+    [[nodiscard]] bool delete_paragraph_text_revision(
+        std::size_t paragraph_index, std::size_t text_offset,
+        std::size_t text_length,
+        const featherdoc::revision_text_range_options &options);
     [[nodiscard]] bool replace_paragraph_text_revision(
         std::size_t paragraph_index, std::size_t text_offset,
         std::size_t text_length, std::string_view text,
         std::string_view author = {}, std::string_view date = {});
+    [[nodiscard]] bool replace_paragraph_text_revision(
+        std::size_t paragraph_index, std::size_t text_offset,
+        std::size_t text_length, std::string_view text,
+        const featherdoc::revision_text_range_options &options);
     [[nodiscard]] bool insert_text_range_revision(
         std::size_t paragraph_index, std::size_t text_offset,
         std::string_view text, std::string_view author = {},
@@ -2777,11 +2791,20 @@ class Document {
         std::size_t start_paragraph_index, std::size_t start_text_offset,
         std::size_t end_paragraph_index, std::size_t end_text_offset,
         std::string_view author = {}, std::string_view date = {});
+    [[nodiscard]] bool delete_text_range_revision(
+        std::size_t start_paragraph_index, std::size_t start_text_offset,
+        std::size_t end_paragraph_index, std::size_t end_text_offset,
+        const featherdoc::revision_text_range_options &options);
     [[nodiscard]] bool replace_text_range_revision(
         std::size_t start_paragraph_index, std::size_t start_text_offset,
         std::size_t end_paragraph_index, std::size_t end_text_offset,
         std::string_view text, std::string_view author = {},
         std::string_view date = {});
+    [[nodiscard]] bool replace_text_range_revision(
+        std::size_t start_paragraph_index, std::size_t start_text_offset,
+        std::size_t end_paragraph_index, std::size_t end_text_offset,
+        std::string_view text,
+        const featherdoc::revision_text_range_options &options);
     [[nodiscard]] std::optional<featherdoc::text_range_preview>
     preview_text_range(std::size_t start_paragraph_index,
                        std::size_t start_text_offset,

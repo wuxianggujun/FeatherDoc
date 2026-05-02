@@ -10630,6 +10630,8 @@ TEST_CASE("revision authoring APIs create paragraph text range revisions") {
         fs::current_path() / "review_revisions_paragraph_text_replace.docx";
     const fs::path reject_target =
         fs::current_path() / "review_revisions_paragraph_text_reject.docx";
+    const fs::path guard_target =
+        fs::current_path() / "review_revisions_paragraph_text_guard.docx";
     const fs::path invalid_target =
         fs::current_path() / "review_revisions_paragraph_text_invalid.docx";
 
@@ -10637,6 +10639,7 @@ TEST_CASE("revision authoring APIs create paragraph text range revisions") {
     fs::remove(delete_target);
     fs::remove(replace_target);
     fs::remove(reject_target);
+    fs::remove(guard_target);
     fs::remove(invalid_target);
 
     write_range_source(insert_target);
@@ -10662,8 +10665,12 @@ TEST_CASE("revision authoring APIs create paragraph text range revisions") {
     write_range_source(delete_target);
     featherdoc::Document deleted(delete_target);
     CHECK_FALSE(deleted.open());
-    CHECK(deleted.delete_paragraph_text_revision(
-        0U, 3U, 7U, "Grace", "2026-05-02T21:00:00Z"));
+    featherdoc::revision_text_range_options delete_options;
+    delete_options.author = "Grace";
+    delete_options.date = "2026-05-02T21:00:00Z";
+    delete_options.expected_text = "ha Beta";
+    CHECK(deleted.delete_paragraph_text_revision(0U, 3U, 7U,
+                                                 delete_options));
     revisions = deleted.list_revisions();
     REQUIRE_EQ(revisions.size(), 1U);
     CHECK_EQ(revisions[0].kind, featherdoc::revision_kind::deletion);
@@ -10687,8 +10694,12 @@ TEST_CASE("revision authoring APIs create paragraph text range revisions") {
     write_range_source(replace_target);
     featherdoc::Document replaced(replace_target);
     CHECK_FALSE(replaced.open());
-    CHECK(replaced.replace_paragraph_text_revision(
-        0U, 3U, 7U, "Range", "Linus", "2026-05-02T22:00:00Z"));
+    featherdoc::revision_text_range_options replace_options;
+    replace_options.author = "Linus";
+    replace_options.date = "2026-05-02T22:00:00Z";
+    replace_options.expected_text = "ha Beta";
+    CHECK(replaced.replace_paragraph_text_revision(0U, 3U, 7U, "Range",
+                                                   replace_options));
     revisions = replaced.list_revisions();
     REQUIRE_EQ(revisions.size(), 2U);
     CHECK_EQ(revisions[0].kind, featherdoc::revision_kind::deletion);
@@ -10717,6 +10728,26 @@ TEST_CASE("revision authoring APIs create paragraph text range revisions") {
     CHECK_FALSE(rejected_reopened.open());
     CHECK_EQ(collect_document_text(rejected_reopened), "Alpha Beta Gamma\n");
 
+    write_range_source(guard_target);
+    featherdoc::Document guarded(guard_target);
+    CHECK_FALSE(guarded.open());
+    featherdoc::revision_text_range_options guard_options;
+    guard_options.author = "Noop";
+    guard_options.expected_text = "Wrong";
+    CHECK_FALSE(guarded.delete_paragraph_text_revision(0U, 3U, 7U,
+                                                       guard_options));
+    CHECK_EQ(guarded.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_NE(guarded.last_error().detail.find(
+                 "expected text did not match selected text"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("expected: Wrong"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("actual: ha Beta"),
+             std::string::npos);
+    CHECK_EQ(guarded.list_revisions().size(), 0U);
+    CHECK_EQ(collect_document_text(guarded), "Alpha Beta Gamma\n");
+
     write_range_source(invalid_target);
     featherdoc::Document invalid_doc(invalid_target);
     CHECK_FALSE(invalid_doc.open());
@@ -10734,6 +10765,7 @@ TEST_CASE("revision authoring APIs create paragraph text range revisions") {
     fs::remove(delete_target);
     fs::remove(replace_target);
     fs::remove(reject_target);
+    fs::remove(guard_target);
     fs::remove(invalid_target);
 }
 
@@ -10770,6 +10802,8 @@ TEST_CASE("revision authoring APIs create cross-paragraph text range revisions")
         fs::current_path() / "review_revisions_text_range_replace.docx";
     const fs::path reject_target =
         fs::current_path() / "review_revisions_text_range_reject.docx";
+    const fs::path guard_target =
+        fs::current_path() / "review_revisions_text_range_guard.docx";
     const fs::path invalid_target =
         fs::current_path() / "review_revisions_text_range_invalid.docx";
 
@@ -10777,6 +10811,7 @@ TEST_CASE("revision authoring APIs create cross-paragraph text range revisions")
     fs::remove(delete_target);
     fs::remove(replace_target);
     fs::remove(reject_target);
+    fs::remove(guard_target);
     fs::remove(invalid_target);
 
     write_cross_paragraph_source(insert_target);
@@ -10818,8 +10853,12 @@ TEST_CASE("revision authoring APIs create cross-paragraph text range revisions")
     CHECK_EQ(preview->segments[1].text, "Middle Text");
     CHECK_EQ(preview->segments[2].paragraph_index, 2U);
     CHECK_EQ(preview->segments[2].text, "Gamma");
-    CHECK(deleted.delete_text_range_revision(
-        0U, 6U, 2U, 5U, "Grace", "2026-05-03T00:00:00Z"));
+    featherdoc::revision_text_range_options delete_options;
+    delete_options.author = "Grace";
+    delete_options.date = "2026-05-03T00:00:00Z";
+    delete_options.expected_text = "BetaMiddle TextGamma";
+    CHECK(deleted.delete_text_range_revision(0U, 6U, 2U, 5U,
+                                             delete_options));
     revisions = deleted.list_revisions();
     REQUIRE_EQ(revisions.size(), 3U);
     CHECK_EQ(revisions[0].kind, featherdoc::revision_kind::deletion);
@@ -10852,8 +10891,12 @@ TEST_CASE("revision authoring APIs create cross-paragraph text range revisions")
     write_cross_paragraph_source(replace_target);
     featherdoc::Document replaced(replace_target);
     CHECK_FALSE(replaced.open());
-    CHECK(replaced.replace_text_range_revision(
-        0U, 6U, 2U, 5U, "Range ", "Linus", "2026-05-03T01:00:00Z"));
+    featherdoc::revision_text_range_options replace_options;
+    replace_options.author = "Linus";
+    replace_options.date = "2026-05-03T01:00:00Z";
+    replace_options.expected_text = "BetaMiddle TextGamma";
+    CHECK(replaced.replace_text_range_revision(0U, 6U, 2U, 5U, "Range ",
+                                               replace_options));
     revisions = replaced.list_revisions();
     REQUIRE_EQ(revisions.size(), 4U);
     CHECK_EQ(revisions[0].kind, featherdoc::revision_kind::deletion);
@@ -10885,6 +10928,28 @@ TEST_CASE("revision authoring APIs create cross-paragraph text range revisions")
     CHECK_EQ(collect_document_text(rejected_reopened),
              "Alpha Beta\nMiddle Text\nGammaDelta\n");
 
+    write_cross_paragraph_source(guard_target);
+    featherdoc::Document guarded(guard_target);
+    CHECK_FALSE(guarded.open());
+    featherdoc::revision_text_range_options guard_options;
+    guard_options.author = "Noop";
+    guard_options.expected_text = "Wrong";
+    CHECK_FALSE(guarded.replace_text_range_revision(0U, 6U, 2U, 5U,
+                                                    "Range ", guard_options));
+    CHECK_EQ(guarded.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_NE(guarded.last_error().detail.find(
+                 "expected text did not match selected text"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find("expected: Wrong"),
+             std::string::npos);
+    CHECK_NE(guarded.last_error().detail.find(
+                 "actual: BetaMiddle TextGamma"),
+             std::string::npos);
+    CHECK_EQ(guarded.list_revisions().size(), 0U);
+    CHECK_EQ(collect_document_text(guarded),
+             "Alpha Beta\nMiddle Text\nGammaDelta\n");
+
     write_cross_paragraph_source(invalid_target);
     featherdoc::Document invalid_doc(invalid_target);
     CHECK_FALSE(invalid_doc.open());
@@ -10909,6 +10974,7 @@ TEST_CASE("revision authoring APIs create cross-paragraph text range revisions")
     fs::remove(delete_target);
     fs::remove(replace_target);
     fs::remove(reject_target);
+    fs::remove(guard_target);
     fs::remove(invalid_target);
 }
 

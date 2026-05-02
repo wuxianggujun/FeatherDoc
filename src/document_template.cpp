@@ -2510,6 +2510,37 @@ auto preview_paragraph_revision_range_segments(
     return preview;
 }
 
+auto revision_expected_text_mismatch_detail(std::string_view expected_text,
+                                            std::string_view actual_text)
+    -> std::string {
+    std::string detail{"expected text did not match selected text"};
+    detail += " (expected: ";
+    detail += expected_text;
+    detail += ", actual: ";
+    detail += actual_text;
+    detail += ')';
+    return detail;
+}
+
+auto validate_revision_expected_text(
+    featherdoc::document_error_info &last_error_info,
+    const featherdoc::text_range_preview &preview,
+    const featherdoc::revision_text_range_options &options) -> bool {
+    if (!options.expected_text.has_value()) {
+        return true;
+    }
+
+    if (preview.text == *options.expected_text) {
+        return true;
+    }
+
+    set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
+                   revision_expected_text_mismatch_detail(*options.expected_text,
+                                                         preview.text),
+                   std::string{document_xml_entry});
+    return false;
+}
+
 bool insert_comment_markers_for_selected_spans(
     const std::vector<paragraph_revision_range_segment> &segments,
     const std::vector<std::vector<paragraph_revision_run_span>> &selected_segments,
@@ -13031,6 +13062,16 @@ bool Document::insert_paragraph_text_revision(
 bool Document::delete_paragraph_text_revision(
     std::size_t paragraph_index, std::size_t text_offset, std::size_t text_length,
     std::string_view author, std::string_view date) {
+    featherdoc::revision_text_range_options options;
+    options.author = std::string{author};
+    options.date = std::string{date};
+    return this->delete_paragraph_text_revision(paragraph_index, text_offset,
+                                                text_length, options);
+}
+
+bool Document::delete_paragraph_text_revision(
+    std::size_t paragraph_index, std::size_t text_offset, std::size_t text_length,
+    const featherdoc::revision_text_range_options &options) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before deleting a paragraph text revision",
@@ -13043,6 +13084,23 @@ bool Document::delete_paragraph_text_revision(
                        "text range must not be empty",
                        std::string{document_xml_entry});
         return false;
+    }
+    if (text_length > std::numeric_limits<std::size_t>::max() - text_offset) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "text range is out of range",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    if (options.expected_text.has_value()) {
+        const auto preview = this->preview_text_range(
+            paragraph_index, text_offset, paragraph_index,
+            text_offset + text_length);
+        if (!preview.has_value() ||
+            !validate_revision_expected_text(this->last_error_info, *preview,
+                                             options)) {
+            return false;
+        }
     }
 
     auto paragraph_handle = this->paragraphs();
@@ -13125,7 +13183,8 @@ bool Document::delete_paragraph_text_revision(
             collect_revision_ids(part->xml, revision_id);
         }
     }
-    set_revision_identity_metadata(revision, revision_id, author, date);
+    set_revision_identity_metadata(revision, revision_id, options.author,
+                                   options.date);
     this->last_error_info.clear();
     return true;
 }
@@ -13133,6 +13192,17 @@ bool Document::delete_paragraph_text_revision(
 bool Document::replace_paragraph_text_revision(
     std::size_t paragraph_index, std::size_t text_offset, std::size_t text_length,
     std::string_view text, std::string_view author, std::string_view date) {
+    featherdoc::revision_text_range_options options;
+    options.author = std::string{author};
+    options.date = std::string{date};
+    return this->replace_paragraph_text_revision(paragraph_index, text_offset,
+                                                 text_length, text, options);
+}
+
+bool Document::replace_paragraph_text_revision(
+    std::size_t paragraph_index, std::size_t text_offset, std::size_t text_length,
+    std::string_view text,
+    const featherdoc::revision_text_range_options &options) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before replacing a paragraph text revision",
@@ -13152,6 +13222,23 @@ bool Document::replace_paragraph_text_revision(
                        "text range must not be empty",
                        std::string{document_xml_entry});
         return false;
+    }
+    if (text_length > std::numeric_limits<std::size_t>::max() - text_offset) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "text range is out of range",
+                       std::string{document_xml_entry});
+        return false;
+    }
+    if (options.expected_text.has_value()) {
+        const auto preview = this->preview_text_range(
+            paragraph_index, text_offset, paragraph_index,
+            text_offset + text_length);
+        if (!preview.has_value() ||
+            !validate_revision_expected_text(this->last_error_info, *preview,
+                                             options)) {
+            return false;
+        }
     }
 
     auto paragraph_handle = this->paragraphs();
@@ -13244,8 +13331,10 @@ bool Document::replace_paragraph_text_revision(
         }
     }
 
-    set_revision_identity_metadata(deletion, revision_id, author, date);
-    set_revision_identity_metadata(insertion, revision_id + 1L, author, date);
+    set_revision_identity_metadata(deletion, revision_id, options.author,
+                                   options.date);
+    set_revision_identity_metadata(insertion, revision_id + 1L, options.author,
+                                   options.date);
     this->last_error_info.clear();
     return true;
 }
@@ -13261,11 +13350,33 @@ bool Document::delete_text_range_revision(
     std::size_t start_paragraph_index, std::size_t start_text_offset,
     std::size_t end_paragraph_index, std::size_t end_text_offset,
     std::string_view author, std::string_view date) {
+    featherdoc::revision_text_range_options options;
+    options.author = std::string{author};
+    options.date = std::string{date};
+    return this->delete_text_range_revision(
+        start_paragraph_index, start_text_offset, end_paragraph_index,
+        end_text_offset, options);
+}
+
+bool Document::delete_text_range_revision(
+    std::size_t start_paragraph_index, std::size_t start_text_offset,
+    std::size_t end_paragraph_index, std::size_t end_text_offset,
+    const featherdoc::revision_text_range_options &options) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before deleting a text range revision",
                        std::string{document_xml_entry});
         return false;
+    }
+    if (options.expected_text.has_value()) {
+        const auto preview = this->preview_text_range(
+            start_paragraph_index, start_text_offset, end_paragraph_index,
+            end_text_offset);
+        if (!preview.has_value() ||
+            !validate_revision_expected_text(this->last_error_info, *preview,
+                                             options)) {
+            return false;
+        }
     }
 
     std::vector<pugi::xml_node> paragraphs;
@@ -13344,7 +13455,8 @@ bool Document::delete_text_range_revision(
             }
         }
 
-        set_revision_identity_metadata(revision, revision_id, author, date);
+        set_revision_identity_metadata(revision, revision_id, options.author,
+                                       options.date);
         ++revision_id;
     }
 
@@ -13356,6 +13468,19 @@ bool Document::replace_text_range_revision(
     std::size_t start_paragraph_index, std::size_t start_text_offset,
     std::size_t end_paragraph_index, std::size_t end_text_offset,
     std::string_view text, std::string_view author, std::string_view date) {
+    featherdoc::revision_text_range_options options;
+    options.author = std::string{author};
+    options.date = std::string{date};
+    return this->replace_text_range_revision(
+        start_paragraph_index, start_text_offset, end_paragraph_index,
+        end_text_offset, text, options);
+}
+
+bool Document::replace_text_range_revision(
+    std::size_t start_paragraph_index, std::size_t start_text_offset,
+    std::size_t end_paragraph_index, std::size_t end_text_offset,
+    std::string_view text,
+    const featherdoc::revision_text_range_options &options) {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before replacing a text range revision",
@@ -13368,6 +13493,16 @@ bool Document::replace_text_range_revision(
                        "revision text must not be empty",
                        std::string{document_xml_entry});
         return false;
+    }
+    if (options.expected_text.has_value()) {
+        const auto preview = this->preview_text_range(
+            start_paragraph_index, start_text_offset, end_paragraph_index,
+            end_text_offset);
+        if (!preview.has_value() ||
+            !validate_revision_expected_text(this->last_error_info, *preview,
+                                             options)) {
+            return false;
+        }
     }
 
     std::vector<pugi::xml_node> paragraphs;
@@ -13441,7 +13576,8 @@ bool Document::replace_text_range_revision(
                            std::string{document_xml_entry});
             return false;
         }
-        set_revision_identity_metadata(deletion, revision_id, author, date);
+        set_revision_identity_metadata(deletion, revision_id, options.author,
+                                       options.date);
         ++revision_id;
 
         if (!inserted_replacement &&
@@ -13461,7 +13597,8 @@ bool Document::replace_text_range_revision(
                                std::string{document_xml_entry});
                 return false;
             }
-            set_revision_identity_metadata(insertion, revision_id, author, date);
+            set_revision_identity_metadata(insertion, revision_id,
+                                           options.author, options.date);
             ++revision_id;
             inserted_replacement = true;
         }
@@ -13493,7 +13630,8 @@ bool Document::replace_text_range_revision(
                            std::string{document_xml_entry});
             return false;
         }
-        set_revision_identity_metadata(insertion, revision_id, author, date);
+        set_revision_identity_metadata(insertion, revision_id, options.author,
+                                       options.date);
     }
 
     this->last_error_info.clear();
