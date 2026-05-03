@@ -390,6 +390,24 @@ if(WIN32)
 
         add_test(
             NAME
+            release_candidate_governance_handoff
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_governance_handoff
+            -Scenario
+            handoff
+        )
+        featherdoc_set_test_labels(release_candidate_governance_handoff release smoke release_smoke governance)
+
+        add_test(
+            NAME
             release_visual_verdict_metadata_consistency
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}
@@ -1979,6 +1997,24 @@ if(NOT WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup
         )
         featherdoc_set_test_labels(release_candidate_blocker_rollup release smoke release_smoke)
+
+        add_test(
+            NAME
+            release_candidate_governance_handoff
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_governance_handoff
+            -Scenario
+            handoff
+        )
+        featherdoc_set_test_labels(release_candidate_governance_handoff release smoke release_smoke governance)
 
         add_test(
             NAME

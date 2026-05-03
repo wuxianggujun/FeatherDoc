@@ -87,6 +87,14 @@ param(
     [string]$ReleaseBlockerRollupOutputDir = "",
     [switch]$ReleaseBlockerRollupFailOnBlocker,
     [switch]$ReleaseBlockerRollupFailOnWarning,
+    [switch]$ReleaseGovernanceHandoff,
+    [string]$ReleaseGovernanceHandoffInputRoot = "output",
+    [string[]]$ReleaseGovernanceHandoffInputJson = @(),
+    [string]$ReleaseGovernanceHandoffOutputDir = "",
+    [switch]$ReleaseGovernanceHandoffIncludeRollup,
+    [switch]$ReleaseGovernanceHandoffFailOnMissing,
+    [switch]$ReleaseGovernanceHandoffFailOnBlocker,
+    [switch]$ReleaseGovernanceHandoffFailOnWarning,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -1129,6 +1137,70 @@ function Read-ReleaseBlockerRollupSummary {
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
 }
 
+function Invoke-ReleaseGovernanceHandoff {
+    param(
+        [string]$ScriptPath,
+        [string]$InputRoot,
+        [string[]]$InputJson,
+        [string]$OutputDir,
+        [string]$SummaryJson,
+        [string]$ReportMarkdown,
+        [bool]$IncludeRollup,
+        [bool]$FailOnMissing,
+        [bool]$FailOnBlocker,
+        [bool]$FailOnWarning
+    )
+
+    $arguments = @(
+        "-InputRoot"
+        $InputRoot
+        "-OutputDir"
+        $OutputDir
+        "-SummaryJson"
+        $SummaryJson
+        "-ReportMarkdown"
+        $ReportMarkdown
+    )
+    $cleanInputJson = @($InputJson | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($cleanInputJson.Count -gt 0) {
+        $arguments += "-InputJson"
+        $arguments += ($cleanInputJson -join ",")
+    }
+    if ($IncludeRollup) {
+        $arguments += "-IncludeReleaseBlockerRollup"
+    }
+    if ($FailOnMissing) {
+        $arguments += "-FailOnMissing"
+    }
+    if ($FailOnBlocker) {
+        $arguments += "-FailOnBlocker"
+    }
+    if ($FailOnWarning) {
+        $arguments += "-FailOnWarning"
+    }
+
+    Invoke-ChildPowerShell -ScriptPath $ScriptPath `
+        -Arguments $arguments `
+        -FailureMessage "Failed to build release governance handoff."
+
+    if (-not (Test-Path -LiteralPath $SummaryJson)) {
+        throw "Release governance handoff did not write summary JSON: $SummaryJson"
+    }
+    if (-not (Test-Path -LiteralPath $ReportMarkdown)) {
+        throw "Release governance handoff did not write Markdown report: $ReportMarkdown"
+    }
+}
+
+function Read-ReleaseGovernanceHandoffSummary {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+}
+
 
 
 function Parse-InstallSmokeOutput {
@@ -1310,6 +1382,7 @@ $projectTemplateSmokeScript = Join-Path $repoRoot "scripts\run_project_template_
 $projectTemplateSchemaApprovalHistoryScript = Join-Path $repoRoot "scripts\write_project_template_schema_approval_history.ps1"
 $projectTemplateSmokeDiscoverScript = Join-Path $repoRoot "scripts\discover_project_template_smoke_candidates.ps1"
 $releaseBlockerRollupScript = Join-Path $repoRoot "scripts\build_release_blocker_rollup_report.ps1"
+$releaseGovernanceHandoffScript = Join-Path $repoRoot "scripts\build_release_governance_handoff_report.ps1"
 $visualGateScript = Join-Path $repoRoot "scripts\run_word_visual_release_gate.ps1"
 $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
 
@@ -1426,6 +1499,38 @@ $releaseBlockerRollupMarkdownPath = if ($releaseBlockerRollupRequested) {
 } else {
     ""
 }
+$expandedReleaseGovernanceHandoffInputJson = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseGovernanceHandoffInputJson)
+$resolvedReleaseGovernanceHandoffInputJson = @(
+    foreach ($path in @($expandedReleaseGovernanceHandoffInputJson)) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            Resolve-FullPath -RepoRoot $repoRoot -InputPath $path
+        }
+    }
+)
+$resolvedReleaseGovernanceHandoffInputJson = @(Select-UniqueReleaseBlockerRollupPathList `
+        -Paths $resolvedReleaseGovernanceHandoffInputJson)
+$resolvedReleaseGovernanceHandoffInputRoot = Resolve-FullPath -RepoRoot $repoRoot `
+    -InputPath $ReleaseGovernanceHandoffInputRoot
+$releaseGovernanceHandoffRequested = [bool]$ReleaseGovernanceHandoff
+$resolvedReleaseGovernanceHandoffOutputDir = if ($releaseGovernanceHandoffRequested) {
+    if ([string]::IsNullOrWhiteSpace($ReleaseGovernanceHandoffOutputDir)) {
+        Join-Path $reportDir "release-governance-handoff"
+    } else {
+        Resolve-FullPath -RepoRoot $repoRoot -InputPath $ReleaseGovernanceHandoffOutputDir
+    }
+} else {
+    ""
+}
+$releaseGovernanceHandoffSummaryPath = if ($releaseGovernanceHandoffRequested) {
+    Join-Path $resolvedReleaseGovernanceHandoffOutputDir "summary.json"
+} else {
+    ""
+}
+$releaseGovernanceHandoffMarkdownPath = if ($releaseGovernanceHandoffRequested) {
+    Join-Path $resolvedReleaseGovernanceHandoffOutputDir "release_governance_handoff.md"
+} else {
+    ""
+}
 
 New-Item -ItemType Directory -Path $resolvedSummaryOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
@@ -1470,6 +1575,27 @@ $summary = [ordered]@{
         fail_on_blocker = [bool]$ReleaseBlockerRollupFailOnBlocker
         fail_on_warning = [bool]$ReleaseBlockerRollupFailOnWarning
         source_report_count = 0
+        release_blocker_count = 0
+        action_item_count = 0
+        warning_count = 0
+        error = ""
+    }
+    release_governance_handoff = [ordered]@{
+        requested = $releaseGovernanceHandoffRequested
+        status = if ($releaseGovernanceHandoffRequested) { "pending" } else { "not_requested" }
+        input_root = $resolvedReleaseGovernanceHandoffInputRoot
+        input_json = @($resolvedReleaseGovernanceHandoffInputJson)
+        output_dir = $resolvedReleaseGovernanceHandoffOutputDir
+        summary_json = $releaseGovernanceHandoffSummaryPath
+        report_markdown = $releaseGovernanceHandoffMarkdownPath
+        include_rollup = [bool]$ReleaseGovernanceHandoffIncludeRollup
+        fail_on_missing = [bool]$ReleaseGovernanceHandoffFailOnMissing
+        fail_on_blocker = [bool]$ReleaseGovernanceHandoffFailOnBlocker
+        fail_on_warning = [bool]$ReleaseGovernanceHandoffFailOnWarning
+        expected_report_count = 0
+        loaded_report_count = 0
+        missing_report_count = 0
+        failed_report_count = 0
         release_blocker_count = 0
         action_item_count = 0
         warning_count = 0
@@ -1572,11 +1698,25 @@ $summary = [ordered]@{
             warning_count = 0
             error = ""
         }
+        release_governance_handoff = [ordered]@{
+            status = if ($releaseGovernanceHandoffRequested) { "pending" } else { "not_requested" }
+            summary_json = $releaseGovernanceHandoffSummaryPath
+            report_markdown = $releaseGovernanceHandoffMarkdownPath
+            expected_report_count = 0
+            loaded_report_count = 0
+            missing_report_count = 0
+            failed_report_count = 0
+            release_blocker_count = 0
+            action_item_count = 0
+            warning_count = 0
+            error = ""
+        }
     }
 }
 
 $activeStep = ""
 $releaseBlockerRollupFailure = $null
+$releaseGovernanceHandoffFailure = $null
 
 try {
     if ($TemplateSchemaSectionTargets -and $TemplateSchemaResolvedSectionTargets) {
@@ -1610,6 +1750,16 @@ try {
             $activeStep = "release_blocker_rollup"
             throw "Release blocker rollup input root does not exist: $path"
         }
+    }
+    foreach ($path in @($resolvedReleaseGovernanceHandoffInputJson)) {
+        if (-not (Test-Path -LiteralPath $path)) {
+            $activeStep = "release_governance_handoff"
+            throw "Release governance handoff input JSON does not exist: $path"
+        }
+    }
+    if ($releaseGovernanceHandoffRequested -and -not (Test-Path -LiteralPath $resolvedReleaseGovernanceHandoffInputRoot)) {
+        $activeStep = "release_governance_handoff"
+        throw "Release governance handoff input root does not exist: $resolvedReleaseGovernanceHandoffInputRoot"
     }
 
     if ($RefreshReadmeAssets -and $SkipVisualGate) {
@@ -2295,6 +2445,56 @@ try {
         }
     }
 
+    if ($releaseGovernanceHandoffRequested) {
+        try {
+            Write-Step "Building release governance handoff"
+            Invoke-ReleaseGovernanceHandoff `
+                -ScriptPath $releaseGovernanceHandoffScript `
+                -InputRoot $resolvedReleaseGovernanceHandoffInputRoot `
+                -InputJson $resolvedReleaseGovernanceHandoffInputJson `
+                -OutputDir $resolvedReleaseGovernanceHandoffOutputDir `
+                -SummaryJson $releaseGovernanceHandoffSummaryPath `
+                -ReportMarkdown $releaseGovernanceHandoffMarkdownPath `
+                -IncludeRollup ([bool]$ReleaseGovernanceHandoffIncludeRollup) `
+                -FailOnMissing ([bool]$ReleaseGovernanceHandoffFailOnMissing) `
+                -FailOnBlocker ([bool]$ReleaseGovernanceHandoffFailOnBlocker) `
+                -FailOnWarning ([bool]$ReleaseGovernanceHandoffFailOnWarning)
+            $handoffSummary = Read-ReleaseGovernanceHandoffSummary -Path $releaseGovernanceHandoffSummaryPath
+            $summary.release_governance_handoff.status = if ($null -eq $handoffSummary) { "missing_summary" } else { [string]$handoffSummary.status }
+            $summary.release_governance_handoff.expected_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.expected_report_count }
+            $summary.release_governance_handoff.loaded_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.loaded_report_count }
+            $summary.release_governance_handoff.missing_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.missing_report_count }
+            $summary.release_governance_handoff.failed_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.failed_report_count }
+            $summary.release_governance_handoff.release_blocker_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.release_blocker_count }
+            $summary.release_governance_handoff.action_item_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.action_item_count }
+            $summary.release_governance_handoff.warning_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.warning_count }
+            $summary.release_governance_handoff.error = ""
+            $summary.steps.release_governance_handoff.status = $summary.release_governance_handoff.status
+            $summary.steps.release_governance_handoff.expected_report_count = $summary.release_governance_handoff.expected_report_count
+            $summary.steps.release_governance_handoff.loaded_report_count = $summary.release_governance_handoff.loaded_report_count
+            $summary.steps.release_governance_handoff.missing_report_count = $summary.release_governance_handoff.missing_report_count
+            $summary.steps.release_governance_handoff.failed_report_count = $summary.release_governance_handoff.failed_report_count
+            $summary.steps.release_governance_handoff.release_blocker_count = $summary.release_governance_handoff.release_blocker_count
+            $summary.steps.release_governance_handoff.action_item_count = $summary.release_governance_handoff.action_item_count
+            $summary.steps.release_governance_handoff.warning_count = $summary.release_governance_handoff.warning_count
+            $summary.steps.release_governance_handoff.error = ""
+            ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
+        } catch {
+            $handoffError = $_.Exception.Message
+            $summary.release_governance_handoff.status = "failed"
+            $summary.release_governance_handoff.error = $handoffError
+            $summary.steps.release_governance_handoff.status = "failed"
+            $summary.steps.release_governance_handoff.error = $handoffError
+            ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
+            Write-Step "Release governance handoff failed: $handoffError"
+            if ($ReleaseGovernanceHandoffFailOnMissing -or
+                $ReleaseGovernanceHandoffFailOnBlocker -or
+                $ReleaseGovernanceHandoffFailOnWarning) {
+                $releaseGovernanceHandoffFailure = $handoffError
+            }
+        }
+    }
+
     $repoRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $repoRoot
     $summaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summaryPath
     $buildDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedBuildDir
@@ -2311,6 +2511,8 @@ try {
     $projectTemplateSmokeSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.summary_json
     $projectTemplateSmokeOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.output_dir
     $projectTemplateSmokeCandidateDiscoveryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.candidate_discovery_json
+    $releaseGovernanceHandoffSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_governance_handoff.summary_json
+    $releaseGovernanceHandoffReportDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_governance_handoff.report_markdown
     $releaseHandoffDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
     $releaseBodyDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseBodyZhCnPath
     $releaseSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseSummaryZhCnPath
@@ -2362,6 +2564,7 @@ try {
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
 - Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
+- Release governance handoff: $($summary.steps.release_governance_handoff.status)
 $visualGateReviewTaskSummaryLine
 $readmeGalleryStatusLine
 $visualGateReviewSummary
@@ -2391,6 +2594,9 @@ $visualGateReviewSummary
 - Release blocker rollup summary: $(Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_blocker_rollup.summary_json)
 - Release blocker rollup report: $(Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_blocker_rollup.report_markdown)
 - Release blocker rollup counts: $($summary.release_blocker_rollup.release_blocker_count) blockers, $($summary.release_blocker_rollup.action_item_count) actions, $($summary.release_blocker_rollup.warning_count) warnings
+- Release governance handoff summary: $releaseGovernanceHandoffSummaryDisplay
+- Release governance handoff report: $releaseGovernanceHandoffReportDisplay
+- Release governance handoff counts: $($summary.release_governance_handoff.loaded_report_count)/$($summary.release_governance_handoff.expected_report_count) reports, $($summary.release_governance_handoff.missing_report_count) missing, $($summary.release_governance_handoff.release_blocker_count) blockers, $($summary.release_governance_handoff.action_item_count) actions
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath
@@ -2442,8 +2648,15 @@ if ($releaseBlockerRollupRequested) {
     Write-Host "Release blocker rollup summary: $releaseBlockerRollupSummaryPath"
     Write-Host "Release blocker rollup report: $releaseBlockerRollupMarkdownPath"
 }
+if ($releaseGovernanceHandoffRequested) {
+    Write-Host "Release governance handoff summary: $releaseGovernanceHandoffSummaryPath"
+    Write-Host "Release governance handoff report: $releaseGovernanceHandoffMarkdownPath"
+}
 Write-Host "Start here: $startHerePath"
 
 if ($null -ne $releaseBlockerRollupFailure) {
     throw $releaseBlockerRollupFailure
+}
+if ($null -ne $releaseGovernanceHandoffFailure) {
+    throw $releaseGovernanceHandoffFailure
 }

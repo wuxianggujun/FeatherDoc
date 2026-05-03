@@ -1,6 +1,8 @@
 param(
     [string]$RepoRoot,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [ValidateSet("rollup", "handoff")]
+    [string]$Scenario = "rollup"
 )
 
 Set-StrictMode -Version Latest
@@ -149,6 +151,76 @@ Write-JsonFile -Path $autoDiscoverProjectSummaryPath -Value ([ordered]@{
 })
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
+
+if ($Scenario -eq "handoff") {
+    $handoffOutputDir = Join-Path $resolvedWorkingDir "release-candidate-governance-handoff"
+    $handoffArguments = @(
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        $scriptPath,
+        "-SkipConfigure",
+        "-SkipBuild",
+        "-SkipTests",
+        "-SkipInstallSmoke",
+        "-SkipVisualGate",
+        "-SummaryOutputDir",
+        $handoffOutputDir,
+        "-ReleaseGovernanceHandoff",
+        "-ReleaseGovernanceHandoffInputRoot",
+        $autoDiscoverOutputRoot,
+        "-ReleaseGovernanceHandoffIncludeRollup"
+    )
+    $handoffResult = @(& (Get-Process -Id $PID).Path @handoffArguments 2>&1)
+    $handoffExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+    $handoffText = (@($handoffResult | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
+    Assert-Equal -Actual $handoffExitCode -Expected 0 `
+        -Message "Release candidate governance handoff run should pass. Output: $handoffText"
+
+    $handoffReleaseSummaryPath = Join-Path $handoffOutputDir "report\summary.json"
+    $handoffFinalReviewPath = Join-Path $handoffOutputDir "report\final_review.md"
+    $handoffSummaryPath = Join-Path $handoffOutputDir "report\release-governance-handoff\summary.json"
+    $handoffMarkdownPath = Join-Path $handoffOutputDir "report\release-governance-handoff\release_governance_handoff.md"
+    $handoffNestedRollupSummaryPath = Join-Path $handoffOutputDir "report\release-governance-handoff\release-blocker-rollup\summary.json"
+    foreach ($path in @($handoffReleaseSummaryPath, $handoffFinalReviewPath, $handoffSummaryPath, $handoffMarkdownPath, $handoffNestedRollupSummaryPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) `
+            -Message "Expected release governance handoff artifact to exist: $path"
+    }
+
+    $handoffReleaseSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffReleaseSummaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$handoffReleaseSummary.msvc_bootstrap_mode) -Expected "not_required" `
+        -Message "Handoff-only release candidate run should not require MSVC discovery."
+    Assert-Equal -Actual ([string]$handoffReleaseSummary.release_governance_handoff.status) -Expected "blocked" `
+        -Message "Release candidate summary should surface governance handoff status."
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.expected_report_count) -Expected 3 `
+        -Message "Release candidate summary should surface handoff expected report count."
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.loaded_report_count) -Expected 3 `
+        -Message "Release candidate summary should surface handoff loaded report count."
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.release_blocker_count) -Expected 3 `
+        -Message "Release candidate summary should surface handoff blocker count."
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.action_item_count) -Expected 3 `
+        -Message "Release candidate summary should surface handoff action count."
+    Assert-Equal -Actual ([string]$handoffReleaseSummary.steps.release_governance_handoff.status) -Expected "blocked" `
+        -Message "Release candidate step status should mirror governance handoff status."
+
+    $handoffSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffSummaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$handoffSummary.schema) -Expected "featherdoc.release_governance_handoff_report.v1" `
+        -Message "Nested release governance handoff should write its schema."
+    Assert-Equal -Actual ([bool]$handoffSummary.release_blocker_rollup.included) -Expected $true `
+        -Message "Governance handoff should record the nested release blocker rollup."
+
+    $handoffFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffFinalReviewPath
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "- Release governance handoff: blocked" `
+        -Message "Final review should include release governance handoff step status."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff counts: 3/3 reports, 0 missing, 3 blockers, 3 actions" `
+        -Message "Final review should include release governance handoff counts."
+
+    Write-Host "Release candidate governance handoff regression passed."
+    exit 0
+}
+
 $scriptArguments = @(
     "-NoProfile",
     "-NonInteractive",
