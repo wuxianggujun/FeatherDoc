@@ -31,6 +31,14 @@ featherdoc_add_cpp_test(
     iterator_tests.cpp
 )
 
+featherdoc_add_cpp_test(
+    cli_json_tests
+    cli_json
+    cli_json_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json.cpp
+)
+target_include_directories(cli_json_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+
 if(WIN32)
     find_program(FEATHERDOC_POWERSHELL_EXECUTABLE NAMES pwsh powershell)
     if(FEATHERDOC_POWERSHELL_EXECUTABLE)

@@ -42,7 +42,7 @@ jobs:
           cmake -S . -B build-linux-${{ matrix.compiler }}
           -DCMAKE_BUILD_TYPE=Release
           -DBUILD_TESTING=ON
-          -DBUILD_CLI=OFF
+          -DBUILD_CLI=ON
           -DBUILD_SAMPLES=OFF
 
       - name: Build

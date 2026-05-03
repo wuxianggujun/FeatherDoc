@@ -1,3 +1,5 @@
+#include "featherdoc_cli_json.hpp"
+
 #include <featherdoc.hpp>
 
 #include <algorithm>
@@ -17,6 +19,9 @@
 #include <vector>
 
 namespace {
+using featherdoc_cli::json_escape;
+using featherdoc_cli::write_json_string;
+
 using path_type = std::filesystem::path;
 
 struct command_options {
@@ -1648,8 +1653,6 @@ void write_json_mutation_result(std::string_view command, featherdoc::Document &
 
 void write_json_mutation_result(std::string_view command, featherdoc::Document &doc,
                                 const std::optional<path_type> &output_path);
-auto json_escape(std::string_view text) -> std::string;
-void write_json_string(std::ostream &stream, std::string_view text);
 auto report_operation_failure(std::string_view command, std::string_view stage,
                               std::string_view message,
                               const featherdoc::document_error_info &error_info,
@@ -17671,44 +17674,6 @@ auto load_body_run_summaries(const path_type &input_path, std::size_t paragraph_
     }
 
     return true;
-}
-
-auto json_escape(std::string_view text) -> std::string {
-    std::string escaped;
-    escaped.reserve(text.size());
-    for (const char ch : text) {
-        switch (ch) {
-        case '\\':
-            escaped += "\\\\";
-            break;
-        case '"':
-            escaped += "\\\"";
-            break;
-        case '\b':
-            escaped += "\\b";
-            break;
-        case '\f':
-            escaped += "\\f";
-            break;
-        case '\n':
-            escaped += "\\n";
-            break;
-        case '\r':
-            escaped += "\\r";
-            break;
-        case '\t':
-            escaped += "\\t";
-            break;
-        default:
-            escaped += ch;
-            break;
-        }
-    }
-    return escaped;
-}
-
-void write_json_string(std::ostream &stream, std::string_view text) {
-    stream << '"' << json_escape(text) << '"';
 }
 
 void write_json_strings(std::ostream &stream,

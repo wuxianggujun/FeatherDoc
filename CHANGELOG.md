@@ -38,8 +38,11 @@ performance.
   coverage to aggregate multiple table layout delivery summaries into a
   multi-template table style quality, safe tblLook repair, floating table plan,
   release blocker, and action item handoff.
+- Added a standalone CLI JSON helper module with focused CTest coverage so
+  common CLI output escaping can be validated without running the full CLI
+  regression suite.
 - Added a minimal Linux CMake CI workflow with GCC/Clang matrix coverage for
-  the core test build.
+  the core and CLI test build.
 - Added `run_word_visual_smoke.ps1 -ShowRevisions` and review mutation visual runner passthrough so Word PDF/PNG evidence can render tracked insertion and deletion markup when validating unresolved revisions.
 - Added typed insertion/deletion revision authoring APIs and matching CLI commands so review workflows can generate Word revision markup before accepting or rejecting it.
 - Added in-place run revision authoring APIs and CLI commands for inserting, deleting, and replacing body runs with Word revision markup.
