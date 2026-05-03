@@ -40264,7 +40264,7 @@ auto build_exported_template_schema(featherdoc::Document &doc,
 }
 } // namespace
 
-int main(int argc, char **argv) {
+int featherdoc_cli_main(int argc, char **argv) {
     const std::vector<std::string_view> arguments(argv + 1, argv + argc);
     if (arguments.empty()) {
         print_usage(std::cerr);

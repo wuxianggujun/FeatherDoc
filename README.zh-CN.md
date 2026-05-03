@@ -345,6 +345,7 @@ featherdoc_cli repair-style-numbering input.docx --apply --output repaired-style
 featherdoc_cli repair-style-numbering input.docx --catalog-file numbering-catalog.json --apply --output catalog-repaired.docx --json
 featherdoc_cli export-numbering-catalog input.docx --output numbering-catalog.json --json
 featherdoc_cli check-numbering-catalog input.docx --catalog-file numbering-catalog.json --output numbering-catalog.generated.json --json
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 -InputDocx .\input.docx -OutputDir .\output\document-skeleton-governance -BuildDir build-codex-clang-compat -SkipBuild
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx .\input.docx -CatalogFile .\numbering-catalog.json -GeneratedCatalogOutput .\numbering-catalog.generated.json -BuildDir build-codex-clang-compat -SkipBuild
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir build-codex-clang-compat -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild
 featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file numbering-catalog.patch.json --output numbering-catalog.patched.json --json
@@ -365,6 +366,7 @@ featherdoc_cli audit-table-style-inheritance input.docx --fail-on-issue --json
 featherdoc_cli audit-table-style-quality input.docx --fail-on-issue --json
 featherdoc_cli plan-table-style-quality-fixes input.docx --json
 featherdoc_cli apply-table-style-quality-fixes input.docx --look-only --output quality-fixed.docx --json
+powershell -ExecutionPolicy Bypass -File .\scripts\run_table_layout_delivery_report.ps1 -InputDocx .\input.docx -BuildDir build-codex-clang-compat -OutputDir .\output\table-layout-delivery-report -SkipBuild
 powershell -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1 -BuildDir build-codex-clang-compat -OutputDir output/table-style-quality-visual-regression -SkipBuild
 powershell -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 -SkipConfigure -SkipBuild -IncludeTableStyleQuality
 featherdoc_cli check-table-style-look input.docx --fail-on-issue --json
@@ -465,7 +467,11 @@ entry，而不是手改 JSON。常见场景直接传
 业务数据完整性校验命令、`register_project_template_smoke_manifest_entry.ps1`
 命令，以及最后的 smoke / strict preflight 命令统一写到 `plan.json`、
 `plan.md` 和 `candidate_discovery.json`，方便先审阅 schema baseline 路径、
-可填写的数据骨架工作区和 visual smoke 输出目录，再决定是否真正登记。也可以单独跑
+可填写的数据骨架工作区和 visual smoke 输出目录，再决定是否真正登记。计划里的
+每个候选现在也会带 `schema_approval_state`、`release_blockers`、`action_items`
+和 `manual_review_recommendations`；尚未运行 smoke 的候选会明确标记为
+`status=not_evaluated`，提醒先生成并复核 `schema_patch_approval_items`。
+也可以单独跑
 `scripts/discover_project_template_smoke_candidates.ps1`，它会列出仓库里已
 跟踪但还没登记的 `.docx` / `.dotx` 候选，并给出带唯一 entry 名的
 `register_project_template_smoke_manifest_entry.ps1` 命令。如果要把它当覆盖率闸门，
@@ -1113,6 +1119,11 @@ const auto result = doc.validate_template_schema({
 如果你要把一份真实模板接入项目流程，可以先用库级
 `Document::onboard_template(...)` 做首轮诊断。它会复用 schema scan / validate / patch
 review，返回扫描到的槽位、baseline 漂移、阻塞 issue 和下一步建议动作。
+项目级入口 `scripts/onboard_project_template.ps1` 会额外在
+`onboarding_summary.json` 和 `report/manual_review.md` 中写出
+`schema_approval_state`、`release_blockers`、`action_items` 与
+`manual_review_recommendations`，用于快速判断 schema approval 是否阻断发布、
+应先复核 schema update candidate 还是补齐 render-data。
 
 ```cpp
 featherdoc::Document doc("invoice-template.docx");
@@ -1320,7 +1331,7 @@ repair 候选文件。
 - content control 的枚举、tag / alias 过滤、C++ API / CLI 层的纯文本、段落、表格行、整表和图片替换
 - 内联图片与浮动图片，已支持 PNG/JPEG/GIF/BMP/SVG/WebP/TIFF 的插入、尺寸识别和内容类型写入
 - 页眉、页脚、分节复制 / 插入 / 移动 / 删除
-- 列表、自定义编号定义、编号 catalog 内存级与 CLI JSON 导入 / 导出、check、patch、lint、diff，patch 已覆盖 definition level upsert 与 override upsert/remove，单文件 / manifest 脚本级 baseline gate，带 `command_template` 修复建议的样式编号审计 gate（缺失 level 会指向 `upsert_levels` patch 工作流），以及 `repair-style-numbering` plan/apply 安全清理、based-on 对齐、唯一同名 definition relink 与 catalog 导入预修复入口，基础样式目录检查与最小样式定义编辑
+- 列表、自定义编号定义、编号 catalog 内存级与 CLI JSON 导入 / 导出、check、patch、lint、diff，patch 已覆盖 definition level upsert 与 override upsert/remove，单文件 / manifest 脚本级 baseline gate，`build_document_skeleton_governance_report.ps1` 可从 exemplar 文档导出 numbering catalog、汇总样式 usage 和样式编号审计报告，带 `command_template` 修复建议的样式编号审计 gate（缺失 level 会指向 `upsert_levels` patch 工作流），以及 `repair-style-numbering` plan/apply 安全清理、based-on 对齐、唯一同名 definition relink 与 catalog 导入预修复入口，基础样式目录检查与最小样式定义编辑
 
 ## 当前限制
 
@@ -1342,6 +1353,11 @@ repair 候选文件。
   `Table::set_position(...)` / `position()` / `clear_position()` 读写第一版
   `w:tblpPr` 浮动定位，覆盖水平 / 垂直参照、twips 偏移、环绕距离、
   重叠策略、常用 preset、多表批量目标、plan/apply 回放和 Word 渲染可视化验证。
+  当需要把表格样式、`tblLook` 和浮动定位一次性收口成交付审计材料时，
+  可以运行 `scripts/run_table_layout_delivery_report.ps1`，它会复用
+  `inspect-tables`、`audit-table-style-quality`、`check-table-style-look` 和
+  `plan-table-position-presets` 生成 JSON / Markdown 报告、preset 修复建议、
+  可回放 position plan，以及 Word 视觉回归入口。
 - 模板校验已经覆盖 slot、缺失、重复、意外书签、kind 不匹配、occurrence 约束，
   并且已经有 `validate_template_schema(...)` 和
   `featherdoc_cli validate-template-schema` 这套文档级多 part 校验入口，

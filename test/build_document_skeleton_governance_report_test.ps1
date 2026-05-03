@@ -1,0 +1,220 @@
+param(
+    [string]$RepoRoot,
+    [string]$BuildDir,
+    [string]$WorkingDir,
+    [ValidateSet("all", "passing", "failing", "fail_on_issue")]
+    [string]$Scenario = "all"
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+function Assert-True {
+    param(
+        [bool]$Condition,
+        [string]$Message
+    )
+
+    if (-not $Condition) {
+        throw $Message
+    }
+}
+
+function Assert-Equal {
+    param(
+        $Actual,
+        $Expected,
+        [string]$Message
+    )
+
+    if ($Actual -ne $Expected) {
+        throw "$Message Expected='$Expected' Actual='$Actual'."
+    }
+}
+
+function Assert-ContainsText {
+    param(
+        [string]$Text,
+        [string]$ExpectedText,
+        [string]$Message
+    )
+
+    if ($Text -notmatch [regex]::Escape($ExpectedText)) {
+        throw "$Message Missing='$ExpectedText'."
+    }
+}
+
+function Test-Scenario {
+    param([string]$Name)
+    return ($Scenario -eq "all" -or $Scenario -eq $Name)
+}
+
+function Invoke-GovernanceReportScript {
+    param([string[]]$Arguments)
+
+    $powerShellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
+    $powerShellPath = if ($powerShellCommand) { $powerShellCommand.Source } else { (Get-Process -Id $PID).Path }
+    $output = @(& $powerShellPath -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath @Arguments 2>&1)
+    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+    $lines = @($output | ForEach-Object { $_.ToString() })
+
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Output = $lines
+        Text = ($lines -join [System.Environment]::NewLine)
+    }
+}
+
+function Write-MockCli {
+    param(
+        [string]$Path,
+        [switch]$FailAudit
+    )
+
+    $auditBlock = if ($FailAudit) {
+        @'
+    "audit-style-numbering" {
+        Write-Output '{"command":"audit-style-numbering","error":"mock audit failure"}'
+        exit 1
+    }
+'@
+    } else {
+        @'
+    "audit-style-numbering" {
+        Write-Output '{"command":"audit-style-numbering","clean":false,"paragraph_style_count":3,"numbered_style_count":2,"issue_count":2,"suggestion_count":1,"styles":[],"issues":[{"issue":"missing_numbering_definition","style_id":"Heading1"},{"issue":"missing_numbering_definition","style_id":"Heading2"}],"suggestions":[{"command":"inspect-style-numbering"}]}'
+        exit 0
+    }
+'@
+    }
+
+    $mock = @"
+param([Parameter(ValueFromRemainingArguments = `$true)][string[]]`$Args)
+`$command = `$Args[0]
+switch (`$command) {
+    "export-numbering-catalog" {
+        `$outputIndex = [Array]::IndexOf(`$Args, "--output")
+        if (`$outputIndex -lt 0 -or `$outputIndex + 1 -ge `$Args.Count) {
+            Write-Output '{"command":"export-numbering-catalog","error":"missing output"}'
+            exit 2
+        }
+        `$catalogPath = `$Args[`$outputIndex + 1]
+        New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName(`$catalogPath)) -Force | Out-Null
+        Set-Content -LiteralPath `$catalogPath -Encoding UTF8 -Value '{"definition_count":2,"instance_count":3,"definitions":[{"name":"HeadingOutline","levels":[],"instances":[]}]}'
+        Write-Output ('{"command":"export-numbering-catalog","ok":true,"output_path":"' + (`$catalogPath -replace '\\','\\' -replace '"','\"') + '","definition_count":2,"instance_count":3}')
+        exit 0
+    }
+    "inspect-styles" {
+        Write-Output '{"command":"inspect-styles","style_count":3,"entries":[{"style":{"style_id":"Heading1"},"usage":{"style_id":"Heading1","paragraph_count":2,"run_count":0,"table_count":0,"total_count":2,"hits":[]}},{"style":{"style_id":"BodyText"},"usage":{"style_id":"BodyText","paragraph_count":1,"run_count":1,"table_count":1,"total_count":3,"hits":[]}}]}'
+        exit 0
+    }
+$auditBlock
+    default {
+        Write-Output ('{"command":"' + `$command + '","error":"unexpected command"}')
+        exit 2
+    }
+}
+"@
+
+    Set-Content -LiteralPath $Path -Encoding UTF8 -Value $mock
+}
+
+$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+$resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
+$scriptPath = Join-Path $resolvedRepoRoot "scripts\build_document_skeleton_governance_report.ps1"
+$sampleDocx = Join-Path $resolvedRepoRoot "test\my_test.docx"
+
+New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
+
+$mockCli = Join-Path $resolvedWorkingDir "mock-featherdoc-cli.ps1"
+$passingOutputDir = Join-Path $resolvedWorkingDir "passing-report"
+Write-MockCli -Path $mockCli
+
+if (Test-Scenario -Name "passing") {
+    $passingResult = Invoke-GovernanceReportScript -Arguments @(
+        "-InputDocx", $sampleDocx,
+        "-OutputDir", $passingOutputDir,
+        "-CliPath", $mockCli,
+        "-SkipBuild"
+    )
+    Assert-Equal -Actual $passingResult.ExitCode -Expected 0 `
+        -Message "Governance report should pass without -FailOnIssue even when audit has issues. Output: $($passingResult.Text)"
+    Assert-ContainsText -Text $passingResult.Text -ExpectedText "Summary JSON:" `
+        -Message "Governance report should print summary path."
+
+    $summaryPath = Join-Path $passingOutputDir "document_skeleton_governance.summary.json"
+    $markdownPath = Join-Path $passingOutputDir "document_skeleton_governance.md"
+    $catalogPath = Join-Path $passingOutputDir "exemplar.numbering-catalog.json"
+    Assert-True -Condition (Test-Path -LiteralPath $summaryPath) `
+        -Message "Governance report should write summary.json."
+    Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
+        -Message "Governance report should write Markdown report."
+    Assert-True -Condition (Test-Path -LiteralPath $catalogPath) `
+        -Message "Governance report should export the exemplar numbering catalog."
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([int]$summary.numbering_catalog.definition_count) -Expected 2 `
+        -Message "Summary should include catalog definition count."
+    Assert-Equal -Actual ([int]$summary.numbering_catalog.instance_count) -Expected 3 `
+        -Message "Summary should include catalog instance count."
+    Assert-Equal -Actual ([int]$summary.style_usage.usage_total) -Expected 5 `
+        -Message "Summary should aggregate style usage totals."
+    Assert-Equal -Actual ([int]$summary.style_numbering_audit.issue_count) -Expected 2 `
+        -Message "Summary should include style-numbering audit issue count."
+    Assert-Equal -Actual ([int]$summary.issue_summary[0].count) -Expected 2 `
+        -Message "Summary should group style-numbering issues."
+    Assert-Equal -Actual ([int]$summary.next_steps.Count) -Expected 4 `
+        -Message "Summary should include suggested next-step commands."
+    Assert-ContainsText -Text (($summary.next_steps | ForEach-Object { [string]$_.command }) -join "`n") -ExpectedText "repair-style-numbering" `
+        -Message "Next steps should include repair preview command."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "exemplar_catalog:" `
+        -Message "Markdown report should show exemplar catalog path."
+    Assert-ContainsText -Text $markdown -ExpectedText "Issue Summary" `
+        -Message "Markdown report should include issue summary section."
+    Assert-ContainsText -Text $markdown -ExpectedText "repair-style-numbering" `
+        -Message "Markdown report should include suggested commands."
+}
+
+if (Test-Scenario -Name "failing") {
+    $failingCli = Join-Path $resolvedWorkingDir "mock-featherdoc-cli-failing-audit.ps1"
+    $failingOutputDir = Join-Path $resolvedWorkingDir "failing-report"
+    Write-MockCli -Path $failingCli -FailAudit
+    $failingResult = Invoke-GovernanceReportScript -Arguments @(
+        "-InputDocx", $sampleDocx,
+        "-OutputDir", $failingOutputDir,
+        "-CliPath", $failingCli,
+        "-SkipBuild"
+    )
+    Assert-Equal -Actual $failingResult.ExitCode -Expected 1 `
+        -Message "Governance report should fail when a CLI command fails. Output: $($failingResult.Text)"
+
+    $failingSummaryPath = Join-Path $failingOutputDir "document_skeleton_governance.summary.json"
+    Assert-True -Condition (Test-Path -LiteralPath $failingSummaryPath) `
+        -Message "Failing governance report should still write summary.json."
+    $failingSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $failingSummaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([int]$failingSummary.command_failure_count) -Expected 1 `
+        -Message "Failing summary should count the failed command."
+    Assert-Equal -Actual ([string]$failingSummary.status) -Expected "failed" `
+        -Message "Failing summary should set status=failed."
+    $failingAuditCommand = @($failingSummary.commands | Where-Object { $_.command -eq "audit-style-numbering" } | Select-Object -First 1)
+    Assert-True -Condition ($null -ne $failingAuditCommand) `
+        -Message "Failing summary should include the audit-style-numbering command result."
+    Assert-Equal -Actual ([int]$failingAuditCommand.exit_code) -Expected 1 `
+        -Message "Failing summary should preserve the audit command exit code."
+}
+
+if (Test-Scenario -Name "fail_on_issue") {
+    $failOnIssueOutputDir = Join-Path $resolvedWorkingDir "fail-on-issue-report"
+    $failOnIssueResult = Invoke-GovernanceReportScript -Arguments @(
+        "-InputDocx", $sampleDocx,
+        "-OutputDir", $failOnIssueOutputDir,
+        "-CliPath", $mockCli,
+        "-SkipBuild",
+        "-FailOnIssue"
+    )
+    Assert-Equal -Actual $failOnIssueResult.ExitCode -Expected 1 `
+        -Message "Governance report should fail with -FailOnIssue when audit issues exist. Output: $($failOnIssueResult.Text)"
+}
+
+Write-Host "Document skeleton governance report regression passed."

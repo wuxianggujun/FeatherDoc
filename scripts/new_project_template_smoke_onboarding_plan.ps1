@@ -307,6 +307,107 @@ function New-StrictPreflightCommand {
     return Join-Command -Parts $parts.ToArray()
 }
 
+function New-PlannedSchemaApprovalState {
+    return [ordered]@{
+        schema = "featherdoc.project_template_onboarding_schema_approval_state.v1"
+        status = "not_evaluated"
+        gate_status = "not_evaluated"
+        release_blocked = $true
+        smoke_summary_available = $false
+        smoke_skipped = $false
+        approval_required = $null
+        review_count = 0
+        changed_review_count = 0
+        pending_count = 0
+        approved_count = 0
+        rejected_count = 0
+        compliance_issue_count = 0
+        invalid_result_count = 0
+        action = "run_project_template_smoke_then_review_schema_patch_approval"
+    }
+}
+
+function New-PlannedReleaseBlockers {
+    param([string]$Name)
+
+    return @(
+        [ordered]@{
+            id = "project_template_onboarding.schema_approval_not_evaluated"
+            source = "project_template_smoke_onboarding_plan"
+            severity = "error"
+            status = "not_evaluated"
+            message = "Schema approval cannot be release-ready until the candidate is frozen, registered, smoked, and reviewed."
+            action = "run_project_template_smoke_then_review_schema_patch_approval"
+            entry_name = $Name
+        }
+    )
+}
+
+function New-PlannedActionItems {
+    param(
+        [string]$Name,
+        [object]$Commands,
+        [string]$RenderDataValidationReport
+    )
+
+    return @(
+        [ordered]@{
+            id = "freeze_schema_baseline"
+            status = "open"
+            action = "freeze_schema_baseline"
+            title = "Freeze the first schema baseline candidate."
+            command = [string]$Commands.freeze_schema_baseline
+        },
+        [ordered]@{
+            id = "complete_render_data_workspace"
+            status = "open"
+            action = "complete_render_data_workspace"
+            title = "Prepare and complete the render-data workspace."
+            command = [string]$Commands.prepare_render_data_workspace
+            artifacts = @($RenderDataValidationReport)
+        },
+        [ordered]@{
+            id = "review_schema_update_candidate"
+            status = "open"
+            action = "review_schema_update_candidate"
+            title = "Run smoke after manifest registration and review schema_patch_approval_items."
+            command = [string]$Commands.register_manifest_entry
+        }
+    )
+}
+
+function New-PlannedManualReviewRecommendations {
+    param(
+        [string]$Name,
+        [string]$SchemaBaselinePath,
+        [string]$RenderDataValidationReport
+    )
+
+    return @(
+        [ordered]@{
+            id = "review_schema_baseline_$Name"
+            priority = "high"
+            title = "Review whether the first schema baseline only contains expected bookmarks and content controls."
+            artifact = $SchemaBaselinePath
+            action = "review_schema_baseline"
+        },
+        [ordered]@{
+            id = "review_render_data_business_values_$Name"
+            priority = "high"
+            title = "Complete business data and run strict validation."
+            artifact = $RenderDataValidationReport
+            action = "complete_render_data_workspace"
+        },
+        [ordered]@{
+            id = "review_schema_approval_after_smoke_$Name"
+            priority = "high"
+            title = "Review approval decisions after smoke generates schema_patch_approval_items."
+            artifact = ""
+            action = "run_project_template_smoke_then_review_schema_patch_approval"
+        }
+    )
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedManifestPath = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $ManifestPath
 $resolvedSearchRoot = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $SearchRoot
@@ -380,6 +481,45 @@ foreach ($candidate in $unregisteredCandidates) {
     $renderDataWorkspaceSummary = Join-Path $renderDataWorkspaceDir "summary.json"
     $renderDataValidationSummary = Join-Path $renderDataWorkspaceDir "validation.summary.json"
     $renderDataValidationReport = Join-Path $renderDataWorkspaceDir "validation.report.md"
+    $entryCommands = [ordered]@{
+        freeze_schema_baseline = New-FreezeSchemaCommand `
+            -RepoRoot $repoRoot `
+            -InputDocx $inputDocx `
+            -SchemaOutput $schemaBaselinePath `
+            -BuildDir $resolvedBuildDir `
+            -SchemaTargetMode $SchemaTargetMode
+        register_manifest_entry = New-RegisterCommand `
+            -RepoRoot $repoRoot `
+            -Name $entryName `
+            -ManifestPath $resolvedManifestPath `
+            -InputDocx $inputDocx `
+            -SchemaFile $schemaBaselinePath `
+            -GeneratedSchemaOutput $generatedSchemaOutput `
+            -VisualSmokeOutputDir $visualSmokeOutputDir `
+            -SchemaTargetMode $SchemaTargetMode
+        prepare_render_data_workspace = New-PrepareRenderDataWorkspaceCommand `
+            -RepoRoot $repoRoot `
+            -InputDocx $inputDocx `
+            -WorkspaceDir $renderDataWorkspaceDir `
+            -SummaryJson $renderDataWorkspaceSummary `
+            -BuildDir $resolvedBuildDir
+        validate_render_data_workspace = New-ValidateRenderDataWorkspaceCommand `
+            -RepoRoot $repoRoot `
+            -WorkspaceDir $renderDataWorkspaceDir `
+            -SummaryJson $renderDataValidationSummary `
+            -ReportMarkdown $renderDataValidationReport `
+            -BuildDir $resolvedBuildDir
+    }
+    $schemaApprovalState = New-PlannedSchemaApprovalState
+    $releaseBlockers = New-PlannedReleaseBlockers -Name $entryName
+    $actionItems = New-PlannedActionItems `
+        -Name $entryName `
+        -Commands $entryCommands `
+        -RenderDataValidationReport $renderDataValidationReport
+    $manualReviewRecommendations = New-PlannedManualReviewRecommendations `
+        -Name $entryName `
+        -SchemaBaselinePath $schemaBaselinePath `
+        -RenderDataValidationReport $renderDataValidationReport
 
     $entries.Add([pscustomobject]@{
         name = $entryName
@@ -399,41 +539,19 @@ foreach ($candidate in $unregisteredCandidates) {
         render_data_validation_summary_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $renderDataValidationSummary
         render_data_validation_report = $renderDataValidationReport
         render_data_validation_report_display = Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $renderDataValidationReport
+        schema_approval_state = $schemaApprovalState
+        release_blockers = @($releaseBlockers)
+        release_blocker_count = @($releaseBlockers).Count
+        action_items = @($actionItems)
+        manual_review_recommendations = @($manualReviewRecommendations)
         review_checklist = @(
             "Run freeze_schema_baseline and review the generated schema for unexpected, duplicate, or malformed bookmarks.",
             "Run prepare_render_data_workspace and fill the generated data skeleton with real business values.",
             "Run validate_render_data_workspace until remaining_placeholder_count is 0.",
+            "Run project-template-smoke after registration and resolve every schema_patch_approval_item before release.",
             "Register the manifest entry, then run project-template-smoke and strict release preflight."
         )
-        commands = [ordered]@{
-            freeze_schema_baseline = New-FreezeSchemaCommand `
-                -RepoRoot $repoRoot `
-                -InputDocx $inputDocx `
-                -SchemaOutput $schemaBaselinePath `
-                -BuildDir $resolvedBuildDir `
-                -SchemaTargetMode $SchemaTargetMode
-            register_manifest_entry = New-RegisterCommand `
-                -RepoRoot $repoRoot `
-                -Name $entryName `
-                -ManifestPath $resolvedManifestPath `
-                -InputDocx $inputDocx `
-                -SchemaFile $schemaBaselinePath `
-                -GeneratedSchemaOutput $generatedSchemaOutput `
-                -VisualSmokeOutputDir $visualSmokeOutputDir `
-                -SchemaTargetMode $SchemaTargetMode
-            prepare_render_data_workspace = New-PrepareRenderDataWorkspaceCommand `
-                -RepoRoot $repoRoot `
-                -InputDocx $inputDocx `
-                -WorkspaceDir $renderDataWorkspaceDir `
-                -SummaryJson $renderDataWorkspaceSummary `
-                -BuildDir $resolvedBuildDir
-            validate_render_data_workspace = New-ValidateRenderDataWorkspaceCommand `
-                -RepoRoot $repoRoot `
-                -WorkspaceDir $renderDataWorkspaceDir `
-                -SummaryJson $renderDataValidationSummary `
-                -ReportMarkdown $renderDataValidationReport `
-                -BuildDir $resolvedBuildDir
-        }
+        commands = $entryCommands
     }) | Out-Null
 }
 
@@ -497,6 +615,24 @@ if ($entries.Count -eq 0) {
         [void]$lines.Add("- Render-data workspace: $($entry.render_data_workspace_dir_display)")
         [void]$lines.Add("- Render-data validation report: $($entry.render_data_validation_report_display)")
         [void]$lines.Add("- Visual smoke output dir: $($entry.visual_smoke_output_dir_display)")
+        [void]$lines.Add("- Schema approval status: $($entry.schema_approval_state.status)")
+        [void]$lines.Add("- Schema approval action: $($entry.schema_approval_state.action)")
+        [void]$lines.Add("- Release blockers: $($entry.release_blocker_count)")
+        [void]$lines.Add("")
+        [void]$lines.Add("Release blockers:")
+        foreach ($blocker in @($entry.release_blockers)) {
+            [void]$lines.Add("- $($blocker.id): status=$($blocker.status) action=$($blocker.action)")
+        }
+        [void]$lines.Add("")
+        [void]$lines.Add("Action items:")
+        foreach ($item in @($entry.action_items)) {
+            [void]$lines.Add("- $($item.id): action=$($item.action)")
+        }
+        [void]$lines.Add("")
+        [void]$lines.Add("Manual review recommendations:")
+        foreach ($recommendation in @($entry.manual_review_recommendations)) {
+            [void]$lines.Add("- $($recommendation.id): priority=$($recommendation.priority) action=$($recommendation.action)")
+        }
         [void]$lines.Add("")
         [void]$lines.Add("Review checklist:")
         foreach ($item in @($entry.review_checklist)) {

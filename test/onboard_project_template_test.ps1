@@ -79,6 +79,20 @@ Assert-Equal -Actual ([int]$summary.schema_patch_approval_approved_count) -Expec
     -Message "Plan-only onboarding without smoke should expose zero approved schema approvals."
 Assert-Equal -Actual ([int]$summary.schema_patch_approval_rejected_count) -Expected 0 `
     -Message "Plan-only onboarding without smoke should expose zero rejected schema approvals."
+Assert-Equal -Actual ([string]$summary.schema_approval_state.status) -Expected "not_evaluated" `
+    -Message "Plan-only onboarding should make schema approval not-evaluated explicit."
+Assert-Equal -Actual ([string]$summary.schema_approval_state.action) -Expected "run_project_template_smoke_then_review_schema_patch_approval" `
+    -Message "Plan-only onboarding should expose the next schema approval action."
+Assert-Equal -Actual ([bool]$summary.schema_approval_state.release_blocked) -Expected $true `
+    -Message "Plan-only onboarding should block release until schema approval is evaluated."
+Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
+    -Message "Plan-only onboarding should expose one schema approval release blocker."
+Assert-Equal -Actual ([string]$summary.release_blockers[0].id) -Expected "project_template_onboarding.schema_approval_not_evaluated" `
+    -Message "Plan-only release blocker should identify schema approval as not evaluated."
+Assert-True -Condition (@($summary.action_items).Count -ge 1) `
+    -Message "Onboarding summary should expose action_items."
+Assert-True -Condition (@($summary.manual_review_recommendations).Count -ge 1) `
+    -Message "Onboarding summary should expose manual review recommendations."
 
 $steps = @($summary.steps)
 Assert-True -Condition ($steps.Count -ge 6) `
@@ -107,6 +121,10 @@ Assert-ContainsText -Text ([string]$summary.commands.register_manifest_entry) `
 
 Assert-ContainsText -Text $startHere -ExpectedText "remaining_placeholder_count=0" `
     -Message "START_HERE should explain the strict validation gate."
+Assert-ContainsText -Text $startHere -ExpectedText "schema_approval_status" `
+    -Message "START_HERE should expose schema approval status."
+Assert-ContainsText -Text $startHere -ExpectedText "release_blocker_count" `
+    -Message "START_HERE should expose release blocker count."
 Assert-ContainsText -Text $startHere -ExpectedText "render_template_document_from_workspace.ps1" `
     -Message "START_HERE should include the render command."
 Assert-ContainsText -Text $manualReview -ExpectedText "Review Checklist" `
@@ -117,6 +135,14 @@ Assert-ContainsText -Text $manualReview -ExpectedText "schema_patch_approval_pen
     -Message "Manual review should expose schema patch approval count."
 Assert-ContainsText -Text $manualReview -ExpectedText "schema_patch_approval_approved_count" `
     -Message "Manual review should expose approved schema patch approval count."
+Assert-ContainsText -Text $manualReview -ExpectedText "Schema Approval State" `
+    -Message "Manual review should expose schema approval state."
+Assert-ContainsText -Text $manualReview -ExpectedText "Release Blockers" `
+    -Message "Manual review should expose release blockers."
+Assert-ContainsText -Text $manualReview -ExpectedText "Action Items" `
+    -Message "Manual review should expose action items."
+Assert-ContainsText -Text $manualReview -ExpectedText "Manual Review Recommendations" `
+    -Message "Manual review should expose reviewer recommendations."
 
 Assert-True -Condition ([int]$summary.remaining_placeholder_count -ge 0) `
     -Message "Summary should expose remaining placeholder count."

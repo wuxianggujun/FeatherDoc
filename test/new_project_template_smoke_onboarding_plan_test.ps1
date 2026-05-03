@@ -85,6 +85,23 @@ Assert-True -Condition (-not [string]::IsNullOrWhiteSpace([string]$entry.render_
     -Message "Entry should include render_data_validation_report."
 Assert-True -Condition (@($entry.review_checklist).Count -ge 4) `
     -Message "Entry should include a useful review checklist."
+Assert-True -Condition ($null -ne $entry.schema_approval_state) `
+    -Message "Entry should include schema_approval_state."
+Assert-ContainsText -Text ([string]$entry.schema_approval_state.status) `
+    -ExpectedText "not_evaluated" `
+    -Message "Plan entry should mark schema approval as not evaluated."
+Assert-ContainsText -Text ([string]$entry.schema_approval_state.action) `
+    -ExpectedText "run_project_template_smoke_then_review_schema_patch_approval" `
+    -Message "Plan entry should expose the schema approval action."
+Assert-True -Condition ([int]$entry.release_blocker_count -eq 1) `
+    -Message "Plan entry should expose one planned release blocker."
+Assert-ContainsText -Text ([string]$entry.release_blockers[0].id) `
+    -ExpectedText "project_template_onboarding.schema_approval_not_evaluated" `
+    -Message "Plan entry release blocker should identify not-evaluated schema approval."
+Assert-True -Condition (@($entry.action_items).Count -ge 3) `
+    -Message "Plan entry should include action items."
+Assert-True -Condition (@($entry.manual_review_recommendations).Count -ge 3) `
+    -Message "Plan entry should include manual review recommendations."
 
 Assert-ContainsText -Text ([string]$entry.commands.prepare_render_data_workspace) `
     -ExpectedText "prepare_template_render_data_workspace.ps1" `
@@ -108,6 +125,15 @@ Assert-ContainsText -Text $markdown `
 Assert-ContainsText -Text $markdown `
     -ExpectedText "Review checklist" `
     -Message "Markdown plan should include the per-entry checklist."
+Assert-ContainsText -Text $markdown `
+    -ExpectedText "Schema approval status" `
+    -Message "Markdown plan should expose schema approval status."
+Assert-ContainsText -Text $markdown `
+    -ExpectedText "Release blockers" `
+    -Message "Markdown plan should expose release blockers."
+Assert-ContainsText -Text $markdown `
+    -ExpectedText "Manual review recommendations" `
+    -Message "Markdown plan should expose manual review recommendations."
 Assert-ContainsText -Text $markdown `
     -ExpectedText "prepare_template_render_data_workspace.ps1" `
     -Message "Markdown plan should include the prepare workspace command."

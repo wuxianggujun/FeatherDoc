@@ -83,7 +83,10 @@ summary 汇总为 ``featherdoc.project_template_schema_approval_history.v1`` 趋
 并已接入 release-candidate preflight 自动生成 release report 产物；报表现在会输出
 ``latest_blocking_summary`` 与 ``entry_histories``，用于观察 blocked / pending / passed
 的长期变化和每个模板 entry 的审批走势。onboarding summary 和人工复核文档会同步展示
-schema drift 数量、变更摘要、审批 decision 与下一步动作。
+schema drift 数量、变更摘要、审批 decision 与下一步动作；单模板 onboarding
+产物现在还会写出 ``schema_approval_state``、``release_blockers``、
+``action_items`` 和 ``manual_review_recommendations``，让调用方不解析 Markdown
+也能判断 schema approval 是否阻断发布、下一步应先复核 candidate 还是修复审批记录。
 
 后续建议继续补齐的是“工程化治理层”，而不是基础 patch API：
 
@@ -106,9 +109,11 @@ schema drift 数量、变更摘要、审批 decision 与下一步动作。
   输出 issues、schema patch、render data skeleton、mapping lint 和人工复核入口
 - ``scripts/onboard_project_template.ps1`` 可为单个业务模板生成一站式 onboarding
   bundle，包含 schema candidate、临时 smoke manifest、可填写 data skeleton、
-  smoke summary、人工复核文档和 ``repair/`` 工作区
+  smoke summary、人工复核文档和 ``repair/`` 工作区；``onboarding_summary.json``
+  会明确暴露 schema approval 状态、release blocker、action item 和人工复核建议
 - ``scripts/new_project_template_smoke_onboarding_plan.ps1`` 可在不改 manifest 的前提下，
-  从候选发现、schema baseline、render data skeleton 和视觉 smoke 入口生成接入计划
+  从候选发现、schema baseline、render data skeleton 和视觉 smoke 入口生成接入计划，
+  并把尚未运行 smoke 的候选标记为 ``schema_approval_state.status=not_evaluated``
 - project template smoke 已把 schema patch approval items、审批结果、compliance gate
   和 release blocker 同步进 ``summary.json`` / ``summary.md`` / release summary
 

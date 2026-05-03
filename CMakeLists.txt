@@ -641,7 +641,9 @@ if(BUILD_SAMPLES)
 endif()
 
 if(BUILD_CLI)
-    add_executable(featherdoc_cli cli/featherdoc_cli.cpp)
+    add_executable(featherdoc_cli
+        cli/featherdoc_cli_main.cpp
+        cli/featherdoc_cli.cpp)
     target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::FeatherDoc)
     featherdoc_copy_runtime_dlls(featherdoc_cli)
 
@@ -735,4 +737,3 @@ install(
 if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
     add_subdirectory(test)
 endif()
-

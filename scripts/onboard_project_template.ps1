@@ -128,6 +128,10 @@ function Read-JsonIfPresent {
 function Get-JsonString {
     param($Object, [string]$Name)
     if ($null -eq $Object) { return "" }
+    if ($Object -is [System.Collections.IDictionary]) {
+        if (-not $Object.Contains($Name) -or $null -eq $Object[$Name]) { return "" }
+        return [string]$Object[$Name]
+    }
     $property = $Object.PSObject.Properties[$Name]
     if ($null -eq $property -or $null -eq $property.Value) { return "" }
     return [string]$property.Value
@@ -144,9 +148,301 @@ function Get-JsonInt {
 function Get-JsonArray {
     param($Object, [string]$Name)
     if ($null -eq $Object) { return @() }
+    if ($Object -is [System.Collections.IDictionary]) {
+        if (-not $Object.Contains($Name) -or $null -eq $Object[$Name]) { return @() }
+        return @($Object[$Name] | Where-Object { $null -ne $_ })
+    }
     $property = $Object.PSObject.Properties[$Name]
     if ($null -eq $property -or $null -eq $property.Value) { return @() }
     return @($property.Value | Where-Object { $null -ne $_ })
+}
+
+function Get-ArrayCount {
+    param([object[]]$Items)
+    if ($null -eq $Items) { return 0 }
+    $count = 0
+    foreach ($item in $Items) {
+        if ($null -ne $item) { $count++ }
+    }
+    return $count
+}
+
+function New-SchemaApprovalState {
+    param(
+        $SmokeSummary,
+        [object[]]$ApprovalItems,
+        [bool]$SmokeSkipped
+    )
+
+    $smokeAvailable = $null -ne $SmokeSummary
+    $reviewCount = Get-JsonInt -Object $SmokeSummary -Name "schema_patch_review_count"
+    $changedReviewCount = Get-JsonInt -Object $SmokeSummary -Name "schema_patch_review_changed_count"
+    $pendingCount = Get-JsonInt -Object $SmokeSummary -Name "schema_patch_approval_pending_count"
+    $approvedCount = Get-JsonInt -Object $SmokeSummary -Name "schema_patch_approval_approved_count"
+    $rejectedCount = Get-JsonInt -Object $SmokeSummary -Name "schema_patch_approval_rejected_count"
+    $complianceIssueCount = Get-JsonInt -Object $SmokeSummary -Name "schema_patch_approval_compliance_issue_count"
+    $invalidResultCount = Get-JsonInt -Object $SmokeSummary -Name "schema_patch_approval_invalid_result_count"
+    $gateStatus = Get-JsonString -Object $SmokeSummary -Name "schema_patch_approval_gate_status"
+    if ([string]::IsNullOrWhiteSpace($gateStatus)) {
+        if (-not $smokeAvailable) {
+            $gateStatus = "not_evaluated"
+        } elseif ($complianceIssueCount -gt 0 -or $invalidResultCount -gt 0) {
+            $gateStatus = "blocked"
+        } elseif ($pendingCount -gt 0) {
+            $gateStatus = "pending"
+        } elseif ($changedReviewCount -gt 0) {
+            $gateStatus = "passed"
+        } else {
+            $gateStatus = "not_required"
+        }
+    }
+
+    $status = "not_evaluated"
+    $action = "run_project_template_smoke_then_review_schema_patch_approval"
+    if ($smokeAvailable) {
+        if ($gateStatus -eq "blocked" -or $complianceIssueCount -gt 0 -or $invalidResultCount -gt 0) {
+            $status = "blocked"
+            $action = "fix_schema_patch_approval_result"
+        } elseif ($rejectedCount -gt 0) {
+            $status = "blocked"
+            $action = "update_template_or_schema_before_retry"
+        } elseif ($gateStatus -eq "pending" -or $pendingCount -gt 0) {
+            $status = "pending_review"
+            $action = "review_schema_update_candidate"
+        } elseif ($changedReviewCount -gt 0 -or (Get-ArrayCount -Items $ApprovalItems) -gt 0) {
+            $status = "approved"
+            $action = "promote_schema_update_candidate"
+        } else {
+            $status = "not_required"
+            $action = "none"
+        }
+    }
+
+    return [ordered]@{
+        schema = "featherdoc.project_template_onboarding_schema_approval_state.v1"
+        status = $status
+        gate_status = $gateStatus
+        release_blocked = ($status -in @("not_evaluated", "pending_review", "blocked"))
+        smoke_summary_available = $smokeAvailable
+        smoke_skipped = $SmokeSkipped
+        approval_required = ($changedReviewCount -gt 0 -or (Get-ArrayCount -Items $ApprovalItems) -gt 0)
+        review_count = $reviewCount
+        changed_review_count = $changedReviewCount
+        pending_count = $pendingCount
+        approved_count = $approvedCount
+        rejected_count = $rejectedCount
+        compliance_issue_count = $complianceIssueCount
+        invalid_result_count = $invalidResultCount
+        action = $action
+    }
+}
+
+function Get-BlockedSchemaApprovalItems {
+    param([object[]]$ApprovalItems)
+
+    return @(
+        foreach ($approval in @($ApprovalItems)) {
+            $status = Get-JsonString -Object $approval -Name "status"
+            $complianceIssueCount = Get-JsonInt -Object $approval -Name "compliance_issue_count"
+            if ($status -in @("pending_review", "rejected", "needs_changes", "invalid_result") -or $complianceIssueCount -gt 0) {
+                [ordered]@{
+                    name = Get-JsonString -Object $approval -Name "name"
+                    status = $status
+                    decision = Get-JsonString -Object $approval -Name "decision"
+                    action = Get-JsonString -Object $approval -Name "action"
+                    approval_result = Get-JsonString -Object $approval -Name "approval_result"
+                    schema_update_candidate = Get-JsonString -Object $approval -Name "schema_update_candidate"
+                    review_json = Get-JsonString -Object $approval -Name "review_json"
+                    compliance_issue_count = $complianceIssueCount
+                    compliance_issues = @(Get-JsonArray -Object $approval -Name "compliance_issues")
+                }
+            }
+        }
+    )
+}
+
+function New-OnboardingReleaseBlockers {
+    param(
+        [System.Collections.IDictionary]$SchemaApprovalState,
+        [object[]]$ApprovalItems,
+        [bool]$Failed,
+        [bool]$PendingBusinessData,
+        [int]$RemainingPlaceholderCount,
+        [string]$ValidationIssue
+    )
+
+    $blockers = New-Object 'System.Collections.Generic.List[object]'
+    if ([bool]$SchemaApprovalState["release_blocked"]) {
+        $schemaStatus = [string]$SchemaApprovalState["status"]
+        $blockerId = if ($schemaStatus -eq "not_evaluated") {
+            "project_template_onboarding.schema_approval_not_evaluated"
+        } else {
+            "project_template_onboarding.schema_approval"
+        }
+        [void]$blockers.Add([ordered]@{
+            id = $blockerId
+            source = "project_template_onboarding"
+            severity = "error"
+            status = $schemaStatus
+            message = "Schema approval is not release-ready for this onboarding bundle."
+            action = [string]$SchemaApprovalState["action"]
+            gate_status = [string]$SchemaApprovalState["gate_status"]
+            pending_count = [int]$SchemaApprovalState["pending_count"]
+            rejected_count = [int]$SchemaApprovalState["rejected_count"]
+            compliance_issue_count = [int]$SchemaApprovalState["compliance_issue_count"]
+            invalid_result_count = [int]$SchemaApprovalState["invalid_result_count"]
+            items = @(Get-BlockedSchemaApprovalItems -ApprovalItems $ApprovalItems)
+        })
+    }
+
+    if ($PendingBusinessData -or $RemainingPlaceholderCount -gt 0) {
+        [void]$blockers.Add([ordered]@{
+            id = "project_template_onboarding.render_data_incomplete"
+            source = "project_template_onboarding"
+            severity = "warning"
+            status = "blocked"
+            message = "Render-data workspace still needs real business values before release."
+            action = "complete_render_data_workspace"
+            remaining_placeholder_count = $RemainingPlaceholderCount
+            validation_issue = $ValidationIssue
+        })
+    }
+
+    if ($Failed) {
+        [void]$blockers.Add([ordered]@{
+            id = "project_template_onboarding.workflow_failed"
+            source = "project_template_onboarding"
+            severity = "error"
+            status = "blocked"
+            message = "One or more onboarding workflow steps failed."
+            action = "fix_failed_onboarding_step"
+            validation_issue = $ValidationIssue
+        })
+    }
+
+    return @($blockers.ToArray())
+}
+
+function New-OnboardingActionItems {
+    param(
+        [System.Collections.IDictionary]$SchemaApprovalState,
+        [object[]]$ReleaseBlockers,
+        [object]$Commands,
+        [string]$SmokeSummaryPath,
+        [string]$ValidationReportPath
+    )
+
+    $items = New-Object 'System.Collections.Generic.List[object]'
+    $schemaStatus = [string]$SchemaApprovalState["status"]
+    if ($schemaStatus -eq "not_evaluated") {
+        [void]$items.Add([ordered]@{
+            id = "run_project_template_smoke"
+            status = "open"
+            action = "run_project_template_smoke_then_review_schema_patch_approval"
+            title = "运行 project-template smoke 并生成 schema approval 证据"
+            command = [string]$Commands.run_project_template_smoke
+            artifacts = @($SmokeSummaryPath)
+        })
+    } elseif ($schemaStatus -eq "pending_review") {
+        [void]$items.Add([ordered]@{
+            id = "review_schema_update_candidate"
+            status = "open"
+            action = "review_schema_update_candidate"
+            title = "复核 schema update candidate 并登记 approval decision"
+            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1 -SummaryJson '$SmokeSummaryPath'"
+            artifacts = @($SmokeSummaryPath)
+        })
+    } elseif ($schemaStatus -eq "blocked") {
+        [void]$items.Add([ordered]@{
+            id = "repair_schema_approval_blocker"
+            status = "open"
+            action = [string]$SchemaApprovalState["action"]
+            title = "修复 schema approval 阻断项后重新同步审批状态"
+            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1 -SummaryJson '$SmokeSummaryPath'"
+            artifacts = @($SmokeSummaryPath)
+        })
+    }
+
+    foreach ($blocker in @($ReleaseBlockers)) {
+        $blockerId = Get-JsonString -Object $blocker -Name "id"
+        if ($blockerId -eq "project_template_onboarding.render_data_incomplete") {
+            [void]$items.Add([ordered]@{
+                id = "complete_render_data_workspace"
+                status = "open"
+                action = "complete_render_data_workspace"
+                title = "补齐 render-data 中的 TODO 和空表格行"
+                command = [string]$Commands.validate_render_data_workspace_strict
+                artifacts = @($ValidationReportPath)
+            })
+        } elseif ($blockerId -eq "project_template_onboarding.workflow_failed") {
+            [void]$items.Add([ordered]@{
+                id = "fix_failed_onboarding_step"
+                status = "open"
+                action = "fix_failed_onboarding_step"
+                title = "查看失败 step 的 error 字段并重跑对应命令"
+                command = ""
+                artifacts = @()
+            })
+        }
+    }
+
+    return @($items.ToArray())
+}
+
+function New-ManualReviewRecommendations {
+    param(
+        [System.Collections.IDictionary]$SchemaApprovalState,
+        [object[]]$ApprovalItems,
+        [bool]$PendingBusinessData,
+        [int]$RemainingPlaceholderCount,
+        [string]$SmokeSummaryPath,
+        [string]$ValidationReportPath
+    )
+
+    $recommendations = New-Object 'System.Collections.Generic.List[object]'
+    $schemaStatus = [string]$SchemaApprovalState["status"]
+    if ($schemaStatus -eq "not_evaluated") {
+        [void]$recommendations.Add([ordered]@{
+            id = "schema_approval_not_evaluated"
+            priority = "high"
+            title = "先运行 smoke，再读取 schema_patch_approval_items"
+            artifact = $SmokeSummaryPath
+            action = "run_project_template_smoke_then_review_schema_patch_approval"
+        })
+    } elseif ($schemaStatus -in @("pending_review", "blocked")) {
+        foreach ($approval in @($ApprovalItems)) {
+            $approvalStatus = Get-JsonString -Object $approval -Name "status"
+            if ($approvalStatus -in @("pending_review", "rejected", "needs_changes", "invalid_result")) {
+                [void]$recommendations.Add([ordered]@{
+                    id = "review_schema_approval_$($approval.name)"
+                    priority = "high"
+                    title = "复核 $($approval.name) 的 schema 变更和审批记录"
+                    artifact = Get-JsonString -Object $approval -Name "approval_result"
+                    action = Get-JsonString -Object $approval -Name "action"
+                })
+            }
+        }
+    }
+
+    if ($PendingBusinessData -or $RemainingPlaceholderCount -gt 0) {
+        [void]$recommendations.Add([ordered]@{
+            id = "review_render_data_business_values"
+            priority = "high"
+            title = "补齐业务数据并用严格校验确认 remaining_placeholder_count=0"
+            artifact = $ValidationReportPath
+            action = "complete_render_data_workspace"
+        })
+    }
+
+    [void]$recommendations.Add([ordered]@{
+        id = "review_layout_before_manifest_registration"
+        priority = "medium"
+        title = "登记 manifest 前人工检查正文、表格、页眉页脚和分页"
+        artifact = $SmokeSummaryPath
+        action = "manual_layout_review"
+    })
+
+    return @($recommendations.ToArray())
 }
 
 function Write-TempSmokeManifest {
@@ -188,6 +484,9 @@ function New-StartHere {
         "- manual_review: ``$($Summary.manual_review)``",
         "- validation_report: ``$($Summary.validation_report)``",
         "- validation_issue: ``$($Summary.validation_issue)``",
+        "- schema_approval_status: ``$($Summary.schema_approval_state.status)``",
+        "- schema_approval_action: ``$($Summary.schema_approval_state.action)``",
+        "- release_blocker_count: ``$($Summary.release_blocker_count)``",
         "",
         "## 下一步",
         "",
@@ -231,8 +530,47 @@ function New-ManualReview {
     $lines.Add("- schema_patch_approval_pending_count: ``$($Summary.schema_patch_approval_pending_count)``") | Out-Null
     $lines.Add("- schema_patch_approval_approved_count: ``$($Summary.schema_patch_approval_approved_count)``") | Out-Null
     $lines.Add("- schema_patch_approval_rejected_count: ``$($Summary.schema_patch_approval_rejected_count)``") | Out-Null
+    $lines.Add("- schema_approval_status: ``$($Summary.schema_approval_state.status)``") | Out-Null
+    $lines.Add("- schema_approval_gate_status: ``$($Summary.schema_approval_state.gate_status)``") | Out-Null
+    $lines.Add("- schema_approval_action: ``$($Summary.schema_approval_state.action)``") | Out-Null
+    $lines.Add("- release_blocker_count: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- validation_issue: ``$($Summary.validation_issue)``") | Out-Null
     $lines.Add("") | Out-Null
+    $lines.Add("## Schema Approval State") | Out-Null
+    $lines.Add("") | Out-Null
+    $lines.Add("- status: ``$($Summary.schema_approval_state.status)``") | Out-Null
+    $lines.Add("- gate_status: ``$($Summary.schema_approval_state.gate_status)``") | Out-Null
+    $lines.Add("- release_blocked: ``$($Summary.schema_approval_state.release_blocked)``") | Out-Null
+    $lines.Add("- action: ``$($Summary.schema_approval_state.action)``") | Out-Null
+    $lines.Add("- pending_count: ``$($Summary.schema_approval_state.pending_count)``") | Out-Null
+    $lines.Add("- rejected_count: ``$($Summary.schema_approval_state.rejected_count)``") | Out-Null
+    $lines.Add("- compliance_issue_count: ``$($Summary.schema_approval_state.compliance_issue_count)``") | Out-Null
+    $lines.Add("- invalid_result_count: ``$($Summary.schema_approval_state.invalid_result_count)``") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.release_blockers).Count -gt 0) {
+        $lines.Add("## Release Blockers") | Out-Null
+        $lines.Add("") | Out-Null
+        foreach ($blocker in @($Summary.release_blockers)) {
+            $lines.Add("- ``$($blocker.id)``: status=``$($blocker.status)`` action=``$($blocker.action)`` message=``$($blocker.message)``") | Out-Null
+        }
+        $lines.Add("") | Out-Null
+    }
+    if (@($Summary.action_items).Count -gt 0) {
+        $lines.Add("## Action Items") | Out-Null
+        $lines.Add("") | Out-Null
+        foreach ($item in @($Summary.action_items)) {
+            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` title=``$($item.title)``") | Out-Null
+        }
+        $lines.Add("") | Out-Null
+    }
+    if (@($Summary.manual_review_recommendations).Count -gt 0) {
+        $lines.Add("## Manual Review Recommendations") | Out-Null
+        $lines.Add("") | Out-Null
+        foreach ($recommendation in @($Summary.manual_review_recommendations)) {
+            $lines.Add("- ``$($recommendation.id)``: priority=``$($recommendation.priority)`` action=``$($recommendation.action)`` artifact=``$($recommendation.artifact)``") | Out-Null
+        }
+        $lines.Add("") | Out-Null
+    }
     if (@($Summary.schema_patch_reviews).Count -gt 0) {
         $lines.Add("## Schema Patch Reviews") | Out-Null
         $lines.Add("") | Out-Null
@@ -460,6 +798,10 @@ $schemaPatchApprovalItems = Get-JsonArray -Object $smokeSummary -Name "schema_pa
 $dataSkeleton = Get-JsonString -Object $workspaceSummary -Name "data_skeleton"
 $mappingPath = Get-JsonString -Object $workspaceSummary -Name "mapping"
 $renderPlanPath = Get-JsonString -Object $workspaceSummary -Name "render_plan"
+$schemaApprovalState = New-SchemaApprovalState `
+    -SmokeSummary $smokeSummary `
+    -ApprovalItems $schemaPatchApprovalItems `
+    -SmokeSkipped:($SkipProjectTemplateSmoke.IsPresent -or $PlanOnly.IsPresent)
 
 $status = if ($failed) { "failed" } elseif ($PlanOnly) { "planned" } elseif ($remainingPlaceholderCount -gt 0) { "completed_with_pending_business_data" } else { "completed" }
 if (-not $failed -and ($pendingBusinessData -or $remainingPlaceholderCount -gt 0)) {
@@ -476,6 +818,27 @@ if (-not $failed -and [string]::IsNullOrWhiteSpace($validationIssueMessage)) {
         $validationIssueMessage = "pending_business_data=true"
     }
 }
+
+$releaseBlockers = New-OnboardingReleaseBlockers `
+    -SchemaApprovalState $schemaApprovalState `
+    -ApprovalItems $schemaPatchApprovalItems `
+    -Failed:$failed `
+    -PendingBusinessData:$pendingBusinessData `
+    -RemainingPlaceholderCount $remainingPlaceholderCount `
+    -ValidationIssue $validationIssueMessage
+$actionItems = New-OnboardingActionItems `
+    -SchemaApprovalState $schemaApprovalState `
+    -ReleaseBlockers $releaseBlockers `
+    -Commands $commands `
+    -SmokeSummaryPath $smokeSummaryPath `
+    -ValidationReportPath $validationReportPath
+$manualReviewRecommendations = New-ManualReviewRecommendations `
+    -SchemaApprovalState $schemaApprovalState `
+    -ApprovalItems $schemaPatchApprovalItems `
+    -PendingBusinessData:$pendingBusinessData `
+    -RemainingPlaceholderCount $remainingPlaceholderCount `
+    -SmokeSummaryPath $smokeSummaryPath `
+    -ValidationReportPath $validationReportPath
 
 $summary["generated_at"] = (Get-Date).ToString("s")
 $summary["status"] = $status
@@ -495,7 +858,10 @@ $summary["schema_patch_reviews"] = @($schemaPatchReviews)
 $summary["schema_patch_approval_pending_count"] = Get-JsonInt -Object $smokeSummary -Name "schema_patch_approval_pending_count"
 $summary["schema_patch_approval_approved_count"] = Get-JsonInt -Object $smokeSummary -Name "schema_patch_approval_approved_count"
 $summary["schema_patch_approval_rejected_count"] = Get-JsonInt -Object $smokeSummary -Name "schema_patch_approval_rejected_count"
+$summary["schema_patch_approval_compliance_issue_count"] = Get-JsonInt -Object $smokeSummary -Name "schema_patch_approval_compliance_issue_count"
+$summary["schema_patch_approval_invalid_result_count"] = Get-JsonInt -Object $smokeSummary -Name "schema_patch_approval_invalid_result_count"
 $summary["schema_patch_approval_items"] = @($schemaPatchApprovalItems)
+$summary["schema_approval_state"] = $schemaApprovalState
 $summary["workspace_dir"] = $workspaceDir
 $summary["workspace_summary"] = $workspaceSummaryPath
 $summary["render_plan"] = $renderPlanPath
@@ -511,9 +877,14 @@ $summary["render_summary"] = $renderSummaryPath
 $summary["committed_manifest"] = $resolvedManifestPath
 $summary["commands"] = $commands
 $summary["steps"] = @($steps.ToArray())
+$summary["release_blockers"] = @($releaseBlockers)
+$summary["release_blocker_count"] = @($releaseBlockers).Count
+$summary["action_items"] = @($actionItems)
+$summary["manual_review_recommendations"] = @($manualReviewRecommendations)
 $summary["next_actions"] = @(
     "Edit render-data JSON and replace TODO placeholders.",
     "Run validate_render_data_workspace_strict and require remaining_placeholder_count=0.",
+    "Resolve schema approval state before release or manifest registration.",
     "Render the DOCX and review layout.",
     "Rerun with -RegisterManifest when the bundle is ready to commit."
 )

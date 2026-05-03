@@ -10,6 +10,17 @@ performance.
 
 ### Added
 
+- Added `build_document_skeleton_governance_report.ps1` with PowerShell
+  coverage to export an exemplar numbering catalog, collect style usage, run
+  style-numbering audit, and write unified JSON/Markdown governance reports.
+- Added schema approval state, release blockers, action items, and manual
+  review recommendations to project-template onboarding summaries and
+  onboarding-plan candidates.
+- Added table layout delivery report scripts and PowerShell coverage to collect
+  table style quality, tblLook repair planning, floating table preset planning,
+  dry-run replay, and visual-regression handoff entries.
+- Added a minimal Linux CMake CI workflow with GCC/Clang matrix coverage for
+  the core test build.
 - Added `run_word_visual_smoke.ps1 -ShowRevisions` and review mutation visual runner passthrough so Word PDF/PNG evidence can render tracked insertion and deletion markup when validating unresolved revisions.
 - Added typed insertion/deletion revision authoring APIs and matching CLI commands so review workflows can generate Word revision markup before accepting or rejecting it.
 - Added in-place run revision authoring APIs and CLI commands for inserting, deleting, and replacing body runs with Word revision markup.
@@ -120,6 +131,12 @@ performance.
 
 ### Changed
 
+- Refactored the top-level C++ test registration in `test/CMakeLists.txt`
+  through a small helper while preserving the existing `unit` and `iterator`
+  test behavior.
+- Split the `featherdoc_cli` process entry point into a small
+  `featherdoc_cli_main.cpp` wrapper while keeping the existing command
+  implementation in `featherdoc_cli.cpp`.
 - Extended semantic diff review-note fingerprints so comment anchor text changes are reported alongside comment body changes.
 - Added `failure_rule_id` to release metadata docs checker JSON failures for stable CI aggregation.
 - Extended release metadata docs checker diagnostics so whitespace failures include `failure_excerpt`.
@@ -157,6 +174,8 @@ performance.
 
 ### Tests
 
+- Added PowerShell regression coverage for document skeleton governance,
+  table layout delivery reports, and schema-approval onboarding summaries.
 - Added revision authoring coverage for C++ APIs, CLI commands, in-place run revision flows, paragraph text range flows, and review mutation visual regression evidence.
 - Added review comment anchor coverage for C++ APIs, CLI inspection/mutation flows, semantic diff, and review inspection/mutation visual regressions.
 - Extended release metadata docs checker regressions to assert stable `failure_rule_id` values for structured failures.

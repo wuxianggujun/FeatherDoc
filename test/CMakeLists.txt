@@ -1,40 +1,34 @@
-add_executable(
+function(featherdoc_add_cpp_test target_name test_name)
+    add_executable(${target_name} ${ARGN})
+
+    target_link_libraries(
+        ${target_name}
+        PRIVATE FeatherDoc::FeatherDoc
+    )
+    featherdoc_copy_runtime_dlls(${target_name})
+
+    add_test(
+        NAME
+        ${test_name}
+        COMMAND
+        ${target_name}
+    )
+endfunction()
+
+featherdoc_add_cpp_test(
     unit_tests
+    unit
     basic_tests.cpp
 )
 
-target_link_libraries(
-    unit_tests
-    PRIVATE FeatherDoc::FeatherDoc
-  )
-  if(MSVC)
+if(MSVC)
     target_compile_options(unit_tests PRIVATE /bigobj /utf-8)
-  endif()
-featherdoc_copy_runtime_dlls(unit_tests)
+endif()
 
-add_test(
-    NAME
-    unit
-    COMMAND
-    unit_tests
-)
-
-add_executable(
+featherdoc_add_cpp_test(
     iterator_tests
-    iterator_tests.cpp
-)
-
-target_link_libraries(
-    iterator_tests
-    PRIVATE FeatherDoc::FeatherDoc
-)
-featherdoc_copy_runtime_dlls(iterator_tests)
-
-add_test(
-    NAME
     iterator
-    COMMAND
-    iterator_tests
+    iterator_tests.cpp
 )
 
 if(WIN32)
@@ -991,6 +985,137 @@ if(WIN32)
                 ${PROJECT_SOURCE_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/write_project_template_schema_approval_history
+            )
+
+            add_test(
+                NAME
+                build_document_skeleton_governance_report_passing
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_document_skeleton_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_document_skeleton_governance_report_passing
+                -Scenario
+                passing
+            )
+
+            add_test(
+                NAME
+                build_document_skeleton_governance_report_failing
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_document_skeleton_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_document_skeleton_governance_report_failing
+                -Scenario
+                failing
+            )
+
+            add_test(
+                NAME
+                build_document_skeleton_governance_report_fail_on_issue
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_document_skeleton_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_document_skeleton_governance_report_fail_on_issue
+                -Scenario
+                fail_on_issue
+            )
+
+            add_test(
+                NAME
+                build_table_layout_delivery_report_passing
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_table_layout_delivery_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_table_layout_delivery_report_passing
+                -Scenario
+                passing
+            )
+
+            add_test(
+                NAME
+                build_table_layout_delivery_report_failing
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_table_layout_delivery_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_table_layout_delivery_report_failing
+                -Scenario
+                failing
+            )
+
+            add_test(
+                NAME
+                build_table_layout_delivery_report_fail_on_issue
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_table_layout_delivery_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_table_layout_delivery_report_fail_on_issue
+                -Scenario
+                fail_on_issue
+            )
+
+            add_test(
+                NAME
+                table_layout_delivery_report
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/table_layout_delivery_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/table_layout_delivery_report
             )
         endif()
 
