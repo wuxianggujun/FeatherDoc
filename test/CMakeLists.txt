@@ -386,6 +386,7 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup
         )
+        featherdoc_set_test_labels(release_candidate_blocker_rollup release smoke release_smoke)
 
         add_test(
             NAME
@@ -1626,13 +1627,14 @@ if(WIN32)
                 ${PROJECT_SOURCE_DIR}
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_aggregate
-                -Scenario
-                aggregate
-            )
+            -Scenario
+            aggregate
+        )
+        featherdoc_set_test_labels(build_release_governance_handoff_report_aggregate release smoke release_smoke governance)
 
-            add_test(
-                NAME
-                build_release_governance_handoff_report_missing
+        add_test(
+            NAME
+            build_release_governance_handoff_report_missing
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_EXECUTABLE}
                 -ExecutionPolicy
@@ -1960,6 +1962,24 @@ if(NOT WIN32)
             ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup
         )
         featherdoc_set_test_labels(release_candidate_blocker_rollup release smoke release_smoke)
+
+        add_test(
+            NAME
+            build_release_governance_handoff_report_aggregate
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_handoff_report_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_aggregate
+            -Scenario
+            aggregate
+        )
+        featherdoc_set_test_labels(build_release_governance_handoff_report_aggregate release smoke release_smoke governance)
     endif()
 endif()
 

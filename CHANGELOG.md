@@ -63,6 +63,8 @@ performance.
 - Added a release governance handoff report that summarizes the default
   numbering catalog, table layout, and project-template delivery readiness
   reports before final release blocker rollup.
+- Added cross-platform CTest registration for the release governance handoff
+  smoke when `pwsh` is available outside Windows.
 - Added a standalone CLI JSON helper module with focused CTest coverage so
   common CLI output escaping can be validated without running the full CLI
   regression suite.
