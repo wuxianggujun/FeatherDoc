@@ -24,6 +24,9 @@ performance.
   PowerShell coverage to aggregate onboarding summaries, onboarding plans, and
   project-template smoke schema approval evidence into one JSON/Markdown
   release-readiness report.
+- Added `build_project_template_delivery_readiness_report.ps1` with PowerShell
+  coverage to join onboarding governance evidence with schema approval history
+  into a final project-template delivery readiness gate.
 - Added `build_release_blocker_rollup_report.ps1` with PowerShell coverage to
   normalize release blockers and action items from multiple governance reports
   into one JSON/Markdown release handoff.

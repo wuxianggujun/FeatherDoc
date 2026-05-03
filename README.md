@@ -629,10 +629,12 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_man
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson .\output\project-template-smoke\summary.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-onboarding -InputRoot .\output\project-template-smoke-onboarding-plan -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\write_project_template_schema_approval_history.ps1 -SummaryJsonDir .\output\project-template-smoke -Recurse -OutputJson .\output\project-template-schema-approval-history\history.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1 -InputJson .\output\project-template-onboarding-governance\summary.json,.\output\project-template-schema-approval-history\history.json -OutputDir .\output\project-template-delivery-readiness -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\schema-patch-confidence-calibration -FailOnPending
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
-pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json -InputJson .\output\table-layout-delivery-rollup\summary.json -InputJson .\output\project-template-onboarding-governance\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json,.\output\table-layout-delivery-rollup\summary.json,.\output\project-template-delivery-readiness\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
@@ -677,6 +679,13 @@ After onboarding, onboarding-plan, or project-template smoke artifacts exist,
 a stable `featherdoc.project_template_onboarding_governance_report.v1`
 JSON/Markdown release-readiness report. Pass `-FailOnBlocker` when pending,
 blocked, or not-yet-evaluated schema approval states should fail a release gate.
+When schema approval history has also been written with
+`scripts/write_project_template_schema_approval_history.ps1`,
+`scripts/build_project_template_delivery_readiness_report.ps1` joins the
+onboarding governance entries with the latest approval-history gate into
+`featherdoc.project_template_delivery_readiness_report.v1`. Use its
+`-FailOnBlocker` switch as the project-template delivery gate before feeding the
+result into the final release blocker rollup.
 
 For schema patch threshold tuning, run
 `scripts/write_schema_patch_confidence_calibration_report.ps1`. It reads
@@ -698,7 +707,7 @@ layer: `scripts/build_table_layout_delivery_rollup_report.ps1` rolls
 `featherdoc.table_layout_delivery_rollup_report.v1`, preserving table style
 issue totals, safe `tblLook` repair counts, floating table preset plan paths,
 release blockers, and action items. When document-skeleton rollup,
-table-layout delivery rollup, and onboarding governance reports are available,
+table-layout delivery rollup, and project-template delivery readiness reports are available,
 `scripts/build_release_blocker_rollup_report.ps1` normalizes their
 `release_blockers` and `action_items` into
 `featherdoc.release_blocker_rollup_report.v1`. It keeps duplicate blocker ids

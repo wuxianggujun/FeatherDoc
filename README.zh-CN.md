@@ -434,10 +434,12 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_man
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson .\output\project-template-smoke\summary.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-onboarding -InputRoot .\output\project-template-smoke-onboarding-plan -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\write_project_template_schema_approval_history.ps1 -SummaryJsonDir .\output\project-template-smoke -Recurse -OutputJson .\output\project-template-schema-approval-history\history.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1 -InputJson .\output\project-template-onboarding-governance\summary.json,.\output\project-template-schema-approval-history\history.json -OutputDir .\output\project-template-delivery-readiness -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\schema-patch-confidence-calibration -FailOnPending
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
-pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json -InputJson .\output\table-layout-delivery-rollup\summary.json -InputJson .\output\project-template-onboarding-governance\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json,.\output\table-layout-delivery-rollup\summary.json,.\output\project-template-delivery-readiness\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
@@ -461,6 +463,13 @@ smoke 后，可以继续运行
 `schema_approval_state`、`release_blockers`、`action_items` 与人工复核建议聚合成
 `featherdoc.project_template_onboarding_governance_report.v1` JSON / Markdown。
 如果传入 `-FailOnBlocker`，仍存在未审批、待复核或被阻断的 schema approval 时会返回非零退出码，适合放进发布前 gate。
+当 `scripts/write_project_template_schema_approval_history.ps1` 已经写出 schema
+approval history 后，可以继续运行
+`scripts/build_project_template_delivery_readiness_report.ps1`。它会把 onboarding
+governance 的模板条目和最新 schema approval history gate 拼成
+`featherdoc.project_template_delivery_readiness_report.v1`，并保留每个模板的
+release blocker、action item、人工复核建议和历史审批状态。`-FailOnBlocker`
+适合作为真实模板交付前的只读 gate。
 
 如果需要从多次 smoke / approval history 里校准 schema patch 建议，可以运行
 `scripts/write_schema_patch_confidence_calibration_report.ps1`。它会聚合
@@ -478,8 +487,8 @@ exemplar catalog 路径、样式编号 issue 汇总、release blocker 和 action
 `featherdoc.table_layout_delivery_report.v1` 汇总成
 `featherdoc.table_layout_delivery_rollup_report.v1`，保留 table style issue、
 安全 `tblLook` 修复计数、浮动表格 preset plan 路径、release blocker 和 action item。
-当 document skeleton rollup、table layout delivery rollup、project onboarding
-governance 等报告已经生成后，可以再用
+当 document skeleton rollup、table layout delivery rollup、project template
+delivery readiness 等报告已经生成后，可以再用
 `scripts/build_release_blocker_rollup_report.ps1` 统一汇总 release blocker 和 action
 item。它会为不同来源的重复 blocker id 生成可追踪的 `composite_id`，输出
 `featherdoc.release_blocker_rollup_report.v1`，并可通过 `-FailOnBlocker` /
