@@ -739,6 +739,15 @@ rollup, or `-ReleaseGovernanceHandoffFailOnMissing`,
 `-ReleaseGovernanceHandoffFailOnBlocker`, and
 `-ReleaseGovernanceHandoffFailOnWarning` to make those handoff states hard
 release gates.
+To compose the full read-only governance chain from existing summaries, run
+`scripts/build_release_governance_pipeline_report.ps1`. It consumes the
+document skeleton rollup, numbering catalog manifest check, table layout
+delivery rollup, project-template onboarding governance, and schema approval
+history summaries under `output/`, then writes the three final governance
+reports, release governance handoff, final release blocker rollup, and a
+pipeline-level JSON/Markdown summary under
+`output/release-governance-pipeline/`. It does not rerun CLI, CMake, Word, or
+visual automation.
 
 To validate the manifest contract before running the full harness, use
 `scripts/check_project_template_smoke_manifest.ps1`. The sample manifest now

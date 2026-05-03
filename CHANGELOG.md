@@ -69,6 +69,9 @@ performance.
   `run_release_candidate_checks.ps1` can archive the handoff, optional nested
   blocker/action rollup, and mirrored counts in the release summary/final
   review.
+- Added `build_release_governance_pipeline_report.ps1` with PowerShell
+  coverage to compose the three final governance reports, release handoff, and
+  final blocker/action rollup from existing summary artifacts.
 - Added cross-platform CTest registration for the release governance handoff
   smoke when `pwsh` is available outside Windows.
 - Added a standalone CLI JSON helper module with focused CTest coverage so

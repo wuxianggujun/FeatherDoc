@@ -118,6 +118,14 @@ blocker / action / warning 计数写回 `report/summary.json` 和
 分别加 `-ReleaseGovernanceHandoffFailOnMissing`、
 `-ReleaseGovernanceHandoffFailOnBlocker` 或
 `-ReleaseGovernanceHandoffFailOnWarning`。
+如果希望把三条最终治理报告也一起从既有 summary 编排出来，可以运行
+`scripts/build_release_governance_pipeline_report.ps1`。它会消费 `output/` 下已经生成的
+document skeleton rollup、numbering catalog manifest check、table layout rollup、
+project-template onboarding governance 和 schema approval history，依次写出
+numbering catalog governance、table layout delivery governance、project-template delivery
+readiness、release governance handoff 和最终 release blocker rollup；总览会落到
+`output/release-governance-pipeline/summary.json` 和 Markdown。该脚本只读输入 summary，
+不重跑 CLI、CMake、Word 或视觉自动化。
 
 脚本结束后，输出目录里会生成：
 
