@@ -41,6 +41,8 @@ performance.
 - Added a standalone CLI JSON helper module with focused CTest coverage so
   common CLI output escaping can be validated without running the full CLI
   regression suite.
+- Added a standalone CLI parse helper module with focused CTest coverage for
+  shared flag, integer, and boolean option parsing.
 - Added a minimal Linux CMake CI workflow with GCC/Clang matrix coverage for
   the core and CLI test build.
 - Added `run_word_visual_smoke.ps1 -ShowRevisions` and review mutation visual runner passthrough so Word PDF/PNG evidence can render tracked insertion and deletion markup when validating unresolved revisions.
