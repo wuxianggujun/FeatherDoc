@@ -43,6 +43,8 @@ performance.
   regression suite.
 - Added a standalone CLI parse helper module with focused CTest coverage for
   shared flag, integer, and boolean option parsing.
+- Added a standalone CLI usage module with focused CTest coverage for the
+  command help text emitted by parse errors and empty CLI invocations.
 - Split the CLI styles regression suite into its own `cli_styles` CTest target
   so style-focused CLI coverage can run independently from the full CLI suite.
 - Added a minimal Linux CMake CI workflow with GCC/Clang matrix coverage for
