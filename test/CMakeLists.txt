@@ -1857,6 +1857,27 @@ if(WIN32)
     endif()
 endif()
 
+if(NOT WIN32)
+    find_program(FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE NAMES pwsh)
+    if(FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE)
+        add_test(
+            NAME
+            release_candidate_blocker_rollup
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup
+        )
+        featherdoc_set_test_labels(release_candidate_blocker_rollup release smoke release_smoke)
+    endif()
+endif()
+
 if(TARGET featherdoc_cli)
     function(featherdoc_add_cli_cpp_test target_name test_name)
         add_executable(${target_name} ${ARGN})
