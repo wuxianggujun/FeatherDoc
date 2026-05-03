@@ -86,6 +86,14 @@ regression bundle 纳入 visual gate 和 release summary。生成的
 也会同步列出 smoke、fixed-grid、section/page-number 和 curated visual verdict。
 后续若人工补写了表格样式质量结论，`sync_latest_visual_review_verdict.ps1`
 会自动吸收 `latest_table-style-quality-visual-regression-bundle_task.json`。
+当 numbering catalog governance、table-layout delivery governance 或
+project-template delivery readiness summary 已经生成时，可以把这些 JSON 通过
+`-ReleaseBlockerRollupInputJson` 或 `-ReleaseBlockerRollupInputRoot` 交给同一个
+总控脚本。它会调用 `build_release_blocker_rollup_report.ps1`，写出
+`report/release-blocker-rollup/summary.json` 和 Markdown，并把 rollup 状态、
+来源数量、blocker / action / warning 计数同步进 `report/summary.json` 和
+`report/final_review.md`。需要把最终 rollup 变成硬门禁时，再加
+`-ReleaseBlockerRollupFailOnBlocker` 或 `-ReleaseBlockerRollupFailOnWarning`。
 
 脚本结束后，输出目录里会生成：
 

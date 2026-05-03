@@ -374,6 +374,21 @@ if(WIN32)
 
         add_test(
             NAME
+            release_candidate_blocker_rollup
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_blocker_rollup_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup
+        )
+
+        add_test(
+            NAME
             release_visual_verdict_metadata_consistency
             COMMAND
             ${FEATHERDOC_POWERSHELL_EXECUTABLE}

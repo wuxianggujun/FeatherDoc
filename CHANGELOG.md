@@ -34,6 +34,9 @@ performance.
 - Added `build_release_blocker_rollup_report.ps1` with PowerShell coverage to
   normalize release blockers and action items from multiple governance reports
   into one JSON/Markdown release handoff.
+- Added optional release blocker rollup inputs to `run_release_candidate_checks.ps1`
+  so existing numbering catalog, table layout, and project-template governance
+  summaries can be folded into the release-candidate summary and final review.
 - Added `write_schema_patch_confidence_calibration_report.ps1` with PowerShell
   coverage to aggregate schema patch review size, approval outcomes, optional
   confidence metadata, bucket summaries, and conservative threshold

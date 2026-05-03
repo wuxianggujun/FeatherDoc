@@ -91,6 +91,26 @@ Assert-ContainsText -Text $scriptText -ExpectedText '[switch]$IncludeTableStyleQ
 Assert-ContainsText -Text $scriptText -ExpectedText '$visualGateArgs += "-IncludeTableStyleQuality"' `
     -Message "Release preflight should pass the table style quality visual gate opt-in to the visual gate."
 
+foreach ($name in @(
+        "ReleaseBlockerRollupInputJson",
+        "ReleaseBlockerRollupInputRoot",
+        "ReleaseBlockerRollupOutputDir",
+        "ReleaseBlockerRollupFailOnBlocker",
+        "ReleaseBlockerRollupFailOnWarning"
+    )) {
+    Assert-ContainsText -Text $scriptText -ExpectedText $name `
+        -Message ("Release preflight should expose {0}." -f $name)
+}
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'build_release_blocker_rollup_report.ps1' `
+    -Message "Release preflight should invoke the final release blocker rollup writer."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'release_blocker_rollup = [ordered]@{' `
+    -Message "Release summary should expose release blocker rollup metadata."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '- Release blocker rollup: $($summary.steps.release_blocker_rollup.status)' `
+    -Message "Release final review should include release blocker rollup status."
+
 Assert-ContainsText -Text $scriptText -ExpectedText '"-TableStyleQualityBuildDir"' `
     -Message "Release preflight should pass the shared build directory to table style quality visual gate."
 
@@ -176,10 +196,13 @@ $functionNames = @(
     "New-ProjectTemplateSchemaApprovalReleaseBlocker",
     "Set-ProjectTemplateSchemaApprovalReleaseBlocker",
     "Get-ProjectTemplateSchemaApprovalHistoryInputList",
+    "Get-ReleaseBlockerRollupInputList",
+    "Expand-ReleaseBlockerRollupPathList",
     "Get-RepoRelativePath",
     "Get-OptionalPropertyValue",
     "Convert-ReviewTimestamp",
     "Get-ReleaseCandidateDisplayValue",
+    "Read-ReleaseBlockerRollupSummary",
     "Get-CompleteVisualGateReviewTaskSummary",
     "Get-VisualGateReviewTaskSummaryLine",
     "Get-VisualGateReviewSummaryMarkdown"
@@ -381,6 +404,14 @@ $historyMissingInputList = @(Get-ProjectTemplateSchemaApprovalHistoryInputList `
         -ProjectTemplateSmokeSummaryPath (Join-Path $resolvedWorkingDir "missing-summary.json"))
 if ($historyMissingInputList.Count -ne 1 -or $historyMissingInputList[0] -ne $historyReleaseSummaryPath) {
     throw "Schema approval history input list should skip missing smoke summaries."
+}
+
+$expandedRollupPaths = @(Expand-ReleaseBlockerRollupPathList -Paths @("a.json,b.json", " c.json "))
+if ($expandedRollupPaths.Count -ne 3 -or
+    $expandedRollupPaths[0] -ne "a.json" -or
+    $expandedRollupPaths[1] -ne "b.json" -or
+    $expandedRollupPaths[2] -ne "c.json") {
+    throw "Release blocker rollup path expansion should support comma-delimited and repeated arguments."
 }
 
 Write-Host "Release candidate visual verdict passthrough regression passed."

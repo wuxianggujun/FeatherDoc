@@ -80,6 +80,11 @@ param(
     [string]$ProjectTemplateSmokeManifestPath = "",
     [string]$ProjectTemplateSmokeOutputDir = "",
     [switch]$ProjectTemplateSmokeRequireFullCoverage,
+    [string[]]$ReleaseBlockerRollupInputJson = @(),
+    [string[]]$ReleaseBlockerRollupInputRoot = @(),
+    [string]$ReleaseBlockerRollupOutputDir = "",
+    [switch]$ReleaseBlockerRollupFailOnBlocker,
+    [switch]$ReleaseBlockerRollupFailOnWarning,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
@@ -243,7 +248,19 @@ function Invoke-ChildPowerShell {
         [string]$FailureMessage
     )
 
-    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
+    $powerShellPath = (Get-Process -Id $PID).Path
+    if ([string]::IsNullOrWhiteSpace($powerShellPath)) {
+        $powerShellCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+        if (-not $powerShellCommand) {
+            $powerShellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
+        }
+        if (-not $powerShellCommand) {
+            throw "Unable to resolve a PowerShell executable for the nested script invocation."
+        }
+        $powerShellPath = $powerShellCommand.Source
+    }
+
+    $commandOutput = @(& $powerShellPath -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
     $exitCode = $LASTEXITCODE
 
     foreach ($line in $commandOutput) {
@@ -983,6 +1000,80 @@ function Invoke-ProjectTemplateSchemaApprovalHistory {
     }
 }
 
+function Get-ReleaseBlockerRollupInputList {
+    param(
+        [string[]]$InputJson,
+        [string[]]$InputRoot
+    )
+
+    return @(
+        @($InputJson) + @($InputRoot) |
+            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
+    )
+}
+
+function Expand-ReleaseBlockerRollupPathList {
+    param([string[]]$Paths)
+
+    return @(
+        foreach ($path in @($Paths)) {
+            foreach ($part in ([string]$path -split ",")) {
+                $trimmed = $part.Trim()
+                if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
+                    $trimmed
+                }
+            }
+        }
+    )
+}
+
+function Invoke-ReleaseBlockerRollup {
+    param(
+        [string]$ScriptPath,
+        [string[]]$InputJson,
+        [string[]]$InputRoot,
+        [string]$OutputDir,
+        [bool]$FailOnBlocker,
+        [bool]$FailOnWarning
+    )
+
+    $arguments = @()
+    $cleanInputJson = @($InputJson | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $cleanInputRoot = @($InputRoot | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($cleanInputJson.Count -gt 0) {
+        $arguments += "-InputJson"
+        $arguments += $cleanInputJson
+    }
+    if ($cleanInputRoot.Count -gt 0) {
+        $arguments += "-InputRoot"
+        $arguments += $cleanInputRoot
+    }
+    $arguments += @(
+        "-OutputDir"
+        $OutputDir
+    )
+    if ($FailOnBlocker) {
+        $arguments += "-FailOnBlocker"
+    }
+    if ($FailOnWarning) {
+        $arguments += "-FailOnWarning"
+    }
+
+    Invoke-ChildPowerShell -ScriptPath $ScriptPath `
+        -Arguments $arguments `
+        -FailureMessage "Failed to build release blocker rollup."
+}
+
+function Read-ReleaseBlockerRollupSummary {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+}
+
 
 
 function Parse-InstallSmokeOutput {
@@ -1129,7 +1220,15 @@ function Parse-ProjectTemplateSmokeSummary {
 }
 
 $repoRoot = Resolve-RepoRoot
-$msvcBootstrap = Get-MsvcBootstrap
+$msvcBootstrapRequired = -not ($SkipConfigure -and $SkipBuild -and $SkipTests -and $SkipInstallSmoke -and $SkipVisualGate)
+$msvcBootstrap = if ($msvcBootstrapRequired) {
+    Get-MsvcBootstrap
+} else {
+    [ordered]@{
+        mode = "not_required"
+        vcvars_path = ""
+    }
+}
 
 $resolvedBuildDir = Resolve-FullPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedInstallDir = Resolve-FullPath -RepoRoot $repoRoot -InputPath $InstallDir
@@ -1155,6 +1254,7 @@ $templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_sche
 $projectTemplateSmokeScript = Join-Path $repoRoot "scripts\run_project_template_smoke.ps1"
 $projectTemplateSchemaApprovalHistoryScript = Join-Path $repoRoot "scripts\write_project_template_schema_approval_history.ps1"
 $projectTemplateSmokeDiscoverScript = Join-Path $repoRoot "scripts\discover_project_template_smoke_candidates.ps1"
+$releaseBlockerRollupScript = Join-Path $repoRoot "scripts\build_release_blocker_rollup_report.ps1"
 $visualGateScript = Join-Path $repoRoot "scripts\run_word_visual_release_gate.ps1"
 $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
 
@@ -1220,6 +1320,44 @@ $resolvedProjectTemplateSmokeCandidateDiscoveryPath = if ($projectTemplateSmokeR
 }
 $templateSchemaRequested = -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaInputDocx) -or
     -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaBaseline)
+$expandedReleaseBlockerRollupInputJson = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseBlockerRollupInputJson)
+$expandedReleaseBlockerRollupInputRoot = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseBlockerRollupInputRoot)
+$releaseBlockerRollupRequested = @(Get-ReleaseBlockerRollupInputList `
+        -InputJson $expandedReleaseBlockerRollupInputJson `
+        -InputRoot $expandedReleaseBlockerRollupInputRoot).Count -gt 0
+$resolvedReleaseBlockerRollupInputJson = @(
+    foreach ($path in @($expandedReleaseBlockerRollupInputJson)) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            Resolve-FullPath -RepoRoot $repoRoot -InputPath $path
+        }
+    }
+)
+$resolvedReleaseBlockerRollupInputRoot = @(
+    foreach ($path in @($expandedReleaseBlockerRollupInputRoot)) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            Resolve-FullPath -RepoRoot $repoRoot -InputPath $path
+        }
+    }
+)
+$resolvedReleaseBlockerRollupOutputDir = if ($releaseBlockerRollupRequested) {
+    if ([string]::IsNullOrWhiteSpace($ReleaseBlockerRollupOutputDir)) {
+        Join-Path $reportDir "release-blocker-rollup"
+    } else {
+        Resolve-FullPath -RepoRoot $repoRoot -InputPath $ReleaseBlockerRollupOutputDir
+    }
+} else {
+    ""
+}
+$releaseBlockerRollupSummaryPath = if ($releaseBlockerRollupRequested) {
+    Join-Path $resolvedReleaseBlockerRollupOutputDir "summary.json"
+} else {
+    ""
+}
+$releaseBlockerRollupMarkdownPath = if ($releaseBlockerRollupRequested) {
+    Join-Path $resolvedReleaseBlockerRollupOutputDir "release_blocker_rollup.md"
+} else {
+    ""
+}
 
 New-Item -ItemType Directory -Path $resolvedSummaryOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
@@ -1250,6 +1388,22 @@ $summary = [ordered]@{
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
+    release_blocker_rollup = [ordered]@{
+        requested = $releaseBlockerRollupRequested
+        status = if ($releaseBlockerRollupRequested) { "pending" } else { "not_requested" }
+        input_json = @($resolvedReleaseBlockerRollupInputJson)
+        input_root = @($resolvedReleaseBlockerRollupInputRoot)
+        output_dir = $resolvedReleaseBlockerRollupOutputDir
+        summary_json = $releaseBlockerRollupSummaryPath
+        report_markdown = $releaseBlockerRollupMarkdownPath
+        fail_on_blocker = [bool]$ReleaseBlockerRollupFailOnBlocker
+        fail_on_warning = [bool]$ReleaseBlockerRollupFailOnWarning
+        source_report_count = 0
+        release_blocker_count = 0
+        action_item_count = 0
+        warning_count = 0
+        error = ""
+    }
     template_schema = [ordered]@{
         requested = $templateSchemaRequested
         baseline = $resolvedTemplateSchemaBaseline
@@ -1337,10 +1491,21 @@ $summary = [ordered]@{
         }
         install_smoke = [ordered]@{ status = if ($SkipInstallSmoke) { "skipped" } else { "pending" } }
         visual_gate = [ordered]@{ status = if ($SkipVisualGate) { "skipped" } else { "pending" } }
+        release_blocker_rollup = [ordered]@{
+            status = if ($releaseBlockerRollupRequested) { "pending" } else { "not_requested" }
+            summary_json = $releaseBlockerRollupSummaryPath
+            report_markdown = $releaseBlockerRollupMarkdownPath
+            source_report_count = 0
+            release_blocker_count = 0
+            action_item_count = 0
+            warning_count = 0
+            error = ""
+        }
     }
 }
 
 $activeStep = ""
+$releaseBlockerRollupFailure = $null
 
 try {
     if ($TemplateSchemaSectionTargets -and $TemplateSchemaResolvedSectionTargets) {
@@ -1363,6 +1528,18 @@ try {
         $activeStep = "project_template_smoke"
         throw "Project template smoke manifest does not exist: $resolvedProjectTemplateSmokeManifestPath"
     }
+    foreach ($path in @($resolvedReleaseBlockerRollupInputJson)) {
+        if (-not (Test-Path -LiteralPath $path)) {
+            $activeStep = "release_blocker_rollup"
+            throw "Release blocker rollup input JSON does not exist: $path"
+        }
+    }
+    foreach ($path in @($resolvedReleaseBlockerRollupInputRoot)) {
+        if (-not (Test-Path -LiteralPath $path)) {
+            $activeStep = "release_blocker_rollup"
+            throw "Release blocker rollup input root does not exist: $path"
+        }
+    }
 
     if ($RefreshReadmeAssets -and $SkipVisualGate) {
         $activeStep = "visual_gate"
@@ -1378,7 +1555,9 @@ try {
         )
         $summary.steps.configure.status = "completed"
     } else {
-        Assert-PathExists -Path $resolvedBuildDir -Label "existing build directory"
+        if ($msvcBootstrapRequired) {
+            Assert-PathExists -Path $resolvedBuildDir -Label "existing build directory"
+        }
     }
 
     if (-not $SkipBuild) {
@@ -1389,7 +1568,9 @@ try {
         )
         $summary.steps.build.status = "completed"
     } else {
-        Assert-PathExists -Path $resolvedBuildDir -Label "existing build directory"
+        if ($msvcBootstrapRequired) {
+            Assert-PathExists -Path $resolvedBuildDir -Label "existing build directory"
+        }
         if (-not $SkipInstallSmoke) {
             $summary.steps.build.install_prereq_cli = Assert-BuildExecutablePresent `
                 -BuildRoot $resolvedBuildDir `
@@ -2003,6 +2184,44 @@ try {
         ($summary | ConvertTo-Json -Depth 10) | Set-Content -Path $summaryPath -Encoding UTF8
     }
 
+    if ($releaseBlockerRollupRequested) {
+        try {
+            Write-Step "Building release blocker rollup"
+            Invoke-ReleaseBlockerRollup `
+                -ScriptPath $releaseBlockerRollupScript `
+                -InputJson $resolvedReleaseBlockerRollupInputJson `
+                -InputRoot $resolvedReleaseBlockerRollupInputRoot `
+                -OutputDir $resolvedReleaseBlockerRollupOutputDir `
+                -FailOnBlocker ([bool]$ReleaseBlockerRollupFailOnBlocker) `
+                -FailOnWarning ([bool]$ReleaseBlockerRollupFailOnWarning)
+            $rollupSummary = Read-ReleaseBlockerRollupSummary -Path $releaseBlockerRollupSummaryPath
+            $summary.release_blocker_rollup.status = if ($null -eq $rollupSummary) { "missing_summary" } else { [string]$rollupSummary.status }
+            $summary.release_blocker_rollup.source_report_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_report_count }
+            $summary.release_blocker_rollup.release_blocker_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.release_blocker_count }
+            $summary.release_blocker_rollup.action_item_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.action_item_count }
+            $summary.release_blocker_rollup.warning_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.warning_count }
+            $summary.release_blocker_rollup.error = ""
+            $summary.steps.release_blocker_rollup.status = $summary.release_blocker_rollup.status
+            $summary.steps.release_blocker_rollup.source_report_count = $summary.release_blocker_rollup.source_report_count
+            $summary.steps.release_blocker_rollup.release_blocker_count = $summary.release_blocker_rollup.release_blocker_count
+            $summary.steps.release_blocker_rollup.action_item_count = $summary.release_blocker_rollup.action_item_count
+            $summary.steps.release_blocker_rollup.warning_count = $summary.release_blocker_rollup.warning_count
+            $summary.steps.release_blocker_rollup.error = ""
+            ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
+        } catch {
+            $rollupError = $_.Exception.Message
+            $summary.release_blocker_rollup.status = "failed"
+            $summary.release_blocker_rollup.error = $rollupError
+            $summary.steps.release_blocker_rollup.status = "failed"
+            $summary.steps.release_blocker_rollup.error = $rollupError
+            ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
+            Write-Step "Release blocker rollup failed: $rollupError"
+            if ($ReleaseBlockerRollupFailOnBlocker -or $ReleaseBlockerRollupFailOnWarning) {
+                $releaseBlockerRollupFailure = $rollupError
+            }
+        }
+    }
+
     $repoRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $repoRoot
     $summaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summaryPath
     $buildDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedBuildDir
@@ -2069,6 +2288,7 @@ try {
 - Project template smoke: $($summary.steps.project_template_smoke.status)
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
+- Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
 $visualGateReviewTaskSummaryLine
 $readmeGalleryStatusLine
 $visualGateReviewSummary
@@ -2095,6 +2315,9 @@ $visualGateReviewSummary
 - Project template smoke schema approval compliance issues: $($summary.project_template_smoke.schema_patch_approval_compliance_issue_count)
 - Project template smoke schema approval invalid results: $($summary.project_template_smoke.schema_patch_approval_invalid_result_count)
 - Project template smoke schema approval history: $($summary.project_template_smoke.schema_patch_approval_history_status) ($schemaApprovalHistoryJsonDisplayPath, $schemaApprovalHistoryMarkdownDisplayPath)
+- Release blocker rollup summary: $(Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_blocker_rollup.summary_json)
+- Release blocker rollup report: $(Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_blocker_rollup.report_markdown)
+- Release blocker rollup counts: $($summary.release_blocker_rollup.release_blocker_count) blockers, $($summary.release_blocker_rollup.action_item_count) actions, $($summary.release_blocker_rollup.warning_count) warnings
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath
@@ -2142,4 +2365,12 @@ if ($projectTemplateSmokeRequested) {
     Write-Host "Project template schema approval history JSON: $schemaApprovalHistoryJsonPath"
     Write-Host "Project template schema approval history Markdown: $schemaApprovalHistoryMarkdownPath"
 }
+if ($releaseBlockerRollupRequested) {
+    Write-Host "Release blocker rollup summary: $releaseBlockerRollupSummaryPath"
+    Write-Host "Release blocker rollup report: $releaseBlockerRollupMarkdownPath"
+}
 Write-Host "Start here: $startHerePath"
+
+if ($null -ne $releaseBlockerRollupFailure) {
+    throw $releaseBlockerRollupFailure
+}

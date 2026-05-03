@@ -1296,6 +1296,16 @@ and surfaces them in `report/final_review.md`. `START_HERE.md`,
 generated release body, and short summary also list smoke, fixed-grid,
 section/page-number, and curated visual verdicts when those seeded values are
 available.
+When numbering catalog governance, table-layout delivery governance, or
+project-template delivery readiness summaries already exist, pass them through
+`-ReleaseBlockerRollupInputJson` or `-ReleaseBlockerRollupInputRoot`. The
+wrapper then runs `build_release_blocker_rollup_report.ps1`, writes
+`report/release-blocker-rollup/summary.json` plus Markdown, and records the
+rollup status, source count, blocker count, action count, and warning count in
+both `report/summary.json` and `report/final_review.md`. Add
+`-ReleaseBlockerRollupFailOnBlocker` or
+`-ReleaseBlockerRollupFailOnWarning` when the final rollup should behave as a
+hard release gate.
 
 If you also want release-preflight to gate a template DOCX against a committed
 schema baseline, pass `-TemplateSchemaInputDocx`, `-TemplateSchemaBaseline`,
