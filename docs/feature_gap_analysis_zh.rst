@@ -87,10 +87,20 @@ schema drift 数量、变更摘要、审批 decision 与下一步动作；单模
 产物现在还会写出 ``schema_approval_state``、``release_blockers``、
 ``action_items`` 和 ``manual_review_recommendations``，让调用方不解析 Markdown
 也能判断 schema approval 是否阻断发布、下一步应先复核 candidate 还是修复审批记录。
+``build_project_template_onboarding_governance_report.ps1`` 现在可以进一步把
+onboarding summary、onboarding plan 和 project-template smoke summary 汇总成
+``featherdoc.project_template_onboarding_governance_report.v1``，用于跨模板查看
+schema approval 状态、release blocker、action item 和人工复核建议。
+``write_schema_patch_confidence_calibration_report.ps1`` 也已能从 smoke summary
+或审批历史中只读提取 schema patch review 规模、approval outcome 和可选
+confidence 元数据，生成 ``featherdoc.schema_patch_confidence_calibration_report.v1``
+置信度区间报告。
+``build_release_blocker_rollup_report.ps1`` 则把模板、骨架、版式等报告里的
+``release_blockers`` / ``action_items`` 聚合成统一发布阻断视图。
 
 后续建议继续补齐的是“工程化治理层”，而不是基础 patch API：
 
-- 基于业务模板语料校准 rename / update 建议的置信度
+- 扩大业务模板语料样本，继续校准 rename / update 建议的置信度阈值
 - 继续沉淀真实项目里的 schema approval 审计字段和多项目发布门禁策略
 
 价值：
@@ -116,8 +126,12 @@ schema drift 数量、变更摘要、审批 decision 与下一步动作；单模
   并把尚未运行 smoke 的候选标记为 ``schema_approval_state.status=not_evaluated``
 - project template smoke 已把 schema patch approval items、审批结果、compliance gate
   和 release blocker 同步进 ``summary.json`` / ``summary.md`` / release summary
+- ``scripts/build_project_template_onboarding_governance_report.ps1`` 可把多份
+  onboarding summary、onboarding plan 和 smoke approval evidence 汇成项目级
+  JSON / Markdown 治理报告，并用 ``-FailOnBlocker`` 接入发布前 gate
 
-后续更值得继续沉淀的是跨项目 onboarding 策略和真实业务语料中的置信度校准。
+后续更值得继续沉淀的是跨项目 onboarding 策略、更多真实业务语料样本和
+发布面板里的治理报告消费体验。
 
 价值：
 
@@ -132,15 +146,17 @@ schema drift 数量、变更摘要、审批 decision 与下一步动作；单模
 当前列表、编号定义、样式挂接编号、样式编号只读盘点 / 审计 / command_template 修复建议 / plan-apply 安全清理、based-on 对齐、唯一同名 definition relink 与 catalog 导入预修复，以及 numbering catalog 的内存级
 与 CLI JSON 导入 / 导出已经有不错基础。catalog JSON 现在也支持
 definition level upsert、批量 override upsert/remove、结构 lint、文档对 baseline 的 check、单文件 /
-manifest 脚本级 baseline gate 和 JSON 差异对比。后续对既有文档里的
-复杂 numbering catalog，仍可继续补 exemplar 提取和冲突审计入口。
+manifest 脚本级 baseline gate 和 JSON 差异对比。``build_document_skeleton_governance_report.ps1``
+已经能从 exemplar 文档导出 numbering catalog，并把 style usage、style numbering
+audit 与 catalog baseline gate 汇入统一骨架治理报告。后续对既有文档里的
+复杂 numbering catalog，仍可继续强化冲突审计和 catalog patch 衔接。
 
 后续建议集中在：
 
-- 从 exemplar 文档自动提取 numbering catalog，并输出冲突审计报告
+- 强化 exemplar 文档自动提取 numbering catalog 后的冲突审计报告
 - 把 ``repair-style-numbering`` 的安全修复建议进一步转成可复用 catalog patch
 - 对企业模板里的重复、孤儿、跨样式绑定冲突做更细的置信度分级
-- 将 style usage、style numbering audit 与 catalog baseline gate 汇入统一骨架治理报告
+- 将骨架治理报告继续接入 release blocker rollup 和发布面板
 
 价值：
 
@@ -180,7 +196,8 @@ definition 的第一版高层编辑也已经开始落地：``ensure_table_style(
 ^^^^^^^^^^^^^^^^^^
 
 当前已经有样式检查、单样式 / 全量 usage report、继承解析、局部 rebase、materialize、基础 style id rename、同类型 style merge、批量 rename / merge 非破坏性计划、重复样式保守 merge 建议、顶层 ``suggestion_confidence_summary``、可用 ``--source-style`` / ``--target-style`` 收敛具体样式对，再用 ``--confidence-profile recommended|strict|review|exploratory`` 或 ``--min-confidence <0-100>`` 过滤、并可用 ``--fail-on-suggestion`` 作为 CI gate 的持久化 JSON plan、受控 apply 与 rollback 记录（含 merge source style XML 与原 source usage hits 快照）、基于 rollback JSON 的 merge restore dry-run（也可用 ``--plan-only``）审计 / 正式恢复，并支持重复 ``--entry`` 或 ``--source-style`` / ``--target-style`` 选择 rollback 项，restore issue 会输出可操作 ``suggestion`` 与顶层 ``issue_count`` / ``issue_summary``，以及保守的未使用 custom style prune plan / apply 能力。
-下一步缺的是基于真实语料的建议置信度校准、merge restore 更完整冲突处理与更完整的样式治理闭环。
+schema patch 侧已有只读置信度校准报告入口；下一步缺的是样式建议本身基于真实语料的
+置信度校准、merge restore 更完整冲突处理与更完整的样式治理闭环。
 
 建议补齐：
 
@@ -509,7 +526,8 @@ P2：可以后置的能力
 优先做：
 
 - content control 复杂表单保护、重复节和模板数据模型双向同步策略（Custom XML 单向刷新已完成）
-- 模板 schema approval / release blocker 摘要继续接入发布 gate
+- onboarding governance、schema confidence calibration 与 release blocker rollup
+  继续接入发布 gate / 发布面板
 - 真实项目模板 smoke manifest 的样例、审批历史和回归证据补强
 
 阶段目标：让一份真实业务模板可以更快接入、校验、生成和回归。
@@ -520,7 +538,7 @@ P2：可以后置的能力
 
 优先做：
 
-- exemplar 文档到 numbering catalog JSON 的自动提取与冲突审计
+- exemplar 文档到 numbering catalog JSON 的冲突审计和 catalog patch 衔接
 - ``repair-style-numbering`` 建议到 catalog patch 的衔接
 - style usage report 驱动的 batch audit 与自动建议
 - style refactor plan 的真实语料置信度校准与 merge restore 批量选择增强

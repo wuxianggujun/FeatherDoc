@@ -423,6 +423,20 @@ surfaces ``latest_blocking_summary`` and per-entry ``entry_histories`` so review
 can see the most recent blocking reason and each template entry's approval trend
 without opening every raw smoke summary. The onboarding workflow forwards the
 same review and approval rollups into its summary and manual-review report.
+``scripts/build_project_template_onboarding_governance_report.ps1`` can then
+roll onboarding summaries, onboarding-plan ``plan.json`` files, and
+project-template smoke summaries into the stable
+``featherdoc.project_template_onboarding_governance_report.v1`` JSON/Markdown
+handoff, with ``-FailOnBlocker`` for release gates. For threshold tuning,
+``scripts/write_schema_patch_confidence_calibration_report.ps1`` reads existing
+smoke or approval-history evidence and writes
+``featherdoc.schema_patch_confidence_calibration_report.v1`` with confidence
+buckets, approval outcomes, and conservative recommendations such as
+``recommended_min_confidence``. ``scripts/build_release_blocker_rollup_report.ps1``
+normalizes ``release_blockers`` and ``action_items`` from these governance
+reports, document-skeleton governance, table-layout delivery, or release
+summaries into ``featherdoc.release_blocker_rollup_report.v1`` while preserving
+duplicate source blockers through composite ids.
 
 When adding a repository baseline,
 ``scripts/register_template_schema_manifest_entry.ps1`` now runs the same gate
@@ -2608,8 +2622,9 @@ Current Limitations
   definition matches more highly. Unreachable
   custom styles can be planned and pruned through
   ``plan_prune_unused_styles()`` / ``plan-prune-unused-styles`` and
-  ``prune_unused_styles(...)`` / ``prune-unused-styles``. Higher-fidelity
-  confidence calibration against real-world corpora and richer
+  ``prune_unused_styles(...)`` / ``prune-unused-styles``. Schema patch
+  workflows now have a read-only confidence-calibration report writer; broader
+  style-suggestion calibration against real-world corpora and richer
   merge-restore conflict handling remain future work.
 - Bookmark-based template filling now works across body, header, and footer
   parts through ``fill_bookmarks(...)``, the standalone replacement helpers,

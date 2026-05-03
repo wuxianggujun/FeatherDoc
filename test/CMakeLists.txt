@@ -1117,6 +1117,142 @@ if(WIN32)
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/table_layout_delivery_report
             )
+
+            add_test(
+                NAME
+                build_project_template_onboarding_governance_report_aggregate
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_project_template_onboarding_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_project_template_onboarding_governance_report_aggregate
+                -Scenario
+                aggregate
+            )
+
+            add_test(
+                NAME
+                build_project_template_onboarding_governance_report_fail_on_blocker
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_project_template_onboarding_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_project_template_onboarding_governance_report_fail_on_blocker
+                -Scenario
+                fail_on_blocker
+            )
+
+            add_test(
+                NAME
+                build_release_blocker_rollup_report_passing
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_blocker_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_passing
+                -Scenario
+                passing
+            )
+
+            add_test(
+                NAME
+                build_release_blocker_rollup_report_empty
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_blocker_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_empty
+                -Scenario
+                empty
+            )
+
+            add_test(
+                NAME
+                build_release_blocker_rollup_report_malformed
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_blocker_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_malformed
+                -Scenario
+                malformed
+            )
+
+            add_test(
+                NAME
+                build_release_blocker_rollup_report_dedupe
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_blocker_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_dedupe
+                -Scenario
+                dedupe
+            )
+
+            add_test(
+                NAME
+                write_schema_patch_confidence_calibration_report_aggregate
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/write_schema_patch_confidence_calibration_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/write_schema_patch_confidence_calibration_report_aggregate
+                -Scenario
+                aggregate
+            )
+
+            add_test(
+                NAME
+                write_schema_patch_confidence_calibration_report_fail_on_pending
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/write_schema_patch_confidence_calibration_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/write_schema_patch_confidence_calibration_report_fail_on_pending
+                -Scenario
+                fail_on_pending
+            )
         endif()
 
         if(TARGET featherdoc_cli AND TARGET featherdoc_sample_bookmark_block_visibility_visual AND TARGET featherdoc_sample_part_template_validation)

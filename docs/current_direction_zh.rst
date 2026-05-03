@@ -106,13 +106,17 @@
 - ``scan_template_schema(...)`` / ``build_template_schema_patch_from_scan(...)``
 - ``check-template-schema``
 - schema patch review JSON、schema approval gate 与审批历史报表
+- project-template onboarding governance 聚合报告
+- schema patch confidence calibration 只读校准报告
+- release blocker rollup 统一发布阻断汇总
 - ``run_project_template_smoke.ps1``
 
 接下来更值得补的是：
 
-1. 基于真实业务模板语料校准 rename / update 建议的置信度
+1. 扩大真实业务模板语料样本，继续校准 rename / update 建议的置信度
 2. 多项目 schema approval、release gate 和审批历史的维护体验
-3. 真实模板 onboarding 报告，让接入、校验、生成、回归变成短流程
+3. 将 onboarding governance、confidence calibration 与 release blocker rollup
+   接入更固定的发布面板
 4. schema migration 的人工复核入口和更明确的修复建议分流
 
 这条线的目标是：
@@ -152,10 +156,10 @@
 
 接下来最值得补的是：
 
-1. merge restore 的更完整冲突处理与基于真实语料的建议置信度校准
+1. merge restore 的更完整冲突处理与基于真实语料的样式建议置信度校准
 2. 面向 heading / list / theme 的稳定重构入口
 3. 样式与编号之间更明确的批量治理 mutation API
-4. exemplar 文档到 catalog JSON 的自动提取与冲突审计 workflow
+4. 在已有骨架治理报告基础上继续强化 exemplar 冲突审计和 catalog patch 衔接
 
 这条线的目标是：
 

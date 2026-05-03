@@ -16,6 +16,17 @@ performance.
 - Added schema approval state, release blockers, action items, and manual
   review recommendations to project-template onboarding summaries and
   onboarding-plan candidates.
+- Added `build_project_template_onboarding_governance_report.ps1` with
+  PowerShell coverage to aggregate onboarding summaries, onboarding plans, and
+  project-template smoke schema approval evidence into one JSON/Markdown
+  release-readiness report.
+- Added `build_release_blocker_rollup_report.ps1` with PowerShell coverage to
+  normalize release blockers and action items from multiple governance reports
+  into one JSON/Markdown release handoff.
+- Added `write_schema_patch_confidence_calibration_report.ps1` with PowerShell
+  coverage to aggregate schema patch review size, approval outcomes, optional
+  confidence metadata, bucket summaries, and conservative threshold
+  recommendations from existing smoke/history evidence.
 - Added table layout delivery report scripts and PowerShell coverage to collect
   table style quality, tblLook repair planning, floating table preset planning,
   dry-run replay, and visual-regression handoff entries.

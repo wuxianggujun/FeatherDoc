@@ -529,6 +529,7 @@ featherdoc_cli repair-style-numbering input.docx --apply --output repaired-style
 featherdoc_cli repair-style-numbering input.docx --catalog-file numbering-catalog.json --apply --output catalog-repaired.docx --json
 featherdoc_cli export-numbering-catalog input.docx --output numbering-catalog.json --json
 featherdoc_cli check-numbering-catalog input.docx --catalog-file numbering-catalog.json --output numbering-catalog.generated.json --json
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 -InputDocx .\input.docx -OutputDir .\output\document-skeleton-governance -BuildDir build-codex-clang-compat -SkipBuild
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx .\input.docx -CatalogFile .\numbering-catalog.json -GeneratedCatalogOutput .\numbering-catalog.generated.json -BuildDir build-codex-clang-compat -SkipBuild
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir build-codex-clang-compat -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild
 featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file numbering-catalog.patch.json --output numbering-catalog.patched.json --json
@@ -622,6 +623,9 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\describe_project_template_smoke_man
 pwsh -ExecutionPolicy Bypass -File .\scripts\register_project_template_smoke_manifest_entry.ps1 -Name contract-template -ManifestPath .\samples\project_template_smoke.manifest.json -InputDocx .\samples\chinese_invoice_template.docx -SchemaValidationFile .\baselines\template-schema\chinese_invoice_template.schema.json -SchemaBaselineFile .\baselines\template-schema\chinese_invoice_template.schema.json -VisualSmokeOutputDir .\output\project-template-smoke\contract-template-visual -ReplaceExisting
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -ManifestPath .\samples\project_template_smoke.manifest.json -BuildDir build-codex-clang-compat -OutputDir output/project-template-smoke
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson .\output\project-template-smoke\summary.json
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-onboarding -InputRoot .\output\project-template-smoke-onboarding-plan -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\schema-patch-confidence-calibration -FailOnPending
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance\summary.json -InputJson .\output\table-layout-delivery-report\summary.json -InputJson .\output\project-template-onboarding-governance\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
@@ -659,6 +663,31 @@ wrapper writes per-entry artifacts plus aggregate `summary.json` and
 example. `schema_baseline` results now also record whether the committed schema
 is lint-clean, how many lint issues were found, and any repaired candidate path
 emitted by the baseline gate.
+
+After onboarding, onboarding-plan, or project-template smoke artifacts exist,
+`scripts/build_project_template_onboarding_governance_report.ps1` can aggregate
+`onboarding_summary.json`, `plan.json`, and smoke `summary.json` evidence into
+a stable `featherdoc.project_template_onboarding_governance_report.v1`
+JSON/Markdown release-readiness report. Pass `-FailOnBlocker` when pending,
+blocked, or not-yet-evaluated schema approval states should fail a release gate.
+
+For schema patch threshold tuning, run
+`scripts/write_schema_patch_confidence_calibration_report.ps1`. It reads
+existing smoke summaries or approval-history reports, groups schema patch
+review size, approval outcomes, and optional `confidence` metadata into
+calibration buckets, and emits
+`featherdoc.schema_patch_confidence_calibration_report.v1` with conservative
+recommendations such as `recommended_min_confidence`. The script is a read-only
+rollup; `-FailOnPending` blocks threshold tightening while approval items are
+still unresolved.
+
+When document-skeleton governance, table-layout delivery, and onboarding
+governance reports are available,
+`scripts/build_release_blocker_rollup_report.ps1` normalizes their
+`release_blockers` and `action_items` into
+`featherdoc.release_blocker_rollup_report.v1`. It keeps duplicate blocker ids
+traceable with per-source `composite_id` values and supports `-FailOnBlocker`
+or `-FailOnWarning` for a final read-only release dashboard gate.
 
 To validate the manifest contract before running the full harness, use
 `scripts/check_project_template_smoke_manifest.ps1`. The sample manifest now
@@ -2113,7 +2142,13 @@ For a runnable document-level sample, build
 For first-time project onboarding of a real template, call
 `Document::onboard_template(...)` before building render data. It reuses schema
 scan, validation, and patch review to return discovered slots, baseline drift,
-blocking issues, and suggested next actions.
+blocking issues, and suggested next actions. The project-level
+`scripts/onboard_project_template.ps1` wrapper also writes
+`schema_approval_state`, `release_blockers`, `action_items`, and manual-review
+recommendations into `onboarding_summary.json`; use
+`scripts/build_project_template_onboarding_governance_report.ps1` to roll those
+single-template bundles plus onboarding plans and smoke approval evidence into
+one release-readiness report.
 
 ```cpp
 featherdoc::Document doc("invoice-template.docx");
@@ -2772,7 +2807,11 @@ definition-level upsert, batch override upsert/remove, structural validation,
 document-vs-baseline checks,
 the `scripts/check_numbering_catalog_baseline.ps1` and
 `scripts/check_numbering_catalog_manifest.ps1` wrappers, diff-based
-drift checks for catalog JSON files, and `audit-style-numbering`
+drift checks for catalog JSON files,
+`scripts/build_document_skeleton_governance_report.ps1` for exemplar catalog
+extraction plus style usage / style-numbering governance reports, and
+`scripts/build_release_blocker_rollup_report.ps1` for release blocker rollups
+across skeleton, template, and layout reports, and `audit-style-numbering`
 style-to-numbering issue gates with `command_template` repair suggestions,
 including missing-level `upsert_levels` patch guidance, and
 `repair-style-numbering` plan/apply safe clear-binding, based-on alignment,
@@ -2819,8 +2858,10 @@ unique same-name relink, and catalog import pre-repairs.
   add `--fail-on-suggestion` when CI should fail after filtered suggestions
   remain. JSON output includes `fail_on_suggestion` and
   `suggestion_gate_failed` for gate diagnostics.
-  Confidence calibration against real-world corpora and richer batch restore
-  selection remain future work.
+  Schema patch workflows now have the read-only
+  `scripts/write_schema_patch_confidence_calibration_report.ps1` calibration
+  rollup; broader real-world style-suggestion calibration and richer batch
+  restore selection remain future work.
 - Bookmark-based template filling now works across body, header, and footer
   parts through `fill_bookmarks(...)`, the standalone replacement helpers, and
   `TemplatePart` handles returned by `body_template()`, `header_template()`,
