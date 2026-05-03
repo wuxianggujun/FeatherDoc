@@ -126,6 +126,9 @@ numbering catalog governance、table layout delivery governance、project-templa
 readiness、release governance handoff 和最终 release blocker rollup；总览会落到
 `output/release-governance-pipeline/summary.json` 和 Markdown。该脚本只读输入 summary，
 不重跑 CLI、CMake、Word 或视觉自动化。
+Linux/macOS CI 的 `release_smoke` 步骤也会把 release candidate blocker rollup、
+release governance handoff、release governance pipeline 等 smoke 输出上传为 Actions
+artifact，便于从远端构建直接下载审查证据。
 
 脚本结束后，输出目录里会生成：
 

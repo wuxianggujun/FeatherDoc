@@ -748,6 +748,10 @@ reports, release governance handoff, final release blocker rollup, and a
 pipeline-level JSON/Markdown summary under
 `output/release-governance-pipeline/`. It does not rerun CLI, CMake, Word, or
 visual automation.
+The Linux/macOS CI `release_smoke` steps upload the release candidate blocker
+rollup, release governance handoff, and release governance pipeline smoke
+outputs as GitHub Actions artifacts so reviewer evidence can be downloaded from
+remote builds.
 
 To validate the manifest contract before running the full harness, use
 `scripts/check_project_template_smoke_manifest.ps1`. The sample manifest now

@@ -67,3 +67,15 @@ jobs:
           --output-on-failure
           --timeout 60
           -L release_smoke
+
+      - name: Upload release governance smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-governance-smoke-linux-${{ matrix.compiler }}
+          if-no-files-found: ignore
+          path: |
+            build-linux-${{ matrix.compiler }}/test/release_candidate_blocker_rollup/**
+            build-linux-${{ matrix.compiler }}/test/release_candidate_governance_handoff/**
+            build-linux-${{ matrix.compiler }}/test/build_release_governance_handoff_report_aggregate/**
+            build-linux-${{ matrix.compiler }}/test/build_release_governance_pipeline_report_aggregate/**

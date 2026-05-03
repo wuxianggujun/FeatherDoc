@@ -89,6 +89,8 @@ performance.
 - Added Linux/macOS workflow steps for the dedicated `release_smoke` label so
   release governance handoff and blocker rollup smoke coverage runs in the
   minimal cross-platform CI.
+- Added Linux/macOS release governance smoke artifact uploads for blocker
+  rollup, governance handoff, and governance pipeline evidence.
 - Added a minimal Linux CMake CI workflow with GCC/Clang matrix coverage for
   the core and CLI test build.
 - Added a minimal macOS CMake CI workflow and README badges so the project has
