@@ -1617,45 +1617,55 @@ if(WIN32)
 endif()
 
 if(TARGET featherdoc_cli)
-    add_executable(
-        cli_tests
-        cli_tests.cpp
-        cli_styles_tests.cpp
-    )
+    function(featherdoc_add_cli_cpp_test target_name test_name)
+        add_executable(${target_name} ${ARGN})
 
-    target_link_libraries(
-        cli_tests
-        PRIVATE FeatherDoc::FeatherDoc
-    )
-    if(MSVC)
-        target_compile_options(cli_tests PRIVATE /utf-8)
-    endif()
-    featherdoc_copy_runtime_dlls(cli_tests)
+        target_link_libraries(
+            ${target_name}
+            PRIVATE FeatherDoc::FeatherDoc
+        )
+        if(MSVC)
+            target_compile_options(${target_name} PRIVATE /utf-8)
+        endif()
+        featherdoc_copy_runtime_dlls(${target_name})
 
-    add_dependencies(cli_tests featherdoc_cli)
-    add_custom_command(
-        TARGET cli_tests
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:featherdoc_cli>
-            $<TARGET_FILE_DIR:cli_tests>
-    )
-    if(WIN32 AND BUILD_SHARED_LIBS)
         add_custom_command(
-            TARGET cli_tests
+            TARGET ${target_name}
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:featherdoc_cli>
-                $<TARGET_FILE_DIR:cli_tests>
-            COMMAND_EXPAND_LISTS
+                $<TARGET_FILE:featherdoc_cli>
+                $<TARGET_FILE_DIR:${target_name}>
         )
-    endif()
+        if(WIN32 AND BUILD_SHARED_LIBS)
+            add_custom_command(
+                TARGET ${target_name}
+                POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    $<TARGET_RUNTIME_DLLS:featherdoc_cli>
+                    $<TARGET_FILE_DIR:${target_name}>
+                COMMAND_EXPAND_LISTS
+            )
+        endif()
 
-    add_test(
-        NAME
-        cli
-        COMMAND
+        add_dependencies(${target_name} featherdoc_cli)
+        add_test(
+            NAME
+            ${test_name}
+            COMMAND
+            ${target_name}
+        )
+    endfunction()
+
+    featherdoc_add_cli_cpp_test(
         cli_tests
+        cli
+        cli_tests.cpp
+    )
+
+    featherdoc_add_cli_cpp_test(
+        cli_styles_tests
+        cli_styles
+        cli_styles_tests.cpp
     )
 endif()
 

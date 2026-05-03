@@ -1,3 +1,4 @@
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "cli_style_test_support.hpp"
 
 TEST_CASE("cli inspect-styles lists the default catalog") {
