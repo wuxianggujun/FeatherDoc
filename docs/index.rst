@@ -2564,7 +2564,13 @@ Current Limitations
   direction, marked to repeat header rows, retuned through ``tblLook``
   style-routing flags, given typed custom table style definitions, audited for
   table-style quality, and positioned as first-version floating tables through
-  ``Table::set_position(...)``. Advanced table-style coverage and the remaining
+  ``Table::set_position(...)``. ``scripts/build_table_layout_delivery_report.ps1``
+  can collect table style quality, safe ``tblLook`` repair planning, floating
+  table preset planning, and visual-regression handoff entries for one
+  document; ``scripts/build_table_layout_delivery_rollup_report.ps1`` then
+  aggregates multiple layout summaries into
+  ``featherdoc.table_layout_delivery_rollup_report.v1`` before release blocker
+  rollups consume the results. Advanced table-style coverage and the remaining
   ``w:tblpPr`` wrapping/overlap details are still active extension areas.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences, and custom numbering definitions can now be

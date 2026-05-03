@@ -177,14 +177,18 @@
 表格、页边距、图片布局、section 结构，决定了这个库能不能真正支撑
 报告、发票、制度文件和业务单据这类交付物。
 
-当前这条线已经很强，但还没有完全收口。
+当前这条线已经很强，但还没有完全收口。单文档交付报告已经可以把
+table style quality、安全 ``tblLook`` 修复、floating table preset plan 和视觉回归入口
+收成 JSON / Markdown；多文档 ``build_table_layout_delivery_rollup_report.ps1``
+也可以继续汇总成 ``featherdoc.table_layout_delivery_rollup_report.v1``，
+再交给 release blocker rollup。
 
 接下来更值得补的是：
 
 1. 更完整的 custom table style property editing 覆盖面
 2. 浮动表格环绕距离、重叠控制和更多 ``w:tblpPr`` 细节
 3. 更高层的页面与区段版式组合 helper
-4. 围绕“生成后无需人工微调”的交付质量打磨
+4. 围绕“生成后无需人工微调”的交付质量打磨，并让 layout rollup 更稳定地进入发布面板
 
 这条线的目标是：
 

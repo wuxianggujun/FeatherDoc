@@ -367,7 +367,8 @@ featherdoc_cli audit-table-style-inheritance input.docx --fail-on-issue --json
 featherdoc_cli audit-table-style-quality input.docx --fail-on-issue --json
 featherdoc_cli plan-table-style-quality-fixes input.docx --json
 featherdoc_cli apply-table-style-quality-fixes input.docx --look-only --output quality-fixed.docx --json
-powershell -ExecutionPolicy Bypass -File .\scripts\run_table_layout_delivery_report.ps1 -InputDocx .\input.docx -BuildDir build-codex-clang-compat -OutputDir .\output\table-layout-delivery-report -SkipBuild
+powershell -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_report.ps1 -InputDocx .\input.docx -BuildDir build-codex-clang-compat -OutputDir .\output\table-layout-delivery-report -SkipBuild
+powershell -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
 powershell -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1 -BuildDir build-codex-clang-compat -OutputDir output/table-style-quality-visual-regression -SkipBuild
 powershell -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 -SkipConfigure -SkipBuild -IncludeTableStyleQuality
 featherdoc_cli check-table-style-look input.docx --fail-on-issue --json
@@ -433,7 +434,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-onboarding -InputRoot .\output\project-template-smoke-onboarding-plan -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\schema-patch-confidence-calibration -FailOnPending
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
-pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json -InputJson .\output\table-layout-delivery-report\summary.json -InputJson .\output\project-template-onboarding-governance\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json -InputJson .\output\table-layout-delivery-rollup\summary.json -InputJson .\output\project-template-onboarding-governance\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
@@ -469,7 +471,12 @@ approved / pending / rejected / invalid 的分布和保守的 `recommended_min_c
 `scripts/build_document_skeleton_governance_rollup_report.ps1` 汇总为
 `featherdoc.document_skeleton_governance_rollup_report.v1`，保留每份模板的
 exemplar catalog 路径、样式编号 issue 汇总、release blocker 和 action item。
-当 document skeleton rollup、table layout delivery、project onboarding
+表格版式侧也有同样的聚合层：
+`scripts/build_table_layout_delivery_rollup_report.ps1` 会把多份
+`featherdoc.table_layout_delivery_report.v1` 汇总成
+`featherdoc.table_layout_delivery_rollup_report.v1`，保留 table style issue、
+安全 `tblLook` 修复计数、浮动表格 preset plan 路径、release blocker 和 action item。
+当 document skeleton rollup、table layout delivery rollup、project onboarding
 governance 等报告已经生成后，可以再用
 `scripts/build_release_blocker_rollup_report.ps1` 统一汇总 release blocker 和 action
 item。它会为不同来源的重复 blocker id 生成可追踪的 `composite_id`，输出
@@ -1367,7 +1374,7 @@ repair 候选文件。
 - content control 的枚举、tag / alias 过滤、C++ API / CLI 层的纯文本、段落、表格行、整表和图片替换
 - 内联图片与浮动图片，已支持 PNG/JPEG/GIF/BMP/SVG/WebP/TIFF 的插入、尺寸识别和内容类型写入
 - 页眉、页脚、分节复制 / 插入 / 移动 / 删除
-- 列表、自定义编号定义、编号 catalog 内存级与 CLI JSON 导入 / 导出、check、patch、lint、diff，patch 已覆盖 definition level upsert 与 override upsert/remove，单文件 / manifest 脚本级 baseline gate，`build_document_skeleton_governance_report.ps1` 可从 exemplar 文档导出 numbering catalog、汇总样式 usage 和样式编号审计报告，`build_document_skeleton_governance_rollup_report.ps1` 可把多份骨架治理 summary 汇总成跨模板 exemplar catalog / issue / blocker / action item 视图，`build_release_blocker_rollup_report.ps1` 可把骨架、模板和版式报告里的 blocker / action item 统一汇总，带 `command_template` 修复建议的样式编号审计 gate（缺失 level 会指向 `upsert_levels` patch 工作流），以及 `repair-style-numbering` plan/apply 安全清理、based-on 对齐、唯一同名 definition relink 与 catalog 导入预修复入口，基础样式目录检查与最小样式定义编辑
+- 列表、自定义编号定义、编号 catalog 内存级与 CLI JSON 导入 / 导出、check、patch、lint、diff，patch 已覆盖 definition level upsert 与 override upsert/remove，单文件 / manifest 脚本级 baseline gate，`build_document_skeleton_governance_report.ps1` 可从 exemplar 文档导出 numbering catalog、汇总样式 usage 和样式编号审计报告，`build_document_skeleton_governance_rollup_report.ps1` 可把多份骨架治理 summary 汇总成跨模板 exemplar catalog / issue / blocker / action item 视图，`build_table_layout_delivery_rollup_report.ps1` 可把多份版式交付 summary 汇总成跨模板 table style issue / `tblLook` 修复 / floating table preset / blocker / action item 视图，`build_release_blocker_rollup_report.ps1` 可把骨架、模板和版式报告里的 blocker / action item 统一汇总，带 `command_template` 修复建议的样式编号审计 gate（缺失 level 会指向 `upsert_levels` patch 工作流），以及 `repair-style-numbering` plan/apply 安全清理、based-on 对齐、唯一同名 definition relink 与 catalog 导入预修复入口，基础样式目录检查与最小样式定义编辑
 
 ## 当前限制
 
@@ -1390,10 +1397,11 @@ repair 候选文件。
   `w:tblpPr` 浮动定位，覆盖水平 / 垂直参照、twips 偏移、环绕距离、
   重叠策略、常用 preset、多表批量目标、plan/apply 回放和 Word 渲染可视化验证。
   当需要把表格样式、`tblLook` 和浮动定位一次性收口成交付审计材料时，
-  可以运行 `scripts/run_table_layout_delivery_report.ps1`，它会复用
+  可以运行 `scripts/build_table_layout_delivery_report.ps1`，它会复用
   `inspect-tables`、`audit-table-style-quality`、`check-table-style-look` 和
   `plan-table-position-presets` 生成 JSON / Markdown 报告、preset 修复建议、
-  可回放 position plan，以及 Word 视觉回归入口。
+  可回放 position plan，以及 Word 视觉回归入口。多份单文档报告可以继续交给
+  `scripts/build_table_layout_delivery_rollup_report.ps1` 汇总，再进入统一发布阻断视图。
 - 模板校验已经覆盖 slot、缺失、重复、意外书签、kind 不匹配、occurrence 约束，
   并且已经有 `validate_template_schema(...)` 和
   `featherdoc_cli validate-template-schema` 这套文档级多 part 校验入口，

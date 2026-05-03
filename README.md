@@ -559,6 +559,8 @@ featherdoc_cli audit-table-style-inheritance input.docx --fail-on-issue --json
 featherdoc_cli audit-table-style-quality input.docx --fail-on-issue --json
 featherdoc_cli plan-table-style-quality-fixes input.docx --json
 featherdoc_cli apply-table-style-quality-fixes input.docx --look-only --output quality-fixed.docx --json
+powershell -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_report.ps1 -InputDocx .\input.docx -BuildDir build-codex-clang-compat -OutputDir .\output\table-layout-delivery-report -SkipBuild
+powershell -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
 powershell -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1 -BuildDir build-codex-clang-compat -OutputDir output/table-style-quality-visual-regression -SkipBuild
 powershell -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 -SkipConfigure -SkipBuild -IncludeTableStyleQuality
 featherdoc_cli check-table-style-look input.docx --fail-on-issue --json
@@ -627,7 +629,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-onboarding -InputRoot .\output\project-template-smoke-onboarding-plan -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\schema-patch-confidence-calibration -FailOnPending
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
-pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json -InputJson .\output\table-layout-delivery-report\summary.json -InputJson .\output\project-template-onboarding-governance\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json -InputJson .\output\table-layout-delivery-rollup\summary.json -InputJson .\output\project-template-onboarding-governance\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
@@ -687,8 +690,13 @@ When several single-document skeleton governance summaries are available,
 `scripts/build_document_skeleton_governance_rollup_report.ps1` first rolls them
 into `featherdoc.document_skeleton_governance_rollup_report.v1`, preserving
 per-document exemplar catalog paths, style-numbering issue totals, release
-blockers, and action items. When document-skeleton rollup, table-layout
-delivery, and onboarding governance reports are available,
+blockers, and action items. The table layout side has the same aggregation
+layer: `scripts/build_table_layout_delivery_rollup_report.ps1` rolls
+`featherdoc.table_layout_delivery_report.v1` summaries into
+`featherdoc.table_layout_delivery_rollup_report.v1`, preserving table style
+issue totals, safe `tblLook` repair counts, floating table preset plan paths,
+release blockers, and action items. When document-skeleton rollup,
+table-layout delivery rollup, and onboarding governance reports are available,
 `scripts/build_release_blocker_rollup_report.ps1` normalizes their
 `release_blockers` and `action_items` into
 `featherdoc.release_blocker_rollup_report.v1`. It keeps duplicate blocker ids
@@ -2798,7 +2806,7 @@ For a runnable end-to-end version, build `featherdoc_sample_chinese` from
   given first-pass custom table style definitions through `ensure_table_style(...)`
   for whole-table and conditional-region borders, fills, text colors, bold/italic flags, font sizes, font families, cell vertical alignment, text direction, paragraph alignment, paragraph spacing, line spacing, cell margins, and first/second band regions, and
   inspected back through `find_table_style_definition(...)` /
-  `featherdoc_cli inspect-table-style --json`; `audit-table-style-regions` can flag empty declared table-style regions, `audit-table-style-inheritance` can gate missing, cross-type, or cyclic table-style `basedOn` chains, `audit-table-style-quality` can aggregate those definition gates with table instance `tblLook` checks for CI, `plan-table-style-quality-fixes` can split quality findings into automatic `tblLook` repairs and manual style-definition work, `apply-table-style-quality-fixes --look-only` can write only the safe `tblLook` repairs, `scripts/run_table_style_quality_visual_regression.ps1` can archive before/after Word renders, contact sheets, and pixel summaries for visual validation, `check-table-style-look` can gate table instance `tblLook` flags against conditional regions, and `repair-table-style-look` can apply the safe flag fixes. Floating table positioning is now available through `Table::set_position(...)` / `position()` / `clear_position()` over `w:tblpPr`, including horizontal/vertical references, signed twips offsets, optional text wrapping distances, overlap policy, presets, batch targeting, plan/apply replay, and Word-rendered visual validation.
+  `featherdoc_cli inspect-table-style --json`; `audit-table-style-regions` can flag empty declared table-style regions, `audit-table-style-inheritance` can gate missing, cross-type, or cyclic table-style `basedOn` chains, `audit-table-style-quality` can aggregate those definition gates with table instance `tblLook` checks for CI, `plan-table-style-quality-fixes` can split quality findings into automatic `tblLook` repairs and manual style-definition work, `apply-table-style-quality-fixes --look-only` can write only the safe `tblLook` repairs, `scripts/run_table_style_quality_visual_regression.ps1` can archive before/after Word renders, contact sheets, and pixel summaries for visual validation, `check-table-style-look` can gate table instance `tblLook` flags against conditional regions, and `repair-table-style-look` can apply the safe flag fixes. Floating table positioning is now available through `Table::set_position(...)` / `position()` / `clear_position()` over `w:tblpPr`, including horizontal/vertical references, signed twips offsets, optional text wrapping distances, overlap policy, presets, batch targeting, plan/apply replay, and Word-rendered visual validation. `scripts/build_table_layout_delivery_report.ps1` can combine table style quality, safe `tblLook` repair planning, floating table preset planning, and visual-regression handoff for one document, while `scripts/build_table_layout_delivery_rollup_report.ps1` aggregates multiple layout summaries before the release blocker rollup consumes them.
 - Paragraphs can now be attached to managed bullet and decimal lists and can
   restart managed list sequences. Custom numbering definitions and
   paragraph-style numbering are now supported through

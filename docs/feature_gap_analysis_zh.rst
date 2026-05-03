@@ -179,7 +179,11 @@ definition 的第一版高层编辑也已经开始落地：``ensure_table_style(
 现在也已经补入表格实例层面的第一版浮动定位 API：
 ``Table::set_position(...)``、``position()`` 和 ``clear_position()`` 会读写
 ``w:tblpPr`` 的水平 / 垂直参照以及 twips 偏移，适合先覆盖“表格脱离普通
-文档流并相对页面 / 边距 / 段落定位”的常见模板场景。后续仍需要继续补齐
+文档流并相对页面 / 边距 / 段落定位”的常见模板场景。``build_table_layout_delivery_report.ps1``
+已经可以把 table style quality、安全 ``tblLook`` 修复、floating table preset plan
+和视觉回归入口收成单文档 JSON / Markdown；``build_table_layout_delivery_rollup_report.ps1``
+则可以把多份版式交付 summary 聚合成跨模板 table style issue、``tblLook`` 修复、
+floating table plan、release blocker 和 action item 视图。后续仍需要继续补齐
 更完整的复杂版式属性面。
 
 后续建议集中在：
@@ -187,7 +191,7 @@ definition 的第一版高层编辑也已经开始落地：``ensure_table_style(
 - 扩展 custom table style 已建模属性覆盖面，特别是条件区域中的复杂属性
 - 继续补齐浮动表格的环绕距离、重叠控制等 ``w:tblpPr`` 细节
 - 为常见正式文档版式沉淀 table style + ``tblLook`` + floating position preset
-- 将 table style 质量计划和真实模板迁移报告联动，减少人工判断成本
+- 将 table layout delivery rollup 和真实模板迁移报告联动，减少人工判断成本
 
 价值：
 

@@ -34,6 +34,10 @@ performance.
 - Added table layout delivery report scripts and PowerShell coverage to collect
   table style quality, tblLook repair planning, floating table preset planning,
   dry-run replay, and visual-regression handoff entries.
+- Added `build_table_layout_delivery_rollup_report.ps1` with PowerShell
+  coverage to aggregate multiple table layout delivery summaries into a
+  multi-template table style quality, safe tblLook repair, floating table plan,
+  release blocker, and action item handoff.
 - Added a minimal Linux CMake CI workflow with GCC/Clang matrix coverage for
   the core test build.
 - Added `run_word_visual_smoke.ps1 -ShowRevisions` and review mutation visual runner passthrough so Word PDF/PNG evidence can render tracked insertion and deletion markup when validating unresolved revisions.

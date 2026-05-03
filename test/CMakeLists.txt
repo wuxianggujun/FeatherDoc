@@ -1188,6 +1188,108 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_table_layout_delivery_rollup_report_aggregate
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_table_layout_delivery_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_table_layout_delivery_rollup_report_aggregate
+                -Scenario
+                aggregate
+            )
+
+            add_test(
+                NAME
+                build_table_layout_delivery_rollup_report_empty
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_table_layout_delivery_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_table_layout_delivery_rollup_report_empty
+                -Scenario
+                empty
+            )
+
+            add_test(
+                NAME
+                build_table_layout_delivery_rollup_report_malformed
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_table_layout_delivery_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_table_layout_delivery_rollup_report_malformed
+                -Scenario
+                malformed
+            )
+
+            add_test(
+                NAME
+                build_table_layout_delivery_rollup_report_failed_source_report
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_table_layout_delivery_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_table_layout_delivery_rollup_report_failed_source_report
+                -Scenario
+                failed_source_report
+            )
+
+            add_test(
+                NAME
+                build_table_layout_delivery_rollup_report_fail_on_issue
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_table_layout_delivery_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_table_layout_delivery_rollup_report_fail_on_issue
+                -Scenario
+                fail_on_issue
+            )
+
+            add_test(
+                NAME
+                build_table_layout_delivery_rollup_report_fail_on_blocker
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_table_layout_delivery_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_table_layout_delivery_rollup_report_fail_on_blocker
+                -Scenario
+                fail_on_blocker
+            )
+
+            add_test(
+                NAME
                 table_layout_delivery_report
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_EXECUTABLE}
