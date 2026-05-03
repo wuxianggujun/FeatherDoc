@@ -1131,6 +1131,8 @@ struct revision_authoring_options : simple_document_mutation_options {
 enum class review_mutation_plan_operation_kind {
     append_paragraph_text_comment,
     append_comment_reply,
+    replace_comment,
+    remove_comment,
     set_comment_resolved,
     set_comment_metadata,
     insert_paragraph_text_revision,
@@ -36553,6 +36555,10 @@ auto review_mutation_plan_operation_kind_name(
         return "append_paragraph_text_comment";
     case review_mutation_plan_operation_kind::append_comment_reply:
         return "append_comment_reply";
+    case review_mutation_plan_operation_kind::replace_comment:
+        return "replace_comment";
+    case review_mutation_plan_operation_kind::remove_comment:
+        return "remove_comment";
     case review_mutation_plan_operation_kind::set_comment_resolved:
         return "set_comment_resolved";
     case review_mutation_plan_operation_kind::set_comment_metadata:
@@ -36594,6 +36600,14 @@ auto parse_review_mutation_plan_operation_kind(
     if (token == "append_comment_reply" ||
         token == "append-comment-reply") {
         kind = review_mutation_plan_operation_kind::append_comment_reply;
+        return true;
+    }
+    if (token == "replace_comment" || token == "replace-comment") {
+        kind = review_mutation_plan_operation_kind::replace_comment;
+        return true;
+    }
+    if (token == "remove_comment" || token == "remove-comment") {
+        kind = review_mutation_plan_operation_kind::remove_comment;
         return true;
     }
     if (token == "set_comment_resolved" ||
@@ -36650,6 +36664,8 @@ auto parse_review_mutation_plan_operation_kind(
         "operation kind must be one of "
         "'append_paragraph_text_comment', "
         "'append_comment_reply', "
+        "'replace_comment', "
+        "'remove_comment', "
         "'set_comment_resolved', "
         "'set_comment_metadata', "
         "'insert_paragraph_text_revision', "
@@ -37150,6 +37166,43 @@ auto parse_review_mutation_plan_operation(
             saw_resolved || clear_metadata_fields_seen) {
             error_message =
                 "JSON review mutation plan append_comment_reply operation only accepts 'comment_index', 'comment_text', 'expected_text', 'expected_comment_text', 'expected_resolved', 'expected_parent_index', 'author', 'initials', and 'date'";
+            return false;
+        }
+        return true;
+    case review_mutation_plan_operation_kind::replace_comment:
+        if (!saw_comment_index || !saw_comment_text) {
+            error_message =
+                "JSON review mutation plan replace_comment operation must contain 'comment_index' and 'comment_text'";
+            return false;
+        }
+        if (operation.text.empty()) {
+            error_message =
+                "JSON review mutation plan replace_comment operation member 'comment_text' must not be empty";
+            return false;
+        }
+        if (saw_paragraph_index || saw_text_offset || saw_text_length ||
+            saw_start_paragraph_index || saw_start_text_offset ||
+            saw_end_paragraph_index || saw_end_text_offset || saw_text ||
+            saw_resolved || saw_author || saw_initials || saw_date ||
+            clear_metadata_fields_seen) {
+            error_message =
+                "JSON review mutation plan replace_comment operation only accepts 'comment_index', 'comment_text', 'expected_text', 'expected_comment_text', 'expected_resolved', and 'expected_parent_index'";
+            return false;
+        }
+        return true;
+    case review_mutation_plan_operation_kind::remove_comment:
+        if (!saw_comment_index) {
+            error_message =
+                "JSON review mutation plan remove_comment operation must contain 'comment_index'";
+            return false;
+        }
+        if (saw_paragraph_index || saw_text_offset || saw_text_length ||
+            saw_start_paragraph_index || saw_start_text_offset ||
+            saw_end_paragraph_index || saw_end_text_offset || saw_text ||
+            saw_comment_text || saw_resolved || saw_author || saw_initials ||
+            saw_date || clear_metadata_fields_seen) {
+            error_message =
+                "JSON review mutation plan remove_comment operation only accepts 'comment_index', 'expected_text', 'expected_comment_text', 'expected_resolved', and 'expected_parent_index'";
             return false;
         }
         return true;
@@ -37752,11 +37805,15 @@ auto parse_review_mutation_plan_build_request_operation(
     if (operation.kind ==
             review_mutation_plan_operation_kind::append_comment_reply ||
         operation.kind ==
+            review_mutation_plan_operation_kind::replace_comment ||
+        operation.kind ==
+            review_mutation_plan_operation_kind::remove_comment ||
+        operation.kind ==
             review_mutation_plan_operation_kind::set_comment_resolved ||
         operation.kind ==
             review_mutation_plan_operation_kind::set_comment_metadata) {
         error_message =
-            "JSON review mutation plan build request does not support 'append_comment_reply', 'set_comment_resolved', or 'set_comment_metadata'; use a direct review mutation plan operation";
+            "JSON review mutation plan build request does not support direct comment-index operations; use a direct review mutation plan operation";
         return false;
     }
 
@@ -37995,6 +38052,8 @@ void write_json_review_mutation_plan_operation(
     write_json_string(stream, review_mutation_plan_operation_kind_name(operation.kind));
     switch (operation.kind) {
     case review_mutation_plan_operation_kind::append_comment_reply:
+    case review_mutation_plan_operation_kind::replace_comment:
+    case review_mutation_plan_operation_kind::remove_comment:
         stream << ",\"comment_index\":" << operation.comment_index;
         break;
     case review_mutation_plan_operation_kind::set_comment_resolved:
@@ -38034,6 +38093,8 @@ void write_json_review_mutation_plan_operation(
             review_mutation_plan_operation_kind::append_paragraph_text_comment ||
         operation.kind ==
             review_mutation_plan_operation_kind::append_comment_reply ||
+        operation.kind ==
+            review_mutation_plan_operation_kind::replace_comment ||
         operation.kind ==
             review_mutation_plan_operation_kind::append_text_range_comment) {
         stream << ",\"comment_text\":";
@@ -38199,6 +38260,8 @@ auto is_review_mutation_plan_insert_operation(
 auto is_review_mutation_plan_text_range_operation(
     review_mutation_plan_operation_kind kind) -> bool {
     return kind != review_mutation_plan_operation_kind::append_comment_reply &&
+           kind != review_mutation_plan_operation_kind::replace_comment &&
+           kind != review_mutation_plan_operation_kind::remove_comment &&
            kind != review_mutation_plan_operation_kind::set_comment_resolved &&
            kind != review_mutation_plan_operation_kind::set_comment_metadata;
 }
@@ -38499,6 +38562,10 @@ auto preview_review_mutation_plan_operations(
         if (operation.kind ==
                 review_mutation_plan_operation_kind::append_comment_reply ||
             operation.kind ==
+                review_mutation_plan_operation_kind::replace_comment ||
+            operation.kind ==
+                review_mutation_plan_operation_kind::remove_comment ||
+            operation.kind ==
                 review_mutation_plan_operation_kind::set_comment_resolved ||
             operation.kind ==
                 review_mutation_plan_operation_kind::set_comment_metadata) {
@@ -38575,6 +38642,10 @@ auto apply_review_mutation_plan_operation(
         return doc.append_comment_reply(operation.comment_index,
                                         operation.text, author, initials,
                                         date) != 0U;
+    case review_mutation_plan_operation_kind::replace_comment:
+        return doc.replace_comment(operation.comment_index, operation.text);
+    case review_mutation_plan_operation_kind::remove_comment:
+        return doc.remove_comment(operation.comment_index);
     case review_mutation_plan_operation_kind::set_comment_resolved:
         return doc.set_comment_resolved(operation.comment_index,
                                         operation.resolved);
@@ -38674,6 +38745,14 @@ auto build_review_mutation_plan_operation_from_match(
     case review_mutation_plan_operation_kind::append_comment_reply:
         error_message =
             "append_comment_reply is not supported by build-review-mutation-plan";
+        return false;
+    case review_mutation_plan_operation_kind::replace_comment:
+        error_message =
+            "replace_comment is not supported by build-review-mutation-plan";
+        return false;
+    case review_mutation_plan_operation_kind::remove_comment:
+        error_message =
+            "remove_comment is not supported by build-review-mutation-plan";
         return false;
     case review_mutation_plan_operation_kind::set_comment_resolved:
         error_message =

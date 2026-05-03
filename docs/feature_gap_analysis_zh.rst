@@ -293,10 +293,10 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   mismatch 诊断会携带起止 offset 和分段 preview，便于自动化定位漂移来源
 - ``preview-review-mutation-plan`` 可读取 JSON 批量计划，对段落文本区间和
   跨段落文本区间批注、既有批注 resolved 状态变更、批注回复追加、
-  批注 / 回复元数据更新，以及修订插入 / 删除 / 替换操作逐项执行只读
-  预检，并在 JSON 输出中返回 ``expected_text``、实际选中文本、批注正文、
-  父批注索引、批注当前 resolved 状态和分段 preview，供批量审阅编辑在
-  写入前拦截漂移
+  批注 / 回复正文改写、删除、元数据更新，以及修订插入 / 删除 / 替换操作
+  逐项执行只读预检，并在 JSON 输出中返回 ``expected_text``、实际选中文本、
+  批注正文、父批注索引、批注当前 resolved 状态和分段 preview，供批量
+  审阅编辑在写入前拦截漂移
 - ``apply-review-mutation-plan`` 可复用同一 JSON 计划批量写入修订和批注；
   执行前会对全部操作先做 preview / ``expected_text`` guard；仍会拒绝涉及
   正文变更的重叠范围，但允许多个只读批注锚点重叠或嵌套，并保留
@@ -305,7 +305,9 @@ typed insert / CLI 一次性命令；后续可继续扩展更多复杂域 builde
   ``expected_resolved`` 批量关闭或重开既有批注；``append_comment_reply``
   plan 可用相同 guard 批量追加线程化回复；``set_comment_metadata`` plan
   可结合 ``expected_comment_text`` 与 ``expected_parent_index`` 批量更新
-  批注 / 回复 author、initials 和 date
+  批注 / 回复 author、initials 和 date；``replace_comment`` /
+  ``remove_comment`` plan 可用相同 guard 批量改写或删除批注正文，删除父批注时
+  会同步清理其回复
 - ``accept_revision(...)`` / ``reject_revision(...)`` 以及批量接受 / 拒绝入口
   已覆盖第一版修订清理工作流
 - ``set_revision_metadata(...)`` 可设置或清除既有修订的 author 和 date
