@@ -60,3 +60,10 @@ jobs:
           --output-on-failure
           --timeout 60
           -L cli_smoke
+
+      - name: Run release governance smoke tests
+        run: >
+          ctest --test-dir build-linux-${{ matrix.compiler }}
+          --output-on-failure
+          --timeout 60
+          -L release_smoke
