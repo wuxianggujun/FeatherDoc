@@ -47,6 +47,9 @@ performance.
   command help text emitted by parse errors and empty CLI invocations.
 - Split the CLI styles regression suite into its own `cli_styles` CTest target
   so style-focused CLI coverage can run independently from the full CLI suite.
+- Added CTest labels for split CLI/core smoke and heavy suites, and made the
+  Linux/macOS workflows run the dedicated `cli_smoke` label after the full test
+  pass.
 - Added a minimal Linux CMake CI workflow with GCC/Clang matrix coverage for
   the core and CLI test build.
 - Added a minimal macOS CMake CI workflow and README badges so the project has

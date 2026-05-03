@@ -15,11 +15,21 @@ function(featherdoc_add_cpp_test target_name test_name)
     )
 endfunction()
 
+function(featherdoc_set_test_labels test_name)
+    set_tests_properties(
+        ${test_name}
+        PROPERTIES
+        LABELS
+        "${ARGN}"
+    )
+endfunction()
+
 featherdoc_add_cpp_test(
     unit_tests
     unit
     basic_tests.cpp
 )
+featherdoc_set_test_labels(unit core heavy)
 
 if(MSVC)
     target_compile_options(unit_tests PRIVATE /bigobj /utf-8)
@@ -30,6 +40,7 @@ featherdoc_add_cpp_test(
     iterator
     iterator_tests.cpp
 )
+featherdoc_set_test_labels(iterator core smoke)
 
 featherdoc_add_cpp_test(
     cli_json_tests
@@ -38,6 +49,7 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json.cpp
 )
 target_include_directories(cli_json_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_json cli smoke cli_smoke)
 
 featherdoc_add_cpp_test(
     cli_parse_tests
@@ -46,6 +58,7 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
 )
 target_include_directories(cli_parse_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_parse cli smoke cli_smoke)
 
 featherdoc_add_cpp_test(
     cli_usage_tests
@@ -54,6 +67,7 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_usage.cpp
 )
 target_include_directories(cli_usage_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(cli_usage cli smoke cli_smoke)
 
 if(WIN32)
     find_program(FEATHERDOC_POWERSHELL_EXECUTABLE NAMES pwsh powershell)
@@ -1669,12 +1683,14 @@ if(TARGET featherdoc_cli)
         cli
         cli_tests.cpp
     )
+    featherdoc_set_test_labels(cli cli heavy)
 
     featherdoc_add_cli_cpp_test(
         cli_styles_tests
         cli_styles
         cli_styles_tests.cpp
     )
+    featherdoc_set_test_labels(cli_styles cli styles heavy)
 endif()
 
 configure_file(my_test.docx ${CMAKE_CURRENT_BINARY_DIR}/my_test.docx COPYONLY)

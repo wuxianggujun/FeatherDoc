@@ -36,3 +36,10 @@ jobs:
           ctest --test-dir build-macos
           --output-on-failure
           --timeout 60
+
+      - name: Run split CLI smoke tests
+        run: >
+          ctest --test-dir build-macos
+          --output-on-failure
+          --timeout 60
+          -L cli_smoke
