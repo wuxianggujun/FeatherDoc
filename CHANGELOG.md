@@ -72,6 +72,13 @@ performance.
 - Added `build_release_governance_pipeline_report.ps1` with PowerShell
   coverage to compose the three final governance reports, release handoff, and
   final blocker/action rollup from existing summary artifacts.
+- Added `build_content_control_data_binding_governance_report.ps1` with
+  PowerShell coverage to aggregate content-control inspection and Custom XML
+  sync evidence into release blockers, action items, and a pipeline-ready
+  JSON/Markdown data-binding governance report.
+- Added content-control data-binding governance to the release governance
+  pipeline so Custom XML sync issues, bound placeholders, lock review, and
+  duplicate binding review can reach the final release handoff.
 - Added cross-platform CTest registration for the release governance handoff
   smoke when `pwsh` is available outside Windows.
 - Added a standalone CLI JSON helper module with focused CTest coverage so

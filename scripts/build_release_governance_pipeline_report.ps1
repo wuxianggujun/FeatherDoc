@@ -294,6 +294,7 @@ $scriptsDir = Join-Path $repoRoot "scripts"
 $outputGovernanceRoot = Join-Path $resolvedOutputRoot "governance"
 $numberingOutputDir = Join-Path $outputGovernanceRoot "numbering-catalog-governance"
 $tableOutputDir = Join-Path $outputGovernanceRoot "table-layout-delivery-governance"
+$contentControlOutputDir = Join-Path $outputGovernanceRoot "content-control-data-binding-governance"
 $projectOutputDir = Join-Path $outputGovernanceRoot "project-template-delivery-readiness"
 $handoffOutputDir = Join-Path $resolvedOutputRoot "release-governance-handoff"
 $rollupOutputDir = Join-Path $resolvedOutputRoot "release-blocker-rollup"
@@ -304,6 +305,11 @@ $numberingInputs = @(
 )
 $tableInputs = @(
     Join-Path $resolvedInputRoot "table-layout-delivery-rollup\summary.json"
+)
+$contentControlInputs = @(
+    Join-Path $resolvedInputRoot "content-control-data-binding\inspect-content-controls.json"
+    Join-Path $resolvedInputRoot "content-control-data-binding\sync-content-controls-from-custom-xml.json"
+    Join-Path $resolvedInputRoot "content-control-data-binding-governance\summary.json"
 )
 $projectInputs = @(
     Join-Path $resolvedInputRoot "project-template-onboarding-governance\summary.json"
@@ -327,6 +333,13 @@ $stages.Add((Invoke-PipelineStage `
             -InputJson $tableInputs)) | Out-Null
 $stages.Add((Invoke-PipelineStage `
             -RepoRoot $repoRoot `
+            -Id "content_control_data_binding_governance" `
+            -Title "Content Control Data Binding Governance" `
+            -ScriptPath (Join-Path $scriptsDir "build_content_control_data_binding_governance_report.ps1") `
+            -OutputDir $contentControlOutputDir `
+            -InputJson $contentControlInputs)) | Out-Null
+$stages.Add((Invoke-PipelineStage `
+            -RepoRoot $repoRoot `
             -Id "project_template_delivery_readiness" `
             -Title "Project Template Delivery Readiness" `
             -ScriptPath (Join-Path $scriptsDir "build_project_template_delivery_readiness_report.ps1") `
@@ -336,6 +349,7 @@ $stages.Add((Invoke-PipelineStage `
 $handoffInputs = @(
     Join-Path $numberingOutputDir "summary.json"
     Join-Path $tableOutputDir "summary.json"
+    Join-Path $contentControlOutputDir "summary.json"
     Join-Path $projectOutputDir "summary.json"
 )
 $handoffExtraArguments = @(

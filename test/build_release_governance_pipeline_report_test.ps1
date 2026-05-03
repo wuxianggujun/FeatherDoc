@@ -238,12 +238,94 @@ function New-SchemaApprovalHistory {
     }
 }
 
+function New-ContentControlInspection {
+    return [ordered]@{
+        part = "body"
+        entry_name = "word/document.xml"
+        count = 2
+        content_controls = @(
+            [ordered]@{
+                index = 0
+                kind = "block"
+                form_kind = "date"
+                tag = "due_date"
+                alias = "Due Date"
+                id = "10"
+                lock = "sdtLocked"
+                data_binding_store_item_id = "{55555555-5555-5555-5555-555555555555}"
+                data_binding_xpath = "/invoice/dueDate"
+                data_binding_prefix_mappings = "xmlns:fd=`"urn:featherdoc`""
+                checked = $null
+                date_format = "yyyy/MM/dd"
+                date_locale = "zh-CN"
+                selected_list_item = $null
+                list_items = @()
+                showing_placeholder = $true
+                text = "Due date placeholder"
+            },
+            [ordered]@{
+                index = 1
+                kind = "block"
+                form_kind = "plain_text"
+                tag = "due_date_copy"
+                alias = "Due Date Copy"
+                id = "11"
+                lock = ""
+                data_binding_store_item_id = "{55555555-5555-5555-5555-555555555555}"
+                data_binding_xpath = "/invoice/dueDate"
+                data_binding_prefix_mappings = ""
+                checked = $null
+                date_format = ""
+                date_locale = ""
+                selected_list_item = $null
+                list_items = @()
+                showing_placeholder = $false
+                text = "Due date: 2026-07-15"
+            }
+        )
+    }
+}
+
+function New-ContentControlSyncResult {
+    return [ordered]@{
+        scanned_content_controls = 2
+        bound_content_controls = 2
+        synced_content_controls = 1
+        issue_count = 1
+        synced_items = @(
+            [ordered]@{
+                part_entry_name = "word/document.xml"
+                content_control_index = 1
+                tag = "due_date_copy"
+                alias = "Due Date Copy"
+                store_item_id = "{55555555-5555-5555-5555-555555555555}"
+                xpath = "/invoice/dueDate"
+                previous_text = "old"
+                value = "Due date: 2026-07-15"
+            }
+        )
+        issues = @(
+            [ordered]@{
+                part_entry_name = "word/document.xml"
+                content_control_index = 0
+                tag = "due_date"
+                alias = "Due Date"
+                store_item_id = "{55555555-5555-5555-5555-555555555555}"
+                xpath = "/invoice/missingDueDate"
+                reason = "custom_xml_value_not_found"
+            }
+        )
+    }
+}
+
 function New-InputFixture {
     param([string]$Root)
 
     Write-JsonFile -Path (Join-Path $Root "document-skeleton-governance-rollup\summary.json") -Value (New-SkeletonRollup)
     Write-JsonFile -Path (Join-Path $Root "numbering-catalog-manifest-checks\summary.json") -Value (New-NumberingManifest)
     Write-JsonFile -Path (Join-Path $Root "table-layout-delivery-rollup\summary.json") -Value (New-TableLayoutRollup)
+    Write-JsonFile -Path (Join-Path $Root "content-control-data-binding\inspect-content-controls.json") -Value (New-ContentControlInspection)
+    Write-JsonFile -Path (Join-Path $Root "content-control-data-binding\sync-content-controls-from-custom-xml.json") -Value (New-ContentControlSyncResult)
     Write-JsonFile -Path (Join-Path $Root "project-template-onboarding-governance\summary.json") -Value (New-OnboardingGovernance)
     Write-JsonFile -Path (Join-Path $Root "project-template-schema-approval-history\history.json") -Value (New-SchemaApprovalHistory)
 }
@@ -306,13 +388,13 @@ Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.release_gov
     -Message "Pipeline summary should expose schema."
 Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
     -Message "Pipeline should be blocked by fixture governance reports."
-Assert-Equal -Actual ([int]$summary.stage_count) -Expected 5 `
-    -Message "Pipeline should run five read-only stages."
-Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 5 `
+Assert-Equal -Actual ([int]$summary.stage_count) -Expected 6 `
+    -Message "Pipeline should run six read-only stages."
+Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 6 `
     -Message "Pipeline should complete every stage."
 Assert-Equal -Actual ([int]$summary.failed_stage_count) -Expected 0 `
     -Message "Pipeline should not record stage failures."
-Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 8 `
+Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 10 `
     -Message "Pipeline should mirror final rollup blocker count."
 Assert-True -Condition ([int]$summary.action_item_count -ge 4) `
     -Message "Pipeline should mirror final rollup action count."
@@ -321,6 +403,7 @@ $stageIds = @($summary.stages | ForEach-Object { [string]$_.id })
 foreach ($expectedStage in @(
         "numbering_catalog_governance",
         "table_layout_delivery_governance",
+        "content_control_data_binding_governance",
         "project_template_delivery_readiness",
         "release_governance_handoff",
         "release_blocker_rollup"

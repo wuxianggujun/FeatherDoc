@@ -403,11 +403,13 @@ C++ 层也已经补齐 ``replace_content_control_with_paragraphs_by_*()``、
 patch 与 diff 工作流。
 
 当前还新增了轻量表单状态 inspection / mutation：``content_control_summary`` 会返回 ``form_kind``、``lock``、``w:dataBinding`` 的 store item / XPath / prefix mappings、复选框 ``checked``、日期格式 / locale、下拉 / 组合框列表项与当前选中项，``inspect-content-controls`` 的 JSON / 文本输出也会暴露这些字段；``set_content_control_form_state_by_tag(...)`` / ``set_content_control_form_state_by_alias(...)`` 与 CLI ``set-content-control-form-state`` 已支持 checkbox checked、下拉 / 组合框选中项、日期文本 / 格式 / locale、lock 设置 / 清除，以及 dataBinding 设置 / 清除。``sync_content_controls_from_custom_xml()`` 与 ``sync-content-controls-from-custom-xml`` 也已支持读取匹配 ``customXml/item*.xml``，按 ``w:dataBinding`` XPath 单向刷新内容控件显示文本，并通过 Word PDF / PNG 可视化回归固化。
+``build_content_control_data_binding_governance_report.ps1`` 则在不重跑 DOCX / CLI 的前提下读取 ``inspect-content-controls`` 与 ``sync-content-controls-from-custom-xml`` 的 JSON 证据，输出 ``featherdoc.content_control_data_binding_governance_report.v1``。它会把 Custom XML 同步 issue、已绑定但仍显示 placeholder 的控件升级为 ``release_blockers``，并把绑定控件锁定策略、未绑定表单控件和重复绑定关系沉淀为 ``action_items``，目前也已经接入 release governance pipeline。
 
 下一步继续补齐：
 
-- 表单保护、重复节和模板数据模型之间的同步策略
-- 更复杂表单状态与外部数据源之间的双向同步（Custom XML → 内容控件单向刷新已完成）
+- 表单保护、重复节和模板数据模型之间的双向同步 / 写回策略
+- 基于治理报告结果继续沉淀锁定、重复绑定和表单保护的自动修复建议
+- 更复杂表单状态与外部数据源之间的双向同步（Custom XML → 内容控件单向刷新和只读治理 gate 已完成）
 
 价值：
 
@@ -533,7 +535,8 @@ P2：可以后置的能力
 
 优先做：
 
-- content control 复杂表单保护、重复节和模板数据模型双向同步策略（Custom XML 单向刷新已完成）
+- content control 复杂表单保护、重复节和模板数据模型双向同步策略
+  （Custom XML 单向刷新和只读数据绑定治理 gate 已完成）
 - onboarding governance、schema confidence calibration 与 release blocker rollup
   继续接入发布 gate / 发布面板
 - 真实项目模板 smoke manifest 的样例、审批历史和回归证据补强

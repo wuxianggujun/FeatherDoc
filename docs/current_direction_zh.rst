@@ -109,14 +109,16 @@
 - project-template onboarding governance 聚合报告
 - schema patch confidence calibration 只读校准报告
 - release blocker rollup 统一发布阻断汇总
+- content-control data-binding governance 只读报告，已把 Custom XML
+  同步 issue、绑定占位符和重复绑定复核接入发布治理 pipeline
 - ``run_project_template_smoke.ps1``
 
 接下来更值得补的是：
 
 1. 扩大真实业务模板语料样本，继续校准 rename / update 建议的置信度
 2. 多项目 schema approval、release gate 和审批历史的维护体验
-3. 将 onboarding governance、confidence calibration 与 release blocker rollup
-   接入更固定的发布面板
+3. 将 onboarding governance、confidence calibration、content-control
+   data-binding governance 与 release blocker rollup 接入更固定的发布面板
 4. schema migration 的人工复核入口和更明确的修复建议分流
 
 这条线的目标是：
