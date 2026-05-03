@@ -371,6 +371,7 @@ featherdoc_cli plan-table-style-quality-fixes input.docx --json
 featherdoc_cli apply-table-style-quality-fixes input.docx --look-only --output quality-fixed.docx --json
 powershell -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_report.ps1 -InputDocx .\input.docx -BuildDir build-codex-clang-compat -OutputDir .\output\table-layout-delivery-report -SkipBuild
 powershell -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
+powershell -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1 -InputJson .\output\table-layout-delivery-rollup\summary.json -OutputDir .\output\table-layout-delivery-governance -FailOnIssue -FailOnBlocker
 powershell -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1 -BuildDir build-codex-clang-compat -OutputDir output/table-style-quality-visual-regression -SkipBuild
 powershell -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 -SkipConfigure -SkipBuild -IncludeTableStyleQuality
 featherdoc_cli check-table-style-look input.docx --fail-on-issue --json
@@ -440,7 +441,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calib
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_numbering_catalog_governance_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json,.\output\numbering-catalog-manifest-checks\summary.json -OutputDir .\output\numbering-catalog-governance -FailOnIssue -FailOnDrift -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
-pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\numbering-catalog-governance\summary.json,.\output\table-layout-delivery-rollup\summary.json,.\output\project-template-delivery-readiness\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1 -InputJson .\output\table-layout-delivery-rollup\summary.json -OutputDir .\output\table-layout-delivery-governance -FailOnIssue -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\numbering-catalog-governance\summary.json,.\output\table-layout-delivery-governance\summary.json,.\output\project-template-delivery-readiness\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
@@ -491,8 +493,11 @@ exemplar catalog 路径、样式编号 issue 汇总、release blocker 和 action
 `featherdoc.table_layout_delivery_report.v1` 汇总成
 `featherdoc.table_layout_delivery_rollup_report.v1`，保留 table style issue、
 安全 `tblLook` 修复计数、浮动表格 preset plan 路径、release blocker 和 action item。
-当 numbering catalog governance、table layout delivery rollup、project template
-delivery readiness 等报告已经生成后，可以再用
+再把 rollup 交给 `scripts/build_table_layout_delivery_governance_report.ps1`，可输出
+`featherdoc.table_layout_delivery_governance_report.v1`，把待执行的安全 `tblLook`
+修复、人工 table-style 工作、浮动表格 plan 复核和视觉回归证据统一变成明确的交付
+blocker / action item。当 numbering catalog governance、table layout delivery
+governance、project template delivery readiness 等报告已经生成后，可以再用
 `scripts/build_release_blocker_rollup_report.ps1` 统一汇总 release blocker 和 action
 item。它会为不同来源的重复 blocker id 生成可追踪的 `composite_id`，输出
 `featherdoc.release_blocker_rollup_report.v1`，并可通过 `-FailOnBlocker` /

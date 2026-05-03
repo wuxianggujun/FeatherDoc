@@ -563,6 +563,7 @@ featherdoc_cli plan-table-style-quality-fixes input.docx --json
 featherdoc_cli apply-table-style-quality-fixes input.docx --look-only --output quality-fixed.docx --json
 powershell -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_report.ps1 -InputDocx .\input.docx -BuildDir build-codex-clang-compat -OutputDir .\output\table-layout-delivery-report -SkipBuild
 powershell -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
+powershell -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1 -InputJson .\output\table-layout-delivery-rollup\summary.json -OutputDir .\output\table-layout-delivery-governance -FailOnIssue -FailOnBlocker
 powershell -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1 -BuildDir build-codex-clang-compat -OutputDir output/table-style-quality-visual-regression -SkipBuild
 powershell -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 -SkipConfigure -SkipBuild -IncludeTableStyleQuality
 featherdoc_cli check-table-style-look input.docx --fail-on-issue --json
@@ -635,7 +636,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calib
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_numbering_catalog_governance_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json,.\output\numbering-catalog-manifest-checks\summary.json -OutputDir .\output\numbering-catalog-governance -FailOnIssue -FailOnDrift -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
-pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\numbering-catalog-governance\summary.json,.\output\table-layout-delivery-rollup\summary.json,.\output\project-template-delivery-readiness\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1 -InputJson .\output\table-layout-delivery-rollup\summary.json -OutputDir .\output\table-layout-delivery-governance -FailOnIssue -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\numbering-catalog-governance\summary.json,.\output\table-layout-delivery-governance\summary.json,.\output\project-template-delivery-readiness\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
@@ -712,8 +714,13 @@ dirty catalog baselines. The table layout side has the same aggregation layer:
 `featherdoc.table_layout_delivery_report.v1` summaries into
 `featherdoc.table_layout_delivery_rollup_report.v1`, preserving table style
 issue totals, safe `tblLook` repair counts, floating table preset plan paths,
-release blockers, and action items. When numbering catalog governance,
-table-layout delivery rollup, and project-template delivery readiness reports are available,
+release blockers, and action items. Feed the rollup into
+`scripts/build_table_layout_delivery_governance_report.ps1` to create
+`featherdoc.table_layout_delivery_governance_report.v1`, which turns pending
+safe `tblLook` fixes, manual table-style work, floating-table review plans, and
+visual-regression evidence into explicit delivery blockers and actions. When
+numbering catalog governance, table-layout delivery governance, and
+project-template delivery readiness reports are available,
 `scripts/build_release_blocker_rollup_report.ps1` normalizes their
 `release_blockers` and `action_items` into
 `featherdoc.release_blocker_rollup_report.v1`. It keeps duplicate blocker ids

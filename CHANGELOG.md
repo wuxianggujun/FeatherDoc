@@ -45,6 +45,10 @@ performance.
   coverage to aggregate multiple table layout delivery summaries into a
   multi-template table style quality, safe tblLook repair, floating table plan,
   release blocker, and action item handoff.
+- Added `build_table_layout_delivery_governance_report.ps1` with PowerShell
+  coverage to turn table layout delivery rollups into a final table style,
+  safe tblLook repair, floating table review, visual-regression, blocker, and
+  action item gate.
 - Added a standalone CLI JSON helper module with focused CTest coverage so
   common CLI output escaping can be validated without running the full CLI
   regression suite.
