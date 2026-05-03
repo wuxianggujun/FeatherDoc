@@ -1063,6 +1063,7 @@ function Get-ReleaseBlockerRollupAutoDiscoveredInputJson {
     $candidateRelativePaths = @(
         "numbering-catalog-governance/summary.json",
         "table-layout-delivery-governance/summary.json",
+        "content-control-data-binding-governance/summary.json",
         "project-template-delivery-readiness/summary.json"
     )
     $resolvedInputRoot = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $InputRoot

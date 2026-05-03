@@ -58,10 +58,12 @@ performance.
 - Added cross-platform CTest registration for the release-candidate blocker
   rollup smoke when `pwsh` is available outside Windows.
 - Added release-candidate blocker rollup auto-discovery for the default
-  numbering catalog, table layout, and project-template delivery governance
+  numbering catalog, table layout, content-control data-binding, and
+  project-template delivery governance
   reports.
 - Added a release governance handoff report that summarizes the default
-  numbering catalog, table layout, and project-template delivery readiness
+  numbering catalog, table layout, content-control data-binding, and
+  project-template delivery readiness
   reports before final release blocker rollup.
 - Added optional nested release blocker rollup output to the release governance
   handoff report for one-command reviewer handoff plus final blocker summary.
@@ -70,7 +72,7 @@ performance.
   blocker/action rollup, and mirrored counts in the release summary/final
   review.
 - Added `build_release_governance_pipeline_report.ps1` with PowerShell
-  coverage to compose the three final governance reports, release handoff, and
+  coverage to compose the four final governance reports, release handoff, and
   final blocker/action rollup from existing summary artifacts.
 - Added `build_content_control_data_binding_governance_report.ps1` with
   PowerShell coverage to aggregate content-control inspection and Custom XML
@@ -79,6 +81,9 @@ performance.
 - Added content-control data-binding governance to the release governance
   pipeline so Custom XML sync issues, bound placeholders, lock review, and
   duplicate binding review can reach the final release handoff.
+- Added content-control data-binding governance to the default release
+  governance handoff and release-candidate auto-discovery so the reviewer-facing
+  summary now includes the fourth governance line automatically.
 - Added cross-platform CTest registration for the release governance handoff
   smoke when `pwsh` is available outside Windows.
 - Added a standalone CLI JSON helper module with focused CTest coverage so

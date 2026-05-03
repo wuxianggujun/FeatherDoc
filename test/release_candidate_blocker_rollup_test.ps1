@@ -39,10 +39,12 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 $inputRoot = Join-Path $resolvedWorkingDir "governance-input"
 $numberingSummaryPath = Join-Path $inputRoot "numbering-catalog-governance\summary.json"
 $tableSummaryPath = Join-Path $inputRoot "table-layout-governance\summary.json"
+$contentControlSummaryPath = Join-Path $inputRoot "content-control-data-binding-governance\summary.json"
 $summaryOutputDir = Join-Path $resolvedWorkingDir "release-candidate"
 $autoDiscoverOutputRoot = Join-Path $resolvedWorkingDir "auto-discover-output"
 $autoDiscoverNumberingSummaryPath = Join-Path $autoDiscoverOutputRoot "numbering-catalog-governance\summary.json"
 $autoDiscoverTableSummaryPath = Join-Path $autoDiscoverOutputRoot "table-layout-delivery-governance\summary.json"
+$autoDiscoverContentControlSummaryPath = Join-Path $autoDiscoverOutputRoot "content-control-data-binding-governance\summary.json"
 $autoDiscoverProjectSummaryPath = Join-Path $autoDiscoverOutputRoot "project-template-delivery-readiness\summary.json"
 
 Write-JsonFile -Path $numberingSummaryPath -Value ([ordered]@{
@@ -87,6 +89,27 @@ Write-JsonFile -Path $tableSummaryPath -Value ([ordered]@{
     )
 })
 
+Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
+    schema = "featherdoc.content_control_data_binding_governance_report.v1"
+    release_blocker_count = 1
+    release_blockers = @(
+        [ordered]@{
+            id = "content_control_data_binding.bound_placeholder"
+            severity = "error"
+            status = "placeholder_visible"
+            message = "Bound content control still shows placeholder text."
+            action = "sync_or_fill_bound_content_control"
+        }
+    )
+    action_items = @(
+        [ordered]@{
+            id = "review_duplicate_content_control_binding"
+            action = "review_duplicate_content_control_binding"
+            title = "Review repeated content controls that share one Custom XML binding"
+        }
+    )
+})
+
 Write-JsonFile -Path $autoDiscoverNumberingSummaryPath -Value ([ordered]@{
     schema = "featherdoc.numbering_catalog_governance_report.v1"
     release_blocker_count = 1
@@ -125,6 +148,27 @@ Write-JsonFile -Path $autoDiscoverTableSummaryPath -Value ([ordered]@{
             id = "run_table_style_quality_visual_regression"
             action = "run_table_style_quality_visual_regression"
             title = "Generate Word-rendered table layout evidence"
+        }
+    )
+})
+
+Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
+    schema = "featherdoc.content_control_data_binding_governance_report.v1"
+    release_blocker_count = 1
+    release_blockers = @(
+        [ordered]@{
+            id = "content_control_data_binding.bound_placeholder"
+            severity = "error"
+            status = "placeholder_visible"
+            message = "Autodiscovered bound content control still shows placeholder text."
+            action = "sync_or_fill_bound_content_control"
+        }
+    )
+    action_items = @(
+        [ordered]@{
+            id = "review_duplicate_content_control_binding"
+            action = "review_duplicate_content_control_binding"
+            title = "Review repeated content controls that share one Custom XML binding"
         }
     )
 })
@@ -194,13 +238,13 @@ if ($Scenario -eq "handoff") {
         -Message "Handoff-only release candidate run should not require MSVC discovery."
     Assert-Equal -Actual ([string]$handoffReleaseSummary.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate summary should surface governance handoff status."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.expected_report_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.expected_report_count) -Expected 4 `
         -Message "Release candidate summary should surface handoff expected report count."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.loaded_report_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.loaded_report_count) -Expected 4 `
         -Message "Release candidate summary should surface handoff loaded report count."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.release_blocker_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.release_blocker_count) -Expected 4 `
         -Message "Release candidate summary should surface handoff blocker count."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.action_item_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.action_item_count) -Expected 4 `
         -Message "Release candidate summary should surface handoff action count."
     Assert-Equal -Actual ([string]$handoffReleaseSummary.steps.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate step status should mirror governance handoff status."
@@ -214,7 +258,7 @@ if ($Scenario -eq "handoff") {
     $handoffFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffFinalReviewPath
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "- Release governance handoff: blocked" `
         -Message "Final review should include release governance handoff step status."
-    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff counts: 3/3 reports, 0 missing, 3 blockers, 3 actions" `
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff counts: 4/4 reports, 0 missing, 4 blockers, 4 actions" `
         -Message "Final review should include release governance handoff counts."
 
     Write-Host "Release candidate governance handoff regression passed."
@@ -336,18 +380,21 @@ Assert-Equal -Actual ([string]$autoDiscoverSummary.release_blocker_rollup.status
     -Message "Auto-discovered rollup should surface the blocker status."
 Assert-Equal -Actual ([bool]$autoDiscoverSummary.release_blocker_rollup.auto_discover) -Expected $true `
     -Message "Release summary should record that auto-discovery was enabled."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 3 `
-    -Message "Release summary should record all three auto-discovered governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 3 `
-    -Message "Auto-discovered rollup should aggregate the three default governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_blocker_count) -Expected 3 `
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 4 `
+    -Message "Release summary should record all four auto-discovered governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 4 `
+    -Message "Auto-discovered rollup should aggregate the four default governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_blocker_count) -Expected 4 `
     -Message "Auto-discovered rollup should surface blocker count from default governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 3 `
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 4 `
     -Message "Auto-discovered rollup should surface action count from default governance reports."
 
 $autoDiscoverRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupSummaryPath | ConvertFrom-Json
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
     -ExpectedText "project-template-delivery-readiness" `
     -Message "Auto-discovered rollup should include project-template delivery readiness governance."
+Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
+    -ExpectedText "content-control-data-binding-governance" `
+    -Message "Auto-discovered rollup should include content-control data-binding governance."
 
 Write-Host "Release candidate blocker rollup regression passed."

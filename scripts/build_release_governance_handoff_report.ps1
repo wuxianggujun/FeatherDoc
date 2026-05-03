@@ -4,9 +4,9 @@ Builds a release governance handoff from the default delivery reports.
 
 .DESCRIPTION
 Reads the final numbering catalog governance, table layout delivery governance,
-and project-template delivery readiness summaries, then writes one read-only
-JSON/Markdown handoff for release reviewers. The script does not rerun CLI,
-CMake, Word, or visual automation.
+content-control data-binding governance, and project-template delivery readiness
+summaries, then writes one read-only JSON/Markdown handoff for release reviewers.
+The script does not rerun CLI, CMake, Word, or visual automation.
 #>
 param(
     [string]$InputRoot = "output",
@@ -151,6 +151,7 @@ function Get-ReportKind {
     switch ($schema) {
         "featherdoc.numbering_catalog_governance_report.v1" { return "numbering_catalog_governance" }
         "featherdoc.table_layout_delivery_governance_report.v1" { return "table_layout_delivery_governance" }
+        "featherdoc.content_control_data_binding_governance_report.v1" { return "content_control_data_binding_governance" }
         "featherdoc.project_template_delivery_readiness_report.v1" { return "project_template_delivery_readiness" }
         default { return $schema }
     }
@@ -366,6 +367,11 @@ $expectedReports = @(
         -Title "Table Layout Delivery Governance" `
         -RelativeSummary "table-layout-delivery-governance/summary.json" `
         -BuildCommand "pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_governance_report.ps1 -InputJson .\output\table-layout-delivery-rollup\summary.json -OutputDir .\output\table-layout-delivery-governance"
+    New-ExpectedReport `
+        -Id "content_control_data_binding_governance" `
+        -Title "Content Control Data Binding Governance" `
+        -RelativeSummary "content-control-data-binding-governance/summary.json" `
+        -BuildCommand "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1 -InputJson .\output\content-control-data-binding\inspect-content-controls.json,.\output\content-control-data-binding\sync-content-controls-from-custom-xml.json -OutputDir .\output\content-control-data-binding-governance"
     New-ExpectedReport `
         -Id "project_template_delivery_readiness" `
         -Title "Project Template Delivery Readiness" `

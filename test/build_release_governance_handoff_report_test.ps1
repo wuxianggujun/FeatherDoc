@@ -62,7 +62,11 @@ function Write-JsonFile {
 }
 
 function Write-GovernanceFixtures {
-    param([string]$Root, [bool]$IncludeProjectTemplate = $true)
+    param(
+        [string]$Root,
+        [bool]$IncludeContentControl = $true,
+        [bool]$IncludeProjectTemplate = $true
+    )
 
     Write-JsonFile -Path (Join-Path $Root "numbering-catalog-governance\summary.json") -Value ([ordered]@{
         schema = "featherdoc.numbering_catalog_governance_report.v1"
@@ -111,6 +115,33 @@ function Write-GovernanceFixtures {
             }
         )
     })
+
+    if ($IncludeContentControl) {
+        Write-JsonFile -Path (Join-Path $Root "content-control-data-binding-governance\summary.json") -Value ([ordered]@{
+            schema = "featherdoc.content_control_data_binding_governance_report.v1"
+            status = "blocked"
+            release_ready = $false
+            release_blocker_count = 1
+            warning_count = 0
+            release_blockers = @(
+                [ordered]@{
+                    id = "content_control_data_binding.bound_placeholder"
+                    severity = "error"
+                    status = "placeholder_visible"
+                    action = "sync_or_fill_bound_content_control"
+                    message = "A data-bound content control is still showing placeholder text."
+                }
+            )
+            action_item_count = 1
+            action_items = @(
+                [ordered]@{
+                    id = "review_duplicate_content_control_binding"
+                    action = "review_duplicate_content_control_binding"
+                    title = "Review repeated content controls that share one Custom XML binding"
+                }
+            )
+        })
+    }
 
     if ($IncludeProjectTemplate) {
         Write-JsonFile -Path (Join-Path $Root "project-template-delivery-readiness\summary.json") -Value ([ordered]@{
@@ -170,13 +201,13 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose release governance handoff schema."
     Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
         -Message "Aggregate handoff should be blocked when source blockers exist."
-    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 3 `
-        -Message "Aggregate handoff should load all three default reports."
+    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 4 `
+        -Message "Aggregate handoff should load all four default reports."
     Assert-Equal -Actual ([int]$summary.missing_report_count) -Expected 0 `
         -Message "Aggregate handoff should not mark default reports missing."
-    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 2 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 3 `
         -Message "Aggregate handoff should normalize release blockers."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 4 `
         -Message "Aggregate handoff should normalize action items."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
         -Message "Aggregate handoff should preserve warning counts."
@@ -189,6 +220,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include handoff title."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness" `
         -Message "Markdown should include project-template delivery readiness."
+    Assert-ContainsText -Text $markdown -ExpectedText "content_control_data_binding_governance" `
+        -Message "Markdown should include content-control data-binding governance."
 }
 
 if (Test-Scenario -Name "missing") {
@@ -255,10 +288,10 @@ if (Test-Scenario -Name "explicit_input") {
         -Message "Explicit handoff should accept an explicit replacement report. Output: $($result.Text)"
 
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
-    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 3 `
-        -Message "Explicit handoff should count the explicit project-template report as loaded."
+    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 4 `
+        -Message "Explicit handoff should count loaded defaults plus the explicit project-template report."
     Assert-Equal -Actual ([int]$summary.missing_report_count) -Expected 0 `
-        -Message "Explicit handoff should replace the missing default report."
+        -Message "Explicit handoff should replace the default project-template report without missing defaults."
     Assert-Equal -Actual ([string]($summary.reports | Where-Object { $_.id -eq "project_template_delivery_readiness" } | Select-Object -First 1).source) -Expected "explicit" `
         -Message "Explicit handoff should mark the replacement source."
 }
@@ -293,11 +326,11 @@ if (Test-Scenario -Name "include_rollup") {
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
         -Message "Nested rollup should expose release blocker rollup schema."
-    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 4 `
         -Message "Nested rollup should consume all loaded governance reports."
-    Assert-Equal -Actual ([int]$rollupSummary.release_blocker_count) -Expected 2 `
+    Assert-Equal -Actual ([int]$rollupSummary.release_blocker_count) -Expected 3 `
         -Message "Nested rollup should preserve blocker count."
-    Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 4 `
         -Message "Nested rollup should preserve action item count."
 }
 

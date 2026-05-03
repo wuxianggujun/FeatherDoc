@@ -86,12 +86,14 @@ regression bundle 纳入 visual gate 和 release summary。生成的
 也会同步列出 smoke、fixed-grid、section/page-number 和 curated visual verdict。
 后续若人工补写了表格样式质量结论，`sync_latest_visual_review_verdict.ps1`
 会自动吸收 `latest_table-style-quality-visual-regression-bundle_task.json`。
-当 numbering catalog governance、table-layout delivery governance 或
-project-template delivery readiness summary 已经生成时，可以把这些 JSON 通过
+当 numbering catalog governance、table-layout delivery governance、
+content-control data-binding governance 或 project-template delivery
+readiness summary 已经生成时，可以把这些 JSON 通过
 `-ReleaseBlockerRollupInputJson` 或 `-ReleaseBlockerRollupInputRoot` 交给同一个
 总控脚本，也可以用 `-ReleaseBlockerRollupAutoDiscover` 自动收集默认的
 `output/numbering-catalog-governance/summary.json`、
-`output/table-layout-delivery-governance/summary.json` 和
+`output/table-layout-delivery-governance/summary.json`、
+`output/content-control-data-binding-governance/summary.json` 和
 `output/project-template-delivery-readiness/summary.json`。它会调用
 `build_release_blocker_rollup_report.ps1`，写出
 `report/release-blocker-rollup/summary.json` 和 Markdown，并把 rollup 状态、
@@ -102,8 +104,9 @@ project-template delivery readiness summary 已经生成时，可以把这些 JS
 
 如果发布前想先给 reviewer 一份只读交付总览，可以运行
 `scripts/build_release_governance_handoff_report.ps1`。它会检查 `output/`
-下默认的 numbering catalog governance、table layout delivery governance 和
-project-template delivery readiness summary，缺失报告会附带重建命令，并写出
+下默认的 numbering catalog governance、table layout delivery governance、
+content-control data-binding governance 和 project-template delivery readiness
+summary，缺失报告会附带重建命令，并写出
 `output/release-governance-handoff/summary.json` 和 Markdown；随后同一批报告可继续交给
 `run_release_candidate_checks.ps1 -ReleaseBlockerRollupAutoDiscover` 做最终门禁。
 如果同时传入 `-IncludeReleaseBlockerRollup`，handoff 目录下还会生成嵌套的
@@ -118,12 +121,13 @@ blocker / action / warning 计数写回 `report/summary.json` 和
 分别加 `-ReleaseGovernanceHandoffFailOnMissing`、
 `-ReleaseGovernanceHandoffFailOnBlocker` 或
 `-ReleaseGovernanceHandoffFailOnWarning`。
-如果希望把三条最终治理报告也一起从既有 summary 编排出来，可以运行
+如果希望把四条最终治理报告也一起从既有 summary 编排出来，可以运行
 `scripts/build_release_governance_pipeline_report.ps1`。它会消费 `output/` 下已经生成的
 document skeleton rollup、numbering catalog manifest check、table layout rollup、
-project-template onboarding governance 和 schema approval history，依次写出
-numbering catalog governance、table layout delivery governance、project-template delivery
-readiness、release governance handoff 和最终 release blocker rollup；总览会落到
+content-control data-binding governance、project-template onboarding governance 和
+schema approval history，依次写出 numbering catalog governance、table layout delivery
+governance、content-control data-binding governance、project-template delivery readiness、
+release governance handoff 和最终 release blocker rollup；总览会落到
 `output/release-governance-pipeline/summary.json` 和 Markdown。该脚本只读输入 summary，
 不重跑 CLI、CMake、Word 或视觉自动化。
 Linux/macOS CI 的 `release_smoke` 步骤也会把 release candidate blocker rollup、
@@ -547,7 +551,7 @@ item。它会为不同来源的重复 blocker id 生成可追踪的 `composite_i
 `-FailOnWarning` 作为发布面板或 CI 的最后一层只读检查。
 在进入最终 rollup 前，也可以先运行
 `scripts/build_release_governance_handoff_report.ps1` 输出
-`featherdoc.release_governance_handoff_report.v1`，把三条最终治理线的 loaded /
+`featherdoc.release_governance_handoff_report.v1`，把四条最终治理线的 loaded /
 missing 状态、blocker/action/warning 计数和后续命令收束成一份 reviewer handoff。
 需要同时归档最终 blocker/action 汇总时，加 `-IncludeReleaseBlockerRollup`。
 
