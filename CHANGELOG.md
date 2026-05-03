@@ -57,6 +57,9 @@ performance.
   reports retain table style and floating table follow-up actions.
 - Added cross-platform CTest registration for the release-candidate blocker
   rollup smoke when `pwsh` is available outside Windows.
+- Added release-candidate blocker rollup auto-discovery for the default
+  numbering catalog, table layout, and project-template delivery governance
+  reports.
 - Added a standalone CLI JSON helper module with focused CTest coverage so
   common CLI output escaping can be validated without running the full CLI
   regression suite.

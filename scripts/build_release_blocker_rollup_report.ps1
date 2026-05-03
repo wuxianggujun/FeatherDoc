@@ -113,17 +113,32 @@ function Get-JsonArray {
     return @($value)
 }
 
+function Expand-InputPathList {
+    param([string[]]$Paths)
+
+    return @(
+        foreach ($path in @($Paths)) {
+            foreach ($part in ([string]$path -split ",")) {
+                $trimmed = $part.Trim()
+                if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
+                    $trimmed
+                }
+            }
+        }
+    )
+}
+
 function Get-InputJsonPaths {
     param([string]$RepoRoot, [string[]]$ExplicitPaths, [string[]]$Roots)
 
     $paths = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($path in @($ExplicitPaths)) {
+    foreach ($path in @(Expand-InputPathList -Paths $ExplicitPaths)) {
         if (-not [string]::IsNullOrWhiteSpace($path)) {
             $paths.Add((Resolve-RepoPath -RepoRoot $RepoRoot -Path $path)) | Out-Null
         }
     }
 
-    $scanRoots = @($Roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $scanRoots = @(Expand-InputPathList -Paths $Roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($paths.Count -eq 0 -and $scanRoots.Count -eq 0) {
         $scanRoots = @("output")
     }

@@ -89,11 +89,16 @@ regression bundle 纳入 visual gate 和 release summary。生成的
 当 numbering catalog governance、table-layout delivery governance 或
 project-template delivery readiness summary 已经生成时，可以把这些 JSON 通过
 `-ReleaseBlockerRollupInputJson` 或 `-ReleaseBlockerRollupInputRoot` 交给同一个
-总控脚本。它会调用 `build_release_blocker_rollup_report.ps1`，写出
+总控脚本，也可以用 `-ReleaseBlockerRollupAutoDiscover` 自动收集默认的
+`output/numbering-catalog-governance/summary.json`、
+`output/table-layout-delivery-governance/summary.json` 和
+`output/project-template-delivery-readiness/summary.json`。它会调用
+`build_release_blocker_rollup_report.ps1`，写出
 `report/release-blocker-rollup/summary.json` 和 Markdown，并把 rollup 状态、
-来源数量、blocker / action / warning 计数同步进 `report/summary.json` 和
-`report/final_review.md`。需要把最终 rollup 变成硬门禁时，再加
-`-ReleaseBlockerRollupFailOnBlocker` 或 `-ReleaseBlockerRollupFailOnWarning`。
+来源数量、blocker / action / warning 计数以及自动发现输入同步进
+`report/summary.json` 和 `report/final_review.md`。需要把最终 rollup 变成硬门禁时，
+再加 `-ReleaseBlockerRollupFailOnBlocker` 或
+`-ReleaseBlockerRollupFailOnWarning`。
 
 脚本结束后，输出目录里会生成：
 

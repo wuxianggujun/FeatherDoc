@@ -1298,12 +1298,16 @@ section/page-number, and curated visual verdicts when those seeded values are
 available.
 When numbering catalog governance, table-layout delivery governance, or
 project-template delivery readiness summaries already exist, pass them through
-`-ReleaseBlockerRollupInputJson` or `-ReleaseBlockerRollupInputRoot`. The
-wrapper then runs `build_release_blocker_rollup_report.ps1`, writes
+`-ReleaseBlockerRollupInputJson` or `-ReleaseBlockerRollupInputRoot`, or use
+`-ReleaseBlockerRollupAutoDiscover` to collect the default
+`output/numbering-catalog-governance/summary.json`,
+`output/table-layout-delivery-governance/summary.json`, and
+`output/project-template-delivery-readiness/summary.json` reports. The wrapper
+then runs `build_release_blocker_rollup_report.ps1`, writes
 `report/release-blocker-rollup/summary.json` plus Markdown, and records the
-rollup status, source count, blocker count, action count, and warning count in
-both `report/summary.json` and `report/final_review.md`. Add
-`-ReleaseBlockerRollupFailOnBlocker` or
+rollup status, source count, blocker count, action count, warning count, and
+auto-discovered inputs in both `report/summary.json` and
+`report/final_review.md`. Add `-ReleaseBlockerRollupFailOnBlocker` or
 `-ReleaseBlockerRollupFailOnWarning` when the final rollup should behave as a
 hard release gate.
 

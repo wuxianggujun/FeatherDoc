@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "passing", "empty", "malformed", "dedupe")]
+    [ValidateSet("all", "passing", "comma_input", "empty", "malformed", "dedupe")]
     [string]$Scenario = "all"
 )
 
@@ -237,6 +237,25 @@ if (Test-Scenario -Name "empty") {
         -Message "Empty rollup should be ready."
     Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $true `
         -Message "Empty rollup should be release-ready."
+}
+
+if (Test-Scenario -Name "comma_input") {
+    $outputDir = Join-Path $resolvedWorkingDir "comma-input-report"
+    $result = Invoke-RollupScript -Arguments @(
+        "-InputJson", "$documentSkeletonPath,$tableLayoutPath,$releaseCandidatePath",
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Rollup should accept comma-separated input JSON paths. Output: $($result.Text)"
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 3 `
+        -Message "Comma-separated input should keep all three source reports."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 4 `
+        -Message "Comma-separated input should aggregate all blockers."
+    Assert-ContainsText -Text (($summary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
+        -ExpectedText "release-candidate" `
+        -Message "Comma-separated input should include the final source path."
 }
 
 if (Test-Scenario -Name "malformed") {

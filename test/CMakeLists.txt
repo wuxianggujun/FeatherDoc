@@ -1632,6 +1632,23 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_release_blocker_rollup_report_comma_input
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_blocker_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_comma_input
+                -Scenario
+                comma_input
+            )
+
+            add_test(
+                NAME
                 build_release_blocker_rollup_report_malformed
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_EXECUTABLE}

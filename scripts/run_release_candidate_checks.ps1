@@ -82,6 +82,8 @@ param(
     [switch]$ProjectTemplateSmokeRequireFullCoverage,
     [string[]]$ReleaseBlockerRollupInputJson = @(),
     [string[]]$ReleaseBlockerRollupInputRoot = @(),
+    [switch]$ReleaseBlockerRollupAutoDiscover,
+    [string]$ReleaseBlockerRollupAutoDiscoverRoot = "output",
     [string]$ReleaseBlockerRollupOutputDir = "",
     [switch]$ReleaseBlockerRollupFailOnBlocker,
     [switch]$ReleaseBlockerRollupFailOnWarning,
@@ -1027,12 +1029,54 @@ function Expand-ReleaseBlockerRollupPathList {
     )
 }
 
+function Select-UniqueReleaseBlockerRollupPathList {
+    param([string[]]$Paths)
+
+    $seen = @{}
+    return @(
+        foreach ($path in @($Paths)) {
+            if ([string]::IsNullOrWhiteSpace($path)) { continue }
+            $resolved = [System.IO.Path]::GetFullPath($path)
+            $key = $resolved.ToLowerInvariant()
+            if (-not $seen.ContainsKey($key)) {
+                $seen[$key] = $true
+                $resolved
+            }
+        }
+    )
+}
+
+function Get-ReleaseBlockerRollupAutoDiscoveredInputJson {
+    param(
+        [string]$RepoRoot,
+        [string]$InputRoot
+    )
+
+    $candidateRelativePaths = @(
+        "numbering-catalog-governance/summary.json",
+        "table-layout-delivery-governance/summary.json",
+        "project-template-delivery-readiness/summary.json"
+    )
+    $resolvedInputRoot = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $InputRoot
+
+    return @(
+        foreach ($relativePath in $candidateRelativePaths) {
+            $candidate = Join-Path $resolvedInputRoot $relativePath
+            if (Test-Path -LiteralPath $candidate) {
+                $candidate
+            }
+        }
+    )
+}
+
 function Invoke-ReleaseBlockerRollup {
     param(
         [string]$ScriptPath,
         [string[]]$InputJson,
         [string[]]$InputRoot,
         [string]$OutputDir,
+        [string]$SummaryJson,
+        [string]$ReportMarkdown,
         [bool]$FailOnBlocker,
         [bool]$FailOnWarning
     )
@@ -1042,15 +1086,19 @@ function Invoke-ReleaseBlockerRollup {
     $cleanInputRoot = @($InputRoot | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($cleanInputJson.Count -gt 0) {
         $arguments += "-InputJson"
-        $arguments += $cleanInputJson
+        $arguments += ($cleanInputJson -join ",")
     }
     if ($cleanInputRoot.Count -gt 0) {
         $arguments += "-InputRoot"
-        $arguments += $cleanInputRoot
+        $arguments += ($cleanInputRoot -join ",")
     }
     $arguments += @(
         "-OutputDir"
         $OutputDir
+        "-SummaryJson"
+        $SummaryJson
+        "-ReportMarkdown"
+        $ReportMarkdown
     )
     if ($FailOnBlocker) {
         $arguments += "-FailOnBlocker"
@@ -1062,6 +1110,13 @@ function Invoke-ReleaseBlockerRollup {
     Invoke-ChildPowerShell -ScriptPath $ScriptPath `
         -Arguments $arguments `
         -FailureMessage "Failed to build release blocker rollup."
+
+    if (-not (Test-Path -LiteralPath $SummaryJson)) {
+        throw "Release blocker rollup did not write summary JSON: $SummaryJson"
+    }
+    if (-not (Test-Path -LiteralPath $ReportMarkdown)) {
+        throw "Release blocker rollup did not write Markdown report: $ReportMarkdown"
+    }
 }
 
 function Read-ReleaseBlockerRollupSummary {
@@ -1322,16 +1377,24 @@ $templateSchemaRequested = -not [string]::IsNullOrWhiteSpace($resolvedTemplateSc
     -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaBaseline)
 $expandedReleaseBlockerRollupInputJson = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseBlockerRollupInputJson)
 $expandedReleaseBlockerRollupInputRoot = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseBlockerRollupInputRoot)
-$releaseBlockerRollupRequested = @(Get-ReleaseBlockerRollupInputList `
-        -InputJson $expandedReleaseBlockerRollupInputJson `
-        -InputRoot $expandedReleaseBlockerRollupInputRoot).Count -gt 0
+$resolvedReleaseBlockerRollupAutoDiscoverRoot = Resolve-FullPath -RepoRoot $repoRoot `
+    -InputPath $ReleaseBlockerRollupAutoDiscoverRoot
+$autoDiscoveredReleaseBlockerRollupInputJson = if ($ReleaseBlockerRollupAutoDiscover) {
+    @(Get-ReleaseBlockerRollupAutoDiscoveredInputJson `
+            -RepoRoot $repoRoot `
+            -InputRoot $resolvedReleaseBlockerRollupAutoDiscoverRoot)
+} else {
+    @()
+}
 $resolvedReleaseBlockerRollupInputJson = @(
-    foreach ($path in @($expandedReleaseBlockerRollupInputJson)) {
+    foreach ($path in @($expandedReleaseBlockerRollupInputJson + $autoDiscoveredReleaseBlockerRollupInputJson)) {
         if (-not [string]::IsNullOrWhiteSpace($path)) {
             Resolve-FullPath -RepoRoot $repoRoot -InputPath $path
         }
     }
 )
+$resolvedReleaseBlockerRollupInputJson = @(Select-UniqueReleaseBlockerRollupPathList `
+        -Paths $resolvedReleaseBlockerRollupInputJson)
 $resolvedReleaseBlockerRollupInputRoot = @(
     foreach ($path in @($expandedReleaseBlockerRollupInputRoot)) {
         if (-not [string]::IsNullOrWhiteSpace($path)) {
@@ -1339,6 +1402,11 @@ $resolvedReleaseBlockerRollupInputRoot = @(
         }
     }
 )
+$resolvedReleaseBlockerRollupInputRoot = @(Select-UniqueReleaseBlockerRollupPathList `
+        -Paths $resolvedReleaseBlockerRollupInputRoot)
+$releaseBlockerRollupRequested = $ReleaseBlockerRollupAutoDiscover -or @(Get-ReleaseBlockerRollupInputList `
+        -InputJson $resolvedReleaseBlockerRollupInputJson `
+        -InputRoot $resolvedReleaseBlockerRollupInputRoot).Count -gt 0
 $resolvedReleaseBlockerRollupOutputDir = if ($releaseBlockerRollupRequested) {
     if ([string]::IsNullOrWhiteSpace($ReleaseBlockerRollupOutputDir)) {
         Join-Path $reportDir "release-blocker-rollup"
@@ -1391,6 +1459,9 @@ $summary = [ordered]@{
     release_blocker_rollup = [ordered]@{
         requested = $releaseBlockerRollupRequested
         status = if ($releaseBlockerRollupRequested) { "pending" } else { "not_requested" }
+        auto_discover = [bool]$ReleaseBlockerRollupAutoDiscover
+        auto_discover_root = $resolvedReleaseBlockerRollupAutoDiscoverRoot
+        auto_discovered_input_json = @($autoDiscoveredReleaseBlockerRollupInputJson)
         input_json = @($resolvedReleaseBlockerRollupInputJson)
         input_root = @($resolvedReleaseBlockerRollupInputRoot)
         output_dir = $resolvedReleaseBlockerRollupOutputDir
@@ -2192,6 +2263,8 @@ try {
                 -InputJson $resolvedReleaseBlockerRollupInputJson `
                 -InputRoot $resolvedReleaseBlockerRollupInputRoot `
                 -OutputDir $resolvedReleaseBlockerRollupOutputDir `
+                -SummaryJson $releaseBlockerRollupSummaryPath `
+                -ReportMarkdown $releaseBlockerRollupMarkdownPath `
                 -FailOnBlocker ([bool]$ReleaseBlockerRollupFailOnBlocker) `
                 -FailOnWarning ([bool]$ReleaseBlockerRollupFailOnWarning)
             $rollupSummary = Read-ReleaseBlockerRollupSummary -Path $releaseBlockerRollupSummaryPath
