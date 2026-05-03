@@ -1615,6 +1615,74 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_release_governance_handoff_report_aggregate
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_handoff_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_aggregate
+                -Scenario
+                aggregate
+            )
+
+            add_test(
+                NAME
+                build_release_governance_handoff_report_missing
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_handoff_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_missing
+                -Scenario
+                missing
+            )
+
+            add_test(
+                NAME
+                build_release_governance_handoff_report_fail_on_missing
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_handoff_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_fail_on_missing
+                -Scenario
+                fail_on_missing
+            )
+
+            add_test(
+                NAME
+                build_release_governance_handoff_report_explicit_input
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_handoff_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_explicit_input
+                -Scenario
+                explicit_input
+            )
+
+            add_test(
+                NAME
                 build_release_blocker_rollup_report_empty
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_EXECUTABLE}

@@ -1311,6 +1311,14 @@ auto-discovered inputs in both `report/summary.json` and
 `-ReleaseBlockerRollupFailOnWarning` when the final rollup should behave as a
 hard release gate.
 
+For a reviewer-facing read-only handoff before the hard gate, run
+`scripts/build_release_governance_handoff_report.ps1`. It checks the default
+numbering catalog, table layout, and project-template delivery readiness
+summaries under `output/`, records missing reports with rebuild commands, and
+writes `output/release-governance-handoff/summary.json` plus Markdown before
+the release-candidate wrapper consumes the same reports through
+`-ReleaseBlockerRollupAutoDiscover`.
+
 If you also want release-preflight to gate a template DOCX against a committed
 schema baseline, pass `-TemplateSchemaInputDocx`, `-TemplateSchemaBaseline`,
 and one of `-TemplateSchemaSectionTargets` /

@@ -60,6 +60,9 @@ performance.
 - Added release-candidate blocker rollup auto-discovery for the default
   numbering catalog, table layout, and project-template delivery governance
   reports.
+- Added a release governance handoff report that summarizes the default
+  numbering catalog, table layout, and project-template delivery readiness
+  reports before final release blocker rollup.
 - Added a standalone CLI JSON helper module with focused CTest coverage so
   common CLI output escaping can be validated without running the full CLI
   regression suite.
