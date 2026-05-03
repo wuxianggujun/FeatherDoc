@@ -438,8 +438,9 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\write_project_template_schema_appro
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1 -InputJson .\output\project-template-onboarding-governance\summary.json,.\output\project-template-schema-approval-history\history.json -OutputDir .\output\project-template-delivery-readiness -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\schema-patch-confidence-calibration -FailOnPending
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_numbering_catalog_governance_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json,.\output\numbering-catalog-manifest-checks\summary.json -OutputDir .\output\numbering-catalog-governance -FailOnIssue -FailOnDrift -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_table_layout_delivery_rollup_report.ps1 -InputRoot .\output\table-layout-delivery-report -OutputDir .\output\table-layout-delivery-rollup -FailOnBlocker
-pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json,.\output\table-layout-delivery-rollup\summary.json,.\output\project-template-delivery-readiness\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\numbering-catalog-governance\summary.json,.\output\table-layout-delivery-rollup\summary.json,.\output\project-template-delivery-readiness\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
@@ -482,12 +483,15 @@ approved / pending / rejected / invalid 的分布和保守的 `recommended_min_c
 `scripts/build_document_skeleton_governance_rollup_report.ps1` 汇总为
 `featherdoc.document_skeleton_governance_rollup_report.v1`，保留每份模板的
 exemplar catalog 路径、样式编号 issue 汇总、release blocker 和 action item。
-表格版式侧也有同样的聚合层：
+把这份 rollup 和 `scripts/check_numbering_catalog_manifest.ps1` 的 summary
+一起交给 `scripts/build_numbering_catalog_governance_report.ps1`，可以得到
+`featherdoc.numbering_catalog_governance_report.v1`，统一覆盖 exemplar catalog
+覆盖情况、样式编号 issue、catalog baseline drift 和脏 baseline。表格版式侧也有同样的聚合层：
 `scripts/build_table_layout_delivery_rollup_report.ps1` 会把多份
 `featherdoc.table_layout_delivery_report.v1` 汇总成
 `featherdoc.table_layout_delivery_rollup_report.v1`，保留 table style issue、
 安全 `tblLook` 修复计数、浮动表格 preset plan 路径、release blocker 和 action item。
-当 document skeleton rollup、table layout delivery rollup、project template
+当 numbering catalog governance、table layout delivery rollup、project template
 delivery readiness 等报告已经生成后，可以再用
 `scripts/build_release_blocker_rollup_report.ps1` 统一汇总 release blocker 和 action
 item。它会为不同来源的重复 blocker id 生成可追踪的 `composite_id`，输出

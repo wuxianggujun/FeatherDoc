@@ -1169,6 +1169,74 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_numbering_catalog_governance_report_aggregate
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_numbering_catalog_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_numbering_catalog_governance_report_aggregate
+                -Scenario
+                aggregate
+            )
+
+            add_test(
+                NAME
+                build_numbering_catalog_governance_report_clean
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_numbering_catalog_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_numbering_catalog_governance_report_clean
+                -Scenario
+                clean
+            )
+
+            add_test(
+                NAME
+                build_numbering_catalog_governance_report_malformed
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_numbering_catalog_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_numbering_catalog_governance_report_malformed
+                -Scenario
+                malformed
+            )
+
+            add_test(
+                NAME
+                build_numbering_catalog_governance_report_fail_on_blocker
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_numbering_catalog_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_numbering_catalog_governance_report_fail_on_blocker
+                -Scenario
+                fail_on_blocker
+            )
+
+            add_test(
+                NAME
                 build_table_layout_delivery_report_passing
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_EXECUTABLE}

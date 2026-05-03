@@ -17,6 +17,10 @@ performance.
   coverage to aggregate multiple document skeleton governance summaries into a
   multi-template numbering catalog exemplar, style-numbering issue, release
   blocker, and action item handoff.
+- Added `build_numbering_catalog_governance_report.ps1` with PowerShell
+  coverage to combine document skeleton governance rollups with numbering
+  catalog manifest checks into one exemplar catalog, style-numbering, drift,
+  dirty-baseline, release blocker, and action item gate.
 - Added schema approval state, release blockers, action items, and manual
   review recommendations to project-template onboarding summaries and
   onboarding-plan candidates.
