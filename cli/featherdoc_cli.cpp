@@ -1132,6 +1132,7 @@ enum class review_mutation_plan_operation_kind {
     append_paragraph_text_comment,
     append_comment_reply,
     set_comment_resolved,
+    set_comment_metadata,
     insert_paragraph_text_revision,
     delete_paragraph_text_revision,
     replace_paragraph_text_revision,
@@ -1155,10 +1156,15 @@ struct review_mutation_plan_operation {
     bool resolved = false;
     std::string text;
     std::optional<std::string> expected_text;
+    std::optional<std::string> expected_comment_text;
     std::optional<bool> expected_resolved;
+    std::optional<std::size_t> expected_parent_index;
     std::optional<std::string> author;
     std::optional<std::string> initials;
     std::optional<std::string> date;
+    bool clear_author = false;
+    bool clear_initials = false;
+    bool clear_date = false;
 };
 
 struct review_mutation_plan_preview_result {
@@ -1169,9 +1175,13 @@ struct review_mutation_plan_preview_result {
     std::string message;
     std::optional<std::string> expected_text;
     std::optional<std::string> actual_text;
+    std::optional<std::string> expected_comment_text;
+    std::optional<std::string> actual_comment_text;
     std::optional<std::size_t> comment_index;
     std::optional<bool> expected_resolved;
     std::optional<bool> actual_resolved;
+    std::optional<std::size_t> expected_parent_index;
+    std::optional<std::size_t> actual_parent_index;
     std::optional<featherdoc::text_range_preview> preview;
 };
 
@@ -36545,6 +36555,8 @@ auto review_mutation_plan_operation_kind_name(
         return "append_comment_reply";
     case review_mutation_plan_operation_kind::set_comment_resolved:
         return "set_comment_resolved";
+    case review_mutation_plan_operation_kind::set_comment_metadata:
+        return "set_comment_metadata";
     case review_mutation_plan_operation_kind::insert_paragraph_text_revision:
         return "insert_paragraph_text_revision";
     case review_mutation_plan_operation_kind::delete_paragraph_text_revision:
@@ -36587,6 +36599,11 @@ auto parse_review_mutation_plan_operation_kind(
     if (token == "set_comment_resolved" ||
         token == "set-comment-resolved") {
         kind = review_mutation_plan_operation_kind::set_comment_resolved;
+        return true;
+    }
+    if (token == "set_comment_metadata" ||
+        token == "set-comment-metadata") {
+        kind = review_mutation_plan_operation_kind::set_comment_metadata;
         return true;
     }
     if (token == "insert_paragraph_text_revision" ||
@@ -36634,6 +36651,7 @@ auto parse_review_mutation_plan_operation_kind(
         "'append_paragraph_text_comment', "
         "'append_comment_reply', "
         "'set_comment_resolved', "
+        "'set_comment_metadata', "
         "'insert_paragraph_text_revision', "
         "'delete_paragraph_text_revision', "
         "'replace_paragraph_text_revision', "
@@ -36750,10 +36768,15 @@ auto parse_review_mutation_plan_operation(
     bool saw_text = false;
     bool saw_comment_text = false;
     bool saw_expected_text = false;
+    bool saw_expected_comment_text = false;
     bool saw_expected_resolved = false;
+    bool saw_expected_parent_index = false;
     bool saw_author = false;
     bool saw_initials = false;
     bool saw_date = false;
+    bool saw_clear_author = false;
+    bool saw_clear_initials = false;
+    bool saw_clear_date = false;
 
     while (index < content.size()) {
         std::string member_name;
@@ -36931,6 +36954,21 @@ auto parse_review_mutation_plan_operation(
                 return false;
             }
             operation.expected_text = std::move(expected_text);
+        } else if (member_name == "expected_comment_text") {
+            if (saw_expected_comment_text) {
+                error_message =
+                    "JSON review mutation plan operation member 'expected_comment_text' must not be duplicated";
+                return false;
+            }
+            saw_expected_comment_text = true;
+            std::string expected_comment_text;
+            if (!parse_json_patch_string(content, index,
+                                         expected_comment_text,
+                                         error_message)) {
+                return false;
+            }
+            operation.expected_comment_text =
+                std::move(expected_comment_text);
         } else if (member_name == "expected_resolved") {
             if (saw_expected_resolved) {
                 error_message =
@@ -36945,6 +36983,20 @@ auto parse_review_mutation_plan_operation(
                 return false;
             }
             operation.expected_resolved = expected_resolved;
+        } else if (member_name == "expected_parent_index") {
+            if (saw_expected_parent_index) {
+                error_message =
+                    "JSON review mutation plan operation member 'expected_parent_index' must not be duplicated";
+                return false;
+            }
+            saw_expected_parent_index = true;
+            std::size_t expected_parent_index = 0U;
+            if (!parse_json_patch_index_value(
+                    content, index, expected_parent_index,
+                    "expected_parent_index", error_message)) {
+                return false;
+            }
+            operation.expected_parent_index = expected_parent_index;
         } else if (member_name == "author") {
             if (saw_author) {
                 error_message =
@@ -36983,6 +37035,42 @@ auto parse_review_mutation_plan_operation(
                 return false;
             }
             operation.date = std::move(date);
+        } else if (member_name == "clear_author") {
+            if (saw_clear_author) {
+                error_message =
+                    "JSON review mutation plan operation member 'clear_author' must not be duplicated";
+                return false;
+            }
+            saw_clear_author = true;
+            if (!parse_review_mutation_plan_bool_value(
+                    content, index, operation.clear_author, "clear_author",
+                    error_message)) {
+                return false;
+            }
+        } else if (member_name == "clear_initials") {
+            if (saw_clear_initials) {
+                error_message =
+                    "JSON review mutation plan operation member 'clear_initials' must not be duplicated";
+                return false;
+            }
+            saw_clear_initials = true;
+            if (!parse_review_mutation_plan_bool_value(
+                    content, index, operation.clear_initials,
+                    "clear_initials", error_message)) {
+                return false;
+            }
+        } else if (member_name == "clear_date") {
+            if (saw_clear_date) {
+                error_message =
+                    "JSON review mutation plan operation member 'clear_date' must not be duplicated";
+                return false;
+            }
+            saw_clear_date = true;
+            if (!parse_review_mutation_plan_bool_value(
+                    content, index, operation.clear_date, "clear_date",
+                    error_message)) {
+                return false;
+            }
         } else {
             if (!skip_json_patch_value(content, index, error_message)) {
                 return false;
@@ -37014,6 +37102,11 @@ auto parse_review_mutation_plan_operation(
         saw_end_paragraph_index && saw_end_text_offset;
     const auto text_range_insertion_fields_ok =
         saw_start_paragraph_index && saw_start_text_offset;
+    const auto clear_metadata_fields_seen =
+        saw_clear_author || saw_clear_initials || saw_clear_date;
+    const auto has_comment_metadata_update =
+        saw_author || saw_initials || saw_date || operation.clear_author ||
+        operation.clear_initials || operation.clear_date;
 
     switch (operation.kind) {
     case review_mutation_plan_operation_kind::append_paragraph_text_comment:
@@ -37032,9 +37125,11 @@ auto parse_review_mutation_plan_operation(
                 "JSON review mutation plan append_paragraph_text_comment operation does not accept 'text'";
             return false;
         }
-        if (saw_comment_index || saw_resolved || saw_expected_resolved) {
+        if (saw_comment_index || saw_resolved || saw_expected_resolved ||
+            saw_expected_comment_text || saw_expected_parent_index ||
+            clear_metadata_fields_seen) {
             error_message =
-                "JSON review mutation plan append_paragraph_text_comment operation does not accept 'comment_index', 'resolved', or 'expected_resolved'";
+                "JSON review mutation plan append_paragraph_text_comment operation does not accept 'comment_index', 'resolved', 'expected_resolved', 'expected_comment_text', 'expected_parent_index', or clear metadata fields";
             return false;
         }
         return true;
@@ -37052,9 +37147,9 @@ auto parse_review_mutation_plan_operation(
         if (saw_paragraph_index || saw_text_offset || saw_text_length ||
             saw_start_paragraph_index || saw_start_text_offset ||
             saw_end_paragraph_index || saw_end_text_offset || saw_text ||
-            saw_resolved) {
+            saw_resolved || clear_metadata_fields_seen) {
             error_message =
-                "JSON review mutation plan append_comment_reply operation only accepts 'comment_index', 'comment_text', 'expected_text', 'expected_resolved', 'author', 'initials', and 'date'";
+                "JSON review mutation plan append_comment_reply operation only accepts 'comment_index', 'comment_text', 'expected_text', 'expected_comment_text', 'expected_resolved', 'expected_parent_index', 'author', 'initials', and 'date'";
             return false;
         }
         return true;
@@ -37067,9 +37162,37 @@ auto parse_review_mutation_plan_operation(
         if (saw_paragraph_index || saw_text_offset || saw_text_length ||
             saw_start_paragraph_index || saw_start_text_offset ||
             saw_end_paragraph_index || saw_end_text_offset || saw_text ||
-            saw_comment_text || saw_author || saw_initials || saw_date) {
+            saw_comment_text || saw_author || saw_initials || saw_date ||
+            clear_metadata_fields_seen) {
             error_message =
-                "JSON review mutation plan set_comment_resolved operation only accepts 'comment_index', 'resolved', 'expected_text', and 'expected_resolved'";
+                "JSON review mutation plan set_comment_resolved operation only accepts 'comment_index', 'resolved', 'expected_text', 'expected_comment_text', 'expected_resolved', and 'expected_parent_index'";
+            return false;
+        }
+        return true;
+    case review_mutation_plan_operation_kind::set_comment_metadata:
+        if (!saw_comment_index) {
+            error_message =
+                "JSON review mutation plan set_comment_metadata operation must contain 'comment_index'";
+            return false;
+        }
+        if (!has_comment_metadata_update) {
+            error_message =
+                "JSON review mutation plan set_comment_metadata operation must contain at least one metadata update field";
+            return false;
+        }
+        if ((saw_author && operation.clear_author) ||
+            (saw_initials && operation.clear_initials) ||
+            (saw_date && operation.clear_date)) {
+            error_message =
+                "JSON review mutation plan set_comment_metadata operation cannot set and clear the same metadata field";
+            return false;
+        }
+        if (saw_paragraph_index || saw_text_offset || saw_text_length ||
+            saw_start_paragraph_index || saw_start_text_offset ||
+            saw_end_paragraph_index || saw_end_text_offset || saw_text ||
+            saw_comment_text || saw_resolved) {
+            error_message =
+                "JSON review mutation plan set_comment_metadata operation only accepts 'comment_index', metadata update fields, 'expected_text', 'expected_comment_text', 'expected_resolved', and 'expected_parent_index'";
             return false;
         }
         return true;
@@ -37080,10 +37203,11 @@ auto parse_review_mutation_plan_operation(
             return false;
         }
         if (saw_text_length || saw_comment_text || saw_expected_text ||
-            saw_expected_resolved || saw_comment_index || saw_resolved ||
-            saw_initials) {
+            saw_expected_comment_text || saw_expected_resolved ||
+            saw_expected_parent_index || saw_comment_index || saw_resolved ||
+            saw_initials || clear_metadata_fields_seen) {
             error_message =
-                "JSON review mutation plan insert_paragraph_text_revision operation does not accept 'text_length', 'comment_text', 'expected_text', 'expected_resolved', 'comment_index', 'resolved', or 'initials'";
+                "JSON review mutation plan insert_paragraph_text_revision operation does not accept comment, expected comment, resolved, initials, or clear metadata fields";
             return false;
         }
         return true;
@@ -37093,10 +37217,12 @@ auto parse_review_mutation_plan_operation(
                 "JSON review mutation plan delete_paragraph_text_revision operation must contain 'paragraph_index', 'text_offset', and 'text_length'";
             return false;
         }
-        if (saw_text || saw_comment_text || saw_expected_resolved ||
-            saw_comment_index || saw_resolved || saw_initials) {
+        if (saw_text || saw_comment_text || saw_expected_comment_text ||
+            saw_expected_resolved || saw_expected_parent_index ||
+            saw_comment_index || saw_resolved || saw_initials ||
+            clear_metadata_fields_seen) {
             error_message =
-                "JSON review mutation plan delete_paragraph_text_revision operation does not accept 'text', 'comment_text', 'expected_resolved', 'comment_index', 'resolved', or 'initials'";
+                "JSON review mutation plan delete_paragraph_text_revision operation does not accept text, comment, expected comment, resolved, initials, or clear metadata fields";
             return false;
         }
         return true;
@@ -37106,10 +37232,12 @@ auto parse_review_mutation_plan_operation(
                 "JSON review mutation plan replace_paragraph_text_revision operation must contain 'paragraph_index', 'text_offset', 'text_length', and 'text'";
             return false;
         }
-        if (saw_comment_text || saw_expected_resolved || saw_comment_index ||
-            saw_resolved || saw_initials) {
+        if (saw_comment_text || saw_expected_comment_text ||
+            saw_expected_resolved || saw_expected_parent_index ||
+            saw_comment_index || saw_resolved || saw_initials ||
+            clear_metadata_fields_seen) {
             error_message =
-                "JSON review mutation plan replace_paragraph_text_revision operation does not accept 'comment_text', 'expected_resolved', 'comment_index', 'resolved', or 'initials'";
+                "JSON review mutation plan replace_paragraph_text_revision operation does not accept comment, expected comment, resolved, initials, or clear metadata fields";
             return false;
         }
         return true;
@@ -37129,9 +37257,11 @@ auto parse_review_mutation_plan_operation(
                 "JSON review mutation plan append_text_range_comment operation does not accept 'text'";
             return false;
         }
-        if (saw_comment_index || saw_resolved || saw_expected_resolved) {
+        if (saw_comment_index || saw_resolved || saw_expected_resolved ||
+            saw_expected_comment_text || saw_expected_parent_index ||
+            clear_metadata_fields_seen) {
             error_message =
-                "JSON review mutation plan append_text_range_comment operation does not accept 'comment_index', 'resolved', or 'expected_resolved'";
+                "JSON review mutation plan append_text_range_comment operation does not accept 'comment_index', 'resolved', 'expected_resolved', 'expected_comment_text', 'expected_parent_index', or clear metadata fields";
             return false;
         }
         return true;
@@ -37142,10 +37272,12 @@ auto parse_review_mutation_plan_operation(
             return false;
         }
         if (saw_end_paragraph_index || saw_end_text_offset ||
-            saw_comment_text || saw_expected_text || saw_expected_resolved ||
-            saw_comment_index || saw_resolved || saw_initials) {
+            saw_comment_text || saw_expected_text ||
+            saw_expected_comment_text || saw_expected_resolved ||
+            saw_expected_parent_index || saw_comment_index || saw_resolved ||
+            saw_initials || clear_metadata_fields_seen) {
             error_message =
-                "JSON review mutation plan insert_text_range_revision operation does not accept 'end_paragraph_index', 'end_text_offset', 'comment_text', 'expected_text', 'expected_resolved', 'comment_index', 'resolved', or 'initials'";
+                "JSON review mutation plan insert_text_range_revision operation does not accept range end, comment, expected text/comment, resolved, initials, or clear metadata fields";
             return false;
         }
         return true;
@@ -37155,10 +37287,12 @@ auto parse_review_mutation_plan_operation(
                 "JSON review mutation plan delete_text_range_revision operation must contain 'start_paragraph_index', 'start_text_offset', 'end_paragraph_index', and 'end_text_offset'";
             return false;
         }
-        if (saw_text || saw_comment_text || saw_expected_resolved ||
-            saw_comment_index || saw_resolved || saw_initials) {
+        if (saw_text || saw_comment_text || saw_expected_comment_text ||
+            saw_expected_resolved || saw_expected_parent_index ||
+            saw_comment_index || saw_resolved || saw_initials ||
+            clear_metadata_fields_seen) {
             error_message =
-                "JSON review mutation plan delete_text_range_revision operation does not accept 'text', 'comment_text', 'expected_resolved', 'comment_index', 'resolved', or 'initials'";
+                "JSON review mutation plan delete_text_range_revision operation does not accept text, comment, expected comment, resolved, initials, or clear metadata fields";
             return false;
         }
         return true;
@@ -37168,10 +37302,12 @@ auto parse_review_mutation_plan_operation(
                 "JSON review mutation plan replace_text_range_revision operation must contain 'start_paragraph_index', 'start_text_offset', 'end_paragraph_index', 'end_text_offset', and 'text'";
             return false;
         }
-        if (saw_comment_text || saw_expected_resolved || saw_comment_index ||
-            saw_resolved || saw_initials) {
+        if (saw_comment_text || saw_expected_comment_text ||
+            saw_expected_resolved || saw_expected_parent_index ||
+            saw_comment_index || saw_resolved || saw_initials ||
+            clear_metadata_fields_seen) {
             error_message =
-                "JSON review mutation plan replace_text_range_revision operation does not accept 'comment_text', 'expected_resolved', 'comment_index', 'resolved', or 'initials'";
+                "JSON review mutation plan replace_text_range_revision operation does not accept comment, expected comment, resolved, initials, or clear metadata fields";
             return false;
         }
         return true;
@@ -37616,9 +37752,11 @@ auto parse_review_mutation_plan_build_request_operation(
     if (operation.kind ==
             review_mutation_plan_operation_kind::append_comment_reply ||
         operation.kind ==
-            review_mutation_plan_operation_kind::set_comment_resolved) {
+            review_mutation_plan_operation_kind::set_comment_resolved ||
+        operation.kind ==
+            review_mutation_plan_operation_kind::set_comment_metadata) {
         error_message =
-            "JSON review mutation plan build request does not support 'append_comment_reply' or 'set_comment_resolved'; use a direct review mutation plan operation";
+            "JSON review mutation plan build request does not support 'append_comment_reply', 'set_comment_resolved', or 'set_comment_metadata'; use a direct review mutation plan operation";
         return false;
     }
 
@@ -37863,6 +38001,9 @@ void write_json_review_mutation_plan_operation(
         stream << ",\"comment_index\":" << operation.comment_index
                << ",\"resolved\":" << json_bool(operation.resolved);
         break;
+    case review_mutation_plan_operation_kind::set_comment_metadata:
+        stream << ",\"comment_index\":" << operation.comment_index;
+        break;
     case review_mutation_plan_operation_kind::append_paragraph_text_comment:
     case review_mutation_plan_operation_kind::insert_paragraph_text_revision:
     case review_mutation_plan_operation_kind::delete_paragraph_text_revision:
@@ -37912,9 +38053,17 @@ void write_json_review_mutation_plan_operation(
         stream << ",\"expected_text\":";
         write_json_string(stream, *operation.expected_text);
     }
+    if (operation.expected_comment_text.has_value()) {
+        stream << ",\"expected_comment_text\":";
+        write_json_string(stream, *operation.expected_comment_text);
+    }
     if (operation.expected_resolved.has_value()) {
         stream << ",\"expected_resolved\":"
                << json_bool(*operation.expected_resolved);
+    }
+    if (operation.expected_parent_index.has_value()) {
+        stream << ",\"expected_parent_index\":"
+               << *operation.expected_parent_index;
     }
     if (operation.author.has_value()) {
         stream << ",\"author\":";
@@ -37927,6 +38076,15 @@ void write_json_review_mutation_plan_operation(
     if (operation.date.has_value()) {
         stream << ",\"date\":";
         write_json_string(stream, *operation.date);
+    }
+    if (operation.clear_author) {
+        stream << ",\"clear_author\":true";
+    }
+    if (operation.clear_initials) {
+        stream << ",\"clear_initials\":true";
+    }
+    if (operation.clear_date) {
+        stream << ",\"clear_date\":true";
     }
     stream << '}';
 }
@@ -38041,7 +38199,8 @@ auto is_review_mutation_plan_insert_operation(
 auto is_review_mutation_plan_text_range_operation(
     review_mutation_plan_operation_kind kind) -> bool {
     return kind != review_mutation_plan_operation_kind::append_comment_reply &&
-           kind != review_mutation_plan_operation_kind::set_comment_resolved;
+           kind != review_mutation_plan_operation_kind::set_comment_resolved &&
+           kind != review_mutation_plan_operation_kind::set_comment_metadata;
 }
 
 auto is_review_mutation_plan_comment_operation(
@@ -38091,7 +38250,9 @@ auto preview_review_mutation_plan_comment_operation(
     review_mutation_plan_preview_result &result) -> bool {
     result.comment_index = operation.comment_index;
     result.expected_text = operation.expected_text;
+    result.expected_comment_text = operation.expected_comment_text;
     result.expected_resolved = operation.expected_resolved;
+    result.expected_parent_index = operation.expected_parent_index;
 
     const auto comments = doc.list_comments();
     if (operation.comment_index >= comments.size()) {
@@ -38101,9 +38262,13 @@ auto preview_review_mutation_plan_comment_operation(
     }
 
     const auto &comment = comments[operation.comment_index];
+    result.actual_comment_text = comment.text;
     result.actual_resolved = comment.resolved;
     if (comment.anchor_text.has_value()) {
         result.actual_text = *comment.anchor_text;
+    }
+    if (comment.parent_index.has_value()) {
+        result.actual_parent_index = *comment.parent_index;
     }
 
     if (operation.expected_text.has_value() &&
@@ -38113,10 +38278,24 @@ auto preview_review_mutation_plan_comment_operation(
         result.message = "expected text did not match comment anchor text";
         return false;
     }
+    if (operation.expected_comment_text.has_value() &&
+        comment.text != *operation.expected_comment_text) {
+        result.ok = false;
+        result.message = "expected comment text did not match comment body";
+        return false;
+    }
     if (operation.expected_resolved.has_value() &&
         comment.resolved != *operation.expected_resolved) {
         result.ok = false;
         result.message = "expected resolved state did not match comment state";
+        return false;
+    }
+    if (operation.expected_parent_index.has_value() &&
+        (!comment.parent_index.has_value() ||
+         *comment.parent_index != *operation.expected_parent_index)) {
+        result.ok = false;
+        result.message =
+            "expected parent index did not match comment parent";
         return false;
     }
 
@@ -38320,7 +38499,9 @@ auto preview_review_mutation_plan_operations(
         if (operation.kind ==
                 review_mutation_plan_operation_kind::append_comment_reply ||
             operation.kind ==
-                review_mutation_plan_operation_kind::set_comment_resolved) {
+                review_mutation_plan_operation_kind::set_comment_resolved ||
+            operation.kind ==
+                review_mutation_plan_operation_kind::set_comment_metadata) {
             preview_review_mutation_plan_comment_operation(doc, operation,
                                                            result);
             results.push_back(std::move(result));
@@ -38397,6 +38578,16 @@ auto apply_review_mutation_plan_operation(
     case review_mutation_plan_operation_kind::set_comment_resolved:
         return doc.set_comment_resolved(operation.comment_index,
                                         operation.resolved);
+    case review_mutation_plan_operation_kind::set_comment_metadata: {
+        featherdoc::comment_metadata_update metadata;
+        metadata.author = operation.author;
+        metadata.initials = operation.initials;
+        metadata.date = operation.date;
+        metadata.clear_author = operation.clear_author;
+        metadata.clear_initials = operation.clear_initials;
+        metadata.clear_date = operation.clear_date;
+        return doc.set_comment_metadata(operation.comment_index, metadata);
+    }
     case review_mutation_plan_operation_kind::append_paragraph_text_comment:
         return doc.append_paragraph_text_comment(
                    operation.paragraph_index, operation.text_offset,
@@ -38487,6 +38678,10 @@ auto build_review_mutation_plan_operation_from_match(
     case review_mutation_plan_operation_kind::set_comment_resolved:
         error_message =
             "set_comment_resolved is not supported by build-review-mutation-plan";
+        return false;
+    case review_mutation_plan_operation_kind::set_comment_metadata:
+        error_message =
+            "set_comment_metadata is not supported by build-review-mutation-plan";
         return false;
     case review_mutation_plan_operation_kind::append_paragraph_text_comment:
     case review_mutation_plan_operation_kind::insert_paragraph_text_revision:
@@ -38814,6 +39009,14 @@ void write_json_review_mutation_plan_preview_result(
         stream << ",\"expected_resolved\":"
                << json_bool(*result.expected_resolved);
     }
+    if (result.expected_comment_text.has_value()) {
+        stream << ",\"expected_comment_text\":";
+        write_json_string(stream, *result.expected_comment_text);
+    }
+    if (result.expected_parent_index.has_value()) {
+        stream << ",\"expected_parent_index\":"
+               << *result.expected_parent_index;
+    }
     stream << ",\"actual_text\":";
     if (result.actual_text.has_value()) {
         write_json_string(stream, *result.actual_text);
@@ -38824,6 +39027,20 @@ void write_json_review_mutation_plan_preview_result(
     }
     if (result.actual_resolved.has_value()) {
         stream << ",\"actual_resolved\":" << json_bool(*result.actual_resolved);
+    }
+    if (result.actual_comment_text.has_value()) {
+        stream << ",\"actual_comment_text\":";
+        write_json_string(stream, *result.actual_comment_text);
+    }
+    if (result.comment_index.has_value() ||
+        result.expected_parent_index.has_value() ||
+        result.actual_parent_index.has_value()) {
+        stream << ",\"actual_parent_index\":";
+        if (result.actual_parent_index.has_value()) {
+            stream << *result.actual_parent_index;
+        } else {
+            stream << "null";
+        }
     }
     stream << ",\"preview\":";
     if (result.preview.has_value()) {
@@ -39016,6 +39233,14 @@ void print_review_mutation_plan_preview(
             stream << " expected_resolved="
                    << json_bool(*result.expected_resolved);
         }
+        if (result.expected_comment_text.has_value()) {
+            stream << " expected_comment_text=";
+            write_json_string(stream, *result.expected_comment_text);
+        }
+        if (result.expected_parent_index.has_value()) {
+            stream << " expected_parent_index="
+                   << *result.expected_parent_index;
+        }
         if (result.actual_text.has_value()) {
             stream << " actual_text=";
             write_json_string(stream, *result.actual_text);
@@ -39023,6 +39248,14 @@ void print_review_mutation_plan_preview(
         if (result.actual_resolved.has_value()) {
             stream << " actual_resolved="
                    << json_bool(*result.actual_resolved);
+        }
+        if (result.actual_comment_text.has_value()) {
+            stream << " actual_comment_text=";
+            write_json_string(stream, *result.actual_comment_text);
+        }
+        if (result.actual_parent_index.has_value()) {
+            stream << " actual_parent_index="
+                   << *result.actual_parent_index;
         }
         if (result.preview.has_value()) {
             stream << " actual_text=";
