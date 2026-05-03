@@ -49,6 +49,9 @@ performance.
   coverage to turn table layout delivery rollups into a final table style,
   safe tblLook repair, floating table review, visual-regression, blocker, and
   action item gate.
+- Added release rollup-compatible `action_items` and `next_steps` mirrors to
+  table layout delivery governance summaries so final release blocker handoff
+  reports retain table style and floating table follow-up actions.
 - Added a standalone CLI JSON helper module with focused CTest coverage so
   common CLI output escaping can be validated without running the full CLI
   regression suite.

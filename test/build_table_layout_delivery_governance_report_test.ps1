@@ -289,6 +289,14 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text $actionText -ExpectedText "dry_run_apply_table_position_plans" `
         -Message "Summary should add position plan dry-run action."
 
+    Assert-Equal -Actual ([int]$summary.action_items.Count) -Expected ([int]$summary.delivery_actions.Count) `
+        -Message "Summary should mirror delivery actions as release rollup action items."
+    Assert-Equal -Actual ([int]$summary.next_steps.Count) -Expected ([int]$summary.delivery_actions.Count) `
+        -Message "Summary should mirror delivery actions as next-step fallback entries."
+    $actionItemsText = ($summary.action_items | ForEach-Object { [string]$_.id }) -join "`n"
+    Assert-ContainsText -Text $actionItemsText -ExpectedText "run_table_style_quality_visual_regression" `
+        -Message "Release rollup action items should include visual regression action."
+
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Table Layout Delivery Governance Report" `
         -Message "Markdown should include title."
