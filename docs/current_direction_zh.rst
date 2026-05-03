@@ -153,13 +153,16 @@
 - numbering catalog JSON definition level upsert 与 override 批量 upsert/remove
 - numbering catalog JSON lint 结构校验
 - numbering catalog JSON check / diff 准入与单文件 / manifest baseline gate
+- 多份 document skeleton governance summary 的 rollup 汇总入口，可把
+  exemplar catalog、样式编号 issue、release blocker 和 action item 先聚合成
+  ``featherdoc.document_skeleton_governance_rollup_report.v1``，再进入统一发布阻断视图
 
 接下来最值得补的是：
 
 1. merge restore 的更完整冲突处理与基于真实语料的样式建议置信度校准
 2. 面向 heading / list / theme 的稳定重构入口
 3. 样式与编号之间更明确的批量治理 mutation API
-4. 在已有骨架治理报告基础上继续强化 exemplar 冲突审计和 catalog patch 衔接
+4. 在已有骨架治理报告和多文档 rollup 基础上继续强化 exemplar 冲突审计和 catalog patch 衔接
 
 这条线的目标是：
 

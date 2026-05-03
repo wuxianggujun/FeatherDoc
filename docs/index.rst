@@ -280,6 +280,8 @@ setup, bookmarks, images, and template parts.
     featherdoc_cli repair-style-numbering input.docx --catalog-file numbering-catalog.json --apply --output catalog-repaired.docx --json
     featherdoc_cli export-numbering-catalog input.docx --output numbering-catalog.json --json
     featherdoc_cli check-numbering-catalog input.docx --catalog-file numbering-catalog.json --output numbering-catalog.generated.json --json
+    pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 -InputDocx .\input.docx -OutputDir .\output\document-skeleton-governance -BuildDir build-codex-clang-compat -SkipBuild
+    pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
     pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx .\input.docx -CatalogFile .\numbering-catalog.json -GeneratedCatalogOutput .\numbering-catalog.generated.json -BuildDir build-codex-clang-compat -SkipBuild
     pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir build-codex-clang-compat -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild
     featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file numbering-catalog.patch.json --output numbering-catalog.patched.json --json
@@ -432,11 +434,16 @@ handoff, with ``-FailOnBlocker`` for release gates. For threshold tuning,
 smoke or approval-history evidence and writes
 ``featherdoc.schema_patch_confidence_calibration_report.v1`` with confidence
 buckets, approval outcomes, and conservative recommendations such as
-``recommended_min_confidence``. ``scripts/build_release_blocker_rollup_report.ps1``
-normalizes ``release_blockers`` and ``action_items`` from these governance
-reports, document-skeleton governance, table-layout delivery, or release
-summaries into ``featherdoc.release_blocker_rollup_report.v1`` while preserving
-duplicate source blockers through composite ids.
+``recommended_min_confidence``. For skeleton governance,
+``scripts/build_document_skeleton_governance_rollup_report.ps1`` rolls multiple
+single-document summaries into
+``featherdoc.document_skeleton_governance_rollup_report.v1`` with exemplar
+catalog paths, style-numbering issue totals, release blockers, and action
+items. ``scripts/build_release_blocker_rollup_report.ps1`` normalizes
+``release_blockers`` and ``action_items`` from these governance reports,
+document-skeleton rollups, table-layout delivery, or release summaries into
+``featherdoc.release_blocker_rollup_report.v1`` while preserving duplicate
+source blockers through composite ids.
 
 When adding a repository baseline,
 ``scripts/register_template_schema_manifest_entry.ps1`` now runs the same gate
@@ -1556,6 +1563,8 @@ catalogs through stable JSON files:
     featherdoc_cli repair-style-numbering report.docx --catalog-file numbering-catalog.json --apply --output catalog-repaired.docx --json
     featherdoc_cli export-numbering-catalog report.docx --output numbering-catalog.json --json
     featherdoc_cli check-numbering-catalog report.docx --catalog-file numbering-catalog.json --output numbering-catalog.generated.json --json
+    pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 -InputDocx .\input.docx -OutputDir .\output\document-skeleton-governance -BuildDir build-codex-clang-compat -SkipBuild
+    pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
     pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx .\input.docx -CatalogFile .\numbering-catalog.json -GeneratedCatalogOutput .\numbering-catalog.generated.json -BuildDir build-codex-clang-compat -SkipBuild
     pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir build-codex-clang-compat -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild
     featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file numbering-catalog.patch.json --output numbering-catalog.patched.json --json

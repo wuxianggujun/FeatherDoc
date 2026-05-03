@@ -13,6 +13,10 @@ performance.
 - Added `build_document_skeleton_governance_report.ps1` with PowerShell
   coverage to export an exemplar numbering catalog, collect style usage, run
   style-numbering audit, and write unified JSON/Markdown governance reports.
+- Added `build_document_skeleton_governance_rollup_report.ps1` with PowerShell
+  coverage to aggregate multiple document skeleton governance summaries into a
+  multi-template numbering catalog exemplar, style-numbering issue, release
+  blocker, and action item handoff.
 - Added schema approval state, release blockers, action items, and manual
   review recommendations to project-template onboarding summaries and
   onboarding-plan candidates.

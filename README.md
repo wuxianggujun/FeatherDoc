@@ -530,6 +530,7 @@ featherdoc_cli repair-style-numbering input.docx --catalog-file numbering-catalo
 featherdoc_cli export-numbering-catalog input.docx --output numbering-catalog.json --json
 featherdoc_cli check-numbering-catalog input.docx --catalog-file numbering-catalog.json --output numbering-catalog.generated.json --json
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 -InputDocx .\input.docx -OutputDir .\output\document-skeleton-governance -BuildDir build-codex-clang-compat -SkipBuild
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx .\input.docx -CatalogFile .\numbering-catalog.json -GeneratedCatalogOutput .\numbering-catalog.generated.json -BuildDir build-codex-clang-compat -SkipBuild
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir build-codex-clang-compat -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild
 featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file numbering-catalog.patch.json --output numbering-catalog.patched.json --json
@@ -625,7 +626,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_project_template_smoke.ps1 -Man
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_smoke_visual_verdict.ps1 -SummaryJson .\output\project-template-smoke\summary.json
 pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1 -InputRoot .\output\project-template-onboarding -InputRoot .\output\project-template-smoke-onboarding-plan -InputRoot .\output\project-template-smoke -OutputDir .\output\project-template-onboarding-governance -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -InputRoot .\output\project-template-smoke -OutputDir .\output\schema-patch-confidence-calibration -FailOnPending
-pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance\summary.json -InputJson .\output\table-layout-delivery-report\summary.json -InputJson .\output\project-template-onboarding-governance\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_blocker_rollup_report.ps1 -InputJson .\output\document-skeleton-governance-rollup\summary.json -InputJson .\output\table-layout-delivery-report\summary.json -InputJson .\output\project-template-onboarding-governance\summary.json -OutputDir .\output\release-blocker-rollup -FailOnBlocker
 pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document.ps1 -InputDocx .\samples\chinese_invoice_template.docx -PlanPath .\samples\chinese_invoice_template.render_plan.json -OutputDocx .\output\rendered\invoice.docx -SummaryJson .\output\rendered\invoice.render.summary.json -BuildDir build-codex-clang-compat -SkipBuild
 ```
 
@@ -681,8 +683,12 @@ recommendations such as `recommended_min_confidence`. The script is a read-only
 rollup; `-FailOnPending` blocks threshold tightening while approval items are
 still unresolved.
 
-When document-skeleton governance, table-layout delivery, and onboarding
-governance reports are available,
+When several single-document skeleton governance summaries are available,
+`scripts/build_document_skeleton_governance_rollup_report.ps1` first rolls them
+into `featherdoc.document_skeleton_governance_rollup_report.v1`, preserving
+per-document exemplar catalog paths, style-numbering issue totals, release
+blockers, and action items. When document-skeleton rollup, table-layout
+delivery, and onboarding governance reports are available,
 `scripts/build_release_blocker_rollup_report.ps1` normalizes their
 `release_blockers` and `action_items` into
 `featherdoc.release_blocker_rollup_report.v1`. It keeps duplicate blocker ids
@@ -1106,6 +1112,8 @@ featherdoc_cli repair-style-numbering input.docx --apply --output repaired-style
 featherdoc_cli repair-style-numbering input.docx --catalog-file numbering-catalog.json --apply --output catalog-repaired.docx --json
 featherdoc_cli export-numbering-catalog input.docx --output numbering-catalog.json --json
 featherdoc_cli check-numbering-catalog input.docx --catalog-file numbering-catalog.json --output numbering-catalog.generated.json --json
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 -InputDocx .\input.docx -OutputDir .\output\document-skeleton-governance -BuildDir build-codex-clang-compat -SkipBuild
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance -OutputDir .\output\document-skeleton-governance-rollup -FailOnIssue
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx .\input.docx -CatalogFile .\numbering-catalog.json -GeneratedCatalogOutput .\numbering-catalog.generated.json -BuildDir build-codex-clang-compat -SkipBuild
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_manifest.ps1 -ManifestPath .\baselines\numbering-catalog\manifest.json -BuildDir build-codex-clang-compat -OutputDir .\output\numbering-catalog-manifest-checks -SkipBuild
 featherdoc_cli patch-numbering-catalog numbering-catalog.json --patch-file numbering-catalog.patch.json --output numbering-catalog.patched.json --json
@@ -2809,7 +2817,10 @@ the `scripts/check_numbering_catalog_baseline.ps1` and
 `scripts/check_numbering_catalog_manifest.ps1` wrappers, diff-based
 drift checks for catalog JSON files,
 `scripts/build_document_skeleton_governance_report.ps1` for exemplar catalog
-extraction plus style usage / style-numbering governance reports, and
+extraction plus style usage / style-numbering governance reports,
+`scripts/build_document_skeleton_governance_rollup_report.ps1` for
+multi-document skeleton rollups across exemplar catalogs, issue summaries,
+release blockers, and action items, and
 `scripts/build_release_blocker_rollup_report.ps1` for release blocker rollups
 across skeleton, template, and layout reports, and `audit-style-numbering`
 style-to-numbering issue gates with `command_template` repair suggestions,
