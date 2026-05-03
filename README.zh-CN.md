@@ -106,6 +106,9 @@ project-template delivery readiness summary 已经生成时，可以把这些 JS
 project-template delivery readiness summary，缺失报告会附带重建命令，并写出
 `output/release-governance-handoff/summary.json` 和 Markdown；随后同一批报告可继续交给
 `run_release_candidate_checks.ps1 -ReleaseBlockerRollupAutoDiscover` 做最终门禁。
+如果同时传入 `-IncludeReleaseBlockerRollup`，handoff 目录下还会生成嵌套的
+`release-blocker-rollup/summary.json` 和 Markdown，方便 reviewer 在同一输出目录里查看最终
+blocker/action 汇总。
 
 脚本结束后，输出目录里会生成：
 
@@ -526,6 +529,7 @@ item。它会为不同来源的重复 blocker id 生成可追踪的 `composite_i
 `scripts/build_release_governance_handoff_report.ps1` 输出
 `featherdoc.release_governance_handoff_report.v1`，把三条最终治理线的 loaded /
 missing 状态、blocker/action/warning 计数和后续命令收束成一份 reviewer handoff。
+需要同时归档最终 blocker/action 汇总时，加 `-IncludeReleaseBlockerRollup`。
 
 如果你想先单独校验 manifest 契约，再决定要不要真正跑完整 smoke，可先
 执行 `scripts/check_project_template_smoke_manifest.ps1`。示例 manifest 现

@@ -1317,7 +1317,10 @@ numbering catalog, table layout, and project-template delivery readiness
 summaries under `output/`, records missing reports with rebuild commands, and
 writes `output/release-governance-handoff/summary.json` plus Markdown before
 the release-candidate wrapper consumes the same reports through
-`-ReleaseBlockerRollupAutoDiscover`.
+`-ReleaseBlockerRollupAutoDiscover`. Add `-IncludeReleaseBlockerRollup` when
+you also want the handoff directory to contain a nested
+`release-blocker-rollup/summary.json` and Markdown summary generated from the
+loaded governance reports.
 
 If you also want release-preflight to gate a template DOCX against a committed
 schema baseline, pass `-TemplateSchemaInputDocx`, `-TemplateSchemaBaseline`,

@@ -14,6 +14,7 @@ param(
     [string]$OutputDir = "output/release-governance-handoff",
     [string]$SummaryJson = "",
     [string]$ReportMarkdown = "",
+    [switch]$IncludeReleaseBlockerRollup,
     [switch]$FailOnMissing,
     [switch]$FailOnBlocker,
     [switch]$FailOnWarning
@@ -171,6 +172,31 @@ function New-ExpectedReport {
     }
 }
 
+function Invoke-ReleaseBlockerRollup {
+    param(
+        [string]$RepoRoot,
+        [string]$OutputDir,
+        [string[]]$InputJson
+    )
+
+    if (@($InputJson).Count -eq 0) {
+        throw "Release blocker rollup requires at least one loaded governance report."
+    }
+
+    $scriptPath = Join-Path $RepoRoot "scripts\build_release_blocker_rollup_report.ps1"
+    $arguments = @(
+        "-InputJson"
+        (@($InputJson) -join ",")
+        "-OutputDir"
+        $OutputDir
+    )
+    $commandOutput = @(& (Get-Process -Id $PID).Path -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath @arguments 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        $errorText = (@($commandOutput | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
+        throw "Failed to build release blocker rollup. Output: $errorText"
+    }
+}
+
 function New-ReportEntry {
     param(
         [string]$RepoRoot,
@@ -325,6 +351,9 @@ $markdownPath = if ([string]::IsNullOrWhiteSpace($ReportMarkdown)) {
 }
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($summaryPath))
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($markdownPath))
+$releaseBlockerRollupOutputDir = Join-Path $resolvedOutputDir "release-blocker-rollup"
+$releaseBlockerRollupSummaryPath = Join-Path $releaseBlockerRollupOutputDir "summary.json"
+$releaseBlockerRollupMarkdownPath = Join-Path $releaseBlockerRollupOutputDir "release_blocker_rollup.md"
 
 $expectedReports = @(
     New-ExpectedReport `
@@ -464,6 +493,15 @@ $summary = [ordered]@{
     summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
     report_markdown = $markdownPath
     report_markdown_display = Get-DisplayPath -RepoRoot $repoRoot -Path $markdownPath
+    release_blocker_rollup = [ordered]@{
+        included = [bool]$IncludeReleaseBlockerRollup
+        output_dir = $releaseBlockerRollupOutputDir
+        output_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBlockerRollupOutputDir
+        summary_json = $releaseBlockerRollupSummaryPath
+        summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBlockerRollupSummaryPath
+        report_markdown = $releaseBlockerRollupMarkdownPath
+        report_markdown_display = Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBlockerRollupMarkdownPath
+    }
     expected_report_count = $expectedReports.Count
     loaded_report_count = $loadedReportCount
     missing_report_count = $missingReportCount
@@ -479,6 +517,25 @@ $summary = [ordered]@{
 
 ($summary | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 (New-ReportMarkdown -Summary $summary) | Set-Content -LiteralPath $markdownPath -Encoding UTF8
+
+if ($IncludeReleaseBlockerRollup) {
+    $loadedReports = @($reports.ToArray() | Where-Object { $_.status -notin @("missing", "failed") })
+    $loadedReportInputs = @(
+        foreach ($report in $loadedReports) {
+            [string]$report.expected_summary
+        }
+    )
+    Invoke-ReleaseBlockerRollup `
+        -RepoRoot $repoRoot `
+        -OutputDir $releaseBlockerRollupOutputDir `
+        -InputJson $loadedReportInputs
+    if (-not (Test-Path -LiteralPath $releaseBlockerRollupSummaryPath)) {
+        throw "Release blocker rollup was not written: $releaseBlockerRollupSummaryPath"
+    }
+    if (-not (Test-Path -LiteralPath $releaseBlockerRollupMarkdownPath)) {
+        throw "Release blocker rollup Markdown was not written: $releaseBlockerRollupMarkdownPath"
+    }
+}
 
 Write-Step "Summary JSON: $summaryPath"
 Write-Step "Report Markdown: $markdownPath"

@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "missing", "fail_on_missing", "explicit_input")]
+    [ValidateSet("all", "aggregate", "missing", "fail_on_missing", "explicit_input", "include_rollup")]
     [string]$Scenario = "all"
 )
 
@@ -261,6 +261,44 @@ if (Test-Scenario -Name "explicit_input") {
         -Message "Explicit handoff should replace the missing default report."
     Assert-Equal -Actual ([string]($summary.reports | Where-Object { $_.id -eq "project_template_delivery_readiness" } | Select-Object -First 1).source) -Expected "explicit" `
         -Message "Explicit handoff should mark the replacement source."
+}
+
+if (Test-Scenario -Name "include_rollup") {
+    $inputRoot = Join-Path $resolvedWorkingDir "include-rollup-input"
+    $outputDir = Join-Path $resolvedWorkingDir "include-rollup-report"
+    Write-GovernanceFixtures -Root $inputRoot
+
+    $result = Invoke-HandoffScript -Arguments @(
+        "-InputRoot", $inputRoot,
+        "-OutputDir", $outputDir,
+        "-IncludeReleaseBlockerRollup"
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Include-rollup handoff should pass without fail gates. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $rollupSummaryPath = Join-Path $outputDir "release-blocker-rollup\summary.json"
+    $rollupMarkdownPath = Join-Path $outputDir "release-blocker-rollup\release_blocker_rollup.md"
+    foreach ($path in @($summaryPath, $rollupSummaryPath, $rollupMarkdownPath)) {
+        Assert-True -Condition (Test-Path -LiteralPath $path) `
+            -Message "Include-rollup handoff should write artifact: $path"
+    }
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([bool]$summary.release_blocker_rollup.included) -Expected $true `
+        -Message "Handoff summary should record the included rollup."
+    Assert-Equal -Actual ([string]$summary.release_blocker_rollup.summary_json) -Expected $rollupSummaryPath `
+        -Message "Handoff summary should expose nested rollup summary path."
+
+    $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
+        -Message "Nested rollup should expose release blocker rollup schema."
+    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 3 `
+        -Message "Nested rollup should consume all loaded governance reports."
+    Assert-Equal -Actual ([int]$rollupSummary.release_blocker_count) -Expected 2 `
+        -Message "Nested rollup should preserve blocker count."
+    Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 3 `
+        -Message "Nested rollup should preserve action item count."
 }
 
 Write-Host "Release governance handoff report regression passed."

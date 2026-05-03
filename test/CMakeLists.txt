@@ -1685,6 +1685,23 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_release_governance_handoff_report_include_rollup
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_handoff_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_handoff_report_include_rollup
+                -Scenario
+                include_rollup
+            )
+
+            add_test(
+                NAME
                 build_release_blocker_rollup_report_empty
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_EXECUTABLE}
