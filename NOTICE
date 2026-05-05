@@ -14,6 +14,21 @@ This repository contains material from multiple licensing sources.
 3. Bundled third-party dependencies
    These components continue to use their own original licenses.
 
+4. Optional PDF writer dependency
+   When FeatherDoc is configured with FEATHERDOC_BUILD_PDF=ON, the experimental
+   FeatherDoc::Pdf module uses PDFio by Michael R Sweet. PDFio is licensed
+   under the Apache License, Version 2.0, with its own NOTICE file. Installed
+   FeatherDoc packages that include FeatherDoc::Pdf should also include the
+   PDFio LICENSE and NOTICE files under the package data directory.
+
+5. Optional PDF parser dependency
+   When FeatherDoc is configured with FEATHERDOC_BUILD_PDF_IMPORT=ON, the
+   experimental FeatherDoc::PdfImport module uses an externally provided
+   PDFium package. PDFium is licensed under the Apache License, Version 2.0.
+   Binary distributions may carry their own package license and notice files;
+   packages that include FeatherDoc::PdfImport should also include the
+   corresponding PDFium license materials.
+
 This repository should be described as source-available rather than pure open
 source for its fork-specific modifications.
 

@@ -34,6 +34,10 @@
 .DS_Store
 build/*
 build-*/
+cmake-build-*/
+.codex-build-*/
+.bpdf/
+.bpdf-*/
 docs/_build/
 output/
 RELEASE_METADATA_START_HERE.md

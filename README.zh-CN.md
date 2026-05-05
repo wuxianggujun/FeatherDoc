@@ -42,6 +42,48 @@ cmake --build build
 顶层构建默认开启 `BUILD_CLI`，除非显式传入 `-DBUILD_CLI=OFF`，
 否则会同时构建 `featherdoc_cli`。
 
+实验性的 PDF 字节写出模块默认关闭。只有在你要推进进程内
+DOCX-to-PDF 路线时才需要显式开启：
+
+```bash
+cmake -S . -B build-pdf -DFEATHERDOC_BUILD_PDF=ON -DBUILD_SAMPLES=ON
+cmake --build build-pdf --target featherdoc_pdfio_probe
+```
+
+这会构建 `FeatherDoc::Pdf`，拉取或使用 PDFio，同时保持主目标
+`FeatherDoc::FeatherDoc` 不依赖 PDFio。
+
+默认构建不会拉取 PDFio / PDFium，也不会安装 PDF 实验模块头文件。
+PDF 能力目前只作为未来支持方向存在，不属于稳定 API。
+
+实验性的 PDF 读入方向同样默认关闭。它默认使用 PDFium 源码 checkout，
+不会自动下载 PDFium：
+
+```bash
+gclient config --unmanaged https://pdfium.googlesource.com/pdfium.git
+gclient sync --no-history --jobs 8
+
+cmake -S . -B build-pdf-import \
+  -DFEATHERDOC_BUILD_PDF_IMPORT=ON \
+  -DFEATHERDOC_PDFIUM_SOURCE_DIR=/path/to/pdfium
+```
+
+源码 provider 会优先使用 PDFium checkout 自带的 `gn` / `ninja`。Windows 上
+链接源码版 `pdfium.lib` 时，建议使用 MSVC `/MT`：
+
+```bash
+-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+```
+
+如果 PDFium 没有自动找到 Visual Studio，可传
+`-DFEATHERDOC_PDFIUM_VS_YEAR=2026` 和
+`-DFEATHERDOC_PDFIUM_VS_INSTALL=/path/to/VisualStudio`。
+完整编译手册见 `BUILDING_PDF.md`，设计背景见
+`design/pdfium-source-build.md`。
+
+如果要继续使用预编译包，可以传
+`-DFEATHERDOC_PDFIUM_PROVIDER=package -DPDFium_DIR=/path/to/pdfium`。
+
 ## MSVC 构建
 
 请先打开 `x64` 的 Visual Studio Developer Command Prompt，或先执行：

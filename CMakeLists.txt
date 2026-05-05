@@ -20,11 +20,26 @@ endif()
 option(BUILD_SHARED_LIBS "Build shared instead of static library" OFF)
 option(BUILD_SAMPLES "Build provided samples" OFF)
 option(BUILD_CLI "Build featherdoc_cli command line utility" ${PROJECT_IS_TOP_LEVEL})
+# PDF support is experimental future work and must remain opt-in.
+option(FEATHERDOC_BUILD_PDF
+    "Build experimental PDF byte writer module backed by PDFio" OFF)
+option(FEATHERDOC_BUILD_PDF_IMPORT
+    "Build experimental PDF parser module backed by PDFium" OFF)
 
 set(HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/constants.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc_iterator.hpp"
+)
+set(PDF_COMMON_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_interfaces.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_layout.hpp"
+)
+set(PDF_WRITER_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_writer.hpp"
+)
+set(PDF_IMPORT_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_parser.hpp"
 )
 set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/constants.cpp"
@@ -104,6 +119,100 @@ if(MSVC)
     target_compile_definitions(FeatherDoc PRIVATE _CRT_SECURE_NO_WARNINGS)
 else()
     target_compile_options(FeatherDoc PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+if(FEATHERDOC_BUILD_PDF)
+    include(cmake/FeatherDocPdfio.cmake)
+    featherdoc_add_pdfio_object_library(featherdoc_pdfio_objects)
+
+    add_library(FeatherDocPdf
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_writer.cpp"
+        $<TARGET_OBJECTS:featherdoc_pdfio_objects>
+    )
+    add_library(FeatherDoc::Pdf ALIAS FeatherDocPdf)
+
+    target_compile_features(FeatherDocPdf PUBLIC cxx_std_20)
+    set_target_properties(FeatherDocPdf PROPERTIES
+        CXX_EXTENSIONS NO
+        CXX_STANDARD_REQUIRED YES
+        EXPORT_NAME Pdf
+        VERSION ${PROJECT_VERSION}
+        SOVERSION ${PROJECT_VERSION_MAJOR}
+    )
+
+    if(WIN32)
+        set_target_properties(FeatherDocPdf PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    endif()
+
+    target_include_directories(FeatherDocPdf
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        PRIVATE
+            $<BUILD_INTERFACE:${FEATHERDOC_RESOLVED_PDFIO_SOURCE_DIR}>
+    )
+    target_link_libraries(FeatherDocPdf
+        PUBLIC
+            FeatherDoc::FeatherDoc
+    )
+
+    if(MSVC)
+        target_compile_options(FeatherDocPdf PRIVATE /W4 /permissive-)
+        target_compile_definitions(FeatherDocPdf PRIVATE _CRT_SECURE_NO_WARNINGS)
+    else()
+        target_compile_options(FeatherDocPdf PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endif()
+
+if(FEATHERDOC_BUILD_PDF_IMPORT)
+    include(cmake/FeatherDocPdfium.cmake)
+
+    if(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "source")
+        featherdoc_add_pdfium_source_target(featherdoc_pdfium_source)
+        set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_source)
+    elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "package")
+        featherdoc_find_pdfium_package(FEATHERDOC_PDFIUM_TARGET)
+    else()
+        message(FATAL_ERROR
+            "Unsupported FEATHERDOC_PDFIUM_PROVIDER: "
+            "${FEATHERDOC_PDFIUM_PROVIDER}. Use source or package.")
+    endif()
+
+    add_library(FeatherDocPdfImport
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdfium_parser.cpp"
+    )
+    add_library(FeatherDoc::PdfImport ALIAS FeatherDocPdfImport)
+
+    target_compile_features(FeatherDocPdfImport PUBLIC cxx_std_20)
+    set_target_properties(FeatherDocPdfImport PROPERTIES
+        CXX_EXTENSIONS NO
+        CXX_STANDARD_REQUIRED YES
+        EXPORT_NAME PdfImport
+        VERSION ${PROJECT_VERSION}
+        SOVERSION ${PROJECT_VERSION_MAJOR}
+    )
+
+    if(WIN32)
+        set_target_properties(FeatherDocPdfImport PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    endif()
+
+    target_include_directories(FeatherDocPdfImport
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    )
+    target_link_libraries(FeatherDocPdfImport
+        PUBLIC
+            FeatherDoc::FeatherDoc
+        PRIVATE
+            ${FEATHERDOC_PDFIUM_TARGET}
+    )
+
+    if(MSVC)
+        target_compile_options(FeatherDocPdfImport PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(FeatherDocPdfImport PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
 endif()
 
 if(BUILD_SAMPLES)
@@ -640,6 +749,36 @@ if(BUILD_SAMPLES)
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
+if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF)
+    add_executable(featherdoc_pdfio_probe samples/pdfio_probe.cpp)
+    target_link_libraries(featherdoc_pdfio_probe PRIVATE FeatherDoc::Pdf)
+    featherdoc_copy_runtime_dlls(featherdoc_pdfio_probe)
+
+    if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
+        add_test(
+            NAME pdfio_generator_probe
+            COMMAND featherdoc_pdfio_probe
+                "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-pdfio-probe.pdf"
+        )
+    endif()
+endif()
+
+if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF_IMPORT)
+    add_executable(featherdoc_pdfium_probe samples/pdfium_probe.cpp)
+    target_link_libraries(featherdoc_pdfium_probe PRIVATE FeatherDoc::PdfImport)
+    featherdoc_copy_runtime_dlls(featherdoc_pdfium_probe)
+
+    if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING AND TARGET featherdoc_pdfio_probe)
+        add_test(
+            NAME pdfium_parser_probe
+            COMMAND featherdoc_pdfium_probe
+                "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-pdfio-probe.pdf"
+        )
+        set_tests_properties(pdfium_parser_probe
+            PROPERTIES DEPENDS pdfio_generator_probe)
+    endif()
+endif()
+
 if(BUILD_CLI)
     add_executable(featherdoc_cli
         cli/featherdoc_cli_main.cpp
@@ -654,6 +793,12 @@ if(BUILD_CLI)
         TARGETS featherdoc_cli
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
+endif()
+
+set(FEATHERDOC_INSTALLS_PDF ${FEATHERDOC_BUILD_PDF})
+set(FEATHERDOC_INSTALLS_PDF_IMPORT OFF)
+if(FEATHERDOC_BUILD_PDF_IMPORT AND FEATHERDOC_PDFIUM_PROVIDER STREQUAL "package")
+    set(FEATHERDOC_INSTALLS_PDF_IMPORT ON)
 endif()
 
 configure_package_config_file(
@@ -678,6 +823,27 @@ install(
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
+if(FEATHERDOC_BUILD_PDF)
+    install(
+        TARGETS FeatherDocPdf
+        EXPORT FeatherDocTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+endif()
+
+if(FEATHERDOC_INSTALLS_PDF_IMPORT)
+    install(
+        TARGETS FeatherDocPdfImport
+        EXPORT FeatherDocTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif()
+
 install(
     EXPORT FeatherDocTargets
     NAMESPACE FeatherDoc::
@@ -688,6 +854,35 @@ install(
     FILES ${HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+
+if(FEATHERDOC_BUILD_PDF OR FEATHERDOC_INSTALLS_PDF_IMPORT)
+    install(
+        FILES ${PDF_COMMON_HEADERS}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc/pdf
+    )
+endif()
+
+if(FEATHERDOC_BUILD_PDF)
+    install(
+        FILES ${PDF_WRITER_HEADERS}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc/pdf
+    )
+
+    install(
+        FILES
+            "${FEATHERDOC_RESOLVED_PDFIO_SOURCE_DIR}/LICENSE"
+            "${FEATHERDOC_RESOLVED_PDFIO_SOURCE_DIR}/NOTICE"
+        DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/thirdparty/pdfio"
+            OPTIONAL
+    )
+endif()
+
+if(FEATHERDOC_INSTALLS_PDF_IMPORT)
+    install(
+        FILES ${PDF_IMPORT_HEADERS}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc/pdf
+    )
+endif()
 
 install(
     FILES ${PUGIXML_HEADERS}

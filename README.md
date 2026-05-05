@@ -34,6 +34,45 @@ cmake --build build
 Top-level builds enable `BUILD_CLI` by default, so the `featherdoc_cli`
 utility is built alongside the library unless you pass `-DBUILD_CLI=OFF`.
 
+The experimental PDF byte writer module is off by default. Enable it only when
+you want to work on the in-process DOCX-to-PDF path:
+
+```bash
+cmake -S . -B build-pdf -DFEATHERDOC_BUILD_PDF=ON -DBUILD_SAMPLES=ON
+cmake --build build-pdf --target featherdoc_pdfio_probe
+```
+
+This builds `FeatherDoc::Pdf`, fetches or uses PDFio, and keeps the main
+`FeatherDoc::FeatherDoc` target independent from PDFio.
+
+Default builds do not fetch PDFio or PDFium, do not install experimental PDF
+headers, and do not treat PDF support as part of the stable API.
+
+The experimental PDF import path is also opt-in. It builds against a PDFium
+source checkout by default and does not download PDFium automatically:
+
+```bash
+gclient config --unmanaged https://pdfium.googlesource.com/pdfium.git
+gclient sync --no-history --jobs 8
+
+cmake -S . -B build-pdf-import \
+  -DFEATHERDOC_BUILD_PDF_IMPORT=ON \
+  -DFEATHERDOC_PDFIUM_SOURCE_DIR=/path/to/pdfium
+```
+
+The source provider prefers the `gn` / `ninja` binaries inside the PDFium
+checkout. When linking source-built `pdfium.lib` on Windows, use MSVC `/MT`:
+
+```bash
+-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+```
+
+If PDFium cannot detect Visual Studio, pass `FEATHERDOC_PDFIUM_VS_YEAR` and
+`FEATHERDOC_PDFIUM_VS_INSTALL`. See `BUILDING_PDF.md` for the build runbook
+and `design/pdfium-source-build.md` for design context. Prebuilt packages are
+still supported with
+`-DFEATHERDOC_PDFIUM_PROVIDER=package -DPDFium_DIR=/path/to/pdfium`.
+
 ## Build With MSVC
 
 Open an `x64` Visual Studio Developer Command Prompt first, or initialize the
