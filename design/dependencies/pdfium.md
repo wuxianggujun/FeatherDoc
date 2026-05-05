@@ -2,10 +2,10 @@
 
 > 本文档记录 FeatherDoc 实验性 PDF 读入模块如何使用 PDFium 源码构建。
 >
-> 阅读前置：[Word ⇄ PDF 转换器路线](word-pdf-converter-roadmap.md)、
-> [Word ⇄ PDF 转换器架构](word-pdf-converter-architecture.md)。
+> 阅读前置：[../02-current-roadmap.md](../02-current-roadmap.md)、
+> [../01-architecture.md](../01-architecture.md)。
 >
-> 如果只想照着编译，请看仓库根目录的 [PDF 构建手册](../BUILDING_PDF.md)。
+> 如果只想照着编译，请看仓库根目录的 [PDF 构建手册](../../BUILDING_PDF.md)。
 
 ## 定位
 

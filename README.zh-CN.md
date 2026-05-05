@@ -79,7 +79,7 @@ cmake -S . -B build-pdf-import \
 `-DFEATHERDOC_PDFIUM_VS_YEAR=2026` 和
 `-DFEATHERDOC_PDFIUM_VS_INSTALL=/path/to/VisualStudio`。
 完整编译手册见 `BUILDING_PDF.md`，设计背景见
-`design/pdfium-source-build.md`。
+`design/dependencies/pdfium.md`。
 
 如果要继续使用预编译包，可以传
 `-DFEATHERDOC_PDFIUM_PROVIDER=package -DPDFium_DIR=/path/to/pdfium`。

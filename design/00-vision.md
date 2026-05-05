@@ -2,7 +2,7 @@
 
 > 本文档讨论 FeatherDoc Core 在 PDF 渲染问题上"自研 vs 外购"的决策依据。
 >
-> 阅读前置：[PDF 渲染策略](pdf-rendering-strategy.md)。
+> 阅读前置：[长期渲染愿景](03-long-term-roadmap.md)。
 
 ## 简短结论
 
@@ -139,6 +139,71 @@ LibreOffice 代码大部分是 **MPL 2.0 / LGPL 3.0+**。这两个都是 **copyl
 
 **没有任何成功产品是"抽离 LibreOffice 集成进自家库"** —— 既不合法可行，也不工程可行。
 
+## 学习 LibreOffice ≠ 替换开源依赖去重写
+
+随着 AI 编码工具普及，会反复出现一种诱惑：**"既然 LibreOffice 开源，能不能让 AI 把它的 PDF 核心整体重写一遍，顺便把 PDFio / PDFium 这种依赖也去掉？"**
+
+这个想法**必须明确否定**。理由：
+
+### 理由 1：层级搞错了
+
+LibreOffice 的 PDF 输出强 ≠ `pdfwriter_impl.cxx` 这一层强。它的输出质量来源是：
+
+```
+LO 输出强 = LO 排版引擎  +  字体/HarfBuzz 整合  +  22 年 OOXML 边界修复
+            ↑ 占 ~90%                              ↑ 不在 pdfwriter 这一层
+LO 的 PDF 写出器（≈ PDFio 的对位） 本身只占 ~10%
+```
+
+把 PDFio 替换成"AI 重写的 pdfwriter_impl"，**层级没变，能力没增**——增的只是几十万行没有回归测试集托底的代码。
+
+### 理由 2：PDFio / PDFium 是经过职责裁剪的开源依赖，不是临时占位
+
+| 依赖 | 角色 | 规模 | 许可证 | 替换收益 |
+|---|---|---|---|---|
+| **PDFio** | PDF 字节写出层（写） | ~1.5 万行 C | Apache 2.0 | ❌ 无 |
+| **PDFium** | PDF 解析 / 预览（读） | 大，但稳定 | Apache 2.0 / BSD | ❌ 无 |
+
+它们已经满足"职责窄、协议好、能 fork、可分发"四个条件。把它们换成 AI 重写的 LO 子集，**所有四个维度都变差**。
+
+### 理由 3：LO 的源码价值在"参考实现"，不在"被搬运"
+
+正确的姿势是把 LibreOffice 当成**算法参考库**：
+
+| 场景 | 正确做法 | 错误做法 |
+|---|---|---|
+| OOXML 段落断行规则不清楚 | 读 `sw/source/core/text/` 里的处理逻辑，按 ECMA-376 规范在自己 Layout 引擎里独立实现 | 把那部分代码挖出来塞进 Core |
+| 表格嵌套规则不清楚 | 读 LO 的实现作为对照，看它怎么处理边界条件 | 复制 LO 的 table 类 |
+| 字体子集化算法不会写 | 读 `vcl/source/fontsubset/` 学算法，自己用 FreeType 写 | 复制 LO 的 fontsubset 模块 |
+| PDF/A 合规细节 | 读 LO 的 PDF/A pipeline 学规则点，在 PDFio 之上写自己的合规层 | 把 LO 的 PDF/A 代码搬进来 |
+
+**学算法、学边界条件、学规范理解 ≠ 搬代码**。前者是阅读，后者是 fork 一个 LibreOffice。
+
+### 理由 4：AI 重写并没有让"挖 LO"变可行
+
+AI 工具放大了**写代码的速度**，没有放大：
+
+- 测试集（22 年的回归用例）
+- 跨平台真实文档兼容性数据
+- 字体边界 bug 的修复历史
+- VCL/UNO/SAL 类型耦合的解耦工作量
+- 长期维护这些代码的人力
+
+**AI 帮你 1 天生成 5 万行"等价重写"，等价不等价靠什么验证？** 没有 LO 的测试集，等价就是空话。这就是为什么 AI 让"挖 LO" 看起来更可行，但实际上风险更高——产生的代码量更大、检验门槛却没变。
+
+### 结论性约束
+
+写进项目长期约束：
+
+- ✅ 允许阅读 LibreOffice 源码理解算法、规范、边界条件
+- ✅ 允许在论文 / 注释中引用 LO 的实现思路（保留出处）
+- ✅ 允许在自己的 Layout / Renderer 中实现等价算法（独立写、独立测）
+- ❌ **不允许**为了"减少开源依赖"而用 AI 重写 LO 子系统替换 PDFio / PDFium
+- ❌ **不允许**直接复制 LO 源码进 Core（许可证 + 工程双重原因）
+- ❌ **不允许**把"AI 整体重写 LO 的 PDF 核心"列入 roadmap
+
+PDFio 和 PDFium 在 Core 路线里的位置是**长期稳定依赖**，不是过渡品。它们的能力边界在 [dependencies/pdfio.md](dependencies/pdfio.md) 文档里有专门讨论。
+
 ## 自研的真实价值
 
 那 Core 为什么还要考虑自研？
@@ -208,8 +273,7 @@ LibreOffice 代码大部分是 **MPL 2.0 / LGPL 3.0+**。这两个都是 **copyl
 
 ## 相关文档
 
-- [PDF 渲染策略](pdf-rendering-strategy.md)
-- [PDF 渲染路线](pdf-rendering-roadmap.md)
-- [PDF 渲染架构](pdf-rendering-architecture.md)
-- [Word ⇄ PDF 转换器架构](word-pdf-converter-architecture.md)
-- [Skia PDF 后端](skia-pdf-backend.md)
+- [长期渲染愿景](03-long-term-roadmap.md) — 自研 PDF 渲染的策略 + 架构 + 阶段路线
+- [当前主路线](02-current-roadmap.md) — 0–6 个月的依赖优先路线
+- [01-architecture.md](01-architecture.md) — 三件套（docs + PDFio + PDFium）整体架构
+- [dependencies/skia.md](dependencies/skia.md) — Skia + SkPDF 评估

@@ -1,8 +1,10 @@
-# Skia PDF 后端
+# Skia PDF 后端（长期评估方向）
 
 > 本文档讨论 FeatherDoc Core 在自研 PDF 渲染场景下，**Skia 该不该用、用在哪、什么时候用**。
 >
-> 阅读前置：[PDF 渲染策略](pdf-rendering-strategy.md)、[PDF 渲染架构](pdf-rendering-architecture.md)。
+> ⚠️ 本文不在当前主路线（[../02-current-roadmap.md](../02-current-roadmap.md)）范围内，仅为长期评估。
+>
+> 阅读前置：[../03-long-term-roadmap.md](../03-long-term-roadmap.md)。
 
 ## 结论先行
 
@@ -164,7 +166,5 @@ Core 自研 PDF 渲染
 
 ## 相关文档
 
-- [PDF 渲染策略](pdf-rendering-strategy.md)
-- [PDF 渲染架构](pdf-rendering-architecture.md)
-- [PDF 渲染路线](pdf-rendering-roadmap.md)
-- [PDFio 字节写出层](pdfio-byte-writer.md)
+- [../03-long-term-roadmap.md](../03-long-term-roadmap.md) — 长期渲染愿景（策略/架构/阶段）
+- [pdfio.md](pdfio.md) — PDFio 字节写出层（当前默认 backend）

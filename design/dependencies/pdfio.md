@@ -3,9 +3,8 @@
 > 本文档定义 FeatherDoc Core 自研 PDF 路线中的**第一层落地目标**：
 > 先拥有轻量、可替换、可商业分发的 PDF 字节生成能力。
 >
-> 阅读前置：[PDF 渲染策略](pdf-rendering-strategy.md)、
-> [Word ⇄ PDF 转换器架构](word-pdf-converter-architecture.md)、
-> [PDF 渲染架构](pdf-rendering-architecture.md)。
+> 阅读前置：[../03-long-term-roadmap.md](../03-long-term-roadmap.md)、
+> [../01-architecture.md](../01-architecture.md)。
 
 ## 定位
 
@@ -60,6 +59,98 @@ IPdfGenerator
 - LibreOffice：是完整 Office 转换器，不应嵌入 Core。
 - MuPDF / Poppler：许可证和分发约束不适合当前目标。
 - libharu：许可证友好，但 API 和维护状态不如 PDFio 更适合作为第一选择。
+
+## PDFio 与 LibreOffice PDF 写出器的能力对比
+
+会反复出现的疑问：**"PDFio 的能力是不是不够，要不要把 LibreOffice 的 PDF 核心挖过来？"**
+
+这个比较在层级上是错位的。
+
+### 层级对位
+
+LibreOffice 的 PDF 输出能力**不是一个模块**，是分层的：
+
+```text
+Writer / Calc / Impress 排版引擎
+        ↓ 已经决定坐标 / 字体 / 字形
+vcl/source/gdi/pdfwriter_impl.cxx   ← 这一层才和 PDFio 对位
+        ↓
+PDF 字节
+```
+
+也就是说，LO 的 `pdfwriter_impl` 在职责范围上和 PDFio **几乎相同**——都是 PDF 对象 / 页 /
+流 / xref / 字体嵌入 / 图像写出。LO 的 PDF 输出"看起来强"主要来自上游排版引擎，**不是**
+来自 pdfwriter 本身比 PDFio 神。
+
+### 功能盘点
+
+PDFio 已具备的能力：
+
+- PDF 1.x 对象、xref、压缩流
+- TrueType / CFF 字体嵌入 + 子集化
+- 图像：JPEG / JPEG2000 / CCITT / 索引色
+- AES-128 / AES-256 加密
+- /ToUnicode CMap、CID 字体（CJK 可用）
+- 读 + 写双向能力
+
+PDFio 当前不具备但 LO 有的能力，以及它们对 FeatherDoc 路线的相关性：
+
+| 功能 | PDFio | LO | 相关性 |
+|---|---|---|---|
+| PDF/A-1/2/3 严格合规 | 无 | 完整流水线 | 归档场景需要，可在 PDFio 之上加合规层 |
+| Tagged PDF / PDF/UA | 弱 | 完整结构树 | 无障碍场景需要，独立模块挂载 |
+| 数字签名 PAdES | 无 | 完整链 | 合同电子签需要，OpenSSL 直接接 |
+| AcroForm 创建 | 弱 | 有 | 表单生成才需要 |
+| Linearization | 无 | 有 | 在线预览才需要 |
+| OCG / 图层 | 无 | 有 | CAD/工程图才需要 |
+| ICC 输出意向 | 弱 | 有 | 印刷才需要 |
+| 复杂文字整形（双向 / 连字 / 组合字符） | 不管 | 接 HarfBuzz | **属于 Layout 层，不是 PDF 写出层** |
+
+注意最后一行：**复杂文字整形归 Layout 引擎**，HarfBuzz 由 FeatherDoc 自己直接接，不需要从
+LO 里挖。PDFio / pdfwriter 这一层拿到的都是已经整形好的字形 ID + 坐标。
+
+### 正确的能力补齐方式：分层挂载，不是替换
+
+PDFio 是**写出基座**。当业务确实需要 PDF/A / 签名 / Tagged PDF 等高级特性时，正确做法是
+**在 PDFio 之上挂载孤立、有界的功能模块**，而不是把 PDFio 整体替换成"AI 重写的 LO 子集"。
+
+```text
+你的 Layout Engine
+       ↓
+   PDFio （字节写出基座，~1.5 万行，可读可改可 fork）
+       ↓ 按需挂载：
+       ├── PDF/A 合规模块（自写，~1–2 千行 + veraPDF 校验）
+       ├── 数字签名（OpenSSL 算 CMS，~500 行胶水）
+       ├── Tagged PDF 结构树（自写，~1 千行）
+       └── HarfBuzz 整形（接库，~300 行胶水）
+```
+
+这个方案与"挖 LO" 的工程量级对比：
+
+| 维度 | 挖 LO 子系统 | PDFio + 按需补差 |
+|---|---|---|
+| 一次性工程量 | 几十万行 + VCL/UNO/SAL 解耦 | 每块 ≤ 2 千行，独立 |
+| 测试托底 | 没有 LO 测试集 = 没用 | veraPDF / pdfium / 真实 PDF 阅读器 |
+| 维护负担 | 长期跟 LO 上游 + 自己 patch | 维护 PDFio 上游 + 局部模块 |
+| 许可证 | MPL / LGPL（详见 [../00-vision.md](../00-vision.md)） | Apache 2.0 + 自有代码 |
+| 可发布性 | 受 copyleft 约束 | 自由 |
+
+### 关于 PDFio 的真实风险
+
+公平起见，PDFio 也有风险，但都不是"功能不够"：
+
+- **Bus factor = 1**：Michael Sweet 一人维护（同一作者维护 CUPS）。
+  缓解：Apache 2.0 允许 fork，1.5 万行 C 在 FeatherDoc 团队内可控。
+- **生态小**：第三方扩展少，遇到边角问题需要自己读代码定位。
+  缓解：用 PDFium 做反向校验（PDFio 写出 → PDFium 解析 → 字段 diff）。
+
+这些风险**显著小于**"挖 LO 几十万行进项目"的风险。具体见
+[../00-vision.md](../00-vision.md) 的"学习 LibreOffice ≠ 替换开源依赖"一节。
+
+### 结论
+
+PDFio **不是"功能弱"，是"职责窄"**——窄是优点。FeatherDoc PDF 路线长期保留 PDFio 作为
+写出基座；高级功能通过孤立模块在其上挂载，不通过整体替换。
 
 ## 集成原则
 

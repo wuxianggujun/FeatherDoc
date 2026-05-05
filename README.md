@@ -69,7 +69,7 @@ checkout. When linking source-built `pdfium.lib` on Windows, use MSVC `/MT`:
 
 If PDFium cannot detect Visual Studio, pass `FEATHERDOC_PDFIUM_VS_YEAR` and
 `FEATHERDOC_PDFIUM_VS_INSTALL`. See `BUILDING_PDF.md` for the build runbook
-and `design/pdfium-source-build.md` for design context. Prebuilt packages are
+and `design/dependencies/pdfium.md` for design context. Prebuilt packages are
 still supported with
 `-DFEATHERDOC_PDFIUM_PROVIDER=package -DPDFium_DIR=/path/to/pdfium`.
 

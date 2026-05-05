@@ -1,8 +1,11 @@
-# Word ⇄ PDF 转换器路线
+# 当前主路线：Word ⇄ PDF 转换器（依赖优先）
 
-> 本文档定义 FeatherDoc Core 的 Word ⇄ PDF 双向转换推进路线。
+> 本文档定义 FeatherDoc Core **当前 0–6 个月**的 Word ⇄ PDF 双向转换推进路线。
 >
-> 阅读前置：[Word ⇄ PDF 转换器架构](word-pdf-converter-architecture.md)。
+> 这是**当前主路线**——优先用好 PDFio / PDFium，不是自研引擎。
+>
+> 阅读前置：[01-architecture.md](01-architecture.md)。
+> 长期愿景（自研排版引擎，6 个月后才考虑）见 [03-long-term-roadmap.md](03-long-term-roadmap.md)。
 
 ## 路线原则
 
@@ -127,12 +130,108 @@ Phase 1 的重点是：
 - [x] 已新增 `PdfiumParser` 作为 `IPdfParser` 的第一版实现
 - [x] `FEATHERDOC_BUILD_PDF_IMPORT` 默认关闭，开启时默认使用 PDFium 源码 checkout
 - [x] 已新增 `cmake/FeatherDocPdfium.cmake`，通过 GN/Ninja 构建 PDFium 源码
-- [x] 已新增 [PDFium 源码构建接入](pdfium-source-build.md)
+- [x] 已新增 [PDFium 源码构建接入](dependencies/pdfium.md)
 - [x] 已接入本机 PDFium 源码 checkout 并验证 `featherdoc_pdfium_probe`
 - [x] 已用 PDFio probe 生成的 PDF 验证 PDFium 可提取页面和 text spans
 - [x] 同时开启 PDFio / PDFium 时，已有 `pdfium_parser_probe` CTest 覆盖写出后再读入
 - [x] 同时开启 PDFio / PDFium 时，已有 `pdfium_document_parser_probe` CTest 覆盖 docs 段落写出后再读入
 - [ ] 10-20 个 PDF 样本尚未建立
+
+## 当前下一步任务（按优先级）
+
+> 本节是 Phase 1 → Phase 2 之间的**具体执行清单**，把"链路已通"推进到"输出可用"。
+>
+> 进展应直接更新本节的 checkbox 状态，而不是另开文档。
+
+当前 PDF 输出能跑通端到端，但质量层面还停留在 probe 级别——换行靠字符数估算、没有真实
+字体度量、不能嵌入 CJK 字体、不带样式。下面四步按依赖顺序推进，**每一步是后一步的前置**。
+
+### 优先级 1：FreeType 集成 + 字体度量（约 1 个月）
+
+**问题**：当前 `layout_document_paragraphs()` 用"字符数 × 估算宽度"算换行。这是后续所有
+"和 Word 视觉一致" 目标的瓶颈。
+
+**子任务**：
+
+- [ ] 把 FreeType 接入 `FeatherDoc::Pdf` 构建（默认仍 OFF，只在 `FEATHERDOC_BUILD_PDF=ON`
+      时拉取）
+- [ ] 实现最小 `FontMetrics`：从字体文件读 ascent / descent / line gap / 每字形的
+      advance width
+- [ ] 在 `PdfDocumentLayout` 里把字符宽度从估算改为真实 advance
+- [ ] 行高从固定值改为 `ascent + descent + line gap`
+- [ ] 给 `featherdoc_pdf_document_probe` 加一个真实字体测试用例
+
+**验收**：换行位置和行高与字体度量一致，不再是估算。
+
+### 优先级 2：CJK 字体嵌入 + ToUnicode CMap（约 1 个月）
+
+**问题**：FeatherDoc 是中文项目，没有 CJK 字体嵌入就没有合格的 PDF 输出。当前 PDFio probe
+没有写 ToUnicode，输出的中文 PDF**无法复制粘贴**。
+
+**子任务**：
+
+- [ ] 选定一个开源 CJK TTF（思源黑体 / 思源宋体 / Noto CJK 之一），列出许可证义务
+- [ ] 通过 PDFio 实现字体子集嵌入（不嵌入整个 20 MB 字体）
+- [ ] 写 /ToUnicode CMap，使 PDF 阅读器能复制粘贴出正确 Unicode
+- [ ] 中文 sample DOCX → PDF → 用 PDFium 反向提取文本，断言文本一致
+- [ ] 加 CTest：`pdfium_document_parser_probe` 扩展到中文路径
+
+**关键依赖检查**：如果 PDFio 在 CJK 字体子集 + ToUnicode 上**不可用或不稳定**，触发
+[dependencies/pdfio.md](dependencies/pdfio.md) §"放弃条件"中的"无法满足字体嵌入和 ToUnicode 的最低要求"，进入评估替代方案。**不允许**用"挖 LibreOffice"作为替代，详见
+[00-vision.md](00-vision.md) §"学习 LibreOffice ≠ 替换开源依赖"。
+
+**验收**：中文 PDF 在 Adobe Reader / Foxit / SumatraPDF 中文本可复制、可搜索。
+
+### 优先级 3：样式映射（约 2–3 周）
+
+**问题**：当前 layout 不识别 `Run.bold` / `italic` / `font_size` / `color`，输出看起来像
+probe 不像文档。
+
+**子任务**：
+
+- [ ] 扩展 `PdfDocumentLayout` 的 Run 表达：font weight、font style、font size、color、
+      下划线
+- [ ] `layout_document_paragraphs()` 把 `Run` 字段翻译进 layout
+- [ ] PDFio backend 在 content stream 里展开（粗体一般通过加粗字体或描边模拟，斜体用
+      字体的 italic 变体或 PDF 矩阵倾斜）
+- [ ] 给 `featherdoc_pdf_document_probe` 加样式 sample
+
+**验收**：合同 sample DOCX 的粗体 / 斜体 / 字号 / 颜色在输出 PDF 上正确呈现。
+
+### 优先级 4：HarfBuzz 文字塑形（约 1 个月）
+
+**问题**：到优先级 3 完成后，简单中英文输出已可用。但 CJK 标点挤压、阿拉伯数字和中文混排
+间距、连字（fi / fl）等场景需要 HarfBuzz。
+
+**子任务**：
+
+- [ ] HarfBuzz 接入 `FeatherDoc::Pdf` 构建
+- [ ] 实现 `shaper_bridge`：输入 Unicode 字符串 + 字体，输出 GlyphRun（glyphId / xAdvance /
+      xOffset / yOffset）
+- [ ] `PdfDocumentLayout` 改为消费 GlyphRun 而非字符串
+- [ ] PDFio backend 用 glyph ID 写出 content stream
+- [ ] 视觉回归 sample 集扩展到中英混排、CJK 标点用例
+
+**验收**：CJK 标点挤压、连字、混排间距与 LibreOffice 输出对比可接受。
+
+### 完成后的里程碑
+
+四步全部完成时，应能拿出以下 demo：
+
+> **拿一个真实中文合同 DOCX，用 `featherdoc_pdf_document_probe`（或新 CLI）输出 PDF，
+> PDF 里的中文能复制粘贴、字体粗细对、字号对、行距对、CJK 标点正确。**
+
+这个 demo 稳定后，Phase 1 正式收尾，进入 Phase 2「稳定 + 优化」。
+
+### 不在本清单内的任务
+
+以下任务**明确不在**当前下一步范围，不要被诱惑去做：
+
+- ❌ 排版引擎（断行 / 分页 / 表格）的真实算法——属于 [03-long-term-roadmap.md](03-long-term-roadmap.md) 的 LR-1
+- ❌ 自研 PDF writer 替换 PDFio——同上
+- ❌ 从 LibreOffice 挖代码——任何时候都不允许，详见 [00-vision.md](00-vision.md)
+- ❌ 接 Skia——见 [dependencies/skia.md](dependencies/skia.md)，长期评估方向不是当前任务
+- ❌ 默认开启 PDF 模块——`FEATHERDOC_BUILD_PDF` 必须保持 OFF
 
 ## Phase 2：稳定 + 优化（3 - 6 个月）
 

@@ -2,7 +2,7 @@
 
 > 本文档定义 FeatherDoc Core 自研 PDF 渲染**各阶段覆盖的 OOXML 特性子集**。
 >
-> 阅读前置：[PDF 渲染策略](pdf-rendering-strategy.md)、[PDF 渲染路线](pdf-rendering-roadmap.md)。
+> 阅读前置：[../03-long-term-roadmap.md](../03-long-term-roadmap.md)。
 
 ## 设计原则
 
@@ -133,7 +133,7 @@ Phase 1    Phase 2      Phase 3       Phase 4+
 
 ## 不支持特性的处理
 
-文档遇到当前 Profile 不支持的特性时，按 [PDF 渲染架构](pdf-rendering-architecture.md) 中"不支持特性的处理策略"段落处理：
+文档遇到当前 Profile 不支持的特性时，按 [../03-long-term-roadmap.md](../03-long-term-roadmap.md) §13「错误处理」中"不支持特性的处理策略"段落处理：
 
 | 策略 | 行为 |
 |---|---|
@@ -180,6 +180,5 @@ Phase 1    Phase 2      Phase 3       Phase 4+
 
 ## 相关文档
 
-- [PDF 渲染策略](pdf-rendering-strategy.md)
-- [PDF 渲染路线](pdf-rendering-roadmap.md)
-- [PDF 渲染架构](pdf-rendering-architecture.md)
+- [../03-long-term-roadmap.md](../03-long-term-roadmap.md) — 长期渲染愿景（策略/架构/阶段）
+- [../02-current-roadmap.md](../02-current-roadmap.md) — 当前主路线
