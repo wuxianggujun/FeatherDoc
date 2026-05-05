@@ -91,6 +91,19 @@ ctest --test-dir .bpdf-interfaces -R pdfio_generator_probe --output-on-failure -
 .bpdf-interfaces/featherdoc-pdfio-probe.pdf
 ```
 
+构建 docs → PDF 最小适配层 probe：
+
+```powershell
+cmake --build .bpdf-interfaces --target featherdoc_pdf_document_probe
+ctest --test-dir .bpdf-interfaces -R pdf_document_generator_probe --output-on-failure --timeout 60
+```
+
+输出样例：
+
+```text
+.bpdf-interfaces/featherdoc-document-probe.pdf
+```
+
 ## 准备 PDFium
 
 PDFium 用于 PDF → Word 读入方向。
@@ -193,15 +206,17 @@ cmake -S . -B .bpdf-roundtrip-msvc `
   -DFEATHERDOC_PDFIUM_VS_YEAR=2026 `
   -DFEATHERDOC_PDFIUM_VS_INSTALL="D:/Program Files/Microsoft Visual Studio/18/Professional"
 
-cmake --build .bpdf-roundtrip-msvc --target featherdoc_pdfio_probe featherdoc_pdfium_probe
-ctest --test-dir .bpdf-roundtrip-msvc -R "pdf(io_generator|ium_parser)_probe" --output-on-failure --timeout 60
+cmake --build .bpdf-roundtrip-msvc --target featherdoc_pdfio_probe featherdoc_pdf_document_probe featherdoc_pdfium_probe
+ctest --test-dir .bpdf-roundtrip-msvc -R "pdf(io_generator|_document_generator|ium_parser|ium_document_parser)_probe" --output-on-failure --timeout 60
 ```
 
 当前已验证结果：
 
 ```text
 pdfio_generator_probe ............ Passed
+pdf_document_generator_probe .... Passed
 pdfium_parser_probe .............. Passed
+pdfium_document_parser_probe ..... Passed
 ```
 
 手动运行：
@@ -221,12 +236,13 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 现在只能算 **实验性 smoke 可用**：
 
 - 可以生成最小 PDF 样例
+- 可以把 FeatherDoc `Document` 的基础段落转换为 `PdfDocumentLayout` 并写成 PDF
 - 可以用 PDFium 解析页数和文字 span
 - 可以跑 PDFio → PDFium 的端到端 smoke
 
 还不能算正式可用：
 
-- 还没有 `AST → PDFio` 完整翻译层
+- 还没有 `AST → PDFio` 完整翻译层；当前只覆盖最小段落文本子集
 - 还没有 `PDFium → AST` 文档结构重建
 - 还没有真实 PDF 样本回归集
 - 中文字体、表格、图片、分页等都还需要专项推进

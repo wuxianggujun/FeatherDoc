@@ -120,8 +120,10 @@ Phase 1 的重点是：
 - [x] 默认构建保持 PDFio / PDFium 全部关闭
 - [x] 已定义 `IPdfGenerator` / `IPdfParser`
 - [x] 已定义最小 PDF layout 纯数据结构
+- [x] 已新增最小 `Document` 段落 → `PdfDocumentLayout` 适配层
 - [x] `PdfioGenerator` 已作为 `IPdfGenerator` 的第一版实现
 - [x] `featherdoc_pdfio_probe` 已改为通过接口写出 PDF
+- [x] 已新增 `featherdoc_pdf_document_probe`，验证 docs 段落可经 layout 写出 PDF
 - [x] 已新增 `PdfiumParser` 作为 `IPdfParser` 的第一版实现
 - [x] `FEATHERDOC_BUILD_PDF_IMPORT` 默认关闭，开启时默认使用 PDFium 源码 checkout
 - [x] 已新增 `cmake/FeatherDocPdfium.cmake`，通过 GN/Ninja 构建 PDFium 源码
@@ -129,6 +131,7 @@ Phase 1 的重点是：
 - [x] 已接入本机 PDFium 源码 checkout 并验证 `featherdoc_pdfium_probe`
 - [x] 已用 PDFio probe 生成的 PDF 验证 PDFium 可提取页面和 text spans
 - [x] 同时开启 PDFio / PDFium 时，已有 `pdfium_parser_probe` CTest 覆盖写出后再读入
+- [x] 同时开启 PDFio / PDFium 时，已有 `pdfium_document_parser_probe` CTest 覆盖 docs 段落写出后再读入
 - [ ] 10-20 个 PDF 样本尚未建立
 
 ## Phase 2：稳定 + 优化（3 - 6 个月）

@@ -36,6 +36,7 @@ set(PDF_COMMON_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_layout.hpp"
 )
 set(PDF_WRITER_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_document_adapter.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_writer.hpp"
 )
 set(PDF_IMPORT_HEADERS
@@ -126,6 +127,7 @@ if(FEATHERDOC_BUILD_PDF)
     featherdoc_add_pdfio_object_library(featherdoc_pdfio_objects)
 
     add_library(FeatherDocPdf
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_writer.cpp"
         $<TARGET_OBJECTS:featherdoc_pdfio_objects>
     )
@@ -754,11 +756,20 @@ if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF)
     target_link_libraries(featherdoc_pdfio_probe PRIVATE FeatherDoc::Pdf)
     featherdoc_copy_runtime_dlls(featherdoc_pdfio_probe)
 
+    add_executable(featherdoc_pdf_document_probe samples/pdf_document_probe.cpp)
+    target_link_libraries(featherdoc_pdf_document_probe PRIVATE FeatherDoc::Pdf)
+    featherdoc_copy_runtime_dlls(featherdoc_pdf_document_probe)
+
     if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
         add_test(
             NAME pdfio_generator_probe
             COMMAND featherdoc_pdfio_probe
                 "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-pdfio-probe.pdf"
+        )
+        add_test(
+            NAME pdf_document_generator_probe
+            COMMAND featherdoc_pdf_document_probe
+                "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-document-probe.pdf"
         )
     endif()
 endif()
@@ -776,6 +787,16 @@ if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF_IMPORT)
         )
         set_tests_properties(pdfium_parser_probe
             PROPERTIES DEPENDS pdfio_generator_probe)
+    endif()
+
+    if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING AND TARGET featherdoc_pdf_document_probe)
+        add_test(
+            NAME pdfium_document_parser_probe
+            COMMAND featherdoc_pdfium_probe
+                "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-document-probe.pdf"
+        )
+        set_tests_properties(pdfium_document_parser_probe
+            PROPERTIES DEPENDS pdf_document_generator_probe)
     endif()
 endif()
 

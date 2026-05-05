@@ -91,6 +91,14 @@ Phase 0 后续不应继续堆 PDF 功能，而是先把边界打稳：
 
    只有当 `LayoutResult → PDFio` 稳定后，才把 docs 库解析出来的真实段落接进来。
 
+### 当前补充进展
+
+- 已有 `PdfDocumentLayout` 作为最小 `LayoutResult`
+- 已有 `layout_document_paragraphs()` 把 `Document::inspect_paragraphs()` 的段落文本转换为 PDF layout
+- 已有 `featherdoc_pdf_document_probe` 验证 `Document → PdfDocumentLayout → PDFio → PDF`
+- 当前只支持文本段落顺序、基础换行、分页、A4 页面、边距和 metadata
+- 字体度量、CJK 字体嵌入、样式、表格、图片、页眉页脚仍未实现
+
 ## Phase 1：合同子集
 
 ### 目标
