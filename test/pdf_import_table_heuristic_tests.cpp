@@ -218,3 +218,65 @@ TEST_CASE("PDF table import preserves paragraph table paragraph body order") {
         std::filesystem::remove(docx_path);
     }
 }
+
+TEST_CASE("PDF table import preserves consecutive table body order") {
+    const auto input_path =
+        featherdoc::test_support::write_paragraph_table_table_paragraph_pdf(
+            "featherdoc-pdf-import-paragraph-table-table-paragraph.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-paragraph-table-table-paragraph.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 2U);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 4U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[0].block_index, 0U);
+    CHECK_EQ(blocks[0].item_index, 0U);
+    CHECK_EQ(blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[1].block_index, 1U);
+    CHECK_EQ(blocks[1].item_index, 0U);
+    CHECK_EQ(blocks[2].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[2].block_index, 2U);
+    CHECK_EQ(blocks[2].item_index, 1U);
+    CHECK_EQ(blocks[3].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[3].block_index, 3U);
+    CHECK_EQ(blocks[3].item_index, 1U);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Intro paragraph before tables\n"
+             "Tail paragraph after tables\n");
+
+    const auto first_table = document.inspect_table(0U);
+    const auto second_table = document.inspect_table(1U);
+    REQUIRE(first_table.has_value());
+    REQUIRE(second_table.has_value());
+    CHECK_EQ(first_table->text,
+             "First table A1\t\t\n\tFirst table B2\t\n\t\tFirst table C3");
+    CHECK_EQ(second_table->text,
+             "Second table A1\t\t\n\tSecond table B2\t\n\t\tSecond table C3");
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_blocks = reopened.inspect_body_blocks();
+    REQUIRE_EQ(reopened_blocks.size(), 4U);
+    CHECK_EQ(reopened_blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(reopened_blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[2].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[3].kind, featherdoc::body_block_kind::paragraph);
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}

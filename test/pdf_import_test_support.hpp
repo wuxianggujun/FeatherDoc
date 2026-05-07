@@ -219,6 +219,45 @@ write_paragraph_table_paragraph_pdf(std::string_view filename) {
 }
 
 [[nodiscard]] inline std::filesystem::path
+write_paragraph_table_table_paragraph_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc paragraph-table-table-paragraph PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Intro paragraph before tables"));
+    append_three_by_three_grid(page, 72.0, 664.0, 120.0, 32.0);
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 642.0, "First table A1"));
+    page.text_runs.push_back(
+        make_pdf_text_run(206.0, 610.0, "First table B2"));
+    page.text_runs.push_back(
+        make_pdf_text_run(326.0, 578.0, "First table C3"));
+    append_three_by_three_grid(page, 72.0, 520.0, 120.0, 32.0);
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 498.0, "Second table A1"));
+    page.text_runs.push_back(
+        make_pdf_text_run(206.0, 466.0, "Second table B2"));
+    page.text_runs.push_back(
+        make_pdf_text_run(326.0, 434.0, "Second table C3"));
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 360.0, "Tail paragraph after tables"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
 write_two_column_pdf(std::string_view filename) {
     featherdoc::pdf::PdfDocumentLayout layout;
     layout.metadata.title = "FeatherDoc two-column PDF import structure";

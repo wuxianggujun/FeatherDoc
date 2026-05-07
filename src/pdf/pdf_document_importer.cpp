@@ -159,17 +159,13 @@ struct ImportCursor {
                                (std::max)(column_count, std::size_t{1U})));
 }
 
-[[nodiscard]] bool append_imported_table(featherdoc::Document &document,
-                                         const PdfParsedTableCandidate &source,
-                                         featherdoc::Table *target_table = nullptr) {
+[[nodiscard]] bool configure_imported_table(featherdoc::Table &table,
+                                            const PdfParsedTableCandidate &source) {
     if (source.rows.empty() || source.rows.front().cells.empty()) {
         return false;
     }
 
-    const auto row_count = source.rows.size();
     const auto column_count = source.rows.front().cells.size();
-    auto table = target_table == nullptr ? document.append_table(row_count, column_count)
-                                        : std::move(*target_table);
     if (!table.has_next()) {
         return false;
     }
@@ -254,7 +250,7 @@ struct ImportCursor {
                                           : source.rows.front().cells.size());
     }
 
-    if (!append_imported_table(document, source, &table)) {
+    if (!configure_imported_table(table, source)) {
         return false;
     }
 

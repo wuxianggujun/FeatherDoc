@@ -258,6 +258,8 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_h
 `PdfDocumentImportOptions::import_table_candidates_as_tables=true` 时，才会尝试把简单
 网格候选写入 `Document` 表格。当前实现还会在首个导入块是表格时，移除
 `create_empty()` 留下的 body 占位段落，并通过 `inspect_body_blocks()` 做顺序验收。
+当前回归还覆盖 `paragraph / table / table / paragraph` 的连续混排顺序，避免
+连续表格写入时 body 游标错位。
 需要保留测试 DOCX 并做 Word -> PDF 视觉 smoke 时，可运行：
 
 ```powershell
