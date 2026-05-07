@@ -17,12 +17,24 @@
 
 namespace featherdoc::pdf {
 
+enum class PdfDocumentImportFailureKind {
+    none,
+    parse_failed,
+    document_create_failed,
+    document_population_failed,
+    extract_text_disabled,
+    extract_geometry_disabled,
+    no_text_paragraphs,
+};
+
 struct PdfDocumentImportOptions {
     PdfParseOptions parse_options{};
 };
 
 struct PdfDocumentImportResult {
     bool success{false};
+    PdfDocumentImportFailureKind failure_kind{
+        PdfDocumentImportFailureKind::none};
     std::string error_message;
     std::size_t paragraphs_imported{0U};
     PdfParsedDocument parsed_document;

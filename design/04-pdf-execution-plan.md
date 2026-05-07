@@ -458,7 +458,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - [ ] 再支持简单表格启发式识别。
 - [x] 明确不支持能力第一版：
   扫描件 OCR、复杂矢量图还原、任意 PDF 精确还原成 Word。
-- [ ] 将读入方向的失败样本单独分类，不混入导出主线。
+- [x] 将读入方向的失败样本单独分类第一版，不混入导出主线。
 
 ### 验收
 
@@ -494,6 +494,10 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 已扩展 `pdf_import_structure` 测试：覆盖结构解析、纯文本 PDF 导入 `Document`、
   DOCX 保存后重开文本一致、禁用 geometry 的明确错误，以及无文本 PDF 的“不支持”
   诊断。
+- 已新增 `PdfDocumentImportFailureKind` 稳定失败分类枚举，并新增独立
+  `pdf_import_failure` 测试目标，单独覆盖 `extract_text` 禁用、`extract_geometry`
+  禁用、无文本 PDF 和 parse 失败 4 类读入失败样本；这些失败样本不进入导出 regression
+  manifest。
 - 本轮新增的是导入 facade 和测试内部受控 PDF，不新增面向发布的 PDF 输出样本；仍不新增
   视觉 baseline。后续一旦增加新的发布样本或改变导出 PDF，必须回到 E6 视觉门禁。
 - 已知限制更新：纯文本段落导入会保留 PDFium 聚合出的段落换行，但不保证原 PDF 的
@@ -505,8 +509,11 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake -S . -B .bpdf-roundtrip-msvc && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests'
 cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_structure$" --output-on-failure --timeout 60'
 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_structure$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_failure$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure)$" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_(import_structure|unicode_font_roundtrip|regression_manifest)$" --output-on-failure --timeout 60
-ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_(structure|failure)" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_(import_structure|import_failure|unicode_font_roundtrip|regression_manifest)$" --output-on-failure --timeout 60
 ```
 
 下一步入口：继续 E7 时，先重新阅读 `include/featherdoc/pdf/pdf_document_importer.hpp`、
