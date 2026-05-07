@@ -24,6 +24,7 @@ enum class PdfDocumentImportFailureKind {
     document_population_failed,
     extract_text_disabled,
     extract_geometry_disabled,
+    table_candidates_detected,
     no_text_paragraphs,
 };
 

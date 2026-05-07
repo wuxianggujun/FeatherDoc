@@ -507,6 +507,9 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 已新增独立 `pdf_import_table_heuristic` 测试目标：
   用受控 `table-like grid` PDF 验证命中 3x3 稀疏表格候选，用 `two-column` PDF
   验证普通双栏正文不会误判成表格。
+- 已将 `PdfParsedTableCandidate` 接入 `PdfDocumentImporter` 的边界诊断：
+  纯文本 importer 在检测到表格候选时不再继续扁平导入，而是返回稳定
+  `table_candidates_detected` 失败分类，避免误导为“已支持表格导入”。
 - 已完成可视化验证：
   将 `featherdoc-pdf-import-table-like-grid.pdf` 和
   `featherdoc-pdf-import-two-column.pdf` 渲染为 PNG/contact sheet；目检确认前者是
@@ -555,7 +558,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_(structure|f
 
 - 扩展负样本集，继续压低多栏/列表/标题组合的误判率；或
 - 评估是否把 `PdfParsedTableCandidate` 接入实验性的 `PDF -> Document` 表格 AST
-  facade 第一版。
+  facade 第一版，而不是只停留在失败分类。
 
 进入下一步前仍需保持失败样本分类独立，避免把读入方向的不稳定样本混入导出主线回归。
 

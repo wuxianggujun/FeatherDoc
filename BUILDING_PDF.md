@@ -235,7 +235,8 @@ pdfium_document_parser_probe ..... Passed
 - `pdfium_document_parser_probe`：PDFium 读入 `Document` 产物 smoke
 - `pdf_import_structure`：PDFium 字符 span 聚合为行 / 段落，并导入纯文本
   `Document` 的读入结构测试
-- `pdf_import_failure`：PDF 读入失败样本的分类测试，不混入导出回归
+- `pdf_import_failure`：PDF 读入失败样本的分类测试，不混入导出回归；
+  当前覆盖禁用 text/geometry、空白 PDF、parse 失败、表格候选已检测
 - `pdf_import_table_heuristic`：PDF 简单表格候选识别第一版，覆盖网格正例和双栏反例
 - `pdf_font_resolver`：字体解析和回退规则单测
 - `pdf_text_metrics`：文本宽度 / 行高估算单测

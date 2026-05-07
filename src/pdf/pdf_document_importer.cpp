@@ -12,6 +12,15 @@ namespace {
     return !paragraph.text.empty();
 }
 
+[[nodiscard]] bool has_table_candidates(const PdfParsedDocument &document) {
+    for (const auto &page : document.pages) {
+        if (!page.table_candidates.empty()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 [[nodiscard]] bool append_imported_paragraph(featherdoc::Paragraph &cursor,
                                              bool &has_written_paragraph,
                                              const std::string &text) {
@@ -35,6 +44,15 @@ populate_document_from_parsed_pdf(featherdoc::Document &document,
                                   PdfParsedDocument parsed_document) {
     PdfDocumentImportResult result;
     result.parsed_document = std::move(parsed_document);
+
+    if (has_table_candidates(result.parsed_document)) {
+        result.failure_kind =
+            PdfDocumentImportFailureKind::table_candidates_detected;
+        result.error_message =
+            "PDF text import detected table-like structure candidates; "
+            "table import is not supported yet";
+        return result;
+    }
 
     const auto create_error = document.create_empty();
     if (create_error) {

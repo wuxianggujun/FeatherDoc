@@ -58,6 +58,23 @@ TEST_CASE("PDF text importer classifies PDFs without text paragraphs") {
         import_result.error_message, "text paragraphs only"));
 }
 
+TEST_CASE("PDF text importer classifies detected table candidates") {
+    const auto input_path = featherdoc::test_support::write_table_like_grid_pdf(
+        "featherdoc-pdf-import-table-candidate.pdf");
+
+    featherdoc::Document document;
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document);
+
+    CHECK_FALSE(import_result.success);
+    CHECK_EQ(
+        import_result.failure_kind,
+        featherdoc::pdf::PdfDocumentImportFailureKind::
+            table_candidates_detected);
+    CHECK(featherdoc::test_support::contains_text(
+        import_result.error_message, "table-like structure candidates"));
+}
+
 TEST_CASE("PDF text importer classifies parse failures") {
     featherdoc::Document document;
     const auto import_result = featherdoc::pdf::import_pdf_text_document(
