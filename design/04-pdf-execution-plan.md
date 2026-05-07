@@ -452,11 +452,11 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 ### 任务
 
 - [x] 定义 PDFium text span 到 Core AST 的中间结构第一版：
-  当前是 `PdfParsedTextLine` / `PdfParsedParagraph`，尚未转换为 `Document`。
+  当前是 `PdfParsedTextLine` / `PdfParsedParagraph`。
 - [x] 先支持纯文本和段落识别第一版：
-  受控文本 PDF 可从字符 span 聚合为行和段落。
+  受控文本 PDF 可从字符 span 聚合为行和段落，并可导入为纯文本 `Document`。
 - [ ] 再支持简单表格启发式识别。
-- [ ] 明确不支持能力：
+- [x] 明确不支持能力第一版：
   扫描件 OCR、复杂矢量图还原、任意 PDF 精确还原成 Word。
 - [ ] 将读入方向的失败样本单独分类，不混入导出主线。
 
@@ -464,7 +464,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 
 - [x] PDFium probe 不影响默认构建。
 - [x] PDF 读入测试和 PDF 导出测试能分开运行。
-- [ ] PDF 读入能力有清楚的“不支持”诊断。
+- [x] PDF 读入能力有清楚的“不支持”诊断第一版。
 - [x] 读入方向不阻塞 E1 到 E6 的发布门禁。
 
 ### 进展记录
@@ -484,20 +484,35 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
   的可视化发布门禁仍由 E6 的 `run_pdf_visual_release_gate.ps1` 覆盖。
 - 已知限制：当前只完成 `PDFium -> 中间结构`，还没有 `PDFium -> Document` AST 转换；
   段落识别是启发式，不承诺复杂 PDF、扫描件或任意版面精确还原。
+- 后续继续 E7 前，已再次阅读 `src/pdf/pdfium_parser.cpp`、`src/paragraph.cpp`、
+  `src/document.cpp`、`include/featherdoc.hpp`、`test/basic_tests.cpp`、`test/CMakeLists.txt`
+  和 PDF import target 的 CMake 配置，确认 `Document::create_empty()`、`Paragraph::set_text()`、
+  `Paragraph::insert_paragraph_after()` 是当前最小 DOCX AST 写入路径。
+- 已新增 `PdfDocumentImporter` 和 `import_pdf_text_document()`，作为实验性
+  `PDFium -> PdfParsedDocument -> Document` facade；第一版只导入文本段落，不导入样式、
+  图片、表格、页眉页脚或复杂版面。
+- 已扩展 `pdf_import_structure` 测试：覆盖结构解析、纯文本 PDF 导入 `Document`、
+  DOCX 保存后重开文本一致、禁用 geometry 的明确错误，以及无文本 PDF 的“不支持”
+  诊断。
+- 本轮新增的是导入 facade 和测试内部受控 PDF，不新增面向发布的 PDF 输出样本；仍不新增
+  视觉 baseline。后续一旦增加新的发布样本或改变导出 PDF，必须回到 E6 视觉门禁。
+- 已知限制更新：纯文本段落导入会保留 PDFium 聚合出的段落换行，但不保证原 PDF 的
+  视觉布局、样式、列、表格或图片语义。
 
 通过命令：
 
 ```powershell
 cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake -S . -B .bpdf-roundtrip-msvc && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests'
+cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests && ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_structure$" --output-on-failure --timeout 60'
 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_structure$" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_(import_structure|unicode_font_roundtrip|regression_manifest)$" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" --output-on-failure --timeout 60
 ```
 
-下一步入口：继续 E7 时，先重新阅读 `src/pdf/pdfium_parser.cpp`、`src/paragraph.cpp`、
-`include/featherdoc/document.hpp` 和相关 Core AST 测试，再实现纯文本段落到
-`Document` 的最小转换入口；不要在这一阶段引入表格启发式，除非纯文本导入已经有
-独立测试和清楚的不支持诊断。
+下一步入口：继续 E7 时，先重新阅读 `include/featherdoc/pdf/pdf_document_importer.hpp`、
+`src/pdf/pdf_document_importer.cpp`、`test/pdf_import_structure_tests.cpp` 和表格相关
+PDF layout/inspection 代码，再评估是否进入简单表格启发式。进入前必须先把失败样本
+分类设计清楚，避免把读入失败混入导出主线回归。
 
 ## 阶段推进规则
 

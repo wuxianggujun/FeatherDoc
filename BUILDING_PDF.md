@@ -233,7 +233,8 @@ pdfium_document_parser_probe ..... Passed
 - `pdf_document_generator_probe`：`Document` → `PdfDocumentLayout` → PDF smoke
 - `pdfium_parser_probe`：PDFium 读入 PDFio 产物 smoke
 - `pdfium_document_parser_probe`：PDFium 读入 `Document` 产物 smoke
-- `pdf_import_structure`：PDFium 字符 span 聚合为行 / 段落的读入结构测试
+- `pdf_import_structure`：PDFium 字符 span 聚合为行 / 段落，并导入纯文本
+  `Document` 的读入结构测试
 - `pdf_font_resolver`：字体解析和回退规则单测
 - `pdf_text_metrics`：文本宽度 / 行高估算单测
 - `pdf_document_adapter_font`：PDF adapter 的字体映射、样式和列表前缀回归

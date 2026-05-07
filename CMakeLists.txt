@@ -51,6 +51,7 @@ set(PDF_WRITER_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_writer.hpp"
 )
 set(PDF_IMPORT_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_document_importer.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_parser.hpp"
 )
 set(SOURCES
@@ -424,6 +425,7 @@ if(FEATHERDOC_BUILD_PDF_IMPORT)
     endif()
 
     add_library(FeatherDocPdfImport
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_importer.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdfium_parser.cpp"
     )
     add_library(FeatherDoc::PdfImport ALIAS FeatherDocPdfImport)
