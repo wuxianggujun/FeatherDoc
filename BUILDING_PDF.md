@@ -238,7 +238,8 @@ pdfium_document_parser_probe ..... Passed
 - `pdf_import_failure`：PDF 读入失败样本的分类测试，不混入导出回归；
   当前覆盖禁用 text/geometry、空白 PDF、parse 失败、表格候选已检测
 - `pdf_import_table_heuristic`：PDF 简单表格候选识别第一版，覆盖网格正例、
-  双栏/编号列表反例，以及显式 opt-in 后把简单表格候选导入为 `Document` 表格
+  双栏/编号列表/票据式三列布局反例，以及显式 opt-in 后把简单表格候选导入为
+  `Document` 表格
 - `pdf_font_resolver`：字体解析和回退规则单测
 - `pdf_text_metrics`：文本宽度 / 行高估算单测
 - `pdf_document_adapter_font`：PDF adapter 的字体映射、样式和列表前缀回归
@@ -259,7 +260,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_h
 网格候选写入 `Document` 表格。当前实现还会在首个导入块是表格时，移除
 `create_empty()` 留下的 body 占位段落，并通过 `inspect_body_blocks()` 做顺序验收。
 当前回归还覆盖 `paragraph / table / table / paragraph` 的连续混排顺序，避免
-连续表格写入时 body 游标错位。
+连续表格写入时 body 游标错位；同一顺序也覆盖跨页场景，避免页面切换后游标断裂。
 需要保留测试 DOCX 并做 Word -> PDF 视觉 smoke 时，可运行：
 
 ```powershell

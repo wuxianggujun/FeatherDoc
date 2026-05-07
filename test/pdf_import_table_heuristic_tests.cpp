@@ -79,6 +79,57 @@ TEST_CASE("PDFium parser does not classify aligned numbered list as table candid
     CHECK(page.table_candidates.empty());
 }
 
+TEST_CASE("PDFium parser does not classify invoice summary form as table candidate") {
+    const auto output_path =
+        featherdoc::test_support::write_invoice_summary_pdf(
+            "featherdoc-pdf-import-invoice-summary.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    CHECK(page.table_candidates.empty());
+}
+
+TEST_CASE("PDFium parser detects invoice grid table candidate") {
+    const auto output_path =
+        featherdoc::test_support::write_invoice_grid_pdf(
+            "featherdoc-pdf-import-invoice-grid.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    REQUIRE_EQ(page.table_candidates.size(), 1U);
+
+    const auto &table = page.table_candidates.front();
+    REQUIRE_EQ(table.rows.size(), 5U);
+    REQUIRE_EQ(table.column_anchor_x_points.size(), 4U);
+    REQUIRE_EQ(table.rows[0].cells.size(), 4U);
+    REQUIRE_EQ(table.rows[4].cells.size(), 4U);
+
+    CHECK(table.rows[0].cells[0].has_text);
+    CHECK(table.rows[0].cells[1].has_text);
+    CHECK(table.rows[0].cells[2].has_text);
+    CHECK(table.rows[0].cells[3].has_text);
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[0].text,
+                                                  "Item"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[3].text,
+                                                  "Total"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[1].cells[0].text,
+                                                  "PDF export design"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[1].cells[3].text,
+                                                  "USD 100"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[4].cells[0].text,
+                                                  "Grand total"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[4].cells[3].text,
+                                                  "USD 135"));
+}
+
 TEST_CASE("PDF text importer can opt in to table candidate import") {
     const auto input_path =
         featherdoc::test_support::write_table_like_grid_pdf(
@@ -133,6 +184,79 @@ TEST_CASE("PDF text importer can opt in to table candidate import") {
     }
 }
 
+TEST_CASE("PDF text importer can opt in to invoice grid table import") {
+    const auto input_path =
+        featherdoc::test_support::write_invoice_grid_pdf(
+            "featherdoc-pdf-import-invoice-grid.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() / "featherdoc-pdf-import-invoice-grid.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 3U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[0].block_index, 0U);
+    CHECK_EQ(blocks[0].item_index, 0U);
+    CHECK_EQ(blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[1].block_index, 1U);
+    CHECK_EQ(blocks[1].item_index, 0U);
+    CHECK_EQ(blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[2].block_index, 2U);
+    CHECK_EQ(blocks[2].item_index, 1U);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Invoice grid sample\n"
+             "Footer note: invoice grid is intentionally regular\n");
+
+    const auto imported_table = document.inspect_table(0U);
+    REQUIRE(imported_table.has_value());
+    CHECK_EQ(imported_table->row_count, 5U);
+    CHECK_EQ(imported_table->column_count, 4U);
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Item"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Qty"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Unit"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Total"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "PDF export design"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Visual validation"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Regression evidence"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Grand total"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "USD 135"));
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_blocks = reopened.inspect_body_blocks();
+    REQUIRE_EQ(reopened_blocks.size(), 3U);
+    CHECK_EQ(reopened_blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(reopened_blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[2].kind, featherdoc::body_block_kind::paragraph);
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
 TEST_CASE("PDF table import does not keep empty leading paragraph") {
     const auto input_path =
         featherdoc::test_support::write_table_first_pdf(
@@ -165,6 +289,60 @@ TEST_CASE("PDF table import does not keep empty leading paragraph") {
     REQUIRE_EQ(reopened_blocks.size(), 1U);
     CHECK_EQ(reopened_blocks[0].kind, featherdoc::body_block_kind::table);
     CHECK_EQ(reopened_blocks[0].block_index, 0U);
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE("PDF table import preserves mixed order across page boundary") {
+    const auto input_path =
+        featherdoc::test_support::write_paragraph_table_pagebreak_table_paragraph_pdf(
+            "featherdoc-pdf-import-paragraph-table-pagebreak-table-paragraph.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-paragraph-table-pagebreak-table-paragraph.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 2U);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 4U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[2].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[3].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Intro paragraph before page break\n"
+             "Tail paragraph after page break\n");
+
+    const auto first_table = document.inspect_table(0U);
+    const auto second_table = document.inspect_table(1U);
+    REQUIRE(first_table.has_value());
+    REQUIRE(second_table.has_value());
+    CHECK_EQ(first_table->text,
+             "Page one table A1\t\t\n\tPage one table B2\t\n\t\tPage one table C3");
+    CHECK_EQ(second_table->text,
+             "Page two table A1\t\t\n\tPage two table B2\t\n\t\tPage two table C3");
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_blocks = reopened.inspect_body_blocks();
+    REQUIRE_EQ(reopened_blocks.size(), 4U);
+    CHECK_EQ(reopened_blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(reopened_blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[2].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[3].kind, featherdoc::body_block_kind::paragraph);
 
     if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
         std::filesystem::remove(docx_path);

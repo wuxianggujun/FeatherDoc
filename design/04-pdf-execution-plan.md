@@ -528,9 +528,14 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 已新增连续表格顺序验收：
   使用 `inspect_body_blocks()` 断言 `paragraph / table / table / paragraph`
   的真实 body 顺序，并覆盖两个连续表格写入后再接尾段落的回归样本。
+- 已新增跨页顺序验收：
+  使用 `inspect_body_blocks()` 断言 `paragraph / table / table / paragraph`
+  在跨页场景下仍保持稳定，并覆盖页面切换后的 body 游标连续性。
 - 已补充 `pdf_import_table_heuristic` 负样本：
   编号列表左侧编号、右侧说明文字且行距稳定时，不应被误判为表格候选；当前启发式
   因此保持保守，只接受至少 3 个列锚点的规则网格候选。
+- 已补充票据式三列布局负样本：
+  `invoice summary` 这类标题 + 非均匀三列明细不应被误判成表格候选。
 - 已完成可视化验证：
   将 `featherdoc-pdf-import-table-like-grid.pdf` 和
   `featherdoc-pdf-import-two-column.pdf` 渲染为 PNG/contact sheet；目检确认前者是
