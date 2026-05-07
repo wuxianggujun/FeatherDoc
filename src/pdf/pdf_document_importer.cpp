@@ -2,6 +2,9 @@
 
 #include <featherdoc/pdf/pdf_parser.hpp>
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -12,6 +15,22 @@ namespace {
     return !paragraph.text.empty();
 }
 
+[[nodiscard]] double rect_right(const PdfRect &rect) noexcept {
+    return rect.x_points + rect.width_points;
+}
+
+[[nodiscard]] double rect_top(const PdfRect &rect) noexcept {
+    return rect.y_points + rect.height_points;
+}
+
+[[nodiscard]] bool rects_intersect(const PdfRect &left,
+                                   const PdfRect &right) noexcept {
+    return left.x_points < rect_right(right) &&
+           rect_right(left) > right.x_points &&
+           left.y_points < rect_top(right) &&
+           rect_top(left) > right.y_points;
+}
+
 [[nodiscard]] bool has_table_candidates(const PdfParsedDocument &document) {
     for (const auto &page : document.pages) {
         if (!page.table_candidates.empty()) {
@@ -19,6 +38,15 @@ namespace {
         }
     }
     return false;
+}
+
+[[nodiscard]] bool overlaps_table_candidate(
+    const PdfParsedParagraph &paragraph, const PdfParsedPage &page) {
+    return std::any_of(page.table_candidates.begin(),
+                       page.table_candidates.end(),
+                       [&paragraph](const PdfParsedTableCandidate &table) {
+                           return rects_intersect(paragraph.bounds, table.bounds);
+                       });
 }
 
 [[nodiscard]] bool append_imported_paragraph(featherdoc::Paragraph &cursor,
@@ -39,13 +67,103 @@ namespace {
     return cursor.has_next();
 }
 
+[[nodiscard]] std::uint32_t points_to_twips(double points) {
+    const auto rounded = std::lround((std::max)(points, 1.0) * 20.0);
+    return static_cast<std::uint32_t>((std::max)(rounded, 1L));
+}
+
+[[nodiscard]] std::uint32_t table_width_twips(
+    const PdfParsedTableCandidate &table) {
+    if (table.column_anchor_x_points.size() >= 2U) {
+        const double first = table.column_anchor_x_points.front();
+        const double last = table.column_anchor_x_points.back();
+        const double average_gap =
+            (last - first) /
+            static_cast<double>(table.column_anchor_x_points.size() - 1U);
+        return points_to_twips(
+            (std::max)(table.bounds.width_points,
+                       average_gap *
+                           static_cast<double>(
+                               table.column_anchor_x_points.size())));
+    }
+
+    return points_to_twips(table.bounds.width_points);
+}
+
+[[nodiscard]] std::uint32_t column_width_twips(
+    const PdfParsedTableCandidate &table, std::size_t column_index) {
+    if (table.column_anchor_x_points.size() >= 2U) {
+        if (column_index + 1U < table.column_anchor_x_points.size()) {
+            return points_to_twips(table.column_anchor_x_points[column_index + 1U] -
+                                   table.column_anchor_x_points[column_index]);
+        }
+
+        return points_to_twips(
+            table.column_anchor_x_points[column_index] -
+            table.column_anchor_x_points[column_index - 1U]);
+    }
+
+    const auto column_count =
+        table.rows.empty() ? 1U : table.rows.front().cells.size();
+    return points_to_twips(table.bounds.width_points /
+                           static_cast<double>(
+                               (std::max)(column_count, std::size_t{1U})));
+}
+
+[[nodiscard]] bool append_imported_table(featherdoc::Document &document,
+                                         const PdfParsedTableCandidate &source) {
+    if (source.rows.empty() || source.rows.front().cells.empty()) {
+        return false;
+    }
+
+    const auto row_count = source.rows.size();
+    const auto column_count = source.rows.front().cells.size();
+    auto table = document.append_table(row_count, column_count);
+    if (!table.has_next()) {
+        return false;
+    }
+
+    if (!table.set_style_id("TableGrid") ||
+        !table.set_layout_mode(featherdoc::table_layout_mode::fixed) ||
+        !table.set_width_twips(table_width_twips(source))) {
+        return false;
+    }
+
+    for (std::size_t column_index = 0U; column_index < column_count;
+         ++column_index) {
+        if (!table.set_column_width_twips(
+                column_index, column_width_twips(source, column_index))) {
+            return false;
+        }
+    }
+
+    for (std::size_t row_index = 0U; row_index < source.rows.size();
+         ++row_index) {
+        const auto &row = source.rows[row_index];
+        if (row.cells.size() != column_count) {
+            return false;
+        }
+
+        for (const auto &cell : row.cells) {
+            if (cell.has_text &&
+                !table.set_cell_text(row_index, cell.column_index, cell.text)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 [[nodiscard]] PdfDocumentImportResult
 populate_document_from_parsed_pdf(featherdoc::Document &document,
-                                  PdfParsedDocument parsed_document) {
+                                  PdfParsedDocument parsed_document,
+                                  bool import_table_candidates_as_tables) {
     PdfDocumentImportResult result;
     result.parsed_document = std::move(parsed_document);
 
-    if (has_table_candidates(result.parsed_document)) {
+    if (has_table_candidates(result.parsed_document) &&
+        !import_table_candidates_as_tables) {
         result.failure_kind =
             PdfDocumentImportFailureKind::table_candidates_detected;
         result.error_message =
@@ -67,7 +185,9 @@ populate_document_from_parsed_pdf(featherdoc::Document &document,
 
     for (const auto &page : result.parsed_document.pages) {
         for (const auto &paragraph : page.paragraphs) {
-            if (!has_importable_text(paragraph)) {
+            if (!has_importable_text(paragraph) ||
+                (import_table_candidates_as_tables &&
+                 overlaps_table_candidate(paragraph, page))) {
                 continue;
             }
 
@@ -81,9 +201,22 @@ populate_document_from_parsed_pdf(featherdoc::Document &document,
             }
             ++result.paragraphs_imported;
         }
+
+        if (import_table_candidates_as_tables) {
+            for (const auto &table : page.table_candidates) {
+                if (!append_imported_table(document, table)) {
+                    result.failure_kind =
+                        PdfDocumentImportFailureKind::document_population_failed;
+                    result.error_message =
+                        "Unable to append parsed PDF table candidate to Document";
+                    return result;
+                }
+                ++result.tables_imported;
+            }
+        }
     }
 
-    if (result.paragraphs_imported == 0U) {
+    if (result.paragraphs_imported == 0U && result.tables_imported == 0U) {
         result.failure_kind = PdfDocumentImportFailureKind::no_text_paragraphs;
         result.error_message =
             "PDF import currently supports text paragraphs only; no text "
@@ -126,7 +259,9 @@ PdfDocumentImportResult PdfDocumentImporter::import_text(
         return result;
     }
 
-    return populate_document_from_parsed_pdf(document, parse_result.document);
+    return populate_document_from_parsed_pdf(
+        document, parse_result.document,
+        options.import_table_candidates_as_tables);
 }
 
 PdfDocumentImportResult

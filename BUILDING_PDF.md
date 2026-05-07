@@ -237,7 +237,8 @@ pdfium_document_parser_probe ..... Passed
   `Document` 的读入结构测试
 - `pdf_import_failure`：PDF 读入失败样本的分类测试，不混入导出回归；
   当前覆盖禁用 text/geometry、空白 PDF、parse 失败、表格候选已检测
-- `pdf_import_table_heuristic`：PDF 简单表格候选识别第一版，覆盖网格正例和双栏反例
+- `pdf_import_table_heuristic`：PDF 简单表格候选识别第一版，覆盖网格正例、
+  双栏反例，以及显式 opt-in 后把简单表格候选导入为 `Document` 表格
 - `pdf_font_resolver`：字体解析和回退规则单测
 - `pdf_text_metrics`：文本宽度 / 行高估算单测
 - `pdf_document_adapter_font`：PDF adapter 的字体映射、样式和列表前缀回归
@@ -250,6 +251,16 @@ pdfium_document_parser_probe ..... Passed
 cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_(structure|failure|table_heuristic)" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+```
+
+默认 `PdfDocumentImporter` 遇到 `PdfParsedTableCandidate` 仍返回
+`table_candidates_detected`，避免把表格误扁平化成正文。只有显式设置
+`PdfDocumentImportOptions::import_table_candidates_as_tables=true` 时，才会尝试把简单
+网格候选写入 `Document` 表格。需要保留测试 DOCX 并做 Word -> PDF 视觉 smoke 时，可运行：
+
+```powershell
+$env:FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS='1'; ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60; Remove-Item Env:FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-table.docx -OutputDir .\output\pdf-e7-table-import-docx-visual -ReviewNote "PDF import table candidate opt-in visual verification"
 ```
 
 ## CLI 导出入口

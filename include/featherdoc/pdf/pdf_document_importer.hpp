@@ -30,6 +30,7 @@ enum class PdfDocumentImportFailureKind {
 
 struct PdfDocumentImportOptions {
     PdfParseOptions parse_options{};
+    bool import_table_candidates_as_tables{false};
 };
 
 struct PdfDocumentImportResult {
@@ -38,6 +39,7 @@ struct PdfDocumentImportResult {
         PdfDocumentImportFailureKind::none};
     std::string error_message;
     std::size_t paragraphs_imported{0U};
+    std::size_t tables_imported{0U};
     PdfParsedDocument parsed_document;
 
     [[nodiscard]] explicit operator bool() const noexcept {

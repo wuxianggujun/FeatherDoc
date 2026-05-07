@@ -510,10 +510,23 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 已将 `PdfParsedTableCandidate` 接入 `PdfDocumentImporter` 的边界诊断：
   纯文本 importer 在检测到表格候选时不再继续扁平导入，而是返回稳定
   `table_candidates_detected` 失败分类，避免误导为“已支持表格导入”。
+- 已将 `PdfDocumentImportOptions::import_table_candidates_as_tables` 接入
+  `PdfDocumentImporter` 第一版：
+  默认仍保持 `table_candidates_detected` 失败分类；显式 opt-in 后，会把简单网格型
+  `PdfParsedTableCandidate` 写入 `Document::append_table()`，并统计到
+  `PdfDocumentImportResult::tables_imported`。
+- 已新增 `pdf_import_table_heuristic` 的 opt-in 表格导入测试：
+  受控 `table-like grid` PDF 在启用选项后可导入为 3x3 表格，保存重开后可确认
+  `Cell A1`、`Cell B2`、`Cell C3` 保留。
 - 已完成可视化验证：
   将 `featherdoc-pdf-import-table-like-grid.pdf` 和
   `featherdoc-pdf-import-two-column.pdf` 渲染为 PNG/contact sheet；目检确认前者是
   网格型输入、后者是普通双栏输入，和启发式测试预期一致。
+- 已完成表格导入结果的可视化验证：
+  `featherdoc-pdf-import-table.docx` 先转成
+  `output/pdf-e7-table-import-docx-visual/table_visual_smoke.pdf`，
+  再渲染为 PNG/contact sheet；视觉报告结论为 `pass`，1 页内容非空，
+  网格和文本未见明显裁剪或重叠。
 - 本轮新增的是导入侧中间结构、测试内部受控 PDF 和视觉核对记录，不新增面向发布的
   PDF 输出样本；仍不新增发布 baseline。后续一旦增加新的发布样本或改变导出 PDF，
   必须回到 E6 视觉门禁。
@@ -521,9 +534,9 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
   纯文本段落导入会保留 PDFium 聚合出的段落换行，但不保证原 PDF 的视觉布局、样式、
   列、表格或图片语义。
 - 已知限制更新：
-  当前表格启发式只覆盖“稳定行距 + 规则列锚点”的简单网格型文本，暂不覆盖两行表格、
-  不规则 invoice、跨列/跨行单元格、复杂分页表格或将候选表格直接写回 `Document`
-  table AST。
+  当前表格导入只覆盖“稳定行距 + 规则列锚点”的简单网格型文本，仍不覆盖两行表格、
+  不规则 invoice、跨列/跨行单元格、复杂分页表格或页内块顺序的精确还原；这一版是
+  保守的 opt-in 表格导入，不代表已完成完整 PDF -> Word 表格 AST 还原。
 
 通过命令：
 
@@ -540,6 +553,8 @@ cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\
 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_(structure|failure|table_heuristic)|pdf_(unicode_font_roundtrip|regression_manifest)$" --output-on-failure --timeout 60
+$env:FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS='1'; ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60; Remove-Item Env:FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-table.docx -OutputDir .\output\pdf-e7-table-import-docx-visual -ReviewNote "PDF import table candidate opt-in visual verification"
 .\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-table-like-grid.pdf --output-dir .\output\pdf-e7-table-heuristic-visual\table-like\pages --summary .\output\pdf-e7-table-heuristic-visual\table-like\summary.json --contact-sheet .\output\pdf-e7-table-heuristic-visual\table-like\contact-sheet.png --dpi 144
 .\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-two-column.pdf --output-dir .\output\pdf-e7-table-heuristic-visual\two-column\pages --summary .\output\pdf-e7-table-heuristic-visual\two-column\summary.json --contact-sheet .\output\pdf-e7-table-heuristic-visual\two-column\contact-sheet.png --dpi 144
 ```
@@ -550,15 +565,19 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_(structure|f
 - `output/pdf-e7-table-heuristic-visual/table-like/contact-sheet.png`
 - `output/pdf-e7-table-heuristic-visual/two-column/summary.json`
 - `output/pdf-e7-table-heuristic-visual/two-column/contact-sheet.png`
+- `output/pdf-e7-table-import-docx-visual/table_visual_smoke.pdf`
+- `output/pdf-e7-table-import-docx-visual/evidence/contact_sheet.png`
+- `output/pdf-e7-table-import-docx-visual/report/summary.json`
+- `output/pdf-e7-table-import-docx-visual/report/final_review.md`
 
 下一步入口：继续 E7 时，先重新阅读 `include/featherdoc/pdf/pdf_interfaces.hpp`、
 `src/pdf/pdfium_parser.cpp`、`include/featherdoc/pdf/pdf_document_importer.hpp`、
 `src/pdf/pdf_document_importer.cpp` 和 `test/pdf_import_table_heuristic_tests.cpp`，
 再决定下一步是：
 
-- 扩展负样本集，继续压低多栏/列表/标题组合的误判率；或
-- 评估是否把 `PdfParsedTableCandidate` 接入实验性的 `PDF -> Document` 表格 AST
-  facade 第一版，而不是只停留在失败分类。
+- 扩展负样本集，继续压低多栏、列表、标题组合、invoice grid 的误判率；或
+- 补齐更复杂的表格读入第一版，例如多表格顺序、混合段落与表格的页面顺序、跨页
+  限制说明，以及更多导入后视觉验证样本。
 
 进入下一步前仍需保持失败样本分类独立，避免把读入方向的不稳定样本混入导出主线回归。
 

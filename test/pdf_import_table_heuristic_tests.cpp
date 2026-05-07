@@ -3,7 +3,11 @@
 
 #include "pdf_import_test_support.hpp"
 
+#include <featherdoc/pdf/pdf_document_importer.hpp>
 #include <featherdoc/pdf/pdf_parser.hpp>
+
+#include <cstdlib>
+#include <filesystem>
 
 TEST_CASE("PDFium parser detects sparse table-like grid candidates") {
     const auto output_path =
@@ -59,4 +63,58 @@ TEST_CASE("PDFium parser does not classify two-column prose as table candidate")
 
     const auto &page = parse_result.document.pages.front();
     CHECK(page.table_candidates.empty());
+}
+
+TEST_CASE("PDF text importer can opt in to table candidate import") {
+    const auto input_path =
+        featherdoc::test_support::write_table_like_grid_pdf(
+            "featherdoc-pdf-import-table-opt-in.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() / "featherdoc-pdf-import-table.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.paragraphs_imported, 1U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Grid sample header\n");
+
+    const auto imported_table = document.inspect_table(0U);
+    REQUIRE(imported_table.has_value());
+    CHECK_EQ(imported_table->row_count, 3U);
+    CHECK_EQ(imported_table->column_count, 3U);
+    REQUIRE(imported_table->style_id.has_value());
+    CHECK_EQ(*imported_table->style_id, "TableGrid");
+
+    const auto cell_a1 = document.inspect_table_cell(0U, 0U, 0U);
+    const auto cell_b2 = document.inspect_table_cell(0U, 1U, 1U);
+    const auto cell_c3 = document.inspect_table_cell(0U, 2U, 2U);
+    REQUIRE(cell_a1.has_value());
+    REQUIRE(cell_b2.has_value());
+    REQUIRE(cell_c3.has_value());
+    CHECK_EQ(cell_a1->text, "Cell A1");
+    CHECK_EQ(cell_b2->text, "Cell B2");
+    CHECK_EQ(cell_c3->text, "Cell C3");
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_table = reopened.inspect_table(0U);
+    REQUIRE(reopened_table.has_value());
+    CHECK_EQ(reopened_table->row_count, 3U);
+    CHECK_EQ(reopened_table->column_count, 3U);
+    CHECK_EQ(reopened_table->text, "Cell A1\t\t\n\tCell B2\t\n\t\tCell C3");
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
 }
