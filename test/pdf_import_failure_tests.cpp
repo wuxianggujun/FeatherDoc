@@ -23,6 +23,7 @@ TEST_CASE("PDF text importer classifies disabled text extraction") {
                  extract_text_disabled);
     CHECK(featherdoc::test_support::contains_text(
         import_result.error_message, "extract_text=true"));
+    CHECK(document.inspect_body_blocks().empty());
 }
 
 TEST_CASE("PDF text importer classifies disabled geometry extraction") {
@@ -41,6 +42,7 @@ TEST_CASE("PDF text importer classifies disabled geometry extraction") {
                  extract_geometry_disabled);
     CHECK(featherdoc::test_support::contains_text(
         import_result.error_message, "extract_geometry=true"));
+    CHECK(document.inspect_body_blocks().empty());
 }
 
 TEST_CASE("PDF text importer classifies PDFs without text paragraphs") {

@@ -556,6 +556,11 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
   纯文本段落导入会保留 PDFium 聚合出的段落换行，但不保证原 PDF 的视觉布局、样式、
   列、表格或图片语义。
 - 已知限制更新：
+  `PdfDocumentImporter` 当前要求 `extract_text=true` 且 `extract_geometry=true`；
+  `extract_geometry=false` 会直接返回 `extract_geometry_disabled`，不会降级为纯文本
+  直通导入。该边界由 `pdf_import_failure` 覆盖，并确认失败时不会污染目标
+  `Document`。
+- 已知限制更新：
   当前表格导入只覆盖“稳定行距 + 规则列锚点”的简单网格型文本，仍不覆盖两行表格、
   两列表格、不规则 invoice、跨列/跨行单元格、复杂分页表格或页内块顺序的精确还原；
   这一版是保守的 opt-in 表格导入，不代表已完成完整 PDF -> Word 表格 AST 还原。

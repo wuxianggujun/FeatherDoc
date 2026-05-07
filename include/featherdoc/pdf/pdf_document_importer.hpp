@@ -3,6 +3,8 @@
  *
  * This is intentionally conservative: the first implementation imports only
  * text paragraphs from the PDFium-backed parse result into a plain DOCX model.
+ * Geometry extraction is required because paragraph and table grouping depend
+ * on span bounds; geometry-free parsing is rejected instead of degraded.
  */
 
 #ifndef FEATHERDOC_PDF_PDF_DOCUMENT_IMPORTER_HPP

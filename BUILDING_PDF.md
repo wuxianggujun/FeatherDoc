@@ -254,6 +254,12 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_(structure|f
 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
 ```
 
+`PdfDocumentImporter` 当前要求 `PdfParseOptions::extract_text=true` 且
+`PdfParseOptions::extract_geometry=true`。`extract_geometry=false` 会直接返回
+`extract_geometry_disabled`，不会降级为纯文本直通导入；因为段落聚合、表格候选识别和
+导入顺序都依赖字符 bounds。对应失败路径由 `pdf_import_failure` 覆盖，并确认失败时
+不会污染目标 `Document`。
+
 默认 `PdfDocumentImporter` 遇到 `PdfParsedTableCandidate` 仍返回
 `table_candidates_detected`，避免把表格误扁平化成正文。只有显式设置
 `PdfDocumentImportOptions::import_table_candidates_as_tables=true` 时，才会尝试把简单
