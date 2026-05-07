@@ -132,3 +132,89 @@ TEST_CASE("PDF text importer can opt in to table candidate import") {
         std::filesystem::remove(docx_path);
     }
 }
+
+TEST_CASE("PDF table import does not keep empty leading paragraph") {
+    const auto input_path =
+        featherdoc::test_support::write_table_first_pdf(
+            "featherdoc-pdf-import-table-first.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() / "featherdoc-pdf-import-table-first.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.paragraphs_imported, 0U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 1U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[0].block_index, 0U);
+    CHECK_EQ(blocks[0].item_index, 0U);
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_blocks = reopened.inspect_body_blocks();
+    REQUIRE_EQ(reopened_blocks.size(), 1U);
+    CHECK_EQ(reopened_blocks[0].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[0].block_index, 0U);
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE("PDF table import preserves paragraph table paragraph body order") {
+    const auto input_path =
+        featherdoc::test_support::write_paragraph_table_paragraph_pdf(
+            "featherdoc-pdf-import-paragraph-table-paragraph.pdf");
+    const auto docx_path = std::filesystem::current_path() /
+                           "featherdoc-pdf-import-paragraph-table-paragraph.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 3U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[0].block_index, 0U);
+    CHECK_EQ(blocks[0].item_index, 0U);
+    CHECK_EQ(blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[1].block_index, 1U);
+    CHECK_EQ(blocks[1].item_index, 0U);
+    CHECK_EQ(blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[2].block_index, 2U);
+    CHECK_EQ(blocks[2].item_index, 1U);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Intro paragraph line one\nIntro paragraph line two\n"
+             "Tail paragraph after table\n");
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_blocks = reopened.inspect_body_blocks();
+    REQUIRE_EQ(reopened_blocks.size(), 3U);
+    CHECK_EQ(reopened_blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(reopened_blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[2].kind, featherdoc::body_block_kind::paragraph);
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}

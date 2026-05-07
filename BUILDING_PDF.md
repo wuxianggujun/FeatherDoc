@@ -256,7 +256,9 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_h
 默认 `PdfDocumentImporter` 遇到 `PdfParsedTableCandidate` 仍返回
 `table_candidates_detected`，避免把表格误扁平化成正文。只有显式设置
 `PdfDocumentImportOptions::import_table_candidates_as_tables=true` 时，才会尝试把简单
-网格候选写入 `Document` 表格。需要保留测试 DOCX 并做 Word -> PDF 视觉 smoke 时，可运行：
+网格候选写入 `Document` 表格。当前实现还会在首个导入块是表格时，移除
+`create_empty()` 留下的 body 占位段落，并通过 `inspect_body_blocks()` 做顺序验收。
+需要保留测试 DOCX 并做 Word -> PDF 视觉 smoke 时，可运行：
 
 ```powershell
 $env:FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS='1'; ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60; Remove-Item Env:FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS

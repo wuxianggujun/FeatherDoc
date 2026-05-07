@@ -54,6 +54,36 @@ collect_document_text(featherdoc::Document &document) {
     return stream.str();
 }
 
+inline void append_three_by_three_grid(featherdoc::pdf::PdfPageLayout &page,
+                                       double left,
+                                       double top,
+                                       double cell_width,
+                                       double cell_height) {
+    constexpr std::size_t column_count = 3U;
+    constexpr std::size_t row_count = 3U;
+    const double right = left + cell_width * static_cast<double>(column_count);
+    const double bottom = top - cell_height * static_cast<double>(row_count);
+
+    for (std::size_t column = 0U; column <= column_count; ++column) {
+        const double x = left + cell_width * static_cast<double>(column);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{x, bottom},
+            featherdoc::pdf::PdfPoint{x, top},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+    for (std::size_t row = 0U; row <= row_count; ++row) {
+        const double y = top - cell_height * static_cast<double>(row);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{left, y},
+            featherdoc::pdf::PdfPoint{right, y},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+}
+
 [[nodiscard]] inline std::filesystem::path
 write_import_structure_pdf(std::string_view filename) {
     featherdoc::pdf::PdfDocumentLayout layout;
@@ -108,40 +138,74 @@ write_table_like_grid_pdf(std::string_view filename) {
 
     featherdoc::pdf::PdfPageLayout page;
     page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
-
-    constexpr double left = 72.0;
-    constexpr double top = 700.0;
-    constexpr double cell_width = 120.0;
-    constexpr double cell_height = 32.0;
-    constexpr double column_count = 3.0;
-    constexpr double row_count = 3.0;
-    const double right = left + cell_width * column_count;
-    const double bottom = top - cell_height * row_count;
-
-    for (int column = 0; column <= static_cast<int>(column_count); ++column) {
-        const double x = left + cell_width * static_cast<double>(column);
-        page.lines.push_back(featherdoc::pdf::PdfLine{
-            featherdoc::pdf::PdfPoint{x, bottom},
-            featherdoc::pdf::PdfPoint{x, top},
-            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
-            0.75,
-        });
-    }
-    for (int row = 0; row <= static_cast<int>(row_count); ++row) {
-        const double y = top - cell_height * static_cast<double>(row);
-        page.lines.push_back(featherdoc::pdf::PdfLine{
-            featherdoc::pdf::PdfPoint{left, y},
-            featherdoc::pdf::PdfPoint{right, y},
-            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
-            0.75,
-        });
-    }
+    append_three_by_three_grid(page, 72.0, 700.0, 120.0, 32.0);
 
     page.text_runs.push_back(
         make_pdf_text_run(72.0, 724.0, "Grid sample header"));
     page.text_runs.push_back(make_pdf_text_run(86.0, 678.0, "Cell A1"));
     page.text_runs.push_back(make_pdf_text_run(206.0, 646.0, "Cell B2"));
     page.text_runs.push_back(make_pdf_text_run(326.0, 614.0, "Cell C3"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_table_first_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title = "FeatherDoc table-first PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    append_three_by_three_grid(page, 72.0, 700.0, 120.0, 32.0);
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 678.0, "Cell A1"));
+    page.text_runs.push_back(
+        make_pdf_text_run(206.0, 646.0, "Cell B2"));
+    page.text_runs.push_back(
+        make_pdf_text_run(326.0, 614.0, "Cell C3"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_paragraph_table_paragraph_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc paragraph-table-paragraph PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Intro paragraph line one"));
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 706.0, "Intro paragraph line two"));
+    append_three_by_three_grid(page, 72.0, 664.0, 120.0, 32.0);
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 642.0, "Cell A1"));
+    page.text_runs.push_back(
+        make_pdf_text_run(206.0, 610.0, "Cell B2"));
+    page.text_runs.push_back(
+        make_pdf_text_run(326.0, 578.0, "Cell C3"));
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 522.0, "Tail paragraph after table"));
     layout.pages.push_back(std::move(page));
 
     const auto output_path =

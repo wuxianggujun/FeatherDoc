@@ -515,9 +515,16 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
   默认仍保持 `table_candidates_detected` 失败分类；显式 opt-in 后，会把简单网格型
   `PdfParsedTableCandidate` 写入 `Document::append_table()`，并统计到
   `PdfDocumentImportResult::tables_imported`。
+- 已补齐导入顺序处理：
+  当首个导入块是表格时，会主动移除 `create_empty()` 生成的 body 占位段落，避免
+  `Document` 头部残留空白段落；同时按页内 `paragraph/table` 的 Y 位置统一排序，
+  不再把表格和段落分开两轮追加。
 - 已新增 `pdf_import_table_heuristic` 的 opt-in 表格导入测试：
   受控 `table-like grid` PDF 在启用选项后可导入为 3x3 表格，保存重开后可确认
   `Cell A1`、`Cell B2`、`Cell C3` 保留。
+- 已新增 body 顺序验收：
+  使用 `inspect_body_blocks()` 断言 `paragraph / table / paragraph` 的真实 body 顺序，
+  并覆盖“首块为表格时不留下空前导段落”的回归样本。
 - 已补充 `pdf_import_table_heuristic` 负样本：
   编号列表左侧编号、右侧说明文字且行距稳定时，不应被误判为表格候选；当前启发式
   因此保持保守，只接受至少 3 个列锚点的规则网格候选。
@@ -530,6 +537,10 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
   `output/pdf-e7-table-import-docx-visual/table_visual_smoke.pdf`，
   再渲染为 PNG/contact sheet；视觉报告结论为 `pass`，1 页内容非空，
   网格和文本未见明显裁剪或重叠。
+- 已完成新增顺序回归样本的结构验收：
+  `featherdoc-pdf-import-table-first.pdf` 和
+  `featherdoc-pdf-import-paragraph-table-paragraph.pdf` 在启用表格导入后，分别验证
+  “首表格无空前导段落”与“段落-表格-段落顺序保持”。
 - 本轮新增的是导入侧中间结构、测试内部受控 PDF 和视觉核对记录，不新增面向发布的
   PDF 输出样本；仍不新增发布 baseline。后续一旦增加新的发布样本或改变导出 PDF，
   必须回到 E6 视觉门禁。

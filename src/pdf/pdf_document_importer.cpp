@@ -5,8 +5,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <variant>
 #include <utility>
+#include <vector>
 
 namespace featherdoc::pdf {
 namespace {
@@ -67,6 +70,52 @@ namespace {
     return cursor.has_next();
 }
 
+struct ImportBlock {
+    enum class Kind { paragraph, table };
+
+    Kind kind{Kind::paragraph};
+    double top_points{0.0};
+    const PdfParsedParagraph *paragraph{nullptr};
+    const PdfParsedTableCandidate *table{nullptr};
+};
+
+struct ImportCursor {
+    featherdoc::Paragraph paragraph;
+    std::optional<featherdoc::Table> table;
+    bool has_written_block{false};
+};
+
+[[nodiscard]] std::vector<ImportBlock> build_import_blocks(
+    const PdfParsedPage &page, bool import_table_candidates_as_tables) {
+    std::vector<ImportBlock> blocks;
+    blocks.reserve(page.paragraphs.size() + page.table_candidates.size());
+
+    for (const auto &paragraph : page.paragraphs) {
+        if (!has_importable_text(paragraph) ||
+            (import_table_candidates_as_tables &&
+             overlaps_table_candidate(paragraph, page))) {
+            continue;
+        }
+        blocks.push_back(ImportBlock{
+            ImportBlock::Kind::paragraph, rect_top(paragraph.bounds),
+            &paragraph, nullptr});
+    }
+
+    if (import_table_candidates_as_tables) {
+        for (const auto &table : page.table_candidates) {
+            blocks.push_back(ImportBlock{
+                ImportBlock::Kind::table, rect_top(table.bounds), nullptr,
+                &table});
+        }
+    }
+
+    std::stable_sort(blocks.begin(), blocks.end(),
+                     [](const ImportBlock &left, const ImportBlock &right) {
+                         return left.top_points > right.top_points;
+                     });
+    return blocks;
+}
+
 [[nodiscard]] std::uint32_t points_to_twips(double points) {
     const auto rounded = std::lround((std::max)(points, 1.0) * 20.0);
     return static_cast<std::uint32_t>((std::max)(rounded, 1L));
@@ -111,14 +160,16 @@ namespace {
 }
 
 [[nodiscard]] bool append_imported_table(featherdoc::Document &document,
-                                         const PdfParsedTableCandidate &source) {
+                                         const PdfParsedTableCandidate &source,
+                                         featherdoc::Table *target_table = nullptr) {
     if (source.rows.empty() || source.rows.front().cells.empty()) {
         return false;
     }
 
     const auto row_count = source.rows.size();
     const auto column_count = source.rows.front().cells.size();
-    auto table = document.append_table(row_count, column_count);
+    auto table = target_table == nullptr ? document.append_table(row_count, column_count)
+                                        : std::move(*target_table);
     if (!table.has_next()) {
         return false;
     }
@@ -155,6 +206,72 @@ namespace {
     return true;
 }
 
+[[nodiscard]] bool append_imported_paragraph(ImportCursor &cursor,
+                                             const std::string &text) {
+    if (!cursor.has_written_block) {
+        if (!cursor.paragraph.has_next()) {
+            return false;
+        }
+        if (!cursor.paragraph.set_text(text)) {
+            return false;
+        }
+        cursor.has_written_block = true;
+        cursor.table.reset();
+        return true;
+    }
+
+    if (cursor.table.has_value()) {
+        cursor.paragraph = cursor.table->insert_paragraph_after(text);
+    } else {
+        cursor.paragraph = cursor.paragraph.insert_paragraph_after(text);
+    }
+
+    if (!cursor.paragraph.has_next()) {
+        return false;
+    }
+    cursor.table.reset();
+    return true;
+}
+
+[[nodiscard]] bool append_imported_table(featherdoc::Document &document,
+                                         ImportCursor &cursor,
+                                         const PdfParsedTableCandidate &source) {
+    const bool is_first_written_block = !cursor.has_written_block;
+    featherdoc::Table table;
+    if (!cursor.has_written_block) {
+        table = document.append_table(source.rows.size(),
+                                      source.rows.empty()
+                                          ? 1U
+                                          : source.rows.front().cells.size());
+    } else if (cursor.table.has_value()) {
+        table = cursor.table->insert_table_after(
+            source.rows.size(),
+            source.rows.empty() ? 1U : source.rows.front().cells.size());
+    } else {
+        table = document.append_table(source.rows.size(),
+                                      source.rows.empty()
+                                          ? 1U
+                                          : source.rows.front().cells.size());
+    }
+
+    if (!append_imported_table(document, source, &table)) {
+        return false;
+    }
+
+    cursor.table = std::move(table);
+    cursor.has_written_block = true;
+
+    if (is_first_written_block) {
+        // 首个导入块如果是表格，删除 create_empty() 带来的占位段落，
+        // 避免 body 头部残留一个空白段落。
+        if (!cursor.paragraph.remove()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 [[nodiscard]] PdfDocumentImportResult
 populate_document_from_parsed_pdf(featherdoc::Document &document,
                                   PdfParsedDocument parsed_document,
@@ -180,39 +297,33 @@ populate_document_from_parsed_pdf(featherdoc::Document &document,
         return result;
     }
 
-    auto cursor = document.paragraphs();
-    bool has_written_paragraph = false;
+    ImportCursor cursor{document.paragraphs(), std::nullopt, false};
 
     for (const auto &page : result.parsed_document.pages) {
-        for (const auto &paragraph : page.paragraphs) {
-            if (!has_importable_text(paragraph) ||
-                (import_table_candidates_as_tables &&
-                 overlaps_table_candidate(paragraph, page))) {
-                continue;
-            }
-
-            if (!append_imported_paragraph(cursor, has_written_paragraph,
-                                           paragraph.text)) {
-                result.failure_kind =
-                    PdfDocumentImportFailureKind::document_population_failed;
-                result.error_message =
-                    "Unable to append parsed PDF text paragraph to Document";
-                return result;
-            }
-            ++result.paragraphs_imported;
-        }
-
-        if (import_table_candidates_as_tables) {
-            for (const auto &table : page.table_candidates) {
-                if (!append_imported_table(document, table)) {
+        for (const auto &block :
+             build_import_blocks(page, import_table_candidates_as_tables)) {
+            if (block.kind == ImportBlock::Kind::paragraph) {
+                if (block.paragraph == nullptr ||
+                    !append_imported_paragraph(cursor, block.paragraph->text)) {
                     result.failure_kind =
                         PdfDocumentImportFailureKind::document_population_failed;
                     result.error_message =
-                        "Unable to append parsed PDF table candidate to Document";
+                        "Unable to append parsed PDF text paragraph to Document";
                     return result;
                 }
-                ++result.tables_imported;
+                ++result.paragraphs_imported;
+                continue;
             }
+
+            if (block.table == nullptr ||
+                !append_imported_table(document, cursor, *block.table)) {
+                result.failure_kind =
+                    PdfDocumentImportFailureKind::document_population_failed;
+                result.error_message =
+                    "Unable to append parsed PDF table candidate to Document";
+                return result;
+            }
+            ++result.tables_imported;
         }
     }
 

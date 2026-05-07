@@ -4341,6 +4341,21 @@ Table Table::insert_table_after(std::size_t row_count, std::size_t column_count)
     return created_table;
 }
 
+Paragraph Table::insert_paragraph_after(const std::string &text,
+                                        featherdoc::formatting_flag formatting) {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return {};
+    }
+
+    const auto paragraph_node =
+        detail::insert_paragraph_node(this->parent, this->current.next_sibling());
+    auto paragraph = Paragraph(this->parent, paragraph_node);
+    if (!text.empty() && !paragraph.add_run(text, formatting).has_next()) {
+        return {};
+    }
+    return paragraph;
+}
+
 Table Table::insert_table_like_before() {
     if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
         return {};

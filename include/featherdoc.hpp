@@ -386,6 +386,10 @@ class Table {
                               std::size_t column_count = 1U);
     Table insert_table_after(std::size_t row_count = 1U,
                              std::size_t column_count = 1U);
+    Paragraph insert_paragraph_after(
+        const std::string &text = {},
+        featherdoc::formatting_flag formatting =
+            featherdoc::formatting_flag::none);
     Table insert_table_like_before();
     Table insert_table_like_after();
     TableRow append_row(std::size_t cell_count = 1U);
