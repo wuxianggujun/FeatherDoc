@@ -236,6 +236,7 @@ pdfium_document_parser_probe ..... Passed
 - `pdf_import_structure`：PDFium 字符 span 聚合为行 / 段落，并导入纯文本
   `Document` 的读入结构测试
 - `pdf_import_failure`：PDF 读入失败样本的分类测试，不混入导出回归
+- `pdf_import_table_heuristic`：PDF 简单表格候选识别第一版，覆盖网格正例和双栏反例
 - `pdf_font_resolver`：字体解析和回退规则单测
 - `pdf_text_metrics`：文本宽度 / 行高估算单测
 - `pdf_document_adapter_font`：PDF adapter 的字体映射、样式和列表前缀回归
@@ -245,8 +246,9 @@ pdfium_document_parser_probe ..... Passed
 读入方向可以单独跑，不必混进导出主线：
 
 ```powershell
-ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_(structure|failure)" --output-on-failure --timeout 60
-ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure)$" --output-on-failure --timeout 60
+cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests
+ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_(structure|failure|table_heuristic)" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
 ```
 
 ## CLI 导出入口

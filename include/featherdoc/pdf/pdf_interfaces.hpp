@@ -10,6 +10,7 @@
 
 #include <featherdoc/pdf/pdf_layout.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -68,11 +69,30 @@ struct PdfParsedParagraph {
     std::vector<PdfParsedTextLine> lines;
 };
 
+struct PdfParsedTableCell {
+    std::string text;
+    PdfRect bounds;
+    std::size_t column_index{0U};
+    bool has_text{false};
+};
+
+struct PdfParsedTableRow {
+    PdfRect bounds;
+    std::vector<PdfParsedTableCell> cells;
+};
+
+struct PdfParsedTableCandidate {
+    PdfRect bounds;
+    std::vector<double> column_anchor_x_points;
+    std::vector<PdfParsedTableRow> rows;
+};
+
 struct PdfParsedPage {
     PdfPageSize size{};
     std::vector<PdfParsedTextSpan> text_spans;
     std::vector<PdfParsedTextLine> text_lines;
     std::vector<PdfParsedParagraph> paragraphs;
+    std::vector<PdfParsedTableCandidate> table_candidates;
 };
 
 struct PdfParsedDocument {

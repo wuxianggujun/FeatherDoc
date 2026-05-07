@@ -307,6 +307,22 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         set_tests_properties(pdf_import_failure PROPERTIES
             ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
     endif()
+
+    featherdoc_add_cpp_test(
+        pdf_import_table_heuristic_tests
+        pdf_import_table_heuristic
+        pdf_import_table_heuristic_tests.cpp
+    )
+    target_link_libraries(
+        pdf_import_table_heuristic_tests
+        PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+    )
+    featherdoc_set_test_labels(
+        pdf_import_table_heuristic core smoke pdf import-heuristic)
+    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+        set_tests_properties(pdf_import_table_heuristic PROPERTIES
+            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    endif()
 endif()
 
 if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)

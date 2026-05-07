@@ -455,7 +455,8 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
   当前是 `PdfParsedTextLine` / `PdfParsedParagraph`。
 - [x] 先支持纯文本和段落识别第一版：
   受控文本 PDF 可从字符 span 聚合为行和段落，并可导入为纯文本 `Document`。
-- [ ] 再支持简单表格启发式识别。
+- [x] 再支持简单表格启发式识别第一版：
+  当前是保守的 `PdfParsedTableCandidate` 候选识别，不承诺直接还原成 Word 表格。
 - [x] 明确不支持能力第一版：
   扫描件 OCR、复杂矢量图还原、任意 PDF 精确还原成 Word。
 - [x] 将读入方向的失败样本单独分类第一版，不混入导出主线。
@@ -498,10 +499,28 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
   `pdf_import_failure` 测试目标，单独覆盖 `extract_text` 禁用、`extract_geometry`
   禁用、无文本 PDF 和 parse 失败 4 类读入失败样本；这些失败样本不进入导出 regression
   manifest。
-- 本轮新增的是导入 facade 和测试内部受控 PDF，不新增面向发布的 PDF 输出样本；仍不新增
-  视觉 baseline。后续一旦增加新的发布样本或改变导出 PDF，必须回到 E6 视觉门禁。
-- 已知限制更新：纯文本段落导入会保留 PDFium 聚合出的段落换行，但不保证原 PDF 的
-  视觉布局、样式、列、表格或图片语义。
+- 已新增 `PdfParsedTableCell` / `PdfParsedTableRow` / `PdfParsedTableCandidate`
+  中间结构，并在 `PdfParsedPage` 中保留 `table_candidates`。
+- 已在 `PdfiumParser` 中新增简单表格启发式第一版：
+  先按字符 span 的 X 间隔把同一行拆成 cell cluster，再按稳定行距和列锚点聚合成
+  `PdfParsedTableCandidate`。
+- 已新增独立 `pdf_import_table_heuristic` 测试目标：
+  用受控 `table-like grid` PDF 验证命中 3x3 稀疏表格候选，用 `two-column` PDF
+  验证普通双栏正文不会误判成表格。
+- 已完成可视化验证：
+  将 `featherdoc-pdf-import-table-like-grid.pdf` 和
+  `featherdoc-pdf-import-two-column.pdf` 渲染为 PNG/contact sheet；目检确认前者是
+  网格型输入、后者是普通双栏输入，和启发式测试预期一致。
+- 本轮新增的是导入侧中间结构、测试内部受控 PDF 和视觉核对记录，不新增面向发布的
+  PDF 输出样本；仍不新增发布 baseline。后续一旦增加新的发布样本或改变导出 PDF，
+  必须回到 E6 视觉门禁。
+- 已知限制更新：
+  纯文本段落导入会保留 PDFium 聚合出的段落换行，但不保证原 PDF 的视觉布局、样式、
+  列、表格或图片语义。
+- 已知限制更新：
+  当前表格启发式只覆盖“稳定行距 + 规则列锚点”的简单网格型文本，暂不覆盖两行表格、
+  不规则 invoice、跨列/跨行单元格、复杂分页表格或将候选表格直接写回 `Document`
+  table AST。
 
 通过命令：
 
@@ -514,12 +533,31 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure)$" --ou
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_(import_structure|unicode_font_roundtrip|regression_manifest)$" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_(structure|failure)" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_(import_structure|import_failure|unicode_font_roundtrip|regression_manifest)$" --output-on-failure --timeout 60
+cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_(structure|failure|table_heuristic)|pdf_(unicode_font_roundtrip|regression_manifest)$" --output-on-failure --timeout 60
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-table-like-grid.pdf --output-dir .\output\pdf-e7-table-heuristic-visual\table-like\pages --summary .\output\pdf-e7-table-heuristic-visual\table-like\summary.json --contact-sheet .\output\pdf-e7-table-heuristic-visual\table-like\contact-sheet.png --dpi 144
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-two-column.pdf --output-dir .\output\pdf-e7-table-heuristic-visual\two-column\pages --summary .\output\pdf-e7-table-heuristic-visual\two-column\summary.json --contact-sheet .\output\pdf-e7-table-heuristic-visual\two-column\contact-sheet.png --dpi 144
 ```
 
-下一步入口：继续 E7 时，先重新阅读 `include/featherdoc/pdf/pdf_document_importer.hpp`、
-`src/pdf/pdf_document_importer.cpp`、`test/pdf_import_structure_tests.cpp` 和表格相关
-PDF layout/inspection 代码，再评估是否进入简单表格启发式。进入前必须先把失败样本
-分类设计清楚，避免把读入失败混入导出主线回归。
+可视化验证产物：
+
+- `output/pdf-e7-table-heuristic-visual/table-like/summary.json`
+- `output/pdf-e7-table-heuristic-visual/table-like/contact-sheet.png`
+- `output/pdf-e7-table-heuristic-visual/two-column/summary.json`
+- `output/pdf-e7-table-heuristic-visual/two-column/contact-sheet.png`
+
+下一步入口：继续 E7 时，先重新阅读 `include/featherdoc/pdf/pdf_interfaces.hpp`、
+`src/pdf/pdfium_parser.cpp`、`include/featherdoc/pdf/pdf_document_importer.hpp`、
+`src/pdf/pdf_document_importer.cpp` 和 `test/pdf_import_table_heuristic_tests.cpp`，
+再决定下一步是：
+
+- 扩展负样本集，继续压低多栏/列表/标题组合的误判率；或
+- 评估是否把 `PdfParsedTableCandidate` 接入实验性的 `PDF -> Document` 表格 AST
+  facade 第一版。
+
+进入下一步前仍需保持失败样本分类独立，避免把读入方向的不稳定样本混入导出主线回归。
 
 ## 阶段推进规则
 
