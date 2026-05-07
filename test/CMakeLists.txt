@@ -24,6 +24,147 @@ function(featherdoc_set_test_labels test_name)
     )
 endfunction()
 
+function(featherdoc_get_runtime_dir out_var target_name)
+    if(NOT TARGET ${target_name})
+        set(${out_var} "" PARENT_SCOPE)
+        return()
+    endif()
+
+    set(runtime_location "")
+    foreach(property_name IN ITEMS
+        IMPORTED_LOCATION_RELEASE
+        IMPORTED_LOCATION_RELWITHDEBINFO
+        IMPORTED_LOCATION_MINSIZEREL
+        IMPORTED_LOCATION_DEBUG
+        IMPORTED_LOCATION_NOCONFIG
+        IMPORTED_LOCATION
+        IMPORTED_IMPLIB_RELEASE
+        IMPORTED_IMPLIB_RELWITHDEBINFO
+        IMPORTED_IMPLIB_MINSIZEREL
+        IMPORTED_IMPLIB_DEBUG
+        IMPORTED_IMPLIB_NOCONFIG
+        IMPORTED_IMPLIB
+    )
+        if(runtime_location STREQUAL "")
+            get_target_property(runtime_location ${target_name} ${property_name})
+            if(runtime_location STREQUAL "runtime_location-NOTFOUND")
+                set(runtime_location "")
+            endif()
+        endif()
+    endforeach()
+
+    if(runtime_location STREQUAL "")
+        if(target_name STREQUAL "PNG::PNG")
+            foreach(variable_name IN ITEMS PNG_LIBRARY_RELEASE PNG_LIBRARY_DEBUG PNG_LIBRARY)
+                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
+                    set(runtime_location "${${variable_name}}")
+                    if(runtime_location MATCHES "-NOTFOUND$")
+                        set(runtime_location "")
+                    endif()
+                endif()
+            endforeach()
+        elseif(target_name STREQUAL "Freetype::Freetype")
+            foreach(variable_name IN ITEMS
+                FREETYPE_LIBRARY_RELEASE
+                FREETYPE_LIBRARY_DEBUG
+                FEATHERDOC_FREETYPE_LIBRARY_RELEASE
+                FEATHERDOC_FREETYPE_LIBRARY_DEBUG
+                FREETYPE_LIBRARY
+            )
+                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
+                    set(runtime_location "${${variable_name}}")
+                    if(runtime_location MATCHES "-NOTFOUND$")
+                        set(runtime_location "")
+                    endif()
+                endif()
+            endforeach()
+        elseif(target_name STREQUAL "harfbuzz::harfbuzz-subset")
+            foreach(variable_name IN ITEMS
+                HARFBUZZ_SUBSET_LIBRARY_RELEASE
+                HARFBUZZ_SUBSET_LIBRARY_DEBUG
+                HARFBUZZ_SUBSET_LIBRARY
+            )
+                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
+                    set(runtime_location "${${variable_name}}")
+                    if(runtime_location MATCHES "-NOTFOUND$")
+                        set(runtime_location "")
+                    endif()
+                endif()
+            endforeach()
+        elseif(target_name STREQUAL "harfbuzz::harfbuzz")
+            foreach(variable_name IN ITEMS
+                HARFBUZZ_LIBRARY_RELEASE
+                HARFBUZZ_LIBRARY_DEBUG
+                HARFBUZZ_LIBRARY
+            )
+                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
+                    set(runtime_location "${${variable_name}}")
+                    if(runtime_location MATCHES "-NOTFOUND$")
+                        set(runtime_location "")
+                    endif()
+                endif()
+            endforeach()
+        endif()
+    endif()
+
+    if(runtime_location STREQUAL "")
+        set(${out_var} "" PARENT_SCOPE)
+        return()
+    endif()
+
+    get_filename_component(runtime_ext "${runtime_location}" EXT)
+    if(runtime_ext STREQUAL ".lib")
+        string(REPLACE "/lib/" "/bin/" runtime_location "${runtime_location}")
+        string(REPLACE "\\lib\\" "\\bin\\" runtime_location "${runtime_location}")
+        string(REGEX REPLACE "\\.lib$" ".dll" runtime_location
+            "${runtime_location}")
+    endif()
+
+    get_filename_component(runtime_dir "${runtime_location}" DIRECTORY)
+    set(${out_var} "${runtime_dir}" PARENT_SCOPE)
+endfunction()
+
+function(featherdoc_build_pdf_test_environment out_var)
+    set(runtime_dirs)
+
+    featherdoc_get_runtime_dir(png_runtime_dir PNG::PNG)
+    if(NOT png_runtime_dir STREQUAL "")
+        list(APPEND runtime_dirs "${png_runtime_dir}")
+    endif()
+
+    featherdoc_get_runtime_dir(freetype_runtime_dir Freetype::Freetype)
+    if(NOT freetype_runtime_dir STREQUAL "")
+        list(APPEND runtime_dirs "${freetype_runtime_dir}")
+    endif()
+
+    featherdoc_get_runtime_dir(harfbuzz_runtime_dir harfbuzz::harfbuzz)
+    if(NOT harfbuzz_runtime_dir STREQUAL "")
+        list(APPEND runtime_dirs "${harfbuzz_runtime_dir}")
+    endif()
+
+    featherdoc_get_runtime_dir(harfbuzz_subset_runtime_dir
+        harfbuzz::harfbuzz-subset)
+    if(NOT harfbuzz_subset_runtime_dir STREQUAL "")
+        list(APPEND runtime_dirs "${harfbuzz_subset_runtime_dir}")
+    endif()
+
+    if(DEFINED FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR AND
+       NOT "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}" STREQUAL "")
+        list(APPEND runtime_dirs "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}")
+    endif()
+
+    list(REMOVE_DUPLICATES runtime_dirs)
+    if(runtime_dirs)
+        string(JOIN ";" runtime_path ${runtime_dirs})
+        set(${out_var} "PATH=${runtime_path};$ENV{PATH}" PARENT_SCOPE)
+    else()
+        set(${out_var} "" PARENT_SCOPE)
+    endif()
+endfunction()
+
+set(FEATHERDOC_PDF_TEST_ENVIRONMENT "")
+featherdoc_build_pdf_test_environment(FEATHERDOC_PDF_TEST_ENVIRONMENT)
+
 featherdoc_add_cpp_test(
     unit_tests
     unit
@@ -41,6 +182,220 @@ featherdoc_add_cpp_test(
     iterator_tests.cpp
 )
 featherdoc_set_test_labels(iterator core smoke)
+
+if(TARGET FeatherDocPdf)
+    featherdoc_add_cpp_test(
+        pdf_font_resolver_tests
+        pdf_font_resolver
+        pdf_font_resolver_tests.cpp
+    )
+    target_link_libraries(pdf_font_resolver_tests PRIVATE FeatherDoc::Pdf)
+    featherdoc_set_test_labels(pdf_font_resolver core smoke pdf)
+    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+        set_tests_properties(pdf_font_resolver PROPERTIES
+            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    endif()
+
+    featherdoc_add_cpp_test(
+        pdf_text_metrics_tests
+        pdf_text_metrics
+        pdf_text_metrics_tests.cpp
+    )
+    target_link_libraries(pdf_text_metrics_tests PRIVATE FeatherDoc::Pdf)
+    featherdoc_set_test_labels(pdf_text_metrics core smoke pdf)
+    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+        set_tests_properties(pdf_text_metrics PROPERTIES
+            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    endif()
+
+    featherdoc_add_cpp_test(
+        pdf_document_adapter_font_tests
+        pdf_document_adapter_font
+        pdf_document_adapter_font_tests.cpp
+    )
+    target_link_libraries(
+        pdf_document_adapter_font_tests
+        PRIVATE FeatherDoc::Pdf
+    )
+    if(TARGET FeatherDocPdfImport)
+        target_compile_definitions(
+            pdf_document_adapter_font_tests
+            PRIVATE FEATHERDOC_BUILD_PDF_IMPORT=1
+        )
+        target_link_libraries(
+            pdf_document_adapter_font_tests
+            PRIVATE FeatherDoc::PdfImport
+        )
+    endif()
+    featherdoc_set_test_labels(pdf_document_adapter_font core smoke pdf)
+    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+        set_tests_properties(pdf_document_adapter_font PROPERTIES
+            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    endif()
+
+    if(TARGET featherdoc_cli)
+        featherdoc_add_cpp_test(
+            pdf_cli_export_tests
+            pdf_cli_export
+            pdf_cli_export_tests.cpp
+        )
+        target_include_directories(
+            pdf_cli_export_tests
+            PRIVATE ${PROJECT_SOURCE_DIR}/cli
+        )
+        add_dependencies(pdf_cli_export_tests featherdoc_cli)
+        if(TARGET FeatherDocPdfImport)
+            target_compile_definitions(
+                pdf_cli_export_tests
+                PRIVATE FEATHERDOC_BUILD_PDF_IMPORT=1
+            )
+            target_link_libraries(
+                pdf_cli_export_tests
+                PRIVATE FeatherDoc::PdfImport
+            )
+        endif()
+        featherdoc_set_test_labels(pdf_cli_export cli smoke pdf)
+        if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdf_cli_export PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
+    endif()
+endif()
+
+if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
+    featherdoc_add_cpp_test(
+        pdf_unicode_font_roundtrip_tests
+        pdf_unicode_font_roundtrip
+        pdf_unicode_font_roundtrip_tests.cpp
+    )
+    target_link_libraries(
+        pdf_unicode_font_roundtrip_tests
+        PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+    )
+    featherdoc_set_test_labels(pdf_unicode_font_roundtrip core smoke pdf)
+    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+        set_tests_properties(pdf_unicode_font_roundtrip PROPERTIES
+            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    endif()
+endif()
+
+if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
+    set(FEATHERDOC_PDF_REGRESSION_MANIFEST
+        "${CMAKE_CURRENT_SOURCE_DIR}/pdf_regression_manifest.json")
+    set(FEATHERDOC_PDF_REGRESSION_SCHEMA
+        "${CMAKE_CURRENT_SOURCE_DIR}/pdf_regression_manifest.schema.json")
+    configure_file(
+        "${FEATHERDOC_PDF_REGRESSION_MANIFEST}"
+        "${CMAKE_CURRENT_BINARY_DIR}/pdf_regression_manifest.json"
+        COPYONLY
+    )
+    configure_file(
+        "${FEATHERDOC_PDF_REGRESSION_SCHEMA}"
+        "${CMAKE_CURRENT_BINARY_DIR}/pdf_regression_manifest.schema.json"
+        COPYONLY
+    )
+
+    featherdoc_add_cpp_test(
+        pdf_regression_manifest_tests
+        pdf_regression_manifest
+        pdf_regression_manifest_test.cpp
+    )
+    featherdoc_set_test_labels(pdf_regression_manifest core smoke pdf regression)
+    set(FEATHERDOC_PDF_REGRESSION_MANIFEST_RUNTIME_PATH
+        "${CMAKE_CURRENT_BINARY_DIR}/pdf_regression_manifest.json")
+    file(TO_CMAKE_PATH
+        "${FEATHERDOC_PDF_REGRESSION_MANIFEST_RUNTIME_PATH}"
+        FEATHERDOC_PDF_REGRESSION_MANIFEST_RUNTIME_PATH)
+    set(FEATHERDOC_PDF_REGRESSION_MANIFEST_DEFINE
+        "FEATHERDOC_PDF_REGRESSION_MANIFEST_PATH=\"${FEATHERDOC_PDF_REGRESSION_MANIFEST_RUNTIME_PATH}\"")
+    target_compile_definitions(
+        pdf_regression_manifest_tests
+        PRIVATE "${FEATHERDOC_PDF_REGRESSION_MANIFEST_DEFINE}")
+    set_tests_properties(pdf_regression_manifest PROPERTIES TIMEOUT 60)
+
+    add_executable(featherdoc_pdf_regression_sample
+        ../samples/pdf_regression_sample.cpp
+    )
+    target_link_libraries(
+        featherdoc_pdf_regression_sample
+        PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+    )
+    featherdoc_copy_runtime_dlls(featherdoc_pdf_regression_sample)
+
+    if(MSVC)
+        target_compile_options(featherdoc_pdf_regression_sample PRIVATE /utf-8)
+    endif()
+
+    file(READ "${FEATHERDOC_PDF_REGRESSION_MANIFEST}" FEATHERDOC_PDF_REGRESSION_JSON)
+    string(JSON FEATHERDOC_PDF_REGRESSION_COUNT LENGTH
+        "${FEATHERDOC_PDF_REGRESSION_JSON}" samples)
+
+    math(EXPR FEATHERDOC_PDF_REGRESSION_LAST_INDEX
+        "${FEATHERDOC_PDF_REGRESSION_COUNT} - 1")
+    foreach(sample_index RANGE 0 ${FEATHERDOC_PDF_REGRESSION_LAST_INDEX})
+        string(JSON sample_id GET "${FEATHERDOC_PDF_REGRESSION_JSON}" samples
+            ${sample_index} id)
+        string(JSON sample_kind GET "${FEATHERDOC_PDF_REGRESSION_JSON}" samples
+            ${sample_index} kind)
+        string(JSON sample_output GET "${FEATHERDOC_PDF_REGRESSION_JSON}" samples
+            ${sample_index} output_file)
+        string(JSON sample_expected_pages GET
+            "${FEATHERDOC_PDF_REGRESSION_JSON}" samples ${sample_index}
+            expected_pages)
+        string(JSON sample_expected_text_count LENGTH
+            "${FEATHERDOC_PDF_REGRESSION_JSON}" samples ${sample_index}
+            expected_text)
+
+        set(sample_command
+            featherdoc_pdf_regression_sample
+            --scenario ${sample_kind}
+            --output ${CMAKE_CURRENT_BINARY_DIR}/${sample_output}
+            --expected-pages ${sample_expected_pages})
+        if(sample_expected_text_count GREATER 0)
+            math(EXPR sample_expected_text_last_index
+                "${sample_expected_text_count} - 1")
+            foreach(text_index RANGE 0 ${sample_expected_text_last_index})
+                string(JSON sample_expected_text GET
+                    "${FEATHERDOC_PDF_REGRESSION_JSON}" samples
+                    ${sample_index} expected_text ${text_index})
+                list(APPEND sample_command --expect-text "${sample_expected_text}")
+            endforeach()
+        endif()
+        if(sample_kind STREQUAL "cjk_text" OR
+           sample_kind STREQUAL "cjk_image_report_text" OR
+           sample_kind STREQUAL "cjk_report_text" OR
+           sample_kind STREQUAL "contract_cjk_style" OR
+           sample_kind STREQUAL "document_contract_cjk_style" OR
+           sample_kind STREQUAL "document_eastasia_style_probe")
+            list(APPEND sample_command --require-cjk-font)
+        endif()
+
+        set(test_name "pdf_regression_${sample_id}")
+        add_test(NAME ${test_name} COMMAND ${sample_command})
+        if(FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+            set_tests_properties(${test_name}
+                PROPERTIES TIMEOUT 60 LABELS "pdf;smoke;regression")
+        else()
+            set_tests_properties(${test_name}
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "pdf;smoke;regression"
+                    ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
+        if(sample_kind STREQUAL "cjk_text" OR
+           sample_kind STREQUAL "cjk_image_report_text" OR
+           sample_kind STREQUAL "cjk_report_text" OR
+           sample_kind STREQUAL "contract_cjk_style" OR
+           sample_kind STREQUAL "document_contract_cjk_style" OR
+           sample_kind STREQUAL "document_eastasia_style_probe")
+            set_tests_properties(${test_name}
+                PROPERTIES
+                    SKIP_RETURN_CODE 77
+                    LABELS "pdf;smoke;regression;pdf-cjk")
+            list(APPEND FEATHERDOC_PDF_REGRESSION_CJK_TESTS ${test_name})
+        endif()
+    endforeach()
+endif()
 
 featherdoc_add_cpp_test(
     cli_json_tests
@@ -161,6 +516,36 @@ if(WIN32)
             -RepoRoot
             ${PROJECT_SOURCE_DIR}
         )
+
+        add_test(
+            NAME
+            pdf_unicode_font_roundtrip_visual
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -NoProfile
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/run_pdf_unicode_font_roundtrip_visual_regression.ps1
+            -BuildDir
+            ${CMAKE_BINARY_DIR}
+            -OutputDir
+            ${CMAKE_BINARY_DIR}/pdf_unicode_font_visual_regression
+        )
+        if(FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdf_unicode_font_roundtrip_visual
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "pdf;smoke;regression;visual"
+                    SKIP_RETURN_CODE 77)
+        else()
+            set_tests_properties(pdf_unicode_font_roundtrip_visual
+                PROPERTIES
+                    TIMEOUT 60
+                    LABELS "pdf;smoke;regression;visual"
+                    SKIP_RETURN_CODE 77
+                    ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
 
         add_test(
             NAME
@@ -2081,7 +2466,7 @@ if(TARGET featherdoc_cli)
             PRIVATE FeatherDoc::FeatherDoc
         )
         if(MSVC)
-            target_compile_options(${target_name} PRIVATE /utf-8)
+            target_compile_options(${target_name} PRIVATE /bigobj /utf-8)
         endif()
         featherdoc_copy_runtime_dlls(${target_name})
 

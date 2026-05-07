@@ -24,6 +24,7 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    v1_7_roadmap_zh
    licensing_zh
    automation/word_visual_workflow_zh
+   libreoffice_pdf/index_zh
 
 Visual Validation Preview
 -------------------------
@@ -152,6 +153,12 @@ The install tree mirrors these preview entry points under ``share/FeatherDoc``
 through ``RELEASE_ARTIFACT_TEMPLATE*.md``,
 ``VISUAL_VALIDATION_QUICKSTART*.md``, ``VISUAL_VALIDATION*.md``, and
 ``visual-validation/*.png``.
+
+
+LibreOffice PDF Study Notes
+---------------------------
+The LibreOffice PDF research log now lives under
+:doc:`libreoffice_pdf/index_zh`.
 
 
 How to install

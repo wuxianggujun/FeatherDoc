@@ -26,14 +26,25 @@ option(FEATHERDOC_BUILD_PDF
 option(FEATHERDOC_BUILD_PDF_IMPORT
     "Build experimental PDF parser module backed by PDFium" OFF)
 
+if(MSVC)
+    # 统一按 UTF-8 解析源码，避免中文字符串字面量在样例和测试里被误解码。
+    add_compile_options(
+        $<$<COMPILE_LANGUAGE:C>:/utf-8>
+        $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
+    )
+endif()
+
 set(HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/constants.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc_iterator.hpp"
 )
 set(PDF_COMMON_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_subset.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_resolver.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_interfaces.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_layout.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_text_metrics.hpp"
 )
 set(PDF_WRITER_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_document_adapter.hpp"
@@ -75,16 +86,219 @@ set(THIRD_PARTY_SRC
 add_library(FeatherDoc ${SOURCES} ${THIRD_PARTY_SRC})
 add_library(FeatherDoc::FeatherDoc ALIAS FeatherDoc)
 
+file(TO_CMAKE_PATH
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocCopyRuntimeDlls.cmake"
+    FEATHERDOC_COPY_RUNTIME_DLLS_SCRIPT)
+
 function(featherdoc_copy_runtime_dlls target_name)
-    if(WIN32 AND BUILD_SHARED_LIBS)
+    if(WIN32)
+        # Copy transitive runtime DLLs next to executables so CTest can run
+        # without depending on an ad hoc PATH setup.
+        set(copy_runtime_dlls_extra)
+        foreach(runtime_target IN ITEMS
+            PNG::PNG
+            Freetype::Freetype
+            harfbuzz::harfbuzz
+            harfbuzz::harfbuzz-subset
+        )
+            featherdoc_get_imported_runtime_file(runtime_dll "${runtime_target}")
+            if(NOT runtime_dll STREQUAL "")
+                file(TO_CMAKE_PATH "${runtime_dll}" runtime_dll)
+                list(APPEND copy_runtime_dlls_extra "${runtime_dll}")
+            endif()
+        endforeach()
+        if(copy_runtime_dlls_extra)
+            list(REMOVE_DUPLICATES copy_runtime_dlls_extra)
+        endif()
+
+        set(copy_runtime_dlls_extra_lines "")
+        foreach(runtime_dll IN LISTS copy_runtime_dlls_extra)
+            string(APPEND copy_runtime_dlls_extra_lines
+                "list(APPEND FEATHERDOC_COPY_RUNTIME_DLLS_DLLS \"${runtime_dll}\")\n")
+        endforeach()
+
+        set(copy_runtime_dlls_script
+            "${CMAKE_CURRENT_BINARY_DIR}/${target_name}_copy_runtime_dlls.cmake")
+        set(copy_runtime_dlls_content [=[
+set(FEATHERDOC_COPY_RUNTIME_DLLS_DEST "$<TARGET_FILE_DIR:@TARGET_NAME@>")
+set(FEATHERDOC_COPY_RUNTIME_DLLS_DLLS "$<TARGET_RUNTIME_DLLS:@TARGET_NAME@>")
+@EXTRA_RUNTIME_DLLS@
+include("@COMMON_SCRIPT@")
+]=])
+        string(REPLACE "@TARGET_NAME@" "${target_name}"
+            copy_runtime_dlls_content "${copy_runtime_dlls_content}")
+        string(REPLACE "@EXTRA_RUNTIME_DLLS@" "${copy_runtime_dlls_extra_lines}"
+            copy_runtime_dlls_content "${copy_runtime_dlls_content}")
+        string(REPLACE "@COMMON_SCRIPT@" "${FEATHERDOC_COPY_RUNTIME_DLLS_SCRIPT}"
+            copy_runtime_dlls_content "${copy_runtime_dlls_content}")
+        file(GENERATE
+            OUTPUT "${copy_runtime_dlls_script}"
+            CONTENT "${copy_runtime_dlls_content}"
+        )
         add_custom_command(
             TARGET ${target_name}
             POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:${target_name}>
-                $<TARGET_FILE_DIR:${target_name}>
-            COMMAND_EXPAND_LISTS
+            COMMAND ${CMAKE_COMMAND} -P "${copy_runtime_dlls_script}"
         )
+    endif()
+endfunction()
+
+function(featherdoc_get_imported_runtime_file out_var target_name)
+    if(NOT TARGET ${target_name})
+        set(${out_var} "" PARENT_SCOPE)
+        return()
+    endif()
+
+    set(runtime_location "")
+    foreach(property_name IN ITEMS
+        IMPORTED_LOCATION_RELEASE
+        IMPORTED_LOCATION_RELWITHDEBINFO
+        IMPORTED_LOCATION_MINSIZEREL
+        IMPORTED_LOCATION_DEBUG
+        IMPORTED_LOCATION_NOCONFIG
+        IMPORTED_LOCATION
+        IMPORTED_IMPLIB_RELEASE
+        IMPORTED_IMPLIB_RELWITHDEBINFO
+        IMPORTED_IMPLIB_MINSIZEREL
+        IMPORTED_IMPLIB_DEBUG
+        IMPORTED_IMPLIB_NOCONFIG
+        IMPORTED_IMPLIB
+    )
+        if(runtime_location STREQUAL "")
+            get_target_property(runtime_location ${target_name} ${property_name})
+            if(runtime_location STREQUAL "runtime_location-NOTFOUND")
+                set(runtime_location "")
+            endif()
+        endif()
+    endforeach()
+
+    if(runtime_location STREQUAL "")
+        if(target_name STREQUAL "PNG::PNG")
+            foreach(variable_name IN ITEMS PNG_LIBRARY_RELEASE PNG_LIBRARY_DEBUG PNG_LIBRARY)
+                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
+                    set(runtime_location "${${variable_name}}")
+                    if(runtime_location MATCHES "-NOTFOUND$")
+                        set(runtime_location "")
+                    endif()
+                endif()
+            endforeach()
+        elseif(target_name STREQUAL "Freetype::Freetype")
+            foreach(variable_name IN ITEMS
+                FREETYPE_LIBRARY_RELEASE
+                FREETYPE_LIBRARY_DEBUG
+                FEATHERDOC_FREETYPE_LIBRARY_RELEASE
+                FEATHERDOC_FREETYPE_LIBRARY_DEBUG
+                FREETYPE_LIBRARY
+            )
+                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
+                    set(runtime_location "${${variable_name}}")
+                    if(runtime_location MATCHES "-NOTFOUND$")
+                        set(runtime_location "")
+                    endif()
+                endif()
+            endforeach()
+        elseif(target_name STREQUAL "harfbuzz::harfbuzz-subset")
+            foreach(variable_name IN ITEMS
+                HARFBUZZ_SUBSET_LIBRARY_RELEASE
+                HARFBUZZ_SUBSET_LIBRARY_DEBUG
+                HARFBUZZ_SUBSET_LIBRARY
+            )
+                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
+                    set(runtime_location "${${variable_name}}")
+                    if(runtime_location MATCHES "-NOTFOUND$")
+                        set(runtime_location "")
+                    endif()
+                endif()
+            endforeach()
+        elseif(target_name STREQUAL "harfbuzz::harfbuzz")
+            foreach(variable_name IN ITEMS
+                HARFBUZZ_LIBRARY_RELEASE
+                HARFBUZZ_LIBRARY_DEBUG
+                HARFBUZZ_LIBRARY
+            )
+                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
+                    set(runtime_location "${${variable_name}}")
+                    if(runtime_location MATCHES "-NOTFOUND$")
+                        set(runtime_location "")
+                    endif()
+                endif()
+            endforeach()
+        endif()
+    endif()
+
+    if(runtime_location STREQUAL "")
+        set(${out_var} "" PARENT_SCOPE)
+        return()
+    endif()
+
+    get_filename_component(runtime_ext "${runtime_location}" EXT)
+    if(runtime_ext STREQUAL ".lib")
+        string(REPLACE "/lib/" "/bin/" runtime_location "${runtime_location}")
+        string(REPLACE "\\lib\\" "\\bin\\" runtime_location "${runtime_location}")
+        string(REGEX REPLACE "\\.lib$" ".dll" runtime_location
+            "${runtime_location}")
+    endif()
+
+    if(NOT EXISTS "${runtime_location}")
+        set(${out_var} "" PARENT_SCOPE)
+        return()
+    endif()
+
+    get_filename_component(runtime_ext "${runtime_location}" EXT)
+    if(NOT runtime_ext STREQUAL ".dll")
+        set(${out_var} "" PARENT_SCOPE)
+        return()
+    endif()
+
+    set(${out_var} "${runtime_location}" PARENT_SCOPE)
+endfunction()
+
+function(featherdoc_get_imported_runtime_dir out_var target_name)
+    featherdoc_get_imported_runtime_file(runtime_location ${target_name})
+    if(runtime_location STREQUAL "")
+        set(${out_var} "" PARENT_SCOPE)
+        return()
+    endif()
+
+    get_filename_component(runtime_dir "${runtime_location}" DIRECTORY)
+    set(${out_var} "${runtime_dir}" PARENT_SCOPE)
+endfunction()
+
+function(featherdoc_collect_pdf_runtime_environment out_var include_pdfium_dir)
+    set(runtime_dirs)
+
+    featherdoc_get_imported_runtime_dir(png_runtime_dir PNG::PNG)
+    if(NOT png_runtime_dir STREQUAL "")
+        list(APPEND runtime_dirs "${png_runtime_dir}")
+    endif()
+
+    featherdoc_get_imported_runtime_dir(freetype_runtime_dir Freetype::Freetype)
+    if(NOT freetype_runtime_dir STREQUAL "")
+        list(APPEND runtime_dirs "${freetype_runtime_dir}")
+    endif()
+
+    featherdoc_get_imported_runtime_dir(harfbuzz_runtime_dir harfbuzz::harfbuzz)
+    if(NOT harfbuzz_runtime_dir STREQUAL "")
+        list(APPEND runtime_dirs "${harfbuzz_runtime_dir}")
+    endif()
+
+    featherdoc_get_imported_runtime_dir(harfbuzz_subset_runtime_dir
+        harfbuzz::harfbuzz-subset)
+    if(NOT harfbuzz_subset_runtime_dir STREQUAL "")
+        list(APPEND runtime_dirs "${harfbuzz_subset_runtime_dir}")
+    endif()
+
+    if(include_pdfium_dir AND DEFINED FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR AND
+       NOT "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}" STREQUAL "")
+        list(APPEND runtime_dirs "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}")
+    endif()
+
+    list(REMOVE_DUPLICATES runtime_dirs)
+    if(runtime_dirs)
+        string(JOIN ";" runtime_path ${runtime_dirs})
+        set(${out_var} "PATH=${runtime_path};$ENV{PATH}" PARENT_SCOPE)
+    else()
+        set(${out_var} "" PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -124,10 +338,28 @@ endif()
 
 if(FEATHERDOC_BUILD_PDF)
     include(cmake/FeatherDocPdfio.cmake)
+    include(cmake/FeatherDocPdfThirdParty.cmake)
     featherdoc_add_pdfio_object_library(featherdoc_pdfio_objects)
+    featherdoc_add_freetype_target()
+    featherdoc_add_png_target(featherdoc_png)
+    featherdoc_add_harfbuzz_targets()
+
+    target_compile_definitions(featherdoc_pdfio_objects PRIVATE HAVE_LIBPNG=1)
+    target_link_libraries(featherdoc_pdfio_objects PRIVATE PNG::PNG zlibstatic)
 
     add_library(FeatherDocPdf
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_headers.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_images.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_paragraphs.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_render.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_table_borders.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_table_layout.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_tables.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_text.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_font_resolver.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_font_subset.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_text_metrics.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_writer.cpp"
         $<TARGET_OBJECTS:featherdoc_pdfio_objects>
     )
@@ -152,11 +384,21 @@ if(FEATHERDOC_BUILD_PDF)
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         PRIVATE
             $<BUILD_INTERFACE:${FEATHERDOC_RESOLVED_PDFIO_SOURCE_DIR}>
+            $<TARGET_PROPERTY:Freetype::Freetype,INTERFACE_INCLUDE_DIRECTORIES>
     )
     target_link_libraries(FeatherDocPdf
         PUBLIC
             FeatherDoc::FeatherDoc
+            Freetype::Freetype
+            PNG::PNG
+            zlibstatic
     )
+    if(FEATHERDOC_HARFBUZZ_SUBSET_AVAILABLE)
+        target_compile_definitions(FeatherDocPdf
+            PRIVATE FEATHERDOC_ENABLE_PDF_FONT_SUBSET=1)
+        target_link_libraries(FeatherDocPdf
+            PRIVATE harfbuzz::harfbuzz-subset)
+    endif()
 
     if(MSVC)
         target_compile_options(FeatherDocPdf PRIVATE /W4 /permissive-)
@@ -168,6 +410,7 @@ endif()
 
 if(FEATHERDOC_BUILD_PDF_IMPORT)
     include(cmake/FeatherDocPdfium.cmake)
+    include(cmake/FeatherDocPdfThirdParty.cmake)
 
     if(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "source")
         featherdoc_add_pdfium_source_target(featherdoc_pdfium_source)
@@ -752,6 +995,9 @@ if(BUILD_SAMPLES)
 endif()
 
 if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF)
+    featherdoc_collect_pdf_runtime_environment(
+        FEATHERDOC_PDF_RUNTIME_ENVIRONMENT FALSE)
+
     add_executable(featherdoc_pdfio_probe samples/pdfio_probe.cpp)
     target_link_libraries(featherdoc_pdfio_probe PRIVATE FeatherDoc::Pdf)
     featherdoc_copy_runtime_dlls(featherdoc_pdfio_probe)
@@ -766,11 +1012,19 @@ if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF)
             COMMAND featherdoc_pdfio_probe
                 "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-pdfio-probe.pdf"
         )
+        if(NOT FEATHERDOC_PDF_RUNTIME_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdfio_generator_probe PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_RUNTIME_ENVIRONMENT}")
+        endif()
         add_test(
             NAME pdf_document_generator_probe
             COMMAND featherdoc_pdf_document_probe
                 "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-document-probe.pdf"
         )
+        if(NOT FEATHERDOC_PDF_RUNTIME_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdf_document_generator_probe PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_RUNTIME_ENVIRONMENT}")
+        endif()
     endif()
 endif()
 
@@ -785,6 +1039,12 @@ if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF_IMPORT)
             COMMAND featherdoc_pdfium_probe
                 "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-pdfio-probe.pdf"
         )
+        featherdoc_collect_pdf_runtime_environment(
+            FEATHERDOC_PDF_RUNTIME_ENVIRONMENT TRUE)
+        if(NOT FEATHERDOC_PDF_RUNTIME_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdfium_parser_probe PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_RUNTIME_ENVIRONMENT}")
+        endif()
         set_tests_properties(pdfium_parser_probe
             PROPERTIES DEPENDS pdfio_generator_probe)
     endif()
@@ -795,6 +1055,12 @@ if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF_IMPORT)
             COMMAND featherdoc_pdfium_probe
                 "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-document-probe.pdf"
         )
+        featherdoc_collect_pdf_runtime_environment(
+            FEATHERDOC_PDF_RUNTIME_ENVIRONMENT TRUE)
+        if(NOT FEATHERDOC_PDF_RUNTIME_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdfium_document_parser_probe PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_RUNTIME_ENVIRONMENT}")
+        endif()
         set_tests_properties(pdfium_document_parser_probe
             PROPERTIES DEPENDS pdf_document_generator_probe)
     endif()
@@ -808,6 +1074,10 @@ if(BUILD_CLI)
         cli/featherdoc_cli_usage.cpp
         cli/featherdoc_cli.cpp)
     target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::FeatherDoc)
+    if(FEATHERDOC_BUILD_PDF AND TARGET FeatherDocPdf)
+        target_compile_definitions(featherdoc_cli PRIVATE FEATHERDOC_CLI_ENABLE_PDF=1)
+        target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::Pdf)
+    endif()
     featherdoc_copy_runtime_dlls(featherdoc_cli)
 
     install(
@@ -816,7 +1086,10 @@ if(BUILD_CLI)
     )
 endif()
 
-set(FEATHERDOC_INSTALLS_PDF ${FEATHERDOC_BUILD_PDF})
+# PDF writer builds can use bundled PDFio/libpng helper targets that are not
+# exported as part of the public package yet. Keep install exports free of the
+# experimental writer until the dependency story is package-safe.
+set(FEATHERDOC_INSTALLS_PDF OFF)
 set(FEATHERDOC_INSTALLS_PDF_IMPORT OFF)
 if(FEATHERDOC_BUILD_PDF_IMPORT AND FEATHERDOC_PDFIUM_PROVIDER STREQUAL "package")
     set(FEATHERDOC_INSTALLS_PDF_IMPORT ON)
@@ -844,7 +1117,7 @@ install(
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-if(FEATHERDOC_BUILD_PDF)
+if(FEATHERDOC_INSTALLS_PDF)
     install(
         TARGETS FeatherDocPdf
         EXPORT FeatherDocTargets

@@ -122,6 +122,12 @@ Assert-ContainsText -Text $runScript -ExpectedText "[string]`$ReviewVerdict" `
     -Message "run_word_visual_smoke.ps1 should expose ReviewVerdict."
 Assert-ContainsText -Text $runScript -ExpectedText "New-WordVisualReviewResult" `
     -Message "run_word_visual_smoke.ps1 should use the shared review result helper."
+Assert-ContainsText -Text $runScript -ExpectedText "Assert-WordVisualPrerequisites" `
+    -Message "run_word_visual_smoke.ps1 should preflight local Word visual prerequisites."
+Assert-ContainsText -Text $runScript -ExpectedText "Test-WordComAvailability" `
+    -Message "run_word_visual_smoke.ps1 should probe Word COM availability before rendering."
+Assert-ContainsText -Text $runScript -ExpectedText "Microsoft Word COM is unavailable" `
+    -Message "run_word_visual_smoke.ps1 should explain missing Word COM clearly."
 
 $releaseGateScriptPath = Join-Path (Join-Path $resolvedRepoRoot "scripts") "run_word_visual_release_gate.ps1"
 $releaseGateScript = Get-Content -Raw -LiteralPath $releaseGateScriptPath

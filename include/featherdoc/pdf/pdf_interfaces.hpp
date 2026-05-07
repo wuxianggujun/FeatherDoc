@@ -21,6 +21,7 @@ struct PdfWriterOptions {
     PdfPageSize page_size{};
     std::string title{"FeatherDoc PDF writer probe"};
     std::string creator{"FeatherDoc"};
+    bool subset_unicode_fonts{true};
 };
 
 struct PdfWriteResult {

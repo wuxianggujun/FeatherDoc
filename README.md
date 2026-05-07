@@ -48,6 +48,13 @@ This builds `FeatherDoc::Pdf`, fetches or uses PDFio, and keeps the main
 Default builds do not fetch PDFio or PDFium, do not install experimental PDF
 headers, and do not treat PDF support as part of the stable API.
 
+The current experimental PDF scope is narrower than a production export path
+but broader than a plain text proof of concept: it already covers basic
+paragraphs, tables, baseline styling, CJK fallback, font metrics, Unicode /
+ToUnicode roundtrip checks, and a small regression sample set. It is still
+explicitly experimental, and richer pagination and image handling remain in
+progress.
+
 The experimental PDF import path is also opt-in. It builds against a PDFium
 source checkout by default and does not download PDFium automatically:
 
@@ -86,12 +93,16 @@ ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
 
 ## Word Visual Smoke Check
 
-On Windows hosts with Microsoft Word installed you can run a visual smoke check
-that:
+This is a local validation tool, not a FeatherDoc library feature. On Windows
+hosts with Microsoft Word installed you can run a visual smoke check that:
 
 - builds a dedicated sample document covering table layout features
-- exports the generated `.docx` through Word's rendering engine as PDF
+- exports the generated `.docx` through a local Microsoft Word COM session as
+  PDF
 - renders each PDF page to PNG for manual or AI-assisted review
+
+The implementation lives in `scripts/`, so the core library stays free of
+Word COM dependencies.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1
@@ -1242,6 +1253,7 @@ featherdoc_cli inspect-omml input.docx --json
 featherdoc_cli inspect-template-tables input.docx --part body --table 0 --json
 featherdoc_cli inspect-template-table-rows input.docx 0 --row 1 --json
 featherdoc_cli inspect-template-table-cells input.docx 0 --row 1 --cell 1 --json
+featherdoc_cli inspect-template-table-cells input.docx 0 --row 1 --grid-column 1 --json
 featherdoc_cli replace-bookmark-text input.docx customer_name --text "Ada Lovelace" --output bookmark-text.docx --json
 featherdoc_cli fill-bookmarks input.docx --set customer_name "Ada Lovelace" --set invoice_no INV-001 --output filled.docx --json
 featherdoc_cli fill-bookmarks input.docx --set-file customer_name customer_name.txt --set-file invoice_no invoice_no.txt --output filled-from-files.docx --json
@@ -2799,13 +2811,20 @@ validate a saved plan without writing the DOCX and reject saved plans that lack
 `fingerprint_checked_count` for CI audit logs.
 Use `doc.inspect_table_cells(table_index)` or
 `doc.inspect_table_cell(table_index, row_index, cell_index)` when you need
-cell-level width/span/layout/text metadata from the core library.
+cell-level width/span/layout/text metadata from the core library. For tables
+with horizontal merges, use
+`doc.inspect_table_cell_by_grid_column(table_index, row_index, grid_column)`
+to resolve the real `w:tc` cell covering a visual Word column.
 Use `featherdoc_cli inspect-table-cells` when you need the same cell
-inspection metadata from the command line.
+inspection metadata from the command line; pass `--grid-column <index>` with
+`--row <index>` when the selector should follow visual grid columns instead
+of physical cell indexes.
 Use `featherdoc_cli inspect-table-rows` when you need body-table row
 height/page-break/header-repeat/cell-text metadata from the command line.
 Use `featherdoc_cli set-table-cell-text` when you need to replace a specific
-table cell's plain text from the command line.
+table cell's plain text from the command line. It accepts either a physical
+`<cell-index>` or `--grid-column <index>` for Word-style visual column
+targeting.
 Use `featherdoc_cli set-table-cell-fill` and
 `clear-table-cell-fill` when you need to add or remove a body-table cell
 background fill from the command line.
@@ -2859,6 +2878,7 @@ table index:
 
 ```bash
 featherdoc_cli set-template-table-cell-text report.docx --bookmark page3_target_table 1 2 --text "Updated value" --output report-updated.docx --json
+featherdoc_cli set-template-table-cell-text report.docx --bookmark page3_target_table 1 --grid-column 2 --text "Updated by visual column" --output report-updated.docx --json
 featherdoc_cli set-template-table-row-texts report-updated.docx --bookmark page3_target_table 3 --row "Item A" --cell "3" --cell "99.00" --row "Item B" --cell "1" --cell "18.00" --output report-updated.docx --json
 featherdoc_cli set-template-table-cell-block-texts report-updated.docx --bookmark page3_target_table 3 1 --row "North" --cell "120" --row "South" --cell "98" --output report-updated.docx --json
 featherdoc_cli append-template-table-row report-updated.docx --bookmark page3_target_table --output report-updated.docx --json
@@ -2870,7 +2890,9 @@ The C++ API exposes the same workflow on `TemplatePart`: call
 `section_footer_template()` and mutate the returned `Table` handle directly.
 That `Table` handle now also supports direct indexed helpers such as
 `find_row(...)`, `find_cell(...)`, `set_cell_text(...)`, and
-`set_row_texts(...)`, plus batch helpers such as `set_rows_texts(...)` and
+`set_row_texts(...)`, plus visual-column helpers
+`find_cell_by_grid_column(...)` / `set_cell_text_by_grid_column(...)` for
+merged-cell templates and batch helpers such as `set_rows_texts(...)` and
 `set_cell_block_texts(...)`, so page-local table edits no longer require
 manual `next()` loops in user code.
 Use `doc.inspect_sections()` or `doc.inspect_section(section_index)` when you

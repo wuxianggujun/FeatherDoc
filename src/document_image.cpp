@@ -252,6 +252,8 @@ struct drawing_image_reference_state final {
     std::uint32_t width_px{};
     std::uint32_t height_px{};
     std::optional<featherdoc::floating_image_options> floating_options;
+    std::optional<std::size_t> body_block_index;
+    std::optional<std::size_t> paragraph_index;
     pugi::xml_node drawing_container;
     pugi::xml_node drawing_object;
 };
@@ -401,6 +403,8 @@ auto parse_floating_options(pugi::xml_node drawing_node)
 void collect_drawing_image_reference(
     pugi::xml_node drawing_container, pugi::xml_node drawing_node,
     featherdoc::drawing_image_placement placement, pugi::xml_node relationships_root,
+    std::optional<std::size_t> body_block_index,
+    std::optional<std::size_t> paragraph_index,
     std::vector<drawing_image_reference_state> &references) {
     if (drawing_node == pugi::xml_node{} || relationships_root == pugi::xml_node{}) {
         return;
@@ -460,10 +464,13 @@ void collect_drawing_image_reference(
         {references.size(), placement, std::string{relationship_id}, target_entry,
          std::move(display_name), width_emu.has_value() ? emu_to_pixels(*width_emu) : 0U,
          height_emu.has_value() ? emu_to_pixels(*height_emu) : 0U,
-         parse_floating_options(drawing_node), drawing_container, drawing_node});
+         parse_floating_options(drawing_node), body_block_index, paragraph_index,
+         drawing_container, drawing_node});
 }
 
 void collect_drawing_image_references(pugi::xml_node node, pugi::xml_node relationships_root,
+                                      std::optional<std::size_t> body_block_index,
+                                      std::optional<std::size_t> paragraph_index,
                                       std::vector<drawing_image_reference_state> &references) {
     for (auto child = node.first_child(); child != pugi::xml_node{};
          child = child.next_sibling()) {
@@ -471,14 +478,45 @@ void collect_drawing_image_references(pugi::xml_node node, pugi::xml_node relati
             collect_drawing_image_reference(
                 child, child.child("wp:inline"),
                 featherdoc::drawing_image_placement::inline_object, relationships_root,
-                references);
+                body_block_index, paragraph_index, references);
             collect_drawing_image_reference(
                 child, child.child("wp:anchor"),
                 featherdoc::drawing_image_placement::anchored_object, relationships_root,
-                references);
+                body_block_index, paragraph_index, references);
         }
 
-        collect_drawing_image_references(child, relationships_root, references);
+        collect_drawing_image_references(child, relationships_root, body_block_index,
+                                         paragraph_index, references);
+    }
+}
+
+void collect_drawing_image_references(pugi::xml_node node,
+                                      pugi::xml_node relationships_root,
+                                      std::vector<drawing_image_reference_state> &references) {
+    collect_drawing_image_references(node, relationships_root, std::nullopt,
+                                     std::nullopt, references);
+}
+
+void collect_body_drawing_image_references(
+    pugi::xml_node body, pugi::xml_node relationships_root,
+    std::vector<drawing_image_reference_state> &references) {
+    auto body_block_index = std::size_t{0U};
+    auto paragraph_index = std::size_t{0U};
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        const auto child_name = std::string_view{child.name()};
+        if (child_name == "w:p") {
+            collect_drawing_image_references(child, relationships_root,
+                                             body_block_index, paragraph_index,
+                                             references);
+            ++body_block_index;
+            ++paragraph_index;
+        } else if (child_name == "w:tbl") {
+            collect_drawing_image_references(child, relationships_root,
+                                             body_block_index, std::nullopt,
+                                             references);
+            ++body_block_index;
+        }
     }
 }
 
@@ -718,9 +756,13 @@ std::vector<drawing_image_info> Document::drawing_images_in_part(
         return images;
     }
 
+    const auto relationships_root = relationships_document->child("Relationships");
     std::vector<drawing_image_reference_state> references;
-    collect_drawing_image_references(root, relationships_document->child("Relationships"),
-                                     references);
+    if (entry_name == document_xml_entry) {
+        collect_body_drawing_image_references(root, relationships_root, references);
+    } else {
+        collect_drawing_image_references(root, relationships_root, references);
+    }
 
     images.reserve(references.size());
     for (const auto &reference : references) {
@@ -746,7 +788,9 @@ std::vector<drawing_image_info> Document::drawing_images_in_part(
                           std::move(content_type),
                           reference.width_px,
                           reference.height_px,
-                          reference.floating_options});
+                          reference.floating_options,
+                          reference.body_block_index,
+                          reference.paragraph_index});
     }
 
     this->last_error_info.clear();
@@ -777,7 +821,9 @@ std::vector<inline_image_info> Document::inline_images_in_part(
                           drawing_image.display_name,
                           drawing_image.content_type,
                           drawing_image.width_px,
-                          drawing_image.height_px});
+                          drawing_image.height_px,
+                          drawing_image.body_block_index,
+                          drawing_image.paragraph_index});
     }
 
     this->last_error_info.clear();

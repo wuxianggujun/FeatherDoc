@@ -23690,9 +23690,17 @@ TEST_CASE("inspect table cells returns width span layout and text metadata") {
     const auto inspected_cell = doc.inspect_table_cell(0U, 1U, 2U);
     REQUIRE(inspected_cell.has_value());
     CHECK_EQ(inspected_cell->text, "line1\nline2");
+    const auto visually_inspected_cell =
+        doc.inspect_table_cell_by_grid_column(0U, 0U, 1U);
+    REQUIRE(visually_inspected_cell.has_value());
+    CHECK_EQ(visually_inspected_cell->cell_index, 0U);
+    CHECK_EQ(visually_inspected_cell->column_index, 0U);
+    CHECK_EQ(visually_inspected_cell->column_span, 2U);
+    CHECK_EQ(visually_inspected_cell->text, "merged-top");
     CHECK(doc.inspect_table_cells(9U).empty());
     CHECK_FALSE(doc.inspect_table_cell(0U, 9U, 0U).has_value());
     CHECK_FALSE(doc.inspect_table_cell(0U, 0U, 9U).has_value());
+    CHECK_FALSE(doc.inspect_table_cell_by_grid_column(0U, 0U, 9U).has_value());
 
     CHECK_FALSE(doc.save());
 
@@ -24039,7 +24047,21 @@ TEST_CASE("table handles can update bookmark-targeted rows and cells by index") 
     REQUIRE(second_cell.has_value());
     CHECK_EQ(second_cell->get_text(), "row0-col1");
 
-    CHECK(table->set_cell_text(0U, 1U, "header-updated"));
+    auto first_cell = first_row->find_cell(0U);
+    REQUIRE(first_cell.has_value());
+    CHECK(first_cell->merge_right());
+    const auto covered_first_cell = first_row->find_cell_by_grid_column(1U);
+    REQUIRE(covered_first_cell.has_value());
+    CHECK_EQ(covered_first_cell->get_text(), "row0-col0");
+    const auto covered_first_column_index = covered_first_cell->column_index();
+    REQUIRE(covered_first_column_index.has_value());
+    CHECK_EQ(*covered_first_column_index, 0U);
+    CHECK_EQ(covered_first_cell->column_span(), 2U);
+    CHECK_FALSE(first_row->find_cell_by_grid_column(9U).has_value());
+    CHECK(table->set_cell_text_by_grid_column(0U, 1U, "header-updated"));
+    CHECK_EQ(first_cell->get_text(), "header-updated");
+    CHECK_FALSE(table->set_cell_text_by_grid_column(0U, 9U, "out-of-range"));
+
     CHECK(table->set_row_texts(1U, {"body-updated-0", "body-updated-1"}));
 
     auto second_row = table->find_row(1U);
@@ -24064,7 +24086,7 @@ TEST_CASE("table handles can update bookmark-targeted rows and cells by index") 
     CHECK_EQ(summary->row_count, 2U);
     CHECK_EQ(summary->column_count, 2U);
     CHECK_EQ(summary->text,
-             "row0-col0\theader-updated\nbody-rewritten-0\tbody-rewritten-1");
+             "header-updated\nbody-rewritten-0\tbody-rewritten-1");
 
     fs::remove(target);
 }

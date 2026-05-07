@@ -7044,10 +7044,14 @@ TEST_CASE("cli inspect-runs lists paragraph runs with style metadata") {
     CHECK_NE(inspect_text.find("paragraph_index: 1"), std::string::npos);
     CHECK_NE(inspect_text.find("runs: 2"), std::string::npos);
     CHECK_NE(inspect_text.find("run[0]: style_id=none font_family=none "
-                               "east_asia_font_family=none language=none text=beta"),
+                               "east_asia_font_family=none text_color=none "
+                               "bold=none italic=none underline=none "
+                               "font_size_points=none language=none text=beta"),
              std::string::npos);
     CHECK_NE(inspect_text.find("run[1]: style_id=Strong font_family=none "
-                               "east_asia_font_family=none language=none text=gamma"),
+                               "east_asia_font_family=none text_color=none "
+                               "bold=none italic=none underline=none "
+                               "font_size_points=none language=none text=gamma"),
              std::string::npos);
 
     remove_if_exists(source);
@@ -7088,6 +7092,8 @@ TEST_CASE("cli inspect-runs supports single-run json output and errors") {
         std::string{
             "{\"paragraph_index\":1,\"run\":{\"index\":1,\"style_id\":\"Strong\","
             "\"font_family\":null,\"east_asia_font_family\":null,"
+            "\"text_color\":null,\"bold\":null,\"italic\":null,"
+            "\"underline\":null,\"font_size_points\":null,"
             "\"language\":null,\"text\":\"gamma\"}}\n"});
 
     CHECK_EQ(run_cli({"inspect-runs", source.string(), "999", "--json"},
@@ -8473,10 +8479,13 @@ TEST_CASE("cli inspect-table-cells supports row filtering and single-cell json o
         working_directory / "cli_inspect_table_cells_output.json";
     const fs::path single_output =
         working_directory / "cli_inspect_table_cell_single.json";
+    const fs::path grid_output =
+        working_directory / "cli_inspect_table_cell_grid_column.json";
 
     remove_if_exists(source);
     remove_if_exists(inspect_output);
     remove_if_exists(single_output);
+    remove_if_exists(grid_output);
 
     create_cli_table_inspection_fixture(source);
 
@@ -8524,9 +8533,22 @@ TEST_CASE("cli inspect-table-cells supports row filtering and single-cell json o
             "\"text_direction\":\"top_to_bottom_right_to_left\","
             "\"text\":\"merged-top\"}}\n"});
 
+    CHECK_EQ(run_cli({"inspect-table-cells",
+                      source.string(),
+                      "1",
+                      "--row",
+                      "0",
+                      "--grid-column",
+                      "1",
+                      "--json"},
+                     grid_output),
+             0);
+    CHECK_EQ(read_text_file(grid_output), read_text_file(single_output));
+
     remove_if_exists(source);
     remove_if_exists(inspect_output);
     remove_if_exists(single_output);
+    remove_if_exists(grid_output);
 }
 
 TEST_CASE("cli inspect-table-rows supports list and single-row json output") {
@@ -8759,6 +8781,11 @@ TEST_CASE("cli inspect-template-runs inspects section footer runs and errors") {
     CHECK_NE(run_text.find("index: 0\n"), std::string::npos);
     CHECK_NE(run_text.find("style_id: Strong\n"), std::string::npos);
     CHECK_NE(run_text.find("font_family: Segoe UI\n"), std::string::npos);
+    CHECK_NE(run_text.find("text_color: none\n"), std::string::npos);
+    CHECK_NE(run_text.find("bold: none\n"), std::string::npos);
+    CHECK_NE(run_text.find("italic: none\n"), std::string::npos);
+    CHECK_NE(run_text.find("underline: none\n"), std::string::npos);
+    CHECK_NE(run_text.find("font_size_points: none\n"), std::string::npos);
     CHECK_NE(run_text.find("language: en-US\n"), std::string::npos);
     CHECK_NE(run_text.find("text: Footer styled\n"), std::string::npos);
 
@@ -9030,7 +9057,8 @@ TEST_CASE("cli set-table-cell-text updates a cell and preserves inspection metad
                       source.string(),
                       "1",
                       "0",
-                      "0",
+                      "--grid-column",
+                      "1",
                       "--text",
                       "updated merged",
                       "--output",
@@ -9043,7 +9071,8 @@ TEST_CASE("cli set-table-cell-text updates a cell and preserves inspection metad
         std::string{
             "{\"command\":\"set-table-cell-text\",\"ok\":true,"
             "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
-            "\"table_index\":1,\"row_index\":0,\"cell_index\":0}\n"});
+            "\"table_index\":1,\"row_index\":0,\"grid_column\":1,"
+            "\"cell_index\":0,\"column_index\":0,\"column_span\":2}\n"});
 
     featherdoc::Document reopened(updated);
     REQUIRE_FALSE(reopened.open());
@@ -12645,6 +12674,8 @@ TEST_CASE(
         working_directory / "cli_template_table_selector_unmerged_multiline.docx";
     const fs::path merge_output =
         working_directory / "cli_template_table_selector_merge_output.json";
+    const fs::path grid_inspect_output =
+        working_directory / "cli_template_table_selector_grid_inspect_output.json";
     const fs::path merge_multiline_output =
         working_directory / "cli_template_table_selector_merge_multiline_output.json";
     const fs::path unmerge_output =
@@ -12660,6 +12691,7 @@ TEST_CASE(
     remove_if_exists(unmerged);
     remove_if_exists(unmerged_multiline);
     remove_if_exists(merge_output);
+    remove_if_exists(grid_inspect_output);
     remove_if_exists(merge_multiline_output);
     remove_if_exists(unmerge_output);
     remove_if_exists(unmerge_multiline_output);
@@ -12710,6 +12742,33 @@ TEST_CASE(
     CHECK_EQ(merged_anchor->text, "South");
     CHECK_EQ(merged_anchor->column_span, 2U);
 
+    CHECK_EQ(run_cli({"inspect-template-table-cells",
+                      merged.string(),
+                      "--after-text",
+                      "selector target table",
+                      "--header-cell",
+                      "Region",
+                      "--header-cell",
+                      "Qty",
+                      "--header-cell",
+                      "Amount",
+                      "--occurrence",
+                      "1",
+                      "--row",
+                      "1",
+                      "--grid-column",
+                      "1",
+                      "--json"},
+                     grid_inspect_output),
+             0);
+    const auto grid_inspect_json = read_text_file(grid_inspect_output);
+    CHECK_NE(grid_inspect_json.find("\"table_index\":2"), std::string::npos);
+    CHECK_NE(grid_inspect_json.find("\"row_index\":1"), std::string::npos);
+    CHECK_NE(grid_inspect_json.find("\"cell_index\":0"), std::string::npos);
+    CHECK_NE(grid_inspect_json.find("\"column_index\":0"), std::string::npos);
+    CHECK_NE(grid_inspect_json.find("\"column_span\":2"), std::string::npos);
+    CHECK_NE(grid_inspect_json.find("\"text\":\"South\""), std::string::npos);
+
     CHECK_EQ(run_cli({"set-template-table-cell-text",
                       merged.string(),
                       "--after-text",
@@ -12723,7 +12782,8 @@ TEST_CASE(
                       "--occurrence",
                       "1",
                       "1",
-                      "0",
+                      "--grid-column",
+                      "1",
                       "--text",
                       "South\npending approval",
                       "--output",
@@ -12736,7 +12796,10 @@ TEST_CASE(
              std::string::npos);
     CHECK_NE(merged_multiline_json.find("\"table_index\":2"), std::string::npos);
     CHECK_NE(merged_multiline_json.find("\"row_index\":1"), std::string::npos);
+    CHECK_NE(merged_multiline_json.find("\"grid_column\":1"), std::string::npos);
     CHECK_NE(merged_multiline_json.find("\"cell_index\":0"), std::string::npos);
+    CHECK_NE(merged_multiline_json.find("\"column_index\":0"), std::string::npos);
+    CHECK_NE(merged_multiline_json.find("\"column_span\":2"), std::string::npos);
 
     featherdoc::Document reopened_merged_multiline(merged_multiline);
     REQUIRE_FALSE(reopened_merged_multiline.open());
@@ -12855,6 +12918,7 @@ TEST_CASE(
     remove_if_exists(unmerged);
     remove_if_exists(unmerged_multiline);
     remove_if_exists(merge_output);
+    remove_if_exists(grid_inspect_output);
     remove_if_exists(merge_multiline_output);
     remove_if_exists(unmerge_output);
     remove_if_exists(unmerge_multiline_output);
@@ -15481,6 +15545,8 @@ TEST_CASE("cli run font family commands set and clear body run font families") {
         std::string{
             "{\"paragraph_index\":1,\"run\":{\"index\":0,\"style_id\":null,"
             "\"font_family\":\"Courier New\",\"east_asia_font_family\":null,"
+            "\"text_color\":null,\"bold\":null,\"italic\":null,"
+            "\"underline\":null,\"font_size_points\":null,"
             "\"language\":null,\"text\":\"beta\"}}\n"});
 
     CHECK_EQ(run_cli({"clear-run-font-family",
@@ -15530,6 +15596,8 @@ TEST_CASE("cli run font family commands set and clear body run font families") {
         std::string{
             "{\"paragraph_index\":1,\"run\":{\"index\":0,\"style_id\":null,"
             "\"font_family\":null,\"east_asia_font_family\":null,"
+            "\"text_color\":null,\"bold\":null,\"italic\":null,"
+            "\"underline\":null,\"font_size_points\":null,"
             "\"language\":null,\"text\":\"beta\"}}\n"});
 
     remove_if_exists(source);
@@ -15669,6 +15737,8 @@ TEST_CASE("cli run language commands set and clear body run language") {
         std::string{
             "{\"paragraph_index\":1,\"run\":{\"index\":0,\"style_id\":null,"
             "\"font_family\":null,\"east_asia_font_family\":null,"
+            "\"text_color\":null,\"bold\":null,\"italic\":null,"
+            "\"underline\":null,\"font_size_points\":null,"
             "\"language\":\"ja-JP\",\"text\":\"beta\"}}\n"});
 
     CHECK_EQ(run_cli({"clear-run-language",
@@ -15718,6 +15788,8 @@ TEST_CASE("cli run language commands set and clear body run language") {
         std::string{
             "{\"paragraph_index\":1,\"run\":{\"index\":0,\"style_id\":null,"
             "\"font_family\":null,\"east_asia_font_family\":null,"
+            "\"text_color\":null,\"bold\":null,\"italic\":null,"
+            "\"underline\":null,\"font_size_points\":null,"
             "\"language\":null,\"text\":\"beta\"}}\n"});
 
     remove_if_exists(source);
@@ -18380,6 +18452,93 @@ TEST_CASE("cli find text ranges reports paragraph offsets") {
 
     remove_if_exists(source);
     remove_if_exists(output);
+}
+
+TEST_CASE("cli run-recipe executes batch replace") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source_dir =
+        working_directory / "cli_run_recipe_batch_replace_source";
+    const fs::path output_dir =
+        working_directory / "cli_run_recipe_batch_replace_output";
+    const fs::path source = source_dir / "input.docx";
+    const fs::path replaced = output_dir / "input_replaced.docx";
+    const fs::path recipe =
+        working_directory / "cli_run_recipe_batch_replace_recipe.json";
+    const fs::path inputs =
+        working_directory / "cli_run_recipe_batch_replace_inputs.json";
+    const fs::path output =
+        working_directory / "cli_run_recipe_batch_replace_result.json";
+    const fs::path find_output =
+        working_directory / "cli_run_recipe_batch_replace_find.json";
+
+    std::error_code cleanup_error;
+    fs::remove_all(source_dir, cleanup_error);
+    fs::remove_all(output_dir, cleanup_error);
+    remove_if_exists(recipe);
+    remove_if_exists(inputs);
+    remove_if_exists(output);
+    remove_if_exists(find_output);
+
+    REQUIRE(fs::create_directories(source_dir));
+
+    featherdoc::Document source_document(source);
+    REQUIRE_FALSE(source_document.create_empty());
+    auto first = source_document.paragraphs();
+    REQUIRE(first.has_next());
+    REQUIRE(first.add_run("Alpha ").has_next());
+    REQUIRE(first.add_run("Beta").has_next());
+    auto second = first.insert_paragraph_after("Middle ");
+    REQUIRE(second.has_next());
+    REQUIRE(second.add_run("Text").has_next());
+    auto third = second.insert_paragraph_after("Beta ");
+    REQUIRE(third.has_next());
+    REQUIRE(third.add_run("Tail").has_next());
+    REQUIRE_FALSE(source_document.save());
+
+    write_binary_file(recipe, R"({"id":"batch_replace"})");
+    write_binary_file(
+        inputs,
+        R"({"inputs":{"source_dir":")" + json_escape_text(source_dir.string()) +
+            R"(","find_text":"Beta","replace_text":"Omega"}})");
+
+    CHECK_EQ(run_cli({"run-recipe",
+                      "--recipe",
+                      recipe.string(),
+                      "--inputs",
+                      inputs.string(),
+                      "--output",
+                      output_dir.string(),
+                      "--json"},
+                     output),
+             0);
+
+    const auto output_json = read_text_file(output);
+    CHECK_NE(output_json.find(R"("command":"run-recipe")"), std::string::npos);
+    CHECK_NE(output_json.find(R"("ok":true)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("recipe_id":"batch_replace")"),
+             std::string::npos);
+    CHECK_NE(output_json.find(R"("documents_count":1)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("changed_count":1)"), std::string::npos);
+    CHECK_NE(output_json.find(R"("replacements_count":2)"),
+             std::string::npos);
+    CHECK(fs::exists(replaced));
+
+    CHECK_EQ(run_cli({"find-text-ranges",
+                      replaced.string(),
+                      "--text",
+                      "Omega",
+                      "--json"},
+                     find_output),
+             0);
+    const auto find_json = read_text_file(find_output);
+    CHECK_NE(find_json.find(R"("matches_count":2)"), std::string::npos);
+
+    fs::remove_all(source_dir, cleanup_error);
+    fs::remove_all(output_dir, cleanup_error);
+    remove_if_exists(recipe);
+    remove_if_exists(inputs);
+    remove_if_exists(output);
+    remove_if_exists(find_output);
 }
 
 TEST_CASE("cli builds review mutation plans from found text") {

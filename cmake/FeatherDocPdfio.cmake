@@ -63,9 +63,6 @@ function(featherdoc_add_pdfio_object_library target_name)
     target_include_directories(${target_name}
         PUBLIC
             "$<BUILD_INTERFACE:${pdfio_source_dir}>"
-        PRIVATE
-            "$<BUILD_INTERFACE:${FEATHERDOC_PDFIO_REPO_ROOT}/thirdparty/pdfio_zlib_compat>"
-            "$<BUILD_INTERFACE:${FEATHERDOC_PDFIO_REPO_ROOT}/thirdparty/zip>"
     )
     set_target_properties(${target_name} PROPERTIES
         POSITION_INDEPENDENT_CODE ON

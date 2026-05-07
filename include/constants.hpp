@@ -138,6 +138,12 @@ enum class cell_vertical_alignment : std::uint8_t {
     both,
 };
 
+enum class cell_vertical_merge : std::uint8_t {
+    none = 0U,
+    restart,
+    continue_merge,
+};
+
 enum class cell_text_direction : std::uint8_t {
     left_to_right_top_to_bottom = 0U,
     top_to_bottom_right_to_left,

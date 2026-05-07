@@ -12,6 +12,11 @@
 
 普通库构建不需要这些步骤。
 
+> 注意：Word COM 只用于 `scripts/run_word_visual_smoke.ps1` 及其上层本地验证脚本，
+> 不属于 FeatherDoc 库 API，也不会进入默认关闭的核心构建目标。
+> 这些脚本会先做本地预检：Python、Word COM，以及在需要本地生成样例时的
+> MSVC 开发环境；如果你传入现成 DOCX，它只检查那个输入文件是否存在。
+
 ## 不要提交的生成物
 
 以下都是本地生成或第三方 checkout，不应提交：
@@ -189,6 +194,9 @@ cmake --build .bpdf-pdfium-source-msvc --target featherdoc_pdfium_probe
 
 同时开启 PDFio 写出和 PDFium 读入：
 
+这里的 Word COM 仅用于本地验证链路，把生成的 DOCX 导出成 PDF 作为证据，
+不是库内部的渲染实现。
+
 ```powershell
 cmake -S . -B .bpdf-roundtrip-msvc `
   -G Ninja `
@@ -219,6 +227,157 @@ pdfium_parser_probe .............. Passed
 pdfium_document_parser_probe ..... Passed
 ```
 
+## 已有 PDF probe / 测试盘点
+
+- `pdfio_generator_probe`：PDFio 写出最小 smoke
+- `pdf_document_generator_probe`：`Document` → `PdfDocumentLayout` → PDF smoke
+- `pdfium_parser_probe`：PDFium 读入 PDFio 产物 smoke
+- `pdfium_document_parser_probe`：PDFium 读入 `Document` 产物 smoke
+- `pdf_font_resolver`：字体解析和回退规则单测
+- `pdf_text_metrics`：文本宽度 / 行高估算单测
+- `pdf_document_adapter_font`：PDF adapter 的字体映射、样式和列表前缀回归
+- `pdf_unicode_font_roundtrip`：Unicode / CJK 字体嵌入和 PDFium 回读回环
+- `pdf_unicode_font_roundtrip_visual`：Unicode / CJK 字体 PDF 渲染为 PNG 后的视觉 smoke
+
+## CLI 导出入口
+
+`featherdoc_cli export-pdf` 已经可以作为用户入口使用。当前常用参数是：
+
+- `--output <pdf>`
+- `--font-file <path>`
+- `--cjk-font-file <path>`
+- `--font-map <family>=<path>`
+- `--render-headers-and-footers`
+- `--render-inline-images`
+- `--no-font-subset`
+- `--no-system-font-fallbacks`
+- `--summary-json <path>`
+- `--json`
+
+建议至少在 roundtrip 构建里验证一次：
+
+```powershell
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_cli_export$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^cli_usage$" --output-on-failure --timeout 60
+```
+
+## PDF regression samples
+
+同时开启 PDFio 写出和 PDFium 读入后，可以直接跑首批 37 个 regression manifest 样本。
+`pdf_regression_*` 当前覆盖 38 个 CTest，其中包含 manifest 校验测试。
+
+```powershell
+cmake --build .bpdf-roundtrip-msvc --target featherdoc_pdf_regression_sample pdf_regression_manifest_tests
+ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60
+```
+
+当前首批样本包括：
+
+- `single-text`
+- `multi-page-text`
+- `cjk-text`
+- `styled-text`
+- `font-size-text`
+- `color-text`
+- `mixed-style-text`
+- `contract-cjk-style`
+- `document-contract-cjk-style`
+- `three-page-text`
+- `landscape-text`
+- `title-body-text`
+- `dense-text`
+- `four-page-text`
+- `underline-text`
+- `punctuation-text`
+- `two-page-text`
+- `repeat-phrase-text`
+- `bordered-box-text`
+- `line-primitive-text`
+- `table-like-grid-text`
+- `metadata-long-title-text`
+- `header-footer-text`
+- `two-column-text`
+- `invoice-grid-text`
+- `image-caption-text`
+- `sectioned-report-text`
+- `list-report-text`
+- `long-report-text`
+- `image-report-text`
+- `cjk-report-text`
+- `cjk-image-report-text`
+- `document-eastasia-style-probe`
+- `document-image-semantics-text`
+- `document-table-semantics-text`
+- `document-long-flow-text`
+- `document-invoice-table-text`
+
+其中 `cjk-text` 在找不到可用 CJK 字体时会跳过，不会把整个套件判失败。
+
+## 视觉发布门禁
+
+如果你要一次性验证“文本回读 + 页面视觉”门禁，优先跑这条：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1
+```
+
+它会顺序执行：
+
+- `pdf_cli_export`
+- `pdf_regression_`
+- `pdf_unicode_font_roundtrip_visual`
+- 核心样本的 PNG baseline 渲染
+- 聚合 contact sheet 生成
+
+主要产物会落到：
+
+- `output/pdf-visual-release-gate/report/summary.json`
+- `output/pdf-visual-release-gate/report/aggregate-contact-sheet.png`
+- `output/pdf-visual-release-gate/unicode-font/report/summary.json`
+- `output/pdf-visual-release-gate/unicode-font/report/comparison-contact-sheet.png`
+
+## 字体选择
+
+FeatherDoc 的 PDF 字体选择已经拆成两层：
+
+- `PdfFontResolver`：把 `font_family`、`east_asia_font_family`、`bold`、
+  `italic` 和文本内容映射到最终 `font_file_path`
+- `PdfDocumentAdapterOptions`：把文档级默认字体、CJK 回退字体和映射表传给
+  resolver
+
+实用配置顺序是：
+
+1. 先给 `font_mappings` 配显式映射
+2. 再给 `font_file_path` 和 `cjk_font_file_path` 配默认文件
+3. 最后才依赖系统字体回退
+
+CJK 字体选择的默认顺序是：
+
+1. run 或文档默认属性里的 `east_asia_font_family` 显式映射
+2. `PdfDocumentAdapterOptions::cjk_font_file_path`
+3. `FEATHERDOC_PDF_CJK_FONT` / `FEATHERDOC_TEST_CJK_FONT`
+4. Windows 系统字体候选：Deng、Microsoft YaHei、SimHei、SimSun 等
+5. Linux 系统字体候选：NotoSansCJK、AR PL UMing 等
+
+许可证义务按字体来源处理：FeatherDoc 当前只引用用户显式提供的字体或本机系统字体，
+不把这些字体重新分发进仓库。若未来要随发行包捆绑 CJK 字体，必须先记录字体许可证、
+分发条件和 NOTICE 要求，再把该字体加入默认 fallback。
+
+对中文或混排内容，优先给 run / 默认属性设置 `east_asia_font_family`。
+这样 `PdfFontResolver` 会先选 East Asia 字体，再回退到普通 `font_family`。
+
+如果你只想把一个已有 `.ttf` / `.ttc` 文件接进来，最直接的入口是：
+
+```cpp
+featherdoc::pdf::PdfDocumentAdapterOptions options;
+options.font_mappings = {
+    {"Unit Latin", "/path/to/latin.ttf"},
+    {"Unit CJK", "/path/to/cjk.ttc"},
+};
+options.font_file_path = "/path/to/default-latin.ttf";
+options.cjk_font_file_path = "/path/to/default-cjk.ttf";
+```
+
 手动运行：
 
 ```powershell
@@ -233,16 +392,18 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 
 ## 当前可用状态
 
-现在只能算 **实验性 smoke 可用**：
+现在只能算 **实验性 smoke 可用**，但已经不只是“最小段落文本”原型了：
 
-- 可以生成最小 PDF 样例
-- 可以把 FeatherDoc `Document` 的基础段落转换为 `PdfDocumentLayout` 并写成 PDF
-- 可以用 PDFium 解析页数和文字 span
+- 可以生成带正文段落、表格和基础样式的 PDF 样例
+- 可以按字体映射和 CJK 回退写出中文 / 混排内容
+- 可以做 Unicode / ToUnicode roundtrip 验证，并用 PDFium 解析页数和文字 span
+- 可以对 Unicode / CJK 字体 roundtrip 产物做 PNG 渲染级视觉 smoke
 - 可以跑 PDFio → PDFium 的端到端 smoke
+- 已有首批 37 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
 
 还不能算正式可用：
 
-- 还没有 `AST → PDFio` 完整翻译层；当前只覆盖最小段落文本子集
+- 还没有 `AST → PDFio` 完整翻译层；复杂分页、图片锚点/裁剪/环绕和更完整的样式覆盖还没收口
 - 还没有 `PDFium → AST` 文档结构重建
-- 还没有真实 PDF 样本回归集
-- 中文字体、表格、图片、分页等都还需要专项推进
+- 还需要继续扩充真实 PDF 样本回归集
+- CJK 嵌入、字体度量、表格分页等还在专项推进中

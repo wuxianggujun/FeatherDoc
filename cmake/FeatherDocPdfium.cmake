@@ -13,7 +13,7 @@ set(FEATHERDOC_PDFIUM_SOURCE_DIR "" CACHE PATH
 set(FEATHERDOC_PDFIUM_OUT_DIR "" CACHE PATH
     "PDFium GN output directory. Defaults to <PDFium source>/out/FeatherDoc.")
 set(FEATHERDOC_PDFIUM_GN_ARGS
-    "is_debug=false is_component_build=false pdf_is_complete_lib=true pdf_is_standalone=true pdf_enable_v8=false pdf_enable_xfa=false pdf_use_skia=false pdf_enable_fontations=false clang_use_chrome_plugins=false use_custom_libcxx=false"
+    "is_debug=false is_component_build=false pdf_is_complete_lib=true pdf_is_standalone=true pdf_enable_v8=false pdf_enable_xfa=false pdf_use_skia=false pdf_enable_fontations=false pdf_use_system_freetype=true clang_use_chrome_plugins=false use_custom_libcxx=false"
     CACHE STRING
     "GN args used when building PDFium from source")
 set(FEATHERDOC_PDFIUM_NINJA_TARGET "pdfium" CACHE STRING
@@ -174,4 +174,6 @@ function(featherdoc_add_pdfium_source_target target_name)
         set_property(TARGET ${target_name} PROPERTY
             INTERFACE_LINK_LIBRARIES "${pdfium_link_libraries}")
     endif()
+
+    set(FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR "${pdfium_out_dir}" PARENT_SCOPE)
 endfunction()

@@ -92,6 +92,70 @@ function Test-PythonImport {
     }
 }
 
+function Test-WordComAvailability {
+    try {
+        $word = New-Object -ComObject Word.Application
+        try {
+            $word.Visible = $false
+            $word.DisplayAlerts = 0
+        } catch {
+        }
+
+        try {
+            $word.Quit()
+        } catch {
+        }
+
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Assert-WordVisualPrerequisites {
+    param(
+        [string]$DocxPath,
+        [switch]$NeedsBuild,
+        [switch]$HasInputDocx
+    )
+
+    Write-Step "Checking local Word visual prerequisites"
+
+    $issues = New-Object System.Collections.Generic.List[string]
+
+    try {
+        $basePython = Get-BasePython
+        Write-Step "Python found: $basePython"
+    } catch {
+        $issues.Add("Python was not found in PATH.")
+    }
+
+    if ($NeedsBuild) {
+        try {
+            $null = Get-VcvarsPath
+            Write-Step "MSVC developer environment found"
+        } catch {
+            $issues.Add($_.Exception.Message)
+        }
+    }
+
+    if ($HasInputDocx -and
+        -not (Test-Path -LiteralPath $DocxPath)) {
+        $issues.Add("Input DOCX was not found: $DocxPath")
+    }
+
+    if (-not (Test-WordComAvailability)) {
+        $issues.Add(
+            "Microsoft Word COM is unavailable. Install Microsoft Word or run this flow on a Windows host with Office."
+        )
+    }
+
+    if ($issues.Count -gt 0) {
+        $message = $issues -join "`n- "
+        throw "Word visual smoke prerequisites are not satisfied:`n- $message"
+    }
+}
+
 function Ensure-RenderPython {
     param([string]$RepoRoot)
 
@@ -397,7 +461,6 @@ Artifacts:
 }
 
 $repoRoot = Resolve-RepoRoot
-$vcvarsPath = Get-VcvarsPath
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir
 $evidenceDir = Join-Path $resolvedOutputDir "evidence"
@@ -405,10 +468,13 @@ $pagesDir = Join-Path $evidenceDir "pages"
 $reportDir = Join-Path $resolvedOutputDir "report"
 $repairDir = Join-Path $resolvedOutputDir "repair"
 $docxPath = if ($InputDocx) {
-    (Resolve-Path $InputDocx).Path
+    Resolve-RepoPath -RepoRoot $repoRoot -InputPath $InputDocx
 } else {
     Join-Path $resolvedOutputDir "table_visual_smoke.docx"
 }
+$needsBuild = ([string]::IsNullOrWhiteSpace($InputDocx) -and -not $SkipBuild)
+$hasInputDocx = -not [string]::IsNullOrWhiteSpace($InputDocx)
+Assert-WordVisualPrerequisites -DocxPath $docxPath -NeedsBuild:($needsBuild) -HasInputDocx:($hasInputDocx)
 $pdfPath = Join-Path $resolvedOutputDir "table_visual_smoke.pdf"
 $contactSheetPath = Join-Path $evidenceDir "contact_sheet.png"
 $summaryPath = Join-Path $reportDir "summary.json"
@@ -425,6 +491,7 @@ New-Item -ItemType Directory -Path $repairDir -Force | Out-Null
 
 if (-not $InputDocx) {
     if (-not $SkipBuild) {
+        $vcvarsPath = Get-VcvarsPath
         Write-Step "Configuring dedicated build directory $resolvedBuildDir"
         Invoke-MsvcCommand -VcvarsPath $vcvarsPath -CommandText "cmake -S `"$repoRoot`" -B `"$resolvedBuildDir`" -G `"NMake Makefiles`" -DBUILD_SAMPLES=ON -DBUILD_CLI=OFF -DBUILD_TESTING=OFF"
 

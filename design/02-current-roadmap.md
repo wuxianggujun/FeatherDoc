@@ -92,7 +92,8 @@ Phase 1 的重点是：
 
 4. **建立测试集**
 
-   准备 10-20 个样本，覆盖：
+   准备一组 10+ 个样本（当前 manifest 已扩展到 37 个样本，`pdf_regression_*`
+   覆盖 38 个 CTest，包含 manifest 校验），覆盖：
 
    - 纯文本 PDF
    - 中文 PDF
@@ -116,7 +117,8 @@ Phase 1 的重点是：
 - [ ] PDFio 写出 probe 可通过 `LayoutResult` 生成 PDF
 - [ ] PDFium 读入 probe 可提取文本和坐标
 - [ ] `IPdfGenerator` / `IPdfParser` 不暴露 PDFio / PDFium 类型
-- [ ] 10-20 个 PDF 样本进入回归测试
+- [x] 首批 PDF 样本进入回归测试（当前 manifest 已扩展到 37 个样本，
+      `pdf_regression_*` 覆盖 38 个 CTest，包含 manifest 校验）
 
 ### 当前实现进展
 
@@ -135,7 +137,10 @@ Phase 1 的重点是：
 - [x] 已用 PDFio probe 生成的 PDF 验证 PDFium 可提取页面和 text spans
 - [x] 同时开启 PDFio / PDFium 时，已有 `pdfium_parser_probe` CTest 覆盖写出后再读入
 - [x] 同时开启 PDFio / PDFium 时，已有 `pdfium_document_parser_probe` CTest 覆盖 docs 段落写出后再读入
-- [ ] 10-20 个 PDF 样本尚未建立
+- [x] 已支持基础段落、表格和基础样式写出
+- [x] 已接入 FreeType 字体度量，Layout 换行和行高改为真实字体测量
+- [x] 已建立首批 37 个 PDF regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
+- [ ] 仍需继续扩展 CJK 字体专项、复杂视觉回归和发布门禁；真实文档样本集已经进入 manifest，但还没有把文件大小、图片数量/尺寸和 PNG baseline 全部自动化
 
 ## 当前下一步任务（按优先级）
 
@@ -143,8 +148,9 @@ Phase 1 的重点是：
 >
 > 进展应直接更新本节的 checkbox 状态，而不是另开文档。
 
-当前 PDF 输出能跑通端到端，但质量层面还停留在 probe 级别——换行靠字符数估算、没有真实
-字体度量、不能嵌入 CJK 字体、不带样式。下面四步按依赖顺序推进，**每一步是后一步的前置**。
+当前 PDF 输出已经跑通端到端，而且基础样式和表格已经落地。字体度量已经切到真实字体文件，
+下一步主要是把 CJK 嵌入与 Unicode 回环继续稳固。下面四步按依赖顺序推进，**每一步是后一步
+的前置**。
 
 ### 优先级 1：FreeType 集成 + 字体度量（约 1 个月）
 
@@ -153,13 +159,13 @@ Phase 1 的重点是：
 
 **子任务**：
 
-- [ ] 把 FreeType 接入 `FeatherDoc::Pdf` 构建（默认仍 OFF，只在 `FEATHERDOC_BUILD_PDF=ON`
+- [x] 把 FreeType 接入 `FeatherDoc::Pdf` 构建（默认仍 OFF，只在 `FEATHERDOC_BUILD_PDF=ON`
       时拉取）
-- [ ] 实现最小 `FontMetrics`：从字体文件读 ascent / descent / line gap / 每字形的
+- [x] 实现最小 `FontMetrics`：从字体文件读 ascent / descent / line gap / 每字形的
       advance width
-- [ ] 在 `PdfDocumentLayout` 里把字符宽度从估算改为真实 advance
-- [ ] 行高从固定值改为 `ascent + descent + line gap`
-- [ ] 给 `featherdoc_pdf_document_probe` 加一个真实字体测试用例
+- [x] 在 `PdfDocumentLayout` 里把字符宽度从估算改为真实 advance
+- [x] 行高从固定值改为 `ascent + descent + line gap`
+- [x] 给 `featherdoc_pdf_document_probe` 加一个真实字体测试用例
 
 **验收**：换行位置和行高与字体度量一致，不再是估算。
 
@@ -184,8 +190,8 @@ Phase 1 的重点是：
 
 ### 优先级 3：样式映射（约 2–3 周）
 
-**问题**：当前 layout 不识别 `Run.bold` / `italic` / `font_size` / `color`，输出看起来像
-probe 不像文档。
+**问题**：当前基础样式已经开始落地，但 `Run.bold` / `italic` /
+`font_size` / `color` 等还没有完整串到 layout 和 writer，整体输出还不够像正式文档。
 
 **子任务**：
 

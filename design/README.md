@@ -6,7 +6,7 @@
 
 ## 阅读路径（按时间窗口分层）
 
-不要一上来就读全部 11 篇。按以下顺序看：
+不要一上来就读全部文档。按以下顺序看：
 
 ### 第 1 步：理解长期决策依据（5 分钟）
 
@@ -21,10 +21,12 @@
 | 文档 | 用途 |
 |---|---|
 | [**02-current-roadmap.md**](02-current-roadmap.md) | **当前 0–6 个月在做什么**（依赖优先：用好 PDFio / PDFium） |
+| [**04-pdf-execution-plan.md**](04-pdf-execution-plan.md) | **下一步具体怎么做、怎么验收**（任务拆分、测试命令、阻塞条件） |
 | [01-architecture.md](01-architecture.md) | 三件套架构总览（docs + PDFio + PDFium） |
 
-`02-current-roadmap.md` 里有「**当前下一步任务清单**」章节，列出当前优先级最高的四步：
-FreeType 集成 → CJK 字体嵌入 → 样式映射 → HarfBuzz。**这是当前唯一应该并行投入的工作。**
+`02-current-roadmap.md` 负责说明主路线和阶段边界；`04-pdf-execution-plan.md` 负责说明后续
+实际执行顺序、每阶段验收标准和本地测试命令。**这条线是在已落地的基础段落 / 表格 / 基础样式 /
+读写链路之上继续收口，不是从零起步。**
 
 ### 第 3 步：长期愿景（按需读，长期不阻塞）
 
@@ -49,6 +51,7 @@ design/
 ├── 01-architecture.md    ← 三件套架构（不分时间窗口）
 ├── 02-current-roadmap.md ← 当前主路线（0–6 个月）
 ├── 03-long-term-roadmap.md ← 长期愿景（6 个月后才启动）
+├── 04-pdf-execution-plan.md ← PDF 后续执行路线与验收清单
 ├── dependencies/         ← 第三方依赖接入细节
 │   ├── pdfio.md
 │   ├── pdfium.md

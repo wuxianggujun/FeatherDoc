@@ -56,6 +56,10 @@ cmake --build build-pdf --target featherdoc_pdfio_probe
 默认构建不会拉取 PDFio / PDFium，也不会安装 PDF 实验模块头文件。
 PDF 能力目前只作为未来支持方向存在，不属于稳定 API。
 
+当前这条实验性 PDF 路线，已经不只是“最小文本样例”了：它覆盖基础段落、
+表格、基础样式、CJK 回退、字体度量、Unicode / ToUnicode 回环检查，以及一小批
+regression 样本，但仍然明确属于实验状态。更完整的分页和图片覆盖还在推进中。
+
 实验性的 PDF 读入方向同样默认关闭。它默认使用 PDFium 源码 checkout，
 不会自动下载 PDFium：
 
@@ -278,6 +282,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_floating_image_z_order_visual_r
 `output/floating-image-z-order-visual-regression/`。
 
 如果只想跑基础 Word 冒烟检查：
+
+这条流程是本地验证工具，脚本实现位于 `scripts/`，不是 FeatherDoc 库 API。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1
@@ -1206,15 +1212,19 @@ DOCX 结构位置。更稳的做法是：
 3. C++ 里先拿 `TemplatePart`，再用 `find_table_by_bookmark(...)`
    直接拿可编辑的 `Table`
 4. 拿到 `Table` 之后，优先用 `find_row(...)`、`find_cell(...)`、
-   `set_cell_text(...)`、`set_row_texts(...)` 这类按索引直达的入口，
+   `set_cell_text(...)`、`set_row_texts(...)` 这类按真实单元格索引直达的入口，
    或者直接用 `set_rows_texts(...)`、`set_cell_block_texts(...)`
    一次性覆盖多行 / 一个矩形块，不需要再自己手写 `next()` 循环
+5. 如果模板行里有横向合并单元格，可以改用
+   `find_cell_by_grid_column(...)` / `set_cell_text_by_grid_column(...)`
+   按 Word 里看见的视觉列定位；命中的结果仍然是底层真实 `w:tc` 单元格
 
 CLI 示例：
 
 ```bash
 featherdoc_cli inspect-template-table-rows report.docx --bookmark page3_target_table --json
 featherdoc_cli set-template-table-cell-text report.docx --bookmark page3_target_table 1 2 --text "更新后的内容" --output report-updated.docx --json
+featherdoc_cli set-template-table-cell-text report.docx --bookmark page3_target_table 1 --grid-column 2 --text "按视觉列更新" --output report-updated.docx --json
 featherdoc_cli set-template-table-row-texts report-updated.docx --bookmark page3_target_table 3 --row "商品A" --cell "3" --cell "99.00" --row "商品B" --cell "1" --cell "18.00" --output report-updated.docx --json
 featherdoc_cli set-template-table-cell-block-texts report-updated.docx --bookmark page3_target_table 3 1 --row "华北" --cell "120" --row "华南" --cell "98" --output report-updated.docx --json
 featherdoc_cli append-template-table-row report-updated.docx --bookmark page3_target_table --output report-updated.docx --json
@@ -1233,6 +1243,7 @@ if (!table.has_value()) {
 }
 
 table->set_cell_text(1, 2, "更新后的内容");
+table->set_cell_text_by_grid_column(1, 2, "按视觉列更新");
 table->set_row_texts(2, {"商品A", "3", "99.00"});
 table->set_rows_texts(3, {{"商品B", "1", "18.00"}, {"商品C", "5", "7.50"}});
 

@@ -997,6 +997,39 @@ auto read_part_paragraph_bidi(pugi::xml_node paragraph_properties) -> std::optio
     return read_on_off_value(paragraph_properties.child("w:bidi"));
 }
 
+auto parse_u32_attribute_value(const char *text) -> std::optional<std::uint32_t>;
+
+auto read_part_paragraph_alignment(pugi::xml_node paragraph_properties)
+    -> std::optional<featherdoc::paragraph_alignment> {
+    const auto value = std::string_view{
+        paragraph_properties.child("w:jc").attribute("w:val").value()};
+    if (value == "left" || value == "start") {
+        return featherdoc::paragraph_alignment::left;
+    }
+    if (value == "center") {
+        return featherdoc::paragraph_alignment::center;
+    }
+    if (value == "right" || value == "end") {
+        return featherdoc::paragraph_alignment::right;
+    }
+    if (value == "both" || value == "mediumKashida" ||
+        value == "highKashida" || value == "lowKashida") {
+        return featherdoc::paragraph_alignment::justified;
+    }
+    if (value == "distribute") {
+        return featherdoc::paragraph_alignment::distribute;
+    }
+
+    return std::nullopt;
+}
+
+auto read_part_paragraph_indent_twips(pugi::xml_node paragraph_properties,
+                                      const char *attribute_name)
+    -> std::optional<std::uint32_t> {
+    return parse_u32_attribute_value(
+        paragraph_properties.child("w:ind").attribute(attribute_name).value());
+}
+
 auto parse_u32_attribute_value(const char *text) -> std::optional<std::uint32_t> {
     if (text == nullptr || *text == '\0') {
         return std::nullopt;
@@ -1053,6 +1086,15 @@ auto summarize_part_paragraph_node(pugi::xml_node paragraph_node, std::size_t pa
     const auto paragraph_properties = paragraph_node.child("w:pPr");
     summary.style_id = read_part_paragraph_style_id(paragraph_properties);
     summary.bidi = read_part_paragraph_bidi(paragraph_properties);
+    summary.alignment = read_part_paragraph_alignment(paragraph_properties);
+    summary.indent_left_twips =
+        read_part_paragraph_indent_twips(paragraph_properties, "w:left");
+    summary.indent_right_twips =
+        read_part_paragraph_indent_twips(paragraph_properties, "w:right");
+    summary.first_line_indent_twips =
+        read_part_paragraph_indent_twips(paragraph_properties, "w:firstLine");
+    summary.hanging_indent_twips =
+        read_part_paragraph_indent_twips(paragraph_properties, "w:hanging");
     summary.numbering = summarize_part_paragraph_numbering(paragraph_properties);
 
     auto paragraph_handle = featherdoc::Paragraph{paragraph_node.parent(), paragraph_node};
@@ -1072,6 +1114,11 @@ auto summarize_part_run_handle(const featherdoc::Run &run_handle, std::size_t ru
     summary.style_id = run_handle.style_id();
     summary.font_family = run_handle.font_family();
     summary.east_asia_font_family = run_handle.east_asia_font_family();
+    summary.text_color = run_handle.text_color();
+    summary.bold = run_handle.bold();
+    summary.italic = run_handle.italic();
+    summary.underline = run_handle.underline();
+    summary.font_size_points = run_handle.font_size_points();
     summary.language = run_handle.language();
     summary.east_asia_language = run_handle.east_asia_language();
     summary.bidi_language = run_handle.bidi_language();
@@ -1085,10 +1132,38 @@ auto summarize_part_table_handle(featherdoc::Table table_handle, std::size_t tab
     summary.index = table_index;
     summary.style_id = table_handle.style_id();
     summary.width_twips = table_handle.width_twips();
+    summary.alignment = table_handle.alignment();
+    summary.indent_twips = table_handle.indent_twips();
+    summary.cell_spacing_twips = table_handle.cell_spacing_twips();
+    summary.cell_margin_top_twips =
+        table_handle.cell_margin_twips(featherdoc::cell_margin_edge::top);
+    summary.cell_margin_left_twips =
+        table_handle.cell_margin_twips(featherdoc::cell_margin_edge::left);
+    summary.cell_margin_bottom_twips =
+        table_handle.cell_margin_twips(featherdoc::cell_margin_edge::bottom);
+    summary.cell_margin_right_twips =
+        table_handle.cell_margin_twips(featherdoc::cell_margin_edge::right);
+    auto borders = featherdoc::table_borders_inspection_summary{};
+    borders.top = table_handle.border(featherdoc::table_border_edge::top);
+    borders.left = table_handle.border(featherdoc::table_border_edge::left);
+    borders.bottom = table_handle.border(featherdoc::table_border_edge::bottom);
+    borders.right = table_handle.border(featherdoc::table_border_edge::right);
+    borders.inside_horizontal =
+        table_handle.border(featherdoc::table_border_edge::inside_horizontal);
+    borders.inside_vertical =
+        table_handle.border(featherdoc::table_border_edge::inside_vertical);
+    if (borders.top || borders.left || borders.bottom || borders.right ||
+        borders.inside_horizontal || borders.inside_vertical) {
+        summary.borders = std::move(borders);
+    }
 
     bool first_row = true;
     for (auto row = table_handle.rows(); row.has_next(); row.next()) {
         ++summary.row_count;
+        summary.row_height_twips.push_back(row.height_twips());
+        summary.row_height_rules.push_back(row.height_rule());
+        summary.row_cant_split.push_back(row.cant_split());
+        summary.row_repeats_header.push_back(row.repeats_header());
 
         std::size_t row_column_count = 0U;
         bool first_cell = true;
@@ -1129,9 +1204,26 @@ auto summarize_part_table_cell_handle(featherdoc::TableCell cell_handle, std::si
     summary.cell_index = cell_index;
     summary.column_index = column_index;
     summary.column_span = cell_handle.column_span();
+    summary.row_span = cell_handle.row_span();
+    summary.vertical_merge = cell_handle.vertical_merge();
     summary.width_twips = cell_handle.width_twips();
     summary.vertical_alignment = cell_handle.vertical_alignment();
     summary.text_direction = cell_handle.text_direction();
+    summary.fill_color = cell_handle.fill_color();
+    summary.margin_top_twips =
+        cell_handle.margin_twips(featherdoc::cell_margin_edge::top);
+    summary.margin_left_twips =
+        cell_handle.margin_twips(featherdoc::cell_margin_edge::left);
+    summary.margin_bottom_twips =
+        cell_handle.margin_twips(featherdoc::cell_margin_edge::bottom);
+    summary.margin_right_twips =
+        cell_handle.margin_twips(featherdoc::cell_margin_edge::right);
+    summary.border_top = cell_handle.border(featherdoc::cell_border_edge::top);
+    summary.border_left = cell_handle.border(featherdoc::cell_border_edge::left);
+    summary.border_bottom =
+        cell_handle.border(featherdoc::cell_border_edge::bottom);
+    summary.border_right =
+        cell_handle.border(featherdoc::cell_border_edge::right);
     summary.text = cell_handle.get_text();
 
     for (auto paragraph = cell_handle.paragraphs(); paragraph.has_next(); paragraph.next()) {
@@ -8687,7 +8779,7 @@ TemplatePart::inspect_table_cells(std::size_t table_index) {
 
 std::optional<featherdoc::table_cell_inspection_summary>
 TemplatePart::inspect_table_cell(std::size_t table_index, std::size_t row_index,
-                                 std::size_t cell_index) {
+                                  std::size_t cell_index) {
     if (this->xml_document == nullptr || this->last_error_info == nullptr) {
         if (this->last_error_info != nullptr) {
             set_last_error(*this->last_error_info,
@@ -8701,6 +8793,33 @@ TemplatePart::inspect_table_cell(std::size_t table_index, std::size_t row_index,
     const auto cells = this->inspect_table_cells(table_index);
     for (const auto &cell : cells) {
         if (cell.row_index == row_index && cell.cell_index == cell_index) {
+            this->last_error_info->clear();
+            return cell;
+        }
+    }
+
+    this->last_error_info->clear();
+    return std::nullopt;
+}
+
+std::optional<featherdoc::table_cell_inspection_summary>
+TemplatePart::inspect_table_cell_by_grid_column(std::size_t table_index,
+                                                std::size_t row_index,
+                                                std::size_t grid_column) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+        if (this->last_error_info != nullptr) {
+            set_last_error(*this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::string{unavailable_template_part_detail},
+                           this->entry_name_storage);
+        }
+        return std::nullopt;
+    }
+
+    const auto cells = this->inspect_table_cells(table_index);
+    for (const auto &cell : cells) {
+        if (cell.row_index == row_index && grid_column >= cell.column_index &&
+            grid_column - cell.column_index < cell.column_span) {
             this->last_error_info->clear();
             return cell;
         }
@@ -9846,6 +9965,29 @@ auto semantic_bool(const std::optional<bool> &value) -> std::string {
     return *value ? "true" : "false";
 }
 
+auto semantic_paragraph_alignment(
+    const std::optional<featherdoc::paragraph_alignment> &alignment)
+    -> std::string {
+    if (!alignment.has_value()) {
+        return {};
+    }
+
+    switch (*alignment) {
+    case featherdoc::paragraph_alignment::left:
+        return "left";
+    case featherdoc::paragraph_alignment::center:
+        return "center";
+    case featherdoc::paragraph_alignment::right:
+        return "right";
+    case featherdoc::paragraph_alignment::justified:
+        return "justified";
+    case featherdoc::paragraph_alignment::distribute:
+        return "distribute";
+    }
+
+    return {};
+}
+
 auto semantic_content_control_kind_name(featherdoc::content_control_kind kind)
     -> std::string_view {
     switch (kind) {
@@ -9949,7 +10091,17 @@ auto semantic_paragraph_value(
     std::ostringstream stream;
     stream << "text=" << paragraph.text << "\nstyle="
            << semantic_optional_string(paragraph.style_id) << "\nbidi="
-           << semantic_bool(paragraph.bidi) << "\nruns=" << paragraph.run_count;
+           << semantic_bool(paragraph.bidi) << "\nalignment="
+           << semantic_paragraph_alignment(paragraph.alignment)
+           << "\nindent_left="
+           << semantic_optional_numeric(paragraph.indent_left_twips)
+           << "\nindent_right="
+           << semantic_optional_numeric(paragraph.indent_right_twips)
+           << "\nfirst_line_indent="
+           << semantic_optional_numeric(paragraph.first_line_indent_twips)
+           << "\nhanging_indent="
+           << semantic_optional_numeric(paragraph.hanging_indent_twips)
+           << "\nruns=" << paragraph.run_count;
     if (paragraph.numbering.has_value()) {
         stream << "\nnumbering="
                << semantic_optional_numeric(paragraph.numbering->num_id) << ':'

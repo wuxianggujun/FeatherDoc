@@ -12,6 +12,17 @@ TEST_CASE("cli print_usage includes core command families") {
 
     const auto text = stream.str();
     CHECK_NE(text.find("Usage:\n"), std::string::npos);
+    CHECK_NE(text.find("featherdoc_cli run-recipe --recipe <recipe.json>"),
+             std::string::npos);
+    CHECK_NE(text.find("featherdoc_cli export-pdf <input.docx>"),
+             std::string::npos);
+    CHECK_NE(text.find("--render-headers-and-footers"), std::string::npos);
+    CHECK_NE(text.find("--render-inline-images"), std::string::npos);
+    CHECK_NE(text.find("--font-file <path>"), std::string::npos);
+    CHECK_NE(text.find("--cjk-font-file <path>"), std::string::npos);
+    CHECK_NE(text.find("--font-map <family>=<path>]..."), std::string::npos);
+    CHECK_NE(text.find("--no-system-font-fallbacks"), std::string::npos);
+    CHECK_NE(text.find("--summary-json <path>"), std::string::npos);
     CHECK_NE(text.find("featherdoc_cli inspect-styles <input.docx>"),
              std::string::npos);
     CHECK_NE(text.find("featherdoc_cli export-numbering-catalog <input.docx>"),
