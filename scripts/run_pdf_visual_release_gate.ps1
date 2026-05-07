@@ -203,10 +203,13 @@ $reportDir = Join-Path $resolvedOutputDir "report"
 $baselineDir = Join-Path $resolvedOutputDir "baseline"
 $unicodeOutputDir = Join-Path $resolvedOutputDir "unicode-font"
 $renderScriptPath = Join-Path $repoRoot "scripts\render_pdf_pages.py"
+$textLayerScriptPath = Join-Path $repoRoot "scripts\check_pdf_text_layer.py"
 $contactSheetScriptPath = Join-Path $repoRoot "scripts\build_image_contact_sheet.py"
+$pdfRegressionManifestPath = Join-Path $repoRoot "test\pdf_regression_manifest.json"
 $unicodeScriptPath = Join-Path $repoRoot "scripts\run_pdf_unicode_font_roundtrip_visual_regression.ps1"
 $pdfCliExportLog = Join-Path $reportDir "pdf-cli-export-test.log"
 $pdfRegressionLog = Join-Path $reportDir "pdf-regression-test.log"
+$cjkCopySearchDir = Join-Path $reportDir "cjk-copy-search"
 $unicodeLog = Join-Path $reportDir "unicode-font.log"
 $aggregateContactSheetPath = Join-Path $reportDir "aggregate-contact-sheet.png"
 $summaryPath = Join-Path $reportDir "summary.json"
@@ -215,6 +218,7 @@ New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $baselineDir -Force | Out-Null
 New-Item -ItemType Directory -Path $unicodeOutputDir -Force | Out-Null
+New-Item -ItemType Directory -Path $cjkCopySearchDir -Force | Out-Null
 
 Write-Step "Running pdf_cli_export regression"
 Invoke-CapturedCommand `
@@ -239,6 +243,52 @@ if (-not $SkipUnicodeBaseline) {
 }
 
 $renderPython = Get-RenderPython -RepoRoot $repoRoot
+
+$regressionManifest = Get-Content -Path $pdfRegressionManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$cjkSamples = @($regressionManifest.samples | Where-Object { $_.expect_cjk -eq $true })
+if ($cjkSamples.Count -eq 0) {
+    throw "No CJK samples were found in $pdfRegressionManifestPath."
+}
+
+Write-Step "Checking CJK copy/search text layers"
+$cjkCopySearchResults = New-Object System.Collections.Generic.List[object]
+foreach ($sample in $cjkSamples) {
+    $samplePdfPath = Join-Path $resolvedBuildDir "test\$($sample.output_file)"
+    if (-not (Test-Path $samplePdfPath)) {
+        throw "Expected PDF sample not found: $samplePdfPath"
+    }
+
+    $sampleSummaryPath = Join-Path $cjkCopySearchDir "$($sample.id)-summary.json"
+    $sampleTextPath = Join-Path $cjkCopySearchDir "$($sample.id)-text.txt"
+    $textLayerArguments = @(
+        $textLayerScriptPath,
+        "--input", $samplePdfPath,
+        "--output-text", $sampleTextPath,
+        "--summary", $sampleSummaryPath
+    )
+    foreach ($expectedText in @($sample.expected_text)) {
+        $textLayerArguments += @("--expect-text", $expectedText)
+    }
+
+    & $renderPython @textLayerArguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "CJK copy/search text layer check failed for '$($sample.id)'."
+    }
+
+    $sampleTextSummary = Get-Content -Path $sampleSummaryPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $cjkCopySearchResults.Add(
+        [ordered]@{
+            sample_id = $sample.id
+            pdf_path = $samplePdfPath
+            summary_path = $sampleSummaryPath
+            text_output_path = $sampleTextPath
+            expected_text = @($sample.expected_text)
+            matched_text = @($sampleTextSummary.matched_text)
+            missing_text = @($sampleTextSummary.missing_text)
+            page_count = $sampleTextSummary.page_count
+        }
+    ) | Out-Null
+}
 
 $samples = @(
     [ordered]@{
@@ -317,8 +367,10 @@ $summary = [ordered]@{
     logs = [ordered]@{
         pdf_cli_export = $pdfCliExportLog
         pdf_regression = $pdfRegressionLog
+        cjk_copy_search = $cjkCopySearchDir
         unicode_font = $unicodeLog
     }
+    cjk_copy_search = $cjkCopySearchResults
     baselines = $renderedSamples
 }
 

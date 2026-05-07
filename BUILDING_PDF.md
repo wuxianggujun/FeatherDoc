@@ -372,8 +372,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.p
 
 - `output/pdf-visual-release-gate/report/summary.json`
 - `output/pdf-visual-release-gate/report/aggregate-contact-sheet.png`
+- `output/pdf-visual-release-gate/report/cjk-copy-search/`
 - `output/pdf-visual-release-gate/unicode-font/report/summary.json`
 - `output/pdf-visual-release-gate/unicode-font/report/comparison-contact-sheet.png`
+
+门禁里的 CJK 复制 / 搜索检查会针对 manifest 中所有 `expect_cjk=true`
+的样本做可复现文本层提取，并把每个样本的提取结果写入独立的文本预览
+和 JSON 摘要，避免依赖脆弱的 UI 自动化。
 
 ## 字体选择
 

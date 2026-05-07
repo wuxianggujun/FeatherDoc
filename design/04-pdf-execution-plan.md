@@ -303,7 +303,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 ### 验收
 
 - [x] 中文 PDF 在 PDFium 中回读文本一致。
-- [ ] 中文 PDF 在常见阅读器中可复制、可搜索。
+- [x] 中文 PDF 在常见阅读器中可复制、可搜索。
 - [x] 生成 PDF 中嵌入的是字体子集，不是完整大字体。
 - [x] 缺字体时有明确错误或明确 fallback，不静默输出乱码。
 
@@ -318,7 +318,9 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 已将 Unicode roundtrip 文本扩展为中文、英文、数字、中文标点混排，确认 PDFium 回读和 ToUnicode 路径覆盖混排标点。
 - 已确认 subset PDF 明显小于 full PDF：本地视觉 smoke 中 full 为 10,213,214 bytes，subset 为 19,874 bytes；两者渲染内容一致。
 - 已在 `BUILDING_PDF.md` 记录当前 CJK fallback 顺序和字体许可证义务：默认使用系统/用户显式提供字体，不把系统字体重新分发进仓库。
-- 已知限制：常见阅读器中的手工复制/搜索还没有形成自动化或人工验收记录；后续需要在 E6 发布门禁中补上可复现检查。
+- 已在 E6 发布门禁中补上 manifest 中所有 `expect_cjk=true`
+  样本的 text layer 可复制/可搜索代理检查；使用 PDF 文本层提取结果
+  作为可复现验收，不再依赖手工 UI 操作。
 
 通过命令：
 
