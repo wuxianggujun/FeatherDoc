@@ -518,6 +518,9 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 已新增 `pdf_import_table_heuristic` 的 opt-in 表格导入测试：
   受控 `table-like grid` PDF 在启用选项后可导入为 3x3 表格，保存重开后可确认
   `Cell A1`、`Cell B2`、`Cell C3` 保留。
+- 已补充 `pdf_import_table_heuristic` 负样本：
+  编号列表左侧编号、右侧说明文字且行距稳定时，不应被误判为表格候选；当前启发式
+  因此保持保守，只接受至少 3 个列锚点的规则网格候选。
 - 已完成可视化验证：
   将 `featherdoc-pdf-import-table-like-grid.pdf` 和
   `featherdoc-pdf-import-two-column.pdf` 渲染为 PNG/contact sheet；目检确认前者是
@@ -535,8 +538,8 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
   列、表格或图片语义。
 - 已知限制更新：
   当前表格导入只覆盖“稳定行距 + 规则列锚点”的简单网格型文本，仍不覆盖两行表格、
-  不规则 invoice、跨列/跨行单元格、复杂分页表格或页内块顺序的精确还原；这一版是
-  保守的 opt-in 表格导入，不代表已完成完整 PDF -> Word 表格 AST 还原。
+  两列表格、不规则 invoice、跨列/跨行单元格、复杂分页表格或页内块顺序的精确还原；
+  这一版是保守的 opt-in 表格导入，不代表已完成完整 PDF -> Word 表格 AST 还原。
 
 通过命令：
 

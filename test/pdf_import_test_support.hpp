@@ -190,6 +190,37 @@ write_two_column_pdf(std::string_view filename) {
     return output_path;
 }
 
+[[nodiscard]] inline std::filesystem::path
+write_aligned_list_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title = "FeatherDoc aligned list PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Aligned list sample"));
+    page.text_runs.push_back(make_pdf_text_run(72.0, 684.0, "1."));
+    page.text_runs.push_back(
+        make_pdf_text_run(112.0, 684.0, "First action item"));
+    page.text_runs.push_back(make_pdf_text_run(72.0, 660.0, "2."));
+    page.text_runs.push_back(
+        make_pdf_text_run(112.0, 660.0, "Second action item"));
+    page.text_runs.push_back(make_pdf_text_run(72.0, 636.0, "3."));
+    page.text_runs.push_back(
+        make_pdf_text_run(112.0, 636.0, "Third action item"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
 }  // namespace featherdoc::test_support
 
 #endif  // FEATHERDOC_TEST_PDF_IMPORT_TEST_SUPPORT_HPP

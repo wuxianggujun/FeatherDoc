@@ -379,14 +379,6 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     return best_index;
 }
 
-[[nodiscard]] bool has_multi_cluster_row(
-    const std::vector<CandidateLine> &rows) {
-    return std::any_of(rows.begin(), rows.end(),
-                       [](const CandidateLine &row) {
-                           return row.clusters.size() >= 2U;
-                       });
-}
-
 [[nodiscard]] bool build_table_candidate(
     const std::vector<CandidateLine> &rows, PdfParsedTableCandidate &candidate) {
     if (rows.size() < 3U) {
@@ -394,10 +386,7 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     }
 
     const auto anchors = build_column_anchors(rows);
-    if (anchors.size() < 2U) {
-        return false;
-    }
-    if (anchors.size() == 2U && !has_multi_cluster_row(rows)) {
+    if (anchors.size() < 3U) {
         return false;
     }
     if (!has_regular_column_spacing(anchors)) {

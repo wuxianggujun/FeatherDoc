@@ -238,7 +238,7 @@ pdfium_document_parser_probe ..... Passed
 - `pdf_import_failure`：PDF 读入失败样本的分类测试，不混入导出回归；
   当前覆盖禁用 text/geometry、空白 PDF、parse 失败、表格候选已检测
 - `pdf_import_table_heuristic`：PDF 简单表格候选识别第一版，覆盖网格正例、
-  双栏反例，以及显式 opt-in 后把简单表格候选导入为 `Document` 表格
+  双栏/编号列表反例，以及显式 opt-in 后把简单表格候选导入为 `Document` 表格
 - `pdf_font_resolver`：字体解析和回退规则单测
 - `pdf_text_metrics`：文本宽度 / 行高估算单测
 - `pdf_document_adapter_font`：PDF adapter 的字体映射、样式和列表前缀回归

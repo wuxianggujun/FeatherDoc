@@ -65,6 +65,20 @@ TEST_CASE("PDFium parser does not classify two-column prose as table candidate")
     CHECK(page.table_candidates.empty());
 }
 
+TEST_CASE("PDFium parser does not classify aligned numbered list as table candidate") {
+    const auto output_path =
+        featherdoc::test_support::write_aligned_list_pdf(
+            "featherdoc-pdf-import-aligned-list.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    CHECK(page.table_candidates.empty());
+}
+
 TEST_CASE("PDF text importer can opt in to table candidate import") {
     const auto input_path =
         featherdoc::test_support::write_table_like_grid_pdf(
