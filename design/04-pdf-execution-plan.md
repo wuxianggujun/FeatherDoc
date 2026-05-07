@@ -235,8 +235,8 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_(document|image|table|i
 - [x] 页数符合预期。
 - [x] 标题、关键正文、页眉页脚文本可回读。
 - [x] CJK 文本可回读为 Unicode。
-- [ ] 输出文件大小在合理范围内，没有异常膨胀。
-- [ ] 如包含图片，图片数量或关键尺寸可验证。
+- [x] 输出文件大小在合理范围内，没有异常膨胀。
+- [x] 如包含图片，图片数量或关键尺寸可验证。
 
 ### 验收
 
@@ -256,7 +256,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_(document|image|table|i
 - 已新增 `document-invoice-table-text`，生成 1 页发票/报价单样本，覆盖表格列宽、明细金额、边框和合计区。
 - 当前 `pdf_regression_manifest.json` 已扩展到 37 个样本；`ctest -R "pdf_regression_"` 覆盖 38 个 CTest，包含 manifest 校验。
 - 已完成 E3 关键样本可视化验证：合同 1 页、长文档 5 页、发票 1 页均已渲染 PNG/contact sheet；目检无空白页、明显裁剪、重叠、页眉页脚错位或表格内容换行异常。
-- 已知限制：输出文件大小范围和图片数量/关键尺寸仍未进入 manifest 自动断言，暂由写出字节日志、PDFium 回读和 PNG 目检辅助确认；后续应并入 E6 视觉回归/发布门禁。
+- 已将回归样本 runner 补齐为自动化检查：所有样本按页数做输出大小上限校验，含图样本额外通过 `expected_image_count` 回读 image object 数量；这两项已不再依赖手工目检。
 
 通过命令：
 

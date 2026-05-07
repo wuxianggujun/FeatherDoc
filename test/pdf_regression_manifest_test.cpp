@@ -25,6 +25,7 @@ struct ManifestSample {
     std::string output_file;
     std::size_t expected_pages{0};
     std::vector<std::string> expected_text;
+    std::size_t expected_image_count{0};
 };
 
 [[nodiscard]] int hex_digit_value(char value) noexcept {
@@ -249,6 +250,8 @@ class JsonReader {
                 sample.expected_pages = parse_integer();
             } else if (key == "expected_text") {
                 sample.expected_text = parse_string_array();
+            } else if (key == "expected_image_count") {
+                sample.expected_image_count = parse_integer();
             } else {
                 skip_value();
             }
@@ -464,6 +467,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(samples[24].kind, "invoice_grid_text");
     CHECK_EQ(samples[25].id, "image-caption-text");
     CHECK_EQ(samples[25].kind, "image_caption_text");
+    CHECK_EQ(samples[25].expected_image_count, 1U);
     CHECK_EQ(samples[26].id, "sectioned-report-text");
     CHECK_EQ(samples[26].kind, "sectioned_report_text");
     CHECK_EQ(samples[26].expected_pages, 2U);
@@ -474,12 +478,14 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(samples[28].kind, "long_report_text");
     CHECK_EQ(samples[29].id, "image-report-text");
     CHECK_EQ(samples[29].kind, "image_report_text");
+    CHECK_EQ(samples[29].expected_image_count, 2U);
     CHECK_EQ(samples[29].expected_pages, 2U);
     CHECK_EQ(samples[30].id, "cjk-report-text");
     CHECK_EQ(samples[30].kind, "cjk_report_text");
     CHECK_EQ(samples[30].expected_pages, 2U);
     CHECK_EQ(samples[31].id, "cjk-image-report-text");
     CHECK_EQ(samples[31].kind, "cjk_image_report_text");
+    CHECK_EQ(samples[31].expected_image_count, 2U);
     CHECK_EQ(samples[31].expected_pages, 2U);
     CHECK_EQ(samples[32].id, "document-eastasia-style-probe");
     CHECK_EQ(samples[32].kind, "document_eastasia_style_probe");
@@ -487,6 +493,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_GE(samples[32].expected_text.size(), 7U);
     CHECK_EQ(samples[33].id, "document-image-semantics-text");
     CHECK_EQ(samples[33].kind, "document_image_semantics_text");
+    CHECK_EQ(samples[33].expected_image_count, 3U);
     CHECK_EQ(samples[33].expected_pages, 1U);
     CHECK_GE(samples[33].expected_text.size(), 5U);
     CHECK_EQ(samples[34].id, "document-table-semantics-text");

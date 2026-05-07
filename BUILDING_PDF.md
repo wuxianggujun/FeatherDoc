@@ -260,6 +260,10 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_h
 导入顺序都依赖字符 bounds。对应失败路径由 `pdf_import_failure` 覆盖，并确认失败时
 不会污染目标 `Document`。
 
+`featherdoc_pdf_regression_sample` 现在还会对每个回归 PDF 做页数级别的输出大小上限
+检查；含图样本则从 manifest 读取 `expected_image_count`，再用 PDFium 对页面 image
+object 数量做回读断言。这样文件体量和图片出现次数都能留在同一条 CTest 链路里。
+
 默认 `PdfDocumentImporter` 遇到 `PdfParsedTableCandidate` 仍返回
 `table_candidates_detected`，避免把表格误扁平化成正文。只有显式设置
 `PdfDocumentImportOptions::import_table_candidates_as_tables=true` 时，才会尝试把简单

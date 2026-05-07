@@ -366,6 +366,12 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         featherdoc_pdf_regression_sample
         PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
     )
+    if(DEFINED FEATHERDOC_PDFIUM_SOURCE_DIR AND NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
+        target_include_directories(
+            featherdoc_pdf_regression_sample
+            PRIVATE "${FEATHERDOC_PDFIUM_SOURCE_DIR}/public"
+        )
+    endif()
     featherdoc_copy_runtime_dlls(featherdoc_pdf_regression_sample)
 
     if(MSVC)
@@ -391,6 +397,10 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         string(JSON sample_expected_text_count LENGTH
             "${FEATHERDOC_PDF_REGRESSION_JSON}" samples ${sample_index}
             expected_text)
+        string(JSON sample_expected_image_count ERROR_VARIABLE
+            sample_expected_image_count_error GET
+            "${FEATHERDOC_PDF_REGRESSION_JSON}" samples ${sample_index}
+            expected_image_count)
 
         set(sample_command
             featherdoc_pdf_regression_sample
@@ -406,6 +416,10 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
                     ${sample_index} expected_text ${text_index})
                 list(APPEND sample_command --expect-text "${sample_expected_text}")
             endforeach()
+        endif()
+        if(sample_expected_image_count_error STREQUAL "NOTFOUND")
+            list(APPEND sample_command
+                --expect-image-count "${sample_expected_image_count}")
         endif()
         if(sample_kind STREQUAL "cjk_text" OR
            sample_kind STREQUAL "cjk_image_report_text" OR

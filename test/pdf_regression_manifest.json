@@ -312,7 +312,8 @@
         "Image caption sample",
         "Generated inline image asset",
         "PDFium reads caption beside image"
-      ]
+      ],
+      "expected_image_count": 1
     },
     {
       "id": "sectioned-report-text",
@@ -361,7 +362,8 @@
         "Image report sample page 2",
         "Figure 2:",
         "Page 2 text extraction remains intact"
-      ]
+      ],
+      "expected_image_count": 2
     },
     {
       "id": "cjk-report-text",
@@ -391,6 +393,7 @@
         "第二页复用同一张位图",
         "中文图文回归保持稳定"
       ],
+      "expected_image_count": 2,
       "expect_cjk": true,
       "expect_unicode": true
     },
@@ -423,7 +426,8 @@
         "Text after inline image",
         "Square wrap text",
         "Behind text image anchor"
-      ]
+      ],
+      "expected_image_count": 3
     },
     {
       "id": "document-table-semantics-text",

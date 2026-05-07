@@ -47,6 +47,10 @@
             "type": "string"
           }
         },
+        "expected_image_count": {
+          "type": "integer",
+          "minimum": 1
+        },
         "expect_unicode": {
           "type": "boolean"
         },

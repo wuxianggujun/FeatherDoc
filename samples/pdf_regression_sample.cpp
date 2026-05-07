@@ -4,14 +4,21 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <fpdf_edit.h>
+#include <fpdfview.h>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -24,11 +31,33 @@ struct SampleConfig {
     std::filesystem::path output_path;
     std::size_t expected_pages{0};
     std::vector<std::string> expected_text;
+    std::optional<std::size_t> expected_image_count;
 };
 
 struct ScenarioResult {
     featherdoc::pdf::PdfDocumentLayout layout;
 };
+
+struct PdfiumDocumentCloser {
+    void operator()(FPDF_DOCUMENT document) const {
+        if (document != nullptr) {
+            FPDF_CloseDocument(document);
+        }
+    }
+};
+
+struct PdfiumPageCloser {
+    void operator()(FPDF_PAGE page) const {
+        if (page != nullptr) {
+            FPDF_ClosePage(page);
+        }
+    }
+};
+
+using PdfiumDocumentPtr =
+    std::unique_ptr<std::remove_pointer_t<FPDF_DOCUMENT>, PdfiumDocumentCloser>;
+using PdfiumPagePtr =
+    std::unique_ptr<std::remove_pointer_t<FPDF_PAGE>, PdfiumPageCloser>;
 
 [[nodiscard]] featherdoc::pdf::PdfPageLayout make_letter_page() {
     featherdoc::pdf::PdfPageLayout page;
@@ -74,6 +103,11 @@ struct ScenarioResult {
     return {reinterpret_cast<const char *>(text.data()), text.size()};
 }
 
+[[nodiscard]] std::string utf8_from_path(const std::filesystem::path &path) {
+    const auto utf8 = path.u8string();
+    return {utf8.begin(), utf8.end()};
+}
+
 [[nodiscard]] std::string environment_value(const char *name) {
 #if defined(_WIN32)
     char *value = nullptr;
@@ -89,6 +123,76 @@ struct ScenarioResult {
     const char *value = std::getenv(name);
     return value == nullptr ? std::string{} : std::string{value};
 #endif
+}
+
+[[nodiscard]] std::string pdfium_error_to_string(unsigned long error_code) {
+    switch (error_code) {
+    case FPDF_ERR_SUCCESS:
+        return "success";
+    case FPDF_ERR_UNKNOWN:
+        return "unknown error";
+    case FPDF_ERR_FILE:
+        return "file access or format error";
+    case FPDF_ERR_FORMAT:
+        return "invalid PDF format";
+    case FPDF_ERR_PASSWORD:
+        return "password is required or incorrect";
+    case FPDF_ERR_SECURITY:
+        return "unsupported security scheme";
+    case FPDF_ERR_PAGE:
+        return "page not found or content error";
+    default:
+        return "unrecognized PDFium error " + std::to_string(error_code);
+    }
+}
+
+[[nodiscard]] std::optional<std::size_t> count_pdf_image_objects(
+    const std::filesystem::path &path, std::string &error_message) {
+    const auto utf8_path = utf8_from_path(path);
+    PdfiumDocumentPtr document{FPDF_LoadDocument(utf8_path.c_str(), nullptr)};
+    if (!document) {
+        error_message = "Unable to reopen PDF for image counting: " +
+                        pdfium_error_to_string(FPDF_GetLastError());
+        return std::nullopt;
+    }
+
+    const int page_count = FPDF_GetPageCount(document.get());
+    if (page_count < 0) {
+        error_message =
+            "PDFium reported an invalid page count while counting images";
+        return std::nullopt;
+    }
+
+    std::size_t image_count = 0U;
+    for (int page_index = 0; page_index < page_count; ++page_index) {
+        PdfiumPagePtr page{FPDF_LoadPage(document.get(), page_index)};
+        if (!page) {
+            error_message = "Unable to load PDF page " +
+                            std::to_string(page_index) +
+                            " while counting images";
+            return std::nullopt;
+        }
+
+        const int object_count = FPDFPage_CountObjects(page.get());
+        if (object_count < 0) {
+            error_message =
+                "PDFium reported an invalid page object count while counting "
+                "images";
+            return std::nullopt;
+        }
+
+        for (int object_index = 0; object_index < object_count; ++object_index) {
+            const auto page_object = FPDFPage_GetObject(page.get(), object_index);
+            if (page_object == nullptr) {
+                continue;
+            }
+            if (FPDFPageObj_GetType(page_object) == FPDF_PAGEOBJ_IMAGE) {
+                ++image_count;
+            }
+        }
+    }
+
+    return image_count;
 }
 
 [[nodiscard]] std::vector<std::filesystem::path>
@@ -2112,6 +2216,11 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
             config.expected_text.emplace_back(args[++index]);
             continue;
         }
+        if (arg == "--expect-image-count" && index + 1 < args.size()) {
+            config.expected_image_count =
+                static_cast<std::size_t>(std::stoull(args[++index]));
+            continue;
+        }
         if (arg == "--require-cjk-font") {
             require_cjk_font = true;
             continue;
@@ -2152,7 +2261,8 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
 [[nodiscard]] void print_usage() {
     std::cerr
         << "usage: featherdoc_pdf_regression_sample --scenario <name> "
-           "--output <pdf> --expected-pages <count> [--require-cjk-font]\n";
+           "--output <pdf> --expected-pages <count> "
+           "[--expect-image-count <count>] [--require-cjk-font]\n";
 }
 
 } // namespace
@@ -2348,6 +2458,14 @@ int run_program(const std::vector<std::string> &args) {
         std::cerr << "PDF output file is empty\n";
         return 1;
     }
+    const auto max_output_size =
+        static_cast<std::uintmax_t>(sample.layout.pages.size()) * 700000U;
+    if (output_size > max_output_size) {
+        std::cerr << "PDF output file is unexpectedly large for scenario "
+                  << config.scenario << ": expected at most "
+                  << max_output_size << " bytes, got " << output_size << '\n';
+        return 1;
+    }
 
     featherdoc::pdf::PdfiumParser parser;
     const auto parse_result = parser.parse(config.output_path, {});
@@ -2376,6 +2494,23 @@ int run_program(const std::vector<std::string> &args) {
         }
         std::cerr << text_error << '\n';
         return 1;
+    }
+
+    if (config.expected_image_count.has_value()) {
+        std::string image_count_error;
+        const auto image_count =
+            count_pdf_image_objects(config.output_path, image_count_error);
+        if (!image_count.has_value()) {
+            std::cerr << image_count_error << '\n';
+            return 1;
+        }
+        if (*image_count != *config.expected_image_count) {
+            std::cerr << "unexpected PDF image object count for scenario "
+                      << config.scenario << ": expected "
+                      << *config.expected_image_count << ", got "
+                      << *image_count << '\n';
+            return 1;
+        }
     }
 
     std::cout << "wrote " << config.output_path.string() << " ("
