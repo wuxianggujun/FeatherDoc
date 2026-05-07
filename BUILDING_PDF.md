@@ -233,11 +233,18 @@ pdfium_document_parser_probe ..... Passed
 - `pdf_document_generator_probe`：`Document` → `PdfDocumentLayout` → PDF smoke
 - `pdfium_parser_probe`：PDFium 读入 PDFio 产物 smoke
 - `pdfium_document_parser_probe`：PDFium 读入 `Document` 产物 smoke
+- `pdf_import_structure`：PDFium 字符 span 聚合为行 / 段落的读入结构测试
 - `pdf_font_resolver`：字体解析和回退规则单测
 - `pdf_text_metrics`：文本宽度 / 行高估算单测
 - `pdf_document_adapter_font`：PDF adapter 的字体映射、样式和列表前缀回归
 - `pdf_unicode_font_roundtrip`：Unicode / CJK 字体嵌入和 PDFium 回读回环
 - `pdf_unicode_font_roundtrip_visual`：Unicode / CJK 字体 PDF 渲染为 PNG 后的视觉 smoke
+
+读入方向可以单独跑，不必混进导出主线：
+
+```powershell
+ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" --output-on-failure --timeout 60
+```
 
 ## CLI 导出入口
 

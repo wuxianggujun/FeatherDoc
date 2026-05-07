@@ -277,6 +277,21 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         set_tests_properties(pdf_unicode_font_roundtrip PROPERTIES
             ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
     endif()
+
+    featherdoc_add_cpp_test(
+        pdf_import_structure_tests
+        pdf_import_structure
+        pdf_import_structure_tests.cpp
+    )
+    target_link_libraries(
+        pdf_import_structure_tests
+        PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+    )
+    featherdoc_set_test_labels(pdf_import_structure core smoke pdf)
+    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+        set_tests_properties(pdf_import_structure PROPERTIES
+            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    endif()
 endif()
 
 if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)

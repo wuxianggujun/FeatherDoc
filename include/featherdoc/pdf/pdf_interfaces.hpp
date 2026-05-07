@@ -56,9 +56,23 @@ struct PdfParsedTextSpan {
     double font_size_points{0.0};
 };
 
+struct PdfParsedTextLine {
+    std::string text;
+    PdfRect bounds;
+    std::vector<PdfParsedTextSpan> text_spans;
+};
+
+struct PdfParsedParagraph {
+    std::string text;
+    PdfRect bounds;
+    std::vector<PdfParsedTextLine> lines;
+};
+
 struct PdfParsedPage {
     PdfPageSize size{};
     std::vector<PdfParsedTextSpan> text_spans;
+    std::vector<PdfParsedTextLine> text_lines;
+    std::vector<PdfParsedParagraph> paragraphs;
 };
 
 struct PdfParsedDocument {

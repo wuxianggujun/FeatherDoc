@@ -451,8 +451,10 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 
 ### 任务
 
-- [ ] 定义 PDFium text span 到 Core AST 的中间结构。
-- [ ] 先支持纯文本和段落识别。
+- [x] 定义 PDFium text span 到 Core AST 的中间结构第一版：
+  当前是 `PdfParsedTextLine` / `PdfParsedParagraph`，尚未转换为 `Document`。
+- [x] 先支持纯文本和段落识别第一版：
+  受控文本 PDF 可从字符 span 聚合为行和段落。
 - [ ] 再支持简单表格启发式识别。
 - [ ] 明确不支持能力：
   扫描件 OCR、复杂矢量图还原、任意 PDF 精确还原成 Word。
@@ -460,10 +462,42 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 
 ### 验收
 
-- [ ] PDFium probe 不影响默认构建。
-- [ ] PDF 读入测试和 PDF 导出测试能分开运行。
+- [x] PDFium probe 不影响默认构建。
+- [x] PDF 读入测试和 PDF 导出测试能分开运行。
 - [ ] PDF 读入能力有清楚的“不支持”诊断。
-- [ ] 读入方向不阻塞 E1 到 E6 的发布门禁。
+- [x] 读入方向不阻塞 E1 到 E6 的发布门禁。
+
+### 进展记录
+
+2026-05-07：
+
+- 开始 E7 前已阅读 `src/pdf/pdfium_parser.cpp`、`include/featherdoc/pdf/pdf_interfaces.hpp`、
+  `test/CMakeLists.txt` 和现有 PDFium probe 测试，确认此前 PDFium 读入只提取页尺寸与
+  字符级 `text_spans`，尚无行、段落或 `Document` 还原。
+- 已新增 `PdfParsedTextLine` 和 `PdfParsedParagraph` 中间结构，并在 `PdfParsedPage`
+  中保留 `text_spans`、`text_lines`、`paragraphs` 三层结果。
+- 已在 `PdfiumParser` 中增加字符 span 到行、段落的保守聚合逻辑；该逻辑仅在
+  `extract_text=true` 且 `extract_geometry=true` 时执行。
+- 已新增 `pdf_import_structure` 测试：用 PDFio 生成三行受控文本 PDF，再用 PDFium
+  回读并断言 3 行、2 段，确保读入结构测试可与导出回归分开运行。
+- 本轮没有新增或变更面向发布的 PDF 输出样本，因此没有新增视觉 baseline；生成 PDF
+  的可视化发布门禁仍由 E6 的 `run_pdf_visual_release_gate.ps1` 覆盖。
+- 已知限制：当前只完成 `PDFium -> 中间结构`，还没有 `PDFium -> Document` AST 转换；
+  段落识别是启发式，不承诺复杂 PDF、扫描件或任意版面精确还原。
+
+通过命令：
+
+```powershell
+cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake -S . -B .bpdf-roundtrip-msvc && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_structure$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_(import_structure|unicode_font_roundtrip|regression_manifest)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" --output-on-failure --timeout 60
+```
+
+下一步入口：继续 E7 时，先重新阅读 `src/pdf/pdfium_parser.cpp`、`src/paragraph.cpp`、
+`include/featherdoc/document.hpp` 和相关 Core AST 测试，再实现纯文本段落到
+`Document` 的最小转换入口；不要在这一阶段引入表格启发式，除非纯文本导入已经有
+独立测试和清楚的不支持诊断。
 
 ## 阶段推进规则
 
@@ -523,6 +557,7 @@ cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\
 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_document_adapter_font$" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_(font_resolver|text_metrics|document_adapter_font|cli_export|unicode_font_roundtrip|regression_manifest)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" --output-on-failure --timeout 60
 ```
 
 测试超时统一使用 60 秒，避免后台任务卡死。

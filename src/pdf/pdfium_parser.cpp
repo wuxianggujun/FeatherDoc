@@ -2,11 +2,14 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 extern "C" {
 #include <fpdf_text.h>
@@ -126,6 +129,118 @@ void append_utf8(std::string &output, std::uint32_t codepoint) {
     return span;
 }
 
+[[nodiscard]] double rect_bottom(const PdfRect &rect) noexcept {
+    return rect.y_points;
+}
+
+[[nodiscard]] double rect_top(const PdfRect &rect) noexcept {
+    return rect.y_points + rect.height_points;
+}
+
+[[nodiscard]] double rect_right(const PdfRect &rect) noexcept {
+    return rect.x_points + rect.width_points;
+}
+
+void expand_rect(PdfRect &target, const PdfRect &candidate) {
+    if (target.width_points <= 0.0 && target.height_points <= 0.0) {
+        target = candidate;
+        return;
+    }
+
+    const double left = (std::min)(target.x_points, candidate.x_points);
+    const double bottom = (std::min)(rect_bottom(target), rect_bottom(candidate));
+    const double right = (std::max)(rect_right(target), rect_right(candidate));
+    const double top = (std::max)(rect_top(target), rect_top(candidate));
+    target = PdfRect{left, bottom, right - left, top - bottom};
+}
+
+void append_span_to_line(PdfParsedTextLine &line, const PdfParsedTextSpan &span) {
+    line.text += span.text;
+    expand_rect(line.bounds, span.bounds);
+    line.text_spans.push_back(span);
+}
+
+[[nodiscard]] bool should_start_new_line(const PdfParsedTextLine &line,
+                                         const PdfParsedTextSpan &span) {
+    if (line.text_spans.empty()) {
+        return false;
+    }
+
+    const double line_height = (std::max)(line.bounds.height_points, 1.0);
+    const double span_center_y = span.bounds.y_points + span.bounds.height_points / 2.0;
+    const double line_center_y = line.bounds.y_points + line.bounds.height_points / 2.0;
+    return std::abs(span_center_y - line_center_y) > line_height * 0.65;
+}
+
+[[nodiscard]] std::vector<PdfParsedTextLine>
+group_text_spans_into_lines(const std::vector<PdfParsedTextSpan> &spans) {
+    std::vector<PdfParsedTextLine> lines;
+
+    for (const auto &span : spans) {
+        if (span.text == "\r" || span.text == "\n") {
+            if (!lines.empty() && !lines.back().text.empty()) {
+                lines.emplace_back();
+            }
+            continue;
+        }
+        if (span.text.empty()) {
+            continue;
+        }
+
+        if (lines.empty() || should_start_new_line(lines.back(), span)) {
+            lines.emplace_back();
+        }
+        append_span_to_line(lines.back(), span);
+    }
+
+    lines.erase(std::remove_if(lines.begin(), lines.end(),
+                               [](const PdfParsedTextLine &line) {
+                                   return line.text.empty();
+                               }),
+                lines.end());
+    return lines;
+}
+
+[[nodiscard]] bool should_start_new_paragraph(const PdfParsedTextLine &previous,
+                                              const PdfParsedTextLine &current) {
+    const double previous_height = (std::max)(previous.bounds.height_points, 1.0);
+    const double vertical_gap = previous.bounds.y_points - rect_top(current.bounds);
+    if (vertical_gap > previous_height * 0.85) {
+        return true;
+    }
+
+    const double indent_delta = current.bounds.x_points - previous.bounds.x_points;
+    return indent_delta > previous_height * 1.5;
+}
+
+void append_line_to_paragraph(PdfParsedParagraph &paragraph,
+                              const PdfParsedTextLine &line) {
+    if (!paragraph.text.empty()) {
+        paragraph.text.push_back('\n');
+    }
+    paragraph.text += line.text;
+    expand_rect(paragraph.bounds, line.bounds);
+    paragraph.lines.push_back(line);
+}
+
+[[nodiscard]] std::vector<PdfParsedParagraph>
+group_lines_into_paragraphs(const std::vector<PdfParsedTextLine> &lines) {
+    std::vector<PdfParsedParagraph> paragraphs;
+    for (const auto &line : lines) {
+        if (paragraphs.empty() ||
+            should_start_new_paragraph(paragraphs.back().lines.back(), line)) {
+            paragraphs.emplace_back();
+        }
+        append_line_to_paragraph(paragraphs.back(), line);
+    }
+    return paragraphs;
+}
+
+void enrich_text_structure(PdfParsedPage &page) {
+    page.text_lines = group_text_spans_into_lines(page.text_spans);
+    page.paragraphs = group_lines_into_paragraphs(page.text_lines);
+}
+
 }  // namespace
 
 PdfParseResult PdfiumParser::parse(const std::filesystem::path &input_path,
@@ -178,6 +293,9 @@ PdfParseResult PdfiumParser::parse(const std::filesystem::path &input_path,
                 }
                 parsed_page.text_spans.push_back(
                     parse_text_span(text_page.get(), char_index, options));
+            }
+            if (options.extract_geometry) {
+                enrich_text_structure(parsed_page);
             }
         }
 
