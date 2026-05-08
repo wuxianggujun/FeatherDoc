@@ -120,7 +120,8 @@
       ],
       "expect_cjk": true,
       "expect_unicode": true,
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true
     },
     {
       "id": "three-page-text",
@@ -443,7 +444,9 @@
         "Square wrap text",
         "Behind text image anchor"
       ],
-      "expected_image_count": 3
+      "expected_image_count": 3,
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 0
     },
     {
       "id": "document-table-semantics-text",
@@ -470,7 +473,8 @@
         "Long flow paragraph 120 keeps pagination",
         "Page 1 of 5",
         "Page 5 of 5"
-      ]
+      ],
+      "expect_visual_baseline": true
     },
     {
       "id": "document-invoice-table-text",
@@ -486,7 +490,8 @@
         "Visual validation",
         "Grand total",
         "USD 135"
-      ]
+      ],
+      "expect_visual_baseline": true
     },
     {
       "id": "document-style-gallery-text",
@@ -502,7 +507,8 @@
         "Hanging indent paragraph wraps",
         "First line indent paragraph keeps"
       ],
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true
     },
     {
       "id": "strikethrough-text",
@@ -513,7 +519,8 @@
         "Strikethrough sample",
         "Direct strikethrough demonstrates run formatting.",
         "Style strikethrough demonstrates inherited style formatting."
-      ]
+      ],
+      "expect_visual_baseline": true
     },
     {
       "id": "style-superscript-subscript-text",
@@ -524,7 +531,8 @@
         "Style superscript and subscript sample",
         "Style E = mc2 inherits superscript style.",
         "Style H2O inherits subscript style."
-      ]
+      ],
+      "expect_visual_baseline": true
     },
     {
       "id": "document-rtl-bidi-text",
@@ -541,7 +549,8 @@
         "جاهزة للمراجعة"
       ],
       "expect_unicode": true,
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true
     },
     {
       "id": "document-font-matrix-text",
@@ -564,7 +573,8 @@
       ],
       "expect_cjk": true,
       "expect_unicode": true,
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true
     },
     {
       "id": "header-footer-rtl-text",
@@ -605,7 +615,8 @@
         "3 / 3"
       ],
       "expect_unicode": true,
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true
     }
   ]
 }

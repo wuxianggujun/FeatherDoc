@@ -423,6 +423,10 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 `auto` / `prebuilt` provider 的本地探测阶段有时会留下 `.tmp-pdfium-*`
 目录。这些目录只用于本机 probe，不应提交；需要清理时直接手工删除即可。
 
+`run_pdf_visual_release_gate.ps1` 会直接读取 manifest 里的
+`expect_visual_baseline` 标记来决定哪些 PDF 样本进入 PNG 基线渲染。
+如果某个样本需要视觉门禁，优先在 manifest 标记它，而不是再手工补脚本白名单。
+
 ## 视觉发布门禁
 
 如果你要一次性验证“文本回读 + 页面视觉”门禁，优先跑这条：

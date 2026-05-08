@@ -249,6 +249,10 @@ $cjkSamples = @($regressionManifest.samples | Where-Object { $_.expect_cjk -eq $
 if ($cjkSamples.Count -eq 0) {
     throw "No CJK samples were found in $pdfRegressionManifestPath."
 }
+$visualManifestSamples = @($regressionManifest.samples | Where-Object { $_.expect_visual_baseline -eq $true })
+if ($visualManifestSamples.Count -eq 0) {
+    throw "No visual baseline samples were found in $pdfRegressionManifestPath."
+}
 
 Write-Step "Checking CJK copy/search text layers"
 $cjkCopySearchResults = New-Object System.Collections.Generic.List[object]
@@ -291,36 +295,18 @@ foreach ($sample in $cjkSamples) {
 }
 
 $samples = @(
-    [ordered]@{
-        name = "document-contract-cjk-style"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-contract-cjk-style.pdf"
-        output = Join-Path $baselineDir "document-contract-cjk-style"
-        expected_pages = 1
-    },
-    [ordered]@{
-        name = "document-invoice-table-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-invoice-table-text.pdf"
-        output = Join-Path $baselineDir "document-invoice-table-text"
-        expected_pages = 1
-    },
-    [ordered]@{
-        name = "document-long-flow-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-long-flow-text.pdf"
-        output = Join-Path $baselineDir "document-long-flow-text"
-        expected_pages = 5
-    },
-    [ordered]@{
-        name = "document-image-semantics-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-image-semantics-text.pdf"
-        output = Join-Path $baselineDir "document-image-semantics-text"
-        expected_pages = 0
-    },
-    [ordered]@{
-        name = "document-font-matrix-text"
-        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-font-matrix-text.pdf"
-        output = Join-Path $baselineDir "document-font-matrix-text"
-        expected_pages = 1
-    },
+    $visualManifestSamples | ForEach-Object {
+        [ordered]@{
+            name = $_.id
+            pdf = Join-Path $resolvedBuildDir "test\$($_.output_file)"
+            output = Join-Path $baselineDir $_.id
+            expected_pages = if ($null -ne $_.visual_expected_pages) {
+                [int]$_.visual_expected_pages
+            } else {
+                [int]$_.expected_pages
+            }
+        }
+    }
     [ordered]@{
         name = "cli-font-map-source"
         pdf = Join-Path $resolvedBuildDir "test\pdf_cli_export\font-map-source.pdf"

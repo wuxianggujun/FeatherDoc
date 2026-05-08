@@ -59,6 +59,13 @@
         },
         "expect_cjk": {
           "type": "boolean"
+        },
+        "expect_visual_baseline": {
+          "type": "boolean"
+        },
+        "visual_expected_pages": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
