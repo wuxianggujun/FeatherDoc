@@ -716,6 +716,28 @@
       "expect_unicode": true,
       "expect_visual_baseline": true,
       "visual_expected_pages": 2
+    },
+    {
+      "id": "document-table-cant-split-text",
+      "kind": "document_table_cant_split_text",
+      "output_file": "featherdoc-pdf-regression-document-table-cant-split-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Document table cant split sample",
+        "A tall no-split row must move as a single block",
+        "Cant split first S-101 page 1",
+        "Cant split even S-202 page 2",
+        "Cant split header S-303 page 3",
+        "Cant split first footer 1 / 3",
+        "Cant split even footer 2 / 3",
+        "Cant split footer 3 / 3",
+        "FE-801",
+        "FE-802",
+        "FE-803",
+        "must move as a single block"
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 3
     }
   ]
 }

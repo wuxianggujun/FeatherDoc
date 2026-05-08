@@ -3302,6 +3302,133 @@ build_document_table_header_footer_variants_text_sample() {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_table_cant_split_text_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica")) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document table cant split sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center) ||
+        !append_document_text_paragraph(
+            document,
+            "A tall no-split row must move as a single block when the "
+            "remaining page space is too small.")) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text("Cant split header S-303 page {{page}}") ||
+        !default_footer.has_next() ||
+        !default_footer.set_text("Cant split footer {{page}} / {{total_pages}}") ||
+        !first_header.has_next() ||
+        !first_header.set_text("Cant split first S-101 page {{page}}") ||
+        !even_header.has_next() ||
+        !even_header.set_text("Cant split even S-202 page {{page}}") ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(
+            "Cant split first footer {{page}} / {{total_pages}}") ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(
+            "Cant split even footer {{page}} / {{total_pages}}")) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.orientation = featherdoc::page_orientation::landscape;
+    setup.width_twips = 7200U;
+    setup.height_twips = 5200U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 720U;
+    setup.margins.left_twips = 720U;
+    setup.margins.right_twips = 720U;
+    setup.margins.header_twips = 240U;
+    setup.margins.footer_twips = 240U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    constexpr std::size_t row_count = 4U;
+    auto table = document.append_table(row_count, 2U);
+    if (!table.has_next() || !table.set_width_twips(5520U) ||
+        !table.set_column_width_twips(0U, 1320U) ||
+        !table.set_column_width_twips(1U, 4200U) ||
+        !table.set_cell_text(0U, 0U, "Case") ||
+        !table.set_cell_text(0U, 1U, "Notes") ||
+        !table.set_cell_text(1U, 0U, "FE-801") ||
+        !table.set_cell_text(
+            1U, 1U,
+            "Lead row leaves just enough space to expose the cant-split "
+            "behavior on the next row.") ||
+        !table.set_cell_text(2U, 0U, "FE-802") ||
+        !table.set_cell_text(
+            2U, 1U,
+            "This tall row must move as a single block. It should not leave "
+            "the first half of the paragraph on one page and the rest on the "
+            "next page. Visual checks need to see the entire note start below "
+            "the repeated header after the break.") ||
+        !table.set_cell_text(3U, 0U, "FE-803") ||
+        !table.set_cell_text(
+            3U, 1U,
+            "Tail row confirms the table continues normally after the large "
+            "row moves intact.")) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < row_count; ++row_index) {
+        if (!row.has_next() ||
+            !row.set_height_twips(600U, featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        if (row_index == 0U && !row.set_repeats_header()) {
+            return sample;
+        }
+        if (row_index == 2U && !row.set_cant_split()) {
+            return sample;
+        }
+        row.next();
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{360.0, 250.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document table cant split";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 8.0;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 36.0;
+    options.margin_bottom_points = 36.0;
+    options.line_height_points = 14.0;
+    options.paragraph_spacing_after_points = 4.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] bool append_document_list_item(featherdoc::Document &document,
                                              std::string_view text,
                                              featherdoc::list_kind kind,
@@ -3908,6 +4035,8 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_table_cjk_wrap_flow_text_sample(cjk_font);
+    } else if (config.scenario == "document_table_cant_split_text") {
+        sample = build_document_table_cant_split_text_sample();
     } else if (config.scenario == "document_style_gallery_text") {
         sample = build_document_style_gallery_sample();
     } else if (config.scenario == "three_page_text") {
