@@ -2,6 +2,7 @@
 
 #include "pdf_document_adapter_render.hpp"
 
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <utility>
@@ -34,6 +35,16 @@ resolve_run_style_properties(featherdoc::Document &document,
     return document.resolve_style_properties(*run.style_id);
 }
 
+[[nodiscard]] std::optional<featherdoc::resolved_style_properties_summary>
+resolve_paragraph_style_properties(
+    featherdoc::Document &document,
+    const featherdoc::paragraph_inspection_summary &paragraph) {
+    if (!paragraph.style_id || paragraph.style_id->empty()) {
+        return std::nullopt;
+    }
+    return document.resolve_style_properties(*paragraph.style_id);
+}
+
 [[nodiscard]] ResolvedRunStyle
 resolve_plain_text_style(featherdoc::Document &document, std::string_view text,
                          const PdfDocumentAdapterOptions &options,
@@ -52,6 +63,9 @@ resolve_plain_text_style(featherdoc::Document &document, std::string_view text,
         options.font_size_points,
         PdfRgbColor{0.0, 0.0, 0.0},
         false,
+        false,
+        false,
+        0.0,
         false,
         false,
     };
@@ -188,6 +202,36 @@ resolve_run_style(featherdoc::Document &document,
         style_properties && style_properties->run_underline.value
             ? *style_properties->run_underline.value
             : false);
+    const bool strikethrough = run.strikethrough.value_or(
+        style_properties && style_properties->run_strikethrough.value
+            ? *style_properties->run_strikethrough.value
+            : false);
+    const bool rtl = run.rtl.value_or(style_properties &&
+                                              style_properties->run_rtl.value
+                                          ? *style_properties->run_rtl.value
+                                          : false);
+    const auto style_superscript =
+        style_properties ? style_properties->run_superscript.value
+                         : std::optional<bool>{};
+    const auto style_subscript =
+        style_properties ? style_properties->run_subscript.value
+                         : std::optional<bool>{};
+    const bool superscript =
+        run.superscript.value_or(style_superscript.value_or(false));
+    const bool subscript =
+        !superscript &&
+        run.subscript.value_or(style_subscript.value_or(false));
+    const auto base_font_size_points = run.font_size_points.value_or(
+        style_properties && style_properties->run_font_size_points.value
+            ? *style_properties->run_font_size_points.value
+            : options.font_size_points);
+    const auto font_size_points =
+        superscript || subscript
+            ? std::max(1.0, base_font_size_points * 0.65)
+            : base_font_size_points;
+    const auto vertical_shift_points =
+        superscript ? base_font_size_points * 0.35
+                    : subscript ? -base_font_size_points * 0.20 : 0.0;
 
     const auto text_color =
         first_present(run.text_color,
@@ -195,15 +239,12 @@ resolve_run_style(featherdoc::Document &document,
                                        : std::optional<std::string>{},
                       std::nullopt);
 
-    return ResolvedRunStyle{
+    auto resolved = ResolvedRunStyle{
         font_family,
         east_asia_font_family,
         resolver.resolve(font_family, east_asia_font_family, run.text, bold,
                          italic),
-        run.font_size_points.value_or(
-            style_properties && style_properties->run_font_size_points.value
-                ? *style_properties->run_font_size_points.value
-                : options.font_size_points),
+        font_size_points,
         text_color ? parse_hex_rgb_color(*text_color)
                          .value_or(PdfRgbColor{0.0, 0.0, 0.0})
                    : PdfRgbColor{0.0, 0.0, 0.0},
@@ -211,6 +252,21 @@ resolve_run_style(featherdoc::Document &document,
         italic,
         underline,
     };
+    resolved.vertical_shift_points = vertical_shift_points;
+    resolved.strikethrough = strikethrough;
+    resolved.rtl = rtl;
+    return resolved;
+}
+
+[[nodiscard]] bool
+resolve_paragraph_bidi(featherdoc::Document &document,
+                       const featherdoc::paragraph_inspection_summary &paragraph) {
+    const auto style_properties =
+        resolve_paragraph_style_properties(document, paragraph);
+    return paragraph.bidi.value_or(style_properties &&
+                                           style_properties->paragraph_bidi.value
+                                       ? *style_properties->paragraph_bidi.value
+                                       : false);
 }
 
 [[nodiscard]] bool lines_contain_text(const std::vector<LineState> &lines) {
@@ -239,6 +295,57 @@ wrap_plain_text(featherdoc::Document &document, std::string_view text,
         return {LineState{}};
     }
     return wrap_run_tokens(tokens, max_width_points);
+}
+
+[[nodiscard]] std::vector<LineState>
+wrap_cursor_paragraph_runs(featherdoc::Document &document,
+                           featherdoc::Paragraph paragraph,
+                           const PdfDocumentAdapterOptions &options,
+                           const PdfFontResolver &resolver,
+                           double max_width_points) {
+    std::vector<TextToken> tokens;
+    auto run = paragraph.runs();
+    for (std::size_t index = 0U; run.has_next(); run.next(), ++index) {
+        const auto text = run.get_text();
+        if (text.empty()) {
+            continue;
+        }
+
+        featherdoc::run_inspection_summary summary{};
+        summary.index = index;
+        summary.style_id = run.style_id();
+        summary.font_family = run.font_family();
+        summary.east_asia_font_family = run.east_asia_font_family();
+        summary.text_color = run.text_color();
+        summary.bold = run.bold();
+        summary.italic = run.italic();
+        summary.strikethrough = run.strikethrough();
+        summary.underline = run.underline();
+        summary.superscript = run.superscript();
+        summary.subscript = run.subscript();
+        summary.font_size_points = run.font_size_points();
+        summary.language = run.language();
+        summary.east_asia_language = run.east_asia_language();
+        summary.bidi_language = run.bidi_language();
+        summary.rtl = run.rtl();
+        summary.text = text;
+
+        const auto style = resolve_run_style(document, summary, options, resolver);
+        auto run_tokens = tokenize_run_text(summary.text, style);
+        tokens.insert(tokens.end(), std::make_move_iterator(run_tokens.begin()),
+                      std::make_move_iterator(run_tokens.end()));
+    }
+
+    if (tokens.empty()) {
+        return {LineState{}};
+    }
+
+    auto lines = wrap_run_tokens(tokens, max_width_points);
+    const auto paragraph_bidi = paragraph.bidi().value_or(false);
+    for (auto &line : lines) {
+        line.bidi = paragraph_bidi || line.bidi || line_contains_rtl_fragments(line);
+    }
+    return lines;
 }
 
 [[nodiscard]] std::vector<TextToken>

@@ -217,10 +217,14 @@ line_layouts_contain_text(const std::vector<ParagraphLineLayout> &layouts) {
             line_top_for_index(line_index), resolved_line_height, exclusions);
     };
 
-    const auto lines = detail::wrap_run_tokens_with_line_widths(
+    auto lines = detail::wrap_run_tokens_with_line_widths(
         tokens, [&](std::size_t line_index) {
             return shape_for_index(line_index).max_width_points;
         });
+    const auto paragraph_bidi = detail::resolve_paragraph_bidi(document, paragraph);
+    for (auto &line : lines) {
+        line.bidi = paragraph_bidi;
+    }
 
     std::vector<ParagraphLineLayout> layouts;
     layouts.reserve(lines.size());
@@ -352,11 +356,11 @@ layout_document_paragraphs(featherdoc::Document &document,
         options_for_section(section_options, current_section_index));
     const auto resolver = make_font_resolver(section_options.front());
     const detail::HeaderFooterRenderContext header_footer_context{
-        [&](std::string_view text,
+        [&](featherdoc::Paragraph paragraph,
             const PdfDocumentAdapterOptions &header_options,
             double width_points) {
-            return detail::wrap_plain_text(document, text, header_options,
-                                           resolver, width_points);
+            return detail::wrap_cursor_paragraph_runs(
+                document, paragraph, header_options, resolver, width_points);
         },
     };
 

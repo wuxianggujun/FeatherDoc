@@ -33,8 +33,8 @@ PDFium 回读验证
 - `IPdfGenerator` / `IPdfParser` 已经把 Core 与 PDFio / PDFium 隔离开。
 - `Document -> PdfDocumentLayout -> PDFio -> PDF` 已经跑通。
 - `PDFio -> PDF -> PDFium` 回读验证已经跑通。
-- 当前 `pdf_regression_manifest.json` 包含 37 个样本。
-- 当前 `ctest -R "pdf_regression_"` 覆盖 38 个回归测试，包含 manifest 校验。
+- 当前 `pdf_regression_manifest.json` 包含 41 个样本。
+- 当前 `ctest -R "pdf_regression_"` 覆盖 42 个回归测试，包含 manifest 校验。
 - 已覆盖基础段落、字体解析、真实字体度量、CJK / ToUnicode 回读、基础样式、页眉页脚、动态页码、图片、表格，以及 `table_position` 水平/纵向基础映射。
 
 ## 路线总览
@@ -90,25 +90,89 @@ E7 是后续的 PDF 读入方向，不应阻塞当前导出主线。
 - 已确认 `pdf_regression_manifest.json` 在 E1 当时包含 35 个样本。
 - 已确认 `ctest -R "pdf_regression_"` 在 E1 当时覆盖 36 个 CTest，包含 manifest 校验。
 - 已将 `design/02-current-roadmap.md` 和 `BUILDING_PDF.md` 的旧样本数量同步为 35/36。
-- 已修正 `sectioned-report-text` 的 manifest 基线：该样本包含 portrait 正文段和 landscape appendix，当前合理页数为 2 页。
-- 已补强 `sectioned-report-text` 的文本断言，覆盖第二 section 的 appendix 正文回读。
+- 已重构 `sectioned-report-text` 的 manifest 基线：该样本现在覆盖 portrait first-page header/footer、
+  landscape appendix even/odd header/footer，以及 `{{page}} / {{total_pages}} /
+  {{section_page}} / {{section_total_pages}}` 占位符展开，当前基线按 4 页收口。
+- 已补强 `sectioned-report-text` 的文本断言，覆盖 first-page、odd/even header/footer 和 appendix 正文回读。
+- 已补充 `pdf_document_adapter_font` 的 layout 层组合断言，覆盖多 section、
+  first-page、odd/even header/footer 与页码占位符同时展开的 4 页场景。
+- 已同步 `pdf_regression_manifest` 的硬编码断言，固定 `sectioned-report-text`
+  当前为 4 页且包含扩展后的页眉页脚文本断言。
 - 已确认 `CMakeLists.txt` 中 `FEATHERDOC_BUILD_PDF` 和 `FEATHERDOC_BUILD_PDF_IMPORT` 默认均为 OFF。
 - 已确认 `.bdefault-pdf-off/CMakeCache.txt` 中 `FEATHERDOC_BUILD_PDF:BOOL=OFF`、`FEATHERDOC_BUILD_PDF_IMPORT:BOOL=OFF`。
-- 已完成可视化验证：将 `sectioned-report-text` PDF 渲染为 2 页 PNG，并生成 contact sheet；目检无空白页、明显裁剪或重叠。
+- 已复跑临时 layout-only 验证，确认 `sectioned-report-text` 分页为 4 页：
+  第 1 页 portrait first-page header/footer，第 2 页 portrait even header/footer，
+  第 3 页 appendix odd header/footer，第 4 页 appendix even header/footer。
+- 当前 worktree 已有 `tmp/pdfium-workspace/pdfium`，但 depot_tools 的 CIPD 依赖下载在
+  `chrome-infra-packages.appspot.com` 连接超时，导致 PDFium source build 仍停在
+  `python3_bin_reldir.txt` / bootstrap 阶段。
+- 已新增 `.bpdf-export-msvc` 作为 `FEATHERDOC_BUILD_PDF=ON`、
+  `FEATHERDOC_BUILD_PDF_IMPORT=OFF` 的本地验证构建，复用已下载的 PDFio 和 PDFium
+  third_party 源，避免 PDFium import 网络阻塞影响导出侧 layout 回归。
+- 已在 `.bpdf-export-msvc` 中构建并通过 `pdf_document_adapter_font`，确认新 4 页
+  section/header/footer layout 断言可在本地稳定执行。
+- 已在 `.bpdf-export-msvc` 中构建并通过 `pdf_unicode_font_diagnostics`，把
+  缺字体路径、未解析字体和损坏字体文件的诊断从 PDFium import 阻塞里拆了出来。
+- 已将 `pdf_document_adapter_font` 与 PDFium roundtrip 覆盖拆分：基础导出/layout
+  测试不再自动链接 `FeatherDocPdfImport`，启用 PDFium import 时另行注册
+  `pdf_document_adapter_font_import`。
+- 已将 `featherdoc_pdf_regression_sample` 拆成 export-only 可构建的样本生成器；
+  启用 PDFium import 时才额外启用回读文字 / 图片校验。
+- 已确认 `.bpdf-roundtrip-full-msvc` 中构建并运行 `pdf_document_adapter_font` 不再触发
+  PDFium source build，CIPD 阻塞只影响 import/roundtrip 专项目标。
+- 已新增 `document-style-gallery-text` regression sample，覆盖居中 / 右对齐、
+  首行缩进 / 悬挂缩进、以及多 run 样式组合；并已在
+  `output/pdf-export-msvc-document-style-gallery/contact-sheet.png` 完成
+  export-only 渲染 smoke。
+- 已新增 `superscript-subscript-text` regression sample，并把 run-level
+  `superscript/subscript` 透传到 PDF layout；当前导出链会缩小字号并调整
+  baseline，便于覆盖科学公式 / 化学式这类常见样式。
+- 已新增 `style-superscript-subscript-text` regression sample，并补齐
+  `style` 继承链上的 `superscript/subscript` 解析、物化和 baseline reset。
+- 已新增 `strikethrough-text` regression sample，并补齐 run-level 与
+  style-level 的 `strikethrough` 到 PDF layout / writer 的整条导出链。
+- 已新增 `document-rtl-bidi-text` regression sample，覆盖 paragraph bidi、
+  run rtl、Arabic 字体映射与 mixed-direction 文本回归。
+- `cmake/FeatherDocRunPdfiumBuild.cmake` 已补 `depot_tools` bootstrap 的
+  Windows CIPD 连通性预检；当
+  `chrome-infra-packages.appspot.com:443` 不可达时，会快速失败并明确指出
+  是外部依赖网络阻塞，而不是继续长时间卡死在 bootstrap。
+- 已为 `FEATHERDOC_PDFIUM_PROVIDER` 增加 `prebuilt` 模式，可直接导入现成
+  `pdfium.lib` / `libpdfium.a` 和 `fpdfview.h`，把 roundtrip / import 构建链从
+  `depot_tools` / CIPD 强依赖里拆开。
+- 已把 `FEATHERDOC_PDFIUM_PROVIDER` 默认值切到 `auto`：优先尝试 package，其次
+  prebuilt，最后才退回 source；这样启用 import 时不再默认走最脆弱的
+  `depot_tools` bootstrap 路径。
+- 已显式记录 `FEATHERDOC_RESOLVED_PDFIUM_PROVIDER`，避免 `auto` 模式下 install/export
+  逻辑仍按请求值判断，导致 package 分支行为丢失。
+- `prebuilt` 模式会单独记录 PDFium runtime 目录，测试与 sample 的运行环境现在会优先
+  注入该目录，再回退到旧的 `FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR` 逻辑。
+- 完整 PDFium 回读和 PNG/contact sheet 视觉验证仍需等 CIPD/PDFium 依赖可用后，
+  在 `.bpdf-roundtrip-full-msvc` 上重新跑一轮。
 
 通过命令：
 
 ```powershell
-cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests featherdoc_pdf_regression_sample pdf_regression_manifest_tests'
-ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_document_adapter_font$" --output-on-failure --timeout 60
-ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60
-.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-regression-sectioned-report-text.pdf --output-dir .\output\pdf-e1-sectioned-report-visual\pages --summary .\output\pdf-e1-sectioned-report-visual\summary.json --contact-sheet .\output\pdf-e1-sectioned-report-visual\contact-sheet.png --dpi 144
+git diff --check
+Get-Content test/pdf_regression_manifest.json -Raw | ConvertFrom-Json | Out-Null
+ctest --test-dir .bpdf-roundtrip-full-msvc -N -R "^pdf_regression_sectioned-report-text$|^pdf_regression_manifest$|^pdf_document_adapter_font$"
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cl /nologo /std:c++20 /EHsc /utf-8 /Iinclude /Ithirdparty\pugixml /Ithirdparty\zip /Itest /c test\pdf_document_adapter_font_tests.cpp /Fo"%TEMP%\fd_pdf_document_adapter_font_tests.obj"'
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake -S . -B .bpdf-export-msvc -G "NMake Makefiles" -DFEATHERDOC_BUILD_PDF=ON -DFEATHERDOC_BUILD_PDF_IMPORT=OFF -DFEATHERDOC_FETCH_PDFIO=OFF -DFEATHERDOC_PDFIO_SOURCE_DIR=%CD%\.bpdf-roundtrip-full-msvc\_deps\featherdoc_pdfio-src'
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-export-msvc --target pdf_document_adapter_font_tests'
+ctest --test-dir .bpdf-export-msvc -R "^pdf_document_adapter_font$" --output-on-failure --timeout 60
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake -S . -B .bpdf-roundtrip-full-msvc && cmake --build .bpdf-roundtrip-full-msvc --target pdf_document_adapter_font_tests'
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-full-msvc --target pdf_regression_manifest_tests'
+ctest --test-dir .bpdf-roundtrip-full-msvc -R "^pdf_regression_manifest$|^pdf_document_adapter_font$" --output-on-failure --timeout 60
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-export-msvc\test\featherdoc-adapter-linked-section-header-footer.pdf --output-dir .\output\pdf-export-msvc-linked-section-visual\pages --summary .\output\pdf-export-msvc-linked-section-visual\summary.json --contact-sheet .\output\pdf-export-msvc-linked-section-visual\contact-sheet.png --dpi 144
 ```
 
 可视化验证产物：
 
-- `output/pdf-e1-sectioned-report-visual/summary.json`
-- `output/pdf-e1-sectioned-report-visual/contact-sheet.png`
+- `output/pdf-export-msvc-linked-section-visual/summary.json`
+- `output/pdf-export-msvc-linked-section-visual/contact-sheet.png`
+
+`sectioned-report-text` 的 4 页 PDFium roundtrip 与 contact sheet 仍待 `.bpdf-roundtrip-full-msvc`
+补齐 PDFium 依赖后执行。
 
 下一步入口：进入 E2，先阅读 `src/pdf/pdf_document_adapter_table_layout.cpp`、`src/pdf/pdf_document_adapter_tables.cpp`、`src/pdf/pdf_document_adapter_images.cpp`、`src/pdf/pdf_writer.cpp` 和 `test/pdf_document_adapter_font_tests.cpp`，确认 `table_position`、图片 crop / behind-text、现有 regression 样本的实际覆盖，再补缺口。
 
@@ -659,8 +723,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 MSVC 环境下推荐先进入 VS 开发环境再构建 PDF 测试目标：
 
 ```powershell
-cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests featherdoc_pdf_regression_sample pdf_regression_manifest_tests'
+cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests'
+cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-msvc --target featherdoc_pdf_regression_sample pdf_regression_manifest_tests pdf_document_adapter_font_import_tests'
 ```
+
+第二条命令需要 PDFium import 依赖已可用；只验证导出侧 layout / 字体诊断 /
+样本出图时，优先跑 `pdf_document_adapter_font_tests`、
+`pdf_unicode_font_diagnostics_tests` 和 `featherdoc_pdf_regression_sample`。
 
 常用回归命令：
 
@@ -668,6 +737,7 @@ cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\
 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_document_adapter_font$" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_(font_resolver|text_metrics|document_adapter_font|cli_export|unicode_font_roundtrip|regression_manifest)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_document_adapter_font_import$" --output-on-failure --timeout 60
 ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" --output-on-failure --timeout 60
 ```
 

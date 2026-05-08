@@ -148,8 +148,19 @@ function(featherdoc_build_pdf_test_environment out_var)
         list(APPEND runtime_dirs "${harfbuzz_subset_runtime_dir}")
     endif()
 
-    if(DEFINED FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR AND
-       NOT "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}" STREQUAL "")
+    if(DEFINED FEATHERDOC_PDFIUM_TARGET AND TARGET ${FEATHERDOC_PDFIUM_TARGET})
+        featherdoc_get_runtime_dir(pdfium_target_runtime_dir
+            ${FEATHERDOC_PDFIUM_TARGET})
+        if(NOT pdfium_target_runtime_dir STREQUAL "")
+            list(APPEND runtime_dirs "${pdfium_target_runtime_dir}")
+        endif()
+    endif()
+
+    if(DEFINED FEATHERDOC_RESOLVED_PDFIUM_RUNTIME_DIR AND
+       NOT "${FEATHERDOC_RESOLVED_PDFIUM_RUNTIME_DIR}" STREQUAL "")
+        list(APPEND runtime_dirs "${FEATHERDOC_RESOLVED_PDFIUM_RUNTIME_DIR}")
+    elseif(DEFINED FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR AND
+           NOT "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}" STREQUAL "")
         list(APPEND runtime_dirs "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}")
     endif()
 
@@ -217,20 +228,37 @@ if(TARGET FeatherDocPdf)
         pdf_document_adapter_font_tests
         PRIVATE FeatherDoc::Pdf
     )
-    if(TARGET FeatherDocPdfImport)
-        target_compile_definitions(
-            pdf_document_adapter_font_tests
-            PRIVATE FEATHERDOC_BUILD_PDF_IMPORT=1
-        )
-        target_link_libraries(
-            pdf_document_adapter_font_tests
-            PRIVATE FeatherDoc::PdfImport
-        )
-    endif()
     featherdoc_set_test_labels(pdf_document_adapter_font core smoke pdf)
     if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
         set_tests_properties(pdf_document_adapter_font PROPERTIES
             ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    endif()
+
+    if(TARGET FeatherDocPdfImport)
+        featherdoc_add_cpp_test(
+            pdf_document_adapter_font_import_tests
+            pdf_document_adapter_font_import
+            pdf_document_adapter_font_tests.cpp
+        )
+        target_compile_definitions(
+            pdf_document_adapter_font_import_tests
+            PRIVATE FEATHERDOC_BUILD_PDF_IMPORT=1
+        )
+        target_link_libraries(
+            pdf_document_adapter_font_import_tests
+            PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+        )
+        file(MAKE_DIRECTORY
+            "${CMAKE_CURRENT_BINARY_DIR}/pdf_document_adapter_font_import")
+        set_tests_properties(pdf_document_adapter_font_import PROPERTIES
+            WORKING_DIRECTORY
+                "${CMAKE_CURRENT_BINARY_DIR}/pdf_document_adapter_font_import")
+        featherdoc_set_test_labels(
+            pdf_document_adapter_font_import core smoke pdf pdf-import)
+        if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdf_document_adapter_font_import PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
     endif()
 
     if(TARGET featherdoc_cli)
@@ -260,72 +288,120 @@ if(TARGET FeatherDocPdf)
                 ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
         endif()
     endif()
-endif()
-
-if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
     featherdoc_add_cpp_test(
-        pdf_unicode_font_roundtrip_tests
-        pdf_unicode_font_roundtrip
+        pdf_unicode_font_diagnostics_tests
+        pdf_unicode_font_diagnostics
         pdf_unicode_font_roundtrip_tests.cpp
     )
     target_link_libraries(
-        pdf_unicode_font_roundtrip_tests
-        PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+        pdf_unicode_font_diagnostics_tests
+        PRIVATE FeatherDoc::Pdf
     )
-    featherdoc_set_test_labels(pdf_unicode_font_roundtrip core smoke pdf)
+    featherdoc_set_test_labels(pdf_unicode_font_diagnostics core smoke pdf)
     if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
-        set_tests_properties(pdf_unicode_font_roundtrip PROPERTIES
+        set_tests_properties(pdf_unicode_font_diagnostics PROPERTIES
             ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
     endif()
 
-    featherdoc_add_cpp_test(
-        pdf_import_structure_tests
-        pdf_import_structure
-        pdf_import_structure_tests.cpp
+    add_executable(featherdoc_pdf_regression_sample
+        ../samples/pdf_regression_sample.cpp
     )
     target_link_libraries(
-        pdf_import_structure_tests
-        PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+        featherdoc_pdf_regression_sample
+        PRIVATE FeatherDoc::Pdf
     )
-    featherdoc_set_test_labels(pdf_import_structure core smoke pdf)
-    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
-        set_tests_properties(pdf_import_structure PROPERTIES
-            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    if(TARGET FeatherDocPdfImport)
+        target_compile_definitions(
+            featherdoc_pdf_regression_sample
+            PRIVATE FEATHERDOC_PDF_REGRESSION_IMPORT_VALIDATION=1
+        )
+        target_link_libraries(
+            featherdoc_pdf_regression_sample
+            PRIVATE FeatherDoc::PdfImport
+        )
+        if(DEFINED FEATHERDOC_PDFIUM_SOURCE_DIR AND NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
+            target_include_directories(
+                featherdoc_pdf_regression_sample
+                PRIVATE "${FEATHERDOC_PDFIUM_SOURCE_DIR}/public"
+            )
+        endif()
+    endif()
+    featherdoc_copy_runtime_dlls(featherdoc_pdf_regression_sample)
+
+    if(MSVC)
+        target_compile_options(featherdoc_pdf_regression_sample PRIVATE /utf-8)
     endif()
 
-    featherdoc_add_cpp_test(
-        pdf_import_failure_tests
-        pdf_import_failure
-        pdf_import_failure_tests.cpp
-    )
-    target_link_libraries(
-        pdf_import_failure_tests
-        PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
-    )
-    featherdoc_set_test_labels(pdf_import_failure core smoke pdf import-failure)
-    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
-        set_tests_properties(pdf_import_failure PROPERTIES
-            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    if(TARGET FeatherDocPdfImport)
+        featherdoc_add_cpp_test(
+            pdf_unicode_font_roundtrip_tests
+            pdf_unicode_font_roundtrip
+            pdf_unicode_font_roundtrip_tests.cpp
+        )
+        target_compile_definitions(
+            pdf_unicode_font_roundtrip_tests
+            PRIVATE FEATHERDOC_PDF_UNICODE_FONT_IMPORT_TESTS=1
+        )
+        target_link_libraries(
+            pdf_unicode_font_roundtrip_tests
+            PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+        )
+        featherdoc_set_test_labels(
+            pdf_unicode_font_roundtrip core smoke pdf pdf-import)
+        if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdf_unicode_font_roundtrip PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
     endif()
 
-    featherdoc_add_cpp_test(
-        pdf_import_table_heuristic_tests
-        pdf_import_table_heuristic
-        pdf_import_table_heuristic_tests.cpp
-    )
-    target_link_libraries(
-        pdf_import_table_heuristic_tests
-        PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
-    )
-    featherdoc_set_test_labels(
-        pdf_import_table_heuristic core smoke pdf import-heuristic)
-    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
-        set_tests_properties(pdf_import_table_heuristic PROPERTIES
-            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
-    endif()
-endif()
+    if(TARGET FeatherDocPdfImport)
+        featherdoc_add_cpp_test(
+            pdf_import_structure_tests
+            pdf_import_structure
+            pdf_import_structure_tests.cpp
+        )
+        target_link_libraries(
+            pdf_import_structure_tests
+            PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+        )
+        featherdoc_set_test_labels(pdf_import_structure core smoke pdf)
+        if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdf_import_structure PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
 
-if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
+        featherdoc_add_cpp_test(
+            pdf_import_failure_tests
+            pdf_import_failure
+            pdf_import_failure_tests.cpp
+        )
+        target_link_libraries(
+            pdf_import_failure_tests
+            PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+        )
+        featherdoc_set_test_labels(
+            pdf_import_failure core smoke pdf import-failure)
+        if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdf_import_failure PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
+
+        featherdoc_add_cpp_test(
+            pdf_import_table_heuristic_tests
+            pdf_import_table_heuristic
+            pdf_import_table_heuristic_tests.cpp
+        )
+        target_link_libraries(
+            pdf_import_table_heuristic_tests
+            PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
+        )
+        featherdoc_set_test_labels(
+            pdf_import_table_heuristic core smoke pdf import-heuristic)
+        if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdf_import_table_heuristic PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
+    endif()
     set(FEATHERDOC_PDF_REGRESSION_MANIFEST
         "${CMAKE_CURRENT_SOURCE_DIR}/pdf_regression_manifest.json")
     set(FEATHERDOC_PDF_REGRESSION_SCHEMA
@@ -359,25 +435,8 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
         PRIVATE "${FEATHERDOC_PDF_REGRESSION_MANIFEST_DEFINE}")
     set_tests_properties(pdf_regression_manifest PROPERTIES TIMEOUT 60)
 
-    add_executable(featherdoc_pdf_regression_sample
-        ../samples/pdf_regression_sample.cpp
-    )
-    target_link_libraries(
-        featherdoc_pdf_regression_sample
-        PRIVATE FeatherDoc::Pdf FeatherDoc::PdfImport
-    )
-    if(DEFINED FEATHERDOC_PDFIUM_SOURCE_DIR AND NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
-        target_include_directories(
-            featherdoc_pdf_regression_sample
-            PRIVATE "${FEATHERDOC_PDFIUM_SOURCE_DIR}/public"
-        )
-    endif()
-    featherdoc_copy_runtime_dlls(featherdoc_pdf_regression_sample)
-
-    if(MSVC)
-        target_compile_options(featherdoc_pdf_regression_sample PRIVATE /utf-8)
-    endif()
-
+    set(FEATHERDOC_PDF_REGRESSION_MANIFEST
+        "${CMAKE_CURRENT_SOURCE_DIR}/pdf_regression_manifest.json")
     file(READ "${FEATHERDOC_PDF_REGRESSION_MANIFEST}" FEATHERDOC_PDF_REGRESSION_JSON)
     string(JSON FEATHERDOC_PDF_REGRESSION_COUNT LENGTH
         "${FEATHERDOC_PDF_REGRESSION_JSON}" samples)

@@ -95,7 +95,14 @@ wrap_table_cell_runs(featherdoc::Table *table_handle,
         return std::vector<LineState>{LineState{}};
     }
 
-    return wrap_run_tokens(tokens, max_width_points);
+    auto lines = wrap_run_tokens(tokens, max_width_points);
+    const auto cell_bidi = cell_handle->paragraphs().has_next()
+                               ? cell_handle->paragraphs().bidi().value_or(false)
+                               : false;
+    for (auto &line : lines) {
+        line.bidi = cell_bidi || line_contains_rtl_fragments(line);
+    }
+    return lines;
 }
 
 [[nodiscard]] std::size_t table_row_count(

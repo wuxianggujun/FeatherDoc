@@ -366,6 +366,46 @@ void append_utf16be_hex_unit(std::string &output, std::uint16_t value) {
     return true;
 }
 
+[[nodiscard]] bool write_text_strikethrough(pdfio_stream_t *stream,
+                                            const PdfTextRun &text_run,
+                                            std::string &error_message) {
+    if (!text_run.strikethrough || text_run.text.empty() ||
+        text_run.font_size_points <= 0.0 ||
+        std::abs(text_run.rotation_degrees) > 0.0001) {
+        return true;
+    }
+
+    const auto strikethrough_width = measure_text_width_points(
+        text_run.text, text_run.font_size_points,
+        PdfTextMetricsOptions{text_run.font_family, text_run.font_file_path});
+    if (strikethrough_width <= 0.0) {
+        return true;
+    }
+
+    const double strikethrough_y =
+        text_run.baseline_origin.y_points + text_run.font_size_points * 0.30;
+    const double line_width = std::max(0.5, text_run.font_size_points / 16.0);
+
+    if (!pdfioContentSetStrokeColorDeviceRGB(stream, text_run.fill_color.red,
+                                             text_run.fill_color.green,
+                                             text_run.fill_color.blue) ||
+        !pdfioContentSetLineWidth(stream, line_width) ||
+        !pdfioContentSetLineCap(stream, PDFIO_LINECAP_BUTT) ||
+        !pdfioContentSetDashPattern(stream, 0.0, 0.0, 0.0) ||
+        !pdfioContentPathMoveTo(stream, text_run.baseline_origin.x_points,
+                                strikethrough_y) ||
+        !pdfioContentPathLineTo(
+            stream,
+            text_run.baseline_origin.x_points + strikethrough_width,
+            strikethrough_y) ||
+        !pdfioContentStroke(stream)) {
+        error_message = "Unable to write PDF text strikethrough";
+        return false;
+    }
+
+    return true;
+}
+
 [[nodiscard]] bool set_text_run_matrix(pdfio_stream_t *stream,
                                        const PdfTextRun &text_run) {
     if (std::abs(text_run.rotation_degrees) <= 0.0001) {
@@ -737,6 +777,10 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
         }
 
         if (!write_text_underline(stream.get(), text_run, error_message)) {
+            return false;
+        }
+        if (!write_text_strikethrough(stream.get(), text_run,
+                                      error_message)) {
             return false;
         }
     }

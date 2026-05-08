@@ -289,9 +289,21 @@ function(featherdoc_collect_pdf_runtime_environment out_var include_pdfium_dir)
         list(APPEND runtime_dirs "${harfbuzz_subset_runtime_dir}")
     endif()
 
-    if(include_pdfium_dir AND DEFINED FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR AND
-       NOT "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}" STREQUAL "")
-        list(APPEND runtime_dirs "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}")
+    if(include_pdfium_dir)
+        if(DEFINED FEATHERDOC_PDFIUM_TARGET AND TARGET ${FEATHERDOC_PDFIUM_TARGET})
+            featherdoc_get_imported_runtime_dir(pdfium_target_runtime_dir
+                ${FEATHERDOC_PDFIUM_TARGET})
+            if(NOT pdfium_target_runtime_dir STREQUAL "")
+                list(APPEND runtime_dirs "${pdfium_target_runtime_dir}")
+            endif()
+        endif()
+        if(DEFINED FEATHERDOC_RESOLVED_PDFIUM_RUNTIME_DIR AND
+           NOT "${FEATHERDOC_RESOLVED_PDFIUM_RUNTIME_DIR}" STREQUAL "")
+            list(APPEND runtime_dirs "${FEATHERDOC_RESOLVED_PDFIUM_RUNTIME_DIR}")
+        elseif(DEFINED FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR AND
+               NOT "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}" STREQUAL "")
+            list(APPEND runtime_dirs "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}")
+        endif()
     endif()
 
     list(REMOVE_DUPLICATES runtime_dirs)
@@ -413,16 +425,47 @@ if(FEATHERDOC_BUILD_PDF_IMPORT)
     include(cmake/FeatherDocPdfium.cmake)
     include(cmake/FeatherDocPdfThirdParty.cmake)
 
-    if(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "source")
+    if(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "auto")
+        featherdoc_try_find_pdfium_package(pdfium_package_target)
+        if(NOT pdfium_package_target STREQUAL "")
+            set(FEATHERDOC_PDFIUM_TARGET "${pdfium_package_target}")
+            set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "package")
+        else()
+            featherdoc_has_pdfium_prebuilt_inputs(pdfium_has_prebuilt_inputs)
+            if(pdfium_has_prebuilt_inputs)
+                featherdoc_add_pdfium_prebuilt_target(featherdoc_pdfium_prebuilt)
+                set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_prebuilt)
+                set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "prebuilt")
+            elseif(NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
+                featherdoc_add_pdfium_source_target(featherdoc_pdfium_source)
+                set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_source)
+                set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "source")
+            else()
+                message(FATAL_ERROR
+                    "FEATHERDOC_PDFIUM_PROVIDER=auto could not resolve PDFium. "
+                    "Tried package discovery via find_package(PDFium), then "
+                    "prebuilt inputs via FEATHERDOC_PDFIUM_LIBRARY + "
+                    "FEATHERDOC_PDFIUM_INCLUDE_DIR, then source via "
+                    "FEATHERDOC_PDFIUM_SOURCE_DIR.")
+            endif()
+        endif()
+    elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "source")
         featherdoc_add_pdfium_source_target(featherdoc_pdfium_source)
         set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_source)
+        set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "source")
     elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "package")
         featherdoc_find_pdfium_package(FEATHERDOC_PDFIUM_TARGET)
+        set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "package")
+    elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "prebuilt")
+        featherdoc_add_pdfium_prebuilt_target(featherdoc_pdfium_prebuilt)
+        set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_prebuilt)
+        set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "prebuilt")
     else()
         message(FATAL_ERROR
             "Unsupported FEATHERDOC_PDFIUM_PROVIDER: "
-            "${FEATHERDOC_PDFIUM_PROVIDER}. Use source or package.")
+            "${FEATHERDOC_PDFIUM_PROVIDER}. Use auto, source, package, or prebuilt.")
     endif()
+    message(STATUS "Using PDFium provider: ${FEATHERDOC_RESOLVED_PDFIUM_PROVIDER}")
 
     add_library(FeatherDocPdfImport
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_importer.cpp"
@@ -1093,7 +1136,9 @@ endif()
 # experimental writer until the dependency story is package-safe.
 set(FEATHERDOC_INSTALLS_PDF OFF)
 set(FEATHERDOC_INSTALLS_PDF_IMPORT OFF)
-if(FEATHERDOC_BUILD_PDF_IMPORT AND FEATHERDOC_PDFIUM_PROVIDER STREQUAL "package")
+if(FEATHERDOC_BUILD_PDF_IMPORT AND
+   DEFINED FEATHERDOC_RESOLVED_PDFIUM_PROVIDER AND
+   FEATHERDOC_RESOLVED_PDFIUM_PROVIDER STREQUAL "package")
     set(FEATHERDOC_INSTALLS_PDF_IMPORT ON)
 endif()
 

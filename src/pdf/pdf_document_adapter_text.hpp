@@ -22,6 +22,9 @@ struct ResolvedRunStyle {
     bool bold{false};
     bool italic{false};
     bool underline{false};
+    double vertical_shift_points{0.0};
+    bool strikethrough{false};
+    bool rtl{false};
 };
 
 struct TextFragment {
@@ -32,6 +35,9 @@ struct TextFragment {
     bool bold{false};
     bool italic{false};
     bool underline{false};
+    double vertical_shift_points{0.0};
+    bool strikethrough{false};
+    bool rtl{false};
 };
 
 struct TextToken {
@@ -44,6 +50,9 @@ struct TextToken {
     bool bold{false};
     bool italic{false};
     bool underline{false};
+    double vertical_shift_points{0.0};
+    bool strikethrough{false};
+    bool rtl{false};
 };
 
 struct LineState {
@@ -51,6 +60,7 @@ struct LineState {
     double width_points{0.0};
     double height_points{0.0};
     double baseline_offset_points{0.0};
+    bool bidi{false};
 
     [[nodiscard]] bool empty() const noexcept {
         return this->fragments.empty();
@@ -76,6 +86,8 @@ line_baseline_offset_points_for(const LineState &line,
 content_height_points_for(const std::vector<LineState> &lines,
                           double fallback_line_height_points,
                           double default_font_size_points);
+
+[[nodiscard]] bool line_contains_rtl_fragments(const LineState &line) noexcept;
 
 [[nodiscard]] std::vector<TextToken>
 tokenize_run_text(std::string_view text, const ResolvedRunStyle &style);

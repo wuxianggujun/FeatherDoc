@@ -1,6 +1,7 @@
 #include "pdf_document_adapter_text.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cctype>
 #include <cstdint>
 #include <functional>
@@ -29,6 +30,66 @@ namespace {
     return 1U;
 }
 
+[[nodiscard]] std::uint32_t
+decode_utf8_codepoint(std::string_view text, std::size_t offset,
+                      std::size_t codepoint_size) noexcept {
+    if (offset >= text.size()) {
+        return 0U;
+    }
+    const auto remaining = text.size() - offset;
+    const auto size = std::min(codepoint_size, remaining);
+    const auto lead = static_cast<unsigned char>(text[offset]);
+    if (size == 1U) {
+        return lead;
+    }
+    if (size == 2U) {
+        return (static_cast<std::uint32_t>(lead & 0x1FU) << 6U) |
+               static_cast<std::uint32_t>(
+                   static_cast<unsigned char>(text[offset + 1U]) & 0x3FU);
+    }
+    if (size == 3U) {
+        return (static_cast<std::uint32_t>(lead & 0x0FU) << 12U) |
+               (static_cast<std::uint32_t>(
+                    static_cast<unsigned char>(text[offset + 1U]) & 0x3FU)
+                << 6U) |
+               static_cast<std::uint32_t>(
+                   static_cast<unsigned char>(text[offset + 2U]) & 0x3FU);
+    }
+    if (size == 4U) {
+        return (static_cast<std::uint32_t>(lead & 0x07U) << 18U) |
+               (static_cast<std::uint32_t>(
+                    static_cast<unsigned char>(text[offset + 1U]) & 0x3FU)
+                << 12U) |
+               (static_cast<std::uint32_t>(
+                    static_cast<unsigned char>(text[offset + 2U]) & 0x3FU)
+                << 6U) |
+               static_cast<std::uint32_t>(
+                   static_cast<unsigned char>(text[offset + 3U]) & 0x3FU);
+    }
+    return lead;
+}
+
+[[nodiscard]] bool is_rtl_codepoint(std::uint32_t codepoint) noexcept {
+    return (codepoint >= 0x0590U && codepoint <= 0x08FFU) ||
+           (codepoint >= 0xFB1DU && codepoint <= 0xFDFFU) ||
+           (codepoint >= 0xFE70U && codepoint <= 0xFEFFU) ||
+           (codepoint >= 0x10800U && codepoint <= 0x10FFFD);
+}
+
+[[nodiscard]] bool contains_rtl_text(std::string_view text) noexcept {
+    for (std::size_t index = 0U; index < text.size();) {
+        const auto codepoint_size = std::min(
+            utf8_codepoint_size(static_cast<unsigned char>(text[index])),
+            text.size() - index);
+        if (is_rtl_codepoint(
+                decode_utf8_codepoint(text, index, codepoint_size))) {
+            return true;
+        }
+        index += codepoint_size;
+    }
+    return false;
+}
+
 [[nodiscard]] bool same_font(const PdfResolvedFont &left,
                              const PdfResolvedFont &right) {
     return left.font_family == right.font_family &&
@@ -40,30 +101,36 @@ namespace {
                               const PdfResolvedFont &font,
                               double font_size_points,
                               const PdfRgbColor &fill_color, bool bold,
-                              bool italic, bool underline) {
+                              bool italic, bool underline,
+                              double vertical_shift_points,
+                              bool strikethrough, bool rtl) {
     return same_font(fragment.font, font) &&
            fragment.font_size_points == font_size_points &&
            fragment.fill_color.red == fill_color.red &&
            fragment.fill_color.green == fill_color.green &&
            fragment.fill_color.blue == fill_color.blue &&
-           fragment.bold == bold && fragment.italic == italic &&
-           fragment.underline == underline;
+            fragment.bold == bold && fragment.italic == italic &&
+           fragment.underline == underline &&
+           fragment.vertical_shift_points == vertical_shift_points &&
+           fragment.strikethrough == strikethrough && fragment.rtl == rtl;
 }
 
 void append_fragment(LineState &line, std::string_view text,
                      const PdfResolvedFont &font, double font_size_points,
                      const PdfRgbColor &fill_color, bool bold, bool italic,
-                     bool underline) {
+                     bool underline, double vertical_shift_points,
+                     bool strikethrough, bool rtl) {
     if (text.empty()) {
         return;
     }
 
     if (!line.fragments.empty() &&
         same_style(line.fragments.back(), font, font_size_points, fill_color,
-                   bold, italic, underline)) {
+                   bold, italic, underline, vertical_shift_points,
+                   strikethrough, rtl)) {
         line.fragments.back().text.append(text);
     } else {
-        line.fragments.push_back(TextFragment{
+        auto fragment = TextFragment{
             std::string{text},
             font,
             font_size_points,
@@ -71,13 +138,18 @@ void append_fragment(LineState &line, std::string_view text,
             bold,
             italic,
             underline,
-        });
+            vertical_shift_points,
+        };
+        fragment.strikethrough = strikethrough;
+        fragment.rtl = rtl;
+        line.fragments.push_back(std::move(fragment));
     }
     line.width_points += measure_text(text, font_size_points, font);
     line.height_points =
         std::max(line.height_points,
                  estimate_line_height_points(font_size_points,
-                                             metrics_options_for(font)));
+                                             metrics_options_for(font)) +
+                     std::abs(vertical_shift_points));
     line.baseline_offset_points =
         std::max(line.baseline_offset_points, font_size_points);
 }
@@ -93,7 +165,8 @@ void append_broken_word(
     const PdfResolvedFont &font,
     const std::function<double(std::size_t)> &max_width_for_line,
     double font_size_points, const PdfRgbColor &fill_color, bool bold,
-    bool italic, bool underline) {
+    bool italic, bool underline, double vertical_shift_points,
+    bool strikethrough, bool rtl) {
     LineState current;
     for (std::size_t index = 0U; index < word.size();) {
         const auto codepoint_size = std::min(
@@ -110,7 +183,8 @@ void append_broken_word(
             current = {};
         }
         append_fragment(current, codepoint, font, font_size_points, fill_color,
-                        bold, italic, underline);
+                        bold, italic, underline, vertical_shift_points,
+                        strikethrough, rtl);
         index += codepoint_size;
     }
 
@@ -162,13 +236,20 @@ double content_height_points_for(const std::vector<LineState> &lines,
     return height;
 }
 
+bool line_contains_rtl_fragments(const LineState &line) noexcept {
+    return std::any_of(line.fragments.begin(), line.fragments.end(),
+                       [](const TextFragment &fragment) {
+                           return fragment.rtl;
+                       });
+}
+
 std::vector<TextToken> tokenize_run_text(std::string_view text,
                                          const ResolvedRunStyle &style) {
     std::vector<TextToken> tokens;
     for (std::size_t index = 0U; index < text.size();) {
         const auto value = static_cast<unsigned char>(text[index]);
         if (value == '\n' || value == '\r') {
-            tokens.push_back(TextToken{
+            auto token = TextToken{
                 {},
                 false,
                 true,
@@ -178,7 +259,11 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 style.bold,
                 style.italic,
                 style.underline,
-            });
+                style.vertical_shift_points,
+            };
+            token.strikethrough = style.strikethrough;
+            token.rtl = style.rtl;
+            tokens.push_back(std::move(token));
             ++index;
             if (value == '\r' && index < text.size() && text[index] == '\n') {
                 ++index;
@@ -196,7 +281,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 }
                 ++index;
             }
-            tokens.push_back(TextToken{
+            auto token = TextToken{
                 std::string{text.substr(token_start, index - token_start)},
                 true,
                 false,
@@ -206,7 +291,11 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
                 style.bold,
                 style.italic,
                 style.underline,
-            });
+                style.vertical_shift_points,
+            };
+            token.strikethrough = style.strikethrough;
+            token.rtl = style.rtl;
+            tokens.push_back(std::move(token));
             continue;
         }
 
@@ -218,7 +307,7 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
             index +=
                 std::min(utf8_codepoint_size(current), text.size() - index);
         }
-        tokens.push_back(TextToken{
+        auto token = TextToken{
             std::string{text.substr(token_start, index - token_start)},
             false,
             false,
@@ -228,7 +317,11 @@ std::vector<TextToken> tokenize_run_text(std::string_view text,
             style.bold,
             style.italic,
             style.underline,
-        });
+            style.vertical_shift_points,
+        };
+        token.strikethrough = style.strikethrough;
+        token.rtl = style.rtl || contains_rtl_text(token.text);
+        tokens.push_back(std::move(token));
     }
     return tokens;
 }
@@ -288,7 +381,8 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
             append_broken_word(lines, token.text, token.font,
                                max_width_for_line, token.font_size_points,
                                token.fill_color, token.bold, token.italic,
-                               token.underline);
+                               token.underline, token.vertical_shift_points,
+                               token.strikethrough, token.rtl);
             pending_spaces.clear();
             continue;
         }
@@ -297,13 +391,16 @@ std::vector<LineState> wrap_run_tokens_with_line_widths(
             for (const auto &space : pending_spaces) {
                 append_fragment(current, space.text, space.font,
                                 space.font_size_points, space.fill_color,
-                                space.bold, space.italic, space.underline);
+                                space.bold, space.italic, space.underline,
+                                space.vertical_shift_points,
+                                space.strikethrough, space.rtl);
             }
         }
         pending_spaces.clear();
         append_fragment(current, token.text, token.font, token.font_size_points,
                         token.fill_color, token.bold, token.italic,
-                        token.underline);
+                        token.underline, token.vertical_shift_points,
+                        token.strikethrough, token.rtl);
     }
 
     if (!current.empty() || lines.empty()) {

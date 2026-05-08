@@ -13,9 +13,14 @@
 
 namespace featherdoc::pdf::detail {
 
+struct HeaderFooterLineLayout {
+    LineState line;
+    double start_x_points{0.0};
+};
+
 struct HeaderFooterPageLayout {
-    std::vector<LineState> header_lines;
-    std::vector<LineState> footer_lines;
+    std::vector<HeaderFooterLineLayout> header_lines;
+    std::vector<HeaderFooterLineLayout> footer_lines;
 };
 
 struct HeaderFooterLayout {
@@ -28,8 +33,8 @@ struct HeaderFooterLayout {
 
 struct HeaderFooterRenderContext {
     std::function<std::vector<LineState>(
-        std::string_view, const PdfDocumentAdapterOptions &, double)>
-        wrap_text;
+        featherdoc::Paragraph, const PdfDocumentAdapterOptions &, double)>
+        wrap_paragraph;
 };
 
 [[nodiscard]] double

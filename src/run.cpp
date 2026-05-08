@@ -66,6 +66,16 @@ auto read_underline_value(pugi::xml_node node) -> std::optional<bool> {
     return value != "0" && value != "false" && value != "none";
 }
 
+auto read_vertical_align_value(pugi::xml_node node, std::string_view expected)
+    -> std::optional<bool> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto value = std::string_view{node.attribute("w:val").value()};
+    return value == expected;
+}
+
 auto parse_half_point_size(const char *text) -> std::optional<double> {
     if (text == nullptr || *text == '\0') {
         return std::nullopt;
@@ -432,8 +442,22 @@ std::optional<bool> Run::italic() const {
     return read_on_off_value(this->current.child("w:rPr").child("w:i"));
 }
 
+std::optional<bool> Run::strikethrough() const {
+    return read_on_off_value(this->current.child("w:rPr").child("w:strike"));
+}
+
 std::optional<bool> Run::underline() const {
     return read_underline_value(this->current.child("w:rPr").child("w:u"));
+}
+
+std::optional<bool> Run::superscript() const {
+    return read_vertical_align_value(this->current.child("w:rPr").child("w:vertAlign"),
+                                     "superscript");
+}
+
+std::optional<bool> Run::subscript() const {
+    return read_vertical_align_value(this->current.child("w:rPr").child("w:vertAlign"),
+                                     "subscript");
 }
 
 std::optional<double> Run::font_size_points() const {

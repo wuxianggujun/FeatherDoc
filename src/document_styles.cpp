@@ -414,6 +414,21 @@ auto read_run_underline(pugi::xml_node run_properties) -> std::optional<bool> {
     return read_underline_value(run_properties.child("w:u"));
 }
 
+auto read_run_strikethrough(pugi::xml_node run_properties)
+    -> std::optional<bool> {
+    return read_on_off_value(run_properties.child("w:strike"));
+}
+
+auto read_vertical_align_value(pugi::xml_node node, std::string_view expected)
+    -> std::optional<bool> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto value = std::string_view{node.attribute("w:val").value()};
+    return value == expected;
+}
+
 auto read_paragraph_style_id(pugi::xml_node paragraph_properties)
     -> std::optional<std::string> {
     return read_language_attribute(paragraph_properties.child("w:pStyle"),
@@ -620,7 +635,10 @@ auto summarize_run_handle(const featherdoc::Run &run_handle,
     summary.text_color = run_handle.text_color();
     summary.bold = run_handle.bold();
     summary.italic = run_handle.italic();
+    summary.strikethrough = run_handle.strikethrough();
     summary.underline = run_handle.underline();
+    summary.superscript = run_handle.superscript();
+    summary.subscript = run_handle.subscript();
     summary.font_size_points = run_handle.font_size_points();
     summary.language = run_handle.language();
     summary.east_asia_language = run_handle.east_asia_language();
@@ -878,6 +896,80 @@ auto ensure_run_underline_node(pugi::xml_node run_properties)
     }
 
     return run_properties.append_child("w:u");
+}
+
+auto ensure_run_strikethrough_node(pugi::xml_node run_properties)
+    -> pugi::xml_node {
+    if (run_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto strikethrough = run_properties.child("w:strike");
+    if (strikethrough != pugi::xml_node{}) {
+        return strikethrough;
+    }
+
+    if (const auto vertical_align = run_properties.child("w:vertAlign");
+        vertical_align != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:strike", vertical_align);
+    }
+    if (const auto small_caps = run_properties.child("w:smallCaps");
+        small_caps != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:strike", small_caps);
+    }
+    if (const auto shadow = run_properties.child("w:shadow");
+        shadow != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:strike", shadow);
+    }
+    if (const auto size = run_properties.child("w:sz");
+        size != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:strike", size);
+    }
+    if (const auto underline = run_properties.child("w:u");
+        underline != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:strike", underline);
+    }
+    if (const auto italic = run_properties.child("w:i");
+        italic != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:strike", italic);
+    }
+    if (const auto bold = run_properties.child("w:b");
+        bold != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:strike", bold);
+    }
+    if (const auto color = run_properties.child("w:color");
+        color != pugi::xml_node{}) {
+        return run_properties.insert_child_after("w:strike", color);
+    }
+
+    return run_properties.append_child("w:strike");
+}
+
+auto ensure_run_vertical_align_node(pugi::xml_node run_properties)
+    -> pugi::xml_node {
+    if (run_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto vertical_align = run_properties.child("w:vertAlign");
+    if (vertical_align != pugi::xml_node{}) {
+        return vertical_align;
+    }
+
+    if (const auto small_caps = run_properties.child("w:smallCaps");
+        small_caps != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:vertAlign", small_caps);
+    }
+    if (const auto shadow = run_properties.child("w:shadow");
+        shadow != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:vertAlign", shadow);
+    }
+    if (const auto size = run_properties.child("w:sz");
+        size != pugi::xml_node{}) {
+        return run_properties.insert_child_before("w:vertAlign", size);
+    }
+
+    return run_properties.append_child("w:vertAlign");
 }
 
 auto ensure_run_font_size_node(pugi::xml_node run_properties,
@@ -1849,6 +1941,14 @@ auto clear_run_italic(pugi::xml_node run_properties) -> bool {
 
 auto clear_run_underline(pugi::xml_node run_properties) -> bool {
     return clear_on_off_child(run_properties, "w:u");
+}
+
+auto clear_run_strikethrough(pugi::xml_node run_properties) -> bool {
+    return clear_on_off_child(run_properties, "w:strike");
+}
+
+auto clear_run_vertical_align(pugi::xml_node run_properties) -> bool {
+    return clear_on_off_child(run_properties, "w:vertAlign");
 }
 
 auto clear_run_font_size_points(pugi::xml_node run_properties) -> bool {
@@ -4312,9 +4412,23 @@ Document::resolve_style_properties(std::string_view style_id) {
         resolve_style_bool_property(chain, [](pugi::xml_node node) {
             return read_run_italic(node.child("w:rPr"));
         });
+    summary.run_strikethrough =
+        resolve_style_bool_property(chain, [](pugi::xml_node node) {
+            return read_run_strikethrough(node.child("w:rPr"));
+        });
     summary.run_underline =
         resolve_style_bool_property(chain, [](pugi::xml_node node) {
             return read_run_underline(node.child("w:rPr"));
+        });
+    summary.run_superscript =
+        resolve_style_bool_property(chain, [](pugi::xml_node node) {
+            return read_vertical_align_value(
+                node.child("w:rPr").child("w:vertAlign"), "superscript");
+        });
+    summary.run_subscript =
+        resolve_style_bool_property(chain, [](pugi::xml_node node) {
+            return read_vertical_align_value(
+                node.child("w:rPr").child("w:vertAlign"), "subscript");
         });
     summary.run_font_size_points =
         resolve_style_double_property(chain, [](pugi::xml_node node) {
@@ -5647,6 +5761,7 @@ bool Document::ensure_paragraph_style(
     if (!this->clear_style_run_text_color(style_id) ||
         !this->clear_style_run_bold(style_id) ||
         !this->clear_style_run_italic(style_id) ||
+        !this->clear_style_run_strikethrough(style_id) ||
         !this->clear_style_run_underline(style_id) ||
         !this->clear_style_run_font_size_points(style_id)) {
         return false;
@@ -5661,6 +5776,11 @@ bool Document::ensure_paragraph_style(
     }
     if (definition.run_italic.has_value() &&
         !this->set_style_run_italic(style_id, *definition.run_italic)) {
+        return false;
+    }
+    if (definition.run_strikethrough.has_value() &&
+        !this->set_style_run_strikethrough(style_id,
+                                           *definition.run_strikethrough)) {
         return false;
     }
     if (definition.run_underline.has_value() &&
@@ -5790,6 +5910,15 @@ bool Document::ensure_character_style(
                        std::string{styles_xml_entry});
         return false;
     }
+    if (definition.run_superscript.value_or(false) &&
+        definition.run_subscript.value_or(false)) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "character style run superscript and subscript cannot "
+                       "both be true",
+                       std::string{styles_xml_entry});
+        return false;
+    }
 
     if (const auto error = this->ensure_styles_part_attached()) {
         return false;
@@ -5846,7 +5975,9 @@ bool Document::ensure_character_style(
     if (!this->clear_style_run_text_color(style_id) ||
         !this->clear_style_run_bold(style_id) ||
         !this->clear_style_run_italic(style_id) ||
+        !this->clear_style_run_strikethrough(style_id) ||
         !this->clear_style_run_underline(style_id) ||
+        !this->clear_style_run_superscript(style_id) ||
         !this->clear_style_run_font_size_points(style_id)) {
         return false;
     }
@@ -5862,9 +5993,28 @@ bool Document::ensure_character_style(
         !this->set_style_run_italic(style_id, *definition.run_italic)) {
         return false;
     }
+    if (definition.run_strikethrough.has_value() &&
+        !this->set_style_run_strikethrough(style_id,
+                                           *definition.run_strikethrough)) {
+        return false;
+    }
     if (definition.run_underline.has_value() &&
         !this->set_style_run_underline(style_id, *definition.run_underline)) {
         return false;
+    }
+    if (definition.run_superscript.has_value() ||
+        definition.run_subscript.has_value()) {
+        if (definition.run_superscript.value_or(false)) {
+            if (!this->set_style_run_superscript(style_id, true)) {
+                return false;
+            }
+        } else if (definition.run_subscript.value_or(false)) {
+            if (!this->set_style_run_subscript(style_id, true)) {
+                return false;
+            }
+        } else if (!this->set_style_run_superscript(style_id, false)) {
+            return false;
+        }
     }
     if (definition.run_font_size_points.has_value() &&
         !this->set_style_run_font_size_points(
@@ -7294,6 +7444,40 @@ std::optional<bool> Document::style_run_underline(std::string_view style_id) {
     return read_run_underline(style.child("w:rPr"));
 }
 
+std::optional<bool>
+Document::style_run_strikethrough(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading style "
+                       "run strikethrough",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when reading style run "
+                       "strikethrough",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+    if (const auto error = this->ensure_styles_loaded()) {
+        return std::nullopt;
+    }
+    const auto style =
+        find_style_node(this->styles.child("w:styles"), style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return std::nullopt;
+    }
+    this->last_error_info.clear();
+    return read_run_strikethrough(style.child("w:rPr"));
+}
+
 std::optional<double>
 Document::style_run_font_size_points(std::string_view style_id) {
     if (!this->is_open()) {
@@ -7836,14 +8020,38 @@ bool Document::materialize_style_run_properties(std::string_view style_id) {
 
         return (this->*setter)(style_id_string, *property.value);
     };
+    const auto materialize_vertical_align = [&]() -> bool {
+        const auto inherited_superscript =
+            resolved->run_superscript.value.has_value() &&
+            resolved->run_superscript.source_style_id.has_value() &&
+            *resolved->run_superscript.source_style_id != style_id_string;
+        const auto inherited_subscript =
+            resolved->run_subscript.value.has_value() &&
+            resolved->run_subscript.source_style_id.has_value() &&
+            *resolved->run_subscript.source_style_id != style_id_string;
+        if (!inherited_superscript && !inherited_subscript) {
+            return true;
+        }
+
+        if (resolved->run_superscript.value.value_or(false)) {
+            return this->set_style_run_superscript(style_id_string, true);
+        }
+        if (resolved->run_subscript.value.value_or(false)) {
+            return this->set_style_run_subscript(style_id_string, true);
+        }
+        return this->set_style_run_superscript(style_id_string, false);
+    };
 
     if (!materialize_string(resolved->run_text_color,
                             &Document::set_style_run_text_color) ||
         !materialize_bool(resolved->run_bold, &Document::set_style_run_bold) ||
         !materialize_bool(resolved->run_italic,
                           &Document::set_style_run_italic) ||
+        !materialize_bool(resolved->run_strikethrough,
+                          &Document::set_style_run_strikethrough) ||
         !materialize_bool(resolved->run_underline,
                           &Document::set_style_run_underline) ||
+        !materialize_vertical_align() ||
         !materialize_double(resolved->run_font_size_points,
                             &Document::set_style_run_font_size_points) ||
         !materialize_string(resolved->run_font_family,
@@ -8875,6 +9083,145 @@ bool Document::set_style_run_underline(std::string_view style_id,
     return true;
 }
 
+bool Document::set_style_run_strikethrough(std::string_view style_id,
+                                           bool enabled) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style "
+                       "run strikethrough",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run "
+                       "strikethrough",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    if (const auto error = this->ensure_styles_part_attached()) {
+        return false;
+    }
+    auto style = find_style_node(this->styles.child("w:styles"), style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    const auto strike =
+        ensure_run_strikethrough_node(ensure_style_run_properties_node(style));
+    if (strike == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:strike for style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    ensure_attribute_value(strike, "w:val", enabled ? "true" : "false");
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::set_style_run_superscript(std::string_view style_id,
+                                         bool enabled) {
+    if (!this->is_open()) {
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before editing style run "
+            "superscript",
+            std::string{styles_xml_entry});
+        return false;
+    }
+    if (style_id.empty()) {
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            "style id must not be empty when editing style run superscript",
+            std::string{styles_xml_entry});
+        return false;
+    }
+    if (const auto error = this->ensure_styles_part_attached()) {
+        return false;
+    }
+    auto style = find_style_node(this->styles.child("w:styles"), style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    const auto vertical_align =
+        ensure_run_vertical_align_node(ensure_style_run_properties_node(style));
+    if (vertical_align == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:vertAlign for style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    ensure_attribute_value(vertical_align, "w:val",
+                           enabled ? "superscript" : "baseline");
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::set_style_run_subscript(std::string_view style_id,
+                                       bool enabled) {
+    if (!this->is_open()) {
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before editing style run "
+            "subscript",
+            std::string{styles_xml_entry});
+        return false;
+    }
+    if (style_id.empty()) {
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            "style id must not be empty when editing style run subscript",
+            std::string{styles_xml_entry});
+        return false;
+    }
+    if (const auto error = this->ensure_styles_part_attached()) {
+        return false;
+    }
+    auto style = find_style_node(this->styles.child("w:styles"), style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    const auto vertical_align =
+        ensure_run_vertical_align_node(ensure_style_run_properties_node(style));
+    if (vertical_align == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to create w:vertAlign for style '" +
+                           std::string{style_id} + "'",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    ensure_attribute_value(vertical_align, "w:val",
+                           enabled ? "subscript" : "baseline");
+    this->styles_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
 bool Document::set_style_run_font_size_points(std::string_view style_id,
                                               double font_size_points) {
     if (!this->is_open()) {
@@ -9637,6 +9984,119 @@ bool Document::clear_style_run_underline(std::string_view style_id) {
         return false;
     }
     if (clear_run_underline(style.child("w:rPr"))) {
+        remove_empty_style_run_properties(style);
+        this->styles_dirty = true;
+    }
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_strikethrough(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing style "
+                       "run strikethrough",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    if (style_id.empty()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id must not be empty when editing style run "
+                       "strikethrough",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+    const auto styles_root = this->styles.child("w:styles");
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    if (clear_run_strikethrough(style.child("w:rPr"))) {
+        remove_empty_style_run_properties(style);
+        this->styles_dirty = true;
+    }
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_superscript(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before editing style run "
+            "superscript",
+            std::string{styles_xml_entry});
+        return false;
+    }
+    if (style_id.empty()) {
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            "style id must not be empty when editing style run superscript",
+            std::string{styles_xml_entry});
+        return false;
+    }
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+    const auto styles_root = this->styles.child("w:styles");
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    if (clear_run_vertical_align(style.child("w:rPr"))) {
+        remove_empty_style_run_properties(style);
+        this->styles_dirty = true;
+    }
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_style_run_subscript(std::string_view style_id) {
+    if (!this->is_open()) {
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before editing style run "
+            "subscript",
+            std::string{styles_xml_entry});
+        return false;
+    }
+    if (style_id.empty()) {
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            "style id must not be empty when editing style run subscript",
+            std::string{styles_xml_entry});
+        return false;
+    }
+    if (const auto error = this->ensure_styles_loaded()) {
+        return false;
+    }
+    const auto styles_root = this->styles.child("w:styles");
+    auto style = find_style_node(styles_root, style_id);
+    if (style == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "style id '" + std::string{style_id} +
+                           "' was not found in word/styles.xml",
+                       std::string{styles_xml_entry});
+        return false;
+    }
+    if (clear_run_vertical_align(style.child("w:rPr"))) {
         remove_empty_style_run_properties(style);
         this->styles_dirty = true;
     }

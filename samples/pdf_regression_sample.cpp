@@ -1,5 +1,7 @@
 #include <featherdoc/pdf/pdf_document_adapter.hpp>
+#if defined(FEATHERDOC_PDF_REGRESSION_IMPORT_VALIDATION)
 #include <featherdoc/pdf/pdf_parser.hpp>
+#endif
 #include <featherdoc/pdf/pdf_writer.hpp>
 
 #include <array>
@@ -17,8 +19,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(FEATHERDOC_PDF_REGRESSION_IMPORT_VALIDATION)
 #include <fpdf_edit.h>
 #include <fpdfview.h>
+#endif
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -38,6 +42,7 @@ struct ScenarioResult {
     featherdoc::pdf::PdfDocumentLayout layout;
 };
 
+#if defined(FEATHERDOC_PDF_REGRESSION_IMPORT_VALIDATION)
 struct PdfiumDocumentCloser {
     void operator()(FPDF_DOCUMENT document) const {
         if (document != nullptr) {
@@ -58,6 +63,7 @@ using PdfiumDocumentPtr =
     std::unique_ptr<std::remove_pointer_t<FPDF_DOCUMENT>, PdfiumDocumentCloser>;
 using PdfiumPagePtr =
     std::unique_ptr<std::remove_pointer_t<FPDF_PAGE>, PdfiumPageCloser>;
+#endif
 
 [[nodiscard]] featherdoc::pdf::PdfPageLayout make_letter_page() {
     featherdoc::pdf::PdfPageLayout page;
@@ -125,6 +131,7 @@ using PdfiumPagePtr =
 #endif
 }
 
+#if defined(FEATHERDOC_PDF_REGRESSION_IMPORT_VALIDATION)
 [[nodiscard]] std::string pdfium_error_to_string(unsigned long error_code) {
     switch (error_code) {
     case FPDF_ERR_SUCCESS:
@@ -194,6 +201,7 @@ using PdfiumPagePtr =
 
     return image_count;
 }
+#endif
 
 [[nodiscard]] std::vector<std::filesystem::path>
 candidate_cjk_fonts() {
@@ -224,6 +232,37 @@ candidate_cjk_fonts() {
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc");
     candidates.emplace_back("/usr/share/fonts/truetype/arphic/ukai.ttc");
     candidates.emplace_back("/usr/share/fonts/truetype/arphic/uming.ttc");
+#endif
+
+    return candidates;
+}
+
+[[nodiscard]] std::vector<std::filesystem::path> candidate_arabic_fonts() {
+    std::vector<std::filesystem::path> candidates;
+
+    if (const auto configured = environment_value("FEATHERDOC_TEST_ARABIC_FONT");
+        !configured.empty()) {
+        candidates.emplace_back(configured);
+    }
+
+#if defined(_WIN32)
+    candidates.emplace_back("C:/Windows/Fonts/NotoSansArabic-Regular.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/NotoNaskhArabic-Regular.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/NotoKufiArabic-Regular.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/Candarab.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/GARABD.TTF");
+#elif defined(__APPLE__)
+    candidates.emplace_back(
+        "/System/Library/Fonts/Supplemental/Geeza Pro.ttc");
+    candidates.emplace_back("/System/Library/Fonts/Geeza Pro.ttc");
+    candidates.emplace_back(
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf");
+#else
+    candidates.emplace_back(
+        "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf");
+    candidates.emplace_back(
+        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf");
+    candidates.emplace_back("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
 #endif
 
     return candidates;
@@ -301,6 +340,7 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     return png_path;
 }
 
+#if defined(FEATHERDOC_PDF_REGRESSION_IMPORT_VALIDATION)
 [[nodiscard]] std::string collect_text(
     const featherdoc::pdf::PdfParsedDocument &document) {
     std::string text;
@@ -311,6 +351,7 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     }
     return text;
 }
+#endif
 
 [[nodiscard]] featherdoc::pdf::PdfTextRun make_text_run(
     double x_points,
@@ -323,8 +364,9 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     bool underline,
     bool unicode,
     std::string font_family = "Helvetica",
-    std::filesystem::path font_file_path = {}) {
-    return featherdoc::pdf::PdfTextRun{
+    std::filesystem::path font_file_path = {},
+    bool strikethrough = false) {
+    auto run = featherdoc::pdf::PdfTextRun{
         featherdoc::pdf::PdfPoint{x_points, y_points},
         std::move(text),
         std::move(font_family),
@@ -336,6 +378,8 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
         underline,
         unicode,
     };
+    run.strikethrough = strikethrough;
+    return run;
 }
 
 [[nodiscard]] ScenarioResult build_single_text_sample() {
@@ -802,6 +846,63 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
                                           std::move(east_asia_note));
 }
 
+[[nodiscard]] bool define_document_style_gallery_styles(
+    featherdoc::Document &document) {
+    auto accent = featherdoc::character_style_definition{};
+    accent.name = "Document PDF Style Gallery Accent";
+    accent.run_font_family = std::string{"Helvetica"};
+    accent.run_font_size_points = 16.0;
+    accent.run_bold = true;
+    accent.run_italic = true;
+    accent.run_text_color = std::string{"2F5597"};
+    if (!ensure_document_contract_style(document,
+                                        "DocumentPdfStyleGalleryAccent",
+                                        std::move(accent))) {
+        return false;
+    }
+
+    auto note = featherdoc::character_style_definition{};
+    note.name = "Document PDF Style Gallery Note";
+    note.run_font_family = std::string{"Helvetica"};
+    note.run_font_size_points = 12.0;
+    note.run_underline = true;
+    note.run_text_color = std::string{"7A3E00"};
+    return ensure_document_contract_style(document,
+                                          "DocumentPdfStyleGalleryNote",
+                                          std::move(note));
+}
+
+[[nodiscard]] bool define_document_rtl_bidi_styles(
+    featherdoc::Document &document) {
+    auto paragraph_style = featherdoc::paragraph_style_definition{};
+    paragraph_style.name = "Document PDF RTL Bidi Paragraph";
+    paragraph_style.paragraph_bidi = true;
+    if (!document.ensure_paragraph_style("DocumentPdfRtlParagraph",
+                                         paragraph_style)) {
+        return false;
+    }
+
+    auto arabic = featherdoc::character_style_definition{};
+    arabic.name = "Document PDF RTL Arabic";
+    arabic.run_font_family = std::string{"Document RTL Arabic"};
+    arabic.run_bidi_language = std::string{"ar-SA"};
+    arabic.run_rtl = true;
+    arabic.run_font_size_points = 15.0;
+    arabic.run_text_color = std::string{"1F3A5F"};
+    if (!ensure_document_contract_style(document, "DocumentPdfRtlArabic",
+                                        std::move(arabic))) {
+        return false;
+    }
+
+    auto emphasis = featherdoc::character_style_definition{};
+    emphasis.name = "Document PDF RTL Arabic Emphasis";
+    emphasis.based_on = std::string{"DocumentPdfRtlArabic"};
+    emphasis.run_underline = true;
+    emphasis.run_text_color = std::string{"8A2D3B"};
+    return ensure_document_contract_style(document, "DocumentPdfRtlArabicEmphasis",
+                                          std::move(emphasis));
+}
+
 [[nodiscard]] ScenarioResult build_document_eastasia_style_probe_sample(
     const std::filesystem::path &font_path) {
     ScenarioResult sample;
@@ -871,6 +972,161 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     options.use_system_font_fallbacks = false;
     options.line_height_points = 24.0;
     options.paragraph_spacing_after_points = 6.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_document_rtl_bidi_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !define_document_rtl_bidi_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document RTL bidi sample")) {
+        return sample;
+    }
+    if (!title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto paragraph = title.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !document.set_paragraph_style(paragraph, "DocumentPdfRtlParagraph") ||
+        !paragraph.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !paragraph.add_run("Arabic paragraph: ").has_next()) {
+        return sample;
+    }
+    auto arabic_run =
+        paragraph.add_run(utf8_from_u8(u8"مرحبا بكم في FeatherDoc 2026"));
+    if (!arabic_run.has_next() ||
+        !document.set_run_style(arabic_run, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !document.set_paragraph_style(paragraph, "DocumentPdfRtlParagraph") ||
+        !paragraph.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !paragraph.add_run("Mixed order: ").has_next()) {
+        return sample;
+    }
+    auto mixed_prefix = paragraph.add_run(utf8_from_u8(u8"النسخة"));
+    if (!mixed_prefix.has_next() ||
+        !document.set_run_style(mixed_prefix, "DocumentPdfRtlArabicEmphasis") ||
+        !paragraph.add_run(" FE-2048 ").has_next()) {
+        return sample;
+    }
+    auto mixed_suffix =
+        paragraph.add_run(utf8_from_u8(u8"جاهزة للمراجعة"));
+    if (!mixed_suffix.has_next() ||
+        !document.set_run_style(mixed_suffix, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title = "FeatherDoc regression sample: document RTL bidi";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document RTL Arabic", font_path},
+    };
+    options.use_system_font_fallbacks = false;
+    options.line_height_points = 22.0;
+    options.paragraph_spacing_after_points = 8.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_document_style_gallery_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !define_document_style_gallery_styles(document)) {
+        return sample;
+    }
+
+    auto paragraph = document.paragraphs();
+    if (!paragraph.has_next() ||
+        !paragraph.set_text("Document style gallery sample")) {
+        return sample;
+    }
+    if (!paragraph.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !paragraph.add_run("Style coverage: ").has_next()) {
+        return sample;
+    }
+    auto accent_run = paragraph.add_run("bold italic blue 16pt");
+    auto separator_run = paragraph.add_run(", ");
+    auto note_run = paragraph.add_run("underlined note");
+    if (!accent_run.has_next() || !separator_run.has_next() ||
+        !note_run.has_next() ||
+        !document.set_run_style(accent_run, "DocumentPdfStyleGalleryAccent") ||
+        !document.set_run_style(note_run, "DocumentPdfStyleGalleryNote") ||
+        !paragraph.add_run(
+             ", and neutral body text to keep mixed inline styling stable.")
+              .has_next()) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !paragraph.add_run("Right-aligned summary marker").has_next() ||
+        !paragraph.set_alignment(featherdoc::paragraph_alignment::right)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after(
+        "Hanging indent paragraph wraps across multiple lines so the export "
+        "path keeps a narrower first-line offset and a deeper follow-on body "
+        "column.");
+    if (!paragraph.has_next() || !paragraph.set_indent_left_twips(720U) ||
+        !paragraph.set_hanging_indent_twips(360U)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after(
+        "First line indent paragraph keeps the opening clause inset while the "
+        "remaining lines align back to the body column for visual comparison.");
+    if (!paragraph.has_next() || !paragraph.set_indent_left_twips(360U) ||
+        !paragraph.set_first_line_indent_twips(360U)) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{300.0, 420.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document style gallery";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 40.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 10.0;
 
     sample.layout =
         featherdoc::pdf::layout_document_paragraphs(document, options);
@@ -1067,6 +1323,212 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
         false));
 
     sample.layout.pages.push_back(std::move(page));
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_strikethrough_text_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica")) {
+        return sample;
+    }
+
+    auto style_definition = featherdoc::character_style_definition{};
+    style_definition.name = "PDF Style Strikethrough";
+    style_definition.run_strikethrough = true;
+    if (!ensure_document_contract_style(document, "PdfStyleStrikethrough",
+                                        std::move(style_definition))) {
+        return sample;
+    }
+
+    auto paragraph = document.paragraphs();
+    if (!paragraph.has_next() || !paragraph.set_text("Strikethrough sample")) {
+        return sample;
+    }
+    if (!paragraph.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() || !paragraph.add_run("Direct ").has_next()) {
+        return sample;
+    }
+    auto direct_strike = paragraph.add_run(
+        "strikethrough", featherdoc::formatting_flag::strikethrough);
+    if (!direct_strike.has_next() ||
+        !paragraph.add_run(" demonstrates run formatting.").has_next()) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() || !paragraph.add_run("Style ").has_next()) {
+        return sample;
+    }
+    auto styled_strike = paragraph.add_run("strikethrough");
+    if (!styled_strike.has_next() ||
+        !document.set_run_style(styled_strike, "PdfStyleStrikethrough") ||
+        !paragraph
+             .add_run(" demonstrates inherited style formatting.")
+             .has_next()) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.metadata.title = "FeatherDoc regression sample: strikethrough";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 40.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 10.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_superscript_subscript_text_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica")) {
+        return sample;
+    }
+
+    auto paragraph = document.paragraphs();
+    if (!paragraph.has_next() ||
+        !paragraph.set_text("Superscript and subscript sample")) {
+        return sample;
+    }
+    if (!paragraph.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !paragraph.add_run("E = mc").has_next()) {
+        return sample;
+    }
+    auto superscript_run =
+        paragraph.add_run("2", featherdoc::formatting_flag::superscript);
+    if (!superscript_run.has_next() ||
+        !paragraph.add_run(" demonstrates superscript support.").has_next()) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() || !paragraph.add_run("H").has_next()) {
+        return sample;
+    }
+    auto subscript_run =
+        paragraph.add_run("2", featherdoc::formatting_flag::subscript);
+    if (!subscript_run.has_next() ||
+        !paragraph.add_run("O demonstrates subscript support.").has_next()) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.metadata.title =
+        "FeatherDoc regression sample: superscript subscript";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 40.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 10.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_style_superscript_subscript_text_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica")) {
+        return sample;
+    }
+
+    auto superscript_style = featherdoc::character_style_definition{};
+    superscript_style.name = "PDF Style Superscript";
+    superscript_style.run_superscript = true;
+    if (!ensure_document_contract_style(document, "PdfStyleSuperscript",
+                                        std::move(superscript_style))) {
+        return sample;
+    }
+
+    auto subscript_style = featherdoc::character_style_definition{};
+    subscript_style.name = "PDF Style Subscript";
+    subscript_style.run_subscript = true;
+    if (!ensure_document_contract_style(document, "PdfStyleSubscript",
+                                        std::move(subscript_style))) {
+        return sample;
+    }
+
+    auto paragraph = document.paragraphs();
+    if (!paragraph.has_next() ||
+        !paragraph.set_text("Style superscript and subscript sample")) {
+        return sample;
+    }
+    if (!paragraph.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !paragraph.add_run("Style E = mc").has_next()) {
+        return sample;
+    }
+    auto superscript_run = paragraph.add_run("2");
+    if (!superscript_run.has_next() ||
+        !document.set_run_style(superscript_run, "PdfStyleSuperscript") ||
+        !paragraph.add_run(" inherits superscript style.").has_next()) {
+        return sample;
+    }
+
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() || !paragraph.add_run("Style H").has_next()) {
+        return sample;
+    }
+    auto subscript_run = paragraph.add_run("2");
+    if (!subscript_run.has_next() ||
+        !document.set_run_style(subscript_run, "PdfStyleSubscript") ||
+        !paragraph.add_run("O inherits subscript style.").has_next()) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.metadata.title =
+        "FeatherDoc regression sample: style superscript subscript";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 40.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 10.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
     return sample;
 }
 
@@ -1355,6 +1817,89 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
         false));
 
     sample.layout.pages.push_back(std::move(page));
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_header_footer_rtl_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !define_document_rtl_bidi_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Header footer RTL bidi sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto body = title.insert_paragraph_after("");
+    if (!body.has_next() ||
+        !body.set_text(
+            "Body anchor paragraph keeps header and footer rendering active.")) {
+        return sample;
+    }
+
+    auto header = document.ensure_section_header_paragraphs(0U);
+    if (!header.has_next() ||
+        !document.set_paragraph_style(header, "DocumentPdfRtlParagraph") ||
+        !header.set_bidi(true) ||
+        !header.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !header.add_run("Header mixed: ").has_next()) {
+        return sample;
+    }
+    auto header_prefix = header.add_run(utf8_from_u8(u8"النسخة"));
+    if (!header_prefix.has_next() ||
+        !document.set_run_style(header_prefix, "DocumentPdfRtlArabicEmphasis") ||
+        !header.add_run(" HF-2048 ").has_next()) {
+        return sample;
+    }
+    auto header_suffix = header.add_run(utf8_from_u8(u8"جاهزة للمراجعة"));
+    if (!header_suffix.has_next() ||
+        !document.set_run_style(header_suffix, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    auto footer = document.ensure_section_footer_paragraphs(0U);
+    if (!footer.has_next() ||
+        !document.set_paragraph_style(footer, "DocumentPdfRtlParagraph") ||
+        !footer.set_bidi(true) ||
+        !footer.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !footer.add_run("Footer page ").has_next() ||
+        !footer.add_run("{{page}}").has_next() ||
+        !footer.add_run(" - ").has_next()) {
+        return sample;
+    }
+    auto footer_suffix = footer.add_run(utf8_from_u8(u8"مراجعة نهائية"));
+    if (!footer_suffix.has_next() ||
+        !document.set_run_style(footer_suffix, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: header footer RTL bidi";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document RTL Arabic", font_path},
+    };
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 9.0;
+    options.line_height_points = 20.0;
+    options.paragraph_spacing_after_points = 6.0;
+
+    sample.layout = featherdoc::pdf::layout_document_paragraphs(document, options);
     return sample;
 }
 
@@ -1892,27 +2437,57 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
         return sample;
     }
 
-    if (!append_document_text_paragraph(
-            document,
-            "Executive summary paragraph one keeps the opening section readable "
-            "while PDFium verifies a normal body flow.") ||
-        !append_document_text_paragraph(
-            document,
-            "Executive summary paragraph two adds a second line of realistic "
-            "report content and keeps the section header visible.") ||
-        !append_document_text_paragraph(
-            document,
-            "Executive summary paragraph three closes the portrait section with "
-            "a stable footer marker.")) {
+    auto append_section_body = [&](std::string_view section_name,
+                                   std::string_view section_focus) {
+        for (std::size_t index = 1U; index <= 16U; ++index) {
+            const auto paragraph_text =
+                std::string{section_name} + " body paragraph " +
+                std::to_string(index) + " keeps " +
+                std::string{section_focus} +
+                " flowing so the regression can observe header swaps, footer "
+                "placement, and placeholder expansion across page breaks.";
+            if (!append_document_text_paragraph(document, paragraph_text)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (!append_section_body("Portrait", "the first section")) {
         return sample;
     }
 
     auto section0_header = document.ensure_section_header_paragraphs(0U);
     auto section0_footer = document.ensure_section_footer_paragraphs(0U);
+    auto section0_first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto section0_first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto section0_even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto section0_even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
     if (!section0_header.has_next() ||
-        !section0_header.set_text("Portrait section header") ||
+        !section0_header.set_text(
+            "Portrait default header page {{page}} of {{total_pages}}") ||
         !section0_footer.has_next() ||
-        !section0_footer.set_text("Portrait section footer")) {
+        !section0_footer.set_text(
+            "Portrait default footer section {{section_page}} of "
+            "{{section_total_pages}}") ||
+        !section0_first_header.has_next() ||
+        !section0_first_header.set_text(
+            "Portrait first-page header page {{page}} of {{total_pages}}") ||
+        !section0_first_footer.has_next() ||
+        !section0_first_footer.set_text(
+            "Portrait first-page footer section {{section_page}} of "
+            "{{section_total_pages}}") ||
+        !section0_even_header.has_next() ||
+        !section0_even_header.set_text(
+            "Portrait even header page {{page}} of {{total_pages}}") ||
+        !section0_even_footer.has_next() ||
+        !section0_even_footer.set_text(
+            "Portrait even footer section {{section_page}} of "
+            "{{section_total_pages}}")) {
         return sample;
     }
 
@@ -1936,10 +2511,24 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
 
     auto appendix_header = document.ensure_section_header_paragraphs(1U);
     auto appendix_footer = document.ensure_section_footer_paragraphs(1U);
+    auto appendix_even_header = document.ensure_section_header_paragraphs(
+        1U, featherdoc::section_reference_kind::even_page);
+    auto appendix_even_footer = document.ensure_section_footer_paragraphs(
+        1U, featherdoc::section_reference_kind::even_page);
     if (!appendix_header.has_next() ||
-        !appendix_header.set_text("Landscape appendix header") ||
+        !appendix_header.set_text(
+            "Appendix odd header page {{page}} of {{total_pages}}") ||
         !appendix_footer.has_next() ||
-        !appendix_footer.set_text("Landscape appendix footer")) {
+        !appendix_footer.set_text(
+            "Appendix odd footer section {{section_page}} of "
+            "{{section_total_pages}}") ||
+        !appendix_even_header.has_next() ||
+        !appendix_even_header.set_text(
+            "Appendix even header page {{page}} of {{total_pages}}") ||
+        !appendix_even_footer.has_next() ||
+        !appendix_even_footer.set_text(
+            "Appendix even footer section {{section_page}} of "
+            "{{section_total_pages}}")) {
         return sample;
     }
 
@@ -1957,17 +2546,7 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
         return sample;
     }
 
-    if (!append_document_text_paragraph(
-            document,
-            "Appendix paragraph one keeps the second section on a wider page.") ||
-        !append_document_text_paragraph(
-            document,
-            "Appendix paragraph two verifies that the layout still emits the "
-            "correct text after the section break.") ||
-        !append_document_text_paragraph(
-            document,
-            "Appendix paragraph three closes the wider section and provides a "
-            "stable footer anchor.")) {
+    if (!append_section_body("Appendix", "the second section")) {
         return sample;
     }
 
@@ -1977,6 +2556,10 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
         "FeatherDoc regression sample: sectioned report text";
     options.metadata.creator = "FeatherDoc regression tests";
     options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 9.0;
     options.line_height_points = 18.0;
     options.paragraph_spacing_after_points = 5.0;
 
@@ -2349,6 +2932,22 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_eastasia_style_probe_sample(cjk_font);
+    } else if (config.scenario == "document_rtl_bidi_text") {
+        const auto arabic_font = first_existing_path(candidate_arabic_fonts());
+        if (arabic_font.empty() || !std::filesystem::exists(arabic_font)) {
+            std::cerr << "missing Arabic font for scenario document_rtl_bidi_text\n";
+            return 1;
+        }
+        sample = build_document_rtl_bidi_text_sample(arabic_font);
+    } else if (config.scenario == "header_footer_rtl_text") {
+        const auto arabic_font = first_existing_path(candidate_arabic_fonts());
+        if (arabic_font.empty() || !std::filesystem::exists(arabic_font)) {
+            std::cerr << "missing Arabic font for scenario header_footer_rtl_text\n";
+            return 1;
+        }
+        sample = build_header_footer_rtl_text_sample(arabic_font);
+    } else if (config.scenario == "document_style_gallery_text") {
+        sample = build_document_style_gallery_sample();
     } else if (config.scenario == "three_page_text") {
         sample = build_three_page_text_sample();
     } else if (config.scenario == "landscape_text") {
@@ -2361,6 +2960,12 @@ int run_program(const std::vector<std::string> &args) {
         sample = build_four_page_text_sample();
     } else if (config.scenario == "underline_text") {
         sample = build_underline_text_sample();
+    } else if (config.scenario == "strikethrough_text") {
+        sample = build_strikethrough_text_sample();
+    } else if (config.scenario == "superscript_subscript_text") {
+        sample = build_superscript_subscript_text_sample();
+    } else if (config.scenario == "style_superscript_subscript_text") {
+        sample = build_style_superscript_subscript_text_sample();
     } else if (config.scenario == "punctuation_text") {
         sample = build_punctuation_text_sample();
     } else if (config.scenario == "two_page_text") {
@@ -2467,6 +3072,8 @@ int run_program(const std::vector<std::string> &args) {
         return 1;
     }
 
+#if defined(FEATHERDOC_PDF_REGRESSION_IMPORT_VALIDATION)
+    std::string text_error;
     featherdoc::pdf::PdfiumParser parser;
     const auto parse_result = parser.parse(config.output_path, {});
     if (!parse_result) {
@@ -2482,7 +3089,6 @@ int run_program(const std::vector<std::string> &args) {
     }
 
     const auto extracted_text = collect_text(parse_result.document);
-    std::string text_error;
     if (!contains_all_expected_text(extracted_text, config.expected_text,
                                     text_error)) {
         if (config.scenario == "cjk_text") {
@@ -2516,6 +3122,11 @@ int run_program(const std::vector<std::string> &args) {
     std::cout << "wrote " << config.output_path.string() << " ("
               << write_result.bytes_written << " bytes, "
               << parse_result.document.pages.size() << " pages)\n";
+#else
+    std::cout << "wrote " << config.output_path.string() << " ("
+              << write_result.bytes_written
+              << " bytes, export-only validation)\n";
+#endif
     return 0;
 }
 

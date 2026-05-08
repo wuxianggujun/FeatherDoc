@@ -196,6 +196,17 @@
       ]
     },
     {
+      "id": "superscript-subscript-text",
+      "kind": "superscript_subscript_text",
+      "output_file": "featherdoc-pdf-regression-superscript-subscript-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Superscript and subscript sample",
+        "E = mc2 demonstrates superscript support.",
+        "H2O demonstrates subscript support."
+      ]
+    },
+    {
       "id": "punctuation-text",
       "kind": "punctuation_text",
       "output_file": "featherdoc-pdf-regression-punctuation-text.pdf",
@@ -319,11 +330,16 @@
       "id": "sectioned-report-text",
       "kind": "sectioned_report_text",
       "output_file": "featherdoc-pdf-regression-sectioned-report-text.pdf",
-      "expected_pages": 2,
+      "expected_pages": 4,
       "expected_text": [
         "Sectioned report sample",
-        "Appendix paragraph one keeps the second section",
-        "Appendix paragraph three closes the wider section"
+        "Portrait first-page header page 1 of 4",
+        "Portrait even footer section 2 of 2",
+        "Portrait body paragraph 16 keeps the first section",
+        "Appendix odd header page 3 of 4",
+        "Appendix even header page 4 of 4",
+        "Appendix even footer section 2 of 2",
+        "Appendix body paragraph 16 keeps the second section"
       ]
     },
     {
@@ -471,6 +487,79 @@
         "Grand total",
         "USD 135"
       ]
+    },
+    {
+      "id": "document-style-gallery-text",
+      "kind": "document_style_gallery_text",
+      "output_file": "featherdoc-pdf-regression-document-style-gallery-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document style gallery sample",
+        "Style coverage:",
+        "bold italic blue 16pt",
+        "underlined note",
+        "Right-aligned summary marker",
+        "Hanging indent paragraph wraps",
+        "First line indent paragraph keeps"
+      ],
+      "expect_styled_text": true
+    },
+    {
+      "id": "strikethrough-text",
+      "kind": "strikethrough_text",
+      "output_file": "featherdoc-pdf-regression-strikethrough-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Strikethrough sample",
+        "Direct strikethrough demonstrates run formatting.",
+        "Style strikethrough demonstrates inherited style formatting."
+      ]
+    },
+    {
+      "id": "style-superscript-subscript-text",
+      "kind": "style_superscript_subscript_text",
+      "output_file": "featherdoc-pdf-regression-style-superscript-subscript-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Style superscript and subscript sample",
+        "Style E = mc2 inherits superscript style.",
+        "Style H2O inherits subscript style."
+      ]
+    },
+    {
+      "id": "document-rtl-bidi-text",
+      "kind": "document_rtl_bidi_text",
+      "output_file": "featherdoc-pdf-regression-document-rtl-bidi-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document RTL bidi sample",
+        "Arabic paragraph:",
+        "مرحبا بكم في FeatherDoc 2026",
+        "Mixed order:",
+        "النسخة",
+        "FE-2048",
+        "جاهزة للمراجعة"
+      ],
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "header-footer-rtl-text",
+      "kind": "header_footer_rtl_text",
+      "output_file": "featherdoc-pdf-regression-header-footer-rtl-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Header footer RTL bidi sample",
+        "Body anchor paragraph keeps header and footer rendering active.",
+        "Header mixed:",
+        "النسخة",
+        "HF-2048",
+        "جاهزة للمراجعة",
+        "Footer page",
+        "مراجعة نهائية"
+      ],
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }

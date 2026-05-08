@@ -113,6 +113,20 @@ ctest --test-dir .bpdf-interfaces -R pdf_document_generator_probe --output-on-fa
 
 PDFium 用于 PDF → Word 读入方向。
 
+当前支持 4 种 provider：
+
+- `auto`：默认值。优先尝试 `find_package(PDFium)`，其次尝试 prebuilt，最后才退回
+  source。
+- `source`：从 PDFium 源码和 GN/Ninja 构建。需要 `depot_tools` 和 PDFium checkout。
+- `package`：走 `find_package(PDFium)`，要求外部包已经导出 CMake target。
+- `prebuilt`：直接导入现成的 PDFium 二进制。至少需要
+  `FEATHERDOC_PDFIUM_LIBRARY` 和 `FEATHERDOC_PDFIUM_INCLUDE_DIR`；Windows 下如果
+  `pdfium.dll` 不和 `pdfium.lib` 放在同一目录，额外传
+  `FEATHERDOC_PDFIUM_RUNTIME_DLL` 或 `FEATHERDOC_PDFIUM_RUNTIME_DIR`。
+
+如果当前环境无法访问 Chromium 的 CIPD 后端，优先保留默认 `auto` 并提供 prebuilt
+输入，或者显式切到 `prebuilt`，都可以直接绕开 `depot_tools` bootstrap。
+
 先准备 Chromium `depot_tools`。推荐放在 `tmp/`，不要提交：
 
 ```powershell
@@ -152,7 +166,7 @@ gclient sync --no-history --jobs 8 --force --reset
 Pop-Location
 ```
 
-## Windows 构建 PDFium import
+## Windows 构建 PDFium import（source provider）
 
 进入 VS x64 开发环境：
 
@@ -189,6 +203,32 @@ cmake --build .bpdf-pdfium-source-msvc --target featherdoc_pdfium_probe
 - Windows 下会自动补 `winmm.lib`
 - CMake 会优先使用 PDFium checkout 内的 `buildtools/win/gn.exe`
 - CMake 会优先使用 PDFium checkout 内的 `third_party/ninja/ninja.exe`
+
+## Windows 构建 PDFium import（prebuilt provider）
+
+如果手里已经有 `pdfium.lib` / `pdfium.dll` 和 `public/fpdfview.h`，可以直接走
+`prebuilt`，不需要 `depot_tools`、GN 或 Ninja。
+
+```powershell
+cmake -S . -B .bpdf-pdfium-prebuilt-msvc `
+  -G Ninja `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+  -DBUILD_TESTING=OFF `
+  -DBUILD_CLI=OFF `
+  -DBUILD_SAMPLES=ON `
+  -DFEATHERDOC_BUILD_PDF_IMPORT=ON `
+  -DFEATHERDOC_PDFIUM_PROVIDER=prebuilt `
+  -DFEATHERDOC_PDFIUM_LIBRARY="D:/deps/pdfium/lib/pdfium.lib" `
+  -DFEATHERDOC_PDFIUM_INCLUDE_DIR="D:/deps/pdfium/public" `
+  -DFEATHERDOC_PDFIUM_RUNTIME_DLL="D:/deps/pdfium/bin/pdfium.dll"
+
+cmake --build .bpdf-pdfium-prebuilt-msvc --target featherdoc_pdfium_probe
+```
+
+如果 `pdfium.dll` 和 `pdfium.lib` 在同一个目录，可以省略
+`FEATHERDOC_PDFIUM_RUNTIME_DLL`。如果运行时目录里有额外依赖，但 DLL 文件名不固定，
+改传 `FEATHERDOC_PDFIUM_RUNTIME_DIR`。
 
 ## 端到端 smoke
 
@@ -242,8 +282,14 @@ pdfium_document_parser_probe ..... Passed
   `Document` 表格
 - `pdf_font_resolver`：字体解析和回退规则单测
 - `pdf_text_metrics`：文本宽度 / 行高估算单测
-- `pdf_document_adapter_font`：PDF adapter 的字体映射、样式和列表前缀回归
-- `pdf_unicode_font_roundtrip`：Unicode / CJK 字体嵌入和 PDFium 回读回环
+- `pdf_document_adapter_font`：PDF adapter 的字体映射、样式、列表前缀和
+  Document-to-PDF layout 回归，不依赖 PDFium import
+- `pdf_document_adapter_font_import`：在启用 PDFium import 时额外注册的
+  PDFium roundtrip 覆盖，和导出侧 layout 测试分开执行
+- `pdf_unicode_font_diagnostics`：Unicode / CJK 字体缺失路径、未解析字体和损坏字体文件的导出侧诊断，
+  不依赖 PDFium import
+- `pdf_unicode_font_roundtrip`：Unicode / CJK 字体嵌入和 PDFium 回读回环，
+  仅在启用 PDFium import 时注册
 - `pdf_unicode_font_roundtrip_visual`：Unicode / CJK 字体 PDF 渲染为 PNG 后的视觉 smoke
 
 读入方向可以单独跑，不必混进导出主线：
@@ -302,8 +348,22 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "^cli_usage$" --output-on-failure --tim
 
 ## PDF regression samples
 
-同时开启 PDFio 写出和 PDFium 读入后，可以直接跑首批 37 个 regression manifest 样本。
-`pdf_regression_*` 当前覆盖 38 个 CTest，其中包含 manifest 校验测试。
+同时开启 PDFio 写出和 PDFium 读入后，可以直接跑首批 42 个 regression manifest 样本。
+`pdf_regression_*` 当前覆盖 43 个 CTest，其中包含 manifest 校验测试。
+
+`featherdoc_pdf_regression_sample` 现在在 `FEATHERDOC_BUILD_PDF=ON`、
+`FEATHERDOC_BUILD_PDF_IMPORT=OFF` 的 export-only 构建里也可以直接生成样本 PDF；
+启用 PDFium import 后，会在同一个可执行程序里追加文字 / 图片回读校验。
+
+如果使用 `FEATHERDOC_PDFIUM_PROVIDER=source`，当前构建链会在缺少
+`tmp/depot_tools/python3_bin_reldir.txt` 时自动尝试 bootstrap `depot_tools`。
+Windows 下会先做一次 `chrome-infra-packages.appspot.com:443` 连通性预检；
+如果 CIPD 后端不可达，会直接快速失败并给出明确报错，而不是长时间卡在
+`update_depot_tools` / `cipd selfupdate`。
+
+如果本机已有预编译 PDFium，保留默认 `auto` 或改用
+`FEATHERDOC_PDFIUM_PROVIDER=prebuilt` 都可以；这样 regression / roundtrip 目标
+不会再依赖 `depot_tools` 的网络可达性。
 
 ```powershell
 cmake --build .bpdf-roundtrip-msvc --target featherdoc_pdf_regression_sample pdf_regression_manifest_tests
@@ -443,7 +503,7 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 - 可以做 Unicode / ToUnicode roundtrip 验证，并用 PDFium 解析页数和文字 span
 - 可以对 Unicode / CJK 字体 roundtrip 产物做 PNG 渲染级视觉 smoke
 - 可以跑 PDFio → PDFium 的端到端 smoke
-- 已有首批 37 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
+- 已有首批 41 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow、document invoice table，以及 run-level 和 style-level 两条链的 strikethrough 与 superscript/subscript 这几个更接近真实文档流或样式兼容性的生成型样本
 
 还不能算正式可用：
 

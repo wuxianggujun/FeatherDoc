@@ -1,7 +1,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
+#if defined(FEATHERDOC_PDF_UNICODE_FONT_IMPORT_TESTS)
 #include <featherdoc/pdf/pdf_parser.hpp>
+#endif
 #include <featherdoc/pdf/pdf_writer.hpp>
 
 #include <cstdlib>
@@ -70,6 +72,7 @@ auto utf8_from_u8(std::u8string_view text) -> std::string {
             std::istreambuf_iterator<char>()};
 }
 
+#if defined(FEATHERDOC_PDF_UNICODE_FONT_IMPORT_TESTS)
 [[nodiscard]] std::string collect_text(
     const featherdoc::pdf::PdfParsedDocument &document) {
     std::string text;
@@ -80,9 +83,11 @@ auto utf8_from_u8(std::u8string_view text) -> std::string {
     }
     return text;
 }
+#endif
 
 } // namespace
 
+#if defined(FEATHERDOC_PDF_UNICODE_FONT_IMPORT_TESTS)
 TEST_CASE("PDFio embeds Unicode CJK font and PDFium extracts text") {
     const auto font_path = find_cjk_font();
     if (font_path.empty()) {
@@ -198,6 +203,7 @@ TEST_CASE("PDFio subsets embedded Unicode CJK font data") {
     const auto extracted_text = collect_text(parse_result.document);
     CHECK_NE(extracted_text.find(expected_text), std::string::npos);
 }
+#endif
 
 TEST_CASE("PDFio reports a missing Unicode font path") {
     const auto missing_font_path =

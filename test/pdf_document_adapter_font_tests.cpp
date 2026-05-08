@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
+#include <algorithm>
 #include <featherdoc/pdf/pdf_document_adapter.hpp>
 #include <featherdoc/pdf/pdf_text_metrics.hpp>
 #if defined(FEATHERDOC_BUILD_PDF_IMPORT)
@@ -118,6 +119,37 @@ void write_binary_file(const std::filesystem::path &path,
     candidates.emplace_back("C:/Windows/Fonts/msyh.ttc");
     candidates.emplace_back("C:/Windows/Fonts/simhei.ttf");
     candidates.emplace_back("C:/Windows/Fonts/simsun.ttc");
+#endif
+
+    return candidates;
+}
+
+[[nodiscard]] std::vector<std::filesystem::path> candidate_arabic_fonts() {
+    std::vector<std::filesystem::path> candidates;
+
+    if (const auto configured = environment_value("FEATHERDOC_TEST_ARABIC_FONT");
+        !configured.empty()) {
+        candidates.emplace_back(configured);
+    }
+
+#if defined(_WIN32)
+    candidates.emplace_back("C:/Windows/Fonts/NotoSansArabic-Regular.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/NotoNaskhArabic-Regular.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/NotoKufiArabic-Regular.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/Candarab.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/GARABD.TTF");
+#elif defined(__APPLE__)
+    candidates.emplace_back(
+        "/System/Library/Fonts/Supplemental/Geeza Pro.ttc");
+    candidates.emplace_back("/System/Library/Fonts/Geeza Pro.ttc");
+    candidates.emplace_back(
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf");
+#else
+    candidates.emplace_back(
+        "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf");
+    candidates.emplace_back(
+        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf");
+    candidates.emplace_back("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
 #endif
 
     return candidates;
@@ -249,7 +281,217 @@ TEST_CASE("document PDF adapter resolves run-level CJK font mappings") {
     CHECK_GT(cjk_run.baseline_origin.x_points,
              latin_run.baseline_origin.x_points + 24.0);
     CHECK_EQ(cjk_run.baseline_origin.y_points,
-             doctest::Approx(latin_run.baseline_origin.y_points));
+              doctest::Approx(latin_run.baseline_origin.y_points));
+}
+
+TEST_CASE("document PDF adapter resolves RTL paragraph and Arabic font mappings") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    const auto arabic_font = first_existing_path(candidate_arabic_fonts());
+    if (latin_font.empty() || arabic_font.empty()) {
+        MESSAGE("skipping adapter RTL font mapping test: configure Latin/Arabic "
+                "fonts");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Latin"));
+
+    featherdoc::paragraph_style_definition rtl_paragraph{};
+    rtl_paragraph.name = "Unit RTL Paragraph";
+    rtl_paragraph.paragraph_bidi = true;
+    CHECK(document.ensure_paragraph_style("UnitRtlParagraph", rtl_paragraph));
+
+    featherdoc::character_style_definition arabic_style{};
+    arabic_style.name = "Unit Arabic";
+    arabic_style.run_font_family = std::string{"Unit Arabic"};
+    arabic_style.run_bidi_language = std::string{"ar-SA"};
+    arabic_style.run_rtl = true;
+    CHECK(document.ensure_character_style("UnitArabic", arabic_style));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(document.set_paragraph_style(paragraph, "UnitRtlParagraph"));
+    CHECK(paragraph.set_alignment(featherdoc::paragraph_alignment::right));
+    REQUIRE(paragraph.add_run("Reference ").has_next());
+    auto arabic_run = paragraph.add_run(utf8_from_u8(u8"مرحبا 123"));
+    REQUIRE(arabic_run.has_next());
+    CHECK(document.set_run_style(arabic_run, "UnitArabic"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin", latin_font},
+        featherdoc::pdf::PdfFontMapping{"Unit Arabic", arabic_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_GE(layout.pages.front().text_runs.size(), 2U);
+    CHECK_EQ(collect_layout_text(layout), "Reference " +
+                                          utf8_from_u8(u8"مرحبا 123"));
+
+    const auto &latin_run = layout.pages.front().text_runs[0];
+    CHECK_EQ(latin_run.text, "Reference ");
+    CHECK_EQ(latin_run.font_family, "Unit Latin");
+    CHECK_EQ(latin_run.font_file_path, latin_font);
+    CHECK_FALSE(latin_run.unicode);
+
+    const auto &arabic_run_layout = layout.pages.front().text_runs[1];
+    CHECK_EQ(arabic_run_layout.text, utf8_from_u8(u8"مرحبا 123"));
+    CHECK_EQ(arabic_run_layout.font_family, "Unit Arabic");
+    CHECK_EQ(arabic_run_layout.font_file_path, arabic_font);
+    CHECK(arabic_run_layout.unicode);
+}
+
+TEST_CASE("document PDF adapter visually reorders mixed RTL runs") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    const auto arabic_font = first_existing_path(candidate_arabic_fonts());
+    if (latin_font.empty() || arabic_font.empty()) {
+        MESSAGE("skipping adapter RTL visual order test: configure Latin/Arabic "
+                "fonts");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Latin"));
+
+    featherdoc::paragraph_style_definition rtl_paragraph{};
+    rtl_paragraph.name = "Unit RTL Paragraph";
+    rtl_paragraph.paragraph_bidi = true;
+    CHECK(document.ensure_paragraph_style("UnitRtlParagraph", rtl_paragraph));
+
+    featherdoc::character_style_definition arabic_style{};
+    arabic_style.name = "Unit Arabic";
+    arabic_style.run_font_family = std::string{"Unit Arabic"};
+    arabic_style.run_bidi_language = std::string{"ar-SA"};
+    arabic_style.run_rtl = true;
+    CHECK(document.ensure_character_style("UnitArabic", arabic_style));
+
+    const auto prefix_text = utf8_from_u8(u8"النسخة");
+    const auto suffix_text = utf8_from_u8(u8"جاهزة للمراجعة");
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(document.set_paragraph_style(paragraph, "UnitRtlParagraph"));
+    CHECK(paragraph.set_alignment(featherdoc::paragraph_alignment::right));
+    REQUIRE(paragraph.add_run("Mixed order: ").has_next());
+
+    auto prefix_run = paragraph.add_run(prefix_text);
+    REQUIRE(prefix_run.has_next());
+    CHECK(document.set_run_style(prefix_run, "UnitArabic"));
+
+    REQUIRE(paragraph.add_run(" FE-2048 ").has_next());
+
+    auto suffix_run = paragraph.add_run(suffix_text);
+    REQUIRE(suffix_run.has_next());
+    CHECK(document.set_run_style(suffix_run, "UnitArabic"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin", latin_font},
+        featherdoc::pdf::PdfFontMapping{"Unit Arabic", arabic_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 4U);
+    CHECK_EQ(collect_layout_text(layout),
+             "Mixed order: " + prefix_text + " FE-2048 " + suffix_text);
+
+    const auto &label_run = layout.pages.front().text_runs[0];
+    const auto &prefix_layout = layout.pages.front().text_runs[1];
+    const auto &identifier_run = layout.pages.front().text_runs[2];
+    const auto &suffix_layout = layout.pages.front().text_runs[3];
+
+    CHECK_EQ(label_run.text, "Mixed order: ");
+    CHECK_EQ(prefix_layout.text, prefix_text);
+    CHECK_EQ(identifier_run.text, " FE-2048 ");
+    CHECK_EQ(suffix_layout.text, suffix_text);
+
+    CHECK_GT(suffix_layout.baseline_origin.x_points,
+             label_run.baseline_origin.x_points + 8.0);
+    CHECK_GT(identifier_run.baseline_origin.x_points,
+             suffix_layout.baseline_origin.x_points + 8.0);
+    CHECK_GT(prefix_layout.baseline_origin.x_points,
+             identifier_run.baseline_origin.x_points + 8.0);
+    CHECK_EQ(prefix_layout.font_family, "Unit Arabic");
+    CHECK_EQ(suffix_layout.font_family, "Unit Arabic");
+    CHECK_EQ(prefix_layout.font_file_path, arabic_font);
+    CHECK_EQ(suffix_layout.font_file_path, arabic_font);
+    CHECK(prefix_layout.unicode);
+    CHECK(suffix_layout.unicode);
+}
+
+TEST_CASE("document PDF adapter visually reorders mixed RTL header text") {
+    const auto arabic_font = first_existing_path(candidate_arabic_fonts());
+    if (arabic_font.empty()) {
+        MESSAGE("skipping adapter RTL header test: configure Arabic font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Arabic"));
+
+    auto &header = document.ensure_section_header_paragraphs(0U);
+    REQUIRE(header.has_next());
+    CHECK(header.set_bidi(true));
+    CHECK(header.set_text(
+        utf8_from_u8(u8"Header mixed: النسخة FE-2048 جاهزة")));
+
+    append_body_paragraph(document, "Body anchor");
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Arabic", arabic_font},
+    };
+    options.render_headers_and_footers = true;
+    options.use_system_font_fallbacks = false;
+    options.header_footer_font_size_points = 9.0;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+
+    const featherdoc::pdf::PdfTextRun *label_run = nullptr;
+    const featherdoc::pdf::PdfTextRun *prefix_run = nullptr;
+    const featherdoc::pdf::PdfTextRun *identifier_run = nullptr;
+    const featherdoc::pdf::PdfTextRun *suffix_run = nullptr;
+    for (const auto &text_run : layout.pages.front().text_runs) {
+        if (text_run.text == "Header mixed: ") {
+            label_run = &text_run;
+        } else if (text_run.text == utf8_from_u8(u8"النسخة")) {
+            prefix_run = &text_run;
+        } else if (text_run.text == " FE-2048 ") {
+            identifier_run = &text_run;
+        } else if (text_run.text == utf8_from_u8(u8"جاهزة")) {
+            suffix_run = &text_run;
+        }
+    }
+
+    REQUIRE(label_run != nullptr);
+    REQUIRE(prefix_run != nullptr);
+    REQUIRE(identifier_run != nullptr);
+    REQUIRE(suffix_run != nullptr);
+
+    CHECK_GT(suffix_run->baseline_origin.x_points,
+             label_run->baseline_origin.x_points + 8.0);
+    CHECK_GT(identifier_run->baseline_origin.x_points,
+             suffix_run->baseline_origin.x_points + 8.0);
+    CHECK_GT(prefix_run->baseline_origin.x_points,
+             identifier_run->baseline_origin.x_points + 8.0);
+    CHECK_EQ(prefix_run->font_file_path, arabic_font);
+    CHECK_EQ(suffix_run->font_file_path, arabic_font);
+    CHECK(prefix_run->unicode);
+    CHECK(suffix_run->unicode);
 }
 
 TEST_CASE(
@@ -383,6 +625,65 @@ TEST_CASE("document PDF adapter maps bold italic underline run styling") {
     CHECK_FALSE(styled_run.unicode);
 }
 
+TEST_CASE("document PDF adapter maps superscript and subscript run styling") {
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Helvetica"));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    REQUIRE(paragraph.add_run("E = mc").has_next());
+    REQUIRE(
+        paragraph.add_run("2", featherdoc::formatting_flag::superscript)
+            .has_next());
+    REQUIRE(paragraph.add_run(" demonstrates exponents").has_next());
+
+    paragraph = paragraph.insert_paragraph_after("");
+    REQUIRE(paragraph.has_next());
+    REQUIRE(paragraph.add_run("H").has_next());
+    REQUIRE(paragraph.add_run("2", featherdoc::formatting_flag::subscript)
+                .has_next());
+    REQUIRE(paragraph.add_run("O demonstrates chemistry").has_next());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+
+    const featherdoc::pdf::PdfTextRun *base_run = nullptr;
+    const featherdoc::pdf::PdfTextRun *superscript_run = nullptr;
+    const featherdoc::pdf::PdfTextRun *subscript_run = nullptr;
+    for (const auto &page : layout.pages) {
+        for (const auto &text_run : page.text_runs) {
+            if (text_run.text == "E = mc") {
+                base_run = &text_run;
+            } else if (text_run.text == "2" &&
+                       text_run.vertical_shift_points > 0.0) {
+                superscript_run = &text_run;
+            } else if (text_run.text == "2" &&
+                       text_run.vertical_shift_points < 0.0) {
+                subscript_run = &text_run;
+            }
+        }
+    }
+
+    REQUIRE(base_run != nullptr);
+    REQUIRE(superscript_run != nullptr);
+    REQUIRE(subscript_run != nullptr);
+    CHECK(superscript_run->font_size_points < base_run->font_size_points);
+    CHECK(subscript_run->font_size_points < base_run->font_size_points);
+    CHECK_GT(superscript_run->vertical_shift_points, 0.0);
+    CHECK_LT(subscript_run->vertical_shift_points, 0.0);
+    CHECK_GT(superscript_run->baseline_origin.y_points,
+             base_run->baseline_origin.y_points);
+    CHECK_LT(subscript_run->baseline_origin.y_points,
+             base_run->baseline_origin.y_points);
+}
+
 TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     const auto regular_font =
         make_temp_font_file("featherdoc-adapter-style-regular.ttf");
@@ -398,6 +699,7 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     style_definition.run_bold = true;
     style_definition.run_italic = true;
     style_definition.run_underline = true;
+    style_definition.run_superscript = true;
     style_definition.run_font_size_points = 15.5;
     style_definition.run_font_family = std::string{"Unit Styled"};
     REQUIRE(document.ensure_character_style("PdfStyledCharacter",
@@ -420,6 +722,8 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     CHECK_EQ(resolved->run_bold.value.value_or(false), true);
     CHECK_EQ(resolved->run_italic.value.value_or(false), true);
     CHECK_EQ(resolved->run_underline.value.value_or(false), true);
+    CHECK_EQ(resolved->run_superscript.value.value_or(false), true);
+    CHECK_EQ(resolved->run_subscript.value.value_or(true), false);
     REQUIRE(resolved->run_font_size_points.value.has_value());
     CHECK_EQ(*resolved->run_font_size_points.value, doctest::Approx(15.5));
 
@@ -441,13 +745,136 @@ TEST_CASE("document PDF adapter resolves inherited run style formatting") {
     CHECK_EQ(styled_run.text, "Inherited PDF");
     CHECK_EQ(styled_run.font_family, "Unit Styled");
     CHECK_EQ(styled_run.font_file_path, bold_italic_font);
-    CHECK_EQ(styled_run.font_size_points, doctest::Approx(15.5));
+    CHECK_LT(styled_run.font_size_points, 15.5);
     CHECK_EQ(styled_run.fill_color.red, doctest::Approx(0x33 / 255.0));
     CHECK_EQ(styled_run.fill_color.green, doctest::Approx(0x66 / 255.0));
     CHECK_EQ(styled_run.fill_color.blue, doctest::Approx(0x99 / 255.0));
     CHECK(styled_run.bold);
     CHECK(styled_run.italic);
     CHECK(styled_run.underline);
+    CHECK_GT(styled_run.vertical_shift_points, 0.0);
+}
+
+TEST_CASE("document PDF adapter lets derived run styles reset superscript") {
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto base_style = featherdoc::character_style_definition{};
+    base_style.name = "PDF Superscript Base";
+    base_style.run_superscript = true;
+    base_style.run_font_size_points = 16.0;
+    REQUIRE(document.ensure_character_style("PdfSuperscriptBase", base_style));
+
+    auto derived_style = featherdoc::character_style_definition{};
+    derived_style.name = "PDF Superscript Reset";
+    derived_style.based_on = std::string{"PdfSuperscriptBase"};
+    derived_style.run_superscript = false;
+    REQUIRE(document.ensure_character_style("PdfSuperscriptReset",
+                                            derived_style));
+
+    const auto resolved =
+        document.resolve_style_properties("PdfSuperscriptReset");
+    REQUIRE(resolved.has_value());
+    CHECK_EQ(resolved->run_superscript.value.value_or(true), false);
+    CHECK_EQ(resolved->run_subscript.value.value_or(true), false);
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto superscript_run = paragraph.add_run("base");
+    REQUIRE(superscript_run.has_next());
+    REQUIRE(document.set_run_style(superscript_run, "PdfSuperscriptBase"));
+    REQUIRE(paragraph.add_run(" ").has_next());
+    auto baseline_run = paragraph.add_run("reset");
+    REQUIRE(baseline_run.has_next());
+    REQUIRE(document.set_run_style(baseline_run, "PdfSuperscriptReset"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+
+    const featherdoc::pdf::PdfTextRun *base_text_run = nullptr;
+    const featherdoc::pdf::PdfTextRun *reset_text_run = nullptr;
+    for (const auto &text_run : layout.pages.front().text_runs) {
+        if (text_run.text == "base") {
+            base_text_run = &text_run;
+        } else if (text_run.text == "reset") {
+            reset_text_run = &text_run;
+        }
+    }
+
+    REQUIRE(base_text_run != nullptr);
+    REQUIRE(reset_text_run != nullptr);
+    CHECK_GT(base_text_run->vertical_shift_points, 0.0);
+    CHECK_LT(base_text_run->font_size_points, reset_text_run->font_size_points);
+    CHECK_EQ(reset_text_run->font_size_points, doctest::Approx(16.0));
+    CHECK_EQ(reset_text_run->vertical_shift_points, doctest::Approx(0.0));
+}
+
+TEST_CASE("document PDF adapter preserves run strikethrough formatting") {
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run("Strikethrough text",
+                                 featherdoc::formatting_flag::strikethrough);
+    REQUIRE(run.has_next());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "Strikethrough text");
+    CHECK(text_run.strikethrough);
+    CHECK_FALSE(text_run.underline);
+}
+
+TEST_CASE(
+    "document PDF adapter resolves inherited strikethrough style formatting") {
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto style_definition = featherdoc::character_style_definition{};
+    style_definition.name = "PDF Strike Character";
+    style_definition.run_strikethrough = true;
+    REQUIRE(document.ensure_character_style("PdfStrikeCharacter",
+                                            style_definition));
+
+    const auto resolved = document.resolve_style_properties("PdfStrikeCharacter");
+    REQUIRE(resolved.has_value());
+    CHECK_EQ(resolved->run_strikethrough.value.value_or(false), true);
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run("Styled strikethrough text");
+    REQUIRE(run.has_next());
+    REQUIRE(document.set_run_style(run, "PdfStrikeCharacter"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "Styled strikethrough text");
+    CHECK(text_run.strikethrough);
 }
 
 TEST_CASE(
@@ -1500,6 +1927,167 @@ TEST_CASE("document PDF adapter renders even page section header and footer") {
 #endif
 }
 
+TEST_CASE("document PDF adapter expands first and even placeholders across "
+          "sections") {
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto title = document.paragraphs();
+    REQUIRE(title.has_next());
+    CHECK(title.set_text("Sectioned report sample"));
+
+    auto append_section_body = [&](std::string_view section_name,
+                                   std::string_view section_focus) {
+        for (auto index = 1U; index <= 16U; ++index) {
+            const auto paragraph_text =
+                std::string{section_name} + " body paragraph " +
+                std::to_string(index) + " keeps " +
+                std::string{section_focus} +
+                " flowing so the regression can observe header swaps, footer "
+                "placement, and placeholder expansion across page breaks.";
+            auto paragraph = append_body_paragraph(document, paragraph_text);
+            REQUIRE(paragraph.has_next());
+        }
+    };
+
+    append_section_body("Portrait", "the first section");
+
+    auto section0_header = document.ensure_section_header_paragraphs(0U);
+    auto section0_footer = document.ensure_section_footer_paragraphs(0U);
+    auto section0_first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto section0_first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto section0_even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto section0_even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    REQUIRE(section0_header.has_next());
+    REQUIRE(section0_footer.has_next());
+    REQUIRE(section0_first_header.has_next());
+    REQUIRE(section0_first_footer.has_next());
+    REQUIRE(section0_even_header.has_next());
+    REQUIRE(section0_even_footer.has_next());
+    CHECK(section0_header.set_text(
+        "Portrait default header page {{page}} of {{total_pages}}"));
+    CHECK(section0_footer.set_text(
+        "Portrait default footer section {{section_page}} of "
+        "{{section_total_pages}}"));
+    CHECK(section0_first_header.set_text(
+        "Portrait first-page header page {{page}} of {{total_pages}}"));
+    CHECK(section0_first_footer.set_text(
+        "Portrait first-page footer section {{section_page}} of "
+        "{{section_total_pages}}"));
+    CHECK(section0_even_header.set_text(
+        "Portrait even header page {{page}} of {{total_pages}}"));
+    CHECK(section0_even_footer.set_text(
+        "Portrait even footer section {{section_page}} of "
+        "{{section_total_pages}}"));
+
+    featherdoc::section_page_setup portrait_setup{};
+    portrait_setup.orientation = featherdoc::page_orientation::portrait;
+    portrait_setup.width_twips = 12240U;
+    portrait_setup.height_twips = 15840U;
+    portrait_setup.margins.top_twips = 1440U;
+    portrait_setup.margins.bottom_twips = 1440U;
+    portrait_setup.margins.left_twips = 1440U;
+    portrait_setup.margins.right_twips = 1440U;
+    portrait_setup.margins.header_twips = 720U;
+    portrait_setup.margins.footer_twips = 720U;
+    REQUIRE(document.set_section_page_setup(0U, portrait_setup));
+
+    CHECK(document.append_section(false));
+    REQUIRE_EQ(document.section_count(), 2U);
+
+    auto appendix_header = document.ensure_section_header_paragraphs(1U);
+    auto appendix_footer = document.ensure_section_footer_paragraphs(1U);
+    auto appendix_even_header = document.ensure_section_header_paragraphs(
+        1U, featherdoc::section_reference_kind::even_page);
+    auto appendix_even_footer = document.ensure_section_footer_paragraphs(
+        1U, featherdoc::section_reference_kind::even_page);
+    REQUIRE(appendix_header.has_next());
+    REQUIRE(appendix_footer.has_next());
+    REQUIRE(appendix_even_header.has_next());
+    REQUIRE(appendix_even_footer.has_next());
+    CHECK(appendix_header.set_text(
+        "Appendix odd header page {{page}} of {{total_pages}}"));
+    CHECK(appendix_footer.set_text(
+        "Appendix odd footer section {{section_page}} of "
+        "{{section_total_pages}}"));
+    CHECK(appendix_even_header.set_text(
+        "Appendix even header page {{page}} of {{total_pages}}"));
+    CHECK(appendix_even_footer.set_text(
+        "Appendix even footer section {{section_page}} of "
+        "{{section_total_pages}}"));
+
+    featherdoc::section_page_setup landscape_setup{};
+    landscape_setup.orientation = featherdoc::page_orientation::landscape;
+    landscape_setup.width_twips = 15840U;
+    landscape_setup.height_twips = 12240U;
+    landscape_setup.margins.top_twips = 1080U;
+    landscape_setup.margins.bottom_twips = 1080U;
+    landscape_setup.margins.left_twips = 1440U;
+    landscape_setup.margins.right_twips = 1440U;
+    landscape_setup.margins.header_twips = 540U;
+    landscape_setup.margins.footer_twips = 540U;
+    REQUIRE(document.set_section_page_setup(1U, landscape_setup));
+
+    append_section_body("Appendix", "the second section");
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 9.0;
+    options.line_height_points = 18.0;
+    options.paragraph_spacing_after_points = 5.0;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 4U);
+    CHECK_EQ(layout.pages[0].section_index, 0U);
+    CHECK_EQ(layout.pages[0].section_page_index, 0U);
+    CHECK_EQ(layout.pages[1].section_index, 0U);
+    CHECK_EQ(layout.pages[1].section_page_index, 1U);
+    CHECK_EQ(layout.pages[2].section_index, 1U);
+    CHECK_EQ(layout.pages[2].section_page_index, 0U);
+    CHECK_EQ(layout.pages[3].section_index, 1U);
+    CHECK_EQ(layout.pages[3].section_page_index, 1U);
+
+    const auto page_text = [&](std::size_t page_index) {
+        return collect_layout_text(
+            featherdoc::pdf::PdfDocumentLayout{{}, {layout.pages[page_index]}});
+    };
+    const auto first_page_text = page_text(0U);
+    const auto second_page_text = page_text(1U);
+    const auto third_page_text = page_text(2U);
+    const auto fourth_page_text = page_text(3U);
+
+    CHECK_NE(first_page_text.find("Portrait first-page header page 1 of 4"),
+             std::string::npos);
+    CHECK_NE(first_page_text.find("Portrait first-page footer section 1 of 2"),
+             std::string::npos);
+    CHECK_EQ(first_page_text.find("Portrait default header"),
+             std::string::npos);
+    CHECK_NE(second_page_text.find("Portrait even header page 2 of 4"),
+             std::string::npos);
+    CHECK_NE(second_page_text.find("Portrait even footer section 2 of 2"),
+             std::string::npos);
+    CHECK_EQ(second_page_text.find("Portrait default header"),
+             std::string::npos);
+    CHECK_NE(third_page_text.find("Appendix odd header page 3 of 4"),
+             std::string::npos);
+    CHECK_NE(third_page_text.find("Appendix odd footer section 1 of 2"),
+             std::string::npos);
+    CHECK_NE(fourth_page_text.find("Appendix even header page 4 of 4"),
+             std::string::npos);
+    CHECK_NE(fourth_page_text.find("Appendix even footer section 2 of 2"),
+             std::string::npos);
+}
+
 TEST_CASE("document PDF adapter resolves linked section headers and footers") {
     const auto output_path = std::filesystem::current_path() /
                              "featherdoc-adapter-linked-section-header-footer."
@@ -1675,7 +2263,9 @@ TEST_CASE("document PDF adapter header and footer output round-trips through "
 }
 #endif
 
-TEST_CASE("PDF writer accepts standard font style variants and underlines") {
+TEST_CASE(
+    "PDF writer accepts standard font style variants, underlines, and "
+    "strikethroughs") {
     const auto output_path =
         std::filesystem::current_path() / "featherdoc-styled-base-fonts.pdf";
 
@@ -1709,6 +2299,20 @@ TEST_CASE("PDF writer accepts standard font style variants and underlines") {
         false,
         false,
     });
+    auto strikethrough_run = featherdoc::pdf::PdfTextRun{
+        featherdoc::pdf::PdfPoint{72.0, 660.0},
+        "Strikethrough PDF text",
+        "Helvetica",
+        {},
+        14.0,
+        featherdoc::pdf::PdfRgbColor{0.25, 0.1, 0.1},
+        false,
+        false,
+        false,
+        false,
+    };
+    strikethrough_run.strikethrough = true;
+    page.text_runs.push_back(std::move(strikethrough_run));
     layout.pages.push_back(std::move(page));
 
     featherdoc::pdf::PdfioGenerator generator;
@@ -1725,6 +2329,7 @@ TEST_CASE("PDF writer accepts standard font style variants and underlines") {
     const auto extracted_text = collect_text(parse_result.document);
     CHECK_NE(extracted_text.find("Underlined PDF text"), std::string::npos);
     CHECK_NE(extracted_text.find("Bold italic PDF text"), std::string::npos);
+    CHECK_NE(extracted_text.find("Strikethrough PDF text"), std::string::npos);
 #endif
 }
 
@@ -3379,6 +3984,75 @@ TEST_CASE("document PDF adapter maps table cell text direction") {
     CHECK_NE(extracted_text.find("Vert"), std::string::npos);
     CHECK_NE(extracted_text.find("ical"), std::string::npos);
 #endif
+}
+
+TEST_CASE("document PDF adapter visually reorders mixed RTL table cell text") {
+    const auto arabic_font = first_existing_path(candidate_arabic_fonts());
+    if (arabic_font.empty()) {
+        MESSAGE("skipping adapter RTL table test: configure Arabic font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Arabic"));
+
+    auto table = document.append_table(1U, 1U);
+    REQUIRE(table.has_next());
+    CHECK(table.set_width_twips(7200U));
+    CHECK(table.set_column_width_twips(0U, 7200U));
+
+    auto cell = table.find_cell(0U, 0U);
+    REQUIRE(cell.has_value());
+    auto paragraph = cell->paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_bidi(true));
+    REQUIRE(paragraph.add_run(
+                utf8_from_u8(u8"Cell mixed: النسخة FE-2048 جاهزة"))
+                .has_next());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Arabic", arabic_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+
+    const featherdoc::pdf::PdfTextRun *label_run = nullptr;
+    const featherdoc::pdf::PdfTextRun *prefix_run = nullptr;
+    const featherdoc::pdf::PdfTextRun *identifier_run = nullptr;
+    const featherdoc::pdf::PdfTextRun *suffix_run = nullptr;
+    for (const auto &text_run : layout.pages.front().text_runs) {
+        if (text_run.text == "Cell mixed: ") {
+            label_run = &text_run;
+        } else if (text_run.text == utf8_from_u8(u8"النسخة")) {
+            prefix_run = &text_run;
+        } else if (text_run.text == " FE-2048 ") {
+            identifier_run = &text_run;
+        } else if (text_run.text == utf8_from_u8(u8"جاهزة")) {
+            suffix_run = &text_run;
+        }
+    }
+
+    REQUIRE(label_run != nullptr);
+    REQUIRE(prefix_run != nullptr);
+    REQUIRE(identifier_run != nullptr);
+    REQUIRE(suffix_run != nullptr);
+
+    CHECK_GT(suffix_run->baseline_origin.x_points,
+             label_run->baseline_origin.x_points + 8.0);
+    CHECK_GT(identifier_run->baseline_origin.x_points,
+             suffix_run->baseline_origin.x_points + 8.0);
+    CHECK_GT(prefix_run->baseline_origin.x_points,
+             identifier_run->baseline_origin.x_points + 8.0);
+    CHECK_EQ(prefix_run->font_file_path, arabic_font);
+    CHECK_EQ(suffix_run->font_file_path, arabic_font);
+    CHECK(prefix_run->unicode);
+    CHECK(suffix_run->unicode);
 }
 
 #if defined(FEATHERDOC_BUILD_PDF_IMPORT)

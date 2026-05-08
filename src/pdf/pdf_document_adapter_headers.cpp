@@ -11,21 +11,6 @@
 namespace featherdoc::pdf::detail {
 namespace {
 
-[[nodiscard]] std::string
-collect_paragraph_text(featherdoc::Paragraph paragraph) {
-    std::string text;
-    for (; paragraph.has_next(); paragraph.next()) {
-        for (auto run = paragraph.runs(); run.has_next(); run.next()) {
-            text += run.get_text();
-        }
-        text += '\n';
-    }
-    if (!text.empty() && text.back() == '\n') {
-        text.pop_back();
-    }
-    return text;
-}
-
 [[nodiscard]] PdfDocumentAdapterOptions
 header_footer_options(const PdfDocumentAdapterOptions &options) {
     auto header_footer_options = options;
@@ -78,14 +63,47 @@ void replace_all(std::string &text, std::string_view needle,
     return line;
 }
 
-[[nodiscard]] std::vector<LineState> wrap_header_footer_text(
-    std::string_view text, const PdfDocumentAdapterOptions &options,
+[[nodiscard]] double paragraph_alignment_offset_points(
+    featherdoc::paragraph_alignment alignment, double line_width_points,
+    double max_width_points) noexcept {
+    const auto extra_width = std::max(0.0, max_width_points - line_width_points);
+    if (alignment == featherdoc::paragraph_alignment::center) {
+        return extra_width / 2.0;
+    }
+    if (alignment == featherdoc::paragraph_alignment::right) {
+        return extra_width;
+    }
+    return 0.0;
+}
+
+[[nodiscard]] std::vector<HeaderFooterLineLayout> wrap_header_footer_paragraphs(
+    featherdoc::Paragraph paragraph, const PdfDocumentAdapterOptions &options,
     double max_width_points, const HeaderFooterRenderContext &context) {
-    if (text.empty() || !context.wrap_text) {
+    if (!paragraph.has_next() || !context.wrap_paragraph) {
         return {};
     }
-    return context.wrap_text(text, header_footer_options(options),
-                             max_width_points);
+
+    std::vector<HeaderFooterLineLayout> lines;
+    for (; paragraph.has_next(); paragraph.next()) {
+        auto paragraph_lines = context.wrap_paragraph(
+            paragraph, header_footer_options(options), max_width_points);
+        if (paragraph_lines.empty()) {
+            paragraph_lines.push_back(LineState{});
+        }
+        const auto alignment =
+            paragraph.alignment().value_or(featherdoc::paragraph_alignment::left);
+        for (auto &line : paragraph_lines) {
+            const auto line_width_points = line.width_points;
+            lines.push_back(HeaderFooterLineLayout{
+                std::move(line),
+                options.margin_left_points +
+                    paragraph_alignment_offset_points(
+                        alignment, line_width_points,
+                        max_width_points),
+            });
+        }
+    }
+    return lines;
 }
 
 [[nodiscard]] HeaderFooterPageLayout build_header_footer_page_layout(
@@ -100,38 +118,39 @@ void replace_all(std::string &text, std::string_view needle,
     if (header_section_index.has_value()) {
         auto header = document.section_header_paragraphs(*header_section_index,
                                                          reference_kind);
-        layout.header_lines = wrap_header_footer_text(
-            collect_paragraph_text(header), options, max_width_points, context);
+        layout.header_lines = wrap_header_footer_paragraphs(
+            header, options, max_width_points, context);
     }
 
     if (footer_section_index.has_value()) {
         auto footer = document.section_footer_paragraphs(*footer_section_index,
                                                          reference_kind);
-        layout.footer_lines = wrap_header_footer_text(
-            collect_paragraph_text(footer), options, max_width_points, context);
+        layout.footer_lines = wrap_header_footer_paragraphs(
+            footer, options, max_width_points, context);
     }
 
     return layout;
 }
 
 void emit_header_footer_lines(PdfPageLayout &page,
-                              const std::vector<LineState> &lines,
+                              const std::vector<HeaderFooterLineLayout> &lines,
                               double start_baseline_y, double step_points,
                               const PdfDocumentAdapterOptions &options,
                               std::size_t document_page_index,
                               std::size_t document_page_count,
                               std::size_t section_page_count) {
     auto baseline_y = start_baseline_y;
-    for (const auto &line : lines) {
-        if (!line.empty()) {
+    for (const auto &line_layout : lines) {
+        if (!line_layout.line.empty()) {
             if (options.expand_header_footer_page_placeholders) {
                 emit_line_at(page,
                              expand_line_page_placeholders(
-                                 line, document_page_index, document_page_count,
+                                 line_layout.line, document_page_index,
+                                 document_page_count,
                                  page.section_page_index, section_page_count),
-                             options.margin_left_points, baseline_y);
+                             line_layout.start_x_points, baseline_y);
             } else {
-                emit_line_at(page, line, options.margin_left_points,
+                emit_line_at(page, line_layout.line, line_layout.start_x_points,
                              baseline_y);
             }
         }
