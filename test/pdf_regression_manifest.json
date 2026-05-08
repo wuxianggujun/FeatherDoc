@@ -645,6 +645,32 @@
       "expect_styled_text": true,
       "expect_visual_baseline": true,
       "visual_expected_pages": 3
+    },
+    {
+      "id": "document-table-header-footer-variants-text",
+      "kind": "document_table_header_footer_variants_text",
+      "output_file": "featherdoc-pdf-regression-document-table-header-footer-variants-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Document table header footer",
+        "variants sample",
+        "Paged table keeps header footer",
+        "variants visible across table",
+        "First variant HF-101 page 1",
+        "Even variant HF-202 page 2",
+        "Variant header HF-303 page 3",
+        "First footer 1 / 3",
+        "Even footer 2 / 3",
+        "Default footer 3 / 3",
+        "Item",
+        "Status",
+        "FE-501",
+        "FE-504",
+        "FE-507",
+        "Release ready"
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 3
     }
   ]
 }
