@@ -738,6 +738,25 @@
       ],
       "expect_visual_baseline": true,
       "visual_expected_pages": 3
+    },
+    {
+      "id": "document-table-merged-cells-text",
+      "kind": "document_table_merged_cells_text",
+      "output_file": "featherdoc-pdf-regression-document-table-merged-cells-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document table merged cells sample",
+        "Merged table cells should keep borders",
+        "Merged cells header M-101 page 1",
+        "Merged cells footer 1 / 1",
+        "Program summary",
+        "Owner block",
+        "FE-901",
+        "FE-902",
+        "Tail",
+        "Merged footer row stays readable"
+      ],
+      "expect_visual_baseline": true
     }
   ]
 }
