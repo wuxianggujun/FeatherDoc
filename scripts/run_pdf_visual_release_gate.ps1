@@ -316,6 +316,12 @@ $samples = @(
         expected_pages = 0
     },
     [ordered]@{
+        name = "document-font-matrix-text"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-font-matrix-text.pdf"
+        output = Join-Path $baselineDir "document-font-matrix-text"
+        expected_pages = 1
+    },
+    [ordered]@{
         name = "cli-font-map-source"
         pdf = Join-Path $resolvedBuildDir "test\pdf_cli_export\font-map-source.pdf"
         output = Join-Path $baselineDir "cli-font-map-source"

@@ -544,6 +544,29 @@
       "expect_styled_text": true
     },
     {
+      "id": "document-font-matrix-text",
+      "kind": "document_font_matrix_text",
+      "output_file": "featherdoc-pdf-regression-document-font-matrix-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document font matrix sample",
+        "Body matrix:",
+        "中文矩阵",
+        "مرحبا بالمراجعة",
+        "Identifier matrix:",
+        "合同检查",
+        "Header matrix",
+        "页眉矩阵",
+        "Footer matrix",
+        "页脚矩阵",
+        "Cell",
+        "表格矩阵"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
       "id": "header-footer-rtl-text",
       "kind": "header_footer_rtl_text",
       "output_file": "featherdoc-pdf-regression-header-footer-rtl-text.pdf",
