@@ -693,6 +693,29 @@
       ],
       "expect_visual_baseline": true,
       "visual_expected_pages": 3
+    },
+    {
+      "id": "document-table-cjk-wrap-flow-text",
+      "kind": "document_table_cjk_wrap_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-table-cjk-wrap-flow-text.pdf",
+      "expected_pages": 2,
+      "expected_text": [
+        "文档表格换行流程样本",
+        "长文本单元格需要稳定换行",
+        "CJK 首页 C-101 第 1 页",
+        "CJK 偶数页 C-202 第 2 页",
+        "CJK 首页页脚 1 / 2",
+        "CJK 偶数页页脚 2 / 2",
+        "FE-701",
+        "FE-703",
+        "FE-704",
+        "FE-705",
+        "发布前证据需要整行移动"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 2
     }
   ]
 }

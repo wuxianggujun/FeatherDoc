@@ -3158,6 +3158,150 @@ build_document_table_header_footer_variants_text_sample() {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_table_cjk_wrap_flow_text_sample(
+    const std::filesystem::path &cjk_font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family("Document Wrap CJK")) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text(utf8_from_u8(u8"文档表格换行流程样本")) ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"长文本单元格需要稳定换行，同时保持页眉、重复表头和页脚占位符都可见。"))) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text(
+            utf8_from_u8(u8"CJK 页眉 C-303 第 {{page}} 页")) ||
+        !default_footer.has_next() ||
+        !default_footer.set_text(
+            utf8_from_u8(u8"CJK 页脚 {{page}} / {{total_pages}}")) ||
+        !first_header.has_next() ||
+        !first_header.set_text(
+            utf8_from_u8(u8"CJK 首页 C-101 第 {{page}} 页")) ||
+        !even_header.has_next() ||
+        !even_header.set_text(
+            utf8_from_u8(u8"CJK 偶数页 C-202 第 {{page}} 页")) ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(
+            utf8_from_u8(u8"CJK 首页页脚 {{page}} / {{total_pages}}")) ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(
+            utf8_from_u8(u8"CJK 偶数页页脚 {{page}} / {{total_pages}}"))) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.orientation = featherdoc::page_orientation::landscape;
+    setup.width_twips = 8400U;
+    setup.height_twips = 6400U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 720U;
+    setup.margins.left_twips = 720U;
+    setup.margins.right_twips = 720U;
+    setup.margins.header_twips = 240U;
+    setup.margins.footer_twips = 240U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    constexpr std::size_t row_count = 6U;
+    auto table = document.append_table(row_count, 2U);
+    if (!table.has_next() || !table.set_width_twips(6960U) ||
+        !table.set_column_width_twips(0U, 1440U) ||
+        !table.set_column_width_twips(1U, 5520U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"案例")) ||
+        !table.set_cell_text(0U, 1U, utf8_from_u8(u8"说明")) ||
+        !table.set_cell_text(1U, 0U, "FE-701") ||
+        !table.set_cell_text(
+            1U, 1U,
+            utf8_from_u8(
+                u8"页眉页脚占位符需要保持可见，第一条中文说明在换行后仍然要完整可读。")) ||
+        !table.set_cell_text(2U, 0U, "FE-702") ||
+        !table.set_cell_text(
+            2U, 1U,
+            utf8_from_u8(
+                u8"重复表头在翻页后必须继续和网格对齐，避免视觉检查时出现错位判断。")) ||
+        !table.set_cell_text(3U, 0U, "FE-703") ||
+        !table.set_cell_text(
+            3U, 1U,
+            utf8_from_u8(
+                u8"中文长句在窄列里需要稳定换行，不能因为字体度量偏差导致裁切或重叠。")) ||
+        !table.set_cell_text(4U, 0U, "FE-704") ||
+        !table.set_cell_text(
+            4U, 1U,
+            utf8_from_u8(
+                u8"截图比对应该能够直接发现最后一行被压缩、被截断或者跳到错误页面的问题。")) ||
+        !table.set_cell_text(5U, 0U, "FE-705") ||
+        !table.set_cell_text(
+            5U, 1U,
+            utf8_from_u8(
+                u8"发布前证据需要整行移动，而不是把最后一句拆到下一页造成阅读中断。"))) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < row_count; ++row_index) {
+        if (!row.has_next() ||
+            !row.set_height_twips(600U, featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        if (row_index == 0U && !row.set_repeats_header()) {
+            return sample;
+        }
+        if (row_index == 5U && !row.set_cant_split()) {
+            return sample;
+        }
+        row.next();
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{420.0, 320.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document table CJK wrap flow";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document Wrap CJK", cjk_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 8.0;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 36.0;
+    options.margin_bottom_points = 36.0;
+    options.line_height_points = 14.0;
+    options.paragraph_spacing_after_points = 4.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] bool append_document_list_item(featherdoc::Document &document,
                                              std::string_view text,
                                              featherdoc::list_kind kind,
@@ -3751,6 +3895,19 @@ int run_program(const std::vector<std::string> &args) {
         sample = build_document_table_header_footer_variants_text_sample();
     } else if (config.scenario == "document_table_wrap_flow_text") {
         sample = build_document_table_wrap_flow_text_sample();
+    } else if (config.scenario == "document_table_cjk_wrap_flow_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_table_cjk_wrap_flow_text\n";
+            return 1;
+        }
+        sample = build_document_table_cjk_wrap_flow_text_sample(cjk_font);
     } else if (config.scenario == "document_style_gallery_text") {
         sample = build_document_style_gallery_sample();
     } else if (config.scenario == "three_page_text") {
