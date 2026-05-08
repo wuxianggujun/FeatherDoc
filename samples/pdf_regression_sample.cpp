@@ -2944,8 +2944,8 @@ build_document_table_header_footer_variants_text_sample() {
 
     featherdoc::section_page_setup setup{};
     setup.orientation = featherdoc::page_orientation::landscape;
-    setup.width_twips = 6000U;
-    setup.height_twips = 4400U;
+    setup.width_twips = 8400U;
+    setup.height_twips = 6400U;
     setup.margins.top_twips = 720U;
     setup.margins.bottom_twips = 720U;
     setup.margins.left_twips = 720U;
@@ -3008,6 +3008,138 @@ build_document_table_header_footer_variants_text_sample() {
     options.page_size = featherdoc::pdf::PdfPageSize{300.0, 220.0};
     options.metadata.title =
         "FeatherDoc regression sample: document table header footer variants";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 8.0;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 36.0;
+    options.margin_bottom_points = 36.0;
+    options.line_height_points = 14.0;
+    options.paragraph_spacing_after_points = 4.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_document_table_wrap_flow_text_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica")) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document table wrap flow sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center) ||
+        !append_document_text_paragraph(
+            document,
+            "Long table cells must wrap cleanly while page headers, repeated "
+            "table headers, and footers stay stable.")) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text("Wrap header W-303 page {{page}}") ||
+        !default_footer.has_next() ||
+        !default_footer.set_text("Wrap footer {{page}} / {{total_pages}}") ||
+        !first_header.has_next() ||
+        !first_header.set_text("Wrap first W-101 page {{page}}") ||
+        !even_header.has_next() ||
+        !even_header.set_text("Wrap even W-202 page {{page}}") ||
+        !first_footer.has_next() ||
+        !first_footer.set_text("Wrap first footer {{page}} / {{total_pages}}") ||
+        !even_footer.has_next() ||
+        !even_footer.set_text("Wrap even footer {{page}} / {{total_pages}}")) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.orientation = featherdoc::page_orientation::landscape;
+    setup.width_twips = 6000U;
+    setup.height_twips = 4400U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 720U;
+    setup.margins.left_twips = 720U;
+    setup.margins.right_twips = 720U;
+    setup.margins.header_twips = 240U;
+    setup.margins.footer_twips = 240U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    constexpr std::size_t row_count = 6U;
+    auto table = document.append_table(row_count, 2U);
+    if (!table.has_next() || !table.set_width_twips(6960U) ||
+        !table.set_column_width_twips(0U, 1440U) ||
+        !table.set_column_width_twips(1U, 5520U) ||
+        !table.set_cell_text(0U, 0U, "Case") ||
+        !table.set_cell_text(0U, 1U, "Notes") ||
+        !table.set_cell_text(1U, 0U, "FE-601") ||
+        !table.set_cell_text(
+            1U, 1U,
+            "Header footer placeholders must stay visible while the first "
+            "note wraps.") ||
+        !table.set_cell_text(2U, 0U, "FE-602") ||
+        !table.set_cell_text(
+            2U, 1U,
+            "Repeated table headers must stay aligned after page breaks.") ||
+        !table.set_cell_text(3U, 0U, "FE-603") ||
+        !table.set_cell_text(
+            3U, 1U,
+            "Visual checks should catch clipped status text before automated "
+            "tests pass.") ||
+        !table.set_cell_text(4U, 0U, "FE-604") ||
+        !table.set_cell_text(
+            4U, 1U,
+            "Long note blocks need predictable wrapping so screenshots stay "
+            "easy to compare.") ||
+        !table.set_cell_text(5U, 0U, "FE-605") ||
+        !table.set_cell_text(
+            5U, 1U,
+            "Release ready evidence should move intact instead of breaking "
+            "between pages.")) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < row_count; ++row_index) {
+        if (!row.has_next() ||
+            !row.set_height_twips(600U, featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        if (row_index == 0U && !row.set_repeats_header()) {
+            return sample;
+        }
+        if (row_index == 5U && !row.set_cant_split()) {
+            return sample;
+        }
+        row.next();
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{420.0, 320.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document table wrap flow";
     options.metadata.creator = "FeatherDoc regression tests";
     options.font_family = "Helvetica";
     options.use_system_font_fallbacks = false;
@@ -3617,6 +3749,8 @@ int run_program(const std::vector<std::string> &args) {
         sample = build_header_footer_rtl_variants_text_sample(arabic_font);
     } else if (config.scenario == "document_table_header_footer_variants_text") {
         sample = build_document_table_header_footer_variants_text_sample();
+    } else if (config.scenario == "document_table_wrap_flow_text") {
+        sample = build_document_table_wrap_flow_text_sample();
     } else if (config.scenario == "document_style_gallery_text") {
         sample = build_document_style_gallery_sample();
     } else if (config.scenario == "three_page_text") {

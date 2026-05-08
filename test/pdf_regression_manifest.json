@@ -671,6 +671,28 @@
       ],
       "expect_visual_baseline": true,
       "visual_expected_pages": 3
+    },
+    {
+      "id": "document-table-wrap-flow-text",
+      "kind": "document_table_wrap_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-table-wrap-flow-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Document table wrap flow sample",
+        "Long table cells must wrap cleanly",
+        "Wrap first W-101 page 1",
+        "Wrap even W-202 page 2",
+        "Wrap header W-303 page 3",
+        "Wrap first footer 1 / 3",
+        "Wrap even footer 2 / 3",
+        "Wrap footer 3 / 3",
+        "FE-601",
+        "FE-603",
+        "FE-605",
+        "Release ready evidence"
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 3
     }
   ]
 }
