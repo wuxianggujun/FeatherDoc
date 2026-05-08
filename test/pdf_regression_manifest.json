@@ -560,6 +560,29 @@
       ],
       "expect_unicode": true,
       "expect_styled_text": true
+    },
+    {
+      "id": "header-footer-rtl-variants-text",
+      "kind": "header_footer_rtl_variants_text",
+      "output_file": "featherdoc-pdf-regression-header-footer-rtl-variants-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Header footer RTL variants sample",
+        "First header",
+        "HF-101",
+        "Even header",
+        "HF-202",
+        "Default header",
+        "HF-303",
+        "First footer page",
+        "Even footer page",
+        "Default footer page",
+        "1 / 3",
+        "2 / 3",
+        "3 / 3"
+      ],
+      "expect_unicode": true,
+      "expect_styled_text": true
     }
   ]
 }

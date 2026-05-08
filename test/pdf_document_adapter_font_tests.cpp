@@ -495,6 +495,178 @@ TEST_CASE("document PDF adapter visually reorders mixed RTL header text") {
 }
 
 TEST_CASE(
+    "document PDF adapter resolves font mappings across body header footer and "
+    "table text") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    const auto cjk_font = first_existing_path(candidate_cjk_fonts());
+    const auto arabic_font = first_existing_path(candidate_arabic_fonts());
+    if (latin_font.empty() || cjk_font.empty() || arabic_font.empty()) {
+        MESSAGE("skipping adapter font matrix test: configure Latin/CJK/Arabic "
+                "fonts");
+        return;
+    }
+
+    const auto body_cjk = utf8_from_u8(u8"中文矩阵");
+    const auto body_arabic = utf8_from_u8(u8"مرحبا");
+    const auto header_cjk = utf8_from_u8(u8"页眉矩阵");
+    const auto header_arabic = utf8_from_u8(u8"العنوان");
+    const auto footer_cjk = utf8_from_u8(u8"页脚矩阵");
+    const auto footer_arabic = utf8_from_u8(u8"الخاتمة");
+    const auto cell_cjk = utf8_from_u8(u8"表格矩阵");
+    const auto cell_arabic = utf8_from_u8(u8"خلية");
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Latin"));
+    CHECK(document.set_default_run_east_asia_font_family("Unit CJK"));
+
+    featherdoc::paragraph_style_definition rtl_paragraph{};
+    rtl_paragraph.name = "Unit RTL Paragraph";
+    rtl_paragraph.paragraph_bidi = true;
+    CHECK(document.ensure_paragraph_style("UnitRtlParagraph", rtl_paragraph));
+
+    featherdoc::character_style_definition arabic_style{};
+    arabic_style.name = "Unit Arabic";
+    arabic_style.run_font_family = std::string{"Unit Arabic"};
+    arabic_style.run_bidi_language = std::string{"ar-SA"};
+    arabic_style.run_rtl = true;
+    CHECK(document.ensure_character_style("UnitArabic", arabic_style));
+
+    auto body = document.paragraphs();
+    REQUIRE(body.has_next());
+    REQUIRE(body.add_run("Body latin ").has_next());
+    REQUIRE(body.add_run(body_cjk).has_next());
+    REQUIRE(body.add_run(" ").has_next());
+    auto body_arabic_run = body.add_run(body_arabic);
+    REQUIRE(body_arabic_run.has_next());
+    CHECK(document.set_run_style(body_arabic_run, "UnitArabic"));
+
+    auto &header = document.ensure_section_header_paragraphs(0U);
+    REQUIRE(header.has_next());
+    CHECK(document.set_paragraph_style(header, "UnitRtlParagraph"));
+    CHECK(header.set_bidi(true));
+    CHECK(header.set_alignment(featherdoc::paragraph_alignment::right));
+    REQUIRE(header.add_run("Header ").has_next());
+    REQUIRE(header.add_run(header_cjk).has_next());
+    REQUIRE(header.add_run(" ").has_next());
+    auto header_arabic_run = header.add_run(header_arabic);
+    REQUIRE(header_arabic_run.has_next());
+    CHECK(document.set_run_style(header_arabic_run, "UnitArabic"));
+
+    auto &footer = document.ensure_section_footer_paragraphs(0U);
+    REQUIRE(footer.has_next());
+    CHECK(document.set_paragraph_style(footer, "UnitRtlParagraph"));
+    CHECK(footer.set_bidi(true));
+    CHECK(footer.set_alignment(featherdoc::paragraph_alignment::right));
+    REQUIRE(footer.add_run("Footer ").has_next());
+    REQUIRE(footer.add_run(footer_cjk).has_next());
+    REQUIRE(footer.add_run(" ").has_next());
+    auto footer_arabic_run = footer.add_run(footer_arabic);
+    REQUIRE(footer_arabic_run.has_next());
+    CHECK(document.set_run_style(footer_arabic_run, "UnitArabic"));
+
+    auto table = document.append_table(1U, 1U);
+    REQUIRE(table.has_next());
+    CHECK(table.set_width_twips(7200U));
+    CHECK(table.set_column_width_twips(0U, 7200U));
+
+    auto cell = table.find_cell(0U, 0U);
+    REQUIRE(cell.has_value());
+    auto cell_paragraph = cell->paragraphs();
+    REQUIRE(cell_paragraph.has_next());
+    CHECK(document.set_paragraph_style(cell_paragraph, "UnitRtlParagraph"));
+    CHECK(cell_paragraph.set_bidi(true));
+    CHECK(cell_paragraph.set_alignment(featherdoc::paragraph_alignment::right));
+    REQUIRE(cell_paragraph.add_run("Cell ").has_next());
+    REQUIRE(cell_paragraph.add_run(cell_cjk).has_next());
+    REQUIRE(cell_paragraph.add_run(" ").has_next());
+    auto cell_arabic_run = cell_paragraph.add_run(cell_arabic);
+    REQUIRE(cell_arabic_run.has_next());
+    CHECK(document.set_run_style(cell_arabic_run, "UnitArabic"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin", latin_font},
+        featherdoc::pdf::PdfFontMapping{"Unit CJK", cjk_font},
+        featherdoc::pdf::PdfFontMapping{"Unit Arabic", arabic_font},
+    };
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.header_footer_font_size_points = 9.0;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+
+    const auto find_text_run =
+        [&](std::string_view text) -> const featherdoc::pdf::PdfTextRun * {
+        for (const auto &page : layout.pages) {
+            for (const auto &text_run : page.text_runs) {
+                if (text_run.text == text) {
+                    return &text_run;
+                }
+            }
+        }
+        return nullptr;
+    };
+
+    const auto *body_latin_run = find_text_run("Body latin ");
+    REQUIRE(body_latin_run != nullptr);
+    CHECK_EQ(body_latin_run->font_family, "Unit Latin");
+    CHECK_EQ(body_latin_run->font_file_path, latin_font);
+    CHECK_FALSE(body_latin_run->unicode);
+
+    const auto *body_cjk_run = find_text_run(body_cjk);
+    REQUIRE(body_cjk_run != nullptr);
+    CHECK_EQ(body_cjk_run->font_family, "Unit CJK");
+    CHECK_EQ(body_cjk_run->font_file_path, cjk_font);
+    CHECK(body_cjk_run->unicode);
+
+    const auto *body_arabic_layout = find_text_run(body_arabic);
+    REQUIRE(body_arabic_layout != nullptr);
+    CHECK_EQ(body_arabic_layout->font_family, "Unit Arabic");
+    CHECK_EQ(body_arabic_layout->font_file_path, arabic_font);
+    CHECK(body_arabic_layout->unicode);
+
+    const auto *header_cjk_run = find_text_run(header_cjk);
+    REQUIRE(header_cjk_run != nullptr);
+    CHECK_EQ(header_cjk_run->font_family, "Unit CJK");
+    CHECK_EQ(header_cjk_run->font_file_path, cjk_font);
+    CHECK(header_cjk_run->unicode);
+
+    const auto *header_arabic_layout = find_text_run(header_arabic);
+    REQUIRE(header_arabic_layout != nullptr);
+    CHECK_EQ(header_arabic_layout->font_family, "Unit Arabic");
+    CHECK_EQ(header_arabic_layout->font_file_path, arabic_font);
+    CHECK(header_arabic_layout->unicode);
+
+    const auto *footer_cjk_run = find_text_run(footer_cjk);
+    REQUIRE(footer_cjk_run != nullptr);
+    CHECK_EQ(footer_cjk_run->font_family, "Unit CJK");
+    CHECK_EQ(footer_cjk_run->font_file_path, cjk_font);
+    CHECK(footer_cjk_run->unicode);
+
+    const auto *footer_arabic_layout = find_text_run(footer_arabic);
+    REQUIRE(footer_arabic_layout != nullptr);
+    CHECK_EQ(footer_arabic_layout->font_family, "Unit Arabic");
+    CHECK_EQ(footer_arabic_layout->font_file_path, arabic_font);
+    CHECK(footer_arabic_layout->unicode);
+
+    const auto *cell_cjk_run = find_text_run(cell_cjk);
+    REQUIRE(cell_cjk_run != nullptr);
+    CHECK_EQ(cell_cjk_run->font_family, "Unit CJK");
+    CHECK_EQ(cell_cjk_run->font_file_path, cjk_font);
+    CHECK(cell_cjk_run->unicode);
+
+    const auto *cell_arabic_layout = find_text_run(cell_arabic);
+    REQUIRE(cell_arabic_layout != nullptr);
+    CHECK_EQ(cell_arabic_layout->font_family, "Unit Arabic");
+    CHECK_EQ(cell_arabic_layout->font_file_path, arabic_font);
+    CHECK(cell_arabic_layout->unicode);
+}
+
+TEST_CASE(
     "document PDF adapter prefers east Asia font mapping for mixed text") {
     const auto latin_font = first_existing_path(candidate_latin_fonts());
     const auto cjk_font = first_existing_path(candidate_cjk_fonts());

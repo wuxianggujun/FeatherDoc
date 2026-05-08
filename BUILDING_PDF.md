@@ -26,6 +26,7 @@
 - `tmp/pdfio-src/`
 - `.bpdf-*/`
 - `.codex-build-*/`
+- `.tmp-pdfium-*/`
 - `build-pdf*/`
 - `out/`
 - probe 生成的 `*.pdf`
@@ -409,8 +410,17 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - `document-table-semantics-text`
 - `document-long-flow-text`
 - `document-invoice-table-text`
+- `document-style-gallery-text`
+- `strikethrough-text`
+- `style-superscript-subscript-text`
+- `document-rtl-bidi-text`
+- `header-footer-rtl-text`
+- `header-footer-rtl-variants-text`
 
 其中 `cjk-text` 在找不到可用 CJK 字体时会跳过，不会把整个套件判失败。
+
+`auto` / `prebuilt` provider 的本地探测阶段有时会留下 `.tmp-pdfium-*`
+目录。这些目录只用于本机 probe，不应提交；需要清理时直接手工删除即可。
 
 ## 视觉发布门禁
 
@@ -503,7 +513,7 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 - 可以做 Unicode / ToUnicode roundtrip 验证，并用 PDFium 解析页数和文字 span
 - 可以对 Unicode / CJK 字体 roundtrip 产物做 PNG 渲染级视觉 smoke
 - 可以跑 PDFio → PDFium 的端到端 smoke
-- 已有首批 41 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow、document invoice table，以及 run-level 和 style-level 两条链的 strikethrough 与 superscript/subscript 这几个更接近真实文档流或样式兼容性的生成型样本
+- 已有 44 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow、document invoice table、document style gallery、document RTL bidi、header/footer RTL、header/footer 分页变体，以及 run-level 和 style-level 两条链的 strikethrough 与 superscript/subscript 这几个更接近真实文档流或样式兼容性的生成型样本
 
 还不能算正式可用：
 

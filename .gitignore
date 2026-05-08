@@ -39,6 +39,7 @@ cmake-build-*/
 .bpdf/
 .bpdf-*/
 .bdefault-*/
+.tmp-pdfium-*/
 CMakeFiles/
 docs/_build/
 output/

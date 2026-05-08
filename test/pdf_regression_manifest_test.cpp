@@ -425,9 +425,11 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
     CHECK_NE(json.find("\"document-rtl-bidi-text\""), std::string::npos);
     CHECK_NE(json.find("\"header-footer-rtl-text\""), std::string::npos);
+    CHECK_NE(json.find("\"header-footer-rtl-variants-text\""),
+             std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 43U);
+    REQUIRE_EQ(samples.size(), 44U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -539,6 +541,10 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(samples[42].kind, "header_footer_rtl_text");
     CHECK_EQ(samples[42].expected_pages, 1U);
     CHECK_GE(samples[42].expected_text.size(), 8U);
+    CHECK_EQ(samples[43].id, "header-footer-rtl-variants-text");
+    CHECK_EQ(samples[43].kind, "header_footer_rtl_variants_text");
+    CHECK_EQ(samples[43].expected_pages, 3U);
+    CHECK_GE(samples[43].expected_text.size(), 13U);
 }
 
 TEST_CASE("PDF regression manifest parser preserves escaped strings") {
