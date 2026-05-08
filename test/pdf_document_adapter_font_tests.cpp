@@ -2099,6 +2099,222 @@ TEST_CASE("document PDF adapter renders even page section header and footer") {
 #endif
 }
 
+TEST_CASE("document PDF adapter expands RTL header footer variants") {
+    const auto output_path = std::filesystem::current_path() /
+                             "featherdoc-adapter-rtl-header-footer-variants.pdf";
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    const auto arabic_font = first_existing_path(candidate_arabic_fonts());
+    if (latin_font.empty() || arabic_font.empty()) {
+        MESSAGE("skipping adapter RTL header/footer variants test: configure "
+                "Latin/Arabic fonts");
+        return;
+    }
+
+    const auto first_suffix = utf8_from_u8(u8"الافتتاحية");
+    const auto even_suffix = utf8_from_u8(u8"الزوجية");
+    const auto default_suffix = utf8_from_u8(u8"جاهزة");
+    const auto first_footer_suffix = utf8_from_u8(u8"الأولى");
+    const auto even_footer_suffix = utf8_from_u8(u8"المزدوجة");
+    const auto default_footer_suffix = utf8_from_u8(u8"نهائية");
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Latin"));
+
+    featherdoc::paragraph_style_definition rtl_paragraph{};
+    rtl_paragraph.name = "Unit RTL Paragraph";
+    rtl_paragraph.paragraph_bidi = true;
+    CHECK(document.ensure_paragraph_style("UnitRtlParagraph", rtl_paragraph));
+
+    featherdoc::character_style_definition arabic_style{};
+    arabic_style.name = "Unit Arabic";
+    arabic_style.run_font_family = std::string{"Unit Arabic"};
+    arabic_style.run_bidi_language = std::string{"ar-SA"};
+    arabic_style.run_rtl = true;
+    CHECK(document.ensure_character_style("UnitArabic", arabic_style));
+
+    featherdoc::character_style_definition arabic_emphasis{};
+    arabic_emphasis.name = "Unit Arabic Emphasis";
+    arabic_emphasis.based_on = std::string{"UnitArabic"};
+    arabic_emphasis.run_underline = true;
+    CHECK(document.ensure_character_style("UnitArabicEmphasis",
+                                          arabic_emphasis));
+
+    auto title = document.paragraphs();
+    REQUIRE(title.has_next());
+    CHECK(title.set_text("RTL header footer variants sample"));
+    for (std::size_t index = 1U; index <= 17U; ++index) {
+        auto paragraph = append_body_paragraph(
+            document, "Variant body line " + std::to_string(index));
+        REQUIRE(paragraph.has_next());
+    }
+
+    const auto configure_variant_header =
+        [&](featherdoc::Paragraph &paragraph, std::string_view label,
+            std::string_view code, const std::string &suffix) {
+            REQUIRE(paragraph.has_next());
+            CHECK(document.set_paragraph_style(paragraph, "UnitRtlParagraph"));
+            CHECK(paragraph.set_bidi(true));
+            CHECK(paragraph.set_alignment(featherdoc::paragraph_alignment::right));
+            REQUIRE(paragraph.add_run(std::string{label}).has_next());
+            auto prefix = paragraph.add_run(utf8_from_u8(u8"النسخة"));
+            REQUIRE(prefix.has_next());
+            CHECK(document.set_run_style(prefix, "UnitArabicEmphasis"));
+            REQUIRE(paragraph.add_run(std::string{code}).has_next());
+            auto suffix_run = paragraph.add_run(suffix);
+            REQUIRE(suffix_run.has_next());
+            CHECK(document.set_run_style(suffix_run, "UnitArabic"));
+        };
+
+    const auto configure_variant_footer =
+        [&](featherdoc::Paragraph &paragraph, std::string_view label,
+            const std::string &suffix) {
+            REQUIRE(paragraph.has_next());
+            CHECK(document.set_paragraph_style(paragraph, "UnitRtlParagraph"));
+            CHECK(paragraph.set_bidi(true));
+            CHECK(paragraph.set_alignment(featherdoc::paragraph_alignment::right));
+            REQUIRE(paragraph.add_run(std::string{label}).has_next());
+            REQUIRE(paragraph.add_run("{{page}}").has_next());
+            REQUIRE(paragraph.add_run(" / ").has_next());
+            REQUIRE(paragraph.add_run("{{total_pages}}").has_next());
+            REQUIRE(paragraph.add_run(" | section ").has_next());
+            REQUIRE(paragraph.add_run("{{section_page}}").has_next());
+            REQUIRE(paragraph.add_run(" / ").has_next());
+            REQUIRE(paragraph.add_run("{{section_total_pages}}").has_next());
+            REQUIRE(paragraph.add_run(" - ").has_next());
+            auto suffix_run = paragraph.add_run(suffix);
+            REQUIRE(suffix_run.has_next());
+            CHECK(document.set_run_style(suffix_run, "UnitArabic"));
+        };
+
+    auto &default_header = document.ensure_section_header_paragraphs(0U);
+    auto &default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto &first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto &first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto &even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto &even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+
+    configure_variant_header(first_header, "First header ", " HF-101 ",
+                             first_suffix);
+    configure_variant_footer(first_footer, "First footer page ",
+                             first_footer_suffix);
+    configure_variant_header(even_header, "Even header ", " HF-202 ",
+                             even_suffix);
+    configure_variant_footer(even_footer, "Even footer page ",
+                             even_footer_suffix);
+    configure_variant_header(default_header, "Default header ", " HF-303 ",
+                             default_suffix);
+    configure_variant_footer(default_footer, "Default footer page ",
+                             default_footer_suffix);
+
+    featherdoc::section_page_setup setup{};
+    setup.width_twips = 12240U;
+    setup.height_twips = 4320U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 720U;
+    setup.margins.left_twips = 1440U;
+    setup.margins.right_twips = 1440U;
+    setup.margins.header_twips = 240U;
+    setup.margins.footer_twips = 240U;
+    REQUIRE(document.set_section_page_setup(0U, setup));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin", latin_font},
+        featherdoc::pdf::PdfFontMapping{"Unit Arabic", arabic_font},
+    };
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.font_size_points = 12.0;
+    options.line_height_points = 16.0;
+    options.header_footer_font_size_points = 8.0;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 3U);
+    CHECK_EQ(layout.pages[0].section_page_index, 0U);
+    CHECK_EQ(layout.pages[1].section_page_index, 1U);
+    CHECK_EQ(layout.pages[2].section_page_index, 2U);
+
+    const auto page_text = [&](std::size_t page_index) {
+        return collect_layout_text(
+            featherdoc::pdf::PdfDocumentLayout{{}, {layout.pages[page_index]}});
+    };
+    const auto first_page_text = page_text(0U);
+    const auto second_page_text = page_text(1U);
+    const auto third_page_text = page_text(2U);
+
+    CHECK_NE(first_page_text.find("First header النسخة HF-101 " + first_suffix),
+             std::string::npos);
+    CHECK_NE(first_page_text.find("First footer page 1 / 3 | section 1 / 3 - " +
+                                  first_footer_suffix),
+             std::string::npos);
+    CHECK_EQ(first_page_text.find("Even header"), std::string::npos);
+    CHECK_EQ(first_page_text.find("Default header"), std::string::npos);
+
+    CHECK_NE(second_page_text.find("Even header النسخة HF-202 " + even_suffix),
+             std::string::npos);
+    CHECK_NE(second_page_text.find("Even footer page 2 / 3 | section 2 / 3 - " +
+                                   even_footer_suffix),
+             std::string::npos);
+    CHECK_EQ(second_page_text.find("First header"), std::string::npos);
+    CHECK_EQ(second_page_text.find("Default header"), std::string::npos);
+
+    CHECK_NE(third_page_text.find("Default header النسخة HF-303 " +
+                                  default_suffix),
+             std::string::npos);
+    CHECK_NE(third_page_text.find("Default footer page 3 / 3 | section 3 / 3 - " +
+                                  default_footer_suffix),
+             std::string::npos);
+    CHECK_EQ(third_page_text.find("First header"), std::string::npos);
+    CHECK_EQ(third_page_text.find("Even header"), std::string::npos);
+
+    CHECK_EQ(first_page_text.find("{{page}}"), std::string::npos);
+    CHECK_EQ(second_page_text.find("{{total_pages}}"), std::string::npos);
+    CHECK_EQ(third_page_text.find("{{section_total_pages}}"),
+             std::string::npos);
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result = generator.write(
+        layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+
+#if defined(FEATHERDOC_BUILD_PDF_IMPORT)
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 3U);
+
+    const auto parsed_first_page_text =
+        collect_text(parse_result.document.pages[0]);
+    const auto parsed_second_page_text =
+        collect_text(parse_result.document.pages[1]);
+    const auto parsed_third_page_text =
+        collect_text(parse_result.document.pages[2]);
+
+    CHECK_NE(parsed_first_page_text.find("First header"), std::string::npos);
+    CHECK_NE(parsed_first_page_text.find("HF-101"), std::string::npos);
+    CHECK_NE(parsed_first_page_text.find("1 / 3"), std::string::npos);
+    CHECK_EQ(parsed_first_page_text.find("Even header"), std::string::npos);
+
+    CHECK_NE(parsed_second_page_text.find("Even header"), std::string::npos);
+    CHECK_NE(parsed_second_page_text.find("HF-202"), std::string::npos);
+    CHECK_NE(parsed_second_page_text.find("2 / 3"), std::string::npos);
+    CHECK_EQ(parsed_second_page_text.find("Default header"), std::string::npos);
+
+    CHECK_NE(parsed_third_page_text.find("Default header"), std::string::npos);
+    CHECK_NE(parsed_third_page_text.find("HF-303"), std::string::npos);
+    CHECK_NE(parsed_third_page_text.find("3 / 3"), std::string::npos);
+    CHECK_EQ(parsed_third_page_text.find("First header"), std::string::npos);
+#endif
+}
+
 TEST_CASE("document PDF adapter expands first and even placeholders across "
           "sections") {
     featherdoc::Document document;
