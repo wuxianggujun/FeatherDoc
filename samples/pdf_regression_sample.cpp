@@ -1224,6 +1224,187 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_table_font_matrix_text_sample(
+    const std::filesystem::path &cjk_font_path,
+    const std::filesystem::path &arabic_font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document Font Matrix CJK") ||
+        !define_document_rtl_bidi_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document table font matrix sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() || !intro.add_run("Paged matrix: ").has_next() ||
+        !intro.add_run(utf8_from_u8(u8"中文表格")).has_next() ||
+        !intro.add_run(" / FE-420 / ").has_next()) {
+        return sample;
+    }
+    auto intro_arabic = intro.add_run(utf8_from_u8(u8"مراجعة"));
+    if (!intro_arabic.has_next() ||
+        !document.set_run_style(intro_arabic, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    auto header = document.ensure_section_header_paragraphs(0U);
+    if (!header.has_next() ||
+        !document.set_paragraph_style(header, "DocumentPdfRtlParagraph") ||
+        !header.set_bidi(true) ||
+        !header.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !header.add_run("Table matrix ").has_next() ||
+        !header.add_run("{{page}}").has_next() ||
+        !header.add_run(" ").has_next() ||
+        !header.add_run(utf8_from_u8(u8"页眉")).has_next() ||
+        !header.add_run(" ").has_next()) {
+        return sample;
+    }
+    auto header_arabic = header.add_run(utf8_from_u8(u8"الجدول"));
+    if (!header_arabic.has_next() ||
+        !document.set_run_style(header_arabic, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    auto footer = document.ensure_section_footer_paragraphs(0U);
+    if (!footer.has_next() ||
+        !document.set_paragraph_style(footer, "DocumentPdfRtlParagraph") ||
+        !footer.set_bidi(true) ||
+        !footer.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !footer.add_run("Footer ").has_next() ||
+        !footer.add_run("{{page}}").has_next() ||
+        !footer.add_run(" / ").has_next() ||
+        !footer.add_run("{{total_pages}}").has_next() ||
+        !footer.add_run(" ").has_next() ||
+        !footer.add_run(utf8_from_u8(u8"页脚")).has_next() ||
+        !footer.add_run(" ").has_next()) {
+        return sample;
+    }
+    auto footer_arabic = footer.add_run(utf8_from_u8(u8"مراجعة"));
+    if (!footer_arabic.has_next() ||
+        !document.set_run_style(footer_arabic, "DocumentPdfRtlArabic")) {
+        return sample;
+    }
+
+    constexpr std::size_t row_count = 7U;
+    auto table = document.append_table(row_count, 2U);
+    if (!table.has_next() || !table.set_width_twips(4200U) ||
+        !table.set_column_width_twips(0U, 1200U) ||
+        !table.set_column_width_twips(1U, 3000U) ||
+        !table.set_cell_text(0U, 0U, "Zone") ||
+        !table.set_cell_text(0U, 1U, utf8_from_u8(u8"Value 矩阵"))) {
+        return sample;
+    }
+
+    const auto configure_matrix_row =
+        [&](std::size_t row_index, std::string_view zone,
+            std::string_view latin, const char8_t *cjk, const char8_t *arabic,
+            bool bidi) -> bool {
+        if (!table.set_cell_text(row_index, 0U, std::string(zone))) {
+            return false;
+        }
+        auto cell = table.find_cell(row_index, 1U);
+        if (!cell.has_value()) {
+            return false;
+        }
+
+        auto paragraph = cell->paragraphs();
+        if (!paragraph.has_next()) {
+            return false;
+        }
+        if (bidi &&
+            (!document.set_paragraph_style(paragraph, "DocumentPdfRtlParagraph") ||
+             !paragraph.set_bidi(true) ||
+             !paragraph.set_alignment(
+                 featherdoc::paragraph_alignment::right))) {
+            return false;
+        }
+        if (!paragraph.add_run(std::string(latin)).has_next() ||
+            !paragraph.add_run(" ").has_next() ||
+            !paragraph.add_run(utf8_from_u8(cjk)).has_next() ||
+            !paragraph.add_run(" ").has_next()) {
+            return false;
+        }
+
+        auto arabic_run = paragraph.add_run(utf8_from_u8(arabic));
+        if (!arabic_run.has_next()) {
+            return false;
+        }
+        return document.set_run_style(
+            arabic_run,
+            bidi ? "DocumentPdfRtlArabicEmphasis" : "DocumentPdfRtlArabic");
+    };
+
+    if (!configure_matrix_row(1U, "Cover", "FE-401", u8"封样", u8"غلاف",
+                              false) ||
+        !configure_matrix_row(2U, "Body", "FE-402", u8"正文", u8"نسخة",
+                              false) ||
+        !configure_matrix_row(3U, "Table", "FE-403", u8"分页", u8"جدول",
+                              false) ||
+        !configure_matrix_row(4U, "Footer", "FE-404", u8"页脚",
+                              u8"المراجعة", true) ||
+        !configure_matrix_row(5U, "Search", "FE-405", u8"检索",
+                              u8"بحث", false) ||
+        !configure_matrix_row(6U, "Close", "FE-406", u8"归档",
+                              u8"جاهز", false)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < row_count; ++row_index) {
+        if (!row.has_next() ||
+            !row.set_height_twips(600U, featherdoc::row_height_rule::exact)) {
+            return sample;
+        }
+        if (row_index == 0U && !row.set_repeats_header()) {
+            return sample;
+        }
+        if (row_index == 4U && !row.set_cant_split()) {
+            return sample;
+        }
+        row.next();
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{300.0, 220.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document table font matrix";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document Font Matrix CJK",
+                                        cjk_font_path},
+        featherdoc::pdf::PdfFontMapping{"Document RTL Arabic",
+                                        arabic_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 9.0;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 36.0;
+    options.margin_bottom_points = 36.0;
+    options.line_height_points = 14.0;
+    options.paragraph_spacing_after_points = 4.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_document_style_gallery_sample() {
     ScenarioResult sample;
 
@@ -3266,6 +3447,26 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_font_matrix_text_sample(cjk_font, arabic_font);
+    } else if (config.scenario == "document_table_font_matrix_text") {
+        const auto arabic_font = first_existing_path(candidate_arabic_fonts());
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_table_font_matrix_text\n";
+            return 1;
+        }
+        if (arabic_font.empty() || !std::filesystem::exists(arabic_font)) {
+            std::cerr << "missing Arabic font for scenario "
+                         "document_table_font_matrix_text\n";
+            return 1;
+        }
+        sample = build_document_table_font_matrix_text_sample(cjk_font,
+                                                              arabic_font);
     } else if (config.scenario == "header_footer_rtl_text") {
         const auto arabic_font = first_existing_path(candidate_arabic_fonts());
         if (arabic_font.empty() || !std::filesystem::exists(arabic_font)) {

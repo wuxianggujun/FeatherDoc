@@ -617,6 +617,34 @@
       "expect_unicode": true,
       "expect_styled_text": true,
       "expect_visual_baseline": true
+    },
+    {
+      "id": "document-table-font-matrix-text",
+      "kind": "document_table_font_matrix_text",
+      "output_file": "featherdoc-pdf-regression-document-table-font-matrix-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Document table font matrix sample",
+        "Paged matrix:",
+        "中文表格",
+        "FE-420",
+        "Value 矩阵",
+        "FE-401",
+        "封样",
+        "FE-403",
+        "分页",
+        "FE-404",
+        "页脚",
+        "FE-405",
+        "检索",
+        "FE-406",
+        "归档"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 3
     }
   ]
 }
