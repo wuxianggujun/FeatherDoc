@@ -935,6 +935,47 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
                                           std::move(note));
 }
 
+[[nodiscard]] bool define_document_cjk_font_embed_styles(
+    featherdoc::Document &document) {
+    auto accent = featherdoc::character_style_definition{};
+    accent.name = "Document PDF CJK Font Embed Accent";
+    accent.run_font_family = std::string{"Helvetica"};
+    accent.run_east_asia_font_family = std::string{"Document CJK Font Embed"};
+    accent.run_font_size_points = 14.0;
+    accent.run_bold = true;
+    accent.run_underline = true;
+    accent.run_text_color = std::string{"1F4E79"};
+    if (!ensure_document_contract_style(document,
+                                        "DocumentPdfCjkFontEmbedAccent",
+                                        std::move(accent))) {
+        return false;
+    }
+
+    auto large = featherdoc::character_style_definition{};
+    large.name = "Document PDF CJK Font Embed Large";
+    large.run_font_family = std::string{"Helvetica"};
+    large.run_east_asia_font_family = std::string{"Document CJK Font Embed"};
+    large.run_font_size_points = 18.0;
+    large.run_bold = true;
+    large.run_text_color = std::string{"7A1414"};
+    if (!ensure_document_contract_style(document,
+                                        "DocumentPdfCjkFontEmbedLarge",
+                                        std::move(large))) {
+        return false;
+    }
+
+    auto note = featherdoc::character_style_definition{};
+    note.name = "Document PDF CJK Font Embed Note";
+    note.run_font_family = std::string{"Helvetica"};
+    note.run_east_asia_font_family = std::string{"Document CJK Font Embed"};
+    note.run_font_size_points = 10.5;
+    note.run_italic = true;
+    note.run_text_color = std::string{"19572E"};
+    return ensure_document_contract_style(document,
+                                          "DocumentPdfCjkFontEmbedNote",
+                                          std::move(note));
+}
+
 [[nodiscard]] bool define_document_rtl_bidi_styles(
     featherdoc::Document &document) {
     auto paragraph_style = featherdoc::paragraph_style_definition{};
@@ -1098,7 +1139,7 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     }
 
     featherdoc::pdf::PdfDocumentAdapterOptions options;
-    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.page_size = featherdoc::pdf::PdfPageSize{520.0, 680.0};
     options.metadata.title = "FeatherDoc regression sample: document RTL bidi";
     options.metadata.creator = "FeatherDoc regression tests";
     options.font_family = "Helvetica";
@@ -3327,6 +3368,178 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     options.header_footer_font_size_points = 8.0;
     options.line_height_points = 18.0;
     options.paragraph_spacing_after_points = 6.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_document_cjk_font_embed_matrix_text_sample(
+    const std::filesystem::path &cjk_font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed") ||
+        !define_document_cjk_font_embed_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK font embed matrix sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Font embed matrix: ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"嵌字矩阵甲"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !intro.add_run(" / FE-FM-901 / ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"复制搜索路径"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text("Embed header FM-303 page {{page}}") ||
+        !default_footer.has_next() ||
+        !default_footer.set_text("Embed footer {{page}} / {{total_pages}}") ||
+        !first_header.has_next() ||
+        !first_header.set_text("Embed first header FM-101 page {{page}}") ||
+        !first_footer.has_next() ||
+        !first_footer.set_text("Embed first footer {{page}} / {{total_pages}}") ||
+        !even_header.has_next() ||
+        !even_header.set_text("Embed even header FM-202 page {{page}}") ||
+        !even_footer.has_next() ||
+        !even_footer.set_text("Embed even footer {{page}} / {{total_pages}}")) {
+        return sample;
+    }
+
+    auto marker = append_document_paragraph(document, "");
+    if (!marker.has_next() ||
+        !marker.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !marker.add_run("Metrics marker: ").has_next() ||
+        !add_styled_contract_run(document, marker, utf8_from_u8(u8"字宽校验"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !marker.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, marker, utf8_from_u8(u8"搜索回读"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    auto scale = append_document_paragraph(document, "");
+    if (!scale.has_next() || !scale.add_run("Run scale: ").has_next() ||
+        !add_styled_contract_run(document, scale, utf8_from_u8(u8"小字回读"),
+                                 "DocumentPdfCjkFontEmbedNote") ||
+        !scale.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, scale, utf8_from_u8(u8"合同检索"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !scale.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, scale, utf8_from_u8(u8"终页嵌字"),
+                                 "DocumentPdfCjkFontEmbedLarge")) {
+        return sample;
+    }
+
+    for (int index = 1; index <= 8; ++index) {
+        const auto paragraph_text =
+            utf8_from_u8(u8"第 ") + std::to_string(index) +
+            utf8_from_u8(
+                u8" 组嵌字矩阵验证：复制搜索、字宽校验、页眉索引与页脚索引，混排 English token FE-FM-") +
+            std::to_string(910 + index) +
+            utf8_from_u8(u8"，并确认多字号切换后回读文本没有丢字。");
+        if (!append_document_text_paragraph(document, paragraph_text)) {
+            return sample;
+        }
+    }
+
+    auto table = document.append_table(6U, 2U);
+    if (!table.has_next() || !table.set_width_twips(7200U) ||
+        !table.set_column_width_twips(0U, 1800U) ||
+        !table.set_column_width_twips(1U, 5400U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"区域")) ||
+        !table.set_cell_text(0U, 1U, utf8_from_u8(u8"嵌字键")) ||
+        !table.set_cell_text(1U, 0U, utf8_from_u8(u8"正文")) ||
+        !table.set_cell_text(1U, 1U, utf8_from_u8(u8"复制路径")) ||
+        !table.set_cell_text(2U, 0U, utf8_from_u8(u8"页眉")) ||
+        !table.set_cell_text(2U, 1U, utf8_from_u8(u8"页眉索引")) ||
+        !table.set_cell_text(3U, 0U, utf8_from_u8(u8"页脚")) ||
+        !table.set_cell_text(3U, 1U, utf8_from_u8(u8"页脚索引")) ||
+        !table.set_cell_text(4U, 0U, utf8_from_u8(u8"终页")) ||
+        !table.set_cell_text(4U, 1U, utf8_from_u8(u8"终页搜索")) ||
+        !table.set_cell_text(5U, 0U, utf8_from_u8(u8"样式")) ||
+        !table.set_cell_text(5U, 1U, utf8_from_u8(u8"大字小字"))) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < 6U; ++row_index) {
+        if (!row.has_next() ||
+            !row.set_height_twips(420U, featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        if (row_index == 0U && !row.set_repeats_header()) {
+            return sample;
+        }
+        row.next();
+    }
+
+    for (int index = 9; index <= 30; ++index) {
+        const auto paragraph_text =
+            utf8_from_u8(u8"第 ") + std::to_string(index) +
+            utf8_from_u8(
+                u8" 组嵌字矩阵验证：终页搜索、复制搜索、字宽校验与样式回读，混排 English token FE-FM-") +
+            std::to_string(910 + index) +
+            utf8_from_u8(u8"，并确认页码占位符展开后检索结果仍然一致。");
+        if (!append_document_text_paragraph(document, paragraph_text)) {
+            return sample;
+        }
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("Embed close: ").has_next() ||
+        !add_styled_contract_run(document, closing, utf8_from_u8(u8"末页嵌字"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !closing.add_run(" / FE-FM-999 / ").has_next() ||
+        !add_styled_contract_run(document, closing, utf8_from_u8(u8"字宽回读"),
+                                 "DocumentPdfCjkFontEmbedLarge")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK font embed matrix";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed",
+                                        cjk_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 8.0;
+    options.line_height_points = 17.0;
+    options.paragraph_spacing_after_points = 5.0;
 
     sample.layout =
         featherdoc::pdf::layout_document_paragraphs(document, options);
@@ -6132,6 +6345,19 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_cjk_copy_search_matrix_text_sample(cjk_font);
+    } else if (config.scenario == "document_cjk_font_embed_matrix_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_cjk_font_embed_matrix_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_font_embed_matrix_text_sample(cjk_font);
     } else if (config.scenario == "document_cjk_image_wrap_stress_text") {
         if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
             if (require_cjk_font) {
