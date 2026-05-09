@@ -456,6 +456,10 @@ if(TARGET FeatherDocPdf)
         string(JSON sample_expected_text_count LENGTH
             "${FEATHERDOC_PDF_REGRESSION_JSON}" samples ${sample_index}
             expected_text)
+        string(JSON sample_expect_cjk ERROR_VARIABLE
+            sample_expect_cjk_error GET
+            "${FEATHERDOC_PDF_REGRESSION_JSON}" samples ${sample_index}
+            expect_cjk)
         string(JSON sample_expected_image_count ERROR_VARIABLE
             sample_expected_image_count_error GET
             "${FEATHERDOC_PDF_REGRESSION_JSON}" samples ${sample_index}
@@ -480,12 +484,7 @@ if(TARGET FeatherDocPdf)
             list(APPEND sample_command
                 --expect-image-count "${sample_expected_image_count}")
         endif()
-        if(sample_kind STREQUAL "cjk_text" OR
-           sample_kind STREQUAL "cjk_image_report_text" OR
-           sample_kind STREQUAL "cjk_report_text" OR
-           sample_kind STREQUAL "contract_cjk_style" OR
-           sample_kind STREQUAL "document_contract_cjk_style" OR
-           sample_kind STREQUAL "document_eastasia_style_probe")
+        if(sample_expect_cjk_error STREQUAL "NOTFOUND" AND sample_expect_cjk)
             list(APPEND sample_command --require-cjk-font)
         endif()
 
@@ -501,12 +500,7 @@ if(TARGET FeatherDocPdf)
                     LABELS "pdf;smoke;regression"
                     ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
         endif()
-        if(sample_kind STREQUAL "cjk_text" OR
-           sample_kind STREQUAL "cjk_image_report_text" OR
-           sample_kind STREQUAL "cjk_report_text" OR
-           sample_kind STREQUAL "contract_cjk_style" OR
-           sample_kind STREQUAL "document_contract_cjk_style" OR
-           sample_kind STREQUAL "document_eastasia_style_probe")
+        if(sample_expect_cjk_error STREQUAL "NOTFOUND" AND sample_expect_cjk)
             set_tests_properties(${test_name}
                 PROPERTIES
                     SKIP_RETURN_CODE 77

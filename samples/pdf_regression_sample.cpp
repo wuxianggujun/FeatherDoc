@@ -872,6 +872,40 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
                                           std::move(note));
 }
 
+[[nodiscard]] bool define_document_complex_layout_styles(
+    featherdoc::Document &document) {
+    if (!define_document_style_gallery_styles(document)) {
+        return false;
+    }
+
+    auto cjk_accent = featherdoc::character_style_definition{};
+    cjk_accent.name = "Document PDF Complex Layout CJK Accent";
+    cjk_accent.run_font_family = std::string{"Helvetica"};
+    cjk_accent.run_east_asia_font_family =
+        std::string{"Document Complex Layout CJK"};
+    cjk_accent.run_font_size_points = 14.0;
+    cjk_accent.run_bold = true;
+    cjk_accent.run_underline = true;
+    cjk_accent.run_text_color = std::string{"1F4E79"};
+    if (!ensure_document_contract_style(document,
+                                        "DocumentPdfComplexLayoutCjkAccent",
+                                        std::move(cjk_accent))) {
+        return false;
+    }
+
+    auto cjk_note = featherdoc::character_style_definition{};
+    cjk_note.name = "Document PDF Complex Layout CJK Note";
+    cjk_note.run_font_family = std::string{"Helvetica"};
+    cjk_note.run_east_asia_font_family =
+        std::string{"Document Complex Layout CJK"};
+    cjk_note.run_font_size_points = 12.0;
+    cjk_note.run_italic = true;
+    cjk_note.run_text_color = std::string{"8A2D3B"};
+    return ensure_document_contract_style(document,
+                                          "DocumentPdfComplexLayoutCjkNote",
+                                          std::move(cjk_note));
+}
+
 [[nodiscard]] bool define_document_rtl_bidi_styles(
     featherdoc::Document &document) {
     auto paragraph_style = featherdoc::paragraph_style_definition{};
@@ -2894,6 +2928,232 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_cjk_complex_layout_text_sample(
+    const std::filesystem::path &cjk_font_path,
+    const std::filesystem::path &asset_dir) {
+    ScenarioResult sample;
+
+    const auto image_path = write_quadrant_rgb_png(
+        asset_dir,
+        "featherdoc-pdf-regression-document-cjk-complex-layout.png");
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document Complex Layout CJK") ||
+        !define_document_complex_layout_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK complex layout sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Complex layout overview: ").has_next() ||
+        !add_styled_contract_run(document, intro,
+                                 utf8_from_u8(u8"页眉页脚分页变体"),
+                                 "DocumentPdfComplexLayoutCjkAccent") ||
+        !intro.add_run(" / FE-CL-901 / ").has_next() ||
+        !add_styled_contract_run(document, intro,
+                                 utf8_from_u8(u8"多锚点图文混排"),
+                                 "DocumentPdfComplexLayoutCjkNote")) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text("Complex header CL-303 page {{page}}") ||
+        !default_footer.has_next() ||
+        !default_footer.set_text("Complex footer {{page}} / {{total_pages}}") ||
+        !first_header.has_next() ||
+        !first_header.set_text("Complex first header CL-101 page {{page}}") ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(
+            "Complex first footer {{page}} / {{total_pages}}") ||
+        !even_header.has_next() ||
+        !even_header.set_text("Complex even header CL-202 page {{page}}") ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(
+            "Complex even footer {{page}} / {{total_pages}}")) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.width_twips = 12240U;
+    setup.height_twips = 15840U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 720U;
+    setup.margins.left_twips = 900U;
+    setup.margins.right_twips = 900U;
+    setup.margins.header_twips = 300U;
+    setup.margins.footer_twips = 300U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            "Inline figure preface keeps body flow above the image block.") ||
+        !document.append_image(image_path, 96U, 48U) ||
+        !append_document_text_paragraph(
+            document,
+            "Text after inline image stays below the block before floating "
+            "anchors start.")) {
+        return sample;
+    }
+
+    auto style_matrix = append_document_paragraph(document, "");
+    if (!style_matrix.has_next() ||
+        !style_matrix.add_run("Wrap matrix: ").has_next() ||
+        !add_styled_contract_run(document, style_matrix,
+                                 utf8_from_u8(u8"图文锚点"),
+                                 "DocumentPdfComplexLayoutCjkAccent") ||
+        !style_matrix.add_run(" + ").has_next() ||
+        !add_styled_contract_run(document, style_matrix,
+                                 "bold italic blue 16pt",
+                                 "DocumentPdfStyleGalleryAccent") ||
+        !style_matrix.add_run(" + ").has_next() ||
+        !add_styled_contract_run(document, style_matrix,
+                                 utf8_from_u8(u8"裁剪环绕"),
+                                 "DocumentPdfComplexLayoutCjkNote")) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options square_wrap_options;
+    square_wrap_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::column;
+    square_wrap_options.horizontal_offset_px = 0;
+    square_wrap_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    square_wrap_options.vertical_offset_px = 0;
+    square_wrap_options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
+    square_wrap_options.wrap_distance_right_px = 18U;
+    square_wrap_options.wrap_distance_bottom_px = 12U;
+    square_wrap_options.crop =
+        featherdoc::floating_image_crop{180U, 0U, 40U, 120U};
+    if (!document.append_floating_image(image_path, 124U, 92U,
+                                        square_wrap_options) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"第一段围绕浮动图继续排版，同时保留 English token "
+                         u8"FE-CL-902 以便 PDFium 复制检索核验。")) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"第二段继续贴着裁剪后的图像收窄换行，确认段落不会覆盖图片，"
+                         u8"也不会在回流后丢失中文字形。"))) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options top_bottom_options;
+    top_bottom_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    top_bottom_options.horizontal_offset_px = 144;
+    top_bottom_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    top_bottom_options.vertical_offset_px = 0;
+    top_bottom_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::top_bottom;
+    top_bottom_options.wrap_distance_top_px = 8U;
+    top_bottom_options.wrap_distance_bottom_px = 10U;
+    top_bottom_options.crop =
+        featherdoc::floating_image_crop{0U, 180U, 220U, 0U};
+    if (!document.append_floating_image(image_path, 186U, 56U,
+                                        top_bottom_options) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(
+                u8"Top-bottom 浮动图之后的正文需要整体回到全宽列，不能延续上一段的包围缩进。"))) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options behind_text_options;
+    behind_text_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    behind_text_options.horizontal_offset_px = 330;
+    behind_text_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    behind_text_options.vertical_offset_px = 0;
+    behind_text_options.behind_text = true;
+    behind_text_options.z_order = 2U;
+    behind_text_options.wrap_mode = featherdoc::floating_image_wrap_mode::none;
+    behind_text_options.crop =
+        featherdoc::floating_image_crop{80U, 80U, 80U, 80U};
+    if (!document.append_floating_image(image_path, 138U, 84U,
+                                        behind_text_options) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"Behind-text 图层必须保持文字可读，复制搜索仍要能拿到"
+                         u8"“中文检索图层”和 FE-CL-903。"))) {
+        return sample;
+    }
+
+    auto overlay = append_document_paragraph(document, "");
+    if (!overlay.has_next() ||
+        !overlay.add_run("Overlay note: ").has_next() ||
+        !add_styled_contract_run(document, overlay,
+                                 utf8_from_u8(u8"复杂混排继续验证"),
+                                 "DocumentPdfComplexLayoutCjkAccent") ||
+        !overlay.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, overlay, "underlined note",
+                                 "DocumentPdfStyleGalleryNote")) {
+        return sample;
+    }
+
+    for (int index = 1; index <= 42; ++index) {
+        const auto paragraph_text =
+            utf8_from_u8(u8"第 ") + std::to_string(index) +
+            utf8_from_u8(
+                u8" 段继续验证复杂版式稳定性，混排 English token FE-CL-") +
+            std::to_string(920 + index) +
+            utf8_from_u8(
+                u8"，并确认分页后页眉页脚占位符仍然正确。");
+        if (!append_document_text_paragraph(document, paragraph_text)) {
+            return sample;
+        }
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK complex layout";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document Complex Layout CJK",
+                                        cjk_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.render_inline_images = true;
+    options.header_footer_font_size_points = 8.0;
+    options.line_height_points = 16.0;
+    options.paragraph_spacing_after_points = 5.0;
+    options.image_spacing_after_points = 6.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult
 build_document_table_header_footer_variants_text_sample() {
     ScenarioResult sample;
@@ -2944,8 +3204,8 @@ build_document_table_header_footer_variants_text_sample() {
 
     featherdoc::section_page_setup setup{};
     setup.orientation = featherdoc::page_orientation::landscape;
-    setup.width_twips = 8400U;
-    setup.height_twips = 6400U;
+    setup.width_twips = 6000U;
+    setup.height_twips = 4400U;
     setup.margins.top_twips = 720U;
     setup.margins.bottom_twips = 720U;
     setup.margins.left_twips = 720U;
@@ -5147,6 +5407,20 @@ int run_program(const std::vector<std::string> &args) {
         sample = build_image_report_text_sample(output_parent);
     } else if (config.scenario == "document_image_semantics_text") {
         sample = build_document_image_semantics_text_sample(output_parent);
+    } else if (config.scenario == "document_cjk_complex_layout_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_cjk_complex_layout_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_complex_layout_text_sample(cjk_font,
+                                                               output_parent);
     } else if (config.scenario == "document_table_semantics_text") {
         sample = build_document_table_semantics_text_sample();
     } else if (config.scenario == "document_invoice_table_text") {
