@@ -757,6 +757,39 @@
         "Merged footer row stays readable"
       ],
       "expect_visual_baseline": true
+    },
+    {
+      "id": "document-table-merged-header-repeat-text",
+      "kind": "document_table_merged_header_repeat_text",
+      "output_file": "featherdoc-pdf-regression-document-table-merged-header-repeat-text.pdf",
+      "expected_pages": 4,
+      "expected_text": [
+        "Document table merged repeat sample",
+        "Repeated header rows with merged",
+        "cells should stay aligned across",
+        "page breaks in the rendered PDF.",
+        "Merged repeat header R-303 page 1",
+        "Merged repeat header R-303 page 2",
+        "Merged repeat header R-303 page 3",
+        "Merged repeat header R-303 page 4",
+        "Merged repeat footer 1 / 4",
+        "Merged repeat footer 2 / 4",
+        "Merged repeat footer 3 / 4",
+        "Merged repeat footer 4 / 4",
+        "Release board",
+        "MR-01",
+        "MR-05",
+        "Cluster",
+        "Search",
+        "Docs",
+        "Tail",
+        "Merged owner",
+        "block stays",
+        "Merged milestone row stays readable.",
+        "Page 3 repeats the board header."
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 4
     }
   ]
 }
