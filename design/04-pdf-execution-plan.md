@@ -388,6 +388,9 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 2026-05-09：已新增 `document-table-cjk-merged-repeat-text` regression sample，
   覆盖 CJK merged cells、重复表头、first/even/default 页眉页脚分页占位符，
   并完成真实导出、PNG 可视化验证和 manifest 接入。
+- 2026-05-09：已新增 `document-table-merged-cant-split-text` regression sample，
+  覆盖 merged cells、cant_split、重复表头与分页后的整块下移行为，
+  并完成真实导出、PNG 可视化验证和 manifest 接入。
 
 通过命令：
 

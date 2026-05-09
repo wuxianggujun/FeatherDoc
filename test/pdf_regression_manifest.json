@@ -862,6 +862,39 @@
       ],
       "expect_visual_baseline": true,
       "visual_expected_pages": 4
+    },
+    {
+      "id": "document-table-merged-cant-split-text",
+      "kind": "document_table_merged_cant_split_text",
+      "output_file": "featherdoc-pdf-regression-document-table-merged-cant-split-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Merged cant split table sample",
+        "Repeated headers must keep the merged",
+        "row intact after the page break.",
+        "Merged cant split header T-404 page 1",
+        "Merged cant split header T-404 page 2",
+        "Merged cant split header T-404 page 3",
+        "Merged cant split footer 1 / 3",
+        "Merged cant split footer 2 / 3",
+        "Merged cant split footer 3 / 3",
+        "Release gate",
+        "Case",
+        "Owner",
+        "Notes",
+        "MCS-01",
+        "MCS-02",
+        "MCS-03",
+        "MCS-04",
+        "Queue",
+        "QA",
+        "Archive",
+        "Merged cant-split row must",
+        "restart beneath the repeated",
+        "Page numbering stays stable."
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 3
     }
   ]
 }
