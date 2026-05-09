@@ -4804,6 +4804,28 @@ build_document_cjk_table_wrap_page_flow_text_sample(
         }
     }
 
+    auto settle = append_document_paragraph(document, "");
+    if (!settle.has_next() ||
+        !settle.add_run("Flow settle: ").has_next() ||
+        !add_styled_contract_run(document, settle,
+                                 utf8_from_u8(u8"尾页回流补线"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !settle.add_run(" / FE-TF-981 / ").has_next() ||
+        !add_styled_contract_run(document, settle,
+                                 utf8_from_u8(u8"图片下方恢复全宽"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"补线段落一：这里必须在图片下方恢复整栏宽度，避免末页浮动图继续挤压收口段与页脚占位符。")) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"补线段落二：继续验证复制搜索、合同检索和字宽回读在右侧锚点结束后仍然保持一致。"))) {
+        return sample;
+    }
+
     auto closing = append_document_paragraph(document, "");
     if (!closing.has_next() ||
         !closing.add_run("Flow close: ").has_next() ||
