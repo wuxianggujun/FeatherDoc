@@ -936,6 +936,43 @@
       ],
       "expect_visual_baseline": true,
       "visual_expected_pages": 4
+    },
+    {
+      "id": "document-table-cjk-vertical-merged-cant-split-text",
+      "kind": "document_table_cjk_vertical_merged_cant_split_text",
+      "output_file": "featherdoc-pdf-regression-document-table-cjk-vertical-merged-cant-split-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "文档表格纵向合并禁拆样本",
+        "重复表头、纵向合并块和分页后的中文内容",
+        "都要保持完整。",
+        "CJK 纵向页眉 V-606 第 1 页",
+        "CJK 纵向页眉 V-606 第 2 页",
+        "CJK 纵向页眉 V-606 第 3 页",
+        "CJK 纵向页脚 1 / 3",
+        "CJK 纵向页脚 2 / 3",
+        "CJK 纵向页脚 3 / 3",
+        "交付看板",
+        "案例",
+        "负责人",
+        "说明",
+        "CVC-01",
+        "CVC-02",
+        "CVC-03",
+        "CVC-04",
+        "CVC-05",
+        "排期",
+        "统筹",
+        "核验",
+        "归档",
+        "短余量。",
+        "负责人块翻页后重启。",
+        "第二行仍跟随负责人。",
+        "尾行验证后续流继续。",
+        "页码保持稳定。"
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 3
     }
   ]
 }
