@@ -790,6 +790,44 @@
       ],
       "expect_visual_baseline": true,
       "visual_expected_pages": 4
+    },
+    {
+      "id": "document-table-merged-header-footer-variants-text",
+      "kind": "document_table_merged_header_footer_variants_text",
+      "output_file": "featherdoc-pdf-regression-document-table-merged-header-footer-variants-text.pdf",
+      "expected_pages": 4,
+      "expected_text": [
+        "Document table merged header footer variants sample",
+        "Merged cells should stay aligned",
+        "while first, even, and default",
+        "section headers and footers",
+        "alternate across pages.",
+        "Merged variant first header V-101 page 1",
+        "Merged variant even header V-202 page 2",
+        "Merged variant header V-303 page 3",
+        "V-101 1/4",
+        "V-202 2/4",
+        "V-303 3/4",
+        "V-202 4/4",
+        "Release board",
+        "Case",
+        "Owner",
+        "Status",
+        "MR-01",
+        "MR-05",
+        "Cluster",
+        "Search",
+        "Docs",
+        "Tail",
+        "Merged owner",
+        "block stays",
+        "Merged milestone row",
+        "stays readable.",
+        "Page 3 repeats",
+        "the board header."
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 4
     }
   ]
 }
