@@ -6569,6 +6569,374 @@ build_document_cjk_font_search_density_flow_text_sample(
 }
 
 [[nodiscard]] ScenarioResult
+build_document_cjk_repeated_key_boundary_flow_text_sample(
+    const std::filesystem::path &cjk_font_path,
+    const std::filesystem::path &asset_dir) {
+    ScenarioResult sample;
+
+    const auto image_path = write_quadrant_rgb_png(
+        asset_dir,
+        "featherdoc-pdf-regression-document-cjk-repeated-key-boundary-flow.png");
+    const auto repeated_key = utf8_from_u8(u8"RK-777 共用检索键");
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed") ||
+        !define_document_cjk_font_embed_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK repeated key boundary flow sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Repeated key flow: ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"跨区检索键"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !intro.add_run(" / FE-RK-901 / ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"极限分页余量"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text(utf8_from_u8(
+            u8"Repeat key header RK-303 共用检索键 page {{page}}")) ||
+        !default_footer.has_next() ||
+        !default_footer.set_text(utf8_from_u8(
+            u8"Repeat key footer RK-777 共用检索键 {{page}} / {{total_pages}}")) ||
+        !first_header.has_next() ||
+        !first_header.set_text(utf8_from_u8(
+            u8"Repeat key first header RK-101 共用检索键 page {{page}}")) ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(utf8_from_u8(
+            u8"Repeat key first footer RK-777 共用检索键 {{page}} / {{total_pages}}")) ||
+        !even_header.has_next() ||
+        !even_header.set_text(utf8_from_u8(
+            u8"Repeat key even header RK-202 共用检索键 page {{page}}")) ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(utf8_from_u8(
+            u8"Repeat key even footer RK-777 共用检索键 {{page}} / {{total_pages}}"))) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.width_twips = 8200U;
+    setup.height_twips = 6400U;
+    setup.margins.top_twips = 620U;
+    setup.margins.bottom_twips = 620U;
+    setup.margins.left_twips = 680U;
+    setup.margins.right_twips = 680U;
+    setup.margins.header_twips = 220U;
+    setup.margins.footer_twips = 220U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"起始段落包含 RK-777 共用检索键，用于和页眉、页脚、表格以及末页收口里的同名检索键做文本层一致性验证。")) ||
+        !document.append_image(image_path, 86U, 34U) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"内联图片之后必须恢复整栏正文，RK-777 共用检索键 不能因为图片或小页高分页被拆散。"))) {
+        return sample;
+    }
+
+    auto marker = append_document_paragraph(document, "");
+    if (!marker.has_next() ||
+        !marker.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !marker.add_run("Repeat marker: ").has_next() ||
+        !add_styled_contract_run(document, marker, repeated_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !marker.add_run(" / FE-RK-911 / ").has_next() ||
+        !add_styled_contract_run(document, marker, utf8_from_u8(u8"正文复现"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    const auto append_key_paragraph = [&](int index,
+                                          std::u8string_view label) {
+        auto paragraph = append_document_paragraph(document, "");
+        const auto prefix = utf8_from_u8(u8"第 ") + std::to_string(index) +
+                            utf8_from_u8(u8" 组同键分页验证：");
+        const auto token = " / token FE-RK-" + std::to_string(920 + index) +
+                           " / ";
+        const auto suffix = utf8_from_u8(
+            u8"，同一检索键需要在页眉、页脚、正文、表格和末页保持可复制可搜索，不能缺字或错位。");
+        if (!paragraph.has_next() || !paragraph.add_run(prefix).has_next() ||
+            !add_styled_contract_run(document, paragraph, utf8_from_u8(label),
+                                     "DocumentPdfCjkFontEmbedNote") ||
+            !paragraph.add_run(" / ").has_next() ||
+            !add_styled_contract_run(document, paragraph, repeated_key,
+                                     "DocumentPdfCjkFontEmbedAccent") ||
+            !paragraph.add_run(token).has_next() ||
+            !add_styled_contract_run(document, paragraph,
+                                     utf8_from_u8(u8"大字复现"),
+                                     "DocumentPdfCjkFontEmbedLarge") ||
+            !paragraph.add_run(suffix).has_next()) {
+            return false;
+        }
+        return true;
+    };
+
+    featherdoc::floating_image_options left_options;
+    left_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::column;
+    left_options.horizontal_offset_px = 0;
+    left_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    left_options.vertical_offset_px = 0;
+    left_options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
+    left_options.wrap_distance_right_px = 14U;
+    left_options.wrap_distance_bottom_px = 8U;
+    left_options.crop = featherdoc::floating_image_crop{170U, 0U, 70U, 120U};
+    if (!document.append_floating_image(image_path, 98U, 76U, left_options)) {
+        return sample;
+    }
+
+    for (int index = 1; index <= 3; ++index) {
+        if (!append_key_paragraph(index, u8"左侧紧余量")) {
+            return sample;
+        }
+    }
+
+    constexpr std::size_t table_row_count = 8U;
+    auto table = document.append_table(table_row_count, 3U);
+    if (!table.has_next() || !table.set_width_twips(6100U) ||
+        !table.set_column_width_twips(0U, 1260U) ||
+        !table.set_column_width_twips(1U, 1580U) ||
+        !table.set_column_width_twips(2U, 3260U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"同键复现表")) ||
+        !table.set_cell_text(1U, 0U, utf8_from_u8(u8"区域")) ||
+        !table.set_cell_text(1U, 1U, utf8_from_u8(u8"检索键")) ||
+        !table.set_cell_text(1U, 2U, utf8_from_u8(u8"说明")) ||
+        !table.set_cell_text(2U, 0U, "RK-A-01") ||
+        !table.set_cell_text(2U, 1U, repeated_key) ||
+        !table.set_cell_text(
+            2U, 2U,
+            utf8_from_u8(u8"表格第一处复现 RK-777 共用检索键，验证表头之后文本层连续。")) ||
+        !table.set_cell_text(3U, 0U, "RK-A-02") ||
+        !table.set_cell_text(3U, 1U, utf8_from_u8(u8"页眉页脚")) ||
+        !table.set_cell_text(
+            3U, 2U,
+            utf8_from_u8(u8"页眉和页脚都包含 RK-777 共用检索键，跨页后仍需稳定搜索。")) ||
+        !table.set_cell_text(4U, 0U, "RK-A-03") ||
+        !table.set_cell_text(4U, 1U, repeated_key) ||
+        !table.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(u8"这行与上一行形成合并块，验证同名检索键跨合并单元格时不丢失。")) ||
+        !table.set_cell_text(5U, 0U, "RK-A-04") ||
+        !table.set_cell_text(5U, 2U,
+                             utf8_from_u8(u8"合并块第二行继续落在同一负责人块内。")) ||
+        !table.set_cell_text(6U, 0U, "RK-A-05") ||
+        !table.set_cell_text(6U, 1U, utf8_from_u8(u8"禁拆极限")) ||
+        !table.set_cell_text(
+            6U, 2U,
+            utf8_from_u8(u8"紧余量下整行必须迁移，不能把 RK-777 共用检索键 所在段落压到页脚或图片上。")) ||
+        !table.set_cell_text(7U, 0U, "RK-A-06") ||
+        !table.set_cell_text(7U, 1U, repeated_key) ||
+        !table.set_cell_text(
+            7U, 2U,
+            utf8_from_u8(u8"表格结束后要恢复整栏正文，末页继续复现同一检索键。"))) {
+        return sample;
+    }
+
+    auto banner = table.find_cell(0U, 0U);
+    auto heading_region = table.find_cell(1U, 0U);
+    auto heading_key = table.find_cell(1U, 1U);
+    auto heading_note = table.find_cell(1U, 2U);
+    auto merged_key = table.find_cell(4U, 1U);
+    if (!banner.has_value() || !heading_region.has_value() ||
+        !heading_key.has_value() || !heading_note.has_value() ||
+        !merged_key.has_value() || !banner->merge_right(2U) ||
+        !merged_key->merge_down(1U)) {
+        return sample;
+    }
+    if (!banner->set_text(utf8_from_u8(u8"同键复现表")) ||
+        !banner->set_fill_color("D9EAF7") ||
+        !banner->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center) ||
+        !heading_region->set_fill_color("EAF2F8") ||
+        !heading_key->set_fill_color("EAF2F8") ||
+        !heading_note->set_fill_color("EAF2F8") ||
+        !merged_key->set_fill_color("FCE4D6") ||
+        !merged_key->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < table_row_count; ++row_index) {
+        if (!row.has_next()) {
+            return sample;
+        }
+        if (row_index == 0U) {
+            if (!row.set_height_twips(420U, featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index < 2U) {
+            if (!row.set_repeats_header() ||
+                !row.set_height_twips(360U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 4U) {
+            if (!row.set_cant_split() ||
+                !row.set_height_twips(620U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 6U) {
+            if (!row.set_cant_split() ||
+                !row.set_height_twips(780U,
+                                      featherdoc::row_height_rule::at_least)) {
+                return sample;
+            }
+        } else if (!row.set_height_twips(520U,
+                                         featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        row.next();
+    }
+
+    auto checkpoint = append_document_paragraph(document, "");
+    if (!checkpoint.has_next() ||
+        !checkpoint.add_run("Repeat checkpoint: ").has_next() ||
+        !add_styled_contract_run(document, checkpoint, repeated_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !checkpoint.add_run(" / FE-RK-961 / ").has_next() ||
+        !add_styled_contract_run(document, checkpoint,
+                                 utf8_from_u8(u8"表后恢复"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options top_bottom_options;
+    top_bottom_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    top_bottom_options.horizontal_offset_px = 44;
+    top_bottom_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    top_bottom_options.vertical_offset_px = 0;
+    top_bottom_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::top_bottom;
+    top_bottom_options.wrap_distance_top_px = 8U;
+    top_bottom_options.wrap_distance_bottom_px = 8U;
+    top_bottom_options.crop = featherdoc::floating_image_crop{0U, 130U, 170U, 0U};
+    if (!document.append_floating_image(image_path, 108U, 44U,
+                                        top_bottom_options)) {
+        return sample;
+    }
+
+    for (int index = 4; index <= 6; ++index) {
+        if (!append_key_paragraph(index, u8"顶底临界")) {
+            return sample;
+        }
+    }
+
+    featherdoc::floating_image_options right_options;
+    right_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    right_options.horizontal_offset_px = 198;
+    right_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    right_options.vertical_offset_px = 0;
+    right_options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
+    right_options.wrap_distance_left_px = 12U;
+    right_options.wrap_distance_bottom_px = 8U;
+    right_options.crop = featherdoc::floating_image_crop{50U, 60U, 150U, 40U};
+    if (!document.append_floating_image(image_path, 96U, 82U, right_options)) {
+        return sample;
+    }
+
+    for (int index = 7; index <= 8; ++index) {
+        if (!append_key_paragraph(index, u8"右侧终页")) {
+            return sample;
+        }
+    }
+
+    auto settle = append_document_paragraph(document, "");
+    if (!settle.has_next() ||
+        !settle.add_run("Repeat settle: ").has_next() ||
+        !add_styled_contract_run(document, settle, repeated_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !settle.add_run(" / FE-RK-981 / ").has_next() ||
+        !add_styled_contract_run(document, settle,
+                                 utf8_from_u8(u8"图片下方整栏"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"补线段落一：右侧图片结束后必须恢复整栏正文，RK-777 共用检索键 仍然应该完整可搜。")) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"补线段落二：末页再次复现 RK-777 共用检索键，和页眉页脚、正文、表格保持同一文本层表现。"))) {
+        return sample;
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("Repeat close: ").has_next() ||
+        !add_styled_contract_run(document, closing, repeated_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !closing.add_run(" / FE-RK-999 / ").has_next() ||
+        !add_styled_contract_run(document, closing, utf8_from_u8(u8"终页复检"),
+                                 "DocumentPdfCjkFontEmbedLarge")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{410.0, 320.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK repeated key boundary flow";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed",
+                                        cjk_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.render_inline_images = true;
+    options.header_footer_font_size_points = 7.5;
+    options.margin_left_points = 34.0;
+    options.margin_right_points = 34.0;
+    options.margin_top_points = 38.0;
+    options.margin_bottom_points = 42.0;
+    options.line_height_points = 13.5;
+    options.paragraph_spacing_after_points = 4.0;
+    options.image_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult
 build_document_table_header_footer_variants_text_sample() {
     ScenarioResult sample;
 
@@ -8960,6 +9328,21 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_cjk_font_search_density_flow_text_sample(
+            cjk_font, output_parent);
+    } else if (config.scenario ==
+               "document_cjk_repeated_key_boundary_flow_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_cjk_repeated_key_boundary_flow_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_repeated_key_boundary_flow_text_sample(
             cjk_font, output_parent);
     } else if (config.scenario ==
                "document_cjk_vertical_merge_wrap_cant_split_text") {
