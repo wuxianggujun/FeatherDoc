@@ -393,7 +393,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
 
     const auto json = read_file(manifest_path);
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_GE(samples.size(), 66U);
+    REQUIRE_GE(samples.size(), 67U);
     std::unordered_set<std::string> sample_ids;
     for (const auto &sample : samples) {
         CHECK(sample_ids.insert(sample.id).second);
@@ -471,6 +471,9 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
                   "document_cjk_table_wrap_page_flow_text", 5U, 29U, 5U);
     expect_sample("document-cjk-multi-anchor-table-flow-text",
                   "document_cjk_multi_anchor_table_flow_text", 5U, 35U, 4U);
+    expect_sample("document-cjk-anchor-font-matrix-boundary-text",
+                  "document_cjk_anchor_font_matrix_boundary_text", 4U, 36U,
+                  4U);
     expect_sample("document-cjk-vertical-merge-wrap-cant-split-text",
                   "document_cjk_vertical_merge_wrap_cant_split_text", 4U, 22U,
                   3U);
