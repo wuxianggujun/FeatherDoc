@@ -1,3 +1,4 @@
+#include <algorithm>
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
@@ -6,8 +7,10 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -366,6 +369,16 @@ parse_samples_from_manifest(const std::string &json) {
     return JsonReader(json).parse_manifest_samples();
 }
 
+[[nodiscard]] const ManifestSample *
+find_sample_by_id(const std::vector<ManifestSample> &samples,
+                  std::string_view id) {
+    const auto it =
+        std::find_if(samples.begin(), samples.end(), [&](const auto &sample) {
+            return sample.id == id;
+        });
+    return it == samples.end() ? nullptr : &(*it);
+}
+
 } // namespace
 
 TEST_CASE("PDF regression manifest exists and declares the initial samples") {
@@ -379,259 +392,118 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     REQUIRE(std::filesystem::exists(manifest_path));
 
     const auto json = read_file(manifest_path);
-    CHECK_NE(json.find("\"single-text\""), std::string::npos);
-    CHECK_NE(json.find("\"multi-page-text\""), std::string::npos);
-    CHECK_NE(json.find("\"cjk-text\""), std::string::npos);
-    CHECK_NE(json.find("\"styled-text\""), std::string::npos);
-    CHECK_NE(json.find("\"font-size-text\""), std::string::npos);
-    CHECK_NE(json.find("\"color-text\""), std::string::npos);
-    CHECK_NE(json.find("\"mixed-style-text\""), std::string::npos);
-    CHECK_NE(json.find("\"contract-cjk-style\""), std::string::npos);
-    CHECK_NE(json.find("\"document-contract-cjk-style\""), std::string::npos);
-    CHECK_NE(json.find("\"three-page-text\""), std::string::npos);
-    CHECK_NE(json.find("\"landscape-text\""), std::string::npos);
-    CHECK_NE(json.find("\"title-body-text\""), std::string::npos);
-    CHECK_NE(json.find("\"dense-text\""), std::string::npos);
-    CHECK_NE(json.find("\"four-page-text\""), std::string::npos);
-    CHECK_NE(json.find("\"underline-text\""), std::string::npos);
-    CHECK_NE(json.find("\"punctuation-text\""), std::string::npos);
-    CHECK_NE(json.find("\"two-page-text\""), std::string::npos);
-    CHECK_NE(json.find("\"repeat-phrase-text\""), std::string::npos);
-    CHECK_NE(json.find("\"bordered-box-text\""), std::string::npos);
-    CHECK_NE(json.find("\"line-primitive-text\""), std::string::npos);
-    CHECK_NE(json.find("\"table-like-grid-text\""), std::string::npos);
-    CHECK_NE(json.find("\"metadata-long-title-text\""), std::string::npos);
-    CHECK_NE(json.find("\"header-footer-text\""), std::string::npos);
-    CHECK_NE(json.find("\"two-column-text\""), std::string::npos);
-    CHECK_NE(json.find("\"invoice-grid-text\""), std::string::npos);
-    CHECK_NE(json.find("\"image-caption-text\""), std::string::npos);
-    CHECK_NE(json.find("\"sectioned-report-text\""), std::string::npos);
-    CHECK_NE(json.find("\"list-report-text\""), std::string::npos);
-    CHECK_NE(json.find("\"long-report-text\""), std::string::npos);
-    CHECK_NE(json.find("\"image-report-text\""), std::string::npos);
-    CHECK_NE(json.find("\"cjk-report-text\""), std::string::npos);
-    CHECK_NE(json.find("\"cjk-image-report-text\""), std::string::npos);
-    CHECK_NE(json.find("\"document-eastasia-style-probe\""), std::string::npos);
-    CHECK_NE(json.find("\"document-image-semantics-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-table-semantics-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-long-flow-text\""), std::string::npos);
-    CHECK_NE(json.find("\"document-invoice-table-text\""), std::string::npos);
-    CHECK_NE(json.find("\"document-style-gallery-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"strikethrough-text\""), std::string::npos);
-    CHECK_NE(json.find("\"style-superscript-subscript-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-rtl-bidi-text\""), std::string::npos);
-    CHECK_NE(json.find("\"document-font-matrix-text\""), std::string::npos);
-    CHECK_NE(json.find("\"header-footer-rtl-text\""), std::string::npos);
-    CHECK_NE(json.find("\"header-footer-rtl-variants-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-table-font-matrix-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-table-header-footer-variants-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-table-wrap-flow-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-table-cjk-wrap-flow-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-table-cjk-merged-repeat-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-table-cant-split-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-table-merged-cells-text\""),
-             std::string::npos);
-    CHECK_NE(json.find("\"document-table-merged-header-repeat-text\""),
-             std::string::npos);
-    CHECK_NE(
-        json.find("\"document-table-merged-header-footer-variants-text\""),
-        std::string::npos);
-    CHECK_NE(json.find("\"document-table-merged-cant-split-text\""),
-             std::string::npos);
-    CHECK_NE(
-        json.find("\"document-table-vertical-merged-cant-split-text\""),
-        std::string::npos);
-    CHECK_NE(
-        json.find("\"document-table-cjk-vertical-merged-cant-split-text\""),
-        std::string::npos);
-
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 58U);
-    CHECK_EQ(samples[0].id, "single-text");
-    CHECK_EQ(samples[0].kind, "single_text");
-    CHECK_EQ(samples[0].expected_pages, 1U);
-    CHECK_GE(samples[0].expected_text.size(), 1U);
-    CHECK_EQ(samples[1].id, "multi-page-text");
-    CHECK_EQ(samples[1].expected_pages, 2U);
-    CHECK_EQ(samples[2].id, "cjk-text");
-    CHECK_EQ(samples[2].kind, "cjk_text");
-    CHECK_EQ(samples[3].id, "styled-text");
-    CHECK_EQ(samples[4].id, "font-size-text");
-    CHECK_EQ(samples[4].kind, "font_size_text");
-    CHECK_EQ(samples[5].id, "color-text");
-    CHECK_EQ(samples[6].id, "mixed-style-text");
-    CHECK_EQ(samples[7].id, "contract-cjk-style");
-    CHECK_EQ(samples[7].kind, "contract_cjk_style");
-    CHECK_EQ(samples[8].id, "document-contract-cjk-style");
-    CHECK_EQ(samples[8].kind, "document_contract_cjk_style");
-    CHECK_EQ(samples[9].id, "three-page-text");
-    CHECK_EQ(samples[9].expected_pages, 3U);
-    CHECK_EQ(samples[10].id, "landscape-text");
-    CHECK_EQ(samples[11].id, "title-body-text");
-    CHECK_EQ(samples[12].id, "dense-text");
-    CHECK_EQ(samples[13].id, "four-page-text");
-    CHECK_EQ(samples[13].expected_pages, 4U);
-    CHECK_EQ(samples[14].id, "underline-text");
-    CHECK_EQ(samples[15].id, "superscript-subscript-text");
-    CHECK_EQ(samples[15].kind, "superscript_subscript_text");
-    CHECK_EQ(samples[15].expected_pages, 1U);
-    CHECK_GE(samples[15].expected_text.size(), 3U);
-    CHECK_EQ(samples[16].id, "punctuation-text");
-    CHECK_GE(samples[16].expected_text.size(), 3U);
-    CHECK_EQ(samples[17].id, "two-page-text");
-    CHECK_EQ(samples[17].expected_pages, 2U);
-    CHECK_EQ(samples[18].id, "repeat-phrase-text");
-    CHECK_EQ(samples[19].id, "bordered-box-text");
-    CHECK_EQ(samples[19].kind, "bordered_box_text");
-    CHECK_EQ(samples[20].id, "line-primitive-text");
-    CHECK_EQ(samples[20].kind, "line_primitive_text");
-    CHECK_EQ(samples[21].id, "table-like-grid-text");
-    CHECK_EQ(samples[21].kind, "table_like_grid_text");
-    CHECK_EQ(samples[22].id, "metadata-long-title-text");
-    CHECK_EQ(samples[22].kind, "metadata_long_title_text");
-    CHECK_EQ(samples[23].id, "header-footer-text");
-    CHECK_EQ(samples[23].kind, "header_footer_text");
-    CHECK_EQ(samples[24].id, "two-column-text");
-    CHECK_EQ(samples[24].kind, "two_column_text");
-    CHECK_EQ(samples[25].id, "invoice-grid-text");
-    CHECK_EQ(samples[25].kind, "invoice_grid_text");
-    CHECK_EQ(samples[26].id, "image-caption-text");
-    CHECK_EQ(samples[26].kind, "image_caption_text");
-    CHECK_EQ(samples[26].expected_image_count, 1U);
-    CHECK_EQ(samples[27].id, "sectioned-report-text");
-    CHECK_EQ(samples[27].kind, "sectioned_report_text");
-    CHECK_EQ(samples[27].expected_pages, 4U);
-    CHECK_GE(samples[27].expected_text.size(), 8U);
-    CHECK_EQ(samples[28].id, "list-report-text");
-    CHECK_EQ(samples[28].kind, "list_report_text");
-    CHECK_EQ(samples[29].id, "long-report-text");
-    CHECK_EQ(samples[29].kind, "long_report_text");
-    CHECK_EQ(samples[30].id, "image-report-text");
-    CHECK_EQ(samples[30].kind, "image_report_text");
-    CHECK_EQ(samples[30].expected_image_count, 2U);
-    CHECK_EQ(samples[30].expected_pages, 2U);
-    CHECK_EQ(samples[31].id, "cjk-report-text");
-    CHECK_EQ(samples[31].kind, "cjk_report_text");
-    CHECK_EQ(samples[31].expected_pages, 2U);
-    CHECK_EQ(samples[32].id, "cjk-image-report-text");
-    CHECK_EQ(samples[32].kind, "cjk_image_report_text");
-    CHECK_EQ(samples[32].expected_image_count, 2U);
-    CHECK_EQ(samples[32].expected_pages, 2U);
-    CHECK_EQ(samples[33].id, "document-eastasia-style-probe");
-    CHECK_EQ(samples[33].kind, "document_eastasia_style_probe");
-    CHECK_EQ(samples[33].expected_pages, 1U);
-    CHECK_GE(samples[33].expected_text.size(), 7U);
-    CHECK_EQ(samples[34].id, "document-image-semantics-text");
-    CHECK_EQ(samples[34].kind, "document_image_semantics_text");
-    CHECK_EQ(samples[34].expected_image_count, 3U);
-    CHECK_EQ(samples[34].expected_pages, 1U);
-    CHECK_GE(samples[34].expected_text.size(), 5U);
-    CHECK_EQ(samples[35].id, "document-cjk-complex-layout-text");
-    CHECK_EQ(samples[35].kind, "document_cjk_complex_layout_text");
-    CHECK_EQ(samples[35].expected_pages, 3U);
-    CHECK_EQ(samples[35].expected_image_count, 4U);
-    CHECK_GE(samples[35].expected_text.size(), 18U);
-    CHECK_EQ(samples[36].id, "document-table-semantics-text");
-    CHECK_EQ(samples[36].kind, "document_table_semantics_text");
-    CHECK_EQ(samples[36].expected_pages, 2U);
-    CHECK_GE(samples[36].expected_text.size(), 4U);
-    CHECK_EQ(samples[37].id, "document-long-flow-text");
-    CHECK_EQ(samples[37].kind, "document_long_flow_text");
-    CHECK_EQ(samples[37].expected_pages, 5U);
-    CHECK_GE(samples[37].expected_text.size(), 7U);
-    CHECK_EQ(samples[38].id, "document-invoice-table-text");
-    CHECK_EQ(samples[38].kind, "document_invoice_table_text");
-    CHECK_EQ(samples[38].expected_pages, 1U);
-    CHECK_GE(samples[38].expected_text.size(), 8U);
-    CHECK_EQ(samples[39].id, "document-style-gallery-text");
-    CHECK_EQ(samples[39].kind, "document_style_gallery_text");
-    CHECK_EQ(samples[39].expected_pages, 1U);
-    CHECK_GE(samples[39].expected_text.size(), 7U);
-    CHECK_EQ(samples[40].id, "strikethrough-text");
-    CHECK_EQ(samples[40].kind, "strikethrough_text");
-    CHECK_EQ(samples[40].expected_pages, 1U);
-    CHECK_GE(samples[40].expected_text.size(), 3U);
-    CHECK_EQ(samples[41].id, "style-superscript-subscript-text");
-    CHECK_EQ(samples[41].kind, "style_superscript_subscript_text");
-    CHECK_EQ(samples[41].expected_pages, 1U);
-    CHECK_GE(samples[41].expected_text.size(), 3U);
-    CHECK_EQ(samples[42].id, "document-rtl-bidi-text");
-    CHECK_EQ(samples[42].kind, "document_rtl_bidi_text");
-    CHECK_EQ(samples[42].expected_pages, 1U);
-    CHECK_GE(samples[42].expected_text.size(), 7U);
-    CHECK_EQ(samples[43].id, "document-font-matrix-text");
-    CHECK_EQ(samples[43].kind, "document_font_matrix_text");
-    CHECK_EQ(samples[43].expected_pages, 1U);
-    CHECK_GE(samples[43].expected_text.size(), 12U);
-    CHECK_EQ(samples[44].id, "header-footer-rtl-text");
-    CHECK_EQ(samples[44].kind, "header_footer_rtl_text");
-    CHECK_EQ(samples[44].expected_pages, 1U);
-    CHECK_GE(samples[44].expected_text.size(), 8U);
-    CHECK_EQ(samples[45].id, "header-footer-rtl-variants-text");
-    CHECK_EQ(samples[45].kind, "header_footer_rtl_variants_text");
-    CHECK_EQ(samples[45].expected_pages, 3U);
-    CHECK_GE(samples[45].expected_text.size(), 13U);
-    CHECK_EQ(samples[46].id, "document-table-font-matrix-text");
-    CHECK_EQ(samples[46].kind, "document_table_font_matrix_text");
-    CHECK_EQ(samples[46].expected_pages, 3U);
-    CHECK_GE(samples[46].expected_text.size(), 14U);
-    CHECK_EQ(samples[47].id, "document-table-header-footer-variants-text");
-    CHECK_EQ(samples[47].kind, "document_table_header_footer_variants_text");
-    CHECK_EQ(samples[47].expected_pages, 3U);
-    CHECK_GE(samples[47].expected_text.size(), 14U);
-    CHECK_EQ(samples[48].id, "document-table-wrap-flow-text");
-    CHECK_EQ(samples[48].kind, "document_table_wrap_flow_text");
-    CHECK_EQ(samples[48].expected_pages, 3U);
-    CHECK_GE(samples[48].expected_text.size(), 12U);
-    CHECK_EQ(samples[49].id, "document-table-cjk-wrap-flow-text");
-    CHECK_EQ(samples[49].kind, "document_table_cjk_wrap_flow_text");
-    CHECK_EQ(samples[49].expected_pages, 2U);
-    CHECK_GE(samples[49].expected_text.size(), 11U);
-    CHECK_EQ(samples[50].id, "document-table-cjk-merged-repeat-text");
-    CHECK_EQ(samples[50].kind, "document_table_cjk_merged_repeat_text");
-    CHECK_EQ(samples[50].expected_pages, 4U);
-    CHECK_GE(samples[50].expected_text.size(), 10U);
-    CHECK_EQ(samples[51].id, "document-table-cant-split-text");
-    CHECK_EQ(samples[51].kind, "document_table_cant_split_text");
-    CHECK_EQ(samples[51].expected_pages, 3U);
-    CHECK_GE(samples[51].expected_text.size(), 10U);
-    CHECK_EQ(samples[52].id, "document-table-merged-cells-text");
-    CHECK_EQ(samples[52].kind, "document_table_merged_cells_text");
-    CHECK_EQ(samples[52].expected_pages, 1U);
-    CHECK_GE(samples[52].expected_text.size(), 10U);
-    CHECK_EQ(samples[53].id, "document-table-merged-header-repeat-text");
-    CHECK_EQ(samples[53].kind, "document_table_merged_header_repeat_text");
-    CHECK_EQ(samples[53].expected_pages, 4U);
-    CHECK_GE(samples[53].expected_text.size(), 10U);
-    CHECK_EQ(samples[54].id, "document-table-merged-header-footer-variants-text");
-    CHECK_EQ(samples[54].kind, "document_table_merged_header_footer_variants_text");
-    CHECK_EQ(samples[54].expected_pages, 4U);
-    CHECK_GE(samples[54].expected_text.size(), 10U);
-    CHECK_EQ(samples[55].id, "document-table-merged-cant-split-text");
-    CHECK_EQ(samples[55].kind, "document_table_merged_cant_split_text");
-    CHECK_EQ(samples[55].expected_pages, 3U);
-    CHECK_GE(samples[55].expected_text.size(), 10U);
-    CHECK_EQ(samples[56].id, "document-table-vertical-merged-cant-split-text");
-    CHECK_EQ(samples[56].kind, "document_table_vertical_merged_cant_split_text");
-    CHECK_EQ(samples[56].expected_pages, 4U);
-    CHECK_GE(samples[56].expected_text.size(), 10U);
-    CHECK_EQ(samples[57].id,
-             "document-table-cjk-vertical-merged-cant-split-text");
-    CHECK_EQ(samples[57].kind,
-             "document_table_cjk_vertical_merged_cant_split_text");
-    CHECK_EQ(samples[57].expected_pages, 3U);
-    CHECK_GE(samples[57].expected_text.size(), 10U);
+    REQUIRE_GE(samples.size(), 60U);
+    std::unordered_set<std::string> sample_ids;
+    for (const auto &sample : samples) {
+        CHECK(sample_ids.insert(sample.id).second);
+    }
+
+    const auto expect_sample =
+        [&](std::string_view id, std::string_view kind, std::size_t pages,
+            std::size_t min_text_count,
+            std::optional<std::size_t> image_count = std::nullopt) {
+            INFO("sample id: " << id);
+            const auto *sample = find_sample_by_id(samples, id);
+            REQUIRE(sample != nullptr);
+            CHECK_EQ(sample->kind, kind);
+            CHECK_EQ(sample->expected_pages, pages);
+            CHECK_GE(sample->expected_text.size(), min_text_count);
+            if (image_count.has_value()) {
+                CHECK_EQ(sample->expected_image_count, *image_count);
+            }
+        };
+
+    expect_sample("single-text", "single_text", 1U, 1U);
+    expect_sample("multi-page-text", "multi_page_text", 2U, 2U);
+    expect_sample("cjk-text", "cjk_text", 1U, 2U);
+    expect_sample("styled-text", "styled_text", 1U, 4U);
+    expect_sample("font-size-text", "font_size_text", 1U, 3U);
+    expect_sample("color-text", "color_text", 1U, 4U);
+    expect_sample("mixed-style-text", "mixed_style_text", 1U, 4U);
+    expect_sample("contract-cjk-style", "contract_cjk_style", 1U, 7U);
+    expect_sample("document-contract-cjk-style", "document_contract_cjk_style",
+                  1U, 12U);
+    expect_sample("three-page-text", "three_page_text", 3U, 3U);
+    expect_sample("landscape-text", "landscape_text", 1U, 3U);
+    expect_sample("title-body-text", "title_body_text", 1U, 5U);
+    expect_sample("dense-text", "dense_text", 1U, 6U);
+    expect_sample("four-page-text", "four_page_text", 4U, 4U);
+    expect_sample("underline-text", "underline_text", 1U, 4U);
+    expect_sample("superscript-subscript-text",
+                  "superscript_subscript_text", 1U, 3U);
+    expect_sample("punctuation-text", "punctuation_text", 1U, 3U);
+    expect_sample("two-page-text", "two_page_text", 2U, 2U);
+    expect_sample("repeat-phrase-text", "repeat_phrase_text", 1U, 4U);
+    expect_sample("bordered-box-text", "bordered_box_text", 1U, 2U);
+    expect_sample("line-primitive-text", "line_primitive_text", 1U, 2U);
+    expect_sample("table-like-grid-text", "table_like_grid_text", 1U, 4U);
+    expect_sample("metadata-long-title-text", "metadata_long_title_text", 1U,
+                  2U);
+    expect_sample("header-footer-text", "header_footer_text", 1U, 3U);
+    expect_sample("two-column-text", "two_column_text", 1U, 3U);
+    expect_sample("invoice-grid-text", "invoice_grid_text", 1U, 3U);
+    expect_sample("image-caption-text", "image_caption_text", 1U, 3U, 1U);
+    expect_sample("sectioned-report-text", "sectioned_report_text", 4U, 8U);
+    expect_sample("list-report-text", "list_report_text", 2U, 5U);
+    expect_sample("long-report-text", "long_report_text", 1U, 4U);
+    expect_sample("image-report-text", "image_report_text", 2U, 5U, 2U);
+    expect_sample("cjk-report-text", "cjk_report_text", 2U, 5U);
+    expect_sample("cjk-image-report-text", "cjk_image_report_text", 2U, 6U,
+                  2U);
+    expect_sample("document-eastasia-style-probe",
+                  "document_eastasia_style_probe", 1U, 7U);
+    expect_sample("document-image-semantics-text",
+                  "document_image_semantics_text", 1U, 5U, 3U);
+    expect_sample("document-cjk-complex-layout-text",
+                  "document_cjk_complex_layout_text", 3U, 18U, 4U);
+    expect_sample("document-cjk-copy-search-matrix-text",
+                  "document_cjk_copy_search_matrix_text", 3U, 20U);
+    expect_sample("document-cjk-image-wrap-stress-text",
+                  "document_cjk_image_wrap_stress_text", 4U, 20U, 5U);
+    expect_sample("document-table-semantics-text",
+                  "document_table_semantics_text", 2U, 4U);
+    expect_sample("document-long-flow-text", "document_long_flow_text", 5U,
+                  7U);
+    expect_sample("document-invoice-table-text",
+                  "document_invoice_table_text", 1U, 8U);
+    expect_sample("document-style-gallery-text",
+                  "document_style_gallery_text", 1U, 7U);
+    expect_sample("strikethrough-text", "strikethrough_text", 1U, 3U);
+    expect_sample("style-superscript-subscript-text",
+                  "style_superscript_subscript_text", 1U, 3U);
+    expect_sample("document-rtl-bidi-text", "document_rtl_bidi_text", 1U, 7U);
+    expect_sample("document-font-matrix-text", "document_font_matrix_text", 1U,
+                  12U);
+    expect_sample("header-footer-rtl-text", "header_footer_rtl_text", 1U, 8U);
+    expect_sample("header-footer-rtl-variants-text",
+                  "header_footer_rtl_variants_text", 3U, 13U);
+    expect_sample("document-table-font-matrix-text",
+                  "document_table_font_matrix_text", 3U, 14U);
+    expect_sample("document-table-header-footer-variants-text",
+                  "document_table_header_footer_variants_text", 3U, 14U);
+    expect_sample("document-table-wrap-flow-text",
+                  "document_table_wrap_flow_text", 3U, 12U);
+    expect_sample("document-table-cjk-wrap-flow-text",
+                  "document_table_cjk_wrap_flow_text", 2U, 11U);
+    expect_sample("document-table-cjk-merged-repeat-text",
+                  "document_table_cjk_merged_repeat_text", 4U, 10U);
+    expect_sample("document-table-cant-split-text",
+                  "document_table_cant_split_text", 3U, 10U);
+    expect_sample("document-table-merged-cells-text",
+                  "document_table_merged_cells_text", 1U, 10U);
+    expect_sample("document-table-merged-header-repeat-text",
+                  "document_table_merged_header_repeat_text", 4U, 10U);
+    expect_sample("document-table-merged-header-footer-variants-text",
+                  "document_table_merged_header_footer_variants_text", 4U,
+                  10U);
+    expect_sample("document-table-merged-cant-split-text",
+                  "document_table_merged_cant_split_text", 3U, 10U);
+    expect_sample("document-table-vertical-merged-cant-split-text",
+                  "document_table_vertical_merged_cant_split_text", 4U, 10U);
+    expect_sample("document-table-cjk-vertical-merged-cant-split-text",
+                  "document_table_cjk_vertical_merged_cant_split_text", 3U,
+                  10U);
 }
 
 TEST_CASE("PDF regression manifest parser preserves escaped strings") {
