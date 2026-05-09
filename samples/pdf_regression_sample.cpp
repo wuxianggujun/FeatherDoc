@@ -4404,6 +4404,443 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
 }
 
 [[nodiscard]] ScenarioResult
+build_document_cjk_table_wrap_page_flow_text_sample(
+    const std::filesystem::path &cjk_font_path,
+    const std::filesystem::path &asset_dir) {
+    ScenarioResult sample;
+
+    const auto image_path = write_quadrant_rgb_png(
+        asset_dir,
+        "featherdoc-pdf-regression-document-cjk-table-wrap-page-flow.png");
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed") ||
+        !define_document_cjk_font_embed_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK table wrap page flow sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Table wrap page flow: ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"交错文档流"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !intro.add_run(" / FE-TF-901 / ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"分页环绕矩阵"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text("Flow header TF-303 page {{page}}") ||
+        !default_footer.has_next() ||
+        !default_footer.set_text("Flow footer {{page}} / {{total_pages}}") ||
+        !first_header.has_next() ||
+        !first_header.set_text("Flow first header TF-101 page {{page}}") ||
+        !first_footer.has_next() ||
+        !first_footer.set_text("Flow first footer {{page}} / {{total_pages}}") ||
+        !even_header.has_next() ||
+        !even_header.set_text("Flow even header TF-202 page {{page}}") ||
+        !even_footer.has_next() ||
+        !even_footer.set_text("Flow even footer {{page}} / {{total_pages}}")) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.width_twips = 9200U;
+    setup.height_twips = 12400U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 720U;
+    setup.margins.left_twips = 820U;
+    setup.margins.right_twips = 820U;
+    setup.margins.header_twips = 260U;
+    setup.margins.footer_twips = 260U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"起始段落先验证内联图片前后的文本基线与复制搜索连续性，再进入交错表格流场景。")) ||
+        !document.append_image(image_path, 102U, 50U) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"内联图片之后需要立即恢复全宽正文，确保后续表格、页眉页脚和浮动图像都不继承错误缩进。"))) {
+        return sample;
+    }
+
+    auto stripe = append_document_paragraph(document, "");
+    if (!stripe.has_next() ||
+        !stripe.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !stripe.add_run("Flow stripe: ").has_next() ||
+        !add_styled_contract_run(document, stripe, utf8_from_u8(u8"复制校验"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !stripe.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, stripe, utf8_from_u8(u8"终页索引"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    const auto append_flow_paragraph = [&](int index,
+                                           std::u8string_view label) {
+        const auto text =
+            utf8_from_u8(u8"第 ") + std::to_string(index) +
+            utf8_from_u8(u8" 组交错流验证：") + utf8_from_u8(label) +
+            utf8_from_u8(
+                u8"、复制搜索、字宽回读、页码展开与合同检索，混排 English token FE-TF-") +
+            std::to_string(920 + index) +
+            utf8_from_u8(u8"，并确认表格与段落交错后正文仍然稳定。");
+        return append_document_text_paragraph(document, text);
+    };
+
+    featherdoc::floating_image_options left_square_options;
+    left_square_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::column;
+    left_square_options.horizontal_offset_px = 0;
+    left_square_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    left_square_options.vertical_offset_px = 0;
+    left_square_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::square;
+    left_square_options.wrap_distance_right_px = 18U;
+    left_square_options.wrap_distance_bottom_px = 10U;
+    left_square_options.crop =
+        featherdoc::floating_image_crop{180U, 0U, 40U, 120U};
+    if (!document.append_floating_image(image_path, 116U, 88U,
+                                        left_square_options)) {
+        return sample;
+    }
+
+    for (int index = 1; index <= 6; ++index) {
+        if (!append_flow_paragraph(index, u8"左侧图像包围")) {
+            return sample;
+        }
+    }
+
+    constexpr std::size_t table_a_row_count = 8U;
+    auto table_a = document.append_table(table_a_row_count, 3U);
+    if (!table_a.has_next() || !table_a.set_width_twips(7200U) ||
+        !table_a.set_column_width_twips(0U, 1500U) ||
+        !table_a.set_column_width_twips(1U, 1700U) ||
+        !table_a.set_column_width_twips(2U, 4000U) ||
+        !table_a.set_cell_text(0U, 0U, utf8_from_u8(u8"流转看板")) ||
+        !table_a.set_cell_text(1U, 0U, utf8_from_u8(u8"阶段")) ||
+        !table_a.set_cell_text(1U, 1U, utf8_from_u8(u8"流键")) ||
+        !table_a.set_cell_text(1U, 2U, utf8_from_u8(u8"说明")) ||
+        !table_a.set_cell_text(2U, 0U, "TF-A-01") ||
+        !table_a.set_cell_text(2U, 1U, utf8_from_u8(u8"正文")) ||
+        !table_a.set_cell_text(
+            2U, 2U,
+            utf8_from_u8(u8"左侧图像后的第一批表格行，用于确认全宽正文已经恢复。")) ||
+        !table_a.set_cell_text(3U, 0U, "TF-A-02") ||
+        !table_a.set_cell_text(3U, 1U, utf8_from_u8(u8"检索")) ||
+        !table_a.set_cell_text(
+            3U, 2U,
+            utf8_from_u8(u8"重复表头在下一页继续可检索，不能因为分页丢掉中文文本层。")) ||
+        !table_a.set_cell_text(4U, 0U, "TF-A-03") ||
+        !table_a.set_cell_text(4U, 1U, utf8_from_u8(u8"分页")) ||
+        !table_a.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(u8"分页前后的段落回流不能缺字、重叠或出现异常缩进。")) ||
+        !table_a.set_cell_text(5U, 0U, "TF-A-04") ||
+        !table_a.set_cell_text(5U, 1U, utf8_from_u8(u8"环绕")) ||
+        !table_a.set_cell_text(
+            5U, 2U,
+            utf8_from_u8(u8"这行刻意放长，用来制造更紧的余量，观察表格和正文交错时的分页稳定性。")) ||
+        !table_a.set_cell_text(6U, 0U, "TF-A-05") ||
+        !table_a.set_cell_text(6U, 1U, utf8_from_u8(u8"末页")) ||
+        !table_a.set_cell_text(
+            6U, 2U,
+            utf8_from_u8(u8"终页索引仍需与页脚页码一致，保证 copy/search 可回读。")) ||
+        !table_a.set_cell_text(7U, 0U, "TF-A-06") ||
+        !table_a.set_cell_text(7U, 1U, utf8_from_u8(u8"回读")) ||
+        !table_a.set_cell_text(
+            7U, 2U,
+            utf8_from_u8(u8"后续正文必须从表格下方恢复，不得沿用错误的环绕边界。"))) {
+        return sample;
+    }
+
+    auto table_a_banner = table_a.find_cell(0U, 0U);
+    auto table_a_heading_stage = table_a.find_cell(1U, 0U);
+    auto table_a_heading_key = table_a.find_cell(1U, 1U);
+    auto table_a_heading_note = table_a.find_cell(1U, 2U);
+    if (!table_a_banner.has_value() || !table_a_heading_stage.has_value() ||
+        !table_a_heading_key.has_value() ||
+        !table_a_heading_note.has_value() ||
+        !table_a_banner->merge_right(2U)) {
+        return sample;
+    }
+    if (!table_a_banner->set_fill_color("D9EAF7") ||
+        !table_a_heading_stage->set_fill_color("EAF2F8") ||
+        !table_a_heading_key->set_fill_color("EAF2F8") ||
+        !table_a_heading_note->set_fill_color("EAF2F8")) {
+        return sample;
+    }
+
+    auto table_a_row = table_a.rows();
+    for (std::size_t row_index = 0U; row_index < table_a_row_count;
+         ++row_index) {
+        if (!table_a_row.has_next()) {
+            return sample;
+        }
+        if (row_index < 2U) {
+            if (!table_a_row.set_repeats_header() ||
+                !table_a_row.set_height_twips(
+                    420U, featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 5U) {
+            if (!table_a_row.set_cant_split() ||
+                !table_a_row.set_height_twips(
+                    980U, featherdoc::row_height_rule::at_least)) {
+                return sample;
+            }
+        } else if (!table_a_row.set_height_twips(
+                       640U, featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        table_a_row.next();
+    }
+
+    auto checkpoint_a = append_document_paragraph(document, "");
+    if (!checkpoint_a.has_next() ||
+        !checkpoint_a.add_run("Flow checkpoint A: ").has_next() ||
+        !add_styled_contract_run(document, checkpoint_a,
+                                 utf8_from_u8(u8"表头复用"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !checkpoint_a.add_run(" / FE-TF-951 / ").has_next() ||
+        !add_styled_contract_run(document, checkpoint_a,
+                                 utf8_from_u8(u8"分页衔接"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options top_bottom_options;
+    top_bottom_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    top_bottom_options.horizontal_offset_px = 90;
+    top_bottom_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    top_bottom_options.vertical_offset_px = 0;
+    top_bottom_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::top_bottom;
+    top_bottom_options.wrap_distance_top_px = 8U;
+    top_bottom_options.wrap_distance_bottom_px = 10U;
+    top_bottom_options.crop =
+        featherdoc::floating_image_crop{0U, 180U, 220U, 0U};
+    if (!document.append_floating_image(image_path, 176U, 56U,
+                                        top_bottom_options)) {
+        return sample;
+    }
+
+    for (int index = 7; index <= 12; ++index) {
+        if (!append_flow_paragraph(index, u8"上下回流切换")) {
+            return sample;
+        }
+    }
+
+    constexpr std::size_t table_b_row_count = 7U;
+    auto table_b = document.append_table(table_b_row_count, 3U);
+    if (!table_b.has_next() || !table_b.set_width_twips(7200U) ||
+        !table_b.set_column_width_twips(0U, 1500U) ||
+        !table_b.set_column_width_twips(1U, 1700U) ||
+        !table_b.set_column_width_twips(2U, 4000U) ||
+        !table_b.set_cell_text(0U, 0U, utf8_from_u8(u8"终页联动")) ||
+        !table_b.set_cell_text(1U, 0U, utf8_from_u8(u8"案例")) ||
+        !table_b.set_cell_text(1U, 1U, utf8_from_u8(u8"锚点")) ||
+        !table_b.set_cell_text(1U, 2U, utf8_from_u8(u8"备注")) ||
+        !table_b.set_cell_text(2U, 0U, "TF-B-01") ||
+        !table_b.set_cell_text(2U, 1U, utf8_from_u8(u8"表头复用")) ||
+        !table_b.set_cell_text(
+            2U, 2U,
+            utf8_from_u8(u8"上一页结束后这里应复现表头，并保持复制搜索命中。")) ||
+        !table_b.set_cell_text(3U, 0U, "TF-B-02") ||
+        !table_b.set_cell_text(3U, 1U, utf8_from_u8(u8"分页衔接")) ||
+        !table_b.set_cell_text(
+            3U, 2U,
+            utf8_from_u8(u8"图片锚点与表格正文不能错位，段落回流要在页内自然接续。")) ||
+        !table_b.set_cell_text(4U, 0U, "TF-B-03") ||
+        !table_b.set_cell_text(4U, 1U, utf8_from_u8(u8"合同检索")) ||
+        !table_b.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(u8"复制搜索路径要与嵌字一致，避免视觉正确但文本层错误。")) ||
+        !table_b.set_cell_text(5U, 0U, "TF-B-04") ||
+        !table_b.set_cell_text(5U, 1U, utf8_from_u8(u8"右侧锚点")) ||
+        !table_b.set_cell_text(
+            5U, 2U,
+            utf8_from_u8(u8"末页继续验证右侧裁剪包围，不得压到页脚和页码占位符。")) ||
+        !table_b.set_cell_text(6U, 0U, "TF-B-05") ||
+        !table_b.set_cell_text(6U, 1U, utf8_from_u8(u8"回读复检")) ||
+        !table_b.set_cell_text(
+            6U, 2U,
+            utf8_from_u8(u8"尾行验证全文收口，确认终页合同和检索回读都仍然稳定。"))) {
+        return sample;
+    }
+
+    auto table_b_banner = table_b.find_cell(0U, 0U);
+    auto table_b_heading_case = table_b.find_cell(1U, 0U);
+    auto table_b_heading_anchor = table_b.find_cell(1U, 1U);
+    auto table_b_heading_note = table_b.find_cell(1U, 2U);
+    if (!table_b_banner.has_value() || !table_b_heading_case.has_value() ||
+        !table_b_heading_anchor.has_value() ||
+        !table_b_heading_note.has_value() ||
+        !table_b_banner->merge_right(2U)) {
+        return sample;
+    }
+    if (!table_b_banner->set_fill_color("E2F0D9") ||
+        !table_b_heading_case->set_fill_color("FCE4D6") ||
+        !table_b_heading_anchor->set_fill_color("FCE4D6") ||
+        !table_b_heading_note->set_fill_color("FCE4D6")) {
+        return sample;
+    }
+
+    auto table_b_row = table_b.rows();
+    for (std::size_t row_index = 0U; row_index < table_b_row_count;
+         ++row_index) {
+        if (!table_b_row.has_next()) {
+            return sample;
+        }
+        if (row_index < 2U) {
+            if (!table_b_row.set_repeats_header() ||
+                !table_b_row.set_height_twips(
+                    420U, featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 4U) {
+            if (!table_b_row.set_cant_split() ||
+                !table_b_row.set_height_twips(
+                    940U, featherdoc::row_height_rule::at_least)) {
+                return sample;
+            }
+        } else if (!table_b_row.set_height_twips(
+                       620U, featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        table_b_row.next();
+    }
+
+    auto checkpoint_b = append_document_paragraph(document, "");
+    if (!checkpoint_b.has_next() ||
+        !checkpoint_b.add_run("Flow checkpoint B: ").has_next() ||
+        !add_styled_contract_run(document, checkpoint_b,
+                                 utf8_from_u8(u8"终页合同"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !checkpoint_b.add_run(" / FE-TF-971 / ").has_next() ||
+        !add_styled_contract_run(document, checkpoint_b,
+                                 utf8_from_u8(u8"右侧锚点"),
+                                 "DocumentPdfCjkFontEmbedNote") ||
+        !checkpoint_b.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, checkpoint_b,
+                                 utf8_from_u8(u8"大字回读"),
+                                 "DocumentPdfCjkFontEmbedLarge")) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options behind_text_options;
+    behind_text_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    behind_text_options.horizontal_offset_px = 208;
+    behind_text_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    behind_text_options.vertical_offset_px = 0;
+    behind_text_options.wrap_mode = featherdoc::floating_image_wrap_mode::none;
+    behind_text_options.behind_text = true;
+    behind_text_options.z_order = 2U;
+    behind_text_options.crop =
+        featherdoc::floating_image_crop{80U, 80U, 80U, 80U};
+    if (!document.append_floating_image(image_path, 124U, 76U,
+                                        behind_text_options)) {
+        return sample;
+    }
+
+    for (int index = 13; index <= 16; ++index) {
+        if (!append_flow_paragraph(index, u8"叠底正文回读")) {
+            return sample;
+        }
+    }
+
+    featherdoc::floating_image_options right_square_options;
+    right_square_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    right_square_options.horizontal_offset_px = 222;
+    right_square_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    right_square_options.vertical_offset_px = 0;
+    right_square_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::square;
+    right_square_options.wrap_distance_left_px = 14U;
+    right_square_options.wrap_distance_bottom_px = 8U;
+    right_square_options.crop =
+        featherdoc::floating_image_crop{60U, 40U, 120U, 80U};
+    if (!document.append_floating_image(image_path, 112U, 94U,
+                                        right_square_options)) {
+        return sample;
+    }
+
+    for (int index = 17; index <= 20; ++index) {
+        if (!append_flow_paragraph(index, u8"末页表格收口")) {
+            return sample;
+        }
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("Flow close: ").has_next() ||
+        !add_styled_contract_run(document, closing, utf8_from_u8(u8"终页合同"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !closing.add_run(" / FE-TF-999 / ").has_next() ||
+        !add_styled_contract_run(document, closing, utf8_from_u8(u8"回读复检"),
+                                 "DocumentPdfCjkFontEmbedLarge")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{460.0, 620.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK table wrap page flow";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed",
+                                        cjk_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.render_inline_images = true;
+    options.header_footer_font_size_points = 8.0;
+    options.line_height_points = 16.0;
+    options.paragraph_spacing_after_points = 5.0;
+    options.image_spacing_after_points = 6.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult
 build_document_table_header_footer_variants_text_sample() {
     ScenarioResult sample;
 
@@ -6738,6 +7175,20 @@ int run_program(const std::vector<std::string> &args) {
         }
         sample = build_document_cjk_extreme_page_breaks_text_sample(cjk_font,
                                                                     output_parent);
+    } else if (config.scenario == "document_cjk_table_wrap_page_flow_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_cjk_table_wrap_page_flow_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_table_wrap_page_flow_text_sample(
+            cjk_font, output_parent);
     } else if (config.scenario == "document_table_semantics_text") {
         sample = build_document_table_semantics_text_sample();
     } else if (config.scenario == "document_invoice_table_text") {
