@@ -33,8 +33,8 @@ PDFium 回读验证
 - `IPdfGenerator` / `IPdfParser` 已经把 Core 与 PDFio / PDFium 隔离开。
 - `Document -> PdfDocumentLayout -> PDFio -> PDF` 已经跑通。
 - `PDFio -> PDF -> PDFium` 回读验证已经跑通。
-- 当前 `pdf_regression_manifest.json` 包含 41 个样本。
-- 当前 `ctest -R "pdf_regression_"` 覆盖 42 个回归测试，包含 manifest 校验。
+- 当前 `pdf_regression_manifest.json` 包含 54 个样本。
+- 当前 `ctest -R "pdf_regression_"` 覆盖 55 个回归测试，包含 manifest 校验。
 - 已覆盖基础段落、字体解析、真实字体度量、CJK / ToUnicode 回读、基础样式、页眉页脚、动态页码、图片、表格，以及 `table_position` 水平/纵向基础映射。
 
 ## 路线总览
@@ -385,6 +385,9 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 已在 E6 发布门禁中补上 manifest 中所有 `expect_cjk=true`
   样本的 text layer 可复制/可搜索代理检查；使用 PDF 文本层提取结果
   作为可复现验收，不再依赖手工 UI 操作。
+- 2026-05-09：已新增 `document-table-cjk-merged-repeat-text` regression sample，
+  覆盖 CJK merged cells、重复表头、first/even/default 页眉页脚分页占位符，
+  并完成真实导出、PNG 可视化验证和 manifest 接入。
 
 通过命令：
 

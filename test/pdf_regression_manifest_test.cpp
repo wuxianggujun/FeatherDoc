@@ -436,6 +436,8 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
              std::string::npos);
     CHECK_NE(json.find("\"document-table-cjk-wrap-flow-text\""),
              std::string::npos);
+    CHECK_NE(json.find("\"document-table-cjk-merged-repeat-text\""),
+             std::string::npos);
     CHECK_NE(json.find("\"document-table-cant-split-text\""),
              std::string::npos);
     CHECK_NE(json.find("\"document-table-merged-cells-text\""),
@@ -447,7 +449,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
         std::string::npos);
 
     const auto samples = parse_samples_from_manifest(json);
-    REQUIRE_EQ(samples.size(), 53U);
+    REQUIRE_EQ(samples.size(), 54U);
     CHECK_EQ(samples[0].id, "single-text");
     CHECK_EQ(samples[0].kind, "single_text");
     CHECK_EQ(samples[0].expected_pages, 1U);
@@ -583,22 +585,26 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     CHECK_EQ(samples[48].kind, "document_table_cjk_wrap_flow_text");
     CHECK_EQ(samples[48].expected_pages, 2U);
     CHECK_GE(samples[48].expected_text.size(), 11U);
-    CHECK_EQ(samples[49].id, "document-table-cant-split-text");
-    CHECK_EQ(samples[49].kind, "document_table_cant_split_text");
-    CHECK_EQ(samples[49].expected_pages, 3U);
+    CHECK_EQ(samples[49].id, "document-table-cjk-merged-repeat-text");
+    CHECK_EQ(samples[49].kind, "document_table_cjk_merged_repeat_text");
+    CHECK_EQ(samples[49].expected_pages, 4U);
     CHECK_GE(samples[49].expected_text.size(), 10U);
-    CHECK_EQ(samples[50].id, "document-table-merged-cells-text");
-    CHECK_EQ(samples[50].kind, "document_table_merged_cells_text");
-    CHECK_EQ(samples[50].expected_pages, 1U);
+    CHECK_EQ(samples[50].id, "document-table-cant-split-text");
+    CHECK_EQ(samples[50].kind, "document_table_cant_split_text");
+    CHECK_EQ(samples[50].expected_pages, 3U);
     CHECK_GE(samples[50].expected_text.size(), 10U);
-    CHECK_EQ(samples[51].id, "document-table-merged-header-repeat-text");
-    CHECK_EQ(samples[51].kind, "document_table_merged_header_repeat_text");
-    CHECK_EQ(samples[51].expected_pages, 4U);
+    CHECK_EQ(samples[51].id, "document-table-merged-cells-text");
+    CHECK_EQ(samples[51].kind, "document_table_merged_cells_text");
+    CHECK_EQ(samples[51].expected_pages, 1U);
     CHECK_GE(samples[51].expected_text.size(), 10U);
-    CHECK_EQ(samples[52].id, "document-table-merged-header-footer-variants-text");
-    CHECK_EQ(samples[52].kind, "document_table_merged_header_footer_variants_text");
+    CHECK_EQ(samples[52].id, "document-table-merged-header-repeat-text");
+    CHECK_EQ(samples[52].kind, "document_table_merged_header_repeat_text");
     CHECK_EQ(samples[52].expected_pages, 4U);
     CHECK_GE(samples[52].expected_text.size(), 10U);
+    CHECK_EQ(samples[53].id, "document-table-merged-header-footer-variants-text");
+    CHECK_EQ(samples[53].kind, "document_table_merged_header_footer_variants_text");
+    CHECK_EQ(samples[53].expected_pages, 4U);
+    CHECK_GE(samples[53].expected_text.size(), 10U);
 }
 
 TEST_CASE("PDF regression manifest parser preserves escaped strings") {

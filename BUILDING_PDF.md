@@ -421,6 +421,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - `document-table-header-footer-variants-text`
 - `document-table-wrap-flow-text`
 - `document-table-cjk-wrap-flow-text`
+- `document-table-cjk-merged-repeat-text`
 - `document-table-cant-split-text`
 - `document-table-merged-cells-text`
 - `document-table-merged-header-repeat-text`
@@ -526,7 +527,7 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 - 可以做 Unicode / ToUnicode roundtrip 验证，并用 PDFium 解析页数和文字 span
 - 可以对 Unicode / CJK 字体 roundtrip 产物做 PNG 渲染级视觉 smoke
 - 可以跑 PDFio → PDFium 的端到端 smoke
-- 已有 53 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow、document invoice table、document style gallery、document RTL bidi、document font matrix、header/footer RTL、header/footer 分页变体、document table font matrix、document table header/footer variants、document table wrap flow、document table CJK wrap flow、document table cant split、document table merged cells、document table merged repeat、document table merged header footer variants，以及 run-level 和 style-level 两条链的 strikethrough 与 superscript/subscript 这几个更接近真实文档流或样式兼容性的生成型样本
+- 已有 54 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow、document invoice table、document style gallery、document RTL bidi、document font matrix、header/footer RTL、header/footer 分页变体、document table font matrix、document table header/footer variants、document table wrap flow、document table CJK wrap flow、document table CJK merged repeat、document table cant split、document table merged cells、document table merged repeat、document table merged header footer variants，以及 run-level 和 style-level 两条链的 strikethrough 与 superscript/subscript 这几个更接近真实文档流或样式兼容性的生成型样本
 
 还不能算正式可用：
 

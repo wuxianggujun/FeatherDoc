@@ -3666,6 +3666,190 @@ build_document_table_header_footer_variants_text_sample() {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_table_cjk_merged_repeat_text_sample(
+    const std::filesystem::path &cjk_font_path) {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document Merged Repeat CJK")) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text(utf8_from_u8(u8"文档表格合并重复表头样本")) ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"合并单元格、重复表头和分页后的中文文本都需要保持稳定可读。"))) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text(
+            utf8_from_u8(u8"CJK 合并页眉 M-303 第 {{page}} 页")) ||
+        !default_footer.has_next() ||
+        !default_footer.set_text(utf8_from_u8(u8"CJK 合并页脚 {{page}} / {{total_pages}}")) ||
+        !first_header.has_next() ||
+        !first_header.set_text(
+            utf8_from_u8(u8"CJK 首页 M-101 第 {{page}} 页")) ||
+        !even_header.has_next() ||
+        !even_header.set_text(
+            utf8_from_u8(u8"CJK 偶数页 M-202 第 {{page}} 页")) ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(
+            utf8_from_u8(u8"CJK 首页页脚 {{page}} / {{total_pages}}")) ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(
+            utf8_from_u8(u8"CJK 偶数页页脚 {{page}} / {{total_pages}}"))) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.orientation = featherdoc::page_orientation::landscape;
+    setup.width_twips = 6000U;
+    setup.height_twips = 4400U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 720U;
+    setup.margins.left_twips = 720U;
+    setup.margins.right_twips = 720U;
+    setup.margins.header_twips = 240U;
+    setup.margins.footer_twips = 240U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    constexpr std::size_t row_count = 8U;
+    auto table = document.append_table(row_count, 3U);
+    if (!table.has_next() || !table.set_width_twips(7200U) ||
+        !table.set_column_width_twips(0U, 1800U) ||
+        !table.set_column_width_twips(1U, 1800U) ||
+        !table.set_column_width_twips(2U, 3600U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"发布看板")) ||
+        !table.set_cell_text(1U, 0U, utf8_from_u8(u8"案例")) ||
+        !table.set_cell_text(1U, 1U, utf8_from_u8(u8"负责人")) ||
+        !table.set_cell_text(1U, 2U, utf8_from_u8(u8"说明")) ||
+        !table.set_cell_text(2U, 0U, "MC-01") ||
+        !table.set_cell_text(2U, 1U, utf8_from_u8(u8"统筹")) ||
+        !table.set_cell_text(
+            2U, 2U,
+            utf8_from_u8(u8"负责人块需要垂直居中。")) ||
+        !table.set_cell_text(3U, 0U, "MC-02") ||
+        !table.set_cell_text(
+            3U, 2U,
+            utf8_from_u8(u8"第二行仍贴在负责人下方。")) ||
+        !table.set_cell_text(4U, 0U, "MC-03") ||
+        !table.set_cell_text(4U, 1U, utf8_from_u8(u8"检索")) ||
+        !table.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(u8"翻页后重复表头仍和网格对齐。")) ||
+        !table.set_cell_text(5U, 0U, "MC-04") ||
+        !table.set_cell_text(5U, 1U, utf8_from_u8(u8"文档")) ||
+        !table.set_cell_text(
+            5U, 2U,
+            utf8_from_u8(u8"页眉页脚页码保持稳定。")) ||
+        !table.set_cell_text(6U, 0U, utf8_from_u8(u8"尾部")) ||
+        !table.set_cell_text(6U, 1U, utf8_from_u8(u8"里程碑")) ||
+        !table.set_cell_text(
+            6U, 2U,
+            utf8_from_u8(u8"合并尾行在分页后仍然清晰。")) ||
+        !table.set_cell_text(7U, 0U, "MC-05") ||
+        !table.set_cell_text(7U, 1U, utf8_from_u8(u8"核验")) ||
+        !table.set_cell_text(
+            7U, 2U,
+            utf8_from_u8(u8"第 3 页仍重复表头。"))) {
+        return sample;
+    }
+
+    auto merged_banner = table.find_cell(0U, 0U);
+    auto merged_owner = table.find_cell(2U, 1U);
+    auto merged_tail = table.find_cell(6U, 1U);
+    auto heading_case = table.find_cell(1U, 0U);
+    auto heading_owner = table.find_cell(1U, 1U);
+    auto heading_notes = table.find_cell(1U, 2U);
+    if (!merged_banner.has_value() || !merged_owner.has_value() ||
+        !merged_tail.has_value() || !heading_case.has_value() ||
+        !heading_owner.has_value() || !heading_notes.has_value() ||
+        !merged_banner->merge_right(2U) || !merged_owner->merge_down(1U) ||
+        !merged_tail->merge_right(1U)) {
+        return sample;
+    }
+
+    if (!merged_tail->set_text(utf8_from_u8(u8"合并尾行在分页后仍然清晰。"))) {
+        return sample;
+    }
+
+    if (!merged_banner->set_fill_color("D9EAF7") ||
+        !heading_case->set_fill_color("EAF2F8") ||
+        !heading_owner->set_fill_color("EAF2F8") ||
+        !heading_notes->set_fill_color("EAF2F8") ||
+        !merged_owner->set_fill_color("E2F0D9") ||
+        !merged_tail->set_fill_color("FCE4D6") ||
+        !merged_owner->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < row_count; ++row_index) {
+        if (!row.has_next()) {
+            return sample;
+        }
+        if (row_index < 2U) {
+            if (!row.set_repeats_header() ||
+                !row.set_height_twips(540U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (!row.set_height_twips(760U,
+                                         featherdoc::row_height_rule::exact)) {
+            return sample;
+        }
+        row.next();
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{300.0, 220.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document table CJK merged repeat";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document Merged Repeat CJK",
+                                        cjk_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 8.0;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 36.0;
+    options.margin_bottom_points = 36.0;
+    options.line_height_points = 14.0;
+    options.paragraph_spacing_after_points = 4.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult
 build_document_table_merged_header_footer_variants_text_sample() {
     ScenarioResult sample;
@@ -4429,6 +4613,19 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_table_cjk_wrap_flow_text_sample(cjk_font);
+    } else if (config.scenario == "document_table_cjk_merged_repeat_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_table_cjk_merged_repeat_text\n";
+            return 1;
+        }
+        sample = build_document_table_cjk_merged_repeat_text_sample(cjk_font);
     } else if (config.scenario == "document_table_cant_split_text") {
         sample = build_document_table_cant_split_text_sample();
     } else if (config.scenario == "document_table_merged_cells_text") {
