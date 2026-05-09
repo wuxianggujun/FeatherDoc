@@ -1424,6 +1424,59 @@ TEST_CASE("document PDF adapter emits bullet list prefixes") {
              utf8_from_u8(u8"\u2022\tBullet item"));
 }
 
+TEST_CASE(
+    "document PDF adapter falls back unicode bullet prefixes to east Asia fonts") {
+    const auto cjk_font = first_existing_path(candidate_cjk_fonts());
+    if (cjk_font.empty()) {
+        MESSAGE("skipping unicode bullet prefix font fallback test: configure "
+                "test CJK fonts");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Helvetica"));
+    CHECK(document.set_default_run_east_asia_font_family("Unit CJK"));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(
+        document.set_paragraph_list(paragraph, featherdoc::list_kind::bullet));
+    CHECK(paragraph.add_run("Bullet item").has_next());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit CJK", cjk_font},
+    };
+    options.cjk_font_file_path = cjk_font;
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_GE(layout.pages.front().text_runs.size(), 1U);
+
+    const auto bullet_prefix = utf8_from_u8(u8"\u2022\t");
+    const auto bullet_run = std::find_if(
+        layout.pages.front().text_runs.begin(),
+        layout.pages.front().text_runs.end(),
+        [&](const auto &text_run) {
+            return text_run.text.find(bullet_prefix) != std::string::npos;
+        });
+    REQUIRE(bullet_run != layout.pages.front().text_runs.end());
+    CHECK_EQ(bullet_run->font_family, "Unit CJK");
+    CHECK_EQ(bullet_run->font_file_path, cjk_font);
+    CHECK(bullet_run->unicode);
+
+    const auto output_path = std::filesystem::current_path() /
+                             "featherdoc-bullet-prefix-eastasia-font.pdf";
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+}
+
 TEST_CASE("document PDF adapter emits decimal list prefixes") {
     featherdoc::Document document;
     REQUIRE_FALSE(document.create_empty());

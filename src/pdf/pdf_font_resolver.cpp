@@ -423,6 +423,36 @@ PdfResolvedFont PdfFontResolver::resolve(std::string_view font_family,
         if (!resolved_path && this->options_.use_system_font_fallbacks) {
             resolved_path = find_system_font_path(font_family, bold, italic);
         }
+
+        if (unicode_text && !resolved_path &&
+            !east_asia_font_family.empty()) {
+            resolved_path =
+                find_mapped_font_path(this->options_.font_mappings,
+                                      east_asia_font_family, bold, italic);
+            if (!resolved_path && this->options_.use_system_font_fallbacks) {
+                resolved_path =
+                    find_system_font_path(east_asia_font_family, bold, italic);
+            }
+            if (resolved_path) {
+                resolved_family = std::string{east_asia_font_family};
+            }
+        }
+
+        if (unicode_text && !resolved_path &&
+            path_exists(this->options_.default_cjk_font_file_path)) {
+            resolved_path = this->options_.default_cjk_font_file_path;
+            if (!east_asia_font_family.empty()) {
+                resolved_family = std::string{east_asia_font_family};
+            }
+        }
+
+        if (unicode_text && !resolved_path &&
+            this->options_.use_system_font_fallbacks) {
+            resolved_path = first_existing_path(cjk_fallback_candidates());
+            if (resolved_path && !east_asia_font_family.empty()) {
+                resolved_family = std::string{east_asia_font_family};
+            }
+        }
     }
 
     if (!resolved_path && path_exists(this->options_.default_font_file_path)) {
