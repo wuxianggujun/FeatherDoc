@@ -4863,6 +4863,324 @@ build_document_cjk_table_wrap_page_flow_text_sample(
 }
 
 [[nodiscard]] ScenarioResult
+build_document_cjk_vertical_merge_wrap_cant_split_text_sample(
+    const std::filesystem::path &cjk_font_path,
+    const std::filesystem::path &asset_dir) {
+    ScenarioResult sample;
+
+    const auto image_path = write_quadrant_rgb_png(
+        asset_dir,
+        "featherdoc-pdf-regression-document-cjk-vertical-merge-wrap-cant-split.png");
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed") ||
+        !define_document_cjk_font_embed_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK vertical merge wrap sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Vertical merge wrap: ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"纵向合并联动"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !intro.add_run(" / FE-VM-901 / ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"小页高分页"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text("Vertical header VM-303 page {{page}}") ||
+        !default_footer.has_next() ||
+        !default_footer.set_text("Vertical footer {{page}} / {{total_pages}}") ||
+        !first_header.has_next() ||
+        !first_header.set_text("Vertical first header VM-101 page {{page}}") ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(
+            "Vertical first footer {{page}} / {{total_pages}}") ||
+        !even_header.has_next() ||
+        !even_header.set_text("Vertical even header VM-202 page {{page}}") ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(
+            "Vertical even footer {{page}} / {{total_pages}}")) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.width_twips = 8400U;
+    setup.height_twips = 6400U;
+    setup.margins.top_twips = 600U;
+    setup.margins.bottom_twips = 600U;
+    setup.margins.left_twips = 660U;
+    setup.margins.right_twips = 660U;
+    setup.margins.header_twips = 240U;
+    setup.margins.footer_twips = 240U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(
+                u8"起始段落先验证内联图片前后的检索连续性，再进入纵向合并与禁拆分页的复合场景。")) ||
+        !document.append_image(image_path, 72U, 32U) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(
+                u8"内联图片之后应立即恢复全宽正文，避免后续表格页流继承错误缩进或错误回流边界。"))) {
+        return sample;
+    }
+
+    auto stripe = append_document_paragraph(document, "");
+    if (!stripe.has_next() ||
+        !stripe.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !stripe.add_run("Merge stripe: ").has_next() ||
+        !add_styled_contract_run(document, stripe, utf8_from_u8(u8"纵向块"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !stripe.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, stripe, utf8_from_u8(u8"整块迁移"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options left_square_options;
+    left_square_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::column;
+    left_square_options.horizontal_offset_px = 0;
+    left_square_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    left_square_options.vertical_offset_px = 0;
+    left_square_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::square;
+    left_square_options.wrap_distance_right_px = 18U;
+    left_square_options.wrap_distance_bottom_px = 10U;
+    left_square_options.crop =
+        featherdoc::floating_image_crop{160U, 0U, 50U, 120U};
+    if (!document.append_floating_image(image_path, 88U, 62U,
+                                        left_square_options)) {
+        return sample;
+    }
+
+    for (int index = 1; index <= 2; ++index) {
+        const auto text =
+            utf8_from_u8(u8"第 ") + std::to_string(index) +
+            utf8_from_u8(
+                u8" 组纵向联动验证：图像包围、复制搜索、页码回读与纵向块对齐，混排 English token FE-VM-") +
+            std::to_string(920 + index) +
+            utf8_from_u8(u8"，并确认表格前的正文不会把后续分页边界带偏。");
+        if (!append_document_text_paragraph(document, text)) {
+            return sample;
+        }
+    }
+
+    constexpr std::size_t row_count = 8U;
+    auto table = document.append_table(row_count, 3U);
+    if (!table.has_next() || !table.set_width_twips(6000U) ||
+        !table.set_column_width_twips(0U, 1320U) ||
+        !table.set_column_width_twips(1U, 1320U) ||
+        !table.set_column_width_twips(2U, 3360U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"交付矩阵")) ||
+        !table.set_cell_text(1U, 0U, utf8_from_u8(u8"案例")) ||
+        !table.set_cell_text(1U, 1U, utf8_from_u8(u8"负责人")) ||
+        !table.set_cell_text(1U, 2U, utf8_from_u8(u8"说明")) ||
+        !table.set_cell_text(2U, 0U, "CVM-01") ||
+        !table.set_cell_text(2U, 1U, utf8_from_u8(u8"排期")) ||
+        !table.set_cell_text(2U, 2U, utf8_from_u8(u8"短余量。")) ||
+        !table.set_cell_text(3U, 0U, "CVM-02") ||
+        !table.set_cell_text(3U, 1U, utf8_from_u8(u8"统筹")) ||
+        !table.set_cell_text(
+            3U, 2U,
+            utf8_from_u8(u8"纵向合并负责人块翻页后仍需整块保持。")) ||
+        !table.set_cell_text(4U, 0U, "CVM-03") ||
+        !table.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(u8"第二行说明继续跟随同一个负责人块。")) ||
+        !table.set_cell_text(5U, 0U, "CVM-04") ||
+        !table.set_cell_text(5U, 1U, utf8_from_u8(u8"核验")) ||
+        !table.set_cell_text(
+            5U, 2U,
+            utf8_from_u8(u8"禁拆行要整块落到下一页，重复表头和页码检索继续正确。")) ||
+        !table.set_cell_text(6U, 0U, "CVM-05") ||
+        !table.set_cell_text(6U, 1U, utf8_from_u8(u8"归档")) ||
+        !table.set_cell_text(
+            6U, 2U,
+            utf8_from_u8(u8"尾部行验证大块迁移完成后流程恢复。")) ||
+        !table.set_cell_text(7U, 0U, "CVM-06") ||
+        !table.set_cell_text(7U, 1U, utf8_from_u8(u8"检索")) ||
+        !table.set_cell_text(
+            7U, 2U,
+            utf8_from_u8(u8"终页回读与页眉页脚检索保持一致。"))) {
+        return sample;
+    }
+
+    auto merged_banner = table.find_cell(0U, 0U);
+    auto merged_owner = table.find_cell(3U, 1U);
+    auto heading_case = table.find_cell(1U, 0U);
+    auto heading_owner = table.find_cell(1U, 1U);
+    auto heading_notes = table.find_cell(1U, 2U);
+    if (!merged_banner.has_value() || !merged_owner.has_value() ||
+        !heading_case.has_value() || !heading_owner.has_value() ||
+        !heading_notes.has_value() || !merged_banner->merge_right(2U) ||
+        !merged_owner->merge_down(1U)) {
+        return sample;
+    }
+
+    if (!merged_banner->set_fill_color("D9EAF7") ||
+        !heading_case->set_fill_color("EAF2F8") ||
+        !heading_owner->set_fill_color("EAF2F8") ||
+        !heading_notes->set_fill_color("EAF2F8") ||
+        !merged_owner->set_fill_color("E2F0D9") ||
+        !merged_owner->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < row_count; ++row_index) {
+        if (!row.has_next()) {
+            return sample;
+        }
+        if (row_index < 2U) {
+            if (!row.set_repeats_header() ||
+                !row.set_height_twips(360U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 2U) {
+            if (!row.set_height_twips(440U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 3U) {
+            if (!row.set_cant_split() ||
+                !row.set_height_twips(620U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 4U) {
+            if (!row.set_height_twips(560U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 5U) {
+            if (!row.set_cant_split() ||
+                !row.set_height_twips(720U,
+                                      featherdoc::row_height_rule::at_least)) {
+                return sample;
+            }
+        } else if (!row.set_height_twips(520U,
+                                         featherdoc::row_height_rule::exact)) {
+            return sample;
+        }
+        row.next();
+    }
+
+    auto checkpoint = append_document_paragraph(document, "");
+    if (!checkpoint.has_next() ||
+        !checkpoint.add_run("Vertical checkpoint: ").has_next() ||
+        !add_styled_contract_run(document, checkpoint,
+                                 utf8_from_u8(u8"表后回流"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !checkpoint.add_run(" / FE-VM-961 / ").has_next() ||
+        !add_styled_contract_run(document, checkpoint,
+                                 utf8_from_u8(u8"整块落页"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options top_bottom_options;
+    top_bottom_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    top_bottom_options.horizontal_offset_px = 52;
+    top_bottom_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    top_bottom_options.vertical_offset_px = 0;
+    top_bottom_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::top_bottom;
+    top_bottom_options.wrap_distance_top_px = 8U;
+    top_bottom_options.wrap_distance_bottom_px = 10U;
+    top_bottom_options.crop =
+        featherdoc::floating_image_crop{0U, 160U, 180U, 0U};
+    if (!document.append_floating_image(image_path, 118U, 40U,
+                                        top_bottom_options)) {
+        return sample;
+    }
+
+    for (int index = 3; index <= 5; ++index) {
+        const auto text =
+            utf8_from_u8(u8"第 ") + std::to_string(index) +
+            utf8_from_u8(
+                u8" 组表后回流验证：整块落页、复制搜索、终页回读与页脚展开，混排 English token FE-VM-") +
+            std::to_string(920 + index) +
+            utf8_from_u8(u8"，并确认图片下方已经恢复为稳定全宽正文。");
+        if (!append_document_text_paragraph(document, text)) {
+            return sample;
+        }
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("Vertical close: ").has_next() ||
+        !add_styled_contract_run(document, closing, utf8_from_u8(u8"终页回读"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !closing.add_run(" / FE-VM-999 / ").has_next() ||
+        !add_styled_contract_run(document, closing, utf8_from_u8(u8"整块复检"),
+                                 "DocumentPdfCjkFontEmbedLarge")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{420.0, 320.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK vertical merge wrap";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed",
+                                        cjk_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.render_inline_images = true;
+    options.header_footer_font_size_points = 8.0;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 44.0;
+    options.line_height_points = 14.0;
+    options.paragraph_spacing_after_points = 4.0;
+    options.image_spacing_after_points = 6.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult
 build_document_table_header_footer_variants_text_sample() {
     ScenarioResult sample;
 
@@ -7210,6 +7528,21 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_cjk_table_wrap_page_flow_text_sample(
+            cjk_font, output_parent);
+    } else if (config.scenario ==
+               "document_cjk_vertical_merge_wrap_cant_split_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_cjk_vertical_merge_wrap_cant_split_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_vertical_merge_wrap_cant_split_text_sample(
             cjk_font, output_parent);
     } else if (config.scenario == "document_table_semantics_text") {
         sample = build_document_table_semantics_text_sample();
