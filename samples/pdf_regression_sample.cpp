@@ -3605,6 +3605,253 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_document_cjk_extreme_page_breaks_text_sample(
+    const std::filesystem::path &cjk_font_path,
+    const std::filesystem::path &asset_dir) {
+    ScenarioResult sample;
+
+    const auto image_path = write_quadrant_rgb_png(
+        asset_dir,
+        "featherdoc-pdf-regression-document-cjk-extreme-page-breaks.png");
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document Complex Layout CJK") ||
+        !define_document_complex_layout_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK extreme page breaks sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Extreme page breaks: ").has_next() ||
+        !add_styled_contract_run(document, intro,
+                                 utf8_from_u8(u8"临界分页边界"),
+                                 "DocumentPdfComplexLayoutCjkAccent") ||
+        !intro.add_run(" / FE-PB-901 / ").has_next() ||
+        !add_styled_contract_run(document, intro,
+                                 utf8_from_u8(u8"段落回流矩阵"),
+                                 "DocumentPdfComplexLayoutCjkNote")) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text("Break header PB-303 page {{page}}") ||
+        !default_footer.has_next() ||
+        !default_footer.set_text("Break footer {{page}} / {{total_pages}}") ||
+        !first_header.has_next() ||
+        !first_header.set_text("Break first header PB-101 page {{page}}") ||
+        !first_footer.has_next() ||
+        !first_footer.set_text("Break first footer {{page}} / {{total_pages}}") ||
+        !even_header.has_next() ||
+        !even_header.set_text("Break even header PB-202 page {{page}}") ||
+        !even_footer.has_next() ||
+        !even_footer.set_text("Break even footer {{page}} / {{total_pages}}")) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.width_twips = 8400U;
+    setup.height_twips = 10800U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 720U;
+    setup.margins.left_twips = 780U;
+    setup.margins.right_twips = 780U;
+    setup.margins.header_twips = 240U;
+    setup.margins.footer_twips = 240U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"起始段落先压缩可用高度，让后续短段、长段和图像锚点更容易撞到分页边界。")) ||
+        !document.append_image(image_path, 104U, 40U) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"内联图片之后的正文需要立刻恢复整栏宽度，避免分页前后遗留错误缩进。"))) {
+        return sample;
+    }
+
+    auto marker = append_document_paragraph(document, "");
+    if (!marker.has_next() ||
+        !marker.set_alignment(featherdoc::paragraph_alignment::right) ||
+        !marker.add_run("Boundary stripe: ").has_next() ||
+        !add_styled_contract_run(document, marker,
+                                 utf8_from_u8(u8"终页收口"),
+                                 "DocumentPdfComplexLayoutCjkAccent") ||
+        !marker.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, marker,
+                                 utf8_from_u8(u8"回流检测"),
+                                 "DocumentPdfComplexLayoutCjkNote")) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options left_square_options;
+    left_square_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::column;
+    left_square_options.horizontal_offset_px = 0;
+    left_square_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    left_square_options.vertical_offset_px = 0;
+    left_square_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::square;
+    left_square_options.wrap_distance_right_px = 16U;
+    left_square_options.wrap_distance_bottom_px = 10U;
+    left_square_options.crop =
+        featherdoc::floating_image_crop{200U, 0U, 50U, 100U};
+    if (!document.append_floating_image(image_path, 104U, 88U,
+                                        left_square_options)) {
+        return sample;
+    }
+
+    const auto append_boundary_paragraph =
+        [&](int index, std::u8string_view tag) {
+            const auto text =
+                utf8_from_u8(u8"第 ") + std::to_string(index) +
+                utf8_from_u8(u8" 组分页边界验证：") + utf8_from_u8(tag) +
+                utf8_from_u8(
+                    u8"、页眉索引、页脚索引、段落回流与合同检索，混排 English token FE-PB-") +
+                std::to_string(920 + index) +
+                utf8_from_u8(u8"，并确认跨页后没有缺字、重叠或错误缩进。");
+            return append_document_text_paragraph(document, text);
+        };
+
+    for (int index = 1; index <= 4; ++index) {
+        if (!append_boundary_paragraph(index, u8"左侧包围缩进")) {
+            return sample;
+        }
+    }
+
+    featherdoc::floating_image_options top_bottom_options;
+    top_bottom_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    top_bottom_options.horizontal_offset_px = 60;
+    top_bottom_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    top_bottom_options.vertical_offset_px = 0;
+    top_bottom_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::top_bottom;
+    top_bottom_options.wrap_distance_top_px = 8U;
+    top_bottom_options.wrap_distance_bottom_px = 12U;
+    top_bottom_options.crop =
+        featherdoc::floating_image_crop{0U, 180U, 200U, 0U};
+    if (!document.append_floating_image(image_path, 152U, 54U,
+                                        top_bottom_options)) {
+        return sample;
+    }
+
+    for (int index = 5; index <= 8; ++index) {
+        if (!append_boundary_paragraph(index, u8"整栏回流切换")) {
+            return sample;
+        }
+    }
+
+    featherdoc::floating_image_options behind_text_options;
+    behind_text_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    behind_text_options.horizontal_offset_px = 176;
+    behind_text_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    behind_text_options.vertical_offset_px = 0;
+    behind_text_options.wrap_mode = featherdoc::floating_image_wrap_mode::none;
+    behind_text_options.behind_text = true;
+    behind_text_options.z_order = 2U;
+    behind_text_options.crop =
+        featherdoc::floating_image_crop{80U, 80U, 80U, 80U};
+    if (!document.append_floating_image(image_path, 120U, 76U,
+                                        behind_text_options)) {
+        return sample;
+    }
+
+    for (int index = 9; index <= 12; ++index) {
+        if (!append_boundary_paragraph(index, u8"叠底文字可读")) {
+            return sample;
+        }
+    }
+
+    featherdoc::floating_image_options right_square_options;
+    right_square_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    right_square_options.horizontal_offset_px = 188;
+    right_square_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    right_square_options.vertical_offset_px = 0;
+    right_square_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::square;
+    right_square_options.wrap_distance_left_px = 14U;
+    right_square_options.wrap_distance_bottom_px = 8U;
+    right_square_options.crop =
+        featherdoc::floating_image_crop{60U, 40U, 120U, 80U};
+    if (!document.append_floating_image(image_path, 110U, 98U,
+                                        right_square_options)) {
+        return sample;
+    }
+
+    for (int index = 13; index <= 18; ++index) {
+        if (!append_boundary_paragraph(index, u8"末页临界分页")) {
+            return sample;
+        }
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("Boundary close: ").has_next() ||
+        !add_styled_contract_run(document, closing,
+                                 utf8_from_u8(u8"临界分页边界"),
+                                 "DocumentPdfComplexLayoutCjkAccent") ||
+        !closing.add_run(" / FE-PB-999 / ").has_next() ||
+        !add_styled_contract_run(document, closing,
+                                 utf8_from_u8(u8"末页收口"),
+                                 "DocumentPdfComplexLayoutCjkNote")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{420.0, 540.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK extreme page breaks";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document Complex Layout CJK",
+                                        cjk_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.render_inline_images = true;
+    options.header_footer_font_size_points = 8.0;
+    options.line_height_points = 17.0;
+    options.paragraph_spacing_after_points = 5.0;
+    options.image_spacing_after_points = 6.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult
 build_document_table_header_footer_variants_text_sample() {
     ScenarioResult sample;
@@ -5899,6 +6146,20 @@ int run_program(const std::vector<std::string> &args) {
         }
         sample = build_document_cjk_image_wrap_stress_text_sample(cjk_font,
                                                                   output_parent);
+    } else if (config.scenario == "document_cjk_extreme_page_breaks_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_cjk_extreme_page_breaks_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_extreme_page_breaks_text_sample(cjk_font,
+                                                                    output_parent);
     } else if (config.scenario == "document_table_semantics_text") {
         sample = build_document_table_semantics_text_sample();
     } else if (config.scenario == "document_invoice_table_text") {
