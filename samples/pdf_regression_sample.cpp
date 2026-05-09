@@ -3992,6 +3992,147 @@ build_document_table_header_footer_variants_text_sample() {
 }
 
 [[nodiscard]] ScenarioResult
+build_document_table_vertical_merged_cant_split_text_sample() {
+    ScenarioResult sample;
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica")) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Vertical merged cant split sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center) ||
+        !append_document_text_paragraph(
+            document,
+            "Repeated headers must keep a vertical merged owner block intact "
+            "after the break.")) {
+        return sample;
+    }
+
+    auto header = document.ensure_section_header_paragraphs(0U);
+    auto footer = document.ensure_section_footer_paragraphs(0U);
+    if (!header.has_next() ||
+        !header.set_text("Vertical merged header V-505 page {{page}}") ||
+        !footer.has_next() ||
+        !footer.set_text("Vertical merged footer {{page}} / {{total_pages}}")) {
+        return sample;
+    }
+
+    constexpr std::size_t row_count = 7U;
+    auto table = document.append_table(row_count, 3U);
+    if (!table.has_next() || !table.set_width_twips(7200U) ||
+        !table.set_column_width_twips(0U, 1500U) ||
+        !table.set_column_width_twips(1U, 1600U) ||
+        !table.set_column_width_twips(2U, 4100U) ||
+        !table.set_cell_text(0U, 0U, "Delivery board") ||
+        !table.set_cell_text(1U, 0U, "Case") ||
+        !table.set_cell_text(1U, 1U, "Owner") ||
+        !table.set_cell_text(1U, 2U, "Notes") ||
+        !table.set_cell_text(2U, 0U, "VMC-01") ||
+        !table.set_cell_text(2U, 1U, "Queue") ||
+        !table.set_cell_text(2U, 2U, "Short remainder.") ||
+        !table.set_cell_text(3U, 0U, "VMC-02") ||
+        !table.set_cell_text(3U, 1U, "Cluster") ||
+        !table.set_cell_text(
+            3U, 2U,
+            "Owner block restarts below header.") ||
+        !table.set_cell_text(4U, 0U, "VMC-03") ||
+        !table.set_cell_text(
+            4U, 2U,
+            "Second note stays with owner.") ||
+        !table.set_cell_text(5U, 0U, "VMC-04") ||
+        !table.set_cell_text(5U, 1U, "QA") ||
+        !table.set_cell_text(5U, 2U, "Tail row confirms clean flow resumes.") ||
+        !table.set_cell_text(6U, 0U, "VMC-05") ||
+        !table.set_cell_text(6U, 1U, "Archive") ||
+        !table.set_cell_text(6U, 2U, "Page numbering stays stable.")) {
+        return sample;
+    }
+
+    auto merged_banner = table.find_cell(0U, 0U);
+    auto merged_owner = table.find_cell(3U, 1U);
+    auto heading_case = table.find_cell(1U, 0U);
+    auto heading_owner = table.find_cell(1U, 1U);
+    auto heading_notes = table.find_cell(1U, 2U);
+    if (!merged_banner.has_value() || !merged_owner.has_value() ||
+        !heading_case.has_value() || !heading_owner.has_value() ||
+        !heading_notes.has_value() || !merged_banner->merge_right(2U) ||
+        !merged_owner->merge_down(1U)) {
+        return sample;
+    }
+
+    if (!merged_banner->set_fill_color("D9EAF7") ||
+        !heading_case->set_fill_color("EAF2F8") ||
+        !heading_owner->set_fill_color("EAF2F8") ||
+        !heading_notes->set_fill_color("EAF2F8") ||
+        !merged_owner->set_fill_color("E2F0D9") ||
+        !merged_owner->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < row_count; ++row_index) {
+        if (!row.has_next()) {
+            return sample;
+        }
+        if (row_index < 2U) {
+            if (!row.set_repeats_header() ||
+                !row.set_height_twips(440U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 2U) {
+            if (!row.set_height_twips(640U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 3U) {
+            if (!row.set_cant_split() ||
+                !row.set_height_twips(760U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 4U) {
+            if (!row.set_height_twips(760U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (!row.set_height_twips(680U,
+                                         featherdoc::row_height_rule::exact)) {
+            return sample;
+        }
+        row.next();
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{320.0, 220.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document table vertical merged cant split";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.header_footer_font_size_points = 8.0;
+    options.margin_left_points = 36.0;
+    options.margin_right_points = 36.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 44.0;
+    options.line_height_points = 14.0;
+    options.paragraph_spacing_after_points = 4.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult
 build_document_table_merged_header_footer_variants_text_sample() {
     ScenarioResult sample;
 
@@ -4775,6 +4916,9 @@ int run_program(const std::vector<std::string> &args) {
         sample = build_document_table_merged_header_repeat_text_sample();
     } else if (config.scenario == "document_table_merged_cant_split_text") {
         sample = build_document_table_merged_cant_split_text_sample();
+    } else if (config.scenario ==
+               "document_table_vertical_merged_cant_split_text") {
+        sample = build_document_table_vertical_merged_cant_split_text_sample();
     } else if (config.scenario ==
                "document_table_merged_header_footer_variants_text") {
         sample =

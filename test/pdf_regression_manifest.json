@@ -895,6 +895,47 @@
       ],
       "expect_visual_baseline": true,
       "visual_expected_pages": 3
+    },
+    {
+      "id": "document-table-vertical-merged-cant-split-text",
+      "kind": "document_table_vertical_merged_cant_split_text",
+      "output_file": "featherdoc-pdf-regression-document-table-vertical-merged-cant-split-text.pdf",
+      "expected_pages": 4,
+      "expected_text": [
+        "Vertical merged cant split sample",
+        "Repeated headers must keep a vertical",
+        "merged owner block intact after the",
+        "break.",
+        "Vertical merged header V-505 page 1",
+        "Vertical merged header V-505 page 2",
+        "Vertical merged header V-505 page 3",
+        "Vertical merged header V-505 page 4",
+        "Vertical merged footer 1 / 4",
+        "Vertical merged footer 2 / 4",
+        "Vertical merged footer 3 / 4",
+        "Vertical merged footer 4 / 4",
+        "Delivery board",
+        "Case",
+        "Owner",
+        "Notes",
+        "VMC-01",
+        "VMC-02",
+        "VMC-03",
+        "VMC-04",
+        "VMC-05",
+        "Cluster",
+        "Short remainder.",
+        "Owner block restarts",
+        "below header.",
+        "Second note stays",
+        "with owner.",
+        "Tail row confirms",
+        "clean flow resumes.",
+        "Page numbering stays",
+        "stable."
+      ],
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 4
     }
   ]
 }
