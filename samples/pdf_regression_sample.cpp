@@ -1108,6 +1108,19 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
         return sample;
     }
 
+    paragraph = paragraph.insert_paragraph_after("");
+    if (!paragraph.has_next() ||
+        !paragraph.add_run("East Asia symbol probe: ").has_next()) {
+        return sample;
+    }
+    auto symbol_run =
+        paragraph.add_run(utf8_from_u8(u8"※ ㊟ ㊣"));
+    if (!symbol_run.has_next() ||
+        !document.set_run_style(symbol_run,
+                                "DocumentPdfEastAsiaProbeAccent")) {
+        return sample;
+    }
+
     featherdoc::pdf::PdfDocumentAdapterOptions options;
     options.page_size = featherdoc::pdf::PdfPageSize::letter_portrait();
     options.metadata.title =

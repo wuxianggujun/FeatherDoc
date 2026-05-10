@@ -452,7 +452,7 @@ TEST_CASE("PDF regression manifest exists and declares the initial samples") {
     expect_sample("cjk-image-report-text", "cjk_image_report_text", 2U, 6U,
                   2U);
     expect_sample("document-eastasia-style-probe",
-                  "document_eastasia_style_probe", 1U, 7U);
+                  "document_eastasia_style_probe", 1U, 9U);
     expect_sample("document-image-semantics-text",
                   "document_image_semantics_text", 1U, 5U, 3U);
     expect_sample("document-cjk-complex-layout-text",

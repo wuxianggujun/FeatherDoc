@@ -426,11 +426,15 @@
         "East Asia run mapping:",
         "中文样式映射 ABC 123",
         "East Asia note style:",
-        "蓝色 14pt 中文备注"
+        "蓝色 14pt 中文备注",
+        "East Asia symbol probe:",
+        "※ ㊟ ㊣"
       ],
       "expect_cjk": true,
       "expect_unicode": true,
-      "expect_styled_text": true
+      "expect_styled_text": true,
+      "expect_visual_baseline": true,
+      "visual_expected_pages": 1
     },
     {
       "id": "document-image-semantics-text",

@@ -404,6 +404,10 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 2026-05-10：已新增 `document-cjk-bullet-overlay-page-flow-text`
   regression sample，把 bullet 前缀回退、上标/下标/删除线样式叠加、
   图片锚点与表格分页压进同一条文档流，继续扩充 CJK 复杂版式回归集。
+- 2026-05-10：已扩展 East Asia 识别范围，补上日文假名、韩文音节、东亚
+  包围符号与兼容符号的字体回退判断，并把 `document-eastasia-style-probe`
+  扩成可视化基线样本，验证 `※ / ㊟ / ㊣` 这类东亚兼容符号也能稳定落到
+  东亚字体链路。
 
 通过命令：
 
