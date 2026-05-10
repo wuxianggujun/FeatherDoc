@@ -177,7 +177,7 @@ void emit_rotated_cell_lines(PdfPageLayout &page, const TableCellLayout &cell,
 
         auto line_top = cell_content_top(cell, row_top, cell_bottom);
         const auto minimum_baseline_y =
-            cell_bottom + cell.padding_bottom_points;
+            cell_minimum_baseline_y(cell, row_top, cell_bottom);
         for (const auto &line : cell.lines) {
             const auto line_height = line_height_points_for(
                 line, line_height_points, options.font_size_points);

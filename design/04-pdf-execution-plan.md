@@ -527,12 +527,25 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 
 - 已落地 `scripts/run_pdf_visual_release_gate.ps1`，把 `pdf_cli_export`、
   `pdf_regression_`、`pdf_unicode_font_roundtrip_visual`、核心样本 PNG baseline
-  和 aggregate contact sheet 串成一条可复现门禁。
+  和 aggregate contact sheet 串成一条可复现门禁；同时把
+  `cli-cjk-font-source` 纳入 CLI 导出侧的 PNG baseline，固定走
+  `--cjk-font-file` + `--no-system-font-fallbacks`，避免依赖机器自带字体。
 - 已通过 `powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1`。
 - 可视化产物：
   `output/pdf-visual-release-gate/report/aggregate-contact-sheet.png`
   和 `output/pdf-visual-release-gate/unicode-font/report/comparison-contact-sheet.png`。
 - 下一步入口：E6 已收口，后续只在需要推进 PDFium -> AST 读入时进入 E7。
+
+2026-05-10：
+
+- 进一步把 `cli-cjk-font-source` 纳入 E6 的 CLI 导出视觉基线，固定
+  `--cjk-font-file` + `--no-system-font-fallbacks`，避免依赖机器自带字体。
+- 修复了精确高度的 CJK 表头在 PDF 渲染里被挤空的问题，新增
+  `document PDF adapter keeps exact-height table header text visible` 单测。
+- 已通过
+  `powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-export-msvc -SkipUnicodeBaseline`。
+- 关键视觉抽查已确认 `document-cjk-vertical-merge-wrap-cant-split-text` 的
+  交付矩阵表头和 `cli-cjk-font-source` 的基线页都正常。
 
 ## E7：PDFium -> AST 读入方向
 

@@ -70,6 +70,10 @@ build_table_column_widths(const featherdoc::table_inspection_summary &table,
                                       double row_top,
                                       double row_bottom) noexcept;
 
+[[nodiscard]] double cell_minimum_baseline_y(const TableCellLayout &cell,
+                                             double row_top,
+                                             double row_bottom) noexcept;
+
 [[nodiscard]] double spanned_row_bottom(const std::vector<TableRowLayout> &rows,
                                         std::size_t row_index,
                                         const TableCellLayout &cell,

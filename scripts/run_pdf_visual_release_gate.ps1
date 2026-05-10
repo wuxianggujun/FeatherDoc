@@ -313,6 +313,12 @@ $samples = @(
         output = Join-Path $baselineDir "cli-font-map-source"
         expected_pages = 3
     }
+    [ordered]@{
+        name = "cli-cjk-font-source"
+        pdf = Join-Path $resolvedBuildDir "test\pdf_cli_export\cjk-font-source.pdf"
+        output = Join-Path $baselineDir "cli-cjk-font-source"
+        expected_pages = 3
+    }
 )
 
 $renderedSamples = New-Object System.Collections.Generic.List[object]

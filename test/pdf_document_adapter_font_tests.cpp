@@ -3746,6 +3746,63 @@ TEST_CASE("document PDF adapter lays out vertically merged table cells") {
     CHECK_EQ(layout.pages.front().text_runs[1].text, "down");
 }
 
+TEST_CASE("document PDF adapter keeps exact-height table header text visible") {
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto table = document.append_table(4U, 3U);
+    REQUIRE(table.has_next());
+    CHECK(table.set_width_twips(9000U));
+    CHECK(table.set_column_width_twips(0U, 2400U));
+    CHECK(table.set_column_width_twips(1U, 2400U));
+    CHECK(table.set_column_width_twips(2U, 4200U));
+
+    auto rows = table.rows();
+    REQUIRE(rows.has_next());
+    CHECK(rows.set_repeats_header());
+    CHECK(rows.set_height_twips(360U, featherdoc::row_height_rule::exact));
+    rows.next();
+    REQUIRE(rows.has_next());
+    CHECK(rows.set_repeats_header());
+    CHECK(rows.set_height_twips(360U, featherdoc::row_height_rule::exact));
+
+    auto merged_header = table.find_cell(0U, 0U);
+    REQUIRE(merged_header.has_value());
+    CHECK(merged_header->set_text("Merged banner"));
+    CHECK(merged_header->merge_right(2U));
+
+    CHECK(table.set_cell_text(1U, 0U, "Case"));
+    CHECK(table.set_cell_text(1U, 1U, "Owner"));
+    CHECK(table.set_cell_text(1U, 2U, "Notes"));
+    CHECK(table.set_cell_text(2U, 0U, "A-01"));
+    CHECK(table.set_cell_text(2U, 1U, "Ops"));
+    CHECK(table.set_cell_text(2U, 2U, "Body row"));
+    CHECK(table.set_cell_text(3U, 0U, "A-02"));
+    CHECK(table.set_cell_text(3U, 1U, "QA"));
+    CHECK(table.set_cell_text(3U, 2U, "Follow-up"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.use_system_font_fallbacks = false;
+    options.line_height_points = 14.0;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    const auto page_has_text = [](const featherdoc::pdf::PdfPageLayout &page,
+                                  std::string_view text) {
+        return std::any_of(page.text_runs.begin(), page.text_runs.end(),
+                           [text](const featherdoc::pdf::PdfTextRun &run) {
+                               return run.text == text;
+                           });
+    };
+
+    CHECK(page_has_text(layout.pages.front(), "Merged banner"));
+    CHECK(page_has_text(layout.pages.front(), "Case"));
+    CHECK(page_has_text(layout.pages.front(), "Owner"));
+    CHECK(page_has_text(layout.pages.front(), "Notes"));
+}
+
 TEST_CASE("document PDF adapter maps table cell fill and margins") {
     featherdoc::Document document;
     REQUIRE_FALSE(document.create_empty());

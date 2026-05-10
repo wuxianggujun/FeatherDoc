@@ -454,6 +454,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.p
 - `pdf_unicode_font_roundtrip_visual`
 - 核心样本的 PNG baseline 渲染
 - 聚合 contact sheet 生成
+- CLI 导出样本里的 `cli-cjk-font-source` 也会进入 PNG baseline，固定
+  `--cjk-font-file` + `--no-system-font-fallbacks`，用来验证 CJK 字体来源
+  和视觉版式都没有偏差。
 
 主要产物会落到：
 
