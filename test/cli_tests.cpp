@@ -26692,3 +26692,36 @@ TEST_CASE("cli append page number field reports json parse errors") {
     remove_if_exists(source);
     remove_if_exists(output);
 }
+
+#if !defined(FEATHERDOC_CLI_ENABLE_PDF)
+TEST_CASE("cli export-pdf reports disabled pdf support") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_export_pdf_disabled_source.docx";
+    const fs::path output =
+        working_directory / "cli_export_pdf_disabled_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(output);
+
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"export-pdf", source.string(), "--output",
+                      (working_directory / "cli_export_pdf_disabled.pdf")
+                          .string(),
+                      "--json"},
+                     output),
+             1);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"export-pdf\""), std::string::npos);
+    CHECK_NE(json.find("\"ok\":false"), std::string::npos);
+    CHECK_NE(json.find(
+                 "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON"),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(working_directory / "cli_export_pdf_disabled.pdf");
+    remove_if_exists(output);
+}
+#endif

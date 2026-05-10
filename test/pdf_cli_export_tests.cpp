@@ -75,6 +75,35 @@ auto find_latin_font() -> fs::path {
     return {};
 }
 
+auto candidate_cjk_fonts() -> std::vector<fs::path> {
+    std::vector<fs::path> candidates;
+
+#if defined(_WIN32)
+    candidates.emplace_back("C:/Windows/Fonts/msyh.ttc");
+    candidates.emplace_back("C:/Windows/Fonts/simsun.ttc");
+    candidates.emplace_back("C:/Windows/Fonts/simhei.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/Deng.ttf");
+#else
+    candidates.emplace_back(
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc");
+    candidates.emplace_back(
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc");
+    candidates.emplace_back("/usr/share/fonts/truetype/arphic/ukai.ttc");
+    candidates.emplace_back("/usr/share/fonts/truetype/arphic/uming.ttc");
+#endif
+
+    return candidates;
+}
+
+auto find_cjk_font() -> fs::path {
+    for (const auto &candidate : candidate_cjk_fonts()) {
+        if (fs::exists(candidate)) {
+            return candidate;
+        }
+    }
+    return {};
+}
+
 #if defined(FEATHERDOC_BUILD_PDF_IMPORT)
 void assert_pdfium_can_read(const fs::path &path, std::size_t expected_pages,
                             std::initializer_list<std::string_view> texts) {
@@ -233,6 +262,63 @@ TEST_CASE("cli export-pdf accepts an explicit font family mapping") {
     assert_pdfium_can_read(output, 3U,
                            {"section 0 body", "section 1 body",
                             "section 2 body"});
+
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
+    CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
+}
+
+TEST_CASE("cli export-pdf accepts an explicit CJK font file") {
+    const auto cjk_font = find_cjk_font();
+    if (cjk_font.empty()) {
+        MESSAGE("skipping CLI PDF cjk-font-file test: no CJK font found");
+        return;
+    }
+
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_export";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const fs::path source = work_dir / "cjk-font-source.docx";
+    const fs::path output = work_dir / "cjk-font-source.pdf";
+    const fs::path json_output = work_dir / "cjk-font-source-export.json";
+    remove_if_exists(output);
+    remove_if_exists(json_output);
+
+    create_cli_fixture(source);
+
+    {
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.open());
+        const auto cjk_text = utf8_from_u8(u8"中文导出路径");
+        append_body_paragraph(document, cjk_text.c_str());
+        REQUIRE_FALSE(document.save());
+    }
+
+    CHECK_EQ(run_cli({"export-pdf",
+                      source.string(),
+                      "--output",
+                      output.string(),
+                      "--cjk-font-file",
+                      cjk_font.string(),
+                      "--no-system-font-fallbacks",
+                      "--json"},
+                     json_output),
+             0);
+
+    REQUIRE(fs::exists(output));
+    CHECK_GT(fs::file_size(output), static_cast<std::uintmax_t>(500U));
+    CHECK_EQ(read_pdf_magic(output), "%PDF-");
+#if defined(FEATHERDOC_BUILD_PDF_IMPORT)
+    assert_pdfium_can_read(output, 3U,
+                           {"section 0 body", "section 1 body",
+                            "section 2 body", "中文导出路径"});
+#else
+    assert_pdfium_can_read(output, 3U,
+                           {"section 0 body", "section 1 body",
+                            "section 2 body"});
+#endif
 
     const auto json = read_text_file(json_output);
     CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);

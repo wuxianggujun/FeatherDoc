@@ -473,6 +473,8 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_(cjk|document-eastasia)
 - 已补充 `cli_usage` 断言，固定 `export-pdf` 的帮助文本和新增参数名。
 - 已完成可视化验证：CLI 生成的 `font-map-source.pdf` 已渲染为 3 页 PNG/contact sheet；目检无空白页、明显裁剪、重叠或页眉页脚错位。
 - 已确认成功路径在 roundtrip 构建里能被 PDFium 回读，正文页数与关键文本一致。
+- 已补充 `--cjk-font-file` 的显式导出回归，确认关闭系统 fallback 后仍能稳定导出中文正文。
+- 已补充 PDF 未启用时的 `export-pdf` 失败路径测试，确保用户能收到明确的 `FEATHERDOC_BUILD_PDF=ON` 提示。
 - 已知限制：当前 CLI 还没有单独暴露“PDFium 回读失败”作为独立用户子命令，现阶段通过 PDFium parser 测试和 roundtrip 回归覆盖。
 
 ### 推荐验证命令
