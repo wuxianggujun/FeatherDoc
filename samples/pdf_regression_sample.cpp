@@ -7782,6 +7782,774 @@ build_document_cjk_numbered_list_page_flow_text_sample(
 }
 
 [[nodiscard]] ScenarioResult
+build_document_cjk_bullet_page_flow_text_sample(
+    const std::filesystem::path &cjk_font_path,
+    const std::filesystem::path &asset_dir) {
+    ScenarioResult sample;
+
+    const auto image_path = write_quadrant_rgb_png(
+        asset_dir,
+        "featherdoc-pdf-regression-document-cjk-bullet-page-flow.png");
+    const auto list_key = utf8_from_u8(u8"BL-777 项目符号检索键");
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed") ||
+        !define_document_cjk_font_embed_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK bullet page flow sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Bullet flow: ").has_next() ||
+        !add_styled_contract_run(document, intro,
+                                 utf8_from_u8(u8"项目符号回退"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !intro.add_run(" / FE-BL-901 / ").has_next() ||
+        !add_styled_contract_run(document, intro,
+                                 utf8_from_u8(u8"多层符号"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text(utf8_from_u8(
+            u8"Bullet header BL-303 项目符号检索键 page {{page}}")) ||
+        !default_footer.has_next() ||
+        !default_footer.set_text(utf8_from_u8(
+            u8"Bullet footer BL-777 项目符号检索键 {{page}} / {{total_pages}}")) ||
+        !first_header.has_next() ||
+        !first_header.set_text(utf8_from_u8(
+            u8"Bullet first header BL-101 项目符号检索键 page {{page}}")) ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(utf8_from_u8(
+            u8"Bullet first footer BL-777 项目符号检索键 {{page}} / {{total_pages}}")) ||
+        !even_header.has_next() ||
+        !even_header.set_text(utf8_from_u8(
+            u8"Bullet even header BL-202 项目符号检索键 page {{page}}")) ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(utf8_from_u8(
+            u8"Bullet even footer BL-777 项目符号检索键 {{page}} / {{total_pages}}"))) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.width_twips = 8600U;
+    setup.height_twips = 7600U;
+    setup.margins.top_twips = 680U;
+    setup.margins.bottom_twips = 680U;
+    setup.margins.left_twips = 720U;
+    setup.margins.right_twips = 720U;
+    setup.margins.header_twips = 250U;
+    setup.margins.footer_twips = 250U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"起始段落包含 BL-777 项目符号检索键，接下来把主圆点、圆圈、方块三级符号、图片锚点和表格分页组合在同一文档流中验证。")) ||
+        !document.append_image(image_path, 94U, 34U) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"内联图片之后项目符号必须恢复整栏正文，主圆点和方块符号都要可复制可搜索。"))) {
+        return sample;
+    }
+
+    auto marker = append_document_paragraph(document, "");
+    if (!marker.has_next() ||
+        !marker.add_run("Bullet marker: ").has_next() ||
+        !add_styled_contract_run(document, marker, list_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !marker.add_run(" / FE-BL-911 / ").has_next() ||
+        !add_styled_contract_run(document, marker, utf8_from_u8(u8"项目起点"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    const auto append_bullet_item =
+        [&](int index, std::u8string_view label, std::uint32_t level,
+            bool restart) {
+            auto paragraph = append_document_paragraph(document, "");
+            if (!paragraph.has_next()) {
+                return false;
+            }
+            const bool list_set =
+                restart
+                    ? document.restart_paragraph_list(
+                          paragraph, featherdoc::list_kind::bullet, level)
+                    : document.set_paragraph_list(
+                          paragraph, featherdoc::list_kind::bullet, level);
+            if (!list_set) {
+                return false;
+            }
+            const auto prefix = utf8_from_u8(u8"第 ") + std::to_string(index) +
+                                utf8_from_u8(u8" 组 CJK 项目符号流：");
+            const auto token = " / token FE-BL-" + std::to_string(920 + index) +
+                               " / ";
+            const auto suffix = utf8_from_u8(
+                u8"符号前缀、正文换行、图片绕排和文本层必须连续。");
+            if (!paragraph.add_run(prefix).has_next() ||
+                !add_styled_contract_run(document, paragraph,
+                                         utf8_from_u8(label),
+                                         "DocumentPdfCjkFontEmbedNote") ||
+                !paragraph.add_run(" / ").has_next() ||
+                !add_styled_contract_run(document, paragraph, list_key,
+                                         "DocumentPdfCjkFontEmbedAccent") ||
+                !paragraph.add_run(token).has_next() ||
+                !add_styled_contract_run(document, paragraph,
+                                         utf8_from_u8(u8"符号回读"),
+                                         "DocumentPdfCjkFontEmbedLarge") ||
+                !paragraph.add_run(suffix).has_next()) {
+                return false;
+            }
+            return true;
+        };
+
+    featherdoc::floating_image_options left_options;
+    left_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::column;
+    left_options.horizontal_offset_px = 0;
+    left_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    left_options.vertical_offset_px = 0;
+    left_options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
+    left_options.wrap_distance_right_px = 14U;
+    left_options.wrap_distance_bottom_px = 8U;
+    left_options.crop = featherdoc::floating_image_crop{170U, 0U, 70U, 120U};
+    if (!document.append_floating_image(image_path, 104U, 74U, left_options)) {
+        return sample;
+    }
+
+    if (!append_bullet_item(1, u8"主圆点", 0U, true) ||
+        !append_bullet_item(2, u8"次级圆圈", 1U, false) ||
+        !append_bullet_item(3, u8"三级方块", 2U, false) ||
+        !append_bullet_item(4, u8"左图收口", 0U, false)) {
+        return sample;
+    }
+
+    constexpr std::size_t table_row_count = 8U;
+    auto table = document.append_table(table_row_count, 3U);
+    if (!table.has_next() || !table.set_width_twips(6400U) ||
+        !table.set_column_width_twips(0U, 1280U) ||
+        !table.set_column_width_twips(1U, 1700U) ||
+        !table.set_column_width_twips(2U, 3420U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"项目符号分页表")) ||
+        !table.set_cell_text(1U, 0U, utf8_from_u8(u8"层级")) ||
+        !table.set_cell_text(1U, 1U, utf8_from_u8(u8"检索键")) ||
+        !table.set_cell_text(1U, 2U, utf8_from_u8(u8"说明")) ||
+        !table.set_cell_text(2U, 0U, "BL-A-01") ||
+        !table.set_cell_text(2U, 1U, list_key) ||
+        !table.set_cell_text(
+            2U, 2U,
+            utf8_from_u8(u8"主圆点和方块符号都要保持文本层可复制，再进入重复表头验证。")) ||
+        !table.set_cell_text(3U, 0U, "BL-A-02") ||
+        !table.set_cell_text(3U, 1U, utf8_from_u8(u8"多层回流")) ||
+        !table.set_cell_text(
+            3U, 2U,
+            utf8_from_u8(u8"表格前的项目符号需要完整结束，再进入重复表头和页脚联动验证。")) ||
+        !table.set_cell_text(4U, 0U, "BL-A-03") ||
+        !table.set_cell_text(4U, 1U, list_key) ||
+        !table.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(u8"合并单元格跨行承载 BL-777 项目符号检索键。")) ||
+        !table.set_cell_text(5U, 0U, "BL-A-04") ||
+        !table.set_cell_text(5U, 2U,
+                             utf8_from_u8(u8"合并块第二行继续压分页边界和图片下沿。")) ||
+        !table.set_cell_text(6U, 0U, "BL-A-05") ||
+        !table.set_cell_text(6U, 1U, utf8_from_u8(u8"三级方块")) ||
+        !table.set_cell_text(
+            6U, 2U,
+            utf8_from_u8(u8"紧余量下不能把方块项目压进页脚或漂浮图片中。")) ||
+        !table.set_cell_text(7U, 0U, "BL-A-06") ||
+        !table.set_cell_text(7U, 1U, list_key) ||
+        !table.set_cell_text(
+            7U, 2U,
+            utf8_from_u8(u8"表格结束后恢复 bullet 列表，验证图片下方整栏和检索键。"))) {
+        return sample;
+    }
+
+    auto banner = table.find_cell(0U, 0U);
+    auto heading_level = table.find_cell(1U, 0U);
+    auto heading_key = table.find_cell(1U, 1U);
+    auto heading_note = table.find_cell(1U, 2U);
+    auto merged_key = table.find_cell(4U, 1U);
+    if (!banner.has_value() || !heading_level.has_value() ||
+        !heading_key.has_value() || !heading_note.has_value() ||
+        !merged_key.has_value() || !banner->merge_right(2U) ||
+        !merged_key->merge_down(1U)) {
+        return sample;
+    }
+    if (!banner->set_text(utf8_from_u8(u8"项目符号分页表")) ||
+        !banner->set_fill_color("E4F2E1") ||
+        !banner->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center) ||
+        !heading_level->set_fill_color("EEF7EC") ||
+        !heading_key->set_fill_color("EEF7EC") ||
+        !heading_note->set_fill_color("EEF7EC") ||
+        !merged_key->set_fill_color("FDE9D9") ||
+        !merged_key->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < table_row_count; ++row_index) {
+        if (!row.has_next()) {
+            return sample;
+        }
+        if (row_index == 0U) {
+            if (!row.set_height_twips(420U, featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 1U) {
+            if (!row.set_repeats_header() ||
+                !row.set_height_twips(360U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 4U || row_index == 6U) {
+            if (!row.set_cant_split() ||
+                !row.set_height_twips(760U,
+                                      featherdoc::row_height_rule::at_least)) {
+                return sample;
+            }
+        } else if (!row.set_height_twips(520U,
+                                         featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        row.next();
+    }
+
+    auto checkpoint = append_document_paragraph(document, "");
+    if (!checkpoint.has_next() ||
+        !checkpoint.add_run("Bullet checkpoint: ").has_next() ||
+        !add_styled_contract_run(document, checkpoint, list_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !checkpoint.add_run(" / FE-BL-961 / ").has_next() ||
+        !add_styled_contract_run(document, checkpoint,
+                                 utf8_from_u8(u8"表后符号恢复"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options top_bottom_options;
+    top_bottom_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    top_bottom_options.horizontal_offset_px = 54;
+    top_bottom_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    top_bottom_options.vertical_offset_px = 0;
+    top_bottom_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::top_bottom;
+    top_bottom_options.wrap_distance_top_px = 8U;
+    top_bottom_options.wrap_distance_bottom_px = 10U;
+    top_bottom_options.crop =
+        featherdoc::floating_image_crop{0U, 130U, 170U, 0U};
+    if (!document.append_floating_image(image_path, 112U, 46U,
+                                        top_bottom_options)) {
+        return sample;
+    }
+
+    if (!append_bullet_item(5, u8"三级方块", 2U, true) ||
+        !append_bullet_item(6, u8"主圆点", 0U, false) ||
+        !append_bullet_item(7, u8"次级圆圈", 1U, false) ||
+        !append_bullet_item(8, u8"三级方块", 2U, false)) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options right_options;
+    right_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    right_options.horizontal_offset_px = 208;
+    right_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    right_options.vertical_offset_px = 0;
+    right_options.wrap_mode = featherdoc::floating_image_wrap_mode::top_bottom;
+    right_options.wrap_distance_top_px = 8U;
+    right_options.wrap_distance_bottom_px = 12U;
+    right_options.crop = featherdoc::floating_image_crop{50U, 60U, 150U, 40U};
+    if (!document.append_floating_image(image_path, 102U, 92U, right_options)) {
+        return sample;
+    }
+
+    if (!append_bullet_item(9, u8"右图收口", 0U, true) ||
+        !append_bullet_item(10, u8"三级方块", 2U, false)) {
+        return sample;
+    }
+
+    auto settle = append_document_paragraph(document, "");
+    if (!settle.has_next() ||
+        !settle.add_run("Bullet settle: ").has_next() ||
+        !add_styled_contract_run(document, settle, list_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !settle.add_run(" / FE-BL-981 / ").has_next() ||
+        !add_styled_contract_run(document, settle,
+                                 utf8_from_u8(u8"图片下方整栏"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"补线段落：末页再次复现 BL-777 项目符号检索键，确认主圆点、方块项、表格正文和页脚共享同一文本层表现。"))) {
+        return sample;
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("Bullet close: ").has_next() ||
+        !add_styled_contract_run(document, closing, list_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !closing.add_run(" / FE-BL-999 / ").has_next() ||
+        !add_styled_contract_run(document, closing, utf8_from_u8(u8"终页复检"),
+                                 "DocumentPdfCjkFontEmbedLarge")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{430.0, 380.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK bullet page flow";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed",
+                                        cjk_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.render_inline_images = true;
+    options.header_footer_font_size_points = 7.5;
+    options.margin_left_points = 34.0;
+    options.margin_right_points = 34.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 42.0;
+    options.line_height_points = 13.5;
+    options.paragraph_spacing_after_points = 4.0;
+    options.image_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult
+build_document_cjk_bullet_overlay_page_flow_text_sample(
+    const std::filesystem::path &cjk_font_path,
+    const std::filesystem::path &asset_dir) {
+    ScenarioResult sample;
+
+    const auto image_path = write_quadrant_rgb_png(
+        asset_dir,
+        "featherdoc-pdf-regression-document-cjk-bullet-overlay-page-flow.png");
+    const auto list_key = utf8_from_u8(u8"BO-777 叠加项目符号检索键");
+
+    featherdoc::Document document;
+    if (document.create_empty()) {
+        return sample;
+    }
+    if (!document.set_default_run_font_family("Helvetica") ||
+        !document.set_default_run_east_asia_font_family(
+            "Document CJK Font Embed") ||
+        !define_document_cjk_style_overlay_styles(document)) {
+        return sample;
+    }
+
+    auto title = document.paragraphs();
+    if (!title.has_next() ||
+        !title.set_text("Document CJK bullet overlay page flow sample") ||
+        !title.set_alignment(featherdoc::paragraph_alignment::center)) {
+        return sample;
+    }
+
+    auto intro = title.insert_paragraph_after("");
+    if (!intro.has_next() ||
+        !intro.add_run("Bullet overlay flow: ").has_next() ||
+        !add_styled_contract_run(document, intro,
+                                 utf8_from_u8(u8"叠加项目符号"),
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !intro.add_run(" / BO-901 / ").has_next() ||
+        !add_styled_contract_run(document, intro,
+                                 utf8_from_u8(u8"样式回读"),
+                                 "DocumentPdfCjkFontEmbedNote") ||
+        !intro.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"上标BO1"),
+                                 "DocumentPdfCjkOverlaySuperscript") ||
+        !intro.add_run(" / ").has_next() ||
+        !add_styled_contract_run(document, intro, utf8_from_u8(u8"下标BO2"),
+                                 "DocumentPdfCjkOverlaySubscript")) {
+        return sample;
+    }
+
+    auto default_header = document.ensure_section_header_paragraphs(0U);
+    auto default_footer = document.ensure_section_footer_paragraphs(0U);
+    auto first_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto first_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    auto even_header = document.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    auto even_footer = document.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    if (!default_header.has_next() ||
+        !default_header.set_text(utf8_from_u8(
+            u8"Bullet overlay header BO-303 叠加项目符号检索键 page {{page}}")) ||
+        !default_footer.has_next() ||
+        !default_footer.set_text(utf8_from_u8(
+            u8"Bullet overlay footer BO-777 叠加项目符号检索键 {{page}} / {{total_pages}}")) ||
+        !first_header.has_next() ||
+        !first_header.set_text(utf8_from_u8(
+            u8"Bullet overlay first header BO-101 叠加项目符号检索键 page {{page}}")) ||
+        !first_footer.has_next() ||
+        !first_footer.set_text(utf8_from_u8(
+            u8"Bullet overlay first footer BO-777 叠加项目符号检索键 {{page}} / {{total_pages}}")) ||
+        !even_header.has_next() ||
+        !even_header.set_text(utf8_from_u8(
+            u8"Bullet overlay even header BO-202 叠加项目符号检索键 page {{page}}")) ||
+        !even_footer.has_next() ||
+        !even_footer.set_text(utf8_from_u8(
+            u8"Bullet overlay even footer BO-777 叠加项目符号检索键 {{page}} / {{total_pages}}"))) {
+        return sample;
+    }
+
+    featherdoc::section_page_setup setup{};
+    setup.width_twips = 8600U;
+    setup.height_twips = 7600U;
+    setup.margins.top_twips = 680U;
+    setup.margins.bottom_twips = 680U;
+    setup.margins.left_twips = 720U;
+    setup.margins.right_twips = 720U;
+    setup.margins.header_twips = 250U;
+    setup.margins.footer_twips = 250U;
+    if (!document.set_section_page_setup(0U, setup)) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"起始段落包含 BO-777 叠加项目符号检索键，随后把项目符号回退、样式叠加、图片环绕和文本层连续性一起压到同一条文档流里。")) ||
+        !document.append_image(image_path, 92U, 34U) ||
+        !append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"内联图片之后必须恢复整栏正文，避免 bullet 前缀和叠加样式在页内留下错误缩进或残留回流边界。"))) {
+        return sample;
+    }
+
+    auto marker = append_document_paragraph(document, "");
+    if (!marker.has_next() ||
+        !marker.add_run("Bullet marker: ").has_next() ||
+        !add_styled_contract_run(document, marker, list_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !marker.add_run(" / BO-911 / ").has_next() ||
+        !add_styled_contract_run(document, marker, utf8_from_u8(u8"项目起点"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    const auto append_bullet_item =
+        [&](int index, std::u8string_view label, std::uint32_t level,
+            bool restart) {
+            auto paragraph = append_document_paragraph(document, "");
+            if (!paragraph.has_next()) {
+                return false;
+            }
+            const bool list_set =
+                restart
+                    ? document.restart_paragraph_list(
+                          paragraph, featherdoc::list_kind::bullet, level)
+                    : document.set_paragraph_list(
+                          paragraph, featherdoc::list_kind::bullet, level);
+            if (!list_set) {
+                return false;
+            }
+            const auto prefix = utf8_from_u8(u8"第 ") + std::to_string(index) +
+                                utf8_from_u8(u8" 组 CJK 项目符号流：");
+            const auto token = " / token FE-BO-" + std::to_string(920 + index) +
+                               " / ";
+            const auto suffix = utf8_from_u8(
+                u8"符号前缀、样式叠加、图片回流和文本层必须连续。");
+            if (!paragraph.add_run(prefix).has_next() ||
+                !add_styled_contract_run(document, paragraph,
+                                         utf8_from_u8(label),
+                                         "DocumentPdfCjkFontEmbedNote") ||
+                !paragraph.add_run(" / ").has_next() ||
+                !add_styled_contract_run(document, paragraph, list_key,
+                                         "DocumentPdfCjkFontEmbedAccent") ||
+                !paragraph.add_run(token).has_next() ||
+                !add_styled_contract_run(document, paragraph,
+                                         utf8_from_u8(u8"上标回读"),
+                                         "DocumentPdfCjkOverlaySuperscript") ||
+                !paragraph.add_run(" + ").has_next() ||
+                !add_styled_contract_run(document, paragraph,
+                                         utf8_from_u8(u8"下标回读"),
+                                         "DocumentPdfCjkOverlaySubscript") ||
+                !paragraph.add_run(" / ").has_next() ||
+                !add_styled_contract_run(document, paragraph,
+                                         utf8_from_u8(u8"删线保留"),
+                                         "DocumentPdfCjkOverlayStrike") ||
+                !paragraph.add_run(suffix).has_next()) {
+                return false;
+            }
+            return true;
+        };
+
+    featherdoc::floating_image_options left_options;
+    left_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::column;
+    left_options.horizontal_offset_px = 0;
+    left_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    left_options.vertical_offset_px = 0;
+    left_options.wrap_mode = featherdoc::floating_image_wrap_mode::square;
+    left_options.wrap_distance_right_px = 14U;
+    left_options.wrap_distance_bottom_px = 8U;
+    left_options.crop = featherdoc::floating_image_crop{170U, 0U, 70U, 120U};
+    if (!document.append_floating_image(image_path, 104U, 74U,
+                                        left_options)) {
+        return sample;
+    }
+
+    if (!append_bullet_item(1, u8"主圆点", 0U, true) ||
+        !append_bullet_item(2, u8"次级圆圈", 1U, false) ||
+        !append_bullet_item(3, u8"三级方块", 2U, false) ||
+        !append_bullet_item(4, u8"左图收口", 0U, false)) {
+        return sample;
+    }
+
+    constexpr std::size_t table_row_count = 8U;
+    auto table = document.append_table(table_row_count, 3U);
+    if (!table.has_next() || !table.set_width_twips(6400U) ||
+        !table.set_column_width_twips(0U, 1280U) ||
+        !table.set_column_width_twips(1U, 1700U) ||
+        !table.set_column_width_twips(2U, 3420U) ||
+        !table.set_cell_text(0U, 0U, utf8_from_u8(u8"项目符号分页表")) ||
+        !table.set_cell_text(1U, 0U, utf8_from_u8(u8"层级")) ||
+        !table.set_cell_text(1U, 1U, utf8_from_u8(u8"检索键")) ||
+        !table.set_cell_text(1U, 2U, utf8_from_u8(u8"说明")) ||
+        !table.set_cell_text(2U, 0U, "BO-A-01") ||
+        !table.set_cell_text(2U, 1U, list_key) ||
+        !table.set_cell_text(
+            2U, 2U,
+            utf8_from_u8(u8"主圆点和方块符号都要保持文本层可复制，再进入叠加样式和重复表头验证。")) ||
+        !table.set_cell_text(3U, 0U, "BO-A-02") ||
+        !table.set_cell_text(3U, 1U, utf8_from_u8(u8"多层回流")) ||
+        !table.set_cell_text(
+            3U, 2U,
+            utf8_from_u8(u8"表格前的项目符号需要完整结束，再进入重复表头和页脚联动验证。")) ||
+        !table.set_cell_text(4U, 0U, "BO-A-03") ||
+        !table.set_cell_text(4U, 1U, list_key) ||
+        !table.set_cell_text(
+            4U, 2U,
+            utf8_from_u8(u8"合并单元格跨行承载 BO-777 叠加项目符号检索键。")) ||
+        !table.set_cell_text(5U, 0U, "BO-A-04") ||
+        !table.set_cell_text(5U, 2U,
+                             utf8_from_u8(u8"合并块第二行继续压分页边界和图片下沿。")) ||
+        !table.set_cell_text(6U, 0U, "BO-A-05") ||
+        !table.set_cell_text(6U, 1U, utf8_from_u8(u8"三级方块")) ||
+        !table.set_cell_text(
+            6U, 2U,
+            utf8_from_u8(u8"紧余量下不能把方块项目压进页脚或漂浮图片中。")) ||
+        !table.set_cell_text(7U, 0U, "BO-A-06") ||
+        !table.set_cell_text(7U, 1U, list_key) ||
+        !table.set_cell_text(
+            7U, 2U,
+            utf8_from_u8(u8"表格结束后恢复 bullet 列表，验证图片下方整栏和检索键。"))) {
+        return sample;
+    }
+
+    auto banner = table.find_cell(0U, 0U);
+    auto heading_level = table.find_cell(1U, 0U);
+    auto heading_key = table.find_cell(1U, 1U);
+    auto heading_note = table.find_cell(1U, 2U);
+    auto merged_key = table.find_cell(4U, 1U);
+    if (!banner.has_value() || !heading_level.has_value() ||
+        !heading_key.has_value() || !heading_note.has_value() ||
+        !merged_key.has_value() || !banner->merge_right(2U) ||
+        !merged_key->merge_down(1U)) {
+        return sample;
+    }
+    if (!banner->set_text(utf8_from_u8(u8"项目符号分页表")) ||
+        !banner->set_fill_color("E4F2E1") ||
+        !banner->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center) ||
+        !heading_level->set_fill_color("EEF7EC") ||
+        !heading_key->set_fill_color("EEF7EC") ||
+        !heading_note->set_fill_color("EEF7EC") ||
+        !merged_key->set_fill_color("FDE9D9") ||
+        !merged_key->set_vertical_alignment(
+            featherdoc::cell_vertical_alignment::center)) {
+        return sample;
+    }
+
+    auto row = table.rows();
+    for (std::size_t row_index = 0U; row_index < table_row_count; ++row_index) {
+        if (!row.has_next()) {
+            return sample;
+        }
+        if (row_index == 0U) {
+            if (!row.set_height_twips(420U, featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 1U) {
+            if (!row.set_repeats_header() ||
+                !row.set_height_twips(360U,
+                                      featherdoc::row_height_rule::exact)) {
+                return sample;
+            }
+        } else if (row_index == 4U || row_index == 6U) {
+            if (!row.set_cant_split() ||
+                !row.set_height_twips(760U,
+                                      featherdoc::row_height_rule::at_least)) {
+                return sample;
+            }
+        } else if (!row.set_height_twips(520U,
+                                         featherdoc::row_height_rule::at_least)) {
+            return sample;
+        }
+        row.next();
+    }
+
+    auto checkpoint = append_document_paragraph(document, "");
+    if (!checkpoint.has_next() ||
+        !checkpoint.add_run("Bullet checkpoint: ").has_next() ||
+        !add_styled_contract_run(document, checkpoint, list_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !checkpoint.add_run(" / BO-961 / ").has_next() ||
+        !add_styled_contract_run(document, checkpoint,
+                                 utf8_from_u8(u8"表后叠加恢复"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options top_bottom_options;
+    top_bottom_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    top_bottom_options.horizontal_offset_px = 54;
+    top_bottom_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    top_bottom_options.vertical_offset_px = 0;
+    top_bottom_options.wrap_mode =
+        featherdoc::floating_image_wrap_mode::top_bottom;
+    top_bottom_options.wrap_distance_top_px = 8U;
+    top_bottom_options.wrap_distance_bottom_px = 10U;
+    top_bottom_options.crop =
+        featherdoc::floating_image_crop{0U, 130U, 170U, 0U};
+    if (!document.append_floating_image(image_path, 112U, 46U,
+                                        top_bottom_options)) {
+        return sample;
+    }
+
+    if (!append_bullet_item(5, u8"三级方块", 2U, true) ||
+        !append_bullet_item(6, u8"主圆点", 0U, false) ||
+        !append_bullet_item(7, u8"次级圆圈", 1U, false) ||
+        !append_bullet_item(8, u8"三级方块", 2U, false)) {
+        return sample;
+    }
+
+    featherdoc::floating_image_options right_options;
+    right_options.horizontal_reference =
+        featherdoc::floating_image_horizontal_reference::margin;
+    right_options.horizontal_offset_px = 208;
+    right_options.vertical_reference =
+        featherdoc::floating_image_vertical_reference::paragraph;
+    right_options.vertical_offset_px = 0;
+    right_options.wrap_mode = featherdoc::floating_image_wrap_mode::top_bottom;
+    right_options.wrap_distance_top_px = 8U;
+    right_options.wrap_distance_bottom_px = 12U;
+    right_options.crop = featherdoc::floating_image_crop{50U, 60U, 150U, 40U};
+    if (!document.append_floating_image(image_path, 102U, 92U, right_options)) {
+        return sample;
+    }
+
+    if (!append_bullet_item(9, u8"右图收口", 0U, true) ||
+        !append_bullet_item(10, u8"三级方块", 2U, false)) {
+        return sample;
+    }
+
+    auto settle = append_document_paragraph(document, "");
+    if (!settle.has_next() ||
+        !settle.add_run("Bullet settle: ").has_next() ||
+        !add_styled_contract_run(document, settle, list_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !settle.add_run(" / BO-981 / ").has_next() ||
+        !add_styled_contract_run(document, settle,
+                                 utf8_from_u8(u8"图片下方整栏"),
+                                 "DocumentPdfCjkFontEmbedNote")) {
+        return sample;
+    }
+
+    if (!append_document_text_paragraph(
+            document,
+            utf8_from_u8(u8"补线段落：末页再次复现 BO-777 叠加项目符号检索键，确认主圆点、方块项、表格正文和页脚共享同一文本层表现。"))) {
+        return sample;
+    }
+
+    auto closing = append_document_paragraph(document, "");
+    if (!closing.has_next() ||
+        !closing.add_run("Bullet close: ").has_next() ||
+        !add_styled_contract_run(document, closing, list_key,
+                                 "DocumentPdfCjkFontEmbedAccent") ||
+        !closing.add_run(" / BO-999 / ").has_next() ||
+        !add_styled_contract_run(document, closing,
+                                 utf8_from_u8(u8"终页复检"),
+                                 "DocumentPdfCjkOverlayStrike")) {
+        return sample;
+    }
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.page_size = featherdoc::pdf::PdfPageSize{430.0, 380.0};
+    options.metadata.title =
+        "FeatherDoc regression sample: document CJK bullet overlay page flow";
+    options.metadata.creator = "FeatherDoc regression tests";
+    options.font_family = "Helvetica";
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Document CJK Font Embed",
+                                        cjk_font_path},
+    };
+    options.cjk_font_file_path = cjk_font_path;
+    options.use_system_font_fallbacks = false;
+    options.render_headers_and_footers = true;
+    options.expand_header_footer_page_placeholders = true;
+    options.render_inline_images = true;
+    options.header_footer_font_size_points = 7.5;
+    options.margin_left_points = 34.0;
+    options.margin_right_points = 34.0;
+    options.margin_top_points = 40.0;
+    options.margin_bottom_points = 42.0;
+    options.line_height_points = 13.5;
+    options.paragraph_spacing_after_points = 4.0;
+    options.image_spacing_after_points = 5.0;
+
+    sample.layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult
 build_document_table_header_footer_variants_text_sample() {
     ScenarioResult sample;
 
@@ -10218,6 +10986,35 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_document_cjk_numbered_list_page_flow_text_sample(
+            cjk_font, output_parent);
+    } else if (config.scenario == "document_cjk_bullet_page_flow_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_cjk_bullet_page_flow_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_bullet_page_flow_text_sample(cjk_font,
+                                                                  output_parent);
+    } else if (config.scenario ==
+               "document_cjk_bullet_overlay_page_flow_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr << "missing CJK font for scenario "
+                         "document_cjk_bullet_overlay_page_flow_text\n";
+            return 1;
+        }
+        sample = build_document_cjk_bullet_overlay_page_flow_text_sample(
             cjk_font, output_parent);
     } else if (config.scenario ==
                "document_cjk_vertical_merge_wrap_cant_split_text") {

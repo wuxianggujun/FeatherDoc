@@ -397,6 +397,13 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 2026-05-09：已新增 `document-table-cjk-vertical-merged-cant-split-text`
   regression sample，覆盖 CJK 字体链路、纵向 merged block、cant_split 与
   重复表头分页后的整块保持行为，并完成真实导出与 PNG 可视化验证。
+- 2026-05-10：已新增 `document-cjk-bullet-page-flow-text` regression sample，
+  覆盖 CJK bullet 前缀、三级项目符号、图片裁剪/环绕、重复表头和小页高分页，
+  并补强 Unicode bullet prefix 在缺失 Latin 显式映射时回退到 east Asia /
+  CJK 字体链路。
+- 2026-05-10：已新增 `document-cjk-bullet-overlay-page-flow-text`
+  regression sample，把 bullet 前缀回退、上标/下标/删除线样式叠加、
+  图片锚点与表格分页压进同一条文档流，继续扩充 CJK 复杂版式回归集。
 
 通过命令：
 
