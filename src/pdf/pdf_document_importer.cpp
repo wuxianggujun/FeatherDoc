@@ -853,6 +853,8 @@ enum class TableAppendResult { failed, created, merged };
         return 55U;
     case PdfTableContinuationBlocker::repeated_header_mismatch:
         return 70U;
+    case PdfTableContinuationBlocker::continuation_confidence_below_threshold:
+        return diagnostic.continuation_confidence;
     }
 
     return 0U;
@@ -861,10 +863,12 @@ enum class TableAppendResult { failed, created, merged };
 [[nodiscard]] PdfTableContinuationDiagnostic evaluate_table_continuation(
     const ImportCursor &cursor, std::size_t page_index, std::size_t block_index,
     double block_top_points, double page_height_points,
-    const PdfParsedTableCandidate &source) {
+    const PdfParsedTableCandidate &source,
+    std::uint32_t min_continuation_confidence) {
     PdfTableContinuationDiagnostic diagnostic;
     diagnostic.page_index = page_index;
     diagnostic.block_index = block_index;
+    diagnostic.minimum_continuation_confidence = min_continuation_confidence;
     diagnostic.is_first_block_on_page = block_index == 0U;
     diagnostic.is_near_page_top =
         block_top_points >= 0.0 &&
@@ -931,6 +935,17 @@ enum class TableAppendResult { failed, created, merged };
     }
 
     diagnostic.continuation_confidence = continuation_confidence(diagnostic);
+    if (diagnostic.disposition ==
+            PdfTableContinuationDisposition::merged_with_previous_table &&
+        diagnostic.continuation_confidence < min_continuation_confidence) {
+        diagnostic.disposition =
+            PdfTableContinuationDisposition::created_new_table;
+        diagnostic.source_row_offset = 0U;
+        diagnostic.skipped_repeating_header = false;
+        diagnostic.blocker =
+            PdfTableContinuationBlocker::continuation_confidence_below_threshold;
+    }
+
     return diagnostic;
 }
 
@@ -1089,12 +1104,12 @@ enum class TableAppendResult { failed, created, merged };
 [[nodiscard]] PdfDocumentImportResult
 populate_document_from_parsed_pdf(featherdoc::Document &document,
                                   PdfParsedDocument parsed_document,
-                                  bool import_table_candidates_as_tables) {
+                                  const PdfDocumentImportOptions &options) {
     PdfDocumentImportResult result;
     result.parsed_document = std::move(parsed_document);
 
     if (has_table_candidates(result.parsed_document) &&
-        !import_table_candidates_as_tables) {
+        !options.import_table_candidates_as_tables) {
         result.failure_kind =
             PdfDocumentImportFailureKind::table_candidates_detected;
         result.error_message =
@@ -1118,7 +1133,8 @@ populate_document_from_parsed_pdf(featherdoc::Document &document,
          page_index < result.parsed_document.pages.size(); ++page_index) {
         const auto &page = result.parsed_document.pages[page_index];
         const auto blocks =
-            build_import_blocks(page, import_table_candidates_as_tables);
+            build_import_blocks(page,
+                                options.import_table_candidates_as_tables);
         for (std::size_t block_index = 0U; block_index < blocks.size();
              ++block_index) {
             const auto &block = blocks[block_index];
@@ -1143,11 +1159,13 @@ populate_document_from_parsed_pdf(featherdoc::Document &document,
                 return result;
             }
 
+            const auto min_confidence =
+                options.min_table_continuation_confidence;
             result.table_continuation_diagnostics.push_back(
                 evaluate_table_continuation(cursor, page_index, block_index,
                                             block.top_points,
                                             page.size.height_points,
-                                            *block.table));
+                                            *block.table, min_confidence));
             const auto &continuation =
                 result.table_continuation_diagnostics.back();
             const auto append_result =
@@ -1209,9 +1227,8 @@ PdfDocumentImportResult PdfDocumentImporter::import_text(
         return result;
     }
 
-    return populate_document_from_parsed_pdf(
-        document, parse_result.document,
-        options.import_table_candidates_as_tables);
+    return populate_document_from_parsed_pdf(document, parse_result.document,
+                                             options);
 }
 
 PdfDocumentImportResult
