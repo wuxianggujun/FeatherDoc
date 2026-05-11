@@ -25759,9 +25759,30 @@ TEST_CASE("ensure style definition APIs update existing styles and preserve unre
     <w:pPr><w:keepNext/></w:pPr>
     <w:rPr><w:b/></w:rPr>
   </w:style>
+  <w:style w:type="paragraph" w:styleId="ExistingRebasedPara">
+    <w:name w:val="Old Rebased Paragraph"/>
+    <w:basedOn w:val="Normal"/>
+    <w:pPr><w:keepLines/></w:pPr>
+    <w:rPr>
+      <w:b/>
+      <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+      <w:lang w:val="en-US"/>
+      <w:rtl/>
+    </w:rPr>
+  </w:style>
   <w:style w:type="character" w:styleId="ExistingChar">
     <w:name w:val="Old Character"/>
     <w:rPr><w:i/></w:rPr>
+  </w:style>
+  <w:style w:type="character" w:styleId="ExistingRebasedChar">
+    <w:name w:val="Old Rebased Character"/>
+    <w:basedOn w:val="DefaultParagraphFont"/>
+    <w:rPr>
+      <w:i/>
+      <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+      <w:lang w:val="en-US"/>
+      <w:rtl/>
+    </w:rPr>
   </w:style>
   <w:style w:type="table" w:styleId="ExistingTable">
     <w:name w:val="Old Table"/>
@@ -25801,6 +25822,15 @@ TEST_CASE("ensure style definition APIs update existing styles and preserve unre
     paragraph_definition.outline_level = 3U;
     CHECK(doc.ensure_paragraph_style("ExistingPara", paragraph_definition));
 
+    auto rebased_paragraph_definition = featherdoc::paragraph_style_definition{};
+    rebased_paragraph_definition.name = "Rebased Paragraph";
+    rebased_paragraph_definition.based_on = std::string{"Heading2"};
+    rebased_paragraph_definition.next_style = std::string{"ExistingRebasedPara"};
+    rebased_paragraph_definition.is_custom = true;
+    rebased_paragraph_definition.is_quick_format = true;
+    CHECK(doc.ensure_paragraph_style("ExistingRebasedPara",
+                                     rebased_paragraph_definition));
+
     auto character_definition = featherdoc::character_style_definition{};
     character_definition.name = "Accent Character";
     character_definition.based_on = std::string{"DefaultParagraphFont"};
@@ -25810,6 +25840,14 @@ TEST_CASE("ensure style definition APIs update existing styles and preserve unre
     character_definition.run_language = std::string{"fr-FR"};
     character_definition.run_rtl = false;
     CHECK(doc.ensure_character_style("ExistingChar", character_definition));
+
+    auto rebased_character_definition = featherdoc::character_style_definition{};
+    rebased_character_definition.name = "Rebased Character";
+    rebased_character_definition.based_on = std::string{"Emphasis"};
+    rebased_character_definition.is_custom = true;
+    rebased_character_definition.is_quick_format = true;
+    CHECK(doc.ensure_character_style("ExistingRebasedChar",
+                                     rebased_character_definition));
 
     auto table_definition = featherdoc::table_style_definition{};
     table_definition.name = "Report Table";
@@ -25851,6 +25889,27 @@ TEST_CASE("ensure style definition APIs update existing styles and preserve unre
     CHECK(paragraph_style.child("w:rPr").child("w:rFonts") != pugi::xml_node{});
     CHECK(paragraph_style.child("w:rPr").child("w:lang") != pugi::xml_node{});
 
+    const auto rebased_paragraph_style =
+        find_style_xml_node(styles_root, "ExistingRebasedPara");
+    REQUIRE(rebased_paragraph_style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{
+                 rebased_paragraph_style.child("w:name").attribute("w:val").value()},
+             "Rebased Paragraph");
+    CHECK_EQ(std::string_view{rebased_paragraph_style.child("w:basedOn")
+                                  .attribute("w:val")
+                                  .value()},
+             "Heading2");
+    CHECK(rebased_paragraph_style.child("w:pPr").child("w:keepLines") !=
+          pugi::xml_node{});
+    CHECK(rebased_paragraph_style.child("w:rPr").child("w:b") !=
+          pugi::xml_node{});
+    CHECK(rebased_paragraph_style.child("w:rPr").child("w:rFonts") ==
+          pugi::xml_node{});
+    CHECK(rebased_paragraph_style.child("w:rPr").child("w:lang") ==
+          pugi::xml_node{});
+    CHECK(rebased_paragraph_style.child("w:rPr").child("w:rtl") ==
+          pugi::xml_node{});
+
     const auto character_style = find_style_xml_node(styles_root, "ExistingChar");
     REQUIRE(character_style != pugi::xml_node{});
     CHECK_EQ(std::string_view{character_style.child("w:name").attribute("w:val").value()},
@@ -25872,6 +25931,25 @@ TEST_CASE("ensure style definition APIs update existing styles and preserve unre
                                   .attribute("w:val")
                                   .value()},
              "0");
+
+    const auto rebased_character_style =
+        find_style_xml_node(styles_root, "ExistingRebasedChar");
+    REQUIRE(rebased_character_style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{
+                 rebased_character_style.child("w:name").attribute("w:val").value()},
+             "Rebased Character");
+    CHECK_EQ(std::string_view{rebased_character_style.child("w:basedOn")
+                                  .attribute("w:val")
+                                  .value()},
+             "Emphasis");
+    CHECK(rebased_character_style.child("w:rPr").child("w:i") !=
+          pugi::xml_node{});
+    CHECK(rebased_character_style.child("w:rPr").child("w:rFonts") ==
+          pugi::xml_node{});
+    CHECK(rebased_character_style.child("w:rPr").child("w:lang") ==
+          pugi::xml_node{});
+    CHECK(rebased_character_style.child("w:rPr").child("w:rtl") ==
+          pugi::xml_node{});
 
     const auto table_style = find_style_xml_node(styles_root, "ExistingTable");
     REQUIRE(table_style != pugi::xml_node{});

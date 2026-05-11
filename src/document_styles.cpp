@@ -5603,6 +5603,7 @@ bool Document::ensure_paragraph_style(
         return false;
     }
 
+    bool reset_inherited_run_properties = false;
     if (const auto existing = find_style_node(styles_root, style_id);
         existing != pugi::xml_node{}) {
         const auto existing_type =
@@ -5615,6 +5616,16 @@ bool Document::ensure_paragraph_style(
                                std::string{existing_type} + "'",
                            std::string{styles_xml_entry});
             return false;
+        }
+
+        if (definition.based_on.has_value()) {
+            const auto existing_based_on =
+                std::string_view{
+                    existing.child("w:basedOn").attribute("w:val").value()};
+            reset_inherited_run_properties =
+                existing_based_on !=
+                std::string_view{definition.based_on->data(),
+                                 definition.based_on->size()};
         }
     }
 
@@ -5673,7 +5684,8 @@ bool Document::ensure_paragraph_style(
         return false;
     }
 
-    if (definition.run_font_family.has_value() ||
+    if (reset_inherited_run_properties ||
+        definition.run_font_family.has_value() ||
         definition.run_east_asia_font_family.has_value()) {
         if (!this->clear_style_run_font_family(style_id)) {
             return false;
@@ -5690,7 +5702,7 @@ bool Document::ensure_paragraph_style(
         }
     }
 
-    if (definition.run_language.has_value() ||
+    if (reset_inherited_run_properties || definition.run_language.has_value() ||
         definition.run_east_asia_language.has_value() ||
         definition.run_bidi_language.has_value()) {
         if (!this->clear_style_run_language(style_id)) {
@@ -5716,6 +5728,9 @@ bool Document::ensure_paragraph_style(
         if (!this->set_style_run_rtl(style_id, *definition.run_rtl)) {
             return false;
         }
+    } else if (reset_inherited_run_properties &&
+               !this->clear_style_run_rtl(style_id)) {
+        return false;
     }
 
     if (definition.paragraph_bidi.has_value()) {
@@ -5807,6 +5822,7 @@ bool Document::ensure_character_style(
         return false;
     }
 
+    bool reset_inherited_run_properties = false;
     if (const auto existing = find_style_node(styles_root, style_id);
         existing != pugi::xml_node{}) {
         const auto existing_type =
@@ -5819,6 +5835,16 @@ bool Document::ensure_character_style(
                                std::string{existing_type} + "'",
                            std::string{styles_xml_entry});
             return false;
+        }
+
+        if (definition.based_on.has_value()) {
+            const auto existing_based_on =
+                std::string_view{
+                    existing.child("w:basedOn").attribute("w:val").value()};
+            reset_inherited_run_properties =
+                existing_based_on !=
+                std::string_view{definition.based_on->data(),
+                                 definition.based_on->size()};
         }
     }
 
@@ -5875,7 +5901,8 @@ bool Document::ensure_character_style(
         return false;
     }
 
-    if (definition.run_font_family.has_value() ||
+    if (reset_inherited_run_properties ||
+        definition.run_font_family.has_value() ||
         definition.run_east_asia_font_family.has_value()) {
         if (!this->clear_style_run_font_family(style_id)) {
             return false;
@@ -5892,7 +5919,7 @@ bool Document::ensure_character_style(
         }
     }
 
-    if (definition.run_language.has_value() ||
+    if (reset_inherited_run_properties || definition.run_language.has_value() ||
         definition.run_east_asia_language.has_value() ||
         definition.run_bidi_language.has_value()) {
         if (!this->clear_style_run_language(style_id)) {
@@ -5918,6 +5945,9 @@ bool Document::ensure_character_style(
         if (!this->set_style_run_rtl(style_id, *definition.run_rtl)) {
             return false;
         }
+    } else if (reset_inherited_run_properties &&
+               !this->clear_style_run_rtl(style_id)) {
+        return false;
     }
 
     this->last_error_info.clear();
