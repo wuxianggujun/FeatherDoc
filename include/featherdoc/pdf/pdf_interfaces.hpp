@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -61,18 +62,33 @@ struct PdfParsedTextLine {
     std::string text;
     PdfRect bounds;
     std::vector<PdfParsedTextSpan> text_spans;
+    std::optional<std::size_t> table_candidate_index;
 };
 
 struct PdfParsedParagraph {
     std::string text;
     PdfRect bounds;
     std::vector<PdfParsedTextLine> lines;
+    std::optional<std::size_t> table_candidate_index;
+};
+
+enum class PdfParsedContentBlockKind {
+    paragraph,
+    table_candidate,
+};
+
+struct PdfParsedContentBlock {
+    PdfParsedContentBlockKind kind{PdfParsedContentBlockKind::paragraph};
+    PdfRect bounds;
+    std::size_t source_index{0U};
 };
 
 struct PdfParsedTableCell {
     std::string text;
     PdfRect bounds;
     std::size_t column_index{0U};
+    std::size_t column_span{1U};
+    std::size_t row_span{1U};
     bool has_text{false};
 };
 
@@ -92,6 +108,7 @@ struct PdfParsedPage {
     std::vector<PdfParsedTextSpan> text_spans;
     std::vector<PdfParsedTextLine> text_lines;
     std::vector<PdfParsedParagraph> paragraphs;
+    std::vector<PdfParsedContentBlock> content_blocks;
     std::vector<PdfParsedTableCandidate> table_candidates;
 };
 

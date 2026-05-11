@@ -608,6 +608,993 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 
 进入下一步前仍需保持失败样本分类独立，避免把读入方向的不稳定样本混入导出主线回归。
 
+2026-05-10：
+
+- 本轮开始前已重新阅读 `include/featherdoc/pdf/pdf_interfaces.hpp`、
+  `src/pdf/pdfium_parser.cpp`、`src/pdf/pdf_document_importer.cpp`、
+  `test/pdf_import_structure_tests.cpp` 和本文 E7 段落，并对齐当前真实进度：
+  E7 已有纯文本导入、表格候选、opt-in 表格导入和导入侧独立测试目标。
+- 已补强 PDFium 解析结果的阅读顺序恢复：
+  `PdfiumParser` 现在会在字符 span 聚合为 `PdfParsedTextLine` 后，按几何
+  `top -> left` 顺序稳定排序，再生成 `PdfParsedParagraph` 和
+  `PdfParsedTableCandidate`；这避免受控 PDF 中底部文本先写入时把段落顺序反过来。
+- 已补强 `PdfDocumentImporter` 的块级排序：
+  页内 `paragraph/table` 导入块现在按 `top -> left` 排序，保留原有
+  table-overlap 过滤和首表格删除占位段落逻辑，避免同一高度附近的段落/表格靠写入顺序漂移。
+- 已新增最小受控 import 样本
+  `write_out_of_order_paragraph_table_paragraph_pdf()`：
+  视觉布局仍是 `paragraph -> table -> paragraph`，但文本对象故意按
+  `tail paragraph -> table rows -> intro paragraph` 写入，用来回归“PDF 内容流顺序
+  不等于阅读顺序”的导入场景。
+- 已补充 `pdf_import_structure` 测试：
+  `PDFium parser recovers paragraph order from out-of-order text runs` 断言新样本
+  回读后仍恢复为 6 条视觉顺序 text lines，首段是 intro，末段是 tail，并继续识别
+  1 个表格候选。
+- 已补充 `pdf_import_table_heuristic` 测试：
+  `PDF text importer preserves body order from out-of-order text runs` 在显式启用
+  `import_table_candidates_as_tables=true` 后，断言真实 `Document` body 顺序为
+  `paragraph / table / paragraph`，保存重开后顺序仍稳定，表格仍是 3x3 可编辑表格。
+- 已完成新增 PDF 样本的 PNG/contact sheet 可视化验证：
+  两个新样本均渲染为 1 页 PNG，并生成 contact sheet；页面 PNG 非空，
+  非空像素包围盒为 `(143, 118, 865, 546)`，视觉内容与预期的段落-表格-段落布局一致。
+- 本轮仍保持导入侧测试和导出回归分离：
+  新样本只存在于 `pdf_import_structure` / `pdf_import_table_heuristic` 测试内部，
+  未加入 `pdf_regression_manifest.json`，也未重复运行完整导出回归。
+- 已知限制更新：
+  当前阅读顺序恢复仍是页面内 `top -> left` 的保守线性化，不承诺多栏文章、
+  旋转文字、浮动/重叠文本、页眉页脚语义或任意 PDF 内容流的精确阅读顺序。
+- 已知限制更新：
+  表格导入仍是 opt-in，只覆盖稳定行距 + 规则列锚点的简单网格；仍不覆盖跨行/跨列合并、
+  两列表格、不规则票据表单、复杂分页表格、图片或样式还原。
+
+本轮通过命令：
+
+```powershell
+cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-msvc --target featherdoc_pdfio_probe featherdoc_pdf_document_probe featherdoc_pdfium_probe pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfio_generator_probe|pdf_document_generator_probe|pdfium_parser_probe|pdfium_document_parser_probe)$" --output-on-failure --timeout 60
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-structure-reordered.pdf --output-dir .\output\pdf-e7-order-recovery-visual\structure-reordered\pages --summary .\output\pdf-e7-order-recovery-visual\structure-reordered\summary.json --contact-sheet .\output\pdf-e7-order-recovery-visual\structure-reordered\contact-sheet.png --dpi 144
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-structure-reordered-source.pdf --output-dir .\output\pdf-e7-order-recovery-visual\structure-reordered-source\pages --summary .\output\pdf-e7-order-recovery-visual\structure-reordered-source\summary.json --contact-sheet .\output\pdf-e7-order-recovery-visual\structure-reordered-source\contact-sheet.png --dpi 144
+```
+
+本轮可视化验证产物：
+
+- `output/pdf-e7-order-recovery-visual/structure-reordered/summary.json`
+- `output/pdf-e7-order-recovery-visual/structure-reordered/contact-sheet.png`
+- `output/pdf-e7-order-recovery-visual/structure-reordered-source/summary.json`
+- `output/pdf-e7-order-recovery-visual/structure-reordered-source/contact-sheet.png`
+
+下一步入口：
+
+- 继续 E7 时，优先补更难的导入负样本和边界说明：表格旁注/标题、跨页表格候选、
+  以及更复杂的多栏/混排页；当前两栏样本只覆盖 row-wise 保序，不代表列语义已恢复。
+- 若继续推进真实表格 AST，还应先设计 `PdfParsedTableCandidate` 到合并单元格、
+  行/列宽和表头语义的中间表示，而不是直接扩展当前简单网格启发式。
+
+2026-05-10 继续推进：
+
+- 已将跨页连续 `PdfParsedTableCandidate` 从“两个独立表格”提升为“同一个可编辑
+  `Document` 表格”的受控导入能力：
+  当上一页最后一个导入块是表格、下一页第一个导入块也是表格，且列数与列宽间距兼容时，
+  importer 会把下一页候选行追加到上一页已经创建的 `Table`。
+- 已保持同页连续表格不合并：
+  现有 `paragraph / table / table / paragraph` 回归仍保留两个独立表格，避免把同页两个
+  视觉上分离的表格误合并。
+- 已补强导入器状态：
+  `ImportCursor` 现在记录上一个表格的行数、列数和列锚点；段落写入会清空表格连续状态，
+  防止跨页表格被页内段落、标题或尾注误连接。
+- 已更新跨页表格测试：
+  `PDF table import merges compatible table candidates across page boundary` 现在断言
+  `paragraph / table / paragraph` 的 body 顺序、`tables_imported == 1`、合并表格为
+  6 行 x 3 列，并确认保存重开后不存在第二个表格。
+- 已完成跨页输入 PDF 可视化验证：
+  `featherdoc-pdf-import-paragraph-table-pagebreak-table-paragraph.pdf` 渲染为 2 页
+  PNG/contact sheet；两页均非空，page-01 非空包围盒为 `(143, 118, 865, 449)`，
+  page-02 非空包围盒为 `(143, 183, 865, 494)`。
+- 已完成导入后 DOCX 的视觉 smoke：
+  保留测试生成的 `featherdoc-pdf-import-paragraph-table-pagebreak-table-paragraph.docx`，
+  通过 Word 导出为 PDF 并渲染 contact sheet；视觉报告 verdict 为 `pass`，
+  1 页非空，合并后的 6 行表格可见。
+- 本轮仍没有新增发布导出样本，也没有修改 `pdf_regression_manifest.json`；
+  验证范围保持在 PDF import targets、PDFium probe 和导入视觉产物。
+- 已知限制更新：
+  跨页合并只处理“下一页第一个块是兼容表格候选”的直接延续场景；如果页面顶部有标题、
+  页眉页脚文本被解析为段落、列宽不兼容或表格结构变化，当前实现会保守地创建新表格。
+- 已知限制更新：
+  当前合并只追加普通行，不恢复跨页表头、跨页行拆分、合并单元格、边框连续性或原始分页语义。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c '"D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests pdf_import_structure_tests pdf_import_failure_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+$env:FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS='1'; ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60; Remove-Item Env:FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-paragraph-table-pagebreak-table-paragraph.pdf --output-dir .\output\pdf-e7-cross-page-table-import-visual\source-pdf\pages --summary .\output\pdf-e7-cross-page-table-import-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-cross-page-table-import-visual\source-pdf\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-paragraph-table-pagebreak-table-paragraph.docx -OutputDir .\output\pdf-e7-cross-page-table-import-visual\merged-docx -ReviewVerdict pass -ReviewNote "PDF import cross-page table candidate merge visual verification"
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-cross-page-table-import-visual/source-pdf/summary.json`
+- `output/pdf-e7-cross-page-table-import-visual/source-pdf/contact-sheet.png`
+- `output/pdf-e7-cross-page-table-import-visual/merged-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-cross-page-table-import-visual/merged-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-cross-page-table-import-visual/merged-docx/report/summary.json`
+- `output/pdf-e7-cross-page-table-import-visual/merged-docx/report/final_review.md`
+
+2026-05-10 继续推进（跨页表格负样本）：
+
+- 已补齐跨页表格不应合并的受控负样本：
+  `write_paragraph_table_pagebreak_wide_table_paragraph_pdf()` 覆盖下一页表格列宽变化；
+  `write_paragraph_table_pagebreak_caption_table_paragraph_pdf()` 覆盖下一页表格前出现普通段落；
+  `write_paragraph_table_pagebreak_low_table_paragraph_pdf()` 覆盖下一页首块表格明显偏离页顶。
+- 已补强 `pdf_import_table_heuristic` 的导入侧断言：
+  列宽不兼容时保持 `paragraph / table / table / paragraph`，并保留两个 3x3 `Document` 表格；
+  段落介入时保持 `paragraph / table / paragraph / table / paragraph`，不穿过段落合并表格；
+  低位表格场景保持 `paragraph / table / table / paragraph`，不把页面中部的新表格续接到上一页。
+- 已继续保持导入与导出回归分离：
+  新样本只作为 import 测试内部受控 PDF 使用，未加入 `pdf_regression_manifest.json`，
+  也未扩展 E6 发布 baseline。
+- 已完成新增 PDF 样本可视化验证：
+  三个样本均渲染为 2 页 PNG/contact sheet；列宽变化样本 page-01 非空包围盒为
+  `(143, 118, 865, 449)`，page-02 为 `(143, 183, 1045, 494)`；段落介入样本
+  page-01 为 `(143, 118, 875, 449)`，page-02 为 `(143, 118, 914, 550)`；
+  低位表格样本 page-01 为 `(143, 118, 865, 449)`，page-02 为 `(143, 463, 877, 750)`。
+- 已完成导入后 DOCX 的视觉 smoke：
+  三个保留的 DOCX 均通过 Word 导出 PDF 并渲染 contact sheet，视觉报告 verdict 均为
+  `pass`；列宽变化样本和低位表格样本导入后显示两个独立表格，段落介入样本导入后显示
+  两个表格之间的普通段落。
+- 已知限制更新：
+  跨页表格合并仍只在“下一页第一个块是兼容表格候选，且开始位置足够靠近页顶”时触发；
+  列宽变化、页面中部开始的新表格、表格前说明段落、标题、页眉页脚文本或结构变化都会
+  保守地创建新表格。
+- 已知限制更新：
+  当前仍不恢复跨页表头、跨页行拆分、合并单元格、边框连续性、原始分页语义或表格标题语义；
+  负样本只是锁定保守边界，不代表完整 PDF 表格理解。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c "call ""D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat"" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests"
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-low-table.pdf --output-dir .\output\pdf-e7-cross-page-table-negative-visual\low-table\pages --summary .\output\pdf-e7-cross-page-table-negative-visual\low-table\summary.json --contact-sheet .\output\pdf-e7-cross-page-table-negative-visual\low-table\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-low-table.docx -OutputDir .\output\pdf-e7-cross-page-table-negative-visual\low-table-docx -ReviewVerdict pass -ReviewNote "PDF import low-position cross-page table visual verification"
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-wide-table.pdf --output-dir .\output\pdf-e7-cross-page-table-negative-visual\wide-table\pages --summary .\output\pdf-e7-cross-page-table-negative-visual\wide-table\summary.json --contact-sheet .\output\pdf-e7-cross-page-table-negative-visual\wide-table\contact-sheet.png --dpi 144
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-caption-table.pdf --output-dir .\output\pdf-e7-cross-page-table-negative-visual\caption-table\pages --summary .\output\pdf-e7-cross-page-table-negative-visual\caption-table\summary.json --contact-sheet .\output\pdf-e7-cross-page-table-negative-visual\caption-table\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-wide-table.docx -OutputDir .\output\pdf-e7-cross-page-table-negative-visual\wide-table-docx -ReviewVerdict pass -ReviewNote "PDF import negative cross-page width mismatch visual verification"
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-caption-table.docx -OutputDir .\output\pdf-e7-cross-page-table-negative-visual\caption-table-docx -ReviewVerdict pass -ReviewNote "PDF import negative cross-page intervening paragraph visual verification"
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-cross-page-table-negative-visual/wide-table/summary.json`
+- `output/pdf-e7-cross-page-table-negative-visual/wide-table/contact-sheet.png`
+- `output/pdf-e7-cross-page-table-negative-visual/caption-table/summary.json`
+- `output/pdf-e7-cross-page-table-negative-visual/caption-table/contact-sheet.png`
+- `output/pdf-e7-cross-page-table-negative-visual/low-table/summary.json`
+- `output/pdf-e7-cross-page-table-negative-visual/low-table/contact-sheet.png`
+- `output/pdf-e7-cross-page-table-negative-visual/low-table-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-cross-page-table-negative-visual/low-table-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-cross-page-table-negative-visual/low-table-docx/report/summary.json`
+- `output/pdf-e7-cross-page-table-negative-visual/low-table-docx/report/final_review.md`
+- `output/pdf-e7-cross-page-table-negative-visual/wide-table-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-cross-page-table-negative-visual/wide-table-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-cross-page-table-negative-visual/wide-table-docx/report/summary.json`
+- `output/pdf-e7-cross-page-table-negative-visual/wide-table-docx/report/final_review.md`
+- `output/pdf-e7-cross-page-table-negative-visual/caption-table-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-cross-page-table-negative-visual/caption-table-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-cross-page-table-negative-visual/caption-table-docx/report/summary.json`
+- `output/pdf-e7-cross-page-table-negative-visual/caption-table-docx/report/final_review.md`
+
+下一步入口：
+
+- 继续 E7 时应先把跨页连续性判断从 importer 内部状态提炼成更明确的候选置信度和
+  continuation 诊断，避免更多复杂启发式继续堆叠在写入逻辑里。
+- 若继续扩展真实表格 AST，应优先设计 `PdfParsedTableCandidate` 到行列宽、表头、
+  合并单元格和分页语义的中间表示，再考虑导入更多复杂样本。
+
+2026-05-10 继续推进（同页表格分隔）：
+
+- 已补齐同页表格之间的段落分隔样本：
+  `write_paragraph_table_note_table_paragraph_pdf()` 覆盖“同一页面上的两个表格中间插入普通段落”
+  场景，用来验证 importer 会清空表格连续状态，不跨段落黏连表格。
+- 已补强 `pdf_import_table_heuristic` 的同页边界断言：
+  `PDF table import preserves same-page paragraph separation between table candidates` 现在断言
+  `paragraph / table / paragraph / table / paragraph` 的 body 顺序，且保存重开后仍保持两个独立表格。
+- 已继续保持导入与导出回归分离：
+  新样本只作为 import 测试内部受控 PDF 使用，未加入 `pdf_regression_manifest.json`，
+  也未扩展 E6 发布 baseline。
+- 已完成新增 PDF 样本可视化验证：
+  `featherdoc-pdf-import-paragraph-table-note-table-paragraph.pdf` 渲染为 1 页 PNG/contact sheet；
+  page-01 非空包围盒为 `(143, 118, 865, 910)`。
+- 已完成导入后 DOCX 的视觉 smoke：
+  保留的 `featherdoc-pdf-import-paragraph-table-note-table-paragraph.docx` 通过 Word 导出 PDF 并渲染
+  contact sheet，视觉报告 verdict 为 `pass`；导出页显示两个独立表格，中间保留普通段落。
+- 已知限制更新：
+  当前仍只覆盖规则网格型表格导入；同页或跨页的更复杂表格连续性、标题语义、合并单元格、
+  同一 y 坐标左右块的多栏阅读顺序，仍未进入稳定支持范围。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c "call ""D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat"" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests"
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-paragraph-table-note-table-paragraph.pdf --output-dir .\output\pdf-e7-same-page-table-separation-visual\source-pdf\pages --summary .\output\pdf-e7-same-page-table-separation-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-same-page-table-separation-visual\source-pdf\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-paragraph-table-note-table-paragraph.docx -OutputDir .\output\pdf-e7-same-page-table-separation-visual\merged-docx -ReviewVerdict pass -ReviewNote "PDF import same-page table separation visual verification"
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-same-page-table-separation-visual/source-pdf/summary.json`
+- `output/pdf-e7-same-page-table-separation-visual/source-pdf/contact-sheet.png`
+- `output/pdf-e7-same-page-table-separation-visual/merged-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-same-page-table-separation-visual/merged-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-same-page-table-separation-visual/merged-docx/report/summary.json`
+- `output/pdf-e7-same-page-table-separation-visual/merged-docx/report/final_review.md`
+
+2026-05-10 继续推进（两栏 row-wise 顺序）：
+
+- 已新增受控两栏样本 `write_out_of_order_two_column_pdf()`，用右栏先写、左栏后写的文本
+  流验证同一页面左右块的块级顺序恢复和表格误判边界。
+- 已补充 `pdf_import_structure` 的 parser/importer 回归：
+  `PDFium parser preserves two-column row-wise reading order from out-of-order text runs` 与
+  `PDF text importer preserves two-column row-wise reading order from out-of-order text runs`，
+  断言该页会稳定导入为 3 个段落，文本顺序保持为 `title -> left/right row 1 -> left/right row 2`。
+- 已将 PDFium 行聚合补成更保守的顺序恢复：同一行内若出现明显的 X 回退，会开始新行，
+  以便后续更复杂的外部 PDF 仍有机会恢复几何顺序。
+- 已继续保持导入与导出回归分离：
+  该样本只作为 import 测试内部受控 PDF 使用，未加入 `pdf_regression_manifest.json`，
+  也未扩展 E6 发布 baseline。
+- 已完成新增 PDF 样本可视化验证：
+  `featherdoc-pdf-import-two-column-reordered.pdf` 渲染为 1 页 PNG/contact sheet；目检确认
+  页面是两栏正文，底部无空白页或裁切，文本与分栏线可见。
+- 已完成导入后 DOCX 的视觉 smoke：
+  保留的 `featherdoc-pdf-import-two-column-reordered-source.docx` 通过 Word 导出 PDF 并渲染
+  contact sheet；视觉报告 verdict 为 `pass`，页面内容完整，左/右栏文本按行保序落入同一页。
+- 已知限制更新：
+  当前两栏页仍以 row-wise 的合并段落导入，没有真正的 column AST；同一 y 坐标的左右块
+  仍是保守的块级文本恢复，而不是列级拆分。
+- 已知限制更新：
+  当前顺序恢复仍是启发式，遇到更复杂的多栏排版、标题穿插、表格旁注或混排块时，
+  仍会优先保守合并而不是强行拆成多个语义块。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_table_heuristic_tests pdf_import_failure_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_structure$" --output-on-failure --timeout 60
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-two-column-reordered.pdf --output-dir .\output\pdf-e7-two-column-order-visual\source-pdf\pages --summary .\output\pdf-e7-two-column-order-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-two-column-order-visual\source-pdf\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-two-column-reordered-source.docx -OutputDir .\output\pdf-e7-two-column-order-visual\merged-docx -ReviewVerdict pass -ReviewNote "PDF import two-column row-wise reading order visual verification"
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfium_parser_probe|pdfium_document_parser_probe|pdf_import_structure|pdf_import_failure|pdf_import_table_heuristic)$" --output-on-failure --timeout 60
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-two-column-order-visual/source-pdf/summary.json`
+- `output/pdf-e7-two-column-order-visual/source-pdf/contact-sheet.png`
+- `output/pdf-e7-two-column-order-visual/merged-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-two-column-order-visual/merged-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-two-column-order-visual/merged-docx/report/summary.json`
+- `output/pdf-e7-two-column-order-visual/merged-docx/report/final_review.md`
+
+2026-05-10 继续推进（表格标题段落顺序）：
+
+- 已新增受控 PDF 样本 `write_table_title_paragraph_pdf()`，用表格标题段落、真实 3x3
+  表格和尾段落验证导入侧块级顺序恢复。
+- 已新增导入回归 `PDF text importer preserves table title paragraph before imported table`，
+  断言该页稳定导入为 `paragraph / table / paragraph`，并确认真实 `Document` 表格
+  仍然按 3 列 3 行写回、重开后可重新识别。
+- 已把本轮临时的侧注片段切分实验收回，保留此前已验证的表格导入、跨页合并和
+  两栏 row-wise 顺序修正，不回退已收口的导出侧工作。
+- 已继续保持导入与导出回归分离：
+  该样本仅作为 import 测试内部受控 PDF 使用，未加入 `pdf_regression_manifest.json`。
+- 已完成新增 PDF 样本可视化验证：
+  `featherdoc-pdf-import-table-title.pdf` 渲染为 1 页 PNG/contact sheet；目检确认标题、
+  表格和尾段落未重叠，页内布局正常。
+- 已完成导入后 DOCX 的视觉 smoke：
+  保留的 `featherdoc-pdf-import-table-title.docx` 通过 Word 导出 PDF 并渲染 contact sheet；
+  视觉报告 verdict 为 `pass`，表格仍然以真实表格形式落在导出页中。
+- 已知限制更新：
+  当前导入仍以块级顺序恢复为主，尚未做表格旁注/同段内混排的精细片段切分；
+  遇到更复杂的旁注或混排时，仍会优先保守地把整段文本当作普通段落或直接跳过，
+  不会强行拆成语义更细的 AST 片段。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_table_heuristic_tests pdf_import_failure_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfium_parser_probe|pdfium_document_parser_probe|pdf_import_structure|pdf_import_failure|pdf_import_table_heuristic)$" --output-on-failure --timeout 60
+cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+.\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-table-title.pdf --output-dir .\output\pdf-e7-table-title-order-visual\source-pdf\pages --summary .\output\pdf-e7-table-title-order-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-table-title-order-visual\source-pdf\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-table-title.docx -OutputDir .\output\pdf-e7-table-title-order-visual\merged-docx -ReviewVerdict pass -ReviewNote "PDF import table title paragraph visual verification"
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-table-title-order-visual/source-pdf/summary.json`
+- `output/pdf-e7-table-title-order-visual/source-pdf/contact-sheet.png`
+- `output/pdf-e7-table-title-order-visual/merged-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-table-title-order-visual/merged-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-table-title-order-visual/merged-docx/report/summary.json`
+- `output/pdf-e7-table-title-order-visual/merged-docx/report/final_review.md`
+
+2026-05-11 继续推进（长表重复表头导入）：
+
+- 已把 `PdfParsedTableCandidate` 到真实 `Document` 表格的行高映射从“文本框自身高度”
+  调整为“候选表格平均行距与行框高度取最大值”，避免长表导入后行高过小、Word 重新排版后
+  把 56 行网格塞进 1 页。
+- 已保持表头重复语义的导入：首行仍会写入 `w:tblHeader`，并继续写入行高 `w:trHeight`
+  与 `hRule=exact`，使导入后的 DOCX 能在 Word 中按真实分页展示重复表头。
+- 已补强导入侧测试：
+  `PDF text importer marks repeated header rows on long invoice table` 现在同时断言
+  行高 / 行高规则 / 重复表头标记在保存重开后仍稳定存在，并要求首行行高明显高于文本框高度。
+- 已完成新增样本的可视化验证：
+  源 PDF `featherdoc-pdf-import-invoice-grid-repeat-header.pdf` 渲染为 4 页 PNG/contact sheet；
+  导入后 DOCX 通过 Word 导出为 3 页 PDF，contact sheet 显示第 2、3 页都重复了表头，
+  表格和尾注可见，无空白页或裁切。
+- 已知限制更新：
+  当前行高仍是启发式估算，来自候选表格的整体平均行距，不是 PDFium 的逐行原始排版语义；
+  对于更不规则的票据表、混排表格、跨页表头变化或多层嵌套表格，仍需要后续专门样本。
+- 已知限制更新：
+  这条导入语义仍只覆盖规则网格型表格；同页/跨页的复杂合并单元格、标题旁注和列语义恢复，
+  仍不在当前稳定支持范围内。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+python .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-invoice-grid-repeat-header.pdf --output-dir .\output\pdf-e7-repeat-header-visual\source-pdf\pages --summary .\output\pdf-e7-repeat-header-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-repeat-header-visual\source-pdf\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-invoice-grid-repeat-header.docx -OutputDir .\output\pdf-e7-repeat-header-visual\merged-docx-heightfix -ReviewVerdict pass -ReviewNote "PDF import repeated header row visual verification after row-height pitch import"
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-repeat-header-visual/source-pdf/summary.json`
+- `output/pdf-e7-repeat-header-visual/source-pdf/contact-sheet.png`
+- `output/pdf-e7-repeat-header-visual/merged-docx-heightfix/table_visual_smoke.pdf`
+- `output/pdf-e7-repeat-header-visual/merged-docx-heightfix/evidence/contact_sheet.png`
+- `output/pdf-e7-repeat-header-visual/merged-docx-heightfix/report/summary.json`
+- `output/pdf-e7-repeat-header-visual/merged-docx-heightfix/report/final_review.md`
+
+2026-05-11 继续推进（跨页重复表头去重合并）：
+
+- 已新增最小受控跨页样本
+  `write_paragraph_table_pagebreak_repeated_header_table_paragraph_pdf()`：
+  第 1 页和第 2 页都包含同一个 3 列表头行，用来回归“源 PDF 自带重复 header，
+  importer 合并跨页表格时不应把续页 header 当成普通数据行再插入中间”。
+- 已补强 `PdfDocumentImporter` 的跨页合并状态：
+  `ImportCursor` 现在会在创建真实 `Document` 表格时记住首行 header 的 cell 文本；
+  当下一页首个兼容 `PdfParsedTableCandidate` 继续合并时，如果其首行仍满足表头启发式，
+  且 cell 文本与前一页 header 精确一致，就跳过该首行，仅追加真实 body 行。
+- 已补充导入侧回归
+  `PDF table import skips repeated source header rows while merging cross-page repeated-header table`：
+  断言导入结果为 `paragraph / table / paragraph`、`tables_imported == 1`、合并后的
+  `Document` 表格为 5 行 x 3 列，且第 4 行已经是续页 body，而不是再次出现 `Item` header；
+  保存重开后行数、表头标记和边界 cell 文本仍稳定。
+- 已继续保持导入与导出回归分离：
+  新样本只存在于 `pdf_import_table_heuristic` 内部，未加入 `pdf_regression_manifest.json`。
+- 已完成新增 PDF 样本的 PNG/contact sheet 可视化验证：
+  `featherdoc-pdf-import-pagebreak-repeated-header-table.pdf` 渲染为 2 页 PNG/contact sheet；
+  目检确认两页都显示同一个 header 行，第 2 页保留尾段落，表格与文本未重叠。
+- 已知限制更新：
+  当前续页 header 去重仍依赖“跨页续表边界已成立 + 首行继续满足表头启发式 +
+  cell 文本逐列精确一致”三项条件；如果外部 PDF 把续页表头改写、截断、OCR 扰动、
+  合并单元格或轻微列语义漂移，当前实现仍会保守地把该行作为普通数据行导入。
+- 已知限制更新：
+  本轮只完成了源 PDF 的 PNG/contact sheet 视觉留档；导入后的真实 `Document` 结果
+  仍主要依赖 `ctest` 中的保存/重开断言验证，尚未为该新样本保留可复用的 Word smoke
+  产物。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfio_generator_probe|pdf_document_generator_probe|pdfium_parser_probe|pdfium_document_parser_probe)$" --output-on-failure --timeout 60
+python .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-repeated-header-table.pdf --output-dir .\output\pdf-e7-repeated-source-header-merge-visual\source-pdf\pages --summary .\output\pdf-e7-repeated-source-header-merge-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-repeated-source-header-merge-visual\source-pdf\contact-sheet.png --dpi 144
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-repeated-source-header-merge-visual/source-pdf/summary.json`
+- `output/pdf-e7-repeated-source-header-merge-visual/source-pdf/contact-sheet.png`
+
+2026-05-11 继续推进（长 repeated-header 续表导入回归）：
+
+- 已新增 4 页最小受控样本
+  `write_long_repeated_header_table_pdf()`：
+  每页都重复同一个 3 列 header 行，总计 52 条 body 数据；用来回归
+  “parser 每页都要稳定给出 `PdfParsedTableCandidate`，importer 合并跨页续表时要把
+  续页 header 去重，并导入成单个可编辑 `Document` 表格”。
+- 已补充 parser 侧回归
+  `PDFium parser detects long repeated-header table candidate on every page`：
+  断言 4 页都各自产生 1 个表格候选，且每页候选都是 14 行 x 3 列，
+  首行都保留 `Item / Owner / Status` header 文本。
+- 已补充 importer 侧回归
+  `PDF table import merges long repeated-header source tables into one editable table`：
+  断言导入结果为 `paragraph / table / paragraph`，文本顺序保持为标题段落、
+  单张真实表格、尾段落；合并后表格为 53 行 x 3 列，只保留第 0 行
+  `repeats_header == true`，续页边界行 `14 / 27 / 40` 不再插入重复 header，
+  且 `Feature14 / Feature27 / Feature40` 这些首条 body 行在保存重开后仍稳定存在。
+- 已补强 importer 的重复表头判定启发式：
+  `should_mark_repeating_header_row()` 不再只依赖“body 平均文本长度显著更长”，
+  还要求首行更像标签型 header（有字母、无数字、长度较短），并结合 body 中
+  更长文本单元格的分布做判定；这样同一逻辑同时覆盖了 `repeats_header`
+  标记和跨页续表的源 header 去重。
+- 已继续保持导入与导出回归分离：
+  新长样本和回归仍只存在于 `pdf_import_table_heuristic` 相关测试内，
+  未加入 `pdf_regression_manifest.json`。
+- 已完成新增 PDF 样本的 PNG/contact sheet 可视化验证：
+  `featherdoc-pdf-import-long-repeated-header.pdf` 渲染为 4 页 PNG/contact sheet；
+  目检确认第 1 页有标题段落、4 页表格都显示同一个 header 行、第 4 页保留尾段落，
+  页面无裁切、无重叠，续页布局稳定。
+- 已知限制更新：
+  当前 header 判定仍是规则启发式，偏向 `Item / Owner / Status` 这类短标签首行；
+  如果外部 PDF 的 header 含数字编号、极短缩写、多语混排、OCR 噪声或明显断裂，
+  仍可能无法触发 `repeats_header` 标记。
+- 已知限制更新：
+  当前跨页 header 去重仍要求“跨页续表边界成立 + 列锚点兼容 + 首行 cell 文本逐列精确一致”；
+  如果续页 header 被改写、截断、换行重排、合并单元格或列语义轻微漂移，仍会保守地保留该行。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target featherdoc_pdfio_probe featherdoc_pdf_document_probe featherdoc_pdfium_probe'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfio_generator_probe|pdf_document_generator_probe|pdfium_parser_probe|pdfium_document_parser_probe)$" --output-on-failure --timeout 60
+python .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-long-repeated-header.pdf --output-dir .\output\pdf-e7-long-repeated-header-visual\source-pdf\pages --summary .\output\pdf-e7-long-repeated-header-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-long-repeated-header-visual\source-pdf\contact-sheet.png --dpi 144
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-long-repeated-header-visual/source-pdf/summary.json`
+- `output/pdf-e7-long-repeated-header-visual/source-pdf/contact-sheet.png`
+
+2026-05-11 继续推进（近表尾段落误吞边界）：
+
+- 已新增最小受控样本
+  `write_paragraph_table_touching_note_paragraph_pdf()`：
+  标题段落后接一个 3x3 规则表格，再接一个紧贴表格下沿的 note 段落和尾段落；
+  用来回归“paragraph 只是轻微贴近 table candidate 边界时，不应被 importer 当成表内文本吞掉”。
+- 已补充 parser 侧回归
+  `PDFium parser preserves note line that sits close to table border`：
+  断言该页仍保持 6 条 text lines、1 个 table candidate，并保留
+  `Note paragraph touching table border` 与尾段落的阅读顺序。
+- 已补充 importer 侧回归
+  `PDF text importer preserves note paragraph that only lightly overlaps table bounds`：
+  断言导入结果为 `paragraph / table / paragraph / paragraph`，
+  `collect_document_text(document)` 保持为标题段落、近表 note 段落、尾段落，
+  同时真实 `Document` 表格仍是 3 行 x 3 列，保存重开后块级顺序不变。
+- 已收紧 importer 的 table-overlap 过滤粒度：
+  `overlaps_table_candidate()` 不再使用“paragraph bounds 与整张 table bounds 任意相交”
+  作为唯一条件，而是要求 paragraph 的 line/bounds 与候选表格的某一 `row.bounds`
+  发生“中心落入行框或重叠面积占比较高”的有效重叠，避免把仅仅贴近表格下沿的普通段落误删。
+- 已继续保持导入与导出回归分离：
+  新样本和回归仍只存在于 `pdf_import_structure` / `pdf_import_table_heuristic`
+  相关测试内，未加入 `pdf_regression_manifest.json`。
+- 已完成新增 PDF 样本的 PNG/contact sheet 可视化验证：
+  `featherdoc-pdf-import-touching-note.pdf` 渲染为 1 页 PNG/contact sheet；
+  目检确认 note 段落紧贴表格下沿但仍位于表格外部，标题、表格、note 和尾段落顺序正确，
+  页面无裁切、无重叠。
+- 已知限制更新：
+  当前 overlap 过滤仍是规则启发式，只能区分“明显属于某一表格行的文本”和“表格外近邻段落”；
+  如果旁注本身跨多行、嵌入表格行带、位于单元格内部边缘，或与表格正文共享更复杂的几何关系，
+  仍可能需要后续更细的 fragment/region 级语义。
+- 已知限制更新：
+  本轮只完成了源 PDF 的 PNG/contact sheet 留档；导入后的真实 `Document` 结果
+  仍主要依赖 `ctest` 的保存/重开断言验证，尚未为该新样本保留可复用的 Word smoke 产物。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_table_heuristic_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdf_import_structure|pdf_import_table_heuristic)$" --output-on-failure --timeout 60
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_failure_tests featherdoc_pdfio_probe featherdoc_pdf_document_probe featherdoc_pdfium_probe'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfio_generator_probe|pdf_document_generator_probe|pdfium_parser_probe|pdfium_document_parser_probe)$" --output-on-failure --timeout 60
+cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+python .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-touching-note.pdf --output-dir .\output\pdf-e7-touching-note-visual\source-pdf\pages --summary .\output\pdf-e7-touching-note-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-touching-note-visual\source-pdf\contact-sheet.png --dpi 144
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-touching-note-visual/source-pdf/summary.json`
+- `output/pdf-e7-touching-note-visual/source-pdf/contact-sheet.png`
+
+2026-05-11 继续推进（混合段落按 line 切分导入）：
+
+- 已新增更苛刻的 1 页受控样本
+  `write_paragraph_table_touching_multiline_note_paragraph_pdf()`：
+  表格最后一行 `Touching multi-line C3` 之后，紧跟一个两行说明段落；
+  第一行故意贴近表格下沿，第二行和尾段落明确落在表格外，用来回归
+  “parser 可能把 `C3 + note` 聚成一个 paragraph 时，importer 仍应把表格正文和表外说明拆开导入”。
+- 已补充 parser 侧回归
+  `PDFium parser groups touching multi-line note outside table as one paragraph`：
+  断言新样本仍有 7 条 `text_lines`、1 个 `table_candidate`，并确认两行 note 文本继续落在
+  同一个 parser paragraph 内，锁定“问题发生在导入分段而不是解析丢字”。
+- 已补充 importer 侧回归
+  `PDF text importer preserves touching multi-line note paragraph outside table`：
+  断言导入结果为 `paragraph / table / paragraph / paragraph`，
+  `collect_document_text(document)` 只包含标题段落、两行 note 段落和尾段落；
+  真实 `Document` 表格仍保留 3 行 x 3 列，且 `Touching multi-line C3`
+  继续留在表格内，保存重开后块顺序和文本都稳定。
+- 已把 importer 的表格过滤从“整段保留/整段丢弃”推进到“按 line 切 paragraph fragment”：
+  `build_import_blocks()` 现在会先按 `PdfParsedTextLine` 判断哪些行应由表格候选接管，
+  再把剩余的非表格行重新拼成 paragraph fragments；这样 parser 即便把
+  `C3 + note` 聚成一个 paragraph，importer 仍能把表格行剥回真实表格，
+  并把表外说明保留为可编辑段落。
+- 已收紧 paragraph/table overlap 判定的段落语义：
+  对多行 paragraph，不再因为“任意一行落进表格行框”就把整段视为表内文本；
+  现在要求超过半数的 lines 真正与某个 `row.bounds` 发生有效重叠，才会把该 paragraph
+  交给表格候选消费。
+- 已继续保持导入与导出回归分离：
+  新样本和回归仍只落在 `pdf_import_structure` / `pdf_import_table_heuristic`，
+  未加入 `pdf_regression_manifest.json`。
+- 已完成新增 PDF 样本的 PNG/contact sheet 可视化验证：
+  `featherdoc-pdf-import-touching-multiline-note.pdf` 渲染为 1 页 PNG/contact sheet；
+  目检确认 `C3` 与 note 第一行在视觉上接近，但 note 两行和尾段落仍位于表格外，
+  页面无裁切、无重叠。
+- 已完成导入后 DOCX 的视觉 smoke：
+  保留的 `featherdoc-pdf-import-touching-multiline-note.docx` 通过 Word 导出 PDF 并渲染
+  contact sheet；视觉报告 verdict 为 `pass`，导出页中 `C3` 仍留在表格内，
+  两行 note 与尾段落在表格下方顺序正确。
+- 已知限制更新：
+  当前 line-fragment 切分仍只在 paragraph/table 二分边界上工作，不会恢复更细的
+  cell 内多段文本、侧注锚点、列表层级或真正的 region AST；如果旁注和表格正文在同一行
+  里更复杂地交错，仍需要后续 fragment/region 级中间表示。
+- 已知限制更新：
+  当前 overlap 规则仍以几何启发式为主；当 OCR 噪声、旋转文本、异常行高或跨行批注
+  让 line bounds 明显漂移时，仍可能保守地把文本留在段落侧，而不是强行并回表格。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_table_heuristic_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdf_import_structure|pdf_import_table_heuristic)$" --output-on-failure --timeout 60
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_failure_tests featherdoc_pdfio_probe featherdoc_pdf_document_probe featherdoc_pdfium_probe'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfio_generator_probe|pdf_document_generator_probe|pdfium_parser_probe|pdfium_document_parser_probe)$" --output-on-failure --timeout 60
+cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+python .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-touching-multiline-note.pdf --output-dir .\output\pdf-e7-touching-multiline-note-visual\source-pdf\pages --summary .\output\pdf-e7-touching-multiline-note-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-touching-multiline-note-visual\source-pdf\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-touching-multiline-note.docx -OutputDir .\output\pdf-e7-touching-multiline-note-visual\merged-docx -ReviewVerdict pass -ReviewNote "PDF import touching multi-line note paragraph visual verification"
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-touching-multiline-note-visual/source-pdf/summary.json`
+- `output/pdf-e7-touching-multiline-note-visual/source-pdf/contact-sheet.png`
+- `output/pdf-e7-touching-multiline-note-visual/merged-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-touching-multiline-note-visual/merged-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-touching-multiline-note-visual/merged-docx/report/summary.json`
+- `output/pdf-e7-touching-multiline-note-visual/merged-docx/report/final_review.md`
+
+2026-05-11 继续推进（续页表头空白变形去重）：
+
+- 已新增 2 页受控样本
+  `write_paragraph_table_pagebreak_repeated_header_whitespace_variant_pdf()`：
+  第 1 页 header 为 `Owner Name / Project Status`，第 2 页续表 header 改成
+  `Owner  Name / Project   Status`，其余列语义不变；用来回归
+  “续页表头只出现空白数量差异时，cross-page merge 仍应识别为同一 header 并跳过”。
+- 已补充 importer 侧回归
+  `PDF table import skips whitespace-varied repeated source header rows while merging cross-page repeated-header table`：
+  断言导入结果仍为 `paragraph / table / paragraph`，只导入 1 张 5 行 x 3 列表格，
+  续页首行已经是 `Invoice merge pass` 而不是再次插入 header；保存重开后行数和表头标记稳定。
+- 已补强续页 header 匹配逻辑：
+  `row_cell_texts_match()` 现在会先对每个 cell 文本做空白归一化，再逐列比较；
+  连续空格、换行、制表等 whitespace 差异不再阻断 repeated-header 去重。
+- 已继续保持导入与导出回归分离：
+  新样本只存在于 `pdf_import_table_heuristic` 内部，未加入 `pdf_regression_manifest.json`。
+- 已完成新增 PDF 样本的 PNG/contact sheet 可视化验证：
+  `featherdoc-pdf-import-pagebreak-repeated-header-whitespace-variant.pdf` 渲染为 2 页 PNG/contact sheet；
+  目检确认两页都显示同一套 3 列 header，第 2 页保留尾段落，页面无裁切和重叠。
+- 已完成导入后 DOCX 的视觉 smoke：
+  保留的 `featherdoc-pdf-import-pagebreak-repeated-header-whitespace-variant.docx`
+  通过 Word 导出 PDF 并渲染 contact sheet；视觉报告 verdict 为 `pass`，
+  导出页中只保留一行 header，后续 4 条 body 数据顺序正确。
+- 已知限制更新：
+  当前 repeated-header 匹配只做 whitespace 归一化，尚未处理大小写漂移、OCR 近似字符、
+  标点细小差异、同义缩写、列标题改写或轻微词序变化；这些情况仍会保守地保留续页 header 行。
+- 已知限制更新：
+  当前 header 语义判断仍依赖规则启发式；若首行标签过长、带编号或页间表头结构变化明显，
+  仍可能无法触发 `repeats_header` 或 continuation dedupe。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfio_generator_probe|pdf_document_generator_probe|pdfium_parser_probe|pdfium_document_parser_probe)$" --output-on-failure --timeout 60
+cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+python .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-repeated-header-whitespace-variant.pdf --output-dir .\output\pdf-e7-repeated-header-whitespace-variant-visual\source-pdf\pages --summary .\output\pdf-e7-repeated-header-whitespace-variant-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-repeated-header-whitespace-variant-visual\source-pdf\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-repeated-header-whitespace-variant.docx -OutputDir .\output\pdf-e7-repeated-header-whitespace-variant-visual\merged-docx -ReviewVerdict pass -ReviewNote "PDF import repeated header whitespace variant visual verification"
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-repeated-header-whitespace-variant-visual/source-pdf/summary.json`
+- `output/pdf-e7-repeated-header-whitespace-variant-visual/source-pdf/contact-sheet.png`
+- `output/pdf-e7-repeated-header-whitespace-variant-visual/merged-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-repeated-header-whitespace-variant-visual/merged-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-repeated-header-whitespace-variant-visual/merged-docx/report/summary.json`
+- `output/pdf-e7-repeated-header-whitespace-variant-visual/merged-docx/report/final_review.md`
+
+2026-05-11 继续推进（续页表头轻微文本变形去重）：
+
+- 已新增 2 页受控样本
+  `write_paragraph_table_pagebreak_repeated_header_text_variant_pdf()`：
+  第 1 页 header 为 `Item / Owner Name / Project Status`，第 2 页续表 header 改成
+  `item / owner-name / project/status`，也就是只改变大小写和常见分隔符，不改词本身；
+  用来回归 “续页表头轻微文本变形但语义不变时，cross-page merge 仍应去重”。
+- 已补充 importer 侧回归
+  `PDF table import skips case and separator-varied repeated source header rows while merging cross-page repeated-header table`：
+  断言导入结果仍为 `paragraph / table / paragraph`，只导入 1 张 5 行 x 3 列表格，
+  第 4 行和第 5 行已经是续页 body，而不是再次出现 header；保存重开后行数和表头标记稳定。
+- 已扩展 header 文本归一化：
+  `normalize_header_match_text()` 现在除了折叠 whitespace，还会统一大小写，并把
+  `- _ / \\ : .` 这些常见分隔符折叠为单个空格；这样 `owner-name`、`Owner Name`
+  和 `project/status`、`Project Status` 会落到同一保守 token 形式再比较。
+- 已继续保持导入与导出回归分离：
+  新样本只存在于 `pdf_import_table_heuristic` 内部，未加入 `pdf_regression_manifest.json`。
+- 已完成新增 PDF 样本的 PNG/contact sheet 可视化验证：
+  `featherdoc-pdf-import-pagebreak-repeated-header-text-variant.pdf` 渲染为 2 页 PNG/contact sheet；
+  目检确认第 2 页 header 仍是同一列语义，只是大小写和分隔符变形，尾段落保留正常。
+- 已完成导入后 DOCX 的视觉 smoke：
+  保留的 `featherdoc-pdf-import-pagebreak-repeated-header-text-variant.docx`
+  通过 Word 导出 PDF 并渲染 contact sheet；视觉报告 verdict 为 `pass`，
+  导出页中只保留一行 header，后续 4 条 body 数据顺序正确。
+- 已知限制更新：
+  当前 repeated-header 匹配已覆盖 whitespace、大小写和常见分隔符差异，但仍不处理
+  OCR 近似字符、同义缩写、列标题改写、词序变化或真正的模糊文本相似度；这些情况仍会保守地保留续页 header 行。
+- 已知限制更新：
+  当前 token 归一化仍假设 header 的词边界大体稳定；如果外部 PDF 把一个 header
+  压成异常连写、缺字、错字或合并单元格后的重排文本，当前实现仍不会强行判定为同一个续页 header。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfio_generator_probe|pdf_document_generator_probe|pdfium_parser_probe|pdfium_document_parser_probe)$" --output-on-failure --timeout 60
+cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+python .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-repeated-header-text-variant.pdf --output-dir .\output\pdf-e7-repeated-header-text-variant-visual\source-pdf\pages --summary .\output\pdf-e7-repeated-header-text-variant-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-repeated-header-text-variant-visual\source-pdf\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-repeated-header-text-variant.docx -OutputDir .\output\pdf-e7-repeated-header-text-variant-visual\merged-docx -ReviewVerdict pass -ReviewNote "PDF import repeated header text variant visual verification"
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-repeated-header-text-variant-visual/source-pdf/summary.json`
+- `output/pdf-e7-repeated-header-text-variant-visual/source-pdf/contact-sheet.png`
+- `output/pdf-e7-repeated-header-text-variant-visual/merged-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-repeated-header-text-variant-visual/merged-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-repeated-header-text-variant-visual/merged-docx/report/summary.json`
+- `output/pdf-e7-repeated-header-text-variant-visual/merged-docx/report/final_review.md`
+
+2026-05-11 继续推进（续页表头 plural 变体与语义分裂）：
+
+- 已新增 2 页受控样本
+  `write_paragraph_table_pagebreak_repeated_header_plural_variant_pdf()`：
+  第 1 页 header 为 `Item / Owner Name / Project Status`，第 2 页续表 header 改成
+  `Items / Owner Names / Project Statuses`，用于回归仅在词尾 `s` / `es`
+  变化时仍应识别为同一续表并跳过重复 header。
+- 已新增 2 页受控负样本
+  `write_paragraph_table_pagebreak_repeated_header_semantic_variant_pdf()`：
+  第 2 页 header 改成 `Item / Owner Team / Project State`，用于确认语义变化时
+  importer 不再把第二页当作同一 repeated-header 续表直接吞并。
+- 已补充 importer 侧回归：
+  `PDF table import skips plural-varied repeated source header rows while merging cross-page repeated-header table`
+  断言 plural 变体仍能导入为 1 张 `5x3` 表，保存重开后行数和表头标记稳定。
+  `PDF table import keeps semantic header variants as separate cross-page tables`
+  断言语义变体会落成 2 张独立表格，且第二张表保留自己的 header row。
+- 已补强 `row_cell_texts_match()`：
+  现在除了 whitespace / 大小写 / 常见分隔符归一化，还接受 cell 级别的
+  末尾 `s` / `es` 复数变体，再配合跨页 header mismatch 诊断避免把语义不同的
+  repeated-header 续表误合并。
+- 已继续保持导入与导出回归分离：
+  新样本只存在于 `pdf_import_table_heuristic` 内部，未加入 `pdf_regression_manifest.json`。
+- 已完成新增 PDF 样本的 PNG/contact sheet 可视化验证：
+  plural / semantic 两个 PDF 都渲染为 2 页 PNG/contact sheet；目检确认 plural 变体
+  第 2 页 header 仅有词尾复数差异且导入后应保持单表，semantic 变体第 2 页 header
+  改写后导入应拆成第二张表，页面无裁切和重叠。
+- 已完成导入后 DOCX 的视觉 smoke：
+  保留的 `featherdoc-pdf-import-pagebreak-repeated-header-plural-variant.docx`
+  与 `featherdoc-pdf-import-pagebreak-repeated-header-semantic-variant.docx`
+  均通过 Word 导出 PDF 并渲染 contact sheet；两个 visual report verdict 都为 `pass`。
+- 已知限制更新：
+  目前 repeated-header 匹配只覆盖 whitespace、大小写、常见分隔符，以及 cell 末尾
+  `s` / `es` 的保守复数变体；仍不处理 OCR 近似字符、同义改写、词序变化、
+  irregular plural、标题语义重写或真正的模糊文本相似度。
+- 已知限制更新：
+  如果外部 PDF 把 header 压成异常连写、缺字、错字或合并单元格后的重排文本，
+  当前实现仍不会强行判定为同一个续页 header；这类场景仍会保守分裂或保留 header。
+
+本轮继续推进通过命令：
+
+```powershell
+cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests pdf_import_structure_tests pdf_import_failure_tests'
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60
+ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfio_generator_probe|pdf_document_generator_probe|pdfium_parser_probe|pdfium_document_parser_probe)$" --output-on-failure --timeout 60
+cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60
+& .\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-repeated-header-plural-variant.pdf --output-dir .\output\pdf-e7-repeated-header-plural-variant-visual\source-pdf\pages --summary .\output\pdf-e7-repeated-header-plural-variant-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-repeated-header-plural-variant-visual\source-pdf\contact-sheet.png --dpi 144
+& .\tmp\render-venv\Scripts\python.exe .\scripts\render_pdf_pages.py --input .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-repeated-header-semantic-variant.pdf --output-dir .\output\pdf-e7-repeated-header-semantic-variant-visual\source-pdf\pages --summary .\output\pdf-e7-repeated-header-semantic-variant-visual\source-pdf\summary.json --contact-sheet .\output\pdf-e7-repeated-header-semantic-variant-visual\source-pdf\contact-sheet.png --dpi 144
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-repeated-header-plural-variant.docx -OutputDir .\output\pdf-e7-repeated-header-plural-variant-visual\merged-docx -ReviewVerdict pass -ReviewNote "PDF import repeated header plural variant visual verification"
+powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -InputDocx .\.bpdf-roundtrip-msvc\test\featherdoc-pdf-import-pagebreak-repeated-header-semantic-variant.docx -OutputDir .\output\pdf-e7-repeated-header-semantic-variant-visual\merged-docx -ReviewVerdict pass -ReviewNote "PDF import repeated header semantic variant visual verification"
+```
+
+本轮继续推进可视化验证产物：
+
+- `output/pdf-e7-repeated-header-plural-variant-visual/source-pdf/summary.json`
+- `output/pdf-e7-repeated-header-plural-variant-visual/source-pdf/contact-sheet.png`
+- `output/pdf-e7-repeated-header-plural-variant-visual/merged-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-repeated-header-plural-variant-visual/merged-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-repeated-header-plural-variant-visual/merged-docx/report/summary.json`
+- `output/pdf-e7-repeated-header-plural-variant-visual/merged-docx/report/review_result.json`
+- `output/pdf-e7-repeated-header-plural-variant-visual/merged-docx/report/final_review.md`
+- `output/pdf-e7-repeated-header-semantic-variant-visual/source-pdf/summary.json`
+- `output/pdf-e7-repeated-header-semantic-variant-visual/source-pdf/contact-sheet.png`
+- `output/pdf-e7-repeated-header-semantic-variant-visual/merged-docx/table_visual_smoke.pdf`
+- `output/pdf-e7-repeated-header-semantic-variant-visual/merged-docx/evidence/contact_sheet.png`
+- `output/pdf-e7-repeated-header-semantic-variant-visual/merged-docx/report/summary.json`
+- `output/pdf-e7-repeated-header-semantic-variant-visual/merged-docx/report/review_result.json`
+- `output/pdf-e7-repeated-header-semantic-variant-visual/merged-docx/report/final_review.md`
+
+2026-05-11 继续推进（跨页续接诊断外提）：
+
+- 已将跨页表格续接判断收拢成显式诊断对象
+  `PdfTableContinuationDiagnostic`，并把每个表格候选的 page/block 索引、续接分支、
+  阻断原因、`source_row_offset`、`skipped_repeating_header` 和
+  `continuation_confidence` 写回 `PdfDocumentImportResult`，避免继续依赖 importer
+  内部隐式状态。
+- 已把 importer 里的跨页决策整理为单一 decision helper：
+  现在先评估是否存在可续接的前置表格，再按 page 顶部位置、行宽一致性、
+  列锚点兼容性、重复表头匹配等条件给出明确 blocker，而不是散落在写入路径里。
+- 已补充导入侧诊断断言：
+  单表样本会记录 `no_previous_table`；跨页可合并样本会记录
+  `merged_with_previous_table`；列宽/列锚点不兼容、页面过低、同页第二张表，
+  以及重复表头语义不匹配都会留下对应 blocker。
+- 已继续保持导入与导出回归分离：
+  这轮没有新增 `pdf_regression_manifest.json` 样本，也没有改动导出侧收口逻辑。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests pdf_import_structure_tests pdf_import_failure_tests`
+  与 `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过；PDF 相关 probe 组也在 `--timeout 60` 下通过。
+- 已知限制更新：
+  `continuation_confidence` 仍是规则型评分，只用于解释候选续接强弱，不代表真正的概率模型；
+  它主要服务于诊断和回归，不处理合并单元格、列语义恢复或更复杂的版面推断。
+- 已知限制更新：
+  当前诊断仍只覆盖表格候选的续接路径；如果后续要把更多 `PdfParsedTableCandidate`
+  提升为可编辑 AST，还需要单独设计 cell 合并、表头语义和分页语义的中间表示。
+
+2026-05-11 继续推进（宽文本合并落表）：
+
+- 已给 `PdfParsedTableCell` 补入最小 `column_span` 语义，并让 `PdfiumParser`
+  对明显宽于单列的文本簇推断横向合并范围，继续保持保守，只覆盖明显宽文本的
+  受控样本，不尝试从线条版式反推任意复杂表格。
+- 已让 `PdfDocumentImporter` 在写入真实 `Document` 表格时，基于 `column_span`
+  调用 `Table::merge_right()`，把解析结果从“普通网格文本”推进成可编辑表格。
+- 已补导入侧回归：
+  新样本覆盖宽标题跨两列、普通数据行、正文前后段落，以及保存重开后的
+  `inspect_table_cell_by_grid_column()` / `column_span` 断言；导入侧测试与导出回归
+  仍然分离，未改 `pdf_regression_manifest.json`。
+- 已完成视觉验证：
+  新样本 PDF 渲染出 `output/pdf-e7-merged-table-visual/source-pdf/contact-sheet.png`，
+  导入后的 DOCX 通过 Word smoke 生成
+  `output/pdf-e7-merged-table-docx-visual/evidence/contact_sheet.png` 和
+  `output/pdf-e7-merged-table-docx-visual/table_visual_smoke.pdf`；目检通过，版面未见
+  裁剪、重叠或顺序漂移。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests`
+  与 `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过；PDFium probe 组也通过。
+- 已知限制更新：
+  这版横向合并仍是启发式，只覆盖明显宽于单列的文本簇；对真实多行表头、
+  纵向合并、复杂单元格布局和不规则票据表单，当前仍不会自动恢复。
+
+2026-05-11 继续推进（合并表头跨页续接）：
+
+- 已把跨页重复表头这一条链路继续向前推了一步：
+  现在 `PdfDocumentImporter` 会对带横向合并的表头行放宽 repeated-header 判定，
+  让首行 `column_span > 1` 的候选也能稳定进入“可续接表头”的判断路径。
+- 已补最小受控回归样本：
+  新增的页间表头样本覆盖“首行横向合并 + 第二页重复同一合并表头 + 正文继续”
+  这三个关键点，用来验证解析结果能稳定提升为真实 `Document` 表格。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --parallel 8 --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests featherdoc_pdfio_probe featherdoc_pdf_document_probe featherdoc_pdfium_probe`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdfio_generator_probe|pdf_document_generator_probe|pdfium_parser_probe|pdfium_document_parser_probe|pdf_import_structure|pdf_import_failure|pdf_import_table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF contact sheet 为
+  `output/pdf-e7-merged-repeated-header-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-merged-repeated-header-docx-visual/evidence/contact_sheet.png`
+  与 `output/pdf-e7-merged-repeated-header-docx-visual/table_visual_smoke.pdf`；
+  目检未见裁剪、重叠或页序漂移。
+- 已知限制更新：
+  这条 repeated-header 续接仍然是规则型启发式，当前只覆盖横向合并的表头；
+  纵向合并、复杂多层表头、任意不规则表单网格，以及基于矢量线条的精确网格恢复，
+  仍未进入本阶段的实现范围。
+
+2026-05-11 继续推进（近表边界混合段落收紧整段保留）：
+
+- 本轮开始前已重新阅读 `include/featherdoc/pdf/pdf_interfaces.hpp`、
+  `src/pdf/pdfium_parser.cpp`、`src/pdf/pdf_document_importer.cpp`、
+  `test/pdf_import_structure_tests.cpp` 和本文 E7 段落，继续把重点放在
+  `PDFium -> 可编辑 Document` 导入，而不回到导出侧已收口工作。
+- 已修正受控样本
+  `write_paragraph_table_partial_overlap_multiline_note_paragraph_pdf()`：
+  把第一行 note 下移到仍然轻微压表格下沿、但不再和 `Partial overlap C3`
+  混成同一 `text_line` 的位置；parser 侧 `PDFium parser keeps partial-overlap multi-line note as one paragraph`
+  现在稳定回到 `7` 条 `text_lines` 和 `1` 个 `table_candidate`。
+- 已收紧 `PdfDocumentImporter::build_paragraph_fragments()` 的“整段保留”条件：
+  只有当一个 parser paragraph 内 **没有任何** `line_overlaps_table_candidate()`
+  命中的行时，才整段保留；一旦段内存在明确落在表格里的行，就回退到既有的
+  line-level 过滤，把表格行和表外说明重新拆开导入。
+- 已继续下沉 parser 级修复：
+  `PdfiumParser` 现在会先检测 `table_candidates`，再按“是否落在同一张表里”
+  切分 `PdfParsedParagraph`；同时给 `PdfParsedTextLine` / `PdfParsedParagraph`
+  增加了显式 `table_candidate_index` 标注，让表格尾行和紧邻说明段在中间结构层就先分开；
+  importer 仍保留 line-level 过滤作为兜底，但不再是唯一修复点。
+- 已补强并跑通导入侧回归：
+  `PDF text importer preserves touching multi-line note paragraph outside table`
+  和
+  `PDF text importer preserves partial-overlap multi-line note paragraph as one block`
+  现在都能稳定保持 `paragraph / table / paragraph / paragraph`，
+  且 `Touching multi-line C3` / `Partial overlap C3` 继续留在真实 `Document`
+  表格里，不再泄漏到正文段落。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_table_heuristic_tests pdf_import_failure_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdf_import_structure|pdf_import_failure|pdf_import_table_heuristic)$" --output-on-failure --timeout 60`
+  均通过；同时用
+  `cmake -E env FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS=1 ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  保留了这轮 import 回归产物。
+- 已完成样本变更后的 PNG/contact sheet 可视化验证：
+  `output/pdf-e7-partial-overlap-multiline-note-visual/source-pdf/contact-sheet.png`
+  与
+  `output/pdf-e7-partial-overlap-multiline-note-visual/merged-docx/evidence/contact_sheet.png`
+  已目检通过；源 PDF 中第一行 note 仍然按设计轻压表格边界，导入后的 DOCX
+  中表格和两行 note 已正确分离，未见裁剪、重叠或块顺序漂移。
+  为避免这次 importer 收紧把相邻边界样本打坏，也补留了
+  `output/pdf-e7-touching-multiline-note-visual/source-pdf/contact-sheet.png`
+  和
+  `output/pdf-e7-touching-multiline-note-visual/merged-docx/evidence/contact_sheet.png`，
+  目检同样通过。
+- 本轮 parser-aware 修复后，又补跑并保留了新的 Word smoke 产物：
+  `output/pdf-e7-touching-multiline-note-parserfix-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-partial-overlap-multiline-note-parserfix-visual/merged-docx/evidence/contact_sheet.png`；
+  目检结果与预期一致，note 段和表格块都保持分离，未引入新裁剪或顺序漂移。
+- 在显式 `table_candidate_index` 标注接入后，又按当前构建重新保留了
+  `output/pdf-e7-touching-multiline-note-parseraware-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-partial-overlap-multiline-note-parseraware-visual/merged-docx/evidence/contact_sheet.png`；
+  目检结果与前一轮一致，说明 parser 语义显式化没有引入新的导入版面回退。
+- 本轮还把 parser 语义断言补上了：
+  结构测试直接检查 note 段与表格行的 `table_candidate_index` 是否一致，避免以后只靠
+  文本内容相似度判断“看起来没丢字”。
+- 本轮继续保持导入与导出回归分离：
+  只改了 importer 和测试内部受控样本，未改 `pdf_regression_manifest.json`，
+  也没有回退既有导出修正。
+- 已知限制更新：
+  当前 parser 仍是基于几何和 table candidate 的启发式切分，不是完整语义 AST；
+  `table_candidate_index` 只是把现有启发式显式化了，还没有补齐纵向合并、多层表头、
+  扫描版或更复杂版面的真正 block 中间表示。
+
+2026-05-11：
+
+- 已把 `PdfParsedPage` 的导入中间层再推进一层：新增 `PdfParsedContentBlock`，
+  由 parser 显式产出 paragraph / table_candidate 的统一块序列，避免 importer 再
+  自己拼接页内块顺序。
+- 已让 `PdfDocumentImporter` 优先消费 `content_blocks`，把块级顺序恢复从“导入侧排序
+  规则”前移到“解析结果的一部分”，并保留旧路径作为空块序列时的兼容回退。
+- 已补充结构测试，锁定 out-of-order 段落 / 表格 / 段落样本的块序列为
+  `paragraph / table_candidate / paragraph`。
+- 已重新构建并通过相关导入侧测试：
+  `pdf_import_structure`、`pdf_import_failure`、`pdf_import_table_heuristic`。
+- 已把 `content_blocks` 的断言补到双表同页、跨页宽度不兼容和表格标题样本里，
+  让新中间层在单表、双表、跨页和标题/尾注场景都被显式回归覆盖。
+- 本轮没有新增或修改 PDF 样本，因此没有补做新的 PNG/contact sheet 视觉产物；
+  现有导入样本与导出回归仍保持分离。
+- 已知限制更新：
+  `content_blocks` 仍然只是对现有几何启发式的统一线性化，不代表完整的 PDF 内容流
+  还原；多栏、旋转文本、扫描件 OCR、浮动对象和更复杂的表格语义仍未覆盖。
+
+2026-05-11 继续推进（最小纵向合并单元格落表）：
+
+- 已在 `PdfiumParser` 里补上最小 `row_span` 推断，只覆盖首列、首行、两行
+  的受控纵向合并样本，避免把普通空白误判成通用合并单元格。
+- 已让 `PdfDocumentImporter` 改为先写入文本和横向合并，再统一处理纵向
+  `merge_down()`，避免续写单元格和已合并单元格互相冲突。
+- 已补导入侧回归，覆盖 `featherdoc-pdf-import-vertical-merged-table.pdf` /
+  `featherdoc-pdf-import-vertical-merged-table.docx` 的解析、保存和重开断言。
+- 已完成视觉验证：
+  `output/pdf-e7-vertical-merged-table-visual/source-pdf/contact-sheet.png`、
+  `output/pdf-e7-vertical-merged-table-docx-visual/evidence/contact_sheet.png`
+  和 `output/pdf-e7-vertical-merged-table-docx-visual/table_visual_smoke.pdf`
+  均已生成并目检通过。
+- 已完成构建与测试验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；前置构建和相关导入测试也已保持通过。
+- 已知限制更新：
+  这版只覆盖“最小纵向合并”启发式，不尝试恢复任意多行、多列、多层表头的
+  通用 row-span 语义。
+
+2026-05-11 继续推进（纵向合并扩展到任意列与多行）：
+
+- 已把 `PdfiumParser::detect_row_span()` 从首行首列特例扩展为任意列、
+  连续多行的受控推断：只要锚点单元格有文本、所在行与后续行都保持足够
+  文本密度、且同列在后续行保持空白，就会累计 `row_span`。
+- 已补新的中间列三行合并样本：
+  `featherdoc-pdf-import-middle-column-merged-table-source.pdf` 与
+  `featherdoc-pdf-import-middle-column-merged-table.pdf`，
+  用来验证 parser / importer 不再局限于首列。
+- 已补导入侧回归，覆盖中间列 `row_span = 3` 的解析、保存和重开断言，
+  以防以后把纵向合并又收缩回首列特例。
+- 已完成视觉验证：
+  `output/pdf-e7-middle-column-merged-table-visual/source-pdf/contact-sheet.png`、
+  `output/pdf-e7-middle-column-merged-table-docx-visual/evidence/contact_sheet.png`
+  和 `output/pdf-e7-middle-column-merged-table-docx-visual/table_visual_smoke.pdf`
+  已生成并目检通过。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --parallel 8 --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已知限制更新：
+  这仍是规则型启发式；它只覆盖规则网格里连续空白列的纵向合并，
+  还不处理更复杂的多层表头、非规则空白、扫描版表格或矢量线条缺失的
+  任意版面恢复。
+
+2026-05-11 继续推进（组合合并）：
+
+- 已补齐左上角 2x2 组合合并样本：
+  `featherdoc-pdf-import-merged-corner-table-source.pdf` 与
+  `featherdoc-pdf-import-merged-corner-table.pdf`，用于回归同一锚点同时
+  `merge_right()` + `merge_down()` 的导入场景。
+- 已在 `PdfDocumentImporter` 里补强 row-span 的横向补齐：
+  真正执行 `merge_down()` 前，会先把后续行对应的空单元格按锚点列跨度
+  执行 `merge_right()`，避免目标行列跨度不一致导致纵向合并失败。
+- 已补 parser 回归：
+  `PDFium parser detects top-left two-by-two merged table candidate spans` 断言
+  锚点单元格 `column_span = 2`、`row_span = 2`，并确认下方 continuation 行
+  仍保持保守的单元格结构。
+- 已补 importer 回归：
+  `PDF text importer preserves top-left two-by-two merged table cells` 断言导入后
+  为 1 个 4 列 x 3 行表格，锚点、右侧 continuation、下方 continuation 与
+  保存重开后一致。
+- 已完成视觉验证：
+  `output/pdf-e7-merged-corner-visual/source-pdf/contact-sheet.png`、
+  `output/pdf-e7-merged-corner-visual/merged-docx/evidence/contact_sheet.png`
+  和 `output/pdf-e7-merged-corner-visual/merged-docx/table_visual_smoke.pdf`
+  均已生成并目检通过。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --parallel 8 --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过；单独保留样本的
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  也通过。
+- [x] 代码变更。
+- [x] 测试覆盖。
+- [x] 视觉验证。
+- [x] 设计文档同步。
+- [x] 已知限制记录。
+- [x] 下一阶段入口保留：更复杂的嵌套合并、不规则跨列宽、扫描件和装饰线条缺失表格。
+- 已知限制更新：
+  组合合并目前只覆盖规则网格里可稳定复原的 2x2 锚点；不处理更复杂的嵌套合并、
+  不规则跨列宽、扫描件或带装饰线条缺失的表格。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

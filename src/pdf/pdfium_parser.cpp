@@ -6,6 +6,7 @@
 #include <cmath>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -56,7 +57,7 @@ struct TextCluster {
 };
 
 struct CandidateLine {
-    const PdfParsedTextLine *line{nullptr};
+    std::size_t line_index{0U};
     std::vector<TextCluster> clusters;
     double center_y{0.0};
 };
@@ -152,6 +153,53 @@ void append_utf8(std::string &output, std::uint32_t codepoint) {
     return rect.x_points + rect.width_points;
 }
 
+[[nodiscard]] double rect_area(const PdfRect &rect) noexcept {
+    return (std::max)(0.0, rect.width_points) *
+           (std::max)(0.0, rect.height_points);
+}
+
+[[nodiscard]] bool rect_contains_point(const PdfRect &rect, double x_points,
+                                       double y_points) noexcept {
+    return x_points >= rect.x_points && x_points <= rect_right(rect) &&
+           y_points >= rect.y_points &&
+           y_points <= rect.y_points + rect.height_points;
+}
+
+[[nodiscard]] double rect_intersection_area(const PdfRect &left,
+                                            const PdfRect &right) noexcept {
+    const double intersection_left =
+        (std::max)(left.x_points, right.x_points);
+    const double intersection_bottom =
+        (std::max)(left.y_points, right.y_points);
+    const double intersection_right =
+        (std::min)(rect_right(left), rect_right(right));
+    const double intersection_top = (std::min)(
+        left.y_points + left.height_points, right.y_points + right.height_points);
+    if (intersection_right <= intersection_left ||
+        intersection_top <= intersection_bottom) {
+        return 0.0;
+    }
+
+    return (intersection_right - intersection_left) *
+           (intersection_top - intersection_bottom);
+}
+
+[[nodiscard]] bool rect_meaningfully_overlaps_rect(const PdfRect &subject,
+                                                   const PdfRect &rect) noexcept {
+    const double subject_area = rect_area(subject);
+    if (subject_area <= 0.0) {
+        return false;
+    }
+
+    const double center_x = subject.x_points + subject.width_points / 2.0;
+    const double center_y = subject.y_points + subject.height_points / 2.0;
+    const bool center_inside_rect =
+        rect_contains_point(rect, center_x, center_y);
+    const double overlap_ratio =
+        rect_intersection_area(subject, rect) / subject_area;
+    return center_inside_rect || overlap_ratio >= 0.5;
+}
+
 void expand_rect(PdfRect &target, const PdfRect &candidate) {
     if (target.width_points <= 0.0 && target.height_points <= 0.0) {
         target = candidate;
@@ -186,7 +234,13 @@ void append_span_to_cluster(TextCluster &cluster,
     const double line_height = (std::max)(line.bounds.height_points, 1.0);
     const double span_center_y = span.bounds.y_points + span.bounds.height_points / 2.0;
     const double line_center_y = line.bounds.y_points + line.bounds.height_points / 2.0;
-    return std::abs(span_center_y - line_center_y) > line_height * 0.65;
+    if (std::abs(span_center_y - line_center_y) > line_height * 0.65) {
+        return true;
+    }
+
+    const double x_backtrack = line.bounds.x_points - span.bounds.x_points;
+    const double x_backtrack_threshold = (std::max)(12.0, line_height * 1.5);
+    return x_backtrack > x_backtrack_threshold;
 }
 
 [[nodiscard]] std::vector<PdfParsedTextLine>
@@ -218,8 +272,14 @@ group_text_spans_into_lines(const std::vector<PdfParsedTextSpan> &spans) {
     return lines;
 }
 
-[[nodiscard]] bool should_start_new_paragraph(const PdfParsedTextLine &previous,
-                                              const PdfParsedTextLine &current) {
+[[nodiscard]] bool should_start_new_paragraph(
+    const PdfParsedTextLine &previous, const PdfParsedTextLine &current,
+    const std::optional<std::size_t> &previous_table_candidate_index,
+    const std::optional<std::size_t> &current_table_candidate_index) {
+    if (previous_table_candidate_index != current_table_candidate_index) {
+        return true;
+    }
+
     const double previous_height = (std::max)(previous.bounds.height_points, 1.0);
     const double vertical_gap = previous.bounds.y_points - rect_top(current.bounds);
     if (vertical_gap > previous_height * 0.85) {
@@ -281,19 +341,52 @@ split_line_into_cell_clusters(const PdfParsedTextLine &line) {
     return line.bounds.y_points + line.bounds.height_points / 2.0;
 }
 
+[[nodiscard]] double line_top_y(const PdfParsedTextLine &line) noexcept {
+    return rect_top(line.bounds);
+}
+
+[[nodiscard]] double line_left_x(const PdfParsedTextLine &line) noexcept {
+    return line.bounds.x_points;
+}
+
+void sort_lines_by_reading_order(std::vector<PdfParsedTextLine> &lines) {
+    std::stable_sort(lines.begin(), lines.end(),
+                     [](const PdfParsedTextLine &left,
+                        const PdfParsedTextLine &right) {
+                         const auto left_top_key =
+                             std::llround(line_top_y(left) * 100.0);
+                         const auto right_top_key =
+                             std::llround(line_top_y(right) * 100.0);
+                         if (left_top_key != right_top_key) {
+                             return left_top_key > right_top_key;
+                         }
+
+                         const auto left_x_key =
+                             std::llround(line_left_x(left) * 100.0);
+                         const auto right_x_key =
+                             std::llround(line_left_x(right) * 100.0);
+                         if (left_x_key != right_x_key) {
+                             return left_x_key < right_x_key;
+                         }
+
+                         return false;
+                     });
+}
+
 [[nodiscard]] std::vector<CandidateLine>
 collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     std::vector<CandidateLine> candidate_lines;
     candidate_lines.reserve(lines.size());
 
-    for (const auto &line : lines) {
+    for (std::size_t line_index = 0U; line_index < lines.size(); ++line_index) {
+        const auto &line = lines[line_index];
         auto clusters = split_line_into_cell_clusters(line);
         if (clusters.empty()) {
             continue;
         }
 
         candidate_lines.push_back(
-            CandidateLine{&line, std::move(clusters), line_center_y(line)});
+            CandidateLine{line_index, std::move(clusters), line_center_y(line)});
     }
 
     return candidate_lines;
@@ -379,6 +472,84 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     return best_index;
 }
 
+[[nodiscard]] double average_column_gap(
+    const std::vector<double> &anchors) noexcept {
+    if (anchors.size() < 2U) {
+        return 0.0;
+    }
+
+    return (anchors.back() - anchors.front()) /
+           static_cast<double>(anchors.size() - 1U);
+}
+
+[[nodiscard]] std::size_t detect_column_span(
+    const std::vector<double> &anchors, const TextCluster &cluster,
+    std::size_t column_index) {
+    if (anchors.size() < 2U || column_index >= anchors.size()) {
+        return 1U;
+    }
+
+    const double average_gap = average_column_gap(anchors);
+    if (average_gap <= 0.0 ||
+        cluster.bounds.width_points < average_gap * 1.35) {
+        return 1U;
+    }
+
+    // 仅对明显宽于单列的文本簇做最小跨列推断，避免把普通长单元格过度提升成合并单元格。
+    const auto estimated_span = static_cast<std::size_t>(
+        std::ceil(cluster.bounds.width_points / average_gap));
+    if (estimated_span <= 1U) {
+        return 1U;
+    }
+
+    return (std::min)(anchors.size() - column_index, estimated_span);
+}
+
+[[nodiscard]] std::size_t count_text_cells(const PdfParsedTableRow &row) {
+    return static_cast<std::size_t>(std::count_if(
+        row.cells.begin(), row.cells.end(),
+        [](const PdfParsedTableCell &cell) { return cell.has_text; }));
+}
+
+[[nodiscard]] std::size_t detect_row_span(
+    const std::vector<PdfParsedTableRow> &rows, std::size_t row_index,
+    std::size_t column_index) {
+    if (row_index >= rows.size()) {
+        return 1U;
+    }
+
+    const auto &current_row = rows[row_index];
+    if (current_row.cells.size() <= column_index) {
+        return 1U;
+    }
+
+    const auto &anchor_cell = current_row.cells[column_index];
+    if (!anchor_cell.has_text || count_text_cells(current_row) < 2U) {
+        return 1U;
+    }
+
+    std::size_t row_span = 1U;
+    for (std::size_t next_row_index = row_index + 1U;
+         next_row_index < rows.size(); ++next_row_index) {
+        const auto &next_row = rows[next_row_index];
+        if (next_row.cells.size() <= column_index) {
+            break;
+        }
+        if (count_text_cells(next_row) < 2U) {
+            break;
+        }
+
+        const auto &continuation_cell = next_row.cells[column_index];
+        if (continuation_cell.has_text) {
+            break;
+        }
+
+        ++row_span;
+    }
+
+    return row_span;
+}
+
 [[nodiscard]] bool build_table_candidate(
     const std::vector<CandidateLine> &rows, PdfParsedTableCandidate &candidate) {
     if (rows.size() < 3U) {
@@ -410,6 +581,8 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
             const auto column_index =
                 nearest_column_index(anchors, cluster.bounds.x_points);
             auto &cell = row.cells[column_index];
+            cell.column_span =
+                detect_column_span(anchors, cluster, column_index);
             if (!cell.has_text) {
                 cell.text = cluster.text;
                 cell.bounds = cluster.bounds;
@@ -427,11 +600,21 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
         candidate.rows.push_back(std::move(row));
     }
 
+    for (std::size_t row_index = 0U; row_index < candidate.rows.size();
+         ++row_index) {
+        auto &row = candidate.rows[row_index];
+        for (std::size_t column_index = 0U; column_index < row.cells.size();
+             ++column_index) {
+            row.cells[column_index].row_span =
+                detect_row_span(candidate.rows, row_index, column_index);
+        }
+    }
+
     return !candidate.rows.empty();
 }
 
 [[nodiscard]] std::vector<PdfParsedTableCandidate>
-detect_table_candidates(const std::vector<PdfParsedTextLine> &lines) {
+detect_table_candidates(std::vector<PdfParsedTextLine> &lines) {
     const auto candidate_lines = collect_candidate_lines(lines);
     std::vector<PdfParsedTableCandidate> tables;
 
@@ -473,6 +656,10 @@ detect_table_candidates(const std::vector<PdfParsedTextLine> &lines) {
 
         PdfParsedTableCandidate table;
         if (build_table_candidate(rows, table)) {
+            const auto table_index = tables.size();
+            for (const auto &row : rows) {
+                lines[row.line_index].table_candidate_index = table_index;
+            }
             tables.push_back(std::move(table));
             gap_index = run_end;
         }
@@ -484,20 +671,68 @@ detect_table_candidates(const std::vector<PdfParsedTextLine> &lines) {
 [[nodiscard]] std::vector<PdfParsedParagraph>
 group_lines_into_paragraphs(const std::vector<PdfParsedTextLine> &lines) {
     std::vector<PdfParsedParagraph> paragraphs;
+    std::optional<std::size_t> previous_table_candidate_index;
     for (const auto &line : lines) {
+        const auto current_table_candidate_index = line.table_candidate_index;
         if (paragraphs.empty() ||
-            should_start_new_paragraph(paragraphs.back().lines.back(), line)) {
+            should_start_new_paragraph(paragraphs.back().lines.back(), line,
+                                       previous_table_candidate_index,
+                                       current_table_candidate_index)) {
             paragraphs.emplace_back();
         }
+        paragraphs.back().table_candidate_index = current_table_candidate_index;
         append_line_to_paragraph(paragraphs.back(), line);
+        previous_table_candidate_index = current_table_candidate_index;
     }
     return paragraphs;
 }
 
+[[nodiscard]] std::vector<PdfParsedContentBlock> build_content_blocks(
+    const PdfParsedPage &page) {
+    std::vector<PdfParsedContentBlock> blocks;
+    blocks.reserve(page.paragraphs.size() + page.table_candidates.size());
+
+    std::vector<bool> emitted_tables(page.table_candidates.size(), false);
+    for (std::size_t paragraph_index = 0U;
+         paragraph_index < page.paragraphs.size(); ++paragraph_index) {
+        const auto &paragraph = page.paragraphs[paragraph_index];
+        if (paragraph.table_candidate_index.has_value() &&
+            *paragraph.table_candidate_index < page.table_candidates.size()) {
+            const auto table_index = *paragraph.table_candidate_index;
+            if (!emitted_tables[table_index]) {
+                blocks.push_back(PdfParsedContentBlock{
+                    PdfParsedContentBlockKind::table_candidate,
+                    page.table_candidates[table_index].bounds, table_index});
+                emitted_tables[table_index] = true;
+            }
+            continue;
+        }
+
+        blocks.push_back(PdfParsedContentBlock{
+            PdfParsedContentBlockKind::paragraph, paragraph.bounds,
+            paragraph_index});
+    }
+
+    for (std::size_t table_index = 0U; table_index < page.table_candidates.size();
+         ++table_index) {
+        if (emitted_tables[table_index]) {
+            continue;
+        }
+
+        blocks.push_back(PdfParsedContentBlock{
+            PdfParsedContentBlockKind::table_candidate,
+            page.table_candidates[table_index].bounds, table_index});
+    }
+
+    return blocks;
+}
+
 void enrich_text_structure(PdfParsedPage &page) {
     page.text_lines = group_text_spans_into_lines(page.text_spans);
-    page.paragraphs = group_lines_into_paragraphs(page.text_lines);
+    sort_lines_by_reading_order(page.text_lines);
     page.table_candidates = detect_table_candidates(page.text_lines);
+    page.paragraphs = group_lines_into_paragraphs(page.text_lines);
+    page.content_blocks = build_content_blocks(page);
 }
 
 }  // namespace
