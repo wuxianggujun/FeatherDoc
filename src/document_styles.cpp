@@ -5644,73 +5644,78 @@ bool Document::ensure_paragraph_style(
 
     this->styles_dirty = true;
 
-    if (!this->clear_style_run_text_color(style_id) ||
-        !this->clear_style_run_bold(style_id) ||
-        !this->clear_style_run_italic(style_id) ||
-        !this->clear_style_run_underline(style_id) ||
-        !this->clear_style_run_font_size_points(style_id)) {
-        return false;
-    }
     if (definition.run_text_color.has_value() &&
-        !this->set_style_run_text_color(style_id, *definition.run_text_color)) {
+        (!this->clear_style_run_text_color(style_id) ||
+         !this->set_style_run_text_color(style_id,
+                                         *definition.run_text_color))) {
         return false;
     }
     if (definition.run_bold.has_value() &&
-        !this->set_style_run_bold(style_id, *definition.run_bold)) {
+        (!this->clear_style_run_bold(style_id) ||
+         !this->set_style_run_bold(style_id, *definition.run_bold))) {
         return false;
     }
     if (definition.run_italic.has_value() &&
-        !this->set_style_run_italic(style_id, *definition.run_italic)) {
+        (!this->clear_style_run_italic(style_id) ||
+         !this->set_style_run_italic(style_id, *definition.run_italic))) {
         return false;
     }
     if (definition.run_underline.has_value() &&
-        !this->set_style_run_underline(style_id, *definition.run_underline)) {
+        (!this->clear_style_run_underline(style_id) ||
+         !this->set_style_run_underline(style_id,
+                                        *definition.run_underline))) {
         return false;
     }
     if (definition.run_font_size_points.has_value() &&
-        !this->set_style_run_font_size_points(
-            style_id, *definition.run_font_size_points)) {
+        (!this->clear_style_run_font_size_points(style_id) ||
+         !this->set_style_run_font_size_points(
+             style_id, *definition.run_font_size_points))) {
         return false;
     }
 
-    if (!this->clear_style_run_font_family(style_id)) {
-        return false;
-    }
-    if (definition.run_font_family.has_value() &&
-        !this->set_style_run_font_family(style_id,
-                                         *definition.run_font_family)) {
-        return false;
-    }
-    if (definition.run_east_asia_font_family.has_value() &&
-        !this->set_style_run_east_asia_font_family(
-            style_id, *definition.run_east_asia_font_family)) {
-        return false;
+    if (definition.run_font_family.has_value() ||
+        definition.run_east_asia_font_family.has_value()) {
+        if (!this->clear_style_run_font_family(style_id)) {
+            return false;
+        }
+        if (definition.run_font_family.has_value() &&
+            !this->set_style_run_font_family(style_id,
+                                             *definition.run_font_family)) {
+            return false;
+        }
+        if (definition.run_east_asia_font_family.has_value() &&
+            !this->set_style_run_east_asia_font_family(
+                style_id, *definition.run_east_asia_font_family)) {
+            return false;
+        }
     }
 
-    if (!this->clear_style_run_language(style_id)) {
-        return false;
-    }
-    if (definition.run_language.has_value() &&
-        !this->set_style_run_language(style_id, *definition.run_language)) {
-        return false;
-    }
-    if (definition.run_east_asia_language.has_value() &&
-        !this->set_style_run_east_asia_language(
-            style_id, *definition.run_east_asia_language)) {
-        return false;
-    }
-    if (definition.run_bidi_language.has_value() &&
-        !this->set_style_run_bidi_language(style_id,
-                                           *definition.run_bidi_language)) {
-        return false;
+    if (definition.run_language.has_value() ||
+        definition.run_east_asia_language.has_value() ||
+        definition.run_bidi_language.has_value()) {
+        if (!this->clear_style_run_language(style_id)) {
+            return false;
+        }
+        if (definition.run_language.has_value() &&
+            !this->set_style_run_language(style_id, *definition.run_language)) {
+            return false;
+        }
+        if (definition.run_east_asia_language.has_value() &&
+            !this->set_style_run_east_asia_language(
+                style_id, *definition.run_east_asia_language)) {
+            return false;
+        }
+        if (definition.run_bidi_language.has_value() &&
+            !this->set_style_run_bidi_language(
+                style_id, *definition.run_bidi_language)) {
+            return false;
+        }
     }
 
     if (definition.run_rtl.has_value()) {
         if (!this->set_style_run_rtl(style_id, *definition.run_rtl)) {
             return false;
         }
-    } else if (!this->clear_style_run_rtl(style_id)) {
-        return false;
     }
 
     if (definition.paragraph_bidi.has_value()) {
@@ -5718,8 +5723,6 @@ bool Document::ensure_paragraph_style(
                                             *definition.paragraph_bidi)) {
             return false;
         }
-    } else if (!this->clear_style_paragraph_bidi(style_id)) {
-        return false;
     }
 
     this->last_error_info.clear();
@@ -5843,73 +5846,78 @@ bool Document::ensure_character_style(
 
     this->styles_dirty = true;
 
-    if (!this->clear_style_run_text_color(style_id) ||
-        !this->clear_style_run_bold(style_id) ||
-        !this->clear_style_run_italic(style_id) ||
-        !this->clear_style_run_underline(style_id) ||
-        !this->clear_style_run_font_size_points(style_id)) {
-        return false;
-    }
     if (definition.run_text_color.has_value() &&
-        !this->set_style_run_text_color(style_id, *definition.run_text_color)) {
+        (!this->clear_style_run_text_color(style_id) ||
+         !this->set_style_run_text_color(style_id,
+                                         *definition.run_text_color))) {
         return false;
     }
     if (definition.run_bold.has_value() &&
-        !this->set_style_run_bold(style_id, *definition.run_bold)) {
+        (!this->clear_style_run_bold(style_id) ||
+         !this->set_style_run_bold(style_id, *definition.run_bold))) {
         return false;
     }
     if (definition.run_italic.has_value() &&
-        !this->set_style_run_italic(style_id, *definition.run_italic)) {
+        (!this->clear_style_run_italic(style_id) ||
+         !this->set_style_run_italic(style_id, *definition.run_italic))) {
         return false;
     }
     if (definition.run_underline.has_value() &&
-        !this->set_style_run_underline(style_id, *definition.run_underline)) {
+        (!this->clear_style_run_underline(style_id) ||
+         !this->set_style_run_underline(style_id,
+                                        *definition.run_underline))) {
         return false;
     }
     if (definition.run_font_size_points.has_value() &&
-        !this->set_style_run_font_size_points(
-            style_id, *definition.run_font_size_points)) {
+        (!this->clear_style_run_font_size_points(style_id) ||
+         !this->set_style_run_font_size_points(
+             style_id, *definition.run_font_size_points))) {
         return false;
     }
 
-    if (!this->clear_style_run_font_family(style_id)) {
-        return false;
-    }
-    if (definition.run_font_family.has_value() &&
-        !this->set_style_run_font_family(style_id,
-                                         *definition.run_font_family)) {
-        return false;
-    }
-    if (definition.run_east_asia_font_family.has_value() &&
-        !this->set_style_run_east_asia_font_family(
-            style_id, *definition.run_east_asia_font_family)) {
-        return false;
+    if (definition.run_font_family.has_value() ||
+        definition.run_east_asia_font_family.has_value()) {
+        if (!this->clear_style_run_font_family(style_id)) {
+            return false;
+        }
+        if (definition.run_font_family.has_value() &&
+            !this->set_style_run_font_family(style_id,
+                                             *definition.run_font_family)) {
+            return false;
+        }
+        if (definition.run_east_asia_font_family.has_value() &&
+            !this->set_style_run_east_asia_font_family(
+                style_id, *definition.run_east_asia_font_family)) {
+            return false;
+        }
     }
 
-    if (!this->clear_style_run_language(style_id)) {
-        return false;
-    }
-    if (definition.run_language.has_value() &&
-        !this->set_style_run_language(style_id, *definition.run_language)) {
-        return false;
-    }
-    if (definition.run_east_asia_language.has_value() &&
-        !this->set_style_run_east_asia_language(
-            style_id, *definition.run_east_asia_language)) {
-        return false;
-    }
-    if (definition.run_bidi_language.has_value() &&
-        !this->set_style_run_bidi_language(style_id,
-                                           *definition.run_bidi_language)) {
-        return false;
+    if (definition.run_language.has_value() ||
+        definition.run_east_asia_language.has_value() ||
+        definition.run_bidi_language.has_value()) {
+        if (!this->clear_style_run_language(style_id)) {
+            return false;
+        }
+        if (definition.run_language.has_value() &&
+            !this->set_style_run_language(style_id, *definition.run_language)) {
+            return false;
+        }
+        if (definition.run_east_asia_language.has_value() &&
+            !this->set_style_run_east_asia_language(
+                style_id, *definition.run_east_asia_language)) {
+            return false;
+        }
+        if (definition.run_bidi_language.has_value() &&
+            !this->set_style_run_bidi_language(
+                style_id, *definition.run_bidi_language)) {
+            return false;
+        }
     }
 
     if (definition.run_rtl.has_value()) {
         if (!this->set_style_run_rtl(style_id, *definition.run_rtl)) {
             return false;
         }
-    } else if (!this->clear_style_run_rtl(style_id)) {
-        return false;
     }
 
     this->last_error_info.clear();

@@ -103,10 +103,17 @@ $gateSummary = [ordered]@{
             )
         }
     }
+    section_page_setup = [ordered]@{
+        review_verdict = "pass"
+    }
+    page_number_fields = [ordered]@{
+        review_verdict = "pending_manual_review"
+    }
     curated_visual_regressions = @(
         [ordered]@{
             id = $curatedBundleId
             label = $curatedBundleLabel
+            review_verdict = "pass"
             status = "completed"
             task = [ordered]@{
                 task_dir = $curatedBundleTaskDir
@@ -183,7 +190,7 @@ $summary = [ordered]@{
                 [ordered]@{
                     id = $curatedBundleId
                     label = $curatedBundleLabel
-                    verdict = "pass"
+                    review_verdict = "pass"
                     task_dir = $curatedBundleTaskDir
                 }
             )

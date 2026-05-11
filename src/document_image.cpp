@@ -516,6 +516,11 @@ void collect_body_drawing_image_references(
                                              body_block_index, std::nullopt,
                                              references);
             ++body_block_index;
+        } else if (child_name == "w:sdt") {
+            collect_drawing_image_references(child, relationships_root,
+                                             body_block_index, std::nullopt,
+                                             references);
+            ++body_block_index;
         }
     }
 }

@@ -577,34 +577,36 @@ if(WIN32)
             ${PROJECT_SOURCE_DIR}
         )
 
-        add_test(
-            NAME
-            pdf_unicode_font_roundtrip_visual
-            COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
-            -NoProfile
-            -ExecutionPolicy
-            Bypass
-            -File
-            ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/run_pdf_unicode_font_roundtrip_visual_regression.ps1
-            -BuildDir
-            ${CMAKE_BINARY_DIR}
-            -OutputDir
-            ${CMAKE_BINARY_DIR}/pdf_unicode_font_visual_regression
-        )
-        if(FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
-            set_tests_properties(pdf_unicode_font_roundtrip_visual
-                PROPERTIES
-                    TIMEOUT 60
-                    LABELS "pdf;smoke;regression;visual"
-                    SKIP_RETURN_CODE 77)
-        else()
-            set_tests_properties(pdf_unicode_font_roundtrip_visual
-                PROPERTIES
-                    TIMEOUT 60
-                    LABELS "pdf;smoke;regression;visual"
-                    SKIP_RETURN_CODE 77
-                    ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        if(TARGET pdf_unicode_font_roundtrip_tests)
+            add_test(
+                NAME
+                pdf_unicode_font_roundtrip_visual
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                -NoProfile
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/run_pdf_unicode_font_roundtrip_visual_regression.ps1
+                -BuildDir
+                ${CMAKE_BINARY_DIR}
+                -OutputDir
+                ${CMAKE_BINARY_DIR}/pdf_unicode_font_visual_regression
+            )
+            if(FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+                set_tests_properties(pdf_unicode_font_roundtrip_visual
+                    PROPERTIES
+                        TIMEOUT 60
+                        LABELS "pdf;smoke;regression;visual"
+                        SKIP_RETURN_CODE 77)
+            else()
+                set_tests_properties(pdf_unicode_font_roundtrip_visual
+                    PROPERTIES
+                        TIMEOUT 60
+                        LABELS "pdf;smoke;regression;visual"
+                        SKIP_RETURN_CODE 77
+                        ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+            endif()
         endif()
 
         add_test(
