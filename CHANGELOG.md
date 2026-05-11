@@ -10,6 +10,23 @@ performance.
 
 ### Added
 
+- Added experimental PDF export/import plumbing behind the opt-in PDF build,
+  including PDFio/PDFium integration, document-to-PDF layout adaptation,
+  parser probes, and focused import failure classification.
+- Added PDF text import into editable `Document` content with preserved page
+  text structure, geometry-aware reading order recovery, and regression
+  coverage for out-of-order PDF content streams.
+- Added conservative PDF table candidate detection and opt-in table import,
+  including body-order preservation for mixed paragraph/table content,
+  table-first imports without leading empty paragraphs, and negative coverage
+  for two-column prose, aligned lists, and invoice-like forms.
+- Added PDF table import support for detected column/row spans, merged header
+  cells, and repeated source headers, with editable Word table output verified
+  by focused parser/import tests and visual evidence.
+- Added cross-page PDF table continuation handling with diagnostics, repeated
+  header skipping, compatible table merging, and conservative blockers for
+  width mismatches, low page starts, intervening paragraphs, and semantic
+  header changes.
 - Added `build_document_skeleton_governance_report.ps1` with PowerShell
   coverage to export an exemplar numbering catalog, collect style usage, run
   style-numbering audit, and write unified JSON/Markdown governance reports.
