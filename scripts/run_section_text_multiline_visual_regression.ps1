@@ -202,6 +202,16 @@ function Add-CommandLine {
     [void]$Lines.Add("")
 }
 
+function Remove-LeadingBom {
+    param([AllowNull()][string]$Text)
+
+    if ($null -eq $Text) {
+        return ""
+    }
+
+    return $Text.TrimStart([char]0xFEFF)
+}
+
 function Assert-TextFileLines {
     param(
         [string]$Path,
@@ -215,7 +225,9 @@ function Assert-TextFileLines {
     }
 
     for ($index = 0; $index -lt $ExpectedLines.Count; $index++) {
-        if ($actualLines[$index] -ne $ExpectedLines[$index]) {
+        $actual = Remove-LeadingBom -Text $actualLines[$index]
+        $expected = Remove-LeadingBom -Text $ExpectedLines[$index]
+        if ($actual -ne $expected) {
             throw "$Label line $index mismatch. Expected '$($ExpectedLines[$index])', got '$($actualLines[$index])'."
         }
     }
@@ -239,7 +251,9 @@ function Assert-ParagraphTexts {
     }
 
     for ($index = 0; $index -lt $ExpectedTexts.Count; $index++) {
-        if ($paragraphs[$index].text -ne $ExpectedTexts[$index]) {
+        $actual = Remove-LeadingBom -Text $paragraphs[$index].text
+        $expected = Remove-LeadingBom -Text $ExpectedTexts[$index]
+        if ($actual -ne $expected) {
             throw "$Label paragraph $index mismatch. Expected '$($ExpectedTexts[$index])', got '$($paragraphs[$index].text)'."
         }
     }
