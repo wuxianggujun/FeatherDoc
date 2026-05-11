@@ -24,6 +24,9 @@ Optional explicit release-candidate report/summary.json path.
 .PARAMETER SkipReleaseBundle
 Skips -RefreshReleaseBundle even when a release-candidate summary is found.
 
+.PARAMETER SkipSupersededReviewTaskAudit
+Skips the superseded review-task audit when a focused caller only needs verdict sync.
+
 .EXAMPLE
 pwsh -ExecutionPolicy Bypass -File .\scripts\sync_latest_visual_review_verdict.ps1
 #>
@@ -31,7 +34,8 @@ param(
     [string]$TaskOutputRoot = "",
     [string]$OutputSearchRoot = "output",
     [string]$ReleaseCandidateSummaryJson = "",
-    [switch]$SkipReleaseBundle
+    [switch]$SkipReleaseBundle,
+    [switch]$SkipSupersededReviewTaskAudit
 )
 
 Set-StrictMode -Version Latest
@@ -143,7 +147,11 @@ function Read-JsonFile {
     param([string]$Path)
 
     Assert-PathExists -Path $Path -Label "JSON file"
-    return Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+    try {
+        return Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+    } catch {
+        throw ("Failed to parse JSON file: {0}. {1}" -f $Path, $_.Exception.Message)
+    }
 }
 
 function Convert-LatestPointerToTaskInfo {
@@ -339,6 +347,40 @@ function Update-ReleaseSummaryTaskDirsFromPointers {
     ($summary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $ReleaseSummaryPath -Encoding UTF8
 }
 
+
+function Update-ReleaseSummaryDiscoveryMetadata {
+    param(
+        [string]$GateSummaryPath,
+        [string]$ReleaseSummaryPath,
+        [string]$Mode,
+        [string]$Reason,
+        [string]$SelectedSummaryPath,
+        [string]$OutputSearchRoot,
+        [bool]$SkipReleaseBundle
+    )
+
+    $gateSummary = Read-JsonFile -Path $GateSummaryPath
+    $releaseBundleRefreshRequested = (-not [string]::IsNullOrWhiteSpace($SelectedSummaryPath)) -and (-not $SkipReleaseBundle)
+    $metadata = [pscustomobject]@{
+        mode = $Mode
+        reason = $Reason
+        selected_summary_path = $SelectedSummaryPath
+        output_search_root = $OutputSearchRoot
+        release_bundle_refresh_requested = $releaseBundleRefreshRequested
+    }
+
+    Set-PropertyValue -Object $gateSummary -Name "selected_release_summary_path" -Value $SelectedSummaryPath
+    Set-PropertyValue -Object $gateSummary -Name "release_summary_discovery" -Value $metadata
+    ($gateSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $GateSummaryPath -Encoding UTF8
+
+    if (-not [string]::IsNullOrWhiteSpace($ReleaseSummaryPath)) {
+        $summary = Read-JsonFile -Path $ReleaseSummaryPath
+        Set-PropertyValue -Object $summary -Name "selected_release_summary_path" -Value $SelectedSummaryPath
+        Set-PropertyValue -Object $summary -Name "release_summary_discovery" -Value $metadata
+        ($summary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $ReleaseSummaryPath -Encoding UTF8
+    }
+}
+
 function Update-AuditReportMetadata {
     param(
         [string]$GateSummaryPath,
@@ -481,7 +523,9 @@ function Find-ReleaseCandidateSummary {
     }
 
     $candidates = Get-ChildItem -Path $SearchRoot -Recurse -File -Filter "summary.json" |
-        Sort-Object LastWriteTimeUtc -Descending
+        Sort-Object `
+            @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true },
+            @{ Expression = { $_.FullName } }
 
     foreach ($candidate in $candidates) {
         try {
@@ -571,8 +615,13 @@ Assert-PathExists -Path $resolvedGateSummaryPath -Label "inferred gate summary"
 Write-Step "Resolved gate summary: $resolvedGateSummaryPath"
 
 $resolvedReleaseSummaryPath = ""
+$resolvedOutputSearchRoot = ""
+$releaseSummaryDiscoveryMode = "auto"
+$releaseSummaryDiscoveryReason = "no_matching_summary"
 if (-not [string]::IsNullOrWhiteSpace($ReleaseCandidateSummaryJson)) {
     $resolvedReleaseSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $ReleaseCandidateSummaryJson
+    $releaseSummaryDiscoveryMode = "explicit"
+    $releaseSummaryDiscoveryReason = "explicit_path"
     Assert-PathExists -Path $resolvedReleaseSummaryPath -Label "explicit release-candidate summary"
     Write-Step "Using explicit release summary: $resolvedReleaseSummaryPath"
 } else {
@@ -581,11 +630,26 @@ if (-not [string]::IsNullOrWhiteSpace($ReleaseCandidateSummaryJson)) {
         -SearchRoot $resolvedOutputSearchRoot `
         -GateSummaryPath $resolvedGateSummaryPath
     if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
+        $releaseSummaryDiscoveryReason = "matched_gate_summary"
         Write-Step "Auto-detected release summary: $resolvedReleaseSummaryPath"
     } else {
+        $releaseSummaryDiscoveryMode = "auto_not_found"
         Write-Step "No matching release summary was found under $resolvedOutputSearchRoot"
     }
 }
+
+if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
+    [void](Read-JsonFile -Path $resolvedReleaseSummaryPath)
+}
+
+Update-ReleaseSummaryDiscoveryMetadata `
+    -GateSummaryPath $resolvedGateSummaryPath `
+    -ReleaseSummaryPath $resolvedReleaseSummaryPath `
+    -Mode $releaseSummaryDiscoveryMode `
+    -Reason $releaseSummaryDiscoveryReason `
+    -SelectedSummaryPath $resolvedReleaseSummaryPath `
+    -OutputSearchRoot $resolvedOutputSearchRoot `
+    -SkipReleaseBundle ([bool]$SkipReleaseBundle)
 
 Update-GateSummaryReviewTasksFromPointers `
     -GateSummaryPath $resolvedGateSummaryPath `
@@ -594,21 +658,25 @@ Update-ReleaseSummaryTaskDirsFromPointers `
     -ReleaseSummaryPath $resolvedReleaseSummaryPath `
     -LatestPointerDescriptors $latestPointerDescriptors
 
-$auditScript = Join-Path $repoRoot "scripts\find_superseded_review_tasks.ps1"
-$supersededReviewTasksReportPath = Join-Path $resolvedTaskOutputRoot "superseded_review_tasks.json"
-Invoke-ChildPowerShell -ScriptPath $auditScript `
-    -Arguments @(
-        "-TaskOutputRoot"
-        $resolvedTaskOutputRoot
-        "-ReportPath"
-        $supersededReviewTasksReportPath
-    ) `
-    -FailureMessage "Failed to audit superseded review tasks."
-Write-Step "Updated superseded review-task report: $supersededReviewTasksReportPath"
-Update-AuditReportMetadata `
-    -GateSummaryPath $resolvedGateSummaryPath `
-    -ReleaseSummaryPath $resolvedReleaseSummaryPath `
-    -ReportPath $supersededReviewTasksReportPath
+if (-not $SkipSupersededReviewTaskAudit.IsPresent) {
+    $auditScript = Join-Path $repoRoot "scripts\find_superseded_review_tasks.ps1"
+    $supersededReviewTasksReportPath = Join-Path $resolvedTaskOutputRoot "superseded_review_tasks.json"
+    Invoke-ChildPowerShell -ScriptPath $auditScript `
+        -Arguments @(
+            "-TaskOutputRoot"
+            $resolvedTaskOutputRoot
+            "-ReportPath"
+            $supersededReviewTasksReportPath
+        ) `
+        -FailureMessage "Failed to audit superseded review tasks."
+    Write-Step "Updated superseded review-task report: $supersededReviewTasksReportPath"
+    Update-AuditReportMetadata `
+        -GateSummaryPath $resolvedGateSummaryPath `
+        -ReleaseSummaryPath $resolvedReleaseSummaryPath `
+        -ReportPath $supersededReviewTasksReportPath
+} else {
+    Write-Step "Skipped superseded review-task audit."
+}
 
 $delegateScript = Join-Path $repoRoot "scripts\sync_visual_review_verdict.ps1"
 $delegateArgs = @(

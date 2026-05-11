@@ -30,6 +30,17 @@ function Assert-Contains {
     }
 }
 
+function Assert-PathNotExists {
+    param(
+        [string]$Path,
+        [string]$Label
+    )
+
+    if (Test-Path -LiteralPath $Path) {
+        throw "$Label should not have been generated: $Path"
+    }
+}
+
 function New-TaskReviewSeed {
     param(
         [string]$Root,
@@ -64,7 +75,8 @@ function New-TaskReviewSeed {
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
-$resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
+$workingDirLeaf = Split-Path -Leaf ([System.IO.Path]::GetFullPath($WorkingDir))
+$resolvedWorkingDir = Join-Path $resolvedRepoRoot ("output\codex-{0}-{1}" -f $workingDirLeaf, [System.Guid]::NewGuid().ToString("N"))
 $tasksRoot = Join-Path $resolvedWorkingDir "tasks"
 $gateRoot = Join-Path $resolvedWorkingDir "word-visual-release-gate"
 $gateReportDir = Join-Path $gateRoot "report"
@@ -228,6 +240,13 @@ $releaseSummaryPath = Join-Path $releaseReportDir "summary.json"
 $gateSummary = Get-Content -Raw -LiteralPath $gateSummaryPath | ConvertFrom-Json
 $releaseSummary = Get-Content -Raw -LiteralPath $releaseSummaryPath | ConvertFrom-Json
 $gateFinalReviewPath = Join-Path $gateReportDir "gate_final_review.md"
+$releaseFinalReviewPath = Join-Path $releaseReportDir "final_review.md"
+$releaseHandoffPath = Join-Path $releaseReportDir "release_handoff.md"
+$releaseBodyPath = Join-Path $releaseReportDir "release_body.zh-CN.md"
+$releaseSummaryZhPath = Join-Path $releaseReportDir "release_summary.zh-CN.md"
+$artifactGuidePath = Join-Path $releaseReportDir "ARTIFACT_GUIDE.md"
+$reviewerChecklistPath = Join-Path $releaseReportDir "REVIEWER_CHECKLIST.md"
+$startHerePath = Join-Path $releaseRoot "START_HERE.md"
 $supersededReviewTasksReportPath = Join-Path $tasksRoot "superseded_review_tasks.json"
 $curatedGateTasks = @($gateSummary.review_tasks.curated_visual_regressions)
 $curatedManualReviews = @($gateSummary.manual_review.tasks.curated_visual_regressions)
@@ -252,6 +271,20 @@ Assert-True -Condition ($gateSummary.visual_verdict -eq "pass") `
     -Message "Gate summary visual verdict was not recomputed from the refreshed curated task."
 Assert-True -Condition ($supersededReviewTasksReport.superseded_task_count -eq 1) `
     -Message "Superseded review-task audit did not record the expected stale curated task count."
+Assert-True -Condition ($gateSummary.selected_release_summary_path -eq $releaseSummaryPath) `
+    -Message "Gate summary selected_release_summary_path did not record the explicit release summary."
+Assert-True -Condition ($gateSummary.release_summary_discovery.mode -eq "explicit") `
+    -Message "Gate summary release_summary_discovery.mode did not record explicit discovery."
+Assert-True -Condition ($gateSummary.release_summary_discovery.reason -eq "explicit_path") `
+    -Message "Gate summary release_summary_discovery.reason did not record the explicit path."
+Assert-True -Condition ($gateSummary.release_summary_discovery.release_bundle_refresh_requested -eq $false) `
+    -Message "Gate summary release_summary_discovery.release_bundle_refresh_requested should be false with -SkipReleaseBundle."
+Assert-True -Condition ($releaseSummary.selected_release_summary_path -eq $releaseSummaryPath) `
+    -Message "Release summary selected_release_summary_path did not record the explicit release summary."
+Assert-True -Condition ($releaseSummary.release_summary_discovery.mode -eq "explicit") `
+    -Message "Release summary release_summary_discovery.mode did not record explicit discovery."
+Assert-True -Condition ($releaseSummary.release_summary_discovery.release_bundle_refresh_requested -eq $false) `
+    -Message "Release summary release_summary_discovery.release_bundle_refresh_requested should be false with -SkipReleaseBundle."
 Assert-True -Condition ($curatedReleaseTasks.Count -eq 1) `
     -Message "Release summary visual_gate is missing the curated visual bundle entry."
 Assert-True -Condition ($curatedReleaseTasks[0].id -eq $bundleId) `
@@ -260,5 +293,14 @@ Assert-True -Condition ($curatedReleaseTasks[0].task_dir -eq $newTaskDir) `
     -Message "Release summary visual_gate did not refresh the curated bundle task dir."
 
 Assert-Contains -Path $gateFinalReviewPath -ExpectedText "$bundleLabel verdict: pass" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "## Release summary discovery" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Mode: explicit" -Label "gate_final_review.md"
+Assert-Contains -Path $gateFinalReviewPath -ExpectedText "Release bundle refresh requested: False" -Label "gate_final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Visual verdict: pass" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "## Release summary discovery" -Label "release final_review.md"
+Assert-Contains -Path $releaseFinalReviewPath -ExpectedText "Release bundle refresh requested: False" -Label "release final_review.md"
+foreach ($pathToCheck in @($releaseHandoffPath, $releaseBodyPath, $releaseSummaryZhPath, $artifactGuidePath, $reviewerChecklistPath, $startHerePath)) {
+    Assert-PathNotExists -Path $pathToCheck -Label $pathToCheck
+}
 
 Write-Host "Sync latest visual review verdict curated visual bundle regression passed."

@@ -69,7 +69,7 @@ constexpr auto header_xml =
     R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:p>
-    <w:r><w:t>Header title: </w:t></w:r>
+    <w:r><w:t xml:space="preserve">Header title: </w:t></w:r>
     <w:bookmarkStart w:id="0" w:name="header_title"/>
     <w:r><w:t>placeholder</w:t></w:r>
     <w:bookmarkEnd w:id="0"/>
@@ -105,23 +105,23 @@ constexpr auto footer_xml =
     R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:p>
-    <w:r><w:t>Footer company A: </w:t></w:r>
+    <w:r><w:t xml:space="preserve">Footer company A: </w:t></w:r>
     <w:bookmarkStart w:id="3" w:name="footer_company"/>
     <w:r><w:t>placeholder A</w:t></w:r>
     <w:bookmarkEnd w:id="3"/>
   </w:p>
   <w:p>
-    <w:r><w:t>Footer company B: </w:t></w:r>
+    <w:r><w:t xml:space="preserve">Footer company B: </w:t></w:r>
     <w:bookmarkStart w:id="4" w:name="footer_company"/>
     <w:r><w:t>placeholder B</w:t></w:r>
     <w:bookmarkEnd w:id="4"/>
   </w:p>
   <w:p>
-    <w:r><w:t>Summary: prefix </w:t></w:r>
+    <w:r><w:t xml:space="preserve">Summary: prefix </w:t></w:r>
     <w:bookmarkStart w:id="5" w:name="footer_summary"/>
     <w:r><w:t>placeholder</w:t></w:r>
     <w:bookmarkEnd w:id="5"/>
-    <w:r><w:t> suffix</w:t></w:r>
+    <w:r><w:t xml:space="preserve"> suffix</w:t></w:r>
   </w:p>
 </w:ftr>
 )";

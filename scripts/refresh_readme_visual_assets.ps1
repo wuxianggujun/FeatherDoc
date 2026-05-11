@@ -4,8 +4,8 @@ Refreshes repository README gallery PNG assets from Word visual evidence.
 
 .DESCRIPTION
 Copies the repository-facing preview images under docs/assets/readme from the
-latest document and fixed-grid review tasks, with fallback to the original
-task source bundles when task-local evidence has not been materialized yet.
+latest document and fixed-grid review tasks. Task-local evidence is required so
+the README gallery always reflects the reviewed task package.
 
 .PARAMETER TaskOutputRoot
 Root directory containing the review-task latest-pointer files.
@@ -104,17 +104,6 @@ function Resolve-TaskDirFromPointer {
     return $resolved
 }
 
-function Read-TaskManifest {
-    param([string]$TaskDir)
-
-    $manifestPath = Join-Path $TaskDir "task_manifest.json"
-    if (-not (Test-Path -LiteralPath $manifestPath)) {
-        return $null
-    }
-
-    return (Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json)
-}
-
 function Resolve-DocumentEvidence {
     param([string]$TaskDir)
 
@@ -133,29 +122,7 @@ function Resolve-DocumentEvidence {
         }
     }
 
-    $manifest = Read-TaskManifest -TaskDir $TaskDir
-    if ($null -ne $manifest -and
-        $null -ne $manifest.source -and
-        $manifest.source.kind -eq "document" -and
-        -not [string]::IsNullOrWhiteSpace($manifest.source.path)) {
-        $sourceDocDir = Split-Path -Path $manifest.source.path -Parent
-        $sourceEvidenceDir = Join-Path $sourceDocDir "evidence"
-        $sourceContactSheet = Join-Path $sourceEvidenceDir "contact_sheet.png"
-        $sourcePage05 = Join-Path $sourceEvidenceDir "pages\page-05.png"
-        $sourcePage06 = Join-Path $sourceEvidenceDir "pages\page-06.png"
-
-        if ((Test-Path -LiteralPath $sourceContactSheet) -and
-            (Test-Path -LiteralPath $sourcePage05) -and
-            (Test-Path -LiteralPath $sourcePage06)) {
-            return [ordered]@{
-                contact_sheet = $sourceContactSheet
-                page_05 = $sourcePage05
-                page_06 = $sourcePage06
-            }
-        }
-    }
-
-    throw "Unable to resolve document evidence from task directory or task manifest: $TaskDir"
+    throw "Unable to resolve document evidence from task directory: $TaskDir"
 }
 
 function Resolve-FixedGridEvidence {
@@ -168,20 +135,7 @@ function Resolve-FixedGridEvidence {
         }
     }
 
-    $manifest = Read-TaskManifest -TaskDir $TaskDir
-    if ($null -ne $manifest -and
-        $null -ne $manifest.source -and
-        $manifest.source.kind -eq "fixed-grid-regression-bundle" -and
-        -not [string]::IsNullOrWhiteSpace($manifest.source.path)) {
-        $sourceAggregateContactSheet = Join-Path $manifest.source.path "aggregate-evidence\contact_sheet.png"
-        if (Test-Path -LiteralPath $sourceAggregateContactSheet) {
-            return [ordered]@{
-                aggregate_contact_sheet = $sourceAggregateContactSheet
-            }
-        }
-    }
-
-    throw "Unable to resolve fixed-grid aggregate evidence from task directory or task manifest: $TaskDir"
+    throw "Unable to resolve fixed-grid aggregate evidence from task directory: $TaskDir"
 }
 
 function Resolve-Page01Evidence {

@@ -79,6 +79,24 @@ function Read-DocxEntryText {
     }
 }
 
+function Find-ExecutableByName {
+    param(
+        [string]$SearchRoot,
+        [string]$TargetName
+    )
+
+    $candidate = Get-ChildItem -Path $SearchRoot -Recurse -File |
+        Where-Object { $_.Name -ieq $TargetName -or $_.Name -ieq ($TargetName + ".exe") } |
+        Sort-Object LastWriteTimeUtc -Descending |
+        Select-Object -First 1
+
+    if ($null -eq $candidate) {
+        throw "Could not find executable '$TargetName' under $SearchRoot."
+    }
+
+    return $candidate.FullName
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedBuildDir = (Resolve-Path $BuildDir).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
@@ -86,6 +104,9 @@ $prepareScriptPath = Join-Path $resolvedRepoRoot "scripts\prepare_template_rende
 $validateWorkspaceScriptPath = Join-Path $resolvedRepoRoot "scripts\validate_render_data_mapping.ps1"
 $renderWorkspaceScriptPath = Join-Path $resolvedRepoRoot "scripts\render_template_document_from_workspace.ps1"
 $sampleDocx = Join-Path $resolvedRepoRoot "samples\chinese_invoice_template.docx"
+$partTemplateSampleExecutable = Find-ExecutableByName `
+    -SearchRoot $resolvedBuildDir `
+    -TargetName "featherdoc_sample_part_template_validation"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
@@ -222,6 +243,8 @@ Assert-Equal -Actual $validationSummaryObject.status -Expected "completed" `
     -Message "Workspace validation summary did not report status=completed."
 Assert-Equal -Actual $validationSummaryObject.remaining_placeholder_count -Expected 0 `
     -Message "Workspace validation should report no remaining placeholders after data is edited."
+Assert-Equal -Actual $validationSummaryObject.export_target_mode -Expected "loaded-parts" `
+    -Message "Workspace validation summary should default to loaded-parts export target mode."
 Assert-Equal -Actual ([string]$validationSummaryObject.workspace_summary) -Expected ([string]$workspaceSummary) `
     -Message "Workspace validation summary should resolve the workspace summary path."
 Assert-True -Condition (Test-Path -LiteralPath $validationReport) `
@@ -258,6 +281,8 @@ Assert-Equal -Actual $renderSummaryObject.status -Expected "completed" `
     -Message "Workspace render summary did not report status=completed."
 Assert-Equal -Actual $renderSummaryObject.operation_count -Expected 2 `
     -Message "Workspace render summary should report two wrapper steps."
+Assert-Equal -Actual $renderSummaryObject.export_target_mode -Expected "loaded-parts" `
+    -Message "Workspace render summary should default to loaded-parts export target mode."
 Assert-Equal -Actual $renderSummaryObject.steps[0].name -Expected "resolve_workspace" `
     -Message "Workspace render summary did not record the resolve step first."
 Assert-Equal -Actual $renderSummaryObject.steps[1].name -Expected "render_template_document_from_data" `
@@ -271,5 +296,89 @@ Assert-ContainsText -Text $documentXml -ExpectedText "报价单-2026-0410" -Labe
 Assert-ContainsText -Text $documentXml -ExpectedText "当前工作流先编辑 JSON，再渲染 DOCX。" -Label "Workspace document.xml"
 Assert-ContainsText -Text $documentXml -ExpectedText "文档生成" -Label "Workspace document.xml"
 Assert-NotContainsText -Text $documentXml -UnexpectedText "TODO:" -Label "Workspace document.xml"
+
+
+$partTemplateDir = Join-Path $resolvedWorkingDir "part_template_validation_fixture"
+$partTemplateDocx = Join-Path $partTemplateDir "part_template_validation.docx"
+$sectionWorkspaceDir = Join-Path $resolvedWorkingDir "part_template_workspace"
+$sectionWorkspaceSummary = Join-Path $sectionWorkspaceDir "part_template.workspace.summary.json"
+$sectionValidationSummary = Join-Path $sectionWorkspaceDir "part_template.validation.summary.json"
+$sectionValidationReport = Join-Path $sectionWorkspaceDir "part_template.validation.report.md"
+$sectionRenderedDocx = Join-Path $sectionWorkspaceDir "part_template.workspace.rendered.docx"
+$sectionRenderSummary = Join-Path $sectionWorkspaceDir "part_template.workspace.rendered.summary.json"
+
+& $partTemplateSampleExecutable $partTemplateDir
+if ($LASTEXITCODE -ne 0) {
+    throw "featherdoc_sample_part_template_validation failed."
+}
+
+& $prepareScriptPath `
+    -InputDocx $partTemplateDocx `
+    -WorkspaceDir $sectionWorkspaceDir `
+    -SummaryJson $sectionWorkspaceSummary `
+    -BuildDir $resolvedBuildDir `
+    -ExportTargetMode resolved-section-targets `
+    -SkipBuild
+
+if ($LASTEXITCODE -ne 0) {
+    throw "prepare_template_render_data_workspace.ps1 failed for the section workspace render test."
+}
+
+$sectionWorkspace = Get-Content -Raw -Encoding UTF8 -LiteralPath $sectionWorkspaceSummary | ConvertFrom-Json
+$sectionWorkspaceData = [ordered]@{
+    header_title = "Section Header Rendered From Workspace"
+    header_note = @("Workspace header note line 1", "Workspace header note line 2")
+    header_rows = @(
+        @("Iota", "65"),
+        @("Kappa", "87")
+    )
+    footer_company = "FeatherDoc Section Workspace Ltd."
+    footer_summary = "Section footer summary rendered from workspace"
+}
+($sectionWorkspaceData | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $sectionWorkspace.data_skeleton -Encoding UTF8
+
+& $validateWorkspaceScriptPath `
+    -WorkspaceDir $sectionWorkspaceDir `
+    -SummaryJson $sectionValidationSummary `
+    -ReportMarkdown $sectionValidationReport `
+    -BuildDir $resolvedBuildDir `
+    -SkipBuild `
+    -RequireComplete
+
+if ($LASTEXITCODE -ne 0) {
+    throw "validate_render_data_mapping.ps1 failed for the section workspace."
+}
+
+& $renderWorkspaceScriptPath `
+    -WorkspaceDir $sectionWorkspaceDir `
+    -OutputDocx $sectionRenderedDocx `
+    -SummaryJson $sectionRenderSummary
+
+if ($LASTEXITCODE -ne 0) {
+    throw "render_template_document_from_workspace.ps1 failed for the section workspace."
+}
+
+$sectionValidationSummaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $sectionValidationSummary | ConvertFrom-Json
+$sectionRenderSummaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $sectionRenderSummary | ConvertFrom-Json
+$sectionHeaderXml = Read-DocxEntryText -DocxPath $sectionRenderedDocx -EntryName "word/header1.xml"
+$sectionFooterXml = Read-DocxEntryText -DocxPath $sectionRenderedDocx -EntryName "word/footer1.xml"
+
+Assert-Equal -Actual $sectionValidationSummaryObject.status -Expected "completed" `
+    -Message "Section workspace validation summary did not report status=completed."
+Assert-Equal -Actual $sectionValidationSummaryObject.export_target_mode -Expected "resolved-section-targets" `
+    -Message "Section workspace validation did not infer export_target_mode."
+Assert-Equal -Actual $sectionRenderSummaryObject.status -Expected "completed" `
+    -Message "Section workspace render summary did not report status=completed."
+Assert-Equal -Actual $sectionRenderSummaryObject.export_target_mode -Expected "resolved-section-targets" `
+    -Message "Section workspace render did not infer export_target_mode."
+Assert-Equal -Actual $sectionRenderSummaryObject.steps[1].summary.export_target_mode -Expected "resolved-section-targets" `
+    -Message "Section workspace nested render did not receive export_target_mode."
+Assert-ContainsText -Text $sectionHeaderXml -ExpectedText "Section Header Rendered From Workspace" -Label "Section workspace header XML"
+Assert-ContainsText -Text $sectionHeaderXml -ExpectedText "Workspace header note line 1" -Label "Section workspace header XML"
+Assert-ContainsText -Text $sectionHeaderXml -ExpectedText "Kappa" -Label "Section workspace header XML"
+Assert-ContainsText -Text $sectionFooterXml -ExpectedText "FeatherDoc Section Workspace Ltd." -Label "Section workspace footer XML"
+Assert-ContainsText -Text $sectionFooterXml -ExpectedText "Section footer summary rendered from workspace" -Label "Section workspace footer XML"
+Assert-NotContainsText -Text $sectionHeaderXml -UnexpectedText "TODO:" -Label "Section workspace header XML"
+Assert-NotContainsText -Text $sectionFooterXml -UnexpectedText "TODO:" -Label "Section workspace footer XML"
 
 Write-Host "Render-from-workspace regression passed."

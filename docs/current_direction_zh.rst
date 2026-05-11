@@ -66,10 +66,11 @@
 
 - ``.docx`` 的打开、保存、另存为、从空文档创建与诊断
 - 段落 / Run / 表格 / 图片 / 分节 / 页眉页脚的结构化编辑
-- 样式目录检查、最小样式定义编辑、样式继承检查与部分重构
-- 托管列表、自定义编号定义、样式挂接编号
-- 书签模板填充、模板表格扩展、block 显隐、文档级 template schema 校验
-- 页面设置、页码字段、总页数字段
+- 样式目录检查、样式定义编辑、样式继承检查、usage report 与受控重构
+- 托管列表、自定义编号定义、样式挂接编号、numbering catalog JSON 治理
+- 书签模板填充、content control 纯文本与富内容替换、模板表格扩展、block 显隐
+- 文档级 template schema 校验、扫描、patch、baseline gate 与审批摘要
+- 页面设置、通用字段（含 TOC / REF / SEQ 与页码字段）、表格样式定义与第一版浮动表格定位
 - CLI 驱动的 inspection / mutation 流程
 - 基于 ``Microsoft Word`` 的截图级可视化回归
 
@@ -97,18 +98,28 @@
 
 - ``validate_template(...)``
 - ``validate_template_schema(...)``
-- ``export-template-schema``
+- ``export-template-schema``（已覆盖书签与 content control slot）
 - ``normalize-template-schema``
 - ``diff-template-schema``
+- ``template_schema_patch`` / ``apply_template_schema_patch(...)`` /
+  ``build_template_schema_patch(...)``
+- ``scan_template_schema(...)`` / ``build_template_schema_patch_from_scan(...)``
 - ``check-template-schema``
+- schema patch review JSON、schema approval gate 与审批历史报表
+- project-template onboarding governance 聚合报告
+- schema patch confidence calibration 只读校准报告
+- release blocker rollup 统一发布阻断汇总
+- content-control data-binding governance 只读报告，已把 Custom XML
+  同步 issue、绑定占位符和重复绑定复核接入发布治理 pipeline
 - ``run_project_template_smoke.ps1``
 
 接下来更值得补的是：
 
-1. schema 的高层 mutation / patch API，而不是只停留在导出和对比
-2. template schema 的 lint / migration / review 工作流
-3. project template smoke 的维护体验和仓库级准入规则
-4. 让“接入一个真实业务模板”变成更短、更稳定的流程
+1. 扩大真实业务模板语料样本，继续校准 rename / update 建议的置信度
+2. 多项目 schema approval、release gate 和审批历史的维护体验
+3. 将 onboarding governance、confidence calibration、content-control
+   data-binding governance 与 release blocker rollup 接入更固定的发布面板
+4. schema migration 的人工复核入口和更明确的修复建议分流
 
 这条线的目标是：
 
@@ -126,20 +137,34 @@
 这条线当前已经覆盖：
 
 - 样式目录 inspection
-- 最小 paragraph / character / table style definition
+- paragraph / character style definition 与 table style region definition
 - style inheritance inspection
+- 单样式 / 全量 style usage report（find_style_usage / list_style_usage / inspect-styles --usage）
 - style run property materialization
 - paragraph / character style rebase
 - 自定义编号定义
 - paragraph style numbering
 - 多样式共享 outline numbering
+- style numbering 的 CLI 只读盘点、审计 gate、command_template 修复建议（缺失 level 指向 upsert_levels patch）、plan/apply 安全清理、based-on 对齐、唯一同名 definition relink 和 catalog 导入预修复入口（inspect-style-numbering / audit-style-numbering / repair-style-numbering）
+- style id 重命名，并同步 body / header / footer 内 paragraph、run、table 引用（rename_style / rename-style）
+- 同类型 style merge，并同步引用后移除源样式（merge_style / merge-style）
+- 批量 style rename / merge 的非破坏性计划、审计、持久化 JSON plan、受控 apply 与 rollback 记录，并输出 source usage、issue 与 command_template；merge rollback 会捕获被删除 source style XML 与原 source usage hits，restore dry-run 可无输出文件审计恢复计划，且可重复 `--entry` 或用 `--source-style` / `--target-style` 选择 rollback 项，restore issue 会输出可操作 suggestion 与顶层 issue_count / issue_summary，正式 restore 会按 `node_ordinal` 只恢复原 source hits（plan_style_refactor / plan-style-refactor / apply_style_refactor / apply-style-refactor / plan_style_refactor_restore / restore_style_refactor / restore-style-merge --dry-run / restore-style-merge --plan-only / restore-style-merge）
+- 重复 custom paragraph / character style 的保守 merge 建议，并输出可审阅 / 可持久化 JSON plan，包含 reason / confidence / evidence / differences 元数据与顶层 suggestion_confidence_summary；CLI 可用 `--source-style` / `--target-style` 收敛具体样式对，再用 `--confidence-profile recommended|strict|review|exploratory` 或 `--min-confidence <0-100>` 过滤更保守的自动化 plan，并可用 `--fail-on-suggestion` 作为 CI gate；XML 对比会忽略 styleId 与显示名（suggest_style_merges / suggest-style-merges）
+- 未使用 custom style 的保守 plan / prune，并保护默认 / 内置样式与 basedOn / next / link 依赖（plan_prune_unused_styles / plan-prune-unused-styles / prune_unused_styles / prune-unused-styles）
+- numbering catalog 的 CLI JSON import/export
+- numbering catalog JSON definition level upsert 与 override 批量 upsert/remove
+- numbering catalog JSON lint 结构校验
+- numbering catalog JSON check / diff 准入与单文件 / manifest baseline gate
+- 多份 document skeleton governance summary 的 rollup 汇总入口，可把
+  exemplar catalog、样式编号 issue、release blocker 和 action item 先聚合成
+  ``featherdoc.document_skeleton_governance_rollup_report.v1``，再进入统一发布阻断视图
 
 接下来最值得补的是：
 
-1. 现有 numbering catalog 的 import / export / override 管理
-2. 更高层的 style refactoring workflow
-3. 面向 heading / list / theme 的稳定重构入口
-4. 样式与编号之间更明确的批量治理 API
+1. merge restore 的更完整冲突处理与基于真实语料的样式建议置信度校准
+2. 面向 heading / list / theme 的稳定重构入口
+3. 样式与编号之间更明确的批量治理 mutation API
+4. 在已有骨架治理报告和多文档 rollup 基础上继续强化 exemplar 冲突审计和 catalog patch 衔接
 
 这条线的目标是：
 
@@ -154,14 +179,18 @@
 表格、页边距、图片布局、section 结构，决定了这个库能不能真正支撑
 报告、发票、制度文件和业务单据这类交付物。
 
-当前这条线已经很强，但还没有完全收口。
+当前这条线已经很强，但还没有完全收口。单文档交付报告已经可以把
+table style quality、安全 ``tblLook`` 修复、floating table preset plan 和视觉回归入口
+收成 JSON / Markdown；多文档 ``build_table_layout_delivery_rollup_report.ps1``
+也可以继续汇总成 ``featherdoc.table_layout_delivery_rollup_report.v1``，
+再交给 release blocker rollup。
 
 接下来更值得补的是：
 
-1. 更完整的 custom table style property editing
-2. floating table positioning 或同等级别的版式定位能力
+1. 更完整的 custom table style property editing 覆盖面
+2. 浮动表格环绕距离、重叠控制和更多 ``w:tblpPr`` 细节
 3. 更高层的页面与区段版式组合 helper
-4. 围绕“生成后无需人工微调”的交付质量打磨
+4. 围绕“生成后无需人工微调”的交付质量打磨，并让 layout rollup 更稳定地进入发布面板
 
 这条线的目标是：
 
@@ -174,9 +203,9 @@
 至少在当前阶段，下面这些方向不该抢在前面：
 
 1. 加密或密码保护 ``.docx`` 的支持
-2. 完整的 ``OMML`` 公式写入器
-3. 批注、修订、审阅痕迹的完整 typed API
-4. content controls 和复杂表单系统
+2. 完整的 ``OMML`` 公式构造器
+3. 批注、修订、审阅痕迹的完整 authoring API
+4. content control 的复杂表单系统和全量表单状态 API
 5. 纯粹为了命令数量好看而继续堆 CLI 子命令
 6. 为历史兼容性长期保留低价值旧接口
 

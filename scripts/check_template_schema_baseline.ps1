@@ -7,7 +7,9 @@ Builds or reuses `featherdoc_cli`, then runs `lint-template-schema` followed by
 `check-template-schema` so the document can be gated against a normalized
 schema baseline. The script returns exit code `0` only when the committed
 schema is lint-clean and the generated schema matches; it returns `1` on
-baseline lint failures or schema drift.
+baseline lint failures or schema drift. When `-ReviewJsonOutput` is provided,
+it also writes a stable schema patch review JSON comparing the committed
+baseline with the generated schema.
 
 .EXAMPLE
 pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 `
@@ -16,6 +18,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_baseline.ps1 
     -ResolvedSectionTargets `
     -GeneratedSchemaOutput .\generated-template.schema.json `
     -RepairedSchemaOutput .\repaired-template.schema.json `
+    -ReviewJsonOutput .\template-schema.review.json `
     -SkipBuild `
     -BuildDir build-codex-clang-column-visual-verify
 #>
@@ -26,6 +29,7 @@ param(
     [string]$SchemaFile,
     [string]$GeneratedSchemaOutput = "",
     [string]$RepairedSchemaOutput = "",
+    [string]$ReviewJsonOutput = "",
     [string]$BuildDir = "",
     [string]$Generator = "NMake Makefiles",
     [switch]$SkipBuild,
@@ -59,6 +63,25 @@ $resolvedRepairedSchemaOutput = if ([string]::IsNullOrWhiteSpace($RepairedSchema
     ""
 } else {
     Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $RepairedSchemaOutput -AllowMissing
+}
+$resolvedReviewJsonOutput = if ([string]::IsNullOrWhiteSpace($ReviewJsonOutput)) {
+    ""
+} else {
+    Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $ReviewJsonOutput -AllowMissing
+}
+$temporaryGeneratedSchemaOutput = $false
+
+if (-not [string]::IsNullOrWhiteSpace($resolvedReviewJsonOutput)) {
+    $reviewOutputDirectory = [System.IO.Path]::GetDirectoryName($resolvedReviewJsonOutput)
+    if (-not [string]::IsNullOrWhiteSpace($reviewOutputDirectory)) {
+        New-Item -ItemType Directory -Path $reviewOutputDirectory -Force | Out-Null
+    }
+
+    if ([string]::IsNullOrWhiteSpace($resolvedGeneratedSchemaOutput)) {
+        $reviewStem = [System.IO.Path]::GetFileNameWithoutExtension($resolvedReviewJsonOutput)
+        $resolvedGeneratedSchemaOutput = Join-Path $reviewOutputDirectory (".$reviewStem.generated." + [System.IO.Path]::GetRandomFileName() + ".json")
+        $temporaryGeneratedSchemaOutput = $true
+    }
 }
 
 if (-not [string]::IsNullOrWhiteSpace($resolvedGeneratedSchemaOutput)) {
@@ -177,6 +200,34 @@ if ($summary) {
     if (-not [string]::IsNullOrWhiteSpace($resolvedGeneratedSchemaOutput)) {
         Write-Host "generated_output_path: $resolvedGeneratedSchemaOutput"
     }
+}
+
+if (-not [string]::IsNullOrWhiteSpace($resolvedReviewJsonOutput)) {
+    $reviewArguments = @(
+        "build-template-schema-patch",
+        $resolvedSchemaFile,
+        $resolvedGeneratedSchemaOutput,
+        "--review-json",
+        $resolvedReviewJsonOutput,
+        "--json"
+    )
+
+    Write-Step "Writing schema patch review to $resolvedReviewJsonOutput"
+    $reviewResult = Invoke-TemplateSchemaCli -ExecutablePath $cliPath -Arguments $reviewArguments
+    if ($reviewResult.ExitCode -ne 0) {
+        foreach ($line in $reviewResult.Output) {
+            Write-Host $line
+        }
+        throw "build-template-schema-patch failed while writing review JSON with exit code $($reviewResult.ExitCode)."
+    }
+
+    Write-Host "schema_patch_review_output_path: $resolvedReviewJsonOutput"
+}
+
+if ($temporaryGeneratedSchemaOutput -and
+    -not [string]::IsNullOrWhiteSpace($resolvedGeneratedSchemaOutput) -and
+    [System.IO.File]::Exists($resolvedGeneratedSchemaOutput)) {
+    [System.IO.File]::Delete($resolvedGeneratedSchemaOutput)
 }
 
 $hasLintIssues = -not [bool]$lintSummary.clean

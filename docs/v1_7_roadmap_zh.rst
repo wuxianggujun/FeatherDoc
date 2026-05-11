@@ -7,12 +7,15 @@ v1.7.x 路线图（中文）
 本文基于当前仓库状态整理，目标不是一次性把所有 Word 能力都做全，而是优先补齐
 正式文档生成场景里最常用、最缺高层 API 的几块能力。
 
-补充说明：这份路线图成文后，仓库已经继续落地了一批第一版 API，包括
-``list_styles()`` / ``find_style_usage()`` / ``ensure_*_style()``、
-``ensure_numbering_definition()`` / ``set_paragraph_style_numbering()``、
-``validate_template()``、``get_section_page_setup()`` 以及页码字段相关接口。
-阅读本文时，建议把重点放在这些方向的“深化和补齐”，而不是把它们理解成仍然
-完全未开始的能力。
+补充说明：这份路线图成文后，仓库已经继续落地了一批第一版 API 和 CLI
+工作流，包括 ``list_styles()`` / ``find_style_usage()`` / ``ensure_*_style()``、
+``ensure_numbering_definition()`` / ``set_paragraph_style_numbering()``、numbering
+catalog JSON 导入 / 导出 / lint / check / diff、``validate_template()``、
+``template_schema_patch``、``scan_template_schema(...)``、``get_section_page_setup()``、
+页码字段、PAGEREF / STYLEREF / DOCPROPERTY / DATE / HYPERLINK / SEQ
+简单字段、题注 / XE / INDEX 字段、复杂域单层嵌套、``w:updateFields`` 打开时刷新开关、content control 基础枚举 / 纯文本替换、table style definition 以及第一版
+floating table positioning。阅读本文时，建议把重点放在这些方向的“深化和补齐”，
+而不是把它们理解成仍然完全未开始的能力。
 
 
 当前判断
@@ -46,9 +49,9 @@ v1.7.x 路线图（中文）
 至少在 ``v1.7.x`` 阶段，以下能力不建议抢在前面：
 
 1. 带密码或加密 ``.docx`` 的支持。
-2. 完整的 OMML 公式写入器。
-3. 批注 / 修订 / 审阅痕迹的完整 typed API。
-4. 内容控件（content controls）和复杂表单场景。
+2. 完整的 OMML 公式构造器。
+3. 批注 / 修订 / 审阅痕迹的完整 authoring API。
+4. 内容控件复杂表单保护、重复节与数据绑定同步。
 5. 纯粹为了“看起来完整”而增加的大而全 CLI。
 
 这些能力不是没价值，而是复杂度高、边界宽，更适合等前面的正式文档主路径补齐后
@@ -64,7 +67,8 @@ v1.7.x 路线图（中文）
 2. ``v1.7.1``: 模板校验与页面设置 / 字段
 3. ``v1.7.2``: 图片高级布局与 CLI 扩展
 
-后面如果节奏允许，再把 OMML、批注修订、脚注尾注等放到 ``v1.8.x`` 评估。
+后面如果节奏允许，再把完整 OMML builder、批注修订 authoring、复杂表单保护 / 数据绑定同步
+和更多复杂域 typed builder、主动字段刷新策略等更复杂字段扩展放到后续版本评估。
 
 
 v1.7.0: 样式目录与编号管理
@@ -83,9 +87,9 @@ v1.7.0: 样式目录与编号管理
 3. 自定义编号定义 API，而不再只依赖托管 bullet / decimal 两套内建列表
 4. 基于样式挂接编号的最小闭环
 
-其中第 1 项已经落地，第 2 项也已经有第一版：当前除了只读样式目录检查 API，
-还提供了最小可用的 ``ensure_paragraph_style()``、``ensure_character_style()``、
-``ensure_table_style()``，先把自定义样式创建 / 更新闭环补上，后续再继续补编号管理。
+其中第 1、2 项已经落地，编号管理也已经从托管列表扩展到自定义编号定义、
+样式挂接编号、style numbering 审计 / 修复和 numbering catalog JSON 工作流。
+后续重点不再是“有没有编号 API”，而是 exemplar 提取、冲突审计和真实模板治理体验。
 
 建议的最小 API 草案
 ^^^^^^^^^^^^^^^^^^^
@@ -218,8 +222,9 @@ v1.7.1: 模板校验与页面设置 / 字段
 
 这一版建议补“正式模板可控性”。
 
-你现在的 bookmark 模板替换已经足够强，但还缺“事前校验”和“页面级版式控制”。
-对于合同、报告、标书、发票、制度文件，这两层价值很高。
+bookmark 模板替换、schema 事前校验和页面级版式控制已经有第一版闭环。
+对于合同、报告、标书、发票、制度文件，后续更值得继续打磨的是 schema
+迁移、审批、真实模板 onboarding 和质量门禁体验。
 
 建议交付内容
 ^^^^^^^^^^^^
@@ -240,10 +245,9 @@ v1.7.1: 模板校验与页面设置 / 字段
   ``samples/sample_template_schema_validation.cpp``；其中
   ``--section-targets`` 表示 direct section reference 视角，
   ``--resolved-section-targets`` 表示 linked-to-previous 解析后的实际生效视角。
-- 继续完善 CLI schema 工具链时，可以把 ``normalize-template-schema`` /
-  ``diff-template-schema`` 作为补齐项，用来稳定 schema 文件顺序以及比较版本差异。
-- 再往前一层可以补 ``check-template-schema`` 这种 gate 命令，把导出、
-  规范化、对比和非零退出码检查收敛成一步，方便直接接 CI。
+- CLI schema 工具链已经包括 ``normalize-template-schema``、``diff-template-schema``
+  和 ``check-template-schema``，可以稳定 schema 文件顺序、比较版本差异，并作为
+  CI gate 输出非零退出码。
 - 仓库级 ``baselines/template-schema/manifest.json`` 现在也已经落地，并支持
   静态模板与 generated fixture 混合登记、``prepare_sample_target`` 自动准备、
   ``register_template_schema_manifest_entry.ps1`` 一步登记、以及
@@ -308,6 +312,11 @@ v1.7.1: 模板校验与页面设置 / 字段
 
     bool TemplatePart::append_page_number_field();
     bool TemplatePart::append_total_pages_field();
+    bool TemplatePart::append_page_reference_field(...);
+    bool TemplatePart::append_style_reference_field(...);
+    bool TemplatePart::append_document_property_field(...);
+    bool TemplatePart::append_date_field(...);
+    bool TemplatePart::append_hyperlink_field(...);
 
 建议的实现落点
 ^^^^^^^^^^^^^^
@@ -440,11 +449,11 @@ CLI 不需要一步到位覆盖所有 mutation。
 
 下面这些能力值得做，但不建议提前打乱 ``v1.7.x``：
 
-1. OMML 公式 typed API
-2. 脚注 / 尾注
+1. 完整 OMML 公式 builder
+2. 更多复杂域 typed builder 和主动字段刷新策略（复杂域单层嵌套与打开时刷新开关已落地）
 3. 超链接与交叉引用的完整 typed API
-4. 批注 / 修订 / track changes
-5. 内容控件（content controls）
+4. 批注 / 修订 / track changes authoring
+5. 内容控件复杂表单保护与数据绑定同步
 6. 加密 ``.docx`` 支持
 
 

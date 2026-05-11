@@ -28,11 +28,37 @@ Replace `<repo-root>` with your local FeatherDoc checkout.
 # Visual-only gate: regenerate the smoke gallery, fixed-grid quartet, and both review tasks.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1
 
+# Same gate, but stamp same-run smoke, fixed-grid, section/page, and curated verdicts.
+pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `
+    -SmokeReviewVerdict pass `
+    -SmokeReviewNote "Smoke contact sheet reviewed." `
+    -FixedGridReviewVerdict pass `
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed." `
+    -SectionPageSetupReviewVerdict pass `
+    -SectionPageSetupReviewNote "Section page setup contact sheet reviewed." `
+    -PageNumberFieldsReviewVerdict pass `
+    -PageNumberFieldsReviewNote "Page number fields contact sheet reviewed." `
+    -CuratedVisualReviewVerdict pass `
+    -CuratedVisualReviewNote "Curated visual bundles reviewed."
+
 # Same gate, but also refresh the repository README / docs preview PNGs.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 -RefreshReadmeAssets
 
 # Full release-preflight: MSVC build + tests + install smoke + visual gate.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_release_candidate_checks.ps1
+
+# Full release-preflight with same-run screenshot verdict metadata.
+pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_release_candidate_checks.ps1 `
+    -SmokeReviewVerdict pass `
+    -SmokeReviewNote "Smoke contact sheet reviewed." `
+    -FixedGridReviewVerdict pass `
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed." `
+    -SectionPageSetupReviewVerdict pass `
+    -SectionPageSetupReviewNote "Section page setup contact sheet reviewed." `
+    -PageNumberFieldsReviewVerdict pass `
+    -PageNumberFieldsReviewNote "Page number fields contact sheet reviewed." `
+    -CuratedVisualReviewVerdict pass `
+    -CuratedVisualReviewNote "Curated visual bundles reviewed."
 
 # Full release-preflight, plus README / docs gallery refresh.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\run_release_candidate_checks.ps1 -RefreshReadmeAssets
@@ -49,7 +75,7 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_visual_review_verdic
     -GateSummaryJson <repo-root>\output\word-visual-release-gate\report\gate_summary.json
 
 # Same sync step, but also promote the verdict into release-preflight summary.json
-# and refresh START_HERE.md plus the release-facing notes in one shot.
+# and refresh final_review.md, START_HERE.md, plus release-facing notes in one shot.
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_visual_review_verdict.ps1 `
     -GateSummaryJson <repo-root>\output\word-visual-release-gate\report\gate_summary.json `
     -ReleaseCandidateSummaryJson <repo-root>\output\release-candidate-checks\report\summary.json `
@@ -61,11 +87,17 @@ pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\refresh_readme_visual_ass
 
 If you ran the full `release-preflight`, the same report directory also gets
 `release_handoff.md`, `release_body.zh-CN.md`, and `release_summary.zh-CN.md`.
-The short helper above auto-resolves the newest task pointers and matching
-release summary. If you need to override paths manually, keep using the longer
-commands below. If `summary.json` already carries the final verdict and you
-only need to regenerate those release notes after later editorial edits, the narrower
-fallback is:
+`review_result.json` verdict files record `status=reviewed`, the final
+`verdict`, `reviewed_at`, and `review_method=operator_supplied`; sync copies
+those fields into gate/release summaries and final-review files. With
+`-RefreshReleaseBundle`, `START_HERE.md`, `release_handoff.md`,
+`ARTIFACT_GUIDE.md`, and `REVIEWER_CHECKLIST.md` also show the internal
+provenance lines, while public `release_body.zh-CN.md` omits free-form notes
+and operator provenance. The short helper above auto-resolves the newest task
+pointers and matching release summary. If you need to override paths manually,
+keep using the longer commands below. If `summary.json` already carries the
+final verdict and you only need to regenerate those release notes after later
+editorial edits, the narrower fallback is:
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File <repo-root>\scripts\write_release_note_bundle.ps1 `

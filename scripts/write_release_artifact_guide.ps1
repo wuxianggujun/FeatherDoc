@@ -101,177 +101,8 @@ function Get-VisualTaskDir {
     return Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
 }
 
-function Get-VisualTaskVerdict {
-    param(
-        $VisualGateSummary,
-        $GateSummary,
-        [string]$TaskKey
-    )
-
-    $summaryVerdict = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_verdict" -f $TaskKey)
-    if (-not [string]::IsNullOrWhiteSpace($summaryVerdict)) {
-        return $summaryVerdict
-    }
-
-    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
-    $tasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
-    $taskReview = Get-OptionalPropertyObject -Object $tasks -Name $TaskKey
-    return Get-OptionalPropertyValue -Object $taskReview -Name "verdict"
-}
-
-function Get-OptionalPropertyArray {
-    param(
-        $Object,
-        [string]$Name
-    )
-
-    $propertyValue = Get-OptionalPropertyObject -Object $Object -Name $Name
-    if ($null -eq $propertyValue) {
-        return @()
-    }
-
-    return @($propertyValue)
-}
-
-function Get-OrCreateCuratedVisualReviewEntry {
-    param(
-        [hashtable]$EntryMap,
-        [System.Collections.Generic.List[string]]$EntryOrder,
-        $Source,
-        [int]$FallbackIndex
-    )
-
-    $id = Get-OptionalPropertyValue -Object $Source -Name "id"
-    $displayLabel = Get-OptionalPropertyValue -Object $Source -Name "display_label"
-    $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
-        $displayLabel
-    } else {
-        Get-OptionalPropertyValue -Object $Source -Name "label"
-    }
-
-    $key = if (-not [string]::IsNullOrWhiteSpace($id)) {
-        $id
-    } elseif (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
-        $label
-    } else {
-        "__curated_{0}" -f $FallbackIndex
-    }
-
-    if (-not $EntryMap.ContainsKey($key)) {
-        $EntryMap[$key] = [ordered]@{
-            id = ""
-            label = ""
-            verdict = ""
-            task_dir = ""
-            review_result_path = ""
-            final_review_path = ""
-        }
-        [void]$EntryOrder.Add($key)
-    }
-
-    return $EntryMap[$key]
-}
-
-function Merge-CuratedVisualReviewEntry {
-    param(
-        $Entry,
-        $Source
-    )
-
-    if ($null -eq $Source) {
-        return
-    }
-
-    $id = Get-OptionalPropertyValue -Object $Source -Name "id"
-    if (-not [string]::IsNullOrWhiteSpace($id)) {
-        $Entry.id = $id
-    }
-
-    $displayLabel = Get-OptionalPropertyValue -Object $Source -Name "display_label"
-    $label = if (-not [string]::IsNullOrWhiteSpace($displayLabel)) {
-        $displayLabel
-    } else {
-        Get-OptionalPropertyValue -Object $Source -Name "label"
-    }
-    if (-not [string]::IsNullOrWhiteSpace($label) -and $label -notlike "curated:*") {
-        $Entry.label = $label
-    }
-
-    $verdict = Get-OptionalPropertyValue -Object $Source -Name "verdict"
-    if (-not [string]::IsNullOrWhiteSpace($verdict)) {
-        $Entry.verdict = $verdict
-    }
-
-    $taskInfo = Get-OptionalPropertyObject -Object $Source -Name "task"
-    if ($null -eq $taskInfo) {
-        $taskInfo = $Source
-    }
-
-    $taskDir = Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
-    if (-not [string]::IsNullOrWhiteSpace($taskDir)) {
-        $Entry.task_dir = $taskDir
-    }
-
-    $reviewResultPath = Get-OptionalPropertyValue -Object $taskInfo -Name "review_result_path"
-    if (-not [string]::IsNullOrWhiteSpace($reviewResultPath)) {
-        $Entry.review_result_path = $reviewResultPath
-    }
-
-    $finalReviewPath = Get-OptionalPropertyValue -Object $taskInfo -Name "final_review_path"
-    if (-not [string]::IsNullOrWhiteSpace($finalReviewPath)) {
-        $Entry.final_review_path = $finalReviewPath
-    }
-}
-
-function Get-CuratedVisualReviewEntries {
-    param(
-        $VisualGateSummary,
-        $GateSummary
-    )
-
-    $entryMap = @{}
-    $entryOrder = New-Object 'System.Collections.Generic.List[string]'
-    $fallbackIndex = 0
-
-    $reviewTasks = Get-OptionalPropertyObject -Object $GateSummary -Name "review_tasks"
-    $manualReview = Get-OptionalPropertyObject -Object $GateSummary -Name "manual_review"
-    $manualTasks = Get-OptionalPropertyObject -Object $manualReview -Name "tasks"
-
-    $sources = @(
-        (Get-OptionalPropertyArray -Object $VisualGateSummary -Name "curated_visual_regressions"),
-        (Get-OptionalPropertyArray -Object $reviewTasks -Name "curated_visual_regressions"),
-        (Get-OptionalPropertyArray -Object $manualTasks -Name "curated_visual_regressions"),
-        (Get-OptionalPropertyArray -Object $GateSummary -Name "curated_visual_regressions")
-    )
-
-    foreach ($sourceGroup in $sources) {
-        foreach ($source in $sourceGroup) {
-            $fallbackIndex += 1
-            $entry = Get-OrCreateCuratedVisualReviewEntry `
-                -EntryMap $entryMap `
-                -EntryOrder $entryOrder `
-                -Source $source `
-                -FallbackIndex $fallbackIndex
-            Merge-CuratedVisualReviewEntry -Entry $entry -Source $source
-        }
-    }
-
-    $entries = @()
-    foreach ($key in $entryOrder) {
-        $entry = $entryMap[$key]
-        if ([string]::IsNullOrWhiteSpace($entry.label)) {
-            if (-not [string]::IsNullOrWhiteSpace($entry.id)) {
-                $entry.label = $entry.id
-            } else {
-                $entry.label = "Curated visual regression bundle"
-            }
-        }
-
-        $entries += [pscustomobject]$entry
-    }
-
-    return $entries
-}
+. (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
 
 function Get-RepoRelativePath {
     param(
@@ -403,6 +234,14 @@ $projectTemplateSmokeOutputDir = Get-OptionalPropertyValue -Object $projectTempl
 if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeOutputDir)) {
     $projectTemplateSmokeOutputDir = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "output_dir"
 }
+$projectTemplateSmokeSchemaApprovalHistoryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_patch_approval_history_json"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalHistoryJson)) {
+    $projectTemplateSmokeSchemaApprovalHistoryJson = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_patch_approval_history_json"
+}
+$projectTemplateSmokeSchemaApprovalHistoryMarkdown = Get-OptionalPropertyValue -Object $projectTemplateSmokeStep -Name "schema_patch_approval_history_markdown"
+if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeSchemaApprovalHistoryMarkdown)) {
+    $projectTemplateSmokeSchemaApprovalHistoryMarkdown = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "schema_patch_approval_history_markdown"
+}
 $projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeStep -Name "candidate_coverage"
 if ($null -eq $projectTemplateSmokeCandidateCoverage) {
     $projectTemplateSmokeCandidateCoverage = Get-OptionalPropertyObject -Object $projectTemplateSmokeSummary -Name "candidate_coverage"
@@ -451,9 +290,28 @@ if (-not [string]::IsNullOrWhiteSpace($gateSummaryPath) -and (Test-Path -Literal
 }
 $sectionPageSetupTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsTaskDir = Get-VisualTaskDir -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
 $sectionPageSetupVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
 $pageNumberFieldsVerdict = Get-VisualTaskVerdict -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsReviewStatus = Get-VisualTaskReviewStatus -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsReviewNote = Get-VisualTaskReviewNote -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeReviewedAt = Get-VisualTaskReviewedAt -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridReviewedAt = Get-VisualTaskReviewedAt -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupReviewedAt = Get-VisualTaskReviewedAt -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsReviewedAt = Get-VisualTaskReviewedAt -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
+$smokeReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "smoke"
+$fixedGridReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "fixed_grid"
+$sectionPageSetupReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "section_page_setup"
+$pageNumberFieldsReviewMethod = Get-VisualTaskReviewMethod -VisualGateSummary $visualGateStep -GateSummary $gateSummary -TaskKey "page_number_fields"
 $curatedVisualReviewEntries = @(Get-CuratedVisualReviewEntries -VisualGateSummary $visualGateStep -GateSummary $gateSummary)
+$visualReviewTaskSummaryLine = Get-VisualReviewTaskSummaryLine -VisualGateSummary $visualGateStep -GateSummary $gateSummary
 
 $installLeaf = ""
 if (-not [string]::IsNullOrWhiteSpace($installPrefix)) {
@@ -509,6 +367,7 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("")
 [void]$lines.Add("- Generated at: $(Get-Date -Format s)")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
+[void]$lines.Add("- Release blockers: $(Get-ReleaseBlockerCount -Summary $summary)")
 [void]$lines.Add("- Template schema manifest status: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
 [void]$lines.Add("- Template schema manifest passed: $(Get-DisplayValue -Value $templateSchemaManifestPassed)")
 [void]$lines.Add("- Template schema manifest entries / drifts: $(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
@@ -521,11 +380,33 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Project template smoke full coverage required: $(Get-DisplayValue -Value $projectTemplateSmokeRequireFullCoverage)")
 [void]$lines.Add("- Project template smoke candidates registered / unregistered / excluded: $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount))")
 [void]$lines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
+if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
+    [void]$lines.Add("- $visualReviewTaskSummaryLine")
+}
+[void]$lines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
+[void]$lines.Add("- Smoke review status: $(Get-DisplayValue -Value $smokeReviewStatus)")
+[void]$lines.Add("- Smoke reviewed at: $(Get-DisplayValue -Value $smokeReviewedAt)")
+[void]$lines.Add("- Smoke review method: $(Get-DisplayValue -Value $smokeReviewMethod)")
+[void]$lines.Add("- Smoke review note: $(Get-DisplayValue -Value $smokeReviewNote)")
+[void]$lines.Add("- Fixed-grid verdict: $(Get-DisplayValue -Value $fixedGridVerdict)")
+[void]$lines.Add("- Fixed-grid review status: $(Get-DisplayValue -Value $fixedGridReviewStatus)")
+[void]$lines.Add("- Fixed-grid reviewed at: $(Get-DisplayValue -Value $fixedGridReviewedAt)")
+[void]$lines.Add("- Fixed-grid review method: $(Get-DisplayValue -Value $fixedGridReviewMethod)")
+[void]$lines.Add("- Fixed-grid review note: $(Get-DisplayValue -Value $fixedGridReviewNote)")
 [void]$lines.Add("- Section page setup verdict: $(Get-DisplayValue -Value $sectionPageSetupVerdict)")
+[void]$lines.Add("- Section page setup review status: $(Get-DisplayValue -Value $sectionPageSetupReviewStatus)")
+[void]$lines.Add("- Section page setup reviewed at: $(Get-DisplayValue -Value $sectionPageSetupReviewedAt)")
+[void]$lines.Add("- Section page setup review method: $(Get-DisplayValue -Value $sectionPageSetupReviewMethod)")
+[void]$lines.Add("- Section page setup review note: $(Get-DisplayValue -Value $sectionPageSetupReviewNote)")
 [void]$lines.Add("- Page number fields verdict: $(Get-DisplayValue -Value $pageNumberFieldsVerdict)")
+[void]$lines.Add("- Page number fields review status: $(Get-DisplayValue -Value $pageNumberFieldsReviewStatus)")
+[void]$lines.Add("- Page number fields reviewed at: $(Get-DisplayValue -Value $pageNumberFieldsReviewedAt)")
+[void]$lines.Add("- Page number fields review method: $(Get-DisplayValue -Value $pageNumberFieldsReviewMethod)")
+[void]$lines.Add("- Page number fields review note: $(Get-DisplayValue -Value $pageNumberFieldsReviewNote)")
 [void]$lines.Add("- Curated visual regression bundles: $($curatedVisualReviewEntries.Count)")
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Summary JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
+Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
 [void]$lines.Add("")
 [void]$lines.Add("## Start Here")
 [void]$lines.Add("")
@@ -548,6 +429,8 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Project template smoke summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSummaryPath)")
 [void]$lines.Add("- Project template smoke output dir: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeOutputDir)")
 [void]$lines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
+[void]$lines.Add("- Project template schema approval history JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryJson)")
+[void]$lines.Add("- Project template schema approval history Markdown: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryMarkdown)")
 [void]$lines.Add("- Visual gate summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateSummaryPath)")
 [void]$lines.Add("- Visual gate final review: $(Get-DisplayPath -RepoRoot $repoRoot -Path $gateFinalReviewPath)")
 [void]$lines.Add("- README gallery assets: $(Get-DisplayPath -RepoRoot $repoRoot -Path $readmeGalleryAssetsDir)")
@@ -559,6 +442,10 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 if ($curatedVisualReviewEntries.Count -gt 0) {
     foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
         [void]$lines.Add("- $($curatedVisualReview.label) verdict: $(Get-DisplayValue -Value $curatedVisualReview.verdict)")
+        [void]$lines.Add("- $($curatedVisualReview.label) review status: $(Get-DisplayValue -Value $curatedVisualReview.review_status)")
+        [void]$lines.Add("- $($curatedVisualReview.label) reviewed at: $(Get-DisplayValue -Value $curatedVisualReview.reviewed_at)")
+        [void]$lines.Add("- $($curatedVisualReview.label) review method: $(Get-DisplayValue -Value $curatedVisualReview.review_method)")
+        [void]$lines.Add("- $($curatedVisualReview.label) review note: $(Get-DisplayValue -Value $curatedVisualReview.review_note)")
         [void]$lines.Add("- $($curatedVisualReview.label) review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.task_dir)")
         [void]$lines.Add("")
     }

@@ -8,7 +8,8 @@ Runs `export_template_render_plan.ps1`,
 `patch_template_render_plan.ps1`, and
 `render_template_document.ps1` as one direct pipeline so callers can start from
 business JSON and finish with a rendered `.docx` without replaying the same
-validation steps twice.
+validation steps twice. Use `-ExportTargetMode resolved-section-targets` when
+the export step should produce effective section header/footer targets.
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -22,6 +23,8 @@ param(
     [string]$SummaryJson = "",
     [string]$BuildDir = "",
     [string]$Generator = "NMake Makefiles",
+    [ValidateSet("loaded-parts", "resolved-section-targets")]
+    [string]$ExportTargetMode = "loaded-parts",
     [switch]$SkipBuild,
     [string]$PatchPlanOutput = "",
     [string]$DraftPlanOutput = "",
@@ -151,6 +154,7 @@ function Build-OrchestratedRenderSummary {
         [string]$BuildDir,
         [string]$Generator,
         [bool]$SkipBuild,
+        [string]$ExportTargetMode,
         [string]$PatchPlanPath,
         [string]$DraftPlanPath,
         [string]$PatchedPlanPath,
@@ -174,6 +178,7 @@ function Build-OrchestratedRenderSummary {
         build_dir = $BuildDir
         generator = $Generator
         skip_build = $SkipBuild
+        export_target_mode = $ExportTargetMode
         require_complete = $true
         patch_plan = $PatchPlanPath
         draft_plan = $DraftPlanPath
@@ -277,6 +282,7 @@ try {
         -SummaryJson $exportSummaryPath `
         -BuildDir $resolvedBuildDir `
         -Generator $Generator `
+        -TargetMode $ExportTargetMode `
         -SkipBuild:$SkipBuild
     $exportSummaryObject = Read-JsonFileIfPresent -Path $exportSummaryPath
     if ($LASTEXITCODE -ne 0) {
@@ -376,6 +382,7 @@ try {
             -BuildDir $resolvedBuildDir `
             -Generator $Generator `
             -SkipBuild ([bool]$SkipBuild) `
+            -ExportTargetMode $ExportTargetMode `
             -PatchPlanPath $resolvedPatchPlanOutput `
             -DraftPlanPath $resolvedDraftPlanOutput `
             -PatchedPlanPath $resolvedPatchedPlanOutput `

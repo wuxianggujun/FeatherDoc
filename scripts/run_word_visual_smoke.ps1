@@ -4,15 +4,40 @@ param(
     [string]$InputDocx = "",
     [int]$Dpi = 144,
     [switch]$SkipBuild,
+    [switch]$ShowRevisions,
     [switch]$KeepWordOpen,
-    [switch]$VisibleWord
+    [switch]$VisibleWord,
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$ReviewVerdict = "undecided",
+    [string]$ReviewNote = ""
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "word_visual_review_report.ps1")
 
 function Write-Step {
     param([string]$Message)
     Write-Host "[word-smoke] $Message"
+}
+
+function Release-ComReference {
+    param($ComObject)
+
+    if ($null -eq $ComObject) {
+        return
+    }
+
+    try {
+        [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($ComObject)
+    } catch {
+    }
+}
+
+function Invoke-ComCleanup {
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
 }
 
 function Resolve-RepoRoot {
@@ -84,6 +109,74 @@ function Test-PythonImport {
         return $false
     } finally {
         $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
+function Test-WordComAvailability {
+    $word = $null
+    try {
+        $word = New-Object -ComObject Word.Application
+        try {
+            $word.Visible = $false
+            $word.DisplayAlerts = 0
+        } catch {
+        }
+
+        try {
+            $word.Quit()
+        } catch {
+        }
+
+        return $true
+    } catch {
+        return $false
+    } finally {
+        Release-ComReference -ComObject $word
+        Invoke-ComCleanup
+    }
+}
+
+function Assert-WordVisualPrerequisites {
+    param(
+        [string]$DocxPath,
+        [switch]$NeedsBuild,
+        [switch]$HasInputDocx
+    )
+
+    Write-Step "Checking local Word visual prerequisites"
+
+    $issues = New-Object System.Collections.Generic.List[string]
+
+    try {
+        $basePython = Get-BasePython
+        Write-Step "Python found: $basePython"
+    } catch {
+        $issues.Add("Python was not found in PATH.")
+    }
+
+    if ($NeedsBuild) {
+        try {
+            $null = Get-VcvarsPath
+            Write-Step "MSVC developer environment found"
+        } catch {
+            $issues.Add($_.Exception.Message)
+        }
+    }
+
+    if ($HasInputDocx -and
+        -not (Test-Path -LiteralPath $DocxPath)) {
+        $issues.Add("Input DOCX was not found: $DocxPath")
+    }
+
+    if (-not (Test-WordComAvailability)) {
+        $issues.Add(
+            "Microsoft Word COM is unavailable. Install Microsoft Word or run this flow on a Windows host with Office."
+        )
+    }
+
+    if ($issues.Count -gt 0) {
+        $message = $issues -join "`n- "
+        throw "Word visual smoke prerequisites are not satisfied:`n- $message"
     }
 }
 
@@ -177,6 +270,7 @@ function Export-DocxToPdf {
         [string]$DocxPath,
         [string]$PdfPath,
         [bool]$Visible,
+        [bool]$ShowRevisions,
         [bool]$KeepOpen
     )
 
@@ -187,7 +281,28 @@ function Export-DocxToPdf {
         $word.Visible = $Visible
         $word.DisplayAlerts = 0
         $document = $word.Documents.Open($DocxPath, $false, $true)
-        $document.ExportAsFixedFormat($PdfPath, 17)
+        $exportItem = 0
+        if ($ShowRevisions) {
+            $exportItem = 7
+            try {
+                $document.PrintRevisions = $true
+            } catch {
+            }
+            try {
+                $document.ShowRevisions = $true
+            } catch {
+            }
+            try {
+                $view = $document.ActiveWindow.View
+                $view.ShowRevisionsAndComments = $true
+                $view.RevisionsView = 0
+                $view.ShowInsertionsAndDeletions = $true
+                $view.ShowFormatChanges = $false
+                $view.RevisionsMode = 1
+            } catch {
+            }
+        }
+        $document.ExportAsFixedFormat($PdfPath, 17, $false, 0, 0, 1, 1, $exportItem)
         if (-not $KeepOpen) {
             $document.Close([ref]$false)
             $word.Quit()
@@ -206,6 +321,12 @@ function Export-DocxToPdf {
             }
         }
         throw
+    } finally {
+        if (-not $KeepOpen) {
+            Release-ComReference -ComObject $document
+            Release-ComReference -ComObject $word
+            Invoke-ComCleanup
+        }
     }
 }
 
@@ -370,7 +491,6 @@ Artifacts:
 }
 
 $repoRoot = Resolve-RepoRoot
-$vcvarsPath = Get-VcvarsPath
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir
 $evidenceDir = Join-Path $resolvedOutputDir "evidence"
@@ -378,10 +498,13 @@ $pagesDir = Join-Path $evidenceDir "pages"
 $reportDir = Join-Path $resolvedOutputDir "report"
 $repairDir = Join-Path $resolvedOutputDir "repair"
 $docxPath = if ($InputDocx) {
-    (Resolve-Path $InputDocx).Path
+    Resolve-RepoPath -RepoRoot $repoRoot -InputPath $InputDocx
 } else {
     Join-Path $resolvedOutputDir "table_visual_smoke.docx"
 }
+$needsBuild = ([string]::IsNullOrWhiteSpace($InputDocx) -and -not $SkipBuild)
+$hasInputDocx = -not [string]::IsNullOrWhiteSpace($InputDocx)
+Assert-WordVisualPrerequisites -DocxPath $docxPath -NeedsBuild:($needsBuild) -HasInputDocx:($hasInputDocx)
 $pdfPath = Join-Path $resolvedOutputDir "table_visual_smoke.pdf"
 $contactSheetPath = Join-Path $evidenceDir "contact_sheet.png"
 $summaryPath = Join-Path $reportDir "summary.json"
@@ -398,6 +521,7 @@ New-Item -ItemType Directory -Path $repairDir -Force | Out-Null
 
 if (-not $InputDocx) {
     if (-not $SkipBuild) {
+        $vcvarsPath = Get-VcvarsPath
         Write-Step "Configuring dedicated build directory $resolvedBuildDir"
         Invoke-MsvcCommand -VcvarsPath $vcvarsPath -CommandText "cmake -S `"$repoRoot`" -B `"$resolvedBuildDir`" -G `"NMake Makefiles`" -DBUILD_SAMPLES=ON -DBUILD_CLI=OFF -DBUILD_TESTING=OFF"
 
@@ -417,7 +541,7 @@ if (-not $InputDocx) {
 }
 
 Write-Step "Exporting DOCX to PDF through Microsoft Word"
-Export-DocxToPdf -DocxPath $docxPath -PdfPath $pdfPath -Visible $VisibleWord.IsPresent -KeepOpen $KeepWordOpen.IsPresent
+Export-DocxToPdf -DocxPath $docxPath -PdfPath $pdfPath -Visible $VisibleWord.IsPresent -ShowRevisions $ShowRevisions.IsPresent -KeepOpen $KeepWordOpen.IsPresent
 
 $renderPython = Ensure-RenderPython -RepoRoot $repoRoot
 Write-Step "Rendering PDF pages to PNG"
@@ -435,60 +559,37 @@ $summary = Get-Content -Path $summaryPath -Raw | ConvertFrom-Json
 $pdfPageCount = Get-PdfPageCount -PythonCommand $renderPython -PdfPath $pdfPath
 Assert-RenderedEvidence -Summary $summary -PagesDir $pagesDir -ContactSheetPath $contactSheetPath -PdfPageCount $pdfPageCount
 $customInput = [bool]$InputDocx
-$reviewResult = [ordered]@{
-    document_path = $docxPath
-    pdf_path = $pdfPath
-    evidence_dir = $evidenceDir
-    report_dir = $reportDir
-    repair_dir = $repairDir
-    generated_at = (Get-Date).ToString("s")
-    status = "pending_review"
-    verdict = "undecided"
-    page_count = $summary.page_count
-    evidence = [ordered]@{
-        summary_json = $summaryPath
-        checklist = $checklistPath
-        contact_sheet = $contactSheetPath
-        page_images = @($summary.pages)
-    }
-    findings = @()
-    notes = @(Get-ReviewNotes -CustomInput:$customInput)
+$generatedAt = (Get-Date).ToString("s")
+$reviewNotes = @(Get-ReviewNotes -CustomInput:$customInput)
+if ($ShowRevisions) {
+    $reviewNotes += "ShowRevisions was enabled, so the Word PDF/PNG evidence should display tracked insertion and deletion markup instead of only the final accepted text."
 }
+$reviewResult = New-WordVisualReviewResult `
+    -DocumentPath $docxPath `
+    -PdfPath $pdfPath `
+    -EvidenceDir $evidenceDir `
+    -ReportDir $reportDir `
+    -RepairDir $repairDir `
+    -GeneratedAt $generatedAt `
+    -ReviewVerdict $ReviewVerdict `
+    -PageCount $summary.page_count `
+    -SummaryPath $summaryPath `
+    -ChecklistPath $checklistPath `
+    -ContactSheetPath $contactSheetPath `
+    -PageImages @($summary.pages) `
+    -Notes $reviewNotes `
+    -ReviewNote $ReviewNote
 ($reviewResult | ConvertTo-Json -Depth 6) | Set-Content -Path $reviewResultPath -Encoding UTF8
 
-$finalReview = @"
-# Word Visual Review
-
-- Document: $docxPath
-- PDF: $pdfPath
-- Evidence directory: $evidenceDir
-- Report directory: $reportDir
-- Repair directory: $repairDir
-- Generated at: $(Get-Date -Format s)
-- Current status: pending_review
-- Verdict: pending_manual_review
-
-## Summary
-
-- Verdict:
-- Notes:
-
-## Findings
-
-- Page:
-  Element type:
-  Description:
-  Severity:
-  Screenshot evidence:
-  Confidence:
-
-## Repair Decision
-
-- Enter repair loop:
-- Suggested fix:
-- Current best candidate:
-- Notes:
-"@
+$finalReview = New-WordVisualFinalReviewMarkdown `
+    -DocumentPath $docxPath `
+    -PdfPath $pdfPath `
+    -EvidenceDir $evidenceDir `
+    -ReportDir $reportDir `
+    -RepairDir $repairDir `
+    -GeneratedAt $generatedAt `
+    -ReviewVerdict $ReviewVerdict `
+    -ReviewNote $ReviewNote
 $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
 $checklist = Get-ReviewChecklist -CustomInput:$customInput `

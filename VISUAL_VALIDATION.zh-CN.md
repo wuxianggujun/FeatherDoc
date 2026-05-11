@@ -31,6 +31,13 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_smo
 - `evidence\pages\*.png`
 - `report\summary.json`
 - `report\review_checklist.md`
+- `report\review_result.json`
+- `report\final_review.md`
+
+如果同一轮已经完成截图审查，可以追加 `-ReviewVerdict pass`（或 `fail` /
+`undetermined`）和 `-ReviewNote`，让报告直接写入机器可读的
+`status=reviewed`、`verdict`、`reviewed_at` 与
+`review_method=operator_supplied`。
 
 - `fixed-grid-aggregate-contact-sheet.png`
 
@@ -65,9 +72,35 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_fixed_grid_merg
 ```powershell
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1
 
+# 同一条 gate，把本轮 smoke、fixed-grid、section/page 与 curated 结论写进报告。
+powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `
+    -SmokeReviewVerdict pass `
+    -SmokeReviewNote "Smoke contact sheet reviewed." `
+    -FixedGridReviewVerdict pass `
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed." `
+    -SectionPageSetupReviewVerdict pass `
+    -SectionPageSetupReviewNote "Section page setup contact sheet reviewed." `
+    -PageNumberFieldsReviewVerdict pass `
+    -PageNumberFieldsReviewNote "Page number fields contact sheet reviewed." `
+    -CuratedVisualReviewVerdict pass `
+    -CuratedVisualReviewNote "Curated visual bundles reviewed."
+
 # 同一条 gate，但顺手刷新 docs/assets/readme/ 里的展示图。
 powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_word_visual_release_gate.ps1 `
     -RefreshReadmeAssets
+
+# 完整 release-preflight 也接受同一组 visual verdict 透传参数。
+powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\run_release_candidate_checks.ps1 `
+    -SmokeReviewVerdict pass `
+    -SmokeReviewNote "Smoke contact sheet reviewed." `
+    -FixedGridReviewVerdict pass `
+    -FixedGridReviewNote "Fixed-grid contact sheet reviewed." `
+    -SectionPageSetupReviewVerdict pass `
+    -SectionPageSetupReviewNote "Section page setup contact sheet reviewed." `
+    -PageNumberFieldsReviewVerdict pass `
+    -PageNumberFieldsReviewNote "Page number fields contact sheet reviewed." `
+    -CuratedVisualReviewVerdict pass `
+    -CuratedVisualReviewNote "Curated visual bundles reviewed."
 ```
 
 这个总控脚本会重新生成 smoke 截图、执行 fixed-grid quartet，并同时准备
@@ -90,11 +123,17 @@ powershell -ExecutionPolicy Bypass -File <repo-root>\scripts\sync_latest_visual_
 
 如果你跑的是完整 release-preflight，并且还想把 verdict 同步回
 `output/release-candidate-checks/report/summary.json`，同时重刷
-`START_HERE.md`、`release_handoff.md`、`release_body.zh-CN.md` 和
-`release_summary.zh-CN.md`，这条默认命令也会一并刷新检测到的 release bundle。
+`START_HERE.md`、`report/final_review.md`、`release_handoff.md`、
+`release_body.zh-CN.md` 和 `release_summary.zh-CN.md`，这条默认命令也会一并刷新检测到的 release bundle。
+同步过程会把 `review_result.json` 里的截图审查来源信息写回 gate summary、
+release summary、gate final review 和 release final review；追加
+`-RefreshReleaseBundle` 后，还会重刷 `START_HERE.md`、`release_handoff.md`、
+`ARTIFACT_GUIDE.md` 与 `REVIEWER_CHECKLIST.md`，并在这些内部交接文档里展示
+`reviewed_at` / `review_method`。
 刷新后的入口页除了总 `visual verdict` 外，还会同步显示
 `section page setup`、`page number fields` 和每个 curated visual
-regression bundle 的 verdict。
+regression bundle 的 verdict。公开的 `release_body.zh-CN.md` 仍保持简洁，
+不会暴露自由文本 review notes 或 operator provenance。
 只有在你需要手动覆盖推断路径时，才继续执行下面这条显式命令：
 
 ```powershell

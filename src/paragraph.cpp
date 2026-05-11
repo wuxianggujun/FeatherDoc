@@ -1,6 +1,11 @@
 #include "featherdoc.hpp"
 #include "xml_helpers.hpp"
 
+#include <cstdlib>
+#include <limits>
+#include <string>
+#include <string_view>
+
 namespace featherdoc {
 namespace {
 
@@ -17,6 +22,8 @@ auto read_on_off_value(pugi::xml_node node) -> std::optional<bool> {
     const auto value = std::string_view{attribute.value()};
     return value != "0" && value != "false" && value != "off";
 }
+
+void remove_empty_paragraph_properties(pugi::xml_node paragraph);
 
 auto ensure_paragraph_properties_node(pugi::xml_node paragraph) -> pugi::xml_node {
     if (paragraph == pugi::xml_node{}) {
@@ -46,6 +53,180 @@ auto ensure_paragraph_bidi_node(pugi::xml_node paragraph_properties) -> pugi::xm
     }
 
     return paragraph_properties.append_child("w:bidi");
+}
+
+auto ensure_paragraph_alignment_node(pugi::xml_node paragraph_properties)
+    -> pugi::xml_node {
+    if (paragraph_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto alignment = paragraph_properties.child("w:jc");
+    if (alignment != pugi::xml_node{}) {
+        return alignment;
+    }
+
+    return paragraph_properties.append_child("w:jc");
+}
+
+auto ensure_paragraph_indentation_node(pugi::xml_node paragraph_properties)
+    -> pugi::xml_node {
+    if (paragraph_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto indentation = paragraph_properties.child("w:ind");
+    if (indentation != pugi::xml_node{}) {
+        return indentation;
+    }
+
+    if (const auto alignment = paragraph_properties.child("w:jc");
+        alignment != pugi::xml_node{}) {
+        return paragraph_properties.insert_child_before("w:ind", alignment);
+    }
+
+    return paragraph_properties.append_child("w:ind");
+}
+
+auto parse_u32_attribute_value(const char *text)
+    -> std::optional<std::uint32_t> {
+    if (text == nullptr || *text == '\0') {
+        return std::nullopt;
+    }
+
+    char *end = nullptr;
+    const auto value = std::strtoul(text, &end, 10);
+    if (end == text || *end != '\0' ||
+        value > static_cast<unsigned long>(
+                    std::numeric_limits<std::uint32_t>::max())) {
+        return std::nullopt;
+    }
+
+    return static_cast<std::uint32_t>(value);
+}
+
+auto read_paragraph_alignment_node(pugi::xml_node node)
+    -> std::optional<featherdoc::paragraph_alignment> {
+    const auto value = std::string_view{node.attribute("w:val").value()};
+    if (value == "left" || value == "start") {
+        return featherdoc::paragraph_alignment::left;
+    }
+    if (value == "center") {
+        return featherdoc::paragraph_alignment::center;
+    }
+    if (value == "right" || value == "end") {
+        return featherdoc::paragraph_alignment::right;
+    }
+    if (value == "both" || value == "mediumKashida" ||
+        value == "highKashida" || value == "lowKashida") {
+        return featherdoc::paragraph_alignment::justified;
+    }
+    if (value == "distribute") {
+        return featherdoc::paragraph_alignment::distribute;
+    }
+
+    return std::nullopt;
+}
+
+auto paragraph_alignment_value(featherdoc::paragraph_alignment alignment)
+    -> const char * {
+    switch (alignment) {
+    case featherdoc::paragraph_alignment::left:
+        return "left";
+    case featherdoc::paragraph_alignment::center:
+        return "center";
+    case featherdoc::paragraph_alignment::right:
+        return "right";
+    case featherdoc::paragraph_alignment::justified:
+        return "both";
+    case featherdoc::paragraph_alignment::distribute:
+        return "distribute";
+    }
+
+    return "left";
+}
+
+void set_attribute_value(pugi::xml_node node, const char *attribute_name,
+                         const char *value) {
+    auto attribute = node.attribute(attribute_name);
+    if (attribute == pugi::xml_attribute{}) {
+        attribute = node.append_attribute(attribute_name);
+    }
+    attribute.set_value(value);
+}
+
+void remove_empty_paragraph_indentation(pugi::xml_node paragraph) {
+    if (paragraph == pugi::xml_node{}) {
+        return;
+    }
+
+    auto paragraph_properties = paragraph.child("w:pPr");
+    if (paragraph_properties == pugi::xml_node{}) {
+        return;
+    }
+
+    auto indentation = paragraph_properties.child("w:ind");
+    if (indentation != pugi::xml_node{} &&
+        indentation.first_child() == pugi::xml_node{} &&
+        indentation.first_attribute() == pugi::xml_attribute{}) {
+        paragraph_properties.remove_child(indentation);
+    }
+
+    remove_empty_paragraph_properties(paragraph);
+}
+
+auto paragraph_indentation_attribute(pugi::xml_node paragraph,
+                                     const char *attribute_name)
+    -> std::optional<std::uint32_t> {
+    return parse_u32_attribute_value(
+        paragraph.child("w:pPr").child("w:ind").attribute(attribute_name).value());
+}
+
+bool set_paragraph_indentation_attribute(pugi::xml_node paragraph,
+                                         const char *attribute_name,
+                                         std::uint32_t indent_twips) {
+    if (paragraph == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto paragraph_properties = ensure_paragraph_properties_node(paragraph);
+    if (paragraph_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto indentation = ensure_paragraph_indentation_node(paragraph_properties);
+    if (indentation == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto value = std::to_string(indent_twips);
+    set_attribute_value(indentation, attribute_name, value.c_str());
+    if (std::string_view{attribute_name} == "w:firstLine") {
+        indentation.remove_attribute("w:hanging");
+    } else if (std::string_view{attribute_name} == "w:hanging") {
+        indentation.remove_attribute("w:firstLine");
+    }
+    return true;
+}
+
+bool clear_paragraph_indentation_attribute(pugi::xml_node paragraph,
+                                           const char *attribute_name) {
+    if (paragraph == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto paragraph_properties = paragraph.child("w:pPr");
+    if (paragraph_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    auto indentation = paragraph_properties.child("w:ind");
+    if (indentation != pugi::xml_node{}) {
+        indentation.remove_attribute(attribute_name);
+    }
+
+    remove_empty_paragraph_indentation(paragraph);
+    return true;
 }
 
 void set_on_off_value(pugi::xml_node node, bool enabled) {
@@ -184,6 +365,103 @@ bool Paragraph::clear_bidi() const {
 
     remove_empty_paragraph_properties(this->current);
     return true;
+}
+
+std::optional<featherdoc::paragraph_alignment> Paragraph::alignment() const {
+    return read_paragraph_alignment_node(
+        this->current.child("w:pPr").child("w:jc"));
+}
+
+bool Paragraph::set_alignment(featherdoc::paragraph_alignment alignment) const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto paragraph_properties = ensure_paragraph_properties_node(this->current);
+    if (paragraph_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto alignment_node =
+        ensure_paragraph_alignment_node(paragraph_properties);
+    if (alignment_node == pugi::xml_node{}) {
+        return false;
+    }
+
+    set_attribute_value(alignment_node, "w:val",
+                        paragraph_alignment_value(alignment));
+    return true;
+}
+
+bool Paragraph::clear_alignment() const {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto paragraph_properties = this->current.child("w:pPr");
+    if (paragraph_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    const auto alignment = paragraph_properties.child("w:jc");
+    if (alignment != pugi::xml_node{}) {
+        paragraph_properties.remove_child(alignment);
+    }
+
+    remove_empty_paragraph_properties(this->current);
+    return true;
+}
+
+std::optional<std::uint32_t> Paragraph::indent_left_twips() const {
+    return paragraph_indentation_attribute(this->current, "w:left");
+}
+
+std::optional<std::uint32_t> Paragraph::indent_right_twips() const {
+    return paragraph_indentation_attribute(this->current, "w:right");
+}
+
+std::optional<std::uint32_t> Paragraph::first_line_indent_twips() const {
+    return paragraph_indentation_attribute(this->current, "w:firstLine");
+}
+
+std::optional<std::uint32_t> Paragraph::hanging_indent_twips() const {
+    return paragraph_indentation_attribute(this->current, "w:hanging");
+}
+
+bool Paragraph::set_indent_left_twips(std::uint32_t indent_twips) const {
+    return set_paragraph_indentation_attribute(this->current, "w:left",
+                                               indent_twips);
+}
+
+bool Paragraph::set_indent_right_twips(std::uint32_t indent_twips) const {
+    return set_paragraph_indentation_attribute(this->current, "w:right",
+                                               indent_twips);
+}
+
+bool Paragraph::set_first_line_indent_twips(std::uint32_t indent_twips) const {
+    return set_paragraph_indentation_attribute(this->current, "w:firstLine",
+                                               indent_twips);
+}
+
+bool Paragraph::set_hanging_indent_twips(std::uint32_t indent_twips) const {
+    return set_paragraph_indentation_attribute(this->current, "w:hanging",
+                                               indent_twips);
+}
+
+bool Paragraph::clear_indent_left() const {
+    return clear_paragraph_indentation_attribute(this->current, "w:left");
+}
+
+bool Paragraph::clear_indent_right() const {
+    return clear_paragraph_indentation_attribute(this->current, "w:right");
+}
+
+bool Paragraph::clear_first_line_indent() const {
+    return clear_paragraph_indentation_attribute(this->current, "w:firstLine");
+}
+
+bool Paragraph::clear_hanging_indent() const {
+    return clear_paragraph_indentation_attribute(this->current, "w:hanging");
 }
 
 bool Paragraph::set_text(const std::string &text) const { return this->set_text(text.c_str()); }

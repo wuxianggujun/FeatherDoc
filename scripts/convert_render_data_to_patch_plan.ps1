@@ -352,6 +352,130 @@ function Get-MappingSourcePath {
     return $sourcePath
 }
 
+function Convert-ToNonNegativeInt {
+    param(
+        [string]$Text,
+        [string]$Label
+    )
+
+    $value = 0
+    if (-not [int]::TryParse($Text, [ref]$value) -or $value -lt 0) {
+        throw "$Label must be a non-negative integer."
+    }
+
+    return $value
+}
+
+function Convert-ToSupportedSelectorKind {
+    param(
+        [string]$Text,
+        [string]$Label
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return ""
+    }
+
+    $supportedKinds = @("default", "first", "even")
+    if ($supportedKinds -notcontains $Text) {
+        throw "$Label uses unsupported kind '$Text'."
+    }
+
+    return $Text
+}
+
+function Copy-MappingTargetSelector {
+    param(
+        $MappingEntry,
+        [string]$Category,
+        $TargetEntry
+    )
+
+    $part = Get-OptionalObjectPropertyValue -Object $MappingEntry -Name "part"
+    $indexValue = Get-OptionalObjectPropertyValue -Object $MappingEntry -Name "index"
+    $sectionValue = Get-OptionalObjectPropertyValue -Object $MappingEntry -Name "section"
+    $kindValue = Get-OptionalObjectPropertyValue -Object $MappingEntry -Name "kind"
+
+    if ([string]::IsNullOrWhiteSpace($part)) {
+        if (-not [string]::IsNullOrWhiteSpace($indexValue) -or
+            -not [string]::IsNullOrWhiteSpace($sectionValue) -or
+            -not [string]::IsNullOrWhiteSpace($kindValue)) {
+            throw "$Category entries that set 'index', 'section', or 'kind' must also set 'part'."
+        }
+
+        return
+    }
+
+    switch ($part) {
+        "body" {
+            if (-not [string]::IsNullOrWhiteSpace($indexValue) -or
+                -not [string]::IsNullOrWhiteSpace($sectionValue) -or
+                -not [string]::IsNullOrWhiteSpace($kindValue)) {
+                throw "$Category entries targeting 'body' must not set 'index', 'section', or 'kind'."
+            }
+
+            $TargetEntry.part = "body"
+        }
+        "header" {
+            if ([string]::IsNullOrWhiteSpace($indexValue)) {
+                throw "$Category entries targeting 'header' must provide 'index'."
+            }
+            if (-not [string]::IsNullOrWhiteSpace($sectionValue) -or
+                -not [string]::IsNullOrWhiteSpace($kindValue)) {
+                throw "$Category entries targeting 'header' must not set 'section' or 'kind'."
+            }
+
+            $TargetEntry.part = "header"
+            $TargetEntry.index = Convert-ToNonNegativeInt -Text $indexValue -Label "$Category index"
+        }
+        "footer" {
+            if ([string]::IsNullOrWhiteSpace($indexValue)) {
+                throw "$Category entries targeting 'footer' must provide 'index'."
+            }
+            if (-not [string]::IsNullOrWhiteSpace($sectionValue) -or
+                -not [string]::IsNullOrWhiteSpace($kindValue)) {
+                throw "$Category entries targeting 'footer' must not set 'section' or 'kind'."
+            }
+
+            $TargetEntry.part = "footer"
+            $TargetEntry.index = Convert-ToNonNegativeInt -Text $indexValue -Label "$Category index"
+        }
+        "section-header" {
+            if ([string]::IsNullOrWhiteSpace($sectionValue)) {
+                throw "$Category entries targeting 'section-header' must provide 'section'."
+            }
+            if (-not [string]::IsNullOrWhiteSpace($indexValue)) {
+                throw "$Category entries targeting 'section-header' must not set 'index'."
+            }
+
+            $TargetEntry.part = "section-header"
+            $TargetEntry.section = Convert-ToNonNegativeInt -Text $sectionValue -Label "$Category section"
+            $kind = Convert-ToSupportedSelectorKind -Text $kindValue -Label "$Category entries targeting 'section-header'"
+            if (-not [string]::IsNullOrWhiteSpace($kind)) {
+                $TargetEntry.kind = $kind
+            }
+        }
+        "section-footer" {
+            if ([string]::IsNullOrWhiteSpace($sectionValue)) {
+                throw "$Category entries targeting 'section-footer' must provide 'section'."
+            }
+            if (-not [string]::IsNullOrWhiteSpace($indexValue)) {
+                throw "$Category entries targeting 'section-footer' must not set 'index'."
+            }
+
+            $TargetEntry.part = "section-footer"
+            $TargetEntry.section = Convert-ToNonNegativeInt -Text $sectionValue -Label "$Category section"
+            $kind = Convert-ToSupportedSelectorKind -Text $kindValue -Label "$Category entries targeting 'section-footer'"
+            if (-not [string]::IsNullOrWhiteSpace($kind)) {
+                $TargetEntry.kind = $kind
+            }
+        }
+        default {
+            throw "$Category entry uses unsupported part '$part'."
+        }
+    }
+}
+
 function New-RenderPlanEntryBase {
     param(
         $MappingEntry,
@@ -362,16 +486,10 @@ function New-RenderPlanEntryBase {
         bookmark_name = Get-MappingBookmarkName -Item $MappingEntry -Category $Category
     }
 
-    foreach ($propertyName in @("part", "index", "section", "kind")) {
-        $value = Get-OptionalObjectPropertyObject -Object $MappingEntry -Name $propertyName
-        if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
-            if ($propertyName -eq "index" -or $propertyName -eq "section") {
-                $entry[$propertyName] = [int]$value
-            } else {
-                $entry[$propertyName] = [string]$value
-            }
-        }
-    }
+    Copy-MappingTargetSelector `
+        -MappingEntry $MappingEntry `
+        -Category $Category `
+        -TargetEntry $entry
 
     return $entry
 }
@@ -455,6 +573,7 @@ function Build-ConversionSummary {
         data_path = $DataPath
         mapping_path = $MappingPath
         output_patch = $OutputPatch
+        output_patch_path = $OutputPatch
         summary_json = $SummaryJsonPath
         patch_counts = [ordered]@{
             bookmark_text = @(Get-OptionalObjectArrayProperty -Object $Patch -Name "bookmark_text").Count

@@ -677,6 +677,73 @@ auto validate_numbering_definition(const featherdoc::numbering_definition &defin
     return true;
 }
 
+auto validate_numbering_catalog_definition(
+    const featherdoc::numbering_catalog_definition &catalog_definition,
+    std::string &detail) -> bool {
+    if (catalog_definition.definition.name.empty()) {
+        detail = "numbering catalog definition name must not be empty";
+        return false;
+    }
+
+    if (catalog_definition.definition.levels.empty()) {
+        detail = "numbering catalog definition must contain at least one level";
+        return false;
+    }
+
+    std::unordered_set<std::uint32_t> seen_levels;
+    for (const auto &level_definition : catalog_definition.definition.levels) {
+        if (level_definition.start == 0U) {
+            detail = "numbering catalog level start must be greater than 0";
+            return false;
+        }
+
+        if (level_definition.level > max_list_level) {
+            detail = "numbering catalog level must be in the range [0, 8]";
+            return false;
+        }
+
+        if (level_definition.text_pattern.empty()) {
+            detail = "numbering catalog level text_pattern must not be empty";
+            return false;
+        }
+
+        if (!seen_levels.insert(level_definition.level).second) {
+            detail = "numbering catalog definition levels must be unique";
+            return false;
+        }
+    }
+
+    for (const auto &instance : catalog_definition.instances) {
+        std::unordered_set<std::uint32_t> seen_override_levels;
+        for (const auto &level_override : instance.level_overrides) {
+            if (level_override.level > max_list_level) {
+                detail = "numbering catalog override level must be in the range [0, 8]";
+                return false;
+            }
+            if (!seen_override_levels.insert(level_override.level).second) {
+                detail = "numbering catalog override levels must be unique per instance";
+                return false;
+            }
+            if (level_override.start_override.has_value() &&
+                *level_override.start_override == 0U) {
+                detail = "numbering catalog start override must be greater than 0";
+                return false;
+            }
+            if (level_override.level_definition.has_value()) {
+                const auto &definition = *level_override.level_definition;
+                if (definition.start == 0U || definition.level > max_list_level ||
+                    definition.text_pattern.empty()) {
+                    detail = "numbering catalog override level definition is invalid";
+                    return false;
+                }
+            }
+        }
+    }
+
+    detail.clear();
+    return true;
+}
+
 auto ensure_managed_abstract_numbering(pugi::xml_node numbering_root, featherdoc::list_kind kind)
     -> std::optional<std::uint32_t> {
     const auto managed_name = list_name_for(kind);
@@ -793,6 +860,65 @@ auto append_numbering_instance_for_abstract(pugi::xml_node numbering_root,
             return std::nullopt;
         }
         ensure_attribute_value(start_override, "w:val", "1");
+    }
+
+    return num_id;
+}
+
+auto append_numbering_level_override(
+    pugi::xml_node numbering_instance,
+    const featherdoc::numbering_level_override_summary &override_summary) -> bool {
+    if (override_summary.level > max_list_level) {
+        return false;
+    }
+
+    auto level_override = numbering_instance.append_child("w:lvlOverride");
+    if (level_override == pugi::xml_node{}) {
+        return false;
+    }
+    ensure_attribute_value(level_override, "w:ilvl",
+                           std::to_string(override_summary.level));
+
+    if (override_summary.start_override.has_value()) {
+        auto start_override = level_override.append_child("w:startOverride");
+        if (start_override == pugi::xml_node{}) {
+            return false;
+        }
+        ensure_attribute_value(start_override, "w:val",
+                               std::to_string(*override_summary.start_override));
+    }
+
+    if (override_summary.level_definition.has_value() &&
+        !append_custom_level_definition(level_override,
+                                        *override_summary.level_definition)) {
+        return false;
+    }
+
+    return true;
+}
+
+auto append_numbering_instance_for_abstract(
+    pugi::xml_node numbering_root, std::uint32_t abstract_num_id,
+    const std::vector<featherdoc::numbering_level_override_summary> &level_overrides)
+    -> std::optional<std::uint32_t> {
+    const auto num_id = max_numbering_id(numbering_root, "w:num", "w:numId") + 1U;
+    auto numbering_instance = numbering_root.append_child("w:num");
+    if (numbering_instance == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    ensure_attribute_value(numbering_instance, "w:numId", std::to_string(num_id));
+
+    auto abstract_num_id_node = numbering_instance.append_child("w:abstractNumId");
+    if (abstract_num_id_node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+    ensure_attribute_value(abstract_num_id_node, "w:val", std::to_string(abstract_num_id));
+
+    for (const auto &level_override : sort_numbering_level_overrides(level_overrides)) {
+        if (!append_numbering_level_override(numbering_instance, level_override)) {
+            return std::nullopt;
+        }
     }
 
     return num_id;
@@ -1352,6 +1478,115 @@ Document::find_numbering_instance(std::uint32_t instance_id) {
         return std::nullopt;
     }
 
+    this->last_error_info.clear();
+    return summary;
+}
+
+featherdoc::numbering_catalog Document::export_numbering_catalog() {
+    auto catalog = featherdoc::numbering_catalog{};
+    const auto summaries = this->list_numbering_definitions();
+    if (this->last_error()) {
+        return catalog;
+    }
+
+    catalog.definitions.reserve(summaries.size());
+    for (const auto &summary : summaries) {
+        auto catalog_definition = featherdoc::numbering_catalog_definition{};
+        catalog_definition.definition.name = summary.name;
+        catalog_definition.definition.levels = summary.levels;
+        catalog_definition.instances = summary.instances;
+        catalog.definitions.push_back(std::move(catalog_definition));
+    }
+
+    this->last_error_info.clear();
+    return catalog;
+}
+
+featherdoc::numbering_catalog_import_summary Document::import_numbering_catalog(
+    const featherdoc::numbering_catalog &catalog) {
+    auto summary = featherdoc::numbering_catalog_import_summary{};
+    summary.input_definition_count = catalog.definitions.size();
+
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before importing numbering catalogs",
+                       std::string{numbering_xml_entry});
+        return summary;
+    }
+
+    std::unordered_set<std::string> seen_names;
+    for (const auto &catalog_definition : catalog.definitions) {
+        auto validation_detail = std::string{};
+        if (!validate_numbering_catalog_definition(catalog_definition,
+                                                   validation_detail)) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           std::move(validation_detail),
+                           std::string{numbering_xml_entry});
+            return summary;
+        }
+        if (!seen_names.insert(catalog_definition.definition.name).second) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "numbering catalog definition names must be unique",
+                           std::string{numbering_xml_entry});
+            return summary;
+        }
+    }
+
+    if (catalog.definitions.empty()) {
+        this->last_error_info.clear();
+        return summary;
+    }
+
+    if (const auto error = this->ensure_numbering_part_attached()) {
+        return summary;
+    }
+
+    auto numbering_root = this->numbering.child("w:numbering");
+    if (numbering_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       document_errc::numbering_xml_parse_failed,
+                       "word/numbering.xml does not contain the expected w:numbering root",
+                       std::string{numbering_xml_entry});
+        return summary;
+    }
+
+    summary.definitions.reserve(catalog.definitions.size());
+    for (const auto &catalog_definition : catalog.definitions) {
+        const auto abstract_num_id = ensure_custom_abstract_numbering(
+            numbering_root, catalog_definition.definition);
+        if (!abstract_num_id.has_value()) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to import numbering catalog definition",
+                           std::string{numbering_xml_entry});
+            return summary;
+        }
+
+        auto imported_definition = featherdoc::imported_numbering_definition_summary{};
+        imported_definition.name = catalog_definition.definition.name;
+        imported_definition.definition_id = *abstract_num_id;
+
+        for (const auto &instance : catalog_definition.instances) {
+            const auto num_id = append_numbering_instance_for_abstract(
+                numbering_root, *abstract_num_id, instance.level_overrides);
+            if (!num_id.has_value()) {
+                set_last_error(this->last_error_info,
+                               std::make_error_code(std::errc::not_enough_memory),
+                               "failed to import numbering catalog instance",
+                               std::string{numbering_xml_entry});
+                return summary;
+            }
+            imported_definition.instance_ids.push_back(*num_id);
+            ++summary.imported_instance_count;
+        }
+
+        summary.definitions.push_back(std::move(imported_definition));
+        ++summary.imported_definition_count;
+    }
+
+    this->numbering_dirty = true;
     this->last_error_info.clear();
     return summary;
 }

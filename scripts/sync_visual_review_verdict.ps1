@@ -145,6 +145,100 @@ function Set-PropertyValue {
     }
 }
 
+function Remove-PropertyValue {
+    param(
+        [Parameter(Mandatory = $true)]$Object,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -ne $property) {
+        $Object.PSObject.Properties.Remove($Name)
+    }
+}
+
+function Get-CompleteReviewTaskSummary {
+    param([AllowNull()]$Summary)
+
+    if ($null -eq $Summary) {
+        return $null
+    }
+
+    $totalCount = Get-OptionalPropertyValue -Object $Summary -Name "total_count"
+    $standardCount = Get-OptionalPropertyValue -Object $Summary -Name "standard_count"
+    $curatedCount = Get-OptionalPropertyValue -Object $Summary -Name "curated_count"
+    if ([string]::IsNullOrWhiteSpace([string]$totalCount) -or
+        [string]::IsNullOrWhiteSpace([string]$standardCount) -or
+        [string]::IsNullOrWhiteSpace([string]$curatedCount)) {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        total_count = $totalCount
+        standard_count = $standardCount
+        curated_count = $curatedCount
+    }
+}
+
+function Convert-ReviewTimestamp {
+    param([AllowNull()]$Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
+function Get-DisplayValue {
+    param([AllowNull()]$Value)
+
+    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+        return "(not available)"
+    }
+
+    return [string]$Value
+}
+
+function Set-GateFlowReviewMetadata {
+    param(
+        [AllowNull()]$FlowInfo,
+        [AllowNull()]$Review
+    )
+
+    if ($null -eq $FlowInfo -or $null -eq $Review) {
+        return
+    }
+
+    Set-PropertyValue -Object $FlowInfo -Name "review_status" -Value $Review.status
+    Set-PropertyValue -Object $FlowInfo -Name "review_verdict" -Value $Review.verdict
+    Set-PropertyValue -Object $FlowInfo -Name "reviewed_at" -Value $Review.reviewed_at
+    Set-PropertyValue -Object $FlowInfo -Name "review_method" -Value $Review.review_method
+    Set-PropertyValue -Object $FlowInfo -Name "review_note" -Value $Review.review_note
+}
+
+function Set-ReleaseVisualReviewMetadata {
+    param(
+        [Parameter(Mandatory = $true)]$VisualGateStep,
+        [string]$Prefix,
+        [AllowNull()]$Review
+    )
+
+    if ($null -eq $Review) {
+        return
+    }
+
+    Set-PropertyValue -Object $VisualGateStep -Name ("{0}_review_status" -f $Prefix) -Value $Review.status
+    Set-PropertyValue -Object $VisualGateStep -Name ("{0}_verdict" -f $Prefix) -Value $Review.verdict
+    Set-PropertyValue -Object $VisualGateStep -Name ("{0}_reviewed_at" -f $Prefix) -Value $Review.reviewed_at
+    Set-PropertyValue -Object $VisualGateStep -Name ("{0}_review_method" -f $Prefix) -Value $Review.review_method
+    Set-PropertyValue -Object $VisualGateStep -Name ("{0}_review_note" -f $Prefix) -Value $Review.review_note
+}
+
 function Normalize-Verdict {
     param([string]$Value)
 
@@ -197,6 +291,9 @@ function Read-TaskReview {
         final_review_path = $paths.final_review_path
         status = "missing"
         verdict = "undecided"
+        reviewed_at = ""
+        review_method = ""
+        review_note = ""
         findings_count = 0
     }
 
@@ -208,6 +305,9 @@ function Read-TaskReview {
     $review = Get-Content -Raw -LiteralPath $result.review_result_path | ConvertFrom-Json
     $result.status = Get-OptionalPropertyValue -Object $review -Name "status"
     $result.verdict = Normalize-Verdict -Value (Get-OptionalPropertyValue -Object $review -Name "verdict")
+    $result.reviewed_at = Convert-ReviewTimestamp -Value (Get-OptionalPropertyObject -Object $review -Name "reviewed_at")
+    $result.review_method = Get-OptionalPropertyValue -Object $review -Name "review_method"
+    $result.review_note = Get-OptionalPropertyValue -Object $review -Name "review_note"
 
     $findings = Get-OptionalPropertyObject -Object $review -Name "findings"
     if ($null -ne $findings) {
@@ -254,6 +354,36 @@ function Get-OverallVisualVerdict {
     }
 
     return "pending_manual_review"
+}
+
+
+function New-GateReleaseSummaryDiscoveryMarkdown {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()]$GateSummary
+    )
+
+    $discovery = Get-OptionalPropertyObject -Object $GateSummary -Name "release_summary_discovery"
+    if ($null -eq $discovery) {
+        return ""
+    }
+
+    $selectedSummaryPath = Get-OptionalPropertyValue -Object $discovery -Name "selected_summary_path"
+    if ([string]::IsNullOrWhiteSpace($selectedSummaryPath)) {
+        $selectedSummaryPath = Get-OptionalPropertyValue -Object $GateSummary -Name "selected_release_summary_path"
+    }
+
+    $lines = New-Object 'System.Collections.Generic.List[string]'
+    [void]$lines.Add("## Release summary discovery")
+    [void]$lines.Add("")
+    [void]$lines.Add("- Mode: $(Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $discovery -Name 'mode'))")
+    [void]$lines.Add("- Reason: $(Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $discovery -Name 'reason'))")
+    [void]$lines.Add("- Selected release summary: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $selectedSummaryPath)")
+    [void]$lines.Add("- Output search root: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $discovery -Name 'output_search_root'))")
+    [void]$lines.Add("- Release bundle refresh requested: $(Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $discovery -Name 'release_bundle_refresh_requested'))")
+    [void]$lines.Add("")
+
+    return ($lines -join [Environment]::NewLine)
 }
 
 function New-GateFinalReviewContent {
@@ -337,6 +467,9 @@ function New-GateFinalReviewContent {
             "- Document task id: $(Get-OptionalPropertyValue -Object $documentTask -Name 'task_id')"
             "- Document task dir: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $documentTask -Name 'task_dir'))"
             "- Document verdict: $($documentReview.verdict)"
+            "- Document review status: $(Get-DisplayValue -Value $documentReview.status)"
+            "- Document reviewed at: $(Get-DisplayValue -Value $documentReview.reviewed_at)"
+            "- Document review method: $(Get-DisplayValue -Value $documentReview.review_method)"
             "- Document review result: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $documentReview.review_result_path)"
             "- Document final review: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $documentReview.final_review_path)"
         ) -join [Environment]::NewLine
@@ -349,6 +482,9 @@ function New-GateFinalReviewContent {
             "- Fixed-grid task id: $(Get-OptionalPropertyValue -Object $fixedGridTask -Name 'task_id')"
             "- Fixed-grid task dir: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $fixedGridTask -Name 'task_dir'))"
             "- Fixed-grid verdict: $($fixedGridReview.verdict)"
+            "- Fixed-grid review status: $(Get-DisplayValue -Value $fixedGridReview.status)"
+            "- Fixed-grid reviewed at: $(Get-DisplayValue -Value $fixedGridReview.reviewed_at)"
+            "- Fixed-grid review method: $(Get-DisplayValue -Value $fixedGridReview.review_method)"
             "- Fixed-grid review result: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $fixedGridReview.review_result_path)"
             "- Fixed-grid final review: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $fixedGridReview.final_review_path)"
         ) -join [Environment]::NewLine
@@ -360,6 +496,9 @@ function New-GateFinalReviewContent {
             "- Section page setup task id: $(Get-OptionalPropertyValue -Object $sectionPageSetupTask -Name 'task_id')"
             "- Section page setup task dir: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $sectionPageSetupTask -Name 'task_dir'))"
             "- Section page setup verdict: $($sectionPageSetupReview.verdict)"
+            "- Section page setup review status: $(Get-DisplayValue -Value $sectionPageSetupReview.status)"
+            "- Section page setup reviewed at: $(Get-DisplayValue -Value $sectionPageSetupReview.reviewed_at)"
+            "- Section page setup review method: $(Get-DisplayValue -Value $sectionPageSetupReview.review_method)"
             "- Section page setup review result: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $sectionPageSetupReview.review_result_path)"
             "- Section page setup final review: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $sectionPageSetupReview.final_review_path)"
         ) -join [Environment]::NewLine
@@ -371,6 +510,9 @@ function New-GateFinalReviewContent {
             "- Page number fields task id: $(Get-OptionalPropertyValue -Object $pageNumberFieldsTask -Name 'task_id')"
             "- Page number fields task dir: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $pageNumberFieldsTask -Name 'task_dir'))"
             "- Page number fields verdict: $($pageNumberFieldsReview.verdict)"
+            "- Page number fields review status: $(Get-DisplayValue -Value $pageNumberFieldsReview.status)"
+            "- Page number fields reviewed at: $(Get-DisplayValue -Value $pageNumberFieldsReview.reviewed_at)"
+            "- Page number fields review method: $(Get-DisplayValue -Value $pageNumberFieldsReview.review_method)"
             "- Page number fields review result: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $pageNumberFieldsReview.review_result_path)"
             "- Page number fields final review: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $pageNumberFieldsReview.final_review_path)"
         ) -join [Environment]::NewLine
@@ -399,6 +541,9 @@ function New-GateFinalReviewContent {
                     "- $bundleLabel task id: $(Get-OptionalPropertyValue -Object $bundleTask -Name 'task_id')"
                     "- $bundleLabel task dir: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $bundleTask -Name 'task_dir'))"
                     "- $bundleLabel verdict: $bundleVerdict"
+                    "- $bundleLabel review status: $(Get-DisplayValue -Value $bundleReview.status)"
+                    "- $bundleLabel reviewed at: $(Get-DisplayValue -Value $bundleReview.reviewed_at)"
+                    "- $bundleLabel review method: $(Get-DisplayValue -Value $bundleReview.review_method)"
                     "- $bundleLabel review result: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $bundleReviewResultPath)"
                     "- $bundleLabel final review: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $bundleFinalReviewPath)"
                 ) -join [Environment]::NewLine
@@ -406,6 +551,8 @@ function New-GateFinalReviewContent {
     } else {
         "- Curated visual regression review tasks: not available"
     }
+
+    $releaseSummaryDiscoverySection = New-GateReleaseSummaryDiscoveryMarkdown -RepoRoot $RepoRoot -GateSummary $GateSummary
 
     $nextSteps = switch (Get-OptionalPropertyValue -Object $GateSummary -Name "visual_verdict") {
         "pass" {
@@ -461,10 +608,104 @@ $sectionPageSetupTaskSummary
 $pageNumberFieldsTaskSummary
 $curatedVisualTaskSummary
 
-## Next steps
+$releaseSummaryDiscoverySection## Next steps
 
 $nextSteps
 "@
+}
+
+function Get-ReleaseVisualReviewProvenanceMarkdown {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()]$VisualGateStep
+    )
+
+    if ($null -eq $VisualGateStep) {
+        return ""
+    }
+
+    $lines = New-Object 'System.Collections.Generic.List[string]'
+    $standardFlows = @(
+        [pscustomobject]@{ Label = "Smoke"; Prefix = "smoke"; TaskProperty = "document_task_dir" },
+        [pscustomobject]@{ Label = "Fixed-grid"; Prefix = "fixed_grid"; TaskProperty = "fixed_grid_task_dir" },
+        [pscustomobject]@{ Label = "Section page setup"; Prefix = "section_page_setup"; TaskProperty = "section_page_setup_task_dir" },
+        [pscustomobject]@{ Label = "Page number fields"; Prefix = "page_number_fields"; TaskProperty = "page_number_fields_task_dir" }
+    )
+
+    foreach ($flow in $standardFlows) {
+        $verdict = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_verdict" -f $flow.Prefix)
+        $reviewStatus = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_review_status" -f $flow.Prefix)
+        $reviewedAt = Convert-ReviewTimestamp -Value (Get-OptionalPropertyObject -Object $VisualGateStep -Name ("{0}_reviewed_at" -f $flow.Prefix))
+        $reviewMethod = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_review_method" -f $flow.Prefix)
+        if ([string]::IsNullOrWhiteSpace($verdict) -and
+            [string]::IsNullOrWhiteSpace($reviewStatus) -and
+            [string]::IsNullOrWhiteSpace($reviewedAt) -and
+            [string]::IsNullOrWhiteSpace($reviewMethod)) {
+            continue
+        }
+
+        $line = "- {0}: verdict={1}, review_status={2}, reviewed_at={3}, review_method={4}" -f `
+            $flow.Label,
+            (Get-DisplayValue -Value $verdict),
+            (Get-DisplayValue -Value $reviewStatus),
+            (Get-DisplayValue -Value $reviewedAt),
+            (Get-DisplayValue -Value $reviewMethod)
+        $taskDir = Get-OptionalPropertyValue -Object $VisualGateStep -Name $flow.TaskProperty
+        if (-not [string]::IsNullOrWhiteSpace($taskDir)) {
+            $line += ", task=$(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $taskDir)"
+        }
+        [void]$lines.Add($line)
+    }
+
+    $curatedEntries = @(Get-OptionalPropertyObject -Object $VisualGateStep -Name "curated_visual_regressions")
+    foreach ($entry in $curatedEntries) {
+        $verdict = Get-OptionalPropertyValue -Object $entry -Name "verdict"
+        $reviewStatus = Get-OptionalPropertyValue -Object $entry -Name "review_status"
+        $reviewedAt = Convert-ReviewTimestamp -Value (Get-OptionalPropertyObject -Object $entry -Name "reviewed_at")
+        $reviewMethod = Get-OptionalPropertyValue -Object $entry -Name "review_method"
+        if ([string]::IsNullOrWhiteSpace($verdict) -and
+            [string]::IsNullOrWhiteSpace($reviewStatus) -and
+            [string]::IsNullOrWhiteSpace($reviewedAt) -and
+            [string]::IsNullOrWhiteSpace($reviewMethod)) {
+            continue
+        }
+
+        $label = Get-OptionalPropertyValue -Object $entry -Name "label"
+        if ([string]::IsNullOrWhiteSpace($label)) {
+            $label = Get-OptionalPropertyValue -Object $entry -Name "id"
+        }
+        if ([string]::IsNullOrWhiteSpace($label)) {
+            $label = Get-OptionalPropertyValue -Object $entry -Name "task_id"
+        }
+        if ([string]::IsNullOrWhiteSpace($label)) {
+            $label = "Curated visual regression"
+        }
+
+        $line = "- Curated - {0}: verdict={1}, review_status={2}, reviewed_at={3}, review_method={4}" -f `
+            $label,
+            (Get-DisplayValue -Value $verdict),
+            (Get-DisplayValue -Value $reviewStatus),
+            (Get-DisplayValue -Value $reviewedAt),
+            (Get-DisplayValue -Value $reviewMethod)
+        $taskDir = Get-OptionalPropertyValue -Object $entry -Name "task_dir"
+        if (-not [string]::IsNullOrWhiteSpace($taskDir)) {
+            $line += ", task=$(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $taskDir)"
+        }
+        [void]$lines.Add($line)
+    }
+
+    if ($lines.Count -eq 0) {
+        return ""
+    }
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    [void]$sectionLines.Add("## Visual review provenance")
+    [void]$sectionLines.Add("")
+    foreach ($line in $lines) {
+        [void]$sectionLines.Add($line)
+    }
+    [void]$sectionLines.Add("")
+    return ($sectionLines -join [Environment]::NewLine)
 }
 
 function New-ReleaseCandidateFinalReviewContent {
@@ -475,6 +716,16 @@ function New-ReleaseCandidateFinalReviewContent {
 
     $readmeGallery = Get-OptionalPropertyObject -Object $Summary -Name "readme_gallery"
     $readmeGalleryStatus = Get-OptionalPropertyValue -Object $readmeGallery -Name "status"
+    $reviewTaskSummary = Get-CompleteReviewTaskSummary -Summary (Get-OptionalPropertyObject -Object $Summary.steps.visual_gate -Name "review_task_summary")
+    $reviewTaskSummaryLine = ""
+    if ($null -ne $reviewTaskSummary) {
+        $reviewTaskSummaryLine = "- Review task count: {0} total ({1} standard, {2} curated)" -f `
+            $reviewTaskSummary.total_count,
+            $reviewTaskSummary.standard_count,
+            $reviewTaskSummary.curated_count
+    }
+    $visualReviewProvenance = Get-ReleaseVisualReviewProvenanceMarkdown -RepoRoot $RepoRoot -VisualGateStep $Summary.steps.visual_gate
+    $releaseSummaryDiscoverySection = New-GateReleaseSummaryDiscoveryMarkdown -RepoRoot $RepoRoot -GateSummary $Summary
     $readmeGalleryStatusLine = switch ($readmeGalleryStatus) {
         "completed" { "- README gallery refresh: completed ($(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $readmeGallery -Name 'assets_dir')))" }
         "visual_gate_skipped" { "- README gallery refresh: unavailable (visual gate skipped)" }
@@ -508,9 +759,10 @@ function New-ReleaseCandidateFinalReviewContent {
 - Tests: $(Get-OptionalPropertyValue -Object $Summary.steps.tests -Name 'status')
 - Install smoke: $(Get-OptionalPropertyValue -Object $Summary.steps.install_smoke -Name 'status')
 - Visual gate: $(Get-OptionalPropertyValue -Object $Summary.steps.visual_gate -Name 'status')
+$reviewTaskSummaryLine
 $readmeGalleryStatusLine
 
-## Key outputs
+$visualReviewProvenance$releaseSummaryDiscoverySection## Key outputs
 
 - Build directory: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'build_dir'))
 - Install directory: $(Get-RepoRelativePath -RepoRoot $RepoRoot -Path (Get-OptionalPropertyValue -Object $Summary -Name 'install_dir'))
@@ -596,6 +848,23 @@ if ($reviews.Count -eq 0) {
 $overallVerdict = Get-OverallVisualVerdict -Reviews $reviews
 Write-Step "Computed visual verdict: $overallVerdict"
 
+$documentReview = $reviews | Where-Object { $_.label -eq "document" } | Select-Object -First 1
+$fixedGridReview = $reviews | Where-Object { $_.label -eq "fixed_grid" } | Select-Object -First 1
+$sectionPageSetupReview = $reviews | Where-Object { $_.label -eq "section_page_setup" } | Select-Object -First 1
+$pageNumberFieldsReview = $reviews | Where-Object { $_.label -eq "page_number_fields" } | Select-Object -First 1
+$curatedVisualReviews = @($reviews | Where-Object { $_.label -like "curated:*" })
+
+Set-GateFlowReviewMetadata -Flow (Get-OptionalPropertyObject -Object $gateSummary -Name "smoke") -Review $documentReview
+Set-GateFlowReviewMetadata -Flow (Get-OptionalPropertyObject -Object $gateSummary -Name "fixed_grid") -Review $fixedGridReview
+Set-GateFlowReviewMetadata -Flow (Get-OptionalPropertyObject -Object $gateSummary -Name "section_page_setup") -Review $sectionPageSetupReview
+Set-GateFlowReviewMetadata -Flow (Get-OptionalPropertyObject -Object $gateSummary -Name "page_number_fields") -Review $pageNumberFieldsReview
+$curatedGateFlows = @(Get-OptionalPropertyObject -Object $gateSummary -Name "curated_visual_regressions")
+foreach ($curatedGateFlow in $curatedGateFlows) {
+    $bundleId = Get-OptionalPropertyValue -Object $curatedGateFlow -Name "id"
+    $bundleReview = $curatedVisualReviews | Where-Object { $_.id -eq $bundleId -or $_.label -eq "curated:$bundleId" } | Select-Object -First 1
+    Set-GateFlowReviewMetadata -Flow $curatedGateFlow -Review $bundleReview
+}
+
 $manualReviewSummary = [pscustomobject]@{
     updated_at = (Get-Date).ToString("s")
     consolidated_verdict = $overallVerdict
@@ -620,27 +889,32 @@ Write-Step "Updated gate summary and final review"
 if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
     $summary = Get-Content -Raw -LiteralPath $resolvedReleaseSummaryPath | ConvertFrom-Json
     $readmeGallery = Get-OptionalPropertyObject -Object $gateSummary -Name "readme_gallery"
+    $reviewTaskSummary = Get-CompleteReviewTaskSummary -Summary (Get-OptionalPropertyObject -Object $gateSummary -Name "review_task_summary")
 
     Set-PropertyValue -Object $summary -Name "visual_verdict" -Value $overallVerdict
     Set-PropertyValue -Object $summary -Name "readme_gallery" -Value $readmeGallery
     Set-PropertyValue -Object $summary.steps.visual_gate -Name "visual_verdict" -Value $overallVerdict
+    if ($null -ne $reviewTaskSummary) {
+        Set-PropertyValue -Object $summary.steps.visual_gate -Name "review_task_summary" -Value $reviewTaskSummary
+    } else {
+        Remove-PropertyValue -Object $summary.steps.visual_gate -Name "review_task_summary"
+    }
 
-    $documentReview = $reviews | Where-Object { $_.label -eq "document" } | Select-Object -First 1
-    $fixedGridReview = $reviews | Where-Object { $_.label -eq "fixed_grid" } | Select-Object -First 1
-    $sectionPageSetupReview = $reviews | Where-Object { $_.label -eq "section_page_setup" } | Select-Object -First 1
-    $pageNumberFieldsReview = $reviews | Where-Object { $_.label -eq "page_number_fields" } | Select-Object -First 1
-    $curatedVisualReviews = @($reviews | Where-Object { $_.label -like "curated:*" })
     if ($null -ne $documentReview) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "document_verdict" -Value $documentReview.verdict
+        Set-ReleaseVisualReviewMetadata -VisualGateStep $summary.steps.visual_gate -Prefix "smoke" -Review $documentReview
     }
     if ($null -ne $fixedGridReview) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "fixed_grid_verdict" -Value $fixedGridReview.verdict
+        Set-ReleaseVisualReviewMetadata -VisualGateStep $summary.steps.visual_gate -Prefix "fixed_grid" -Review $fixedGridReview
     }
     if ($null -ne $sectionPageSetupReview) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "section_page_setup_verdict" -Value $sectionPageSetupReview.verdict
+        Set-ReleaseVisualReviewMetadata -VisualGateStep $summary.steps.visual_gate -Prefix "section_page_setup" -Review $sectionPageSetupReview
     }
     if ($null -ne $pageNumberFieldsReview) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "page_number_fields_verdict" -Value $pageNumberFieldsReview.verdict
+        Set-ReleaseVisualReviewMetadata -VisualGateStep $summary.steps.visual_gate -Prefix "page_number_fields" -Review $pageNumberFieldsReview
     }
     if ($curatedVisualReviews.Count -gt 0) {
         Set-PropertyValue -Object $summary.steps.visual_gate -Name "curated_visual_regressions" -Value @(
@@ -649,6 +923,10 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReleaseSummaryPath)) {
                     id = $_.id
                     label = $_.display_label
                     verdict = $_.verdict
+                    review_status = $_.status
+                    reviewed_at = $_.reviewed_at
+                    review_method = $_.review_method
+                    review_note = $_.review_note
                     task_id = $_.task_id
                     task_dir = $_.task_dir
                     review_result_path = $_.review_result_path

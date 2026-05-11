@@ -15,6 +15,21 @@ evidence produced by the visual gate. This requires the visual gate to run.
 .PARAMETER ReadmeAssetsDir
 Target repository directory for the refreshed README gallery PNG files.
 
+.PARAMETER SmokeReviewVerdict
+Optional screenshot-backed verdict to pass into the Word visual smoke flow.
+
+.PARAMETER FixedGridReviewVerdict
+Optional screenshot-backed verdict to seed into the fixed-grid review task.
+
+.PARAMETER SectionPageSetupReviewVerdict
+Optional screenshot-backed verdict to seed into the section page setup review task.
+
+.PARAMETER PageNumberFieldsReviewVerdict
+Optional screenshot-backed verdict to seed into the page number fields review task.
+
+.PARAMETER CuratedVisualReviewVerdict
+Optional screenshot-backed verdict to seed into curated visual regression review tasks.
+
 .EXAMPLE
 pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1 `
     -SkipConfigure `
@@ -54,6 +69,7 @@ param(
     [switch]$SkipVisualGate,
     [switch]$SkipSectionPageSetup,
     [switch]$SkipPageNumberFields,
+    [switch]$IncludeTableStyleQuality,
     [string]$TemplateSchemaInputDocx = "",
     [string]$TemplateSchemaBaseline = "",
     [string]$TemplateSchemaGeneratedOutput = "",
@@ -64,9 +80,39 @@ param(
     [string]$ProjectTemplateSmokeManifestPath = "",
     [string]$ProjectTemplateSmokeOutputDir = "",
     [switch]$ProjectTemplateSmokeRequireFullCoverage,
+    [string[]]$ReleaseBlockerRollupInputJson = @(),
+    [string[]]$ReleaseBlockerRollupInputRoot = @(),
+    [switch]$ReleaseBlockerRollupAutoDiscover,
+    [string]$ReleaseBlockerRollupAutoDiscoverRoot = "output",
+    [string]$ReleaseBlockerRollupOutputDir = "",
+    [switch]$ReleaseBlockerRollupFailOnBlocker,
+    [switch]$ReleaseBlockerRollupFailOnWarning,
+    [switch]$ReleaseGovernanceHandoff,
+    [string]$ReleaseGovernanceHandoffInputRoot = "output",
+    [string[]]$ReleaseGovernanceHandoffInputJson = @(),
+    [string]$ReleaseGovernanceHandoffOutputDir = "",
+    [switch]$ReleaseGovernanceHandoffIncludeRollup,
+    [switch]$ReleaseGovernanceHandoffFailOnMissing,
+    [switch]$ReleaseGovernanceHandoffFailOnBlocker,
+    [switch]$ReleaseGovernanceHandoffFailOnWarning,
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$SmokeReviewVerdict = "undecided",
+    [string]$SmokeReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$FixedGridReviewVerdict = "undecided",
+    [string]$FixedGridReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$SectionPageSetupReviewVerdict = "undecided",
+    [string]$SectionPageSetupReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$PageNumberFieldsReviewVerdict = "undecided",
+    [string]$PageNumberFieldsReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$CuratedVisualReviewVerdict = "undecided",
+    [string]$CuratedVisualReviewNote = "",
     [switch]$RefreshReadmeAssets,
     [string]$ReadmeAssetsDir = "docs/assets/readme",
     [switch]$KeepWordOpen,
@@ -194,10 +240,13 @@ function Invoke-MsvcCommand {
         [string]$CommandText
     )
 
+    # Keep native CLI JSON output decodable when CTest launches PowerShell
+    # scripts from the MSVC cmd environment.
+    $utf8CommandText = "chcp 65001 >NUL && $CommandText"
     if ($MsvcBootstrap.mode -eq "current_env") {
-        & cmd.exe /c $CommandText
+        & cmd.exe /c $utf8CommandText
     } else {
-        & cmd.exe /c "call `"$($MsvcBootstrap.vcvars_path)`" && $CommandText"
+        & cmd.exe /c "call `"$($MsvcBootstrap.vcvars_path)`" && $utf8CommandText"
     }
 
     if ($LASTEXITCODE -ne 0) {
@@ -212,7 +261,19 @@ function Invoke-ChildPowerShell {
         [string]$FailureMessage
     )
 
-    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
+    $powerShellPath = (Get-Process -Id $PID).Path
+    if ([string]::IsNullOrWhiteSpace($powerShellPath)) {
+        $powerShellCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+        if (-not $powerShellCommand) {
+            $powerShellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
+        }
+        if (-not $powerShellCommand) {
+            throw "Unable to resolve a PowerShell executable for the nested script invocation."
+        }
+        $powerShellPath = $powerShellCommand.Source
+    }
+
+    $commandOutput = @(& $powerShellPath -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $ScriptPath @Arguments 2>&1)
     $exitCode = $LASTEXITCODE
 
     foreach ($line in $commandOutput) {
@@ -317,12 +378,251 @@ function Get-OptionalPropertyValue {
         return $null
     }
 
+    if ($Object -is [System.Collections.IDictionary] -and $Object.Contains($Name)) {
+        return $Object[$Name]
+    }
+
     $property = $Object.PSObject.Properties[$Name]
     if ($null -eq $property) {
         return $null
     }
 
     return $property.Value
+}
+
+
+function Set-OptionalSummaryValue {
+    param(
+        [System.Collections.IDictionary]$Target,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -ne $Value -and -not [string]::IsNullOrWhiteSpace([string]$Value)) {
+        $Target[$Name] = $Value
+    }
+}
+
+function Convert-ReviewTimestamp {
+    param([AllowNull()]$Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-ddTHH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
+function Add-OptionalVisualReviewArguments {
+    param(
+        [object[]]$Arguments,
+        [string]$VerdictArgument,
+        [string]$Verdict,
+        [string]$NoteArgument,
+        [string]$Note
+    )
+
+    $result = @($Arguments)
+    if ($Verdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($Note)) {
+        $result += @($VerdictArgument, $Verdict)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Note)) {
+        $result += @($NoteArgument, $Note)
+    }
+
+    return $result
+}
+
+function Add-GateFlowReviewSummary {
+    param(
+        [System.Collections.IDictionary]$Target,
+        [string]$Prefix,
+        [AllowNull()]$FlowInfo
+    )
+
+    $reviewStatus = Get-OptionalPropertyValue -Object $FlowInfo -Name "review_status"
+    $reviewVerdict = Get-OptionalPropertyValue -Object $FlowInfo -Name "review_verdict"
+    $reviewedAt = Convert-ReviewTimestamp -Value (Get-OptionalPropertyValue -Object $FlowInfo -Name "reviewed_at")
+    $reviewMethod = Get-OptionalPropertyValue -Object $FlowInfo -Name "review_method"
+    $reviewNote = Get-OptionalPropertyValue -Object $FlowInfo -Name "review_note"
+    Set-OptionalSummaryValue -Target $Target -Name ("{0}_review_status" -f $Prefix) -Value $reviewStatus
+    Set-OptionalSummaryValue -Target $Target -Name ("{0}_verdict" -f $Prefix) -Value $reviewVerdict
+    Set-OptionalSummaryValue -Target $Target -Name ("{0}_reviewed_at" -f $Prefix) -Value $reviewedAt
+    Set-OptionalSummaryValue -Target $Target -Name ("{0}_review_method" -f $Prefix) -Value $reviewMethod
+    Set-OptionalSummaryValue -Target $Target -Name ("{0}_review_note" -f $Prefix) -Value $reviewNote
+}
+
+function Get-CuratedVisualReviewSummaryEntries {
+    param([AllowNull()]$GateSummary)
+
+    $curatedFlows = @(Get-OptionalPropertyValue -Object $GateSummary -Name "curated_visual_regressions")
+    return @(
+        $curatedFlows | Where-Object {
+            -not [string]::IsNullOrWhiteSpace([string](Get-OptionalPropertyValue -Object $_ -Name "review_verdict"))
+        } | ForEach-Object {
+            $taskInfo = Get-OptionalPropertyValue -Object $_ -Name "task"
+            [ordered]@{
+                id = Get-OptionalPropertyValue -Object $_ -Name "id"
+                label = Get-OptionalPropertyValue -Object $_ -Name "label"
+                verdict = Get-OptionalPropertyValue -Object $_ -Name "review_verdict"
+                review_status = Get-OptionalPropertyValue -Object $_ -Name "review_status"
+                reviewed_at = Convert-ReviewTimestamp -Value (Get-OptionalPropertyValue -Object $_ -Name "reviewed_at")
+                review_method = Get-OptionalPropertyValue -Object $_ -Name "review_method"
+                review_note = Get-OptionalPropertyValue -Object $_ -Name "review_note"
+                task_id = Get-OptionalPropertyValue -Object $taskInfo -Name "task_id"
+                task_dir = Get-OptionalPropertyValue -Object $taskInfo -Name "task_dir"
+                review_result_path = Get-OptionalPropertyValue -Object $taskInfo -Name "review_result_path"
+                final_review_path = Get-OptionalPropertyValue -Object $taskInfo -Name "final_review_path"
+            }
+        }
+    )
+}
+
+function Get-ReleaseCandidateDisplayValue {
+    param(
+        [AllowNull()]$Value,
+        [string]$Fallback = "(not available)"
+    )
+
+    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+        return $Fallback
+    }
+
+    return [string]$Value
+}
+
+function Get-CompleteVisualGateReviewTaskSummary {
+    param([AllowNull()]$Summary)
+
+    if ($null -eq $Summary) {
+        return $null
+    }
+
+    $totalCount = Get-OptionalPropertyValue -Object $Summary -Name "total_count"
+    $standardCount = Get-OptionalPropertyValue -Object $Summary -Name "standard_count"
+    $curatedCount = Get-OptionalPropertyValue -Object $Summary -Name "curated_count"
+    if ([string]::IsNullOrWhiteSpace([string]$totalCount) -or
+        [string]::IsNullOrWhiteSpace([string]$standardCount) -or
+        [string]::IsNullOrWhiteSpace([string]$curatedCount)) {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        total_count = $totalCount
+        standard_count = $standardCount
+        curated_count = $curatedCount
+    }
+}
+
+function Get-VisualGateReviewTaskSummaryLine {
+    param([AllowNull()]$VisualGateStep)
+
+    $reviewTaskSummary = Get-CompleteVisualGateReviewTaskSummary -Summary (Get-OptionalPropertyValue -Object $VisualGateStep -Name "review_task_summary")
+    if ($null -eq $reviewTaskSummary) {
+        return ""
+    }
+
+    return "- Review task count: {0} total ({1} standard, {2} curated)" -f `
+        $reviewTaskSummary.total_count,
+        $reviewTaskSummary.standard_count,
+        $reviewTaskSummary.curated_count
+}
+
+function Get-VisualGateReviewSummaryMarkdown {
+    param(
+        [string]$RepoRoot,
+        [AllowNull()]$VisualGateStep
+    )
+
+    $reviewLines = New-Object 'System.Collections.Generic.List[string]'
+    $standardFlows = @(
+        [pscustomobject]@{ Label = "Smoke"; Prefix = "smoke"; TaskProperty = "document_task_dir" },
+        [pscustomobject]@{ Label = "Fixed grid"; Prefix = "fixed_grid"; TaskProperty = "fixed_grid_task_dir" },
+        [pscustomobject]@{ Label = "Section page setup"; Prefix = "section_page_setup"; TaskProperty = "section_page_setup_task_dir" },
+        [pscustomobject]@{ Label = "Page number fields"; Prefix = "page_number_fields"; TaskProperty = "page_number_fields_task_dir" }
+    )
+
+    foreach ($flow in $standardFlows) {
+        $verdict = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_verdict" -f $flow.Prefix)
+        $reviewStatus = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_review_status" -f $flow.Prefix)
+        $reviewedAt = Convert-ReviewTimestamp -Value (Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_reviewed_at" -f $flow.Prefix))
+        $reviewMethod = Get-OptionalPropertyValue -Object $VisualGateStep -Name ("{0}_review_method" -f $flow.Prefix)
+        if ([string]::IsNullOrWhiteSpace([string]$verdict) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewStatus) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewedAt) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewMethod)) {
+            continue
+        }
+
+        $line = "- {0}: verdict={1}, review_status={2}, reviewed_at={3}, review_method={4}" -f `
+            $flow.Label,
+            (Get-ReleaseCandidateDisplayValue -Value $verdict),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewStatus),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewedAt),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewMethod)
+        $taskDir = Get-OptionalPropertyValue -Object $VisualGateStep -Name $flow.TaskProperty
+        if (-not [string]::IsNullOrWhiteSpace([string]$taskDir)) {
+            $line += ", task=$(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $taskDir)"
+        }
+
+        [void]$reviewLines.Add($line)
+    }
+
+    $curatedEntries = @(Get-OptionalPropertyValue -Object $VisualGateStep -Name "curated_visual_regressions")
+    foreach ($entry in $curatedEntries) {
+        $verdict = Get-OptionalPropertyValue -Object $entry -Name "verdict"
+        $reviewStatus = Get-OptionalPropertyValue -Object $entry -Name "review_status"
+        $reviewedAt = Convert-ReviewTimestamp -Value (Get-OptionalPropertyValue -Object $entry -Name "reviewed_at")
+        $reviewMethod = Get-OptionalPropertyValue -Object $entry -Name "review_method"
+        if ([string]::IsNullOrWhiteSpace([string]$verdict) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewStatus) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewedAt) -and
+            [string]::IsNullOrWhiteSpace([string]$reviewMethod)) {
+            continue
+        }
+
+        $label = Get-OptionalPropertyValue -Object $entry -Name "label"
+        if ([string]::IsNullOrWhiteSpace([string]$label)) {
+            $label = Get-OptionalPropertyValue -Object $entry -Name "id"
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$label)) {
+            $label = Get-OptionalPropertyValue -Object $entry -Name "task_id"
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$label)) {
+            $label = "Curated visual regression"
+        }
+
+        $line = "- Curated - {0}: verdict={1}, review_status={2}, reviewed_at={3}, review_method={4}" -f `
+            $label,
+            (Get-ReleaseCandidateDisplayValue -Value $verdict),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewStatus),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewedAt),
+            (Get-ReleaseCandidateDisplayValue -Value $reviewMethod)
+        $taskDir = Get-OptionalPropertyValue -Object $entry -Name "task_dir"
+        if (-not [string]::IsNullOrWhiteSpace([string]$taskDir)) {
+            $line += ", task=$(Get-RepoRelativePath -RepoRoot $RepoRoot -Path $taskDir)"
+        }
+
+        [void]$reviewLines.Add($line)
+    }
+
+    if ($reviewLines.Count -eq 0) {
+        return ""
+    }
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    [void]$sectionLines.Add("## Visual review verdicts")
+    [void]$sectionLines.Add("")
+    foreach ($line in $reviewLines) {
+        [void]$sectionLines.Add($line)
+    }
+    [void]$sectionLines.Add("")
+
+    return ($sectionLines -join [Environment]::NewLine)
 }
 
 function Convert-OptionalBoolean {
@@ -399,6 +699,513 @@ function Get-ProjectTemplateSmokeDirtySchemaBaselineCount {
     $counts = Get-ProjectTemplateSmokeSchemaBaselineCounts -Summary $Summary
     return [int]$counts.dirty
 }
+
+function Get-OptionalIntegerProperty {
+    param(
+        [AllowNull()]$Object,
+        [string]$Name,
+        [int]$DefaultValue = 0
+    )
+
+    $value = Get-OptionalPropertyValue -Object $Object -Name $Name
+    if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+        return $DefaultValue
+    }
+
+    return [int]$value
+}
+
+function Get-OptionalObjectArrayProperty {
+    param(
+        [AllowNull()]$Object,
+        [string]$Name
+    )
+
+    $value = Get-OptionalPropertyValue -Object $Object -Name $Name
+    if ($null -eq $value) {
+        return @()
+    }
+    if ($value -is [string]) {
+        return @($value)
+    }
+    if ($value -is [System.Collections.IEnumerable]) {
+        return @($value | Where-Object { $null -ne $_ })
+    }
+
+    return @($value)
+}
+
+function Get-SchemaPatchApprovalGateStatus {
+    param(
+        [int]$PendingCount,
+        [int]$ApprovalItemCount,
+        [int]$InvalidResultCount,
+        [int]$ComplianceIssueCount
+    )
+
+    if ($ComplianceIssueCount -gt 0 -or $InvalidResultCount -gt 0) {
+        return "blocked"
+    }
+    if ($PendingCount -gt 0) {
+        return "pending"
+    }
+    if ($ApprovalItemCount -gt 0) {
+        return "passed"
+    }
+
+    return "not_required"
+}
+
+function Get-SchemaPatchApprovalItemCount {
+    param(
+        [int]$PendingCount,
+        [int]$ApprovedCount,
+        [int]$RejectedCount,
+        [object[]]$ApprovalItems
+    )
+
+    $countedItems = $PendingCount + $ApprovedCount + $RejectedCount
+    if ($ApprovalItems.Count -gt $countedItems) {
+        return $ApprovalItems.Count
+    }
+
+    return $countedItems
+}
+
+function Get-ProjectTemplateSmokeSchemaApprovalGateInfo {
+    param([AllowNull()]$Summary)
+
+    $approvalItems = @(Get-OptionalObjectArrayProperty -Object $Summary -Name "schema_patch_approval_items")
+    $invalidResultCount = Get-OptionalIntegerProperty -Object $Summary -Name "schema_patch_approval_invalid_result_count"
+    if ($invalidResultCount -eq 0 -and $approvalItems.Count -gt 0) {
+        $invalidResultCount = @($approvalItems | Where-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "status") -eq "invalid_result" }).Count
+    }
+
+    $pendingCount = Get-OptionalIntegerProperty -Object $Summary -Name "schema_patch_approval_pending_count"
+    $approvedCount = Get-OptionalIntegerProperty -Object $Summary -Name "schema_patch_approval_approved_count"
+    $rejectedCount = Get-OptionalIntegerProperty -Object $Summary -Name "schema_patch_approval_rejected_count"
+    $complianceIssueCount = Get-OptionalIntegerProperty -Object $Summary -Name "schema_patch_approval_compliance_issue_count"
+    $approvalItemCount = Get-SchemaPatchApprovalItemCount `
+        -PendingCount $pendingCount `
+        -ApprovedCount $approvedCount `
+        -RejectedCount $rejectedCount `
+        -ApprovalItems $approvalItems
+    $gateStatus = Get-SchemaPatchApprovalGateStatus `
+        -PendingCount $pendingCount `
+        -ApprovalItemCount $approvalItemCount `
+        -InvalidResultCount $invalidResultCount `
+        -ComplianceIssueCount $complianceIssueCount
+
+    return [pscustomobject]@{
+        pending_count = $pendingCount
+        approved_count = $approvedCount
+        rejected_count = $rejectedCount
+        compliance_issue_count = $complianceIssueCount
+        invalid_result_count = $invalidResultCount
+        item_count = $approvalItemCount
+        gate_status = $gateStatus
+        gate_blocked = ($gateStatus -eq "blocked")
+    }
+}
+
+function New-ProjectTemplateSchemaApprovalReleaseBlockerItem {
+    param([AllowNull()]$Item)
+
+    $status = [string](Get-OptionalPropertyValue -Object $Item -Name "status")
+    $action = [string](Get-OptionalPropertyValue -Object $Item -Name "action")
+    if ([string]::IsNullOrWhiteSpace($action) -and $status -eq "invalid_result") {
+        $action = "fix_schema_patch_approval_result"
+    }
+
+    return [pscustomobject]@{
+        name = [string](Get-OptionalPropertyValue -Object $Item -Name "name")
+        status = $status
+        decision = [string](Get-OptionalPropertyValue -Object $Item -Name "decision")
+        action = $action
+        compliance_issue_count = Get-OptionalIntegerProperty -Object $Item -Name "compliance_issue_count"
+        compliance_issues = @(Get-OptionalObjectArrayProperty -Object $Item -Name "compliance_issues")
+        approval_result = [string](Get-OptionalPropertyValue -Object $Item -Name "approval_result")
+        schema_update_candidate = [string](Get-OptionalPropertyValue -Object $Item -Name "schema_update_candidate")
+        review_json = [string](Get-OptionalPropertyValue -Object $Item -Name "review_json")
+    }
+}
+
+function Get-ProjectTemplateSchemaApprovalBlockedItems {
+    param([object[]]$ApprovalItems)
+
+    return @(
+        $ApprovalItems | Where-Object {
+            $status = [string](Get-OptionalPropertyValue -Object $_ -Name "status")
+            $complianceIssueCount = Get-OptionalIntegerProperty -Object $_ -Name "compliance_issue_count"
+            $status -eq "invalid_result" -or $complianceIssueCount -gt 0
+        } | ForEach-Object {
+            New-ProjectTemplateSchemaApprovalReleaseBlockerItem -Item $_
+        }
+    )
+}
+
+function Get-ProjectTemplateSchemaApprovalIssueKeys {
+    param([object[]]$BlockedItems)
+
+    return @(
+        $BlockedItems |
+            ForEach-Object { @(Get-OptionalObjectArrayProperty -Object $_ -Name "compliance_issues") } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+            Sort-Object -Unique
+    )
+}
+
+function New-ProjectTemplateSchemaApprovalReleaseBlocker {
+    param(
+        [AllowNull()]$ProjectTemplateSmokeSummary,
+        [AllowNull()]$HistorySummary,
+        [string]$SummaryJsonPath,
+        [string]$HistoryJsonPath,
+        [string]$HistoryMarkdownPath
+    )
+
+    $gateInfo = Get-ProjectTemplateSmokeSchemaApprovalGateInfo -Summary $ProjectTemplateSmokeSummary
+    $latestBlockingSummary = Get-OptionalPropertyValue -Object $HistorySummary -Name "latest_blocking_summary"
+    $latestBlockingStatus = [string](Get-OptionalPropertyValue -Object $latestBlockingSummary -Name "status")
+    $historyBlocked = $latestBlockingStatus -eq "blocked"
+
+    if (-not [bool]$gateInfo.gate_blocked) {
+        return $null
+    }
+
+    $approvalItems = @(Get-OptionalObjectArrayProperty -Object $ProjectTemplateSmokeSummary -Name "schema_patch_approval_items")
+    $blockedItems = @(Get-ProjectTemplateSchemaApprovalBlockedItems -ApprovalItems $approvalItems)
+    if ($historyBlocked) {
+        $historyBlockedItems = @(Get-OptionalObjectArrayProperty -Object $latestBlockingSummary -Name "items" |
+            ForEach-Object { New-ProjectTemplateSchemaApprovalReleaseBlockerItem -Item $_ })
+        if ($historyBlockedItems.Count -gt 0) {
+            $blockedItems = $historyBlockedItems
+        }
+    }
+
+    $issueKeys = @(Get-ProjectTemplateSchemaApprovalIssueKeys -BlockedItems $blockedItems)
+    if ($historyBlocked) {
+        $historyIssueKeys = @(Get-OptionalObjectArrayProperty -Object $latestBlockingSummary -Name "issue_keys" |
+            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+            Sort-Object -Unique)
+        if ($historyIssueKeys.Count -gt 0) {
+            $issueKeys = $historyIssueKeys
+        }
+    }
+
+    $blockingSummaryJson = [string](Get-OptionalPropertyValue -Object $latestBlockingSummary -Name "summary_json")
+    if ([string]::IsNullOrWhiteSpace($blockingSummaryJson)) {
+        $blockingSummaryJson = $SummaryJsonPath
+    }
+    $blockedItemCount = $blockedItems.Count
+    if ($historyBlocked) {
+        $historyBlockedItemCount = Get-OptionalIntegerProperty -Object $latestBlockingSummary -Name "blocked_item_count" -DefaultValue $blockedItemCount
+        if ($historyBlockedItemCount -gt 0) {
+            $blockedItemCount = $historyBlockedItemCount
+        }
+    }
+
+    return [pscustomobject]@{
+        id = "project_template_smoke.schema_approval"
+        source = "project_template_smoke"
+        severity = "error"
+        status = "blocked"
+        message = "Project template smoke schema approval gate blocked."
+        gate_status = "blocked"
+        pending_count = [int]$gateInfo.pending_count
+        approved_count = [int]$gateInfo.approved_count
+        rejected_count = [int]$gateInfo.rejected_count
+        compliance_issue_count = [int]$gateInfo.compliance_issue_count
+        invalid_result_count = [int]$gateInfo.invalid_result_count
+        blocked_item_count = [int]$blockedItemCount
+        issue_keys = $issueKeys
+        summary_json = $blockingSummaryJson
+        history_json = $HistoryJsonPath
+        history_markdown = $HistoryMarkdownPath
+        action = "fix_schema_patch_approval_result"
+        items = $blockedItems
+    }
+}
+
+function Set-ProjectTemplateSchemaApprovalReleaseBlocker {
+    param(
+        [System.Collections.IDictionary]$ReleaseSummary,
+        [AllowNull()]$Blocker
+    )
+
+    $blockers = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($existingBlocker in @(Get-OptionalObjectArrayProperty -Object $ReleaseSummary -Name "release_blockers")) {
+        $existingId = [string](Get-OptionalPropertyValue -Object $existingBlocker -Name "id")
+        if ($existingId -ne "project_template_smoke.schema_approval") {
+            [void]$blockers.Add($existingBlocker)
+        }
+    }
+    if ($null -ne $Blocker) {
+        [void]$blockers.Add($Blocker)
+    }
+
+    $ReleaseSummary["release_blockers"] = $blockers.ToArray()
+    $ReleaseSummary["release_blocker_count"] = $blockers.Count
+}
+
+function Read-ProjectTemplateSchemaApprovalHistorySummary {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+}
+
+function Get-ProjectTemplateSchemaApprovalHistoryInputList {
+    param(
+        [string]$ReleaseSummaryPath,
+        [string]$ProjectTemplateSmokeSummaryPath
+    )
+
+    $summaryPaths = New-Object 'System.Collections.Generic.List[string]'
+    if (-not [string]::IsNullOrWhiteSpace($ProjectTemplateSmokeSummaryPath) -and
+        (Test-Path -LiteralPath $ProjectTemplateSmokeSummaryPath)) {
+        [void]$summaryPaths.Add($ProjectTemplateSmokeSummaryPath)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ReleaseSummaryPath) -and
+        (Test-Path -LiteralPath $ReleaseSummaryPath)) {
+        [void]$summaryPaths.Add($ReleaseSummaryPath)
+    }
+
+    return @($summaryPaths.ToArray() | Sort-Object -Unique)
+}
+
+function Invoke-ProjectTemplateSchemaApprovalHistory {
+    param(
+        [string]$ScriptPath,
+        [string]$ReleaseSummaryPath,
+        [string]$ProjectTemplateSmokeSummaryPath,
+        [string]$OutputJson,
+        [string]$OutputMarkdown
+    )
+
+    $summaryPaths = @(Get-ProjectTemplateSchemaApprovalHistoryInputList `
+            -ReleaseSummaryPath $ReleaseSummaryPath `
+            -ProjectTemplateSmokeSummaryPath $ProjectTemplateSmokeSummaryPath)
+    if ($summaryPaths.Count -eq 0) {
+        return [pscustomobject]@{
+            status = "skipped"
+            input_count = 0
+        }
+    }
+
+    Invoke-ChildPowerShell -ScriptPath $ScriptPath `
+        -Arguments @(
+            "-SummaryJson"
+            ($summaryPaths -join ",")
+            "-OutputJson"
+            $OutputJson
+            "-OutputMarkdown"
+            $OutputMarkdown
+        ) `
+        -FailureMessage "Failed to write project template schema approval history."
+
+    return [pscustomobject]@{
+        status = "completed"
+        input_count = $summaryPaths.Count
+    }
+}
+
+function Get-ReleaseBlockerRollupInputList {
+    param(
+        [string[]]$InputJson,
+        [string[]]$InputRoot
+    )
+
+    return @(
+        @($InputJson) + @($InputRoot) |
+            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
+    )
+}
+
+function Expand-ReleaseBlockerRollupPathList {
+    param([string[]]$Paths)
+
+    return @(
+        foreach ($path in @($Paths)) {
+            foreach ($part in ([string]$path -split ",")) {
+                $trimmed = $part.Trim()
+                if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
+                    $trimmed
+                }
+            }
+        }
+    )
+}
+
+function Select-UniqueReleaseBlockerRollupPathList {
+    param([string[]]$Paths)
+
+    $seen = @{}
+    return @(
+        foreach ($path in @($Paths)) {
+            if ([string]::IsNullOrWhiteSpace($path)) { continue }
+            $resolved = [System.IO.Path]::GetFullPath($path)
+            $key = $resolved.ToLowerInvariant()
+            if (-not $seen.ContainsKey($key)) {
+                $seen[$key] = $true
+                $resolved
+            }
+        }
+    )
+}
+
+function Get-ReleaseBlockerRollupAutoDiscoveredInputJson {
+    param(
+        [string]$RepoRoot,
+        [string]$InputRoot
+    )
+
+    $candidateRelativePaths = @(
+        "numbering-catalog-governance/summary.json",
+        "table-layout-delivery-governance/summary.json",
+        "content-control-data-binding-governance/summary.json",
+        "project-template-delivery-readiness/summary.json"
+    )
+    $resolvedInputRoot = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $InputRoot
+
+    return @(
+        foreach ($relativePath in $candidateRelativePaths) {
+            $candidate = Join-Path $resolvedInputRoot $relativePath
+            if (Test-Path -LiteralPath $candidate) {
+                $candidate
+            }
+        }
+    )
+}
+
+function Invoke-ReleaseBlockerRollup {
+    param(
+        [string]$ScriptPath,
+        [string[]]$InputJson,
+        [string[]]$InputRoot,
+        [string]$OutputDir,
+        [string]$SummaryJson,
+        [string]$ReportMarkdown,
+        [bool]$FailOnBlocker,
+        [bool]$FailOnWarning
+    )
+
+    $arguments = @()
+    $cleanInputJson = @($InputJson | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $cleanInputRoot = @($InputRoot | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($cleanInputJson.Count -gt 0) {
+        $arguments += "-InputJson"
+        $arguments += ($cleanInputJson -join ",")
+    }
+    if ($cleanInputRoot.Count -gt 0) {
+        $arguments += "-InputRoot"
+        $arguments += ($cleanInputRoot -join ",")
+    }
+    $arguments += @(
+        "-OutputDir"
+        $OutputDir
+        "-SummaryJson"
+        $SummaryJson
+        "-ReportMarkdown"
+        $ReportMarkdown
+    )
+    if ($FailOnBlocker) {
+        $arguments += "-FailOnBlocker"
+    }
+    if ($FailOnWarning) {
+        $arguments += "-FailOnWarning"
+    }
+
+    Invoke-ChildPowerShell -ScriptPath $ScriptPath `
+        -Arguments $arguments `
+        -FailureMessage "Failed to build release blocker rollup."
+
+    if (-not (Test-Path -LiteralPath $SummaryJson)) {
+        throw "Release blocker rollup did not write summary JSON: $SummaryJson"
+    }
+    if (-not (Test-Path -LiteralPath $ReportMarkdown)) {
+        throw "Release blocker rollup did not write Markdown report: $ReportMarkdown"
+    }
+}
+
+function Read-ReleaseBlockerRollupSummary {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+}
+
+function Invoke-ReleaseGovernanceHandoff {
+    param(
+        [string]$ScriptPath,
+        [string]$InputRoot,
+        [string[]]$InputJson,
+        [string]$OutputDir,
+        [string]$SummaryJson,
+        [string]$ReportMarkdown,
+        [bool]$IncludeRollup,
+        [bool]$FailOnMissing,
+        [bool]$FailOnBlocker,
+        [bool]$FailOnWarning
+    )
+
+    $arguments = @(
+        "-InputRoot"
+        $InputRoot
+        "-OutputDir"
+        $OutputDir
+        "-SummaryJson"
+        $SummaryJson
+        "-ReportMarkdown"
+        $ReportMarkdown
+    )
+    $cleanInputJson = @($InputJson | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($cleanInputJson.Count -gt 0) {
+        $arguments += "-InputJson"
+        $arguments += ($cleanInputJson -join ",")
+    }
+    if ($IncludeRollup) {
+        $arguments += "-IncludeReleaseBlockerRollup"
+    }
+    if ($FailOnMissing) {
+        $arguments += "-FailOnMissing"
+    }
+    if ($FailOnBlocker) {
+        $arguments += "-FailOnBlocker"
+    }
+    if ($FailOnWarning) {
+        $arguments += "-FailOnWarning"
+    }
+
+    Invoke-ChildPowerShell -ScriptPath $ScriptPath `
+        -Arguments $arguments `
+        -FailureMessage "Failed to build release governance handoff."
+
+    if (-not (Test-Path -LiteralPath $SummaryJson)) {
+        throw "Release governance handoff did not write summary JSON: $SummaryJson"
+    }
+    if (-not (Test-Path -LiteralPath $ReportMarkdown)) {
+        throw "Release governance handoff did not write Markdown report: $ReportMarkdown"
+    }
+}
+
+function Read-ReleaseGovernanceHandoffSummary {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+}
+
+
 
 function Parse-InstallSmokeOutput {
     param([string[]]$Lines)
@@ -544,7 +1351,15 @@ function Parse-ProjectTemplateSmokeSummary {
 }
 
 $repoRoot = Resolve-RepoRoot
-$msvcBootstrap = Get-MsvcBootstrap
+$msvcBootstrapRequired = -not ($SkipConfigure -and $SkipBuild -and $SkipTests -and $SkipInstallSmoke -and $SkipVisualGate)
+$msvcBootstrap = if ($msvcBootstrapRequired) {
+    Get-MsvcBootstrap
+} else {
+    [ordered]@{
+        mode = "not_required"
+        vcvars_path = ""
+    }
+}
 
 $resolvedBuildDir = Resolve-FullPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedInstallDir = Resolve-FullPath -RepoRoot $repoRoot -InputPath $InstallDir
@@ -561,12 +1376,17 @@ $releaseBodyZhCnPath = Join-Path $reportDir "release_body.zh-CN.md"
 $releaseSummaryZhCnPath = Join-Path $reportDir "release_summary.zh-CN.md"
 $artifactGuidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $reviewerChecklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
+$schemaApprovalHistoryJsonPath = Join-Path $reportDir "project_template_schema_approval_history.json"
+$schemaApprovalHistoryMarkdownPath = Join-Path $reportDir "project_template_schema_approval_history.md"
 $startHerePath = Join-Path $resolvedSummaryOutputDir "START_HERE.md"
 $installSmokeScript = Join-Path $repoRoot "scripts\run_install_find_package_smoke.ps1"
 $templateSchemaCheckScript = Join-Path $repoRoot "scripts\check_template_schema_baseline.ps1"
 $templateSchemaManifestScript = Join-Path $repoRoot "scripts\check_template_schema_manifest.ps1"
 $projectTemplateSmokeScript = Join-Path $repoRoot "scripts\run_project_template_smoke.ps1"
+$projectTemplateSchemaApprovalHistoryScript = Join-Path $repoRoot "scripts\write_project_template_schema_approval_history.ps1"
 $projectTemplateSmokeDiscoverScript = Join-Path $repoRoot "scripts\discover_project_template_smoke_candidates.ps1"
+$releaseBlockerRollupScript = Join-Path $repoRoot "scripts\build_release_blocker_rollup_report.ps1"
+$releaseGovernanceHandoffScript = Join-Path $repoRoot "scripts\build_release_governance_handoff_report.ps1"
 $visualGateScript = Join-Path $repoRoot "scripts\run_word_visual_release_gate.ps1"
 $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
 
@@ -632,6 +1452,89 @@ $resolvedProjectTemplateSmokeCandidateDiscoveryPath = if ($projectTemplateSmokeR
 }
 $templateSchemaRequested = -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaInputDocx) -or
     -not [string]::IsNullOrWhiteSpace($resolvedTemplateSchemaBaseline)
+$expandedReleaseBlockerRollupInputJson = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseBlockerRollupInputJson)
+$expandedReleaseBlockerRollupInputRoot = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseBlockerRollupInputRoot)
+$resolvedReleaseBlockerRollupAutoDiscoverRoot = Resolve-FullPath -RepoRoot $repoRoot `
+    -InputPath $ReleaseBlockerRollupAutoDiscoverRoot
+$autoDiscoveredReleaseBlockerRollupInputJson = if ($ReleaseBlockerRollupAutoDiscover) {
+    @(Get-ReleaseBlockerRollupAutoDiscoveredInputJson `
+            -RepoRoot $repoRoot `
+            -InputRoot $resolvedReleaseBlockerRollupAutoDiscoverRoot)
+} else {
+    @()
+}
+$resolvedReleaseBlockerRollupInputJson = @(
+    foreach ($path in @($expandedReleaseBlockerRollupInputJson + $autoDiscoveredReleaseBlockerRollupInputJson)) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            Resolve-FullPath -RepoRoot $repoRoot -InputPath $path
+        }
+    }
+)
+$resolvedReleaseBlockerRollupInputJson = @(Select-UniqueReleaseBlockerRollupPathList `
+        -Paths $resolvedReleaseBlockerRollupInputJson)
+$resolvedReleaseBlockerRollupInputRoot = @(
+    foreach ($path in @($expandedReleaseBlockerRollupInputRoot)) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            Resolve-FullPath -RepoRoot $repoRoot -InputPath $path
+        }
+    }
+)
+$resolvedReleaseBlockerRollupInputRoot = @(Select-UniqueReleaseBlockerRollupPathList `
+        -Paths $resolvedReleaseBlockerRollupInputRoot)
+$releaseBlockerRollupRequested = $ReleaseBlockerRollupAutoDiscover -or @(Get-ReleaseBlockerRollupInputList `
+        -InputJson $resolvedReleaseBlockerRollupInputJson `
+        -InputRoot $resolvedReleaseBlockerRollupInputRoot).Count -gt 0
+$resolvedReleaseBlockerRollupOutputDir = if ($releaseBlockerRollupRequested) {
+    if ([string]::IsNullOrWhiteSpace($ReleaseBlockerRollupOutputDir)) {
+        Join-Path $reportDir "release-blocker-rollup"
+    } else {
+        Resolve-FullPath -RepoRoot $repoRoot -InputPath $ReleaseBlockerRollupOutputDir
+    }
+} else {
+    ""
+}
+$releaseBlockerRollupSummaryPath = if ($releaseBlockerRollupRequested) {
+    Join-Path $resolvedReleaseBlockerRollupOutputDir "summary.json"
+} else {
+    ""
+}
+$releaseBlockerRollupMarkdownPath = if ($releaseBlockerRollupRequested) {
+    Join-Path $resolvedReleaseBlockerRollupOutputDir "release_blocker_rollup.md"
+} else {
+    ""
+}
+$expandedReleaseGovernanceHandoffInputJson = @(Expand-ReleaseBlockerRollupPathList -Paths $ReleaseGovernanceHandoffInputJson)
+$resolvedReleaseGovernanceHandoffInputJson = @(
+    foreach ($path in @($expandedReleaseGovernanceHandoffInputJson)) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            Resolve-FullPath -RepoRoot $repoRoot -InputPath $path
+        }
+    }
+)
+$resolvedReleaseGovernanceHandoffInputJson = @(Select-UniqueReleaseBlockerRollupPathList `
+        -Paths $resolvedReleaseGovernanceHandoffInputJson)
+$resolvedReleaseGovernanceHandoffInputRoot = Resolve-FullPath -RepoRoot $repoRoot `
+    -InputPath $ReleaseGovernanceHandoffInputRoot
+$releaseGovernanceHandoffRequested = [bool]$ReleaseGovernanceHandoff
+$resolvedReleaseGovernanceHandoffOutputDir = if ($releaseGovernanceHandoffRequested) {
+    if ([string]::IsNullOrWhiteSpace($ReleaseGovernanceHandoffOutputDir)) {
+        Join-Path $reportDir "release-governance-handoff"
+    } else {
+        Resolve-FullPath -RepoRoot $repoRoot -InputPath $ReleaseGovernanceHandoffOutputDir
+    }
+} else {
+    ""
+}
+$releaseGovernanceHandoffSummaryPath = if ($releaseGovernanceHandoffRequested) {
+    Join-Path $resolvedReleaseGovernanceHandoffOutputDir "summary.json"
+} else {
+    ""
+}
+$releaseGovernanceHandoffMarkdownPath = if ($releaseGovernanceHandoffRequested) {
+    Join-Path $resolvedReleaseGovernanceHandoffOutputDir "release_governance_handoff.md"
+} else {
+    ""
+}
 
 New-Item -ItemType Directory -Path $resolvedSummaryOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
@@ -654,12 +1557,54 @@ $summary = [ordered]@{
     execution_status = "running"
     failed_step = ""
     error = ""
+    release_blockers = @()
+    release_blocker_count = 0
     release_handoff = $releaseHandoffPath
     release_body_zh_cn = $releaseBodyZhCnPath
     release_summary_zh_cn = $releaseSummaryZhCnPath
     artifact_guide = $artifactGuidePath
     reviewer_checklist = $reviewerChecklistPath
     start_here = $startHerePath
+    release_blocker_rollup = [ordered]@{
+        requested = $releaseBlockerRollupRequested
+        status = if ($releaseBlockerRollupRequested) { "pending" } else { "not_requested" }
+        auto_discover = [bool]$ReleaseBlockerRollupAutoDiscover
+        auto_discover_root = $resolvedReleaseBlockerRollupAutoDiscoverRoot
+        auto_discovered_input_json = @($autoDiscoveredReleaseBlockerRollupInputJson)
+        input_json = @($resolvedReleaseBlockerRollupInputJson)
+        input_root = @($resolvedReleaseBlockerRollupInputRoot)
+        output_dir = $resolvedReleaseBlockerRollupOutputDir
+        summary_json = $releaseBlockerRollupSummaryPath
+        report_markdown = $releaseBlockerRollupMarkdownPath
+        fail_on_blocker = [bool]$ReleaseBlockerRollupFailOnBlocker
+        fail_on_warning = [bool]$ReleaseBlockerRollupFailOnWarning
+        source_report_count = 0
+        release_blocker_count = 0
+        action_item_count = 0
+        warning_count = 0
+        error = ""
+    }
+    release_governance_handoff = [ordered]@{
+        requested = $releaseGovernanceHandoffRequested
+        status = if ($releaseGovernanceHandoffRequested) { "pending" } else { "not_requested" }
+        input_root = $resolvedReleaseGovernanceHandoffInputRoot
+        input_json = @($resolvedReleaseGovernanceHandoffInputJson)
+        output_dir = $resolvedReleaseGovernanceHandoffOutputDir
+        summary_json = $releaseGovernanceHandoffSummaryPath
+        report_markdown = $releaseGovernanceHandoffMarkdownPath
+        include_rollup = [bool]$ReleaseGovernanceHandoffIncludeRollup
+        fail_on_missing = [bool]$ReleaseGovernanceHandoffFailOnMissing
+        fail_on_blocker = [bool]$ReleaseGovernanceHandoffFailOnBlocker
+        fail_on_warning = [bool]$ReleaseGovernanceHandoffFailOnWarning
+        expected_report_count = 0
+        loaded_report_count = 0
+        missing_report_count = 0
+        failed_report_count = 0
+        release_blocker_count = 0
+        action_item_count = 0
+        warning_count = 0
+        error = ""
+    }
     template_schema = [ordered]@{
         requested = $templateSchemaRequested
         baseline = $resolvedTemplateSchemaBaseline
@@ -686,6 +1631,18 @@ $summary = [ordered]@{
         excluded_candidate_count = 0
         dirty_schema_baseline_count = 0
         schema_baseline_drift_count = 0
+        schema_patch_approval_pending_count = 0
+        schema_patch_approval_approved_count = 0
+        schema_patch_approval_rejected_count = 0
+        schema_patch_approval_compliance_issue_count = 0
+        schema_patch_approval_invalid_result_count = 0
+        schema_patch_approval_gate_status = "not_required"
+        schema_patch_approval_gate_blocked = $false
+        schema_patch_approval_history_status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
+        schema_patch_approval_history_json = if ($projectTemplateSmokeRequested) { $schemaApprovalHistoryJsonPath } else { "" }
+        schema_patch_approval_history_markdown = if ($projectTemplateSmokeRequested) { $schemaApprovalHistoryMarkdownPath } else { "" }
+        schema_patch_approval_history_input_count = 0
+        schema_patch_approval_history_error = ""
         candidate_coverage = [ordered]@{
             status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
             require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
@@ -710,6 +1667,18 @@ $summary = [ordered]@{
             status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
             dirty_schema_baseline_count = 0
             schema_baseline_drift_count = 0
+            schema_patch_approval_pending_count = 0
+            schema_patch_approval_approved_count = 0
+            schema_patch_approval_rejected_count = 0
+            schema_patch_approval_compliance_issue_count = 0
+            schema_patch_approval_invalid_result_count = 0
+            schema_patch_approval_gate_status = "not_required"
+            schema_patch_approval_gate_blocked = $false
+            schema_patch_approval_history_status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
+            schema_patch_approval_history_json = if ($projectTemplateSmokeRequested) { $schemaApprovalHistoryJsonPath } else { "" }
+            schema_patch_approval_history_markdown = if ($projectTemplateSmokeRequested) { $schemaApprovalHistoryMarkdownPath } else { "" }
+            schema_patch_approval_history_input_count = 0
+            schema_patch_approval_history_error = ""
             candidate_coverage = [ordered]@{
                 status = if ($projectTemplateSmokeRequested) { "pending" } else { "not_requested" }
                 require_full_coverage = [bool]$ProjectTemplateSmokeRequireFullCoverage
@@ -723,10 +1692,35 @@ $summary = [ordered]@{
         }
         install_smoke = [ordered]@{ status = if ($SkipInstallSmoke) { "skipped" } else { "pending" } }
         visual_gate = [ordered]@{ status = if ($SkipVisualGate) { "skipped" } else { "pending" } }
+        release_blocker_rollup = [ordered]@{
+            status = if ($releaseBlockerRollupRequested) { "pending" } else { "not_requested" }
+            summary_json = $releaseBlockerRollupSummaryPath
+            report_markdown = $releaseBlockerRollupMarkdownPath
+            source_report_count = 0
+            release_blocker_count = 0
+            action_item_count = 0
+            warning_count = 0
+            error = ""
+        }
+        release_governance_handoff = [ordered]@{
+            status = if ($releaseGovernanceHandoffRequested) { "pending" } else { "not_requested" }
+            summary_json = $releaseGovernanceHandoffSummaryPath
+            report_markdown = $releaseGovernanceHandoffMarkdownPath
+            expected_report_count = 0
+            loaded_report_count = 0
+            missing_report_count = 0
+            failed_report_count = 0
+            release_blocker_count = 0
+            action_item_count = 0
+            warning_count = 0
+            error = ""
+        }
     }
 }
 
 $activeStep = ""
+$releaseBlockerRollupFailure = $null
+$releaseGovernanceHandoffFailure = $null
 
 try {
     if ($TemplateSchemaSectionTargets -and $TemplateSchemaResolvedSectionTargets) {
@@ -749,6 +1743,28 @@ try {
         $activeStep = "project_template_smoke"
         throw "Project template smoke manifest does not exist: $resolvedProjectTemplateSmokeManifestPath"
     }
+    foreach ($path in @($resolvedReleaseBlockerRollupInputJson)) {
+        if (-not (Test-Path -LiteralPath $path)) {
+            $activeStep = "release_blocker_rollup"
+            throw "Release blocker rollup input JSON does not exist: $path"
+        }
+    }
+    foreach ($path in @($resolvedReleaseBlockerRollupInputRoot)) {
+        if (-not (Test-Path -LiteralPath $path)) {
+            $activeStep = "release_blocker_rollup"
+            throw "Release blocker rollup input root does not exist: $path"
+        }
+    }
+    foreach ($path in @($resolvedReleaseGovernanceHandoffInputJson)) {
+        if (-not (Test-Path -LiteralPath $path)) {
+            $activeStep = "release_governance_handoff"
+            throw "Release governance handoff input JSON does not exist: $path"
+        }
+    }
+    if ($releaseGovernanceHandoffRequested -and -not (Test-Path -LiteralPath $resolvedReleaseGovernanceHandoffInputRoot)) {
+        $activeStep = "release_governance_handoff"
+        throw "Release governance handoff input root does not exist: $resolvedReleaseGovernanceHandoffInputRoot"
+    }
 
     if ($RefreshReadmeAssets -and $SkipVisualGate) {
         $activeStep = "visual_gate"
@@ -764,7 +1780,9 @@ try {
         )
         $summary.steps.configure.status = "completed"
     } else {
-        Assert-PathExists -Path $resolvedBuildDir -Label "existing build directory"
+        if ($msvcBootstrapRequired) {
+            Assert-PathExists -Path $resolvedBuildDir -Label "existing build directory"
+        }
     }
 
     if (-not $SkipBuild) {
@@ -775,7 +1793,9 @@ try {
         )
         $summary.steps.build.status = "completed"
     } else {
-        Assert-PathExists -Path $resolvedBuildDir -Label "existing build directory"
+        if ($msvcBootstrapRequired) {
+            Assert-PathExists -Path $resolvedBuildDir -Label "existing build directory"
+        }
         if (-not $SkipInstallSmoke) {
             $summary.steps.build.install_prereq_cli = Assert-BuildExecutablePresent `
                 -BuildRoot $resolvedBuildDir `
@@ -1057,6 +2077,7 @@ try {
         $projectTemplateSmokeSchemaBaselineCounts = Get-ProjectTemplateSmokeSchemaBaselineCounts -Summary $projectTemplateSmokeInfo
         $projectTemplateSmokeDirtySchemaBaselineCount = Get-ProjectTemplateSmokeDirtySchemaBaselineCount -Summary $projectTemplateSmokeInfo
         $projectTemplateSmokeSchemaBaselineDriftCount = [int]$projectTemplateSmokeSchemaBaselineCounts.drift
+        $projectTemplateSmokeApprovalGate = Get-ProjectTemplateSmokeSchemaApprovalGateInfo -Summary $projectTemplateSmokeInfo
         $summary.steps.project_template_smoke.status = if ($projectTemplateSmokeExitCode -eq 0) {
             "completed"
         } else {
@@ -1075,6 +2096,13 @@ try {
         $summary.steps.project_template_smoke.manual_review_pending_count = [int]$projectTemplateSmokeInfo.manual_review_pending_count
         $summary.steps.project_template_smoke.visual_review_undetermined_count = [int]$projectTemplateSmokeInfo.visual_review_undetermined_count
         $summary.steps.project_template_smoke.overall_status = [string]$projectTemplateSmokeInfo.overall_status
+        $summary.steps.project_template_smoke.schema_patch_approval_pending_count = [int]$projectTemplateSmokeApprovalGate.pending_count
+        $summary.steps.project_template_smoke.schema_patch_approval_approved_count = [int]$projectTemplateSmokeApprovalGate.approved_count
+        $summary.steps.project_template_smoke.schema_patch_approval_rejected_count = [int]$projectTemplateSmokeApprovalGate.rejected_count
+        $summary.steps.project_template_smoke.schema_patch_approval_compliance_issue_count = [int]$projectTemplateSmokeApprovalGate.compliance_issue_count
+        $summary.steps.project_template_smoke.schema_patch_approval_invalid_result_count = [int]$projectTemplateSmokeApprovalGate.invalid_result_count
+        $summary.steps.project_template_smoke.schema_patch_approval_gate_status = [string]$projectTemplateSmokeApprovalGate.gate_status
+        $summary.steps.project_template_smoke.schema_patch_approval_gate_blocked = [bool]$projectTemplateSmokeApprovalGate.gate_blocked
 
         $summary.project_template_smoke.summary_json = $resolvedProjectTemplateSmokeSummaryPath
         $summary.project_template_smoke.manifest_path = [string]$projectTemplateSmokeInfo.manifest_path
@@ -1089,6 +2117,22 @@ try {
         $summary.project_template_smoke.manual_review_pending_count = [int]$projectTemplateSmokeInfo.manual_review_pending_count
         $summary.project_template_smoke.visual_review_undetermined_count = [int]$projectTemplateSmokeInfo.visual_review_undetermined_count
         $summary.project_template_smoke.overall_status = [string]$projectTemplateSmokeInfo.overall_status
+        $summary.project_template_smoke.schema_patch_approval_pending_count = [int]$projectTemplateSmokeApprovalGate.pending_count
+        $summary.project_template_smoke.schema_patch_approval_approved_count = [int]$projectTemplateSmokeApprovalGate.approved_count
+        $summary.project_template_smoke.schema_patch_approval_rejected_count = [int]$projectTemplateSmokeApprovalGate.rejected_count
+        $summary.project_template_smoke.schema_patch_approval_compliance_issue_count = [int]$projectTemplateSmokeApprovalGate.compliance_issue_count
+        $summary.project_template_smoke.schema_patch_approval_invalid_result_count = [int]$projectTemplateSmokeApprovalGate.invalid_result_count
+        $summary.project_template_smoke.schema_patch_approval_gate_status = [string]$projectTemplateSmokeApprovalGate.gate_status
+        $summary.project_template_smoke.schema_patch_approval_gate_blocked = [bool]$projectTemplateSmokeApprovalGate.gate_blocked
+        $summary.project_template_smoke.schema_patch_approval_history_json = $schemaApprovalHistoryJsonPath
+        $summary.project_template_smoke.schema_patch_approval_history_markdown = $schemaApprovalHistoryMarkdownPath
+        $summary.steps.project_template_smoke.schema_patch_approval_history_json = $schemaApprovalHistoryJsonPath
+        $summary.steps.project_template_smoke.schema_patch_approval_history_markdown = $schemaApprovalHistoryMarkdownPath
+
+        if ([bool]$projectTemplateSmokeApprovalGate.gate_blocked) {
+            $summary.steps.project_template_smoke.status = "failed"
+            throw "Project template smoke schema approval gate blocked."
+        }
 
         if ($projectTemplateSmokeExitCode -ne 0) {
             $failedEntryCount = [int]$projectTemplateSmokeInfo.failed_entry_count
@@ -1177,6 +2221,7 @@ try {
             "-SectionPartRefsBuildDir",
             "-RunFontLanguageBuildDir",
             "-EnsureStyleBuildDir",
+            "-TableStyleQualityBuildDir",
             "-TemplateTableCliBookmarkBuildDir",
             "-TemplateTableCliColumnBuildDir",
             "-TemplateTableCliDirectColumnBuildDir",
@@ -1202,11 +2247,39 @@ try {
             $Dpi.ToString()
             "-SkipBuild"
         )
+        $visualGateArgs = Add-OptionalVisualReviewArguments -Arguments $visualGateArgs `
+            -VerdictArgument "-SmokeReviewVerdict" `
+            -Verdict $SmokeReviewVerdict `
+            -NoteArgument "-SmokeReviewNote" `
+            -Note $SmokeReviewNote
+        $visualGateArgs = Add-OptionalVisualReviewArguments -Arguments $visualGateArgs `
+            -VerdictArgument "-FixedGridReviewVerdict" `
+            -Verdict $FixedGridReviewVerdict `
+            -NoteArgument "-FixedGridReviewNote" `
+            -Note $FixedGridReviewNote
+        $visualGateArgs = Add-OptionalVisualReviewArguments -Arguments $visualGateArgs `
+            -VerdictArgument "-SectionPageSetupReviewVerdict" `
+            -Verdict $SectionPageSetupReviewVerdict `
+            -NoteArgument "-SectionPageSetupReviewNote" `
+            -Note $SectionPageSetupReviewNote
+        $visualGateArgs = Add-OptionalVisualReviewArguments -Arguments $visualGateArgs `
+            -VerdictArgument "-PageNumberFieldsReviewVerdict" `
+            -Verdict $PageNumberFieldsReviewVerdict `
+            -NoteArgument "-PageNumberFieldsReviewNote" `
+            -Note $PageNumberFieldsReviewNote
+        $visualGateArgs = Add-OptionalVisualReviewArguments -Arguments $visualGateArgs `
+            -VerdictArgument "-CuratedVisualReviewVerdict" `
+            -Verdict $CuratedVisualReviewVerdict `
+            -NoteArgument "-CuratedVisualReviewNote" `
+            -Note $CuratedVisualReviewNote
         foreach ($argumentName in $visualGateBuildDirArguments) {
             $visualGateArgs += @(
                 $argumentName
                 $resolvedBuildDir
             )
+        }
+        if ($IncludeTableStyleQuality) {
+            $visualGateArgs += "-IncludeTableStyleQuality"
         }
         if ($SkipReviewTasks) {
             $visualGateArgs += "-SkipReviewTasks"
@@ -1257,6 +2330,22 @@ try {
             $summary.visual_verdict = [string]$gateVisualVerdict
             $summary.steps.visual_gate.visual_verdict = [string]$gateVisualVerdict
         }
+        $reviewTaskSummary = Get-CompleteVisualGateReviewTaskSummary -Summary (Get-OptionalPropertyValue -Object $gateSummary -Name "review_task_summary")
+        if ($null -ne $reviewTaskSummary) {
+            $summary.steps.visual_gate.review_task_summary = $reviewTaskSummary
+        }
+        Add-GateFlowReviewSummary -Target $summary.steps.visual_gate -Prefix "smoke" `
+            -FlowInfo (Get-OptionalPropertyValue -Object $gateSummary -Name "smoke")
+        Add-GateFlowReviewSummary -Target $summary.steps.visual_gate -Prefix "fixed_grid" `
+            -FlowInfo (Get-OptionalPropertyValue -Object $gateSummary -Name "fixed_grid")
+        Add-GateFlowReviewSummary -Target $summary.steps.visual_gate -Prefix "section_page_setup" `
+            -FlowInfo (Get-OptionalPropertyValue -Object $gateSummary -Name "section_page_setup")
+        Add-GateFlowReviewSummary -Target $summary.steps.visual_gate -Prefix "page_number_fields" `
+            -FlowInfo (Get-OptionalPropertyValue -Object $gateSummary -Name "page_number_fields")
+        $curatedVisualReviewEntries = @(Get-CuratedVisualReviewSummaryEntries -GateSummary $gateSummary)
+        if ($curatedVisualReviewEntries.Count -gt 0) {
+            $summary.steps.visual_gate.curated_visual_regressions = $curatedVisualReviewEntries
+        }
 
         $readmeGalleryInfo = Get-ReadmeGalleryInfoFromGateSummary -GateSummaryPath $visualGateInfo.gate_summary
         $summary.readme_gallery = $readmeGalleryInfo
@@ -1278,6 +2367,138 @@ try {
 } finally {
     ($summary | ConvertTo-Json -Depth 8) | Set-Content -Path $summaryPath -Encoding UTF8
 
+    if ($projectTemplateSmokeRequested) {
+        try {
+            $historyInfo = Invoke-ProjectTemplateSchemaApprovalHistory `
+                -ScriptPath $projectTemplateSchemaApprovalHistoryScript `
+                -ReleaseSummaryPath $summaryPath `
+                -ProjectTemplateSmokeSummaryPath $summary.project_template_smoke.summary_json `
+                -OutputJson $schemaApprovalHistoryJsonPath `
+                -OutputMarkdown $schemaApprovalHistoryMarkdownPath
+            $summary.project_template_smoke.schema_patch_approval_history_status = [string]$historyInfo.status
+            $summary.project_template_smoke.schema_patch_approval_history_input_count = [int]$historyInfo.input_count
+            $summary.project_template_smoke.schema_patch_approval_history_error = ""
+            $summary.steps.project_template_smoke.schema_patch_approval_history_status = [string]$historyInfo.status
+            $summary.steps.project_template_smoke.schema_patch_approval_history_input_count = [int]$historyInfo.input_count
+            $summary.steps.project_template_smoke.schema_patch_approval_history_error = ""
+        } catch {
+            $historyError = $_.Exception.Message
+            $summary.project_template_smoke.schema_patch_approval_history_status = "failed"
+            $summary.project_template_smoke.schema_patch_approval_history_error = $historyError
+            $summary.steps.project_template_smoke.schema_patch_approval_history_status = "failed"
+            $summary.steps.project_template_smoke.schema_patch_approval_history_error = $historyError
+            Write-Step "Project template schema approval history generation failed: $historyError"
+        }
+
+        $schemaApprovalHistorySummary = Read-ProjectTemplateSchemaApprovalHistorySummary -Path $schemaApprovalHistoryJsonPath
+        $projectTemplateSmokeSummaryForBlocker = if (-not [string]::IsNullOrWhiteSpace($summary.project_template_smoke.summary_json) -and
+            (Test-Path -LiteralPath $summary.project_template_smoke.summary_json)) {
+            Get-Content -Raw -Encoding UTF8 -LiteralPath $summary.project_template_smoke.summary_json | ConvertFrom-Json
+        } else {
+            $summary.project_template_smoke
+        }
+        $schemaApprovalReleaseBlocker = New-ProjectTemplateSchemaApprovalReleaseBlocker `
+            -ProjectTemplateSmokeSummary $projectTemplateSmokeSummaryForBlocker `
+            -HistorySummary $schemaApprovalHistorySummary `
+            -SummaryJsonPath $summary.project_template_smoke.summary_json `
+            -HistoryJsonPath $summary.project_template_smoke.schema_patch_approval_history_json `
+            -HistoryMarkdownPath $summary.project_template_smoke.schema_patch_approval_history_markdown
+        Set-ProjectTemplateSchemaApprovalReleaseBlocker `
+            -ReleaseSummary $summary `
+            -Blocker $schemaApprovalReleaseBlocker
+        ($summary | ConvertTo-Json -Depth 10) | Set-Content -Path $summaryPath -Encoding UTF8
+    }
+
+    if ($releaseBlockerRollupRequested) {
+        try {
+            Write-Step "Building release blocker rollup"
+            Invoke-ReleaseBlockerRollup `
+                -ScriptPath $releaseBlockerRollupScript `
+                -InputJson $resolvedReleaseBlockerRollupInputJson `
+                -InputRoot $resolvedReleaseBlockerRollupInputRoot `
+                -OutputDir $resolvedReleaseBlockerRollupOutputDir `
+                -SummaryJson $releaseBlockerRollupSummaryPath `
+                -ReportMarkdown $releaseBlockerRollupMarkdownPath `
+                -FailOnBlocker ([bool]$ReleaseBlockerRollupFailOnBlocker) `
+                -FailOnWarning ([bool]$ReleaseBlockerRollupFailOnWarning)
+            $rollupSummary = Read-ReleaseBlockerRollupSummary -Path $releaseBlockerRollupSummaryPath
+            $summary.release_blocker_rollup.status = if ($null -eq $rollupSummary) { "missing_summary" } else { [string]$rollupSummary.status }
+            $summary.release_blocker_rollup.source_report_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_report_count }
+            $summary.release_blocker_rollup.release_blocker_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.release_blocker_count }
+            $summary.release_blocker_rollup.action_item_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.action_item_count }
+            $summary.release_blocker_rollup.warning_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.warning_count }
+            $summary.release_blocker_rollup.error = ""
+            $summary.steps.release_blocker_rollup.status = $summary.release_blocker_rollup.status
+            $summary.steps.release_blocker_rollup.source_report_count = $summary.release_blocker_rollup.source_report_count
+            $summary.steps.release_blocker_rollup.release_blocker_count = $summary.release_blocker_rollup.release_blocker_count
+            $summary.steps.release_blocker_rollup.action_item_count = $summary.release_blocker_rollup.action_item_count
+            $summary.steps.release_blocker_rollup.warning_count = $summary.release_blocker_rollup.warning_count
+            $summary.steps.release_blocker_rollup.error = ""
+            ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
+        } catch {
+            $rollupError = $_.Exception.Message
+            $summary.release_blocker_rollup.status = "failed"
+            $summary.release_blocker_rollup.error = $rollupError
+            $summary.steps.release_blocker_rollup.status = "failed"
+            $summary.steps.release_blocker_rollup.error = $rollupError
+            ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
+            Write-Step "Release blocker rollup failed: $rollupError"
+            if ($ReleaseBlockerRollupFailOnBlocker -or $ReleaseBlockerRollupFailOnWarning) {
+                $releaseBlockerRollupFailure = $rollupError
+            }
+        }
+    }
+
+    if ($releaseGovernanceHandoffRequested) {
+        try {
+            Write-Step "Building release governance handoff"
+            Invoke-ReleaseGovernanceHandoff `
+                -ScriptPath $releaseGovernanceHandoffScript `
+                -InputRoot $resolvedReleaseGovernanceHandoffInputRoot `
+                -InputJson $resolvedReleaseGovernanceHandoffInputJson `
+                -OutputDir $resolvedReleaseGovernanceHandoffOutputDir `
+                -SummaryJson $releaseGovernanceHandoffSummaryPath `
+                -ReportMarkdown $releaseGovernanceHandoffMarkdownPath `
+                -IncludeRollup ([bool]$ReleaseGovernanceHandoffIncludeRollup) `
+                -FailOnMissing ([bool]$ReleaseGovernanceHandoffFailOnMissing) `
+                -FailOnBlocker ([bool]$ReleaseGovernanceHandoffFailOnBlocker) `
+                -FailOnWarning ([bool]$ReleaseGovernanceHandoffFailOnWarning)
+            $handoffSummary = Read-ReleaseGovernanceHandoffSummary -Path $releaseGovernanceHandoffSummaryPath
+            $summary.release_governance_handoff.status = if ($null -eq $handoffSummary) { "missing_summary" } else { [string]$handoffSummary.status }
+            $summary.release_governance_handoff.expected_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.expected_report_count }
+            $summary.release_governance_handoff.loaded_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.loaded_report_count }
+            $summary.release_governance_handoff.missing_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.missing_report_count }
+            $summary.release_governance_handoff.failed_report_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.failed_report_count }
+            $summary.release_governance_handoff.release_blocker_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.release_blocker_count }
+            $summary.release_governance_handoff.action_item_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.action_item_count }
+            $summary.release_governance_handoff.warning_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.warning_count }
+            $summary.release_governance_handoff.error = ""
+            $summary.steps.release_governance_handoff.status = $summary.release_governance_handoff.status
+            $summary.steps.release_governance_handoff.expected_report_count = $summary.release_governance_handoff.expected_report_count
+            $summary.steps.release_governance_handoff.loaded_report_count = $summary.release_governance_handoff.loaded_report_count
+            $summary.steps.release_governance_handoff.missing_report_count = $summary.release_governance_handoff.missing_report_count
+            $summary.steps.release_governance_handoff.failed_report_count = $summary.release_governance_handoff.failed_report_count
+            $summary.steps.release_governance_handoff.release_blocker_count = $summary.release_governance_handoff.release_blocker_count
+            $summary.steps.release_governance_handoff.action_item_count = $summary.release_governance_handoff.action_item_count
+            $summary.steps.release_governance_handoff.warning_count = $summary.release_governance_handoff.warning_count
+            $summary.steps.release_governance_handoff.error = ""
+            ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
+        } catch {
+            $handoffError = $_.Exception.Message
+            $summary.release_governance_handoff.status = "failed"
+            $summary.release_governance_handoff.error = $handoffError
+            $summary.steps.release_governance_handoff.status = "failed"
+            $summary.steps.release_governance_handoff.error = $handoffError
+            ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
+            Write-Step "Release governance handoff failed: $handoffError"
+            if ($ReleaseGovernanceHandoffFailOnMissing -or
+                $ReleaseGovernanceHandoffFailOnBlocker -or
+                $ReleaseGovernanceHandoffFailOnWarning) {
+                $releaseGovernanceHandoffFailure = $handoffError
+            }
+        }
+    }
+
     $repoRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $repoRoot
     $summaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summaryPath
     $buildDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $resolvedBuildDir
@@ -1294,11 +2515,15 @@ try {
     $projectTemplateSmokeSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.summary_json
     $projectTemplateSmokeOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.output_dir
     $projectTemplateSmokeCandidateDiscoveryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.candidate_discovery_json
+    $releaseGovernanceHandoffSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_governance_handoff.summary_json
+    $releaseGovernanceHandoffReportDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_governance_handoff.report_markdown
     $releaseHandoffDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
     $releaseBodyDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseBodyZhCnPath
     $releaseSummaryDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseSummaryZhCnPath
     $artifactGuideDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $artifactGuidePath
     $reviewerChecklistDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $reviewerChecklistPath
+    $schemaApprovalHistoryJsonDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.schema_patch_approval_history_json
+    $schemaApprovalHistoryMarkdownDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.schema_patch_approval_history_markdown
     $startHereDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $startHerePath
 
     $readmeGalleryStatusLine = switch ($summary.readme_gallery.status) {
@@ -1315,6 +2540,10 @@ try {
             "- README gallery refresh: $($summary.readme_gallery.status)"
         }
     }
+    $visualGateReviewTaskSummaryLine = Get-VisualGateReviewTaskSummaryLine `
+        -VisualGateStep $summary.steps.visual_gate
+    $visualGateReviewSummary = Get-VisualGateReviewSummaryMarkdown -RepoRoot $repoRoot `
+        -VisualGateStep $summary.steps.visual_gate
 
     $finalReview = @"
 # Release Candidate Checks
@@ -1325,6 +2554,7 @@ try {
 - Execution status: $($summary.execution_status)
 - Failed step: $($summary.failed_step)
 - Error: $($summary.error)
+- Release blockers: $($summary.release_blocker_count)
 - MSVC bootstrap mode: $($summary.msvc_bootstrap_mode)
 
 ## Step status
@@ -1337,8 +2567,11 @@ try {
 - Project template smoke: $($summary.steps.project_template_smoke.status)
 - Install smoke: $($summary.steps.install_smoke.status)
 - Visual gate: $($summary.steps.visual_gate.status)
+- Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
+- Release governance handoff: $($summary.steps.release_governance_handoff.status)
+$visualGateReviewTaskSummaryLine
 $readmeGalleryStatusLine
-
+$visualGateReviewSummary
 ## Key outputs
 
 - Build directory: $buildDirDisplay
@@ -1358,6 +2591,16 @@ $readmeGalleryStatusLine
 - Project template smoke candidate coverage: $($summary.project_template_smoke.registered_candidate_count)/$($summary.project_template_smoke.unregistered_candidate_count)/$($summary.project_template_smoke.excluded_candidate_count) registered/unregistered/excluded
 - Project template smoke dirty schema baselines: $($summary.project_template_smoke.dirty_schema_baseline_count)
 - Project template smoke schema baseline drifts: $($summary.project_template_smoke.schema_baseline_drift_count)
+- Project template smoke schema approval gate: $($summary.project_template_smoke.schema_patch_approval_gate_status)
+- Project template smoke schema approval compliance issues: $($summary.project_template_smoke.schema_patch_approval_compliance_issue_count)
+- Project template smoke schema approval invalid results: $($summary.project_template_smoke.schema_patch_approval_invalid_result_count)
+- Project template smoke schema approval history: $($summary.project_template_smoke.schema_patch_approval_history_status) ($schemaApprovalHistoryJsonDisplayPath, $schemaApprovalHistoryMarkdownDisplayPath)
+- Release blocker rollup summary: $(Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_blocker_rollup.summary_json)
+- Release blocker rollup report: $(Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_blocker_rollup.report_markdown)
+- Release blocker rollup counts: $($summary.release_blocker_rollup.release_blocker_count) blockers, $($summary.release_blocker_rollup.action_item_count) actions, $($summary.release_blocker_rollup.warning_count) warnings
+- Release governance handoff summary: $releaseGovernanceHandoffSummaryDisplay
+- Release governance handoff report: $releaseGovernanceHandoffReportDisplay
+- Release governance handoff counts: $($summary.release_governance_handoff.loaded_report_count)/$($summary.release_governance_handoff.expected_report_count) reports, $($summary.release_governance_handoff.missing_report_count) missing, $($summary.release_governance_handoff.release_blocker_count) blockers, $($summary.release_governance_handoff.action_item_count) actions
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath
@@ -1401,4 +2644,23 @@ Write-Host "Release body output: $releaseBodyZhCnPath"
 Write-Host "Release summary output: $releaseSummaryZhCnPath"
 Write-Host "Artifact guide: $artifactGuidePath"
 Write-Host "Reviewer checklist: $reviewerChecklistPath"
+if ($projectTemplateSmokeRequested) {
+    Write-Host "Project template schema approval history JSON: $schemaApprovalHistoryJsonPath"
+    Write-Host "Project template schema approval history Markdown: $schemaApprovalHistoryMarkdownPath"
+}
+if ($releaseBlockerRollupRequested) {
+    Write-Host "Release blocker rollup summary: $releaseBlockerRollupSummaryPath"
+    Write-Host "Release blocker rollup report: $releaseBlockerRollupMarkdownPath"
+}
+if ($releaseGovernanceHandoffRequested) {
+    Write-Host "Release governance handoff summary: $releaseGovernanceHandoffSummaryPath"
+    Write-Host "Release governance handoff report: $releaseGovernanceHandoffMarkdownPath"
+}
 Write-Host "Start here: $startHerePath"
+
+if ($null -ne $releaseBlockerRollupFailure) {
+    throw $releaseBlockerRollupFailure
+}
+if ($null -ne $releaseGovernanceHandoffFailure) {
+    throw $releaseGovernanceHandoffFailure
+}

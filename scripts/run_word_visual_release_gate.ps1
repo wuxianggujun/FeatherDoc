@@ -35,6 +35,43 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\run_word_visual_release_gate.ps1 `
     -GateOutputDir output/word-visual-release-gate `
     -TaskOutputRoot output/word-visual-smoke/tasks-release-gate `
     -RefreshReadmeAssets
+
+.PARAMETER SmokeReviewVerdict
+Optional screenshot-backed verdict to pass into the standard Word visual smoke
+flow. Use this when the smoke contact sheet is reviewed during the same gate run.
+
+.PARAMETER SmokeReviewNote
+Optional note recorded with SmokeReviewVerdict in the smoke review artifacts.
+
+.PARAMETER FixedGridReviewVerdict
+Optional screenshot-backed verdict to seed into the fixed-grid review task.
+
+.PARAMETER FixedGridReviewNote
+Optional note recorded with FixedGridReviewVerdict in the fixed-grid review task.
+
+.PARAMETER SectionPageSetupReviewVerdict
+Optional screenshot-backed verdict to seed into the section page setup review task.
+
+.PARAMETER SectionPageSetupReviewNote
+Optional note recorded with SectionPageSetupReviewVerdict in the section page
+setup review task.
+
+.PARAMETER PageNumberFieldsReviewVerdict
+Optional screenshot-backed verdict to seed into the page number fields review
+task.
+
+.PARAMETER PageNumberFieldsReviewNote
+Optional note recorded with PageNumberFieldsReviewVerdict in the page number
+fields review task.
+
+.PARAMETER CuratedVisualReviewVerdict
+Optional screenshot-backed verdict to seed into every curated visual regression
+review task.
+
+.PARAMETER CuratedVisualReviewNote
+Optional note recorded with CuratedVisualReviewVerdict in each curated visual
+regression review task.
+
 #>
 param(
     [string]$GateOutputDir = "output/word-visual-release-gate",
@@ -73,6 +110,7 @@ param(
     [string]$SectionPartRefsBuildDir = "build-section-part-refs-visual-nmake",
     [string]$RunFontLanguageBuildDir = "build-run-font-language-visual-nmake",
     [string]$EnsureStyleBuildDir = "build-ensure-style-visual-nmake",
+    [string]$TableStyleQualityBuildDir = "build-codex-clang-compat",
     [string]$TemplateTableCliBookmarkBuildDir = "build-template-table-cli-bookmark-visual-nmake",
     [string]$TemplateTableCliColumnBuildDir = "build-template-table-cli-column-visual-nmake",
     [string]$TemplateTableCliDirectColumnBuildDir = "build-template-table-cli-direct-column-visual-nmake",
@@ -123,6 +161,7 @@ param(
     [switch]$SkipSectionPartRefs,
     [switch]$SkipRunFontLanguage,
     [switch]$SkipEnsureStyle,
+    [switch]$IncludeTableStyleQuality,
     [switch]$SkipTemplateTableCliBookmark,
     [switch]$SkipTemplateTableCliColumn,
     [switch]$SkipTemplateTableCliDirectColumn,
@@ -139,6 +178,21 @@ param(
     [switch]$SkipReviewTasks,
     [ValidateSet("review-only", "review-and-repair")]
     [string]$ReviewMode = "review-only",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$SmokeReviewVerdict = "undecided",
+    [string]$SmokeReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$FixedGridReviewVerdict = "undecided",
+    [string]$FixedGridReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$SectionPageSetupReviewVerdict = "undecided",
+    [string]$SectionPageSetupReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$PageNumberFieldsReviewVerdict = "undecided",
+    [string]$PageNumberFieldsReviewNote = "",
+    [ValidateSet("undecided", "pending_manual_review", "pass", "fail", "undetermined")]
+    [string]$CuratedVisualReviewVerdict = "undecided",
+    [string]$CuratedVisualReviewNote = "",
     [string]$TaskOutputRoot = "output/word-visual-smoke/tasks",
     [switch]$RefreshReadmeAssets,
     [string]$ReadmeAssetsDir = "docs/assets/readme",
@@ -259,6 +313,57 @@ function Assert-PathExists {
     }
 }
 
+function Get-OptionalPropertyValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $null
+    }
+
+    return $property.Value
+}
+
+function Test-ReviewTaskPresent {
+    param([AllowNull()]$Task)
+
+    if ($null -eq $Task) {
+        return $false
+    }
+
+    if ($Task -is [string]) {
+        return -not [string]::IsNullOrWhiteSpace($Task)
+    }
+
+    return $true
+}
+
+function Add-OptionalSummaryValue {
+    param(
+        [System.Collections.IDictionary]$Target,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -ne $Value -and -not [string]::IsNullOrWhiteSpace([string]$Value)) {
+        $Target[$Name] = $Value
+    }
+}
+
+function Read-ReviewResult {
+    param([string]$ReviewResultPath)
+
+    Assert-PathExists -Path $ReviewResultPath -Label "smoke review result JSON"
+    return Get-Content -Raw -LiteralPath $ReviewResultPath | ConvertFrom-Json
+}
+
 function Parse-SmokeRunOutput {
     param([string[]]$Lines)
 
@@ -377,6 +482,55 @@ function Get-TaskSummaryBlock {
     ) -join [Environment]::NewLine
 }
 
+function Get-ReviewTaskSummary {
+    param($ReviewTasks)
+
+    $summary = [ordered]@{
+        total_count = 0
+        standard_count = 0
+        curated_count = 0
+    }
+
+    if ($null -eq $ReviewTasks) {
+        return $summary
+    }
+
+    foreach ($name in @("document", "fixed_grid", "section_page_setup", "page_number_fields")) {
+        $task = if ($ReviewTasks -is [System.Collections.IDictionary]) {
+            if ($ReviewTasks.Contains($name)) {
+                $ReviewTasks[$name]
+            } else {
+                $null
+            }
+        } else {
+            Get-OptionalPropertyValue -Object $ReviewTasks -Name $name
+        }
+
+        if (Test-ReviewTaskPresent -Task $task) {
+            $summary.standard_count += 1
+        }
+    }
+
+    $curatedTasks = if ($ReviewTasks -is [System.Collections.IDictionary]) {
+        if ($ReviewTasks.Contains("curated_visual_regressions")) {
+            $ReviewTasks["curated_visual_regressions"]
+        } else {
+            @()
+        }
+    } else {
+        Get-OptionalPropertyValue -Object $ReviewTasks -Name "curated_visual_regressions"
+    }
+
+    foreach ($task in @($curatedTasks)) {
+        if (Test-ReviewTaskPresent -Task $task) {
+            $summary.curated_count += 1
+        }
+    }
+
+    $summary.total_count = $summary.standard_count + $summary.curated_count
+    return $summary
+}
+
 function Get-FlowStatusLine {
     param(
         [string]$Label,
@@ -401,14 +555,12 @@ function Resolve-AggregateContactSheetPath {
         [string]$Label
     )
 
-    foreach ($fileName in @("before_after_contact_sheet.png", "contact_sheet.png")) {
-        $candidate = Join-Path $AggregateEvidenceDir $fileName
-        if (Test-Path $candidate) {
-            return $candidate
-        }
+    $candidate = Join-Path $AggregateEvidenceDir "before_after_contact_sheet.png"
+    if (Test-Path $candidate) {
+        return $candidate
     }
 
-    throw "Expected $Label aggregate contact sheet was not found under: $AggregateEvidenceDir"
+    throw "Expected $Label aggregate-evidence\before_after_contact_sheet.png was not found under: $AggregateEvidenceDir"
 }
 
 function New-VisualRegressionRefreshCommand {
@@ -536,6 +688,7 @@ if (
     $SkipSectionPartRefs -and
     $SkipRunFontLanguage -and
     $SkipEnsureStyle -and
+    (-not $IncludeTableStyleQuality.IsPresent) -and
     $SkipTemplateTableCliBookmark -and
     $SkipTemplateTableCliColumn -and
     $SkipTemplateTableCliDirectColumn -and
@@ -591,6 +744,7 @@ $resolvedSectionOrderOutputDir = Join-Path $resolvedGateOutputDir "section-order
 $resolvedSectionPartRefsOutputDir = Join-Path $resolvedGateOutputDir "section-part-refs"
 $resolvedRunFontLanguageOutputDir = Join-Path $resolvedGateOutputDir "run-font-language"
 $resolvedEnsureStyleOutputDir = Join-Path $resolvedGateOutputDir "ensure-style"
+$resolvedTableStyleQualityOutputDir = Join-Path $resolvedGateOutputDir "table-style-quality"
 $resolvedTemplateTableCliBookmarkOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-bookmark"
 $resolvedTemplateTableCliColumnOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-column"
 $resolvedTemplateTableCliDirectColumnOutputDir = Join-Path $resolvedGateOutputDir "template-table-cli-direct-column"
@@ -682,6 +836,8 @@ $runFontLanguageOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoo
     -TargetPath $resolvedRunFontLanguageOutputDir -Label "Run font language output directory"
 $ensureStyleOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedEnsureStyleOutputDir -Label "Ensure style output directory"
+$tableStyleQualityOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
+    -TargetPath $resolvedTableStyleQualityOutputDir -Label "Table style quality output directory"
 $templateTableCliBookmarkOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
     -TargetPath $resolvedTemplateTableCliBookmarkOutputDir -Label "Template table CLI bookmark output directory"
 $templateTableCliColumnOutputDirForChild = Convert-ToChildScriptPath -RepoRoot $repoRoot `
@@ -746,6 +902,7 @@ $sectionOrderScript = Join-Path $repoRoot "scripts\run_section_order_visual_regr
 $sectionPartRefsScript = Join-Path $repoRoot "scripts\run_section_part_refs_visual_regression.ps1"
 $runFontLanguageScript = Join-Path $repoRoot "scripts\run_run_font_language_visual_regression.ps1"
 $ensureStyleScript = Join-Path $repoRoot "scripts\run_ensure_style_visual_regression.ps1"
+$tableStyleQualityScript = Join-Path $repoRoot "scripts\run_table_style_quality_visual_regression.ps1"
 $templateTableCliBookmarkScript = Join-Path $repoRoot "scripts\run_template_table_cli_bookmark_visual_regression.ps1"
 $templateTableCliColumnScript = Join-Path $repoRoot "scripts\run_template_table_cli_column_visual_regression.ps1"
 $templateTableCliDirectColumnScript = Join-Path $repoRoot "scripts\run_template_table_cli_direct_column_visual_regression.ps1"
@@ -780,6 +937,7 @@ $gateSummary = [ordered]@{
     section_page_setup = $null
     page_number_fields = $null
     curated_visual_regressions = @()
+    review_task_summary = $null
     review_tasks = [ordered]@{
         document = $null
         fixed_grid = $null
@@ -1070,6 +1228,15 @@ $curatedVisualFlowDescriptors = @(
         script_path = $ensureStyleScript
     },
     [ordered]@{
+        id = "table-style-quality"
+        label = "Table style quality"
+        skip = (-not $IncludeTableStyleQuality.IsPresent)
+        build_dir = $TableStyleQualityBuildDir
+        output_dir = $resolvedTableStyleQualityOutputDir
+        output_dir_for_child = $tableStyleQualityOutputDirForChild
+        script_path = $tableStyleQualityScript
+    },
+    [ordered]@{
         id = "template-table-cli-bookmark"
         label = "Template table CLI bookmark"
         skip = $SkipTemplateTableCliBookmark.IsPresent
@@ -1217,11 +1384,18 @@ if (-not $SkipSmoke) {
     if ($VisibleWord) {
         $smokeArgs += "-VisibleWord"
     }
+    if ($SmokeReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($SmokeReviewNote)) {
+        $smokeArgs += @("-ReviewVerdict", $SmokeReviewVerdict)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($SmokeReviewNote)) {
+        $smokeArgs += @("-ReviewNote", $SmokeReviewNote)
+    }
 
     $smokeRunOutput = Invoke-ChildPowerShell -ScriptPath $smokeScript `
         -Arguments $smokeArgs `
         -FailureMessage "Word visual smoke gate step failed."
     $smokeInfo = Parse-SmokeRunOutput -Lines $smokeRunOutput
+    $smokeReviewResult = Read-ReviewResult -ReviewResultPath $smokeInfo.review_result_path
 
     $gateSummary.smoke = [ordered]@{
         status = "completed"
@@ -1237,7 +1411,15 @@ if (-not $SkipSmoke) {
         review_result = $smokeInfo.review_result_path
         final_review = $smokeInfo.final_review_path
         repair_dir = $smokeInfo.repair_dir
+        review_status = Get-OptionalPropertyValue -Object $smokeReviewResult -Name "status"
+        review_verdict = Get-OptionalPropertyValue -Object $smokeReviewResult -Name "verdict"
     }
+    Add-OptionalSummaryValue -Target $gateSummary.smoke -Name "reviewed_at" `
+        -Value (Get-OptionalPropertyValue -Object $smokeReviewResult -Name "reviewed_at")
+    Add-OptionalSummaryValue -Target $gateSummary.smoke -Name "review_method" `
+        -Value (Get-OptionalPropertyValue -Object $smokeReviewResult -Name "review_method")
+    Add-OptionalSummaryValue -Target $gateSummary.smoke -Name "review_note" `
+        -Value (Get-OptionalPropertyValue -Object $smokeReviewResult -Name "review_note")
 
     if (-not $SkipReviewTasks) {
         Write-Step "Preparing document review task from the smoke DOCX"
@@ -1333,6 +1515,12 @@ if (-not $SkipFixedGrid) {
             "-TaskOutputRoot"
             $taskOutputRootForChild
         )
+        if ($FixedGridReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($FixedGridReviewNote)) {
+            $prepareTaskArgs += @("-ReviewVerdict", $FixedGridReviewVerdict)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($FixedGridReviewNote)) {
+            $prepareTaskArgs += @("-ReviewNote", $FixedGridReviewNote)
+        }
         if ($OpenTaskDirs) {
             $prepareTaskArgs += "-OpenTaskDir"
         }
@@ -1341,9 +1529,18 @@ if (-not $SkipFixedGrid) {
             -Arguments $prepareTaskArgs `
             -FailureMessage "Fixed-grid review task preparation failed."
         $fixedGridTaskInfo = Parse-PrepareTaskOutput -Lines $fixedGridTaskOutput
+        $fixedGridTaskReview = Read-ReviewResult -ReviewResultPath $fixedGridTaskInfo.review_result_path
 
         $gateSummary.review_tasks.fixed_grid = $fixedGridTaskInfo
         $gateSummary.fixed_grid.task = $fixedGridTaskInfo
+        $gateSummary.fixed_grid.review_status = Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "status"
+        $gateSummary.fixed_grid.review_verdict = Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "verdict"
+        Add-OptionalSummaryValue -Target $gateSummary.fixed_grid -Name "reviewed_at" `
+            -Value (Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "reviewed_at")
+        Add-OptionalSummaryValue -Target $gateSummary.fixed_grid -Name "review_method" `
+            -Value (Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "review_method")
+        Add-OptionalSummaryValue -Target $gateSummary.fixed_grid -Name "review_note" `
+            -Value (Get-OptionalPropertyValue -Object $fixedGridTaskReview -Name "review_note")
     }
 } else {
     $gateSummary.fixed_grid = [ordered]@{
@@ -1416,6 +1613,12 @@ if (-not $SkipSectionPageSetup) {
             "-TaskOutputRoot"
             $taskOutputRootForChild
         )
+        if ($SectionPageSetupReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($SectionPageSetupReviewNote)) {
+            $prepareTaskArgs += @("-ReviewVerdict", $SectionPageSetupReviewVerdict)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($SectionPageSetupReviewNote)) {
+            $prepareTaskArgs += @("-ReviewNote", $SectionPageSetupReviewNote)
+        }
         if ($OpenTaskDirs) {
             $prepareTaskArgs += "-OpenTaskDir"
         }
@@ -1424,9 +1627,18 @@ if (-not $SkipSectionPageSetup) {
             -Arguments $prepareTaskArgs `
             -FailureMessage "Section page setup review task preparation failed."
         $sectionPageSetupTaskInfo = Parse-PrepareTaskOutput -Lines $sectionPageSetupTaskOutput
+        $sectionPageSetupTaskReview = Read-ReviewResult -ReviewResultPath $sectionPageSetupTaskInfo.review_result_path
 
         $gateSummary.review_tasks.section_page_setup = $sectionPageSetupTaskInfo
         $gateSummary.section_page_setup.task = $sectionPageSetupTaskInfo
+        $gateSummary.section_page_setup.review_status = Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "status"
+        $gateSummary.section_page_setup.review_verdict = Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "verdict"
+        Add-OptionalSummaryValue -Target $gateSummary.section_page_setup -Name "reviewed_at" `
+            -Value (Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "reviewed_at")
+        Add-OptionalSummaryValue -Target $gateSummary.section_page_setup -Name "review_method" `
+            -Value (Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "review_method")
+        Add-OptionalSummaryValue -Target $gateSummary.section_page_setup -Name "review_note" `
+            -Value (Get-OptionalPropertyValue -Object $sectionPageSetupTaskReview -Name "review_note")
     }
 } else {
     $gateSummary.section_page_setup = [ordered]@{
@@ -1499,6 +1711,12 @@ if (-not $SkipPageNumberFields) {
             "-TaskOutputRoot"
             $taskOutputRootForChild
         )
+        if ($PageNumberFieldsReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($PageNumberFieldsReviewNote)) {
+            $prepareTaskArgs += @("-ReviewVerdict", $PageNumberFieldsReviewVerdict)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($PageNumberFieldsReviewNote)) {
+            $prepareTaskArgs += @("-ReviewNote", $PageNumberFieldsReviewNote)
+        }
         if ($OpenTaskDirs) {
             $prepareTaskArgs += "-OpenTaskDir"
         }
@@ -1507,9 +1725,18 @@ if (-not $SkipPageNumberFields) {
             -Arguments $prepareTaskArgs `
             -FailureMessage "Page number fields review task preparation failed."
         $pageNumberFieldsTaskInfo = Parse-PrepareTaskOutput -Lines $pageNumberFieldsTaskOutput
+        $pageNumberFieldsTaskReview = Read-ReviewResult -ReviewResultPath $pageNumberFieldsTaskInfo.review_result_path
 
         $gateSummary.review_tasks.page_number_fields = $pageNumberFieldsTaskInfo
         $gateSummary.page_number_fields.task = $pageNumberFieldsTaskInfo
+        $gateSummary.page_number_fields.review_status = Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "status"
+        $gateSummary.page_number_fields.review_verdict = Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "verdict"
+        Add-OptionalSummaryValue -Target $gateSummary.page_number_fields -Name "reviewed_at" `
+            -Value (Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "reviewed_at")
+        Add-OptionalSummaryValue -Target $gateSummary.page_number_fields -Name "review_method" `
+            -Value (Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "review_method")
+        Add-OptionalSummaryValue -Target $gateSummary.page_number_fields -Name "review_note" `
+            -Value (Get-OptionalPropertyValue -Object $pageNumberFieldsTaskReview -Name "review_note")
     }
 } else {
     $gateSummary.page_number_fields = [ordered]@{
@@ -1563,6 +1790,12 @@ foreach ($descriptor in $curatedVisualFlowDescriptors) {
             "-TaskOutputRoot"
             $taskOutputRootForChild
         )
+        if ($CuratedVisualReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($CuratedVisualReviewNote)) {
+            $prepareTaskArgs += @("-ReviewVerdict", $CuratedVisualReviewVerdict)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($CuratedVisualReviewNote)) {
+            $prepareTaskArgs += @("-ReviewNote", $CuratedVisualReviewNote)
+        }
         if ($OpenTaskDirs) {
             $prepareTaskArgs += "-OpenTaskDir"
         }
@@ -1571,13 +1804,32 @@ foreach ($descriptor in $curatedVisualFlowDescriptors) {
             -Arguments $prepareTaskArgs `
             -FailureMessage "$($descriptor.label) review task preparation failed."
         $bundleTaskInfo = Parse-PrepareTaskOutput -Lines $bundleTaskOutput
+        $bundleTaskReview = Read-ReviewResult -ReviewResultPath $bundleTaskInfo.review_result_path
 
         $flowInfo.task = $bundleTaskInfo
-        $gateSummary.review_tasks.curated_visual_regressions += [ordered]@{
+        $flowInfo.review_status = Get-OptionalPropertyValue -Object $bundleTaskReview -Name "status"
+        $flowInfo.review_verdict = Get-OptionalPropertyValue -Object $bundleTaskReview -Name "verdict"
+        Add-OptionalSummaryValue -Target $flowInfo -Name "reviewed_at" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "reviewed_at")
+        Add-OptionalSummaryValue -Target $flowInfo -Name "review_method" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "review_method")
+        Add-OptionalSummaryValue -Target $flowInfo -Name "review_note" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "review_note")
+
+        $bundleTaskSummary = [ordered]@{
             id = $descriptor.id
             label = $descriptor.label
             task = $bundleTaskInfo
+            review_status = Get-OptionalPropertyValue -Object $bundleTaskReview -Name "status"
+            review_verdict = Get-OptionalPropertyValue -Object $bundleTaskReview -Name "verdict"
         }
+        Add-OptionalSummaryValue -Target $bundleTaskSummary -Name "reviewed_at" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "reviewed_at")
+        Add-OptionalSummaryValue -Target $bundleTaskSummary -Name "review_method" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "review_method")
+        Add-OptionalSummaryValue -Target $bundleTaskSummary -Name "review_note" `
+            -Value (Get-OptionalPropertyValue -Object $bundleTaskReview -Name "review_note")
+        $gateSummary.review_tasks.curated_visual_regressions += $bundleTaskSummary
     }
 
     $gateSummary.curated_visual_regressions += $flowInfo
@@ -1630,6 +1882,8 @@ if ($RefreshReadmeAssets) {
     }
 }
 
+$gateSummary.review_task_summary = Get-ReviewTaskSummary -ReviewTasks $gateSummary.review_tasks
+
 $gateSummary.notes = @(
     "This gate validates execution, evidence generation, and review-task packaging.",
     "Visual pass/fail still depends on screenshot-backed review written into each task's report directory."
@@ -1643,9 +1897,41 @@ $sectionPageSetupTaskSummary = Get-TaskSummaryBlock -Label "Section page setup" 
 $pageNumberFieldsTaskSummary = Get-TaskSummaryBlock -Label "Page number fields" -TaskInfo $gateSummary.review_tasks.page_number_fields
 
 $smokeStatusLine = Get-FlowStatusLine -Label "Smoke" -FlowInfo $gateSummary.smoke -PathField "docx_path"
+$smokeReviewStatusLine = if ($gateSummary.smoke -and $gateSummary.smoke.status -eq "completed") {
+    "- Smoke review verdict: $($gateSummary.smoke.review_verdict) ($($gateSummary.smoke.review_status))"
+} else {
+    "- Smoke review verdict: not available"
+}
 $fixedGridStatusLine = Get-FlowStatusLine -Label "Fixed-grid" -FlowInfo $gateSummary.fixed_grid -PathField "summary_json"
+$fixedGridReviewStatusLine = if ($gateSummary.fixed_grid -and $gateSummary.fixed_grid.status -eq "completed") {
+    if ($gateSummary.fixed_grid.review_verdict) {
+        "- Fixed-grid review verdict: $($gateSummary.fixed_grid.review_verdict) ($($gateSummary.fixed_grid.review_status))"
+    } else {
+        "- Fixed-grid review verdict: not requested"
+    }
+} else {
+    "- Fixed-grid review verdict: not available"
+}
 $sectionPageSetupStatusLine = Get-FlowStatusLine -Label "Section page setup" -FlowInfo $gateSummary.section_page_setup -PathField "summary_json"
+$sectionPageSetupReviewStatusLine = if ($gateSummary.section_page_setup -and $gateSummary.section_page_setup.status -eq "completed") {
+    if ($gateSummary.section_page_setup.review_verdict) {
+        "- Section page setup review verdict: $($gateSummary.section_page_setup.review_verdict) ($($gateSummary.section_page_setup.review_status))"
+    } else {
+        "- Section page setup review verdict: not requested"
+    }
+} else {
+    "- Section page setup review verdict: not available"
+}
 $pageNumberFieldsStatusLine = Get-FlowStatusLine -Label "Page number fields" -FlowInfo $gateSummary.page_number_fields -PathField "summary_json"
+$pageNumberFieldsReviewStatusLine = if ($gateSummary.page_number_fields -and $gateSummary.page_number_fields.status -eq "completed") {
+    if ($gateSummary.page_number_fields.review_verdict) {
+        "- Page number fields review verdict: $($gateSummary.page_number_fields.review_verdict) ($($gateSummary.page_number_fields.review_status))"
+    } else {
+        "- Page number fields review verdict: not requested"
+    }
+} else {
+    "- Page number fields review verdict: not available"
+}
 $curatedVisualStatusLines = if ($gateSummary.curated_visual_regressions.Count -gt 0) {
     ($gateSummary.curated_visual_regressions | ForEach-Object {
             if ($_.status -eq "completed") {
@@ -1664,6 +1950,7 @@ $curatedVisualTaskSummary = if ($gateSummary.review_tasks.curated_visual_regress
                 "- $($_.label) task dir: $($_.task.task_dir)"
                 "- $($_.label) prompt: $($_.task.prompt_path)"
                 "- $($_.label) latest pointer: $($_.task.latest_source_kind_task_pointer_path)"
+                "- $($_.label) review verdict: $($_.review_verdict) ($($_.review_status))"
             ) -join [Environment]::NewLine
         }) -join [Environment]::NewLine
 } else {
@@ -1718,13 +2005,18 @@ $gateFinalReview = @"
 - Gate summary JSON: $gateSummaryPath
 - Execution status: pass
 - Visual review status: $($gateSummary.visual_verdict)
+- Review task count: $($gateSummary.review_task_summary.total_count) total ($($gateSummary.review_task_summary.standard_count) standard, $($gateSummary.review_task_summary.curated_count) curated)
 
 ## Included flows
 
 $smokeStatusLine
+$smokeReviewStatusLine
 $fixedGridStatusLine
+$fixedGridReviewStatusLine
 $sectionPageSetupStatusLine
+$sectionPageSetupReviewStatusLine
 $pageNumberFieldsStatusLine
+$pageNumberFieldsReviewStatusLine
 $curatedVisualStatusLines
 $readmeGalleryStatusLine
 

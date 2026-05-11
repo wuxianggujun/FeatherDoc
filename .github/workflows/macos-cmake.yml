@@ -1,0 +1,64 @@
+name: macOS CMake CI
+
+on:
+  push:
+    branches:
+      - dev
+      - master
+  pull_request:
+    branches:
+      - dev
+      - master
+  workflow_dispatch:
+
+jobs:
+  minimal-build-test:
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build-macos
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_TESTING=ON
+          -DBUILD_CLI=ON
+          -DBUILD_SAMPLES=OFF
+
+      - name: Build
+        run: cmake --build build-macos --parallel
+
+      - name: Run tests
+        run: >
+          ctest --test-dir build-macos
+          --output-on-failure
+          --timeout 60
+
+      - name: Run split CLI smoke tests
+        run: >
+          ctest --test-dir build-macos
+          --output-on-failure
+          --timeout 60
+          -L cli_smoke
+
+      - name: Run release governance smoke tests
+        run: >
+          ctest --test-dir build-macos
+          --output-on-failure
+          --timeout 60
+          -L release_smoke
+
+      - name: Upload release governance smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-governance-smoke-macos
+          if-no-files-found: ignore
+          path: |
+            build-macos/test/release_candidate_blocker_rollup/**
+            build-macos/test/release_candidate_governance_handoff/**
+            build-macos/test/build_release_governance_handoff_report_aggregate/**
+            build-macos/test/build_release_governance_pipeline_report_aggregate/**

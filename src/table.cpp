@@ -465,6 +465,69 @@ auto ensure_table_style_node(pugi::xml_node table) -> pugi::xml_node {
     return table_properties.append_child("w:tblStyle");
 }
 
+auto ensure_table_position_node(pugi::xml_node table) -> pugi::xml_node {
+    auto table_properties = ensure_table_properties_node(table);
+    if (table_properties == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto position = table_properties.child("w:tblpPr");
+    if (position != pugi::xml_node{}) {
+        return position;
+    }
+
+    if (const auto table_look = table_properties.child("w:tblLook");
+        table_look != pugi::xml_node{}) {
+        return table_properties.insert_child_before("w:tblpPr", table_look);
+    }
+
+    if (const auto margins = table_properties.child("w:tblCellMar");
+        margins != pugi::xml_node{}) {
+        return table_properties.insert_child_before("w:tblpPr", margins);
+    }
+
+    if (const auto table_layout = table_properties.child("w:tblLayout");
+        table_layout != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblpPr", table_layout);
+    }
+
+    if (const auto table_borders = table_properties.child("w:tblBorders");
+        table_borders != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblpPr", table_borders);
+    }
+
+    if (const auto spacing = table_properties.child("w:tblCellSpacing");
+        spacing != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblpPr", spacing);
+    }
+
+    if (const auto table_indent = table_properties.child("w:tblInd");
+        table_indent != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblpPr", table_indent);
+    }
+
+    if (const auto alignment = table_properties.child("w:jc");
+        alignment != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblpPr", alignment);
+    }
+
+    if (const auto table_width = table_properties.child("w:tblW");
+        table_width != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblpPr", table_width);
+    }
+
+    if (const auto table_style = table_properties.child("w:tblStyle");
+        table_style != pugi::xml_node{}) {
+        return table_properties.insert_child_after("w:tblpPr", table_style);
+    }
+
+    if (const auto first_child = table_properties.first_child(); first_child != pugi::xml_node{}) {
+        return table_properties.insert_child_before("w:tblpPr", first_child);
+    }
+
+    return table_properties.append_child("w:tblpPr");
+}
+
 auto ensure_table_cell_margins_node(pugi::xml_node table) -> pugi::xml_node {
     auto table_properties = ensure_table_properties_node(table);
     if (table_properties == pugi::xml_node{}) {
@@ -1095,6 +1158,27 @@ auto ensure_cell_grid_span_node(pugi::xml_node cell) -> pugi::xml_node {
     return cell_properties.append_child("w:gridSpan");
 }
 
+auto parse_signed_attribute(pugi::xml_node node, const char *attribute_name)
+    -> std::optional<std::int32_t> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto value_text = std::string_view{node.attribute(attribute_name).value()};
+    if (value_text.empty()) {
+        return std::nullopt;
+    }
+
+    std::int32_t value = 0;
+    const auto [end, error] =
+        std::from_chars(value_text.data(), value_text.data() + value_text.size(), value);
+    if (error != std::errc{} || end != value_text.data() + value_text.size()) {
+        return std::nullopt;
+    }
+
+    return value;
+}
+
 auto parse_unsigned_attribute(pugi::xml_node node, const char *attribute_name)
     -> std::optional<std::uint32_t> {
     if (node == pugi::xml_node{}) {
@@ -1405,7 +1489,8 @@ auto find_row_cell_covering_column(pugi::xml_node row, std::size_t target_column
     for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
          cell = detail::next_named_sibling(cell, "w:tc")) {
         const auto span = cell_column_span(cell);
-        if (target_column_index < column_index + span) {
+        if (target_column_index >= column_index &&
+            target_column_index - column_index < span) {
             return {cell, column_index, span};
         }
 
@@ -1909,6 +1994,25 @@ auto to_xml_border_style(featherdoc::border_style style) -> const char * {
     return "single";
 }
 
+auto parse_border_style(std::string_view style) -> featherdoc::border_style {
+    if (style == "nil" || style == "none") {
+        return featherdoc::border_style::none;
+    }
+    if (style == "double") {
+        return featherdoc::border_style::double_line;
+    }
+    if (style == "dashed") {
+        return featherdoc::border_style::dashed;
+    }
+    if (style == "dotted") {
+        return featherdoc::border_style::dotted;
+    }
+    if (style == "thick") {
+        return featherdoc::border_style::thick;
+    }
+    return featherdoc::border_style::single;
+}
+
 auto to_xml_table_layout_mode(featherdoc::table_layout_mode layout_mode) -> const char * {
     switch (layout_mode) {
     case featherdoc::table_layout_mode::autofit:
@@ -1933,6 +2037,45 @@ auto to_xml_table_alignment(featherdoc::table_alignment alignment) -> const char
     return "left";
 }
 
+auto to_xml_table_position_horizontal_reference(
+    featherdoc::table_position_horizontal_reference reference) -> const char * {
+    switch (reference) {
+    case featherdoc::table_position_horizontal_reference::margin:
+        return "margin";
+    case featherdoc::table_position_horizontal_reference::page:
+        return "page";
+    case featherdoc::table_position_horizontal_reference::column:
+        return "text";
+    }
+
+    return "margin";
+}
+
+auto to_xml_table_position_vertical_reference(
+    featherdoc::table_position_vertical_reference reference) -> const char * {
+    switch (reference) {
+    case featherdoc::table_position_vertical_reference::margin:
+        return "margin";
+    case featherdoc::table_position_vertical_reference::page:
+        return "page";
+    case featherdoc::table_position_vertical_reference::paragraph:
+        return "text";
+    }
+
+    return "text";
+}
+
+auto to_xml_table_overlap(featherdoc::table_overlap overlap) -> const char * {
+    switch (overlap) {
+    case featherdoc::table_overlap::allow:
+        return "overlap";
+    case featherdoc::table_overlap::never:
+        return "never";
+    }
+
+    return "overlap";
+}
+
 auto to_xml_row_height_rule(featherdoc::row_height_rule height_rule) -> const char * {
     switch (height_rule) {
     case featherdoc::row_height_rule::automatic:
@@ -1954,6 +2097,53 @@ auto parse_table_layout_mode(std::string_view layout_type)
 
     if (layout_type == "fixed") {
         return featherdoc::table_layout_mode::fixed;
+    }
+
+    return std::nullopt;
+}
+
+auto parse_table_position_horizontal_reference(std::string_view reference)
+    -> std::optional<featherdoc::table_position_horizontal_reference> {
+    if (reference == "margin") {
+        return featherdoc::table_position_horizontal_reference::margin;
+    }
+
+    if (reference == "page") {
+        return featherdoc::table_position_horizontal_reference::page;
+    }
+
+    if (reference == "text" || reference == "column") {
+        return featherdoc::table_position_horizontal_reference::column;
+    }
+
+    return std::nullopt;
+}
+
+auto parse_table_position_vertical_reference(std::string_view reference)
+    -> std::optional<featherdoc::table_position_vertical_reference> {
+    if (reference == "margin") {
+        return featherdoc::table_position_vertical_reference::margin;
+    }
+
+    if (reference == "page") {
+        return featherdoc::table_position_vertical_reference::page;
+    }
+
+    if (reference == "text" || reference == "paragraph") {
+        return featherdoc::table_position_vertical_reference::paragraph;
+    }
+
+    return std::nullopt;
+}
+
+auto parse_table_overlap(std::string_view overlap)
+    -> std::optional<featherdoc::table_overlap> {
+    if (overlap == "overlap" || overlap == "allow") {
+        return featherdoc::table_overlap::allow;
+    }
+
+    if (overlap == "never") {
+        return featherdoc::table_overlap::never;
     }
 
     return std::nullopt;
@@ -2142,6 +2332,27 @@ void apply_border_definition(pugi::xml_node border_node,
     ensure_attribute_value(border_node, "w:sz", size_text.c_str());
     ensure_attribute_value(border_node, "w:space", space_text.c_str());
     ensure_attribute_value(border_node, "w:color", color_text.c_str());
+}
+
+auto read_border_inspection_summary(pugi::xml_node border_node)
+    -> std::optional<featherdoc::border_inspection_summary> {
+    if (border_node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    auto summary = featherdoc::border_inspection_summary{};
+    summary.style = parse_border_style(
+        std::string_view{border_node.attribute("w:val").value()});
+    summary.size_eighth_points =
+        parse_unsigned_attribute(border_node, "w:sz").value_or(4U);
+    if (const auto color = std::string_view{
+            border_node.attribute("w:color").value()};
+        !color.empty()) {
+        summary.color = std::string{color};
+    }
+    summary.space_points =
+        parse_unsigned_attribute(border_node, "w:space").value_or(0U);
+    return summary;
 }
 
 void remove_empty_container(pugi::xml_node properties, const char *container_name) {
@@ -2424,6 +2635,10 @@ bool TableCell::clear_width() {
 
 std::size_t TableCell::column_span() const { return cell_column_span(this->current); }
 
+std::optional<std::size_t> TableCell::column_index() const {
+    return cell_column_index(this->current);
+}
+
 bool TableCell::merge_right(std::size_t additional_cells) {
     if (this->current == pugi::xml_node{} || this->parent == pugi::xml_node{}) {
         return false;
@@ -2631,6 +2846,27 @@ bool TableCell::unmerge_down() {
     return true;
 }
 
+featherdoc::cell_vertical_merge TableCell::vertical_merge() const {
+    switch (cell_vertical_merge_state_for(this->current)) {
+    case cell_vertical_merge_state::restart:
+        return featherdoc::cell_vertical_merge::restart;
+    case cell_vertical_merge_state::continue_merge:
+        return featherdoc::cell_vertical_merge::continue_merge;
+    case cell_vertical_merge_state::none:
+        return featherdoc::cell_vertical_merge::none;
+    }
+
+    return featherdoc::cell_vertical_merge::none;
+}
+
+std::size_t TableCell::row_span() const {
+    const auto merge_chain = plan_vertical_merge_chain(this->current);
+    if (!merge_chain.has_value()) {
+        return 1U;
+    }
+    return std::max<std::size_t>(1U, merge_chain->cells.size());
+}
+
 std::optional<featherdoc::cell_vertical_alignment> TableCell::vertical_alignment() const {
     if (this->current == pugi::xml_node{}) {
         return std::nullopt;
@@ -2819,6 +3055,18 @@ bool TableCell::clear_margin(featherdoc::cell_margin_edge edge) {
 
     remove_empty_container(cell_properties, "w:tcMar");
     return true;
+}
+
+std::optional<featherdoc::border_inspection_summary>
+TableCell::border(featherdoc::cell_border_edge edge) const {
+    if (this->current == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    return read_border_inspection_summary(
+        this->current.child("w:tcPr")
+            .child("w:tcBorders")
+            .child(to_xml_border_name(edge)));
 }
 
 bool TableCell::set_border(featherdoc::cell_border_edge edge,
@@ -3143,6 +3391,15 @@ std::optional<TableCell> TableRow::find_cell(std::size_t cell_index) {
     return cell_handle;
 }
 
+std::optional<TableCell> TableRow::find_cell_by_grid_column(std::size_t grid_column) {
+    const auto match = find_row_cell_covering_column(this->current, grid_column);
+    if (match.cell == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    return TableCell(this->current, match.cell);
+}
+
 bool TableRow::set_texts(const std::vector<std::string> &texts) {
     if (this->current == pugi::xml_node{}) {
         return false;
@@ -3227,9 +3484,29 @@ std::optional<TableCell> Table::find_cell(std::size_t row_index, std::size_t cel
     return row_handle->find_cell(cell_index);
 }
 
+std::optional<TableCell> Table::find_cell_by_grid_column(std::size_t row_index,
+                                                         std::size_t grid_column) {
+    auto row_handle = this->find_row(row_index);
+    if (!row_handle.has_value()) {
+        return std::nullopt;
+    }
+
+    return row_handle->find_cell_by_grid_column(grid_column);
+}
+
 bool Table::set_cell_text(std::size_t row_index, std::size_t cell_index,
                           const std::string &text) {
     auto cell_handle = this->find_cell(row_index, cell_index);
+    if (!cell_handle.has_value()) {
+        return false;
+    }
+
+    return cell_handle->set_text(text);
+}
+
+bool Table::set_cell_text_by_grid_column(std::size_t row_index, std::size_t grid_column,
+                                         const std::string &text) {
+    auto cell_handle = this->find_cell_by_grid_column(row_index, grid_column);
     if (!cell_handle.has_value()) {
         return false;
     }
@@ -3654,6 +3931,116 @@ bool Table::clear_cell_spacing() {
     return spacing == pugi::xml_node{} || table_properties.remove_child(spacing);
 }
 
+void set_optional_unsigned_attribute(pugi::xml_node node, const char *name,
+                                     std::optional<std::uint32_t> value) {
+    if (node == pugi::xml_node{}) {
+        return;
+    }
+
+    if (value.has_value()) {
+        const auto text = std::to_string(*value);
+        ensure_attribute_value(node, name, text.c_str());
+        return;
+    }
+
+    if (node.attribute(name) != pugi::xml_attribute{}) {
+        node.remove_attribute(name);
+    }
+}
+
+std::optional<featherdoc::table_position> Table::position() const {
+    if (this->current == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto position_node = this->current.child("w:tblPr").child("w:tblpPr");
+    if (position_node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    auto position = featherdoc::table_position{};
+    if (const auto horizontal_reference = parse_table_position_horizontal_reference(
+            std::string_view{position_node.attribute("w:horzAnchor").value()})) {
+        position.horizontal_reference = *horizontal_reference;
+    }
+    if (const auto horizontal_offset = parse_signed_attribute(position_node, "w:tblpX")) {
+        position.horizontal_offset_twips = *horizontal_offset;
+    }
+    if (const auto vertical_reference = parse_table_position_vertical_reference(
+            std::string_view{position_node.attribute("w:vertAnchor").value()})) {
+        position.vertical_reference = *vertical_reference;
+    }
+    if (const auto vertical_offset = parse_signed_attribute(position_node, "w:tblpY")) {
+        position.vertical_offset_twips = *vertical_offset;
+    }
+    position.left_from_text_twips =
+        parse_unsigned_attribute(position_node, "w:leftFromText");
+    position.right_from_text_twips =
+        parse_unsigned_attribute(position_node, "w:rightFromText");
+    position.top_from_text_twips =
+        parse_unsigned_attribute(position_node, "w:topFromText");
+    position.bottom_from_text_twips =
+        parse_unsigned_attribute(position_node, "w:bottomFromText");
+    if (const auto overlap = parse_table_overlap(
+            std::string_view{position_node.attribute("w:tblOverlap").value()})) {
+        position.overlap = *overlap;
+    }
+
+    return position;
+}
+
+bool Table::set_position(featherdoc::table_position position) {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto position_node = ensure_table_position_node(this->current);
+    if (position_node == pugi::xml_node{}) {
+        return false;
+    }
+
+    const auto horizontal_offset = std::to_string(position.horizontal_offset_twips);
+    const auto vertical_offset = std::to_string(position.vertical_offset_twips);
+    ensure_attribute_value(position_node, "w:horzAnchor",
+                           to_xml_table_position_horizontal_reference(
+                               position.horizontal_reference));
+    ensure_attribute_value(position_node, "w:tblpX", horizontal_offset.c_str());
+    ensure_attribute_value(position_node, "w:vertAnchor",
+                           to_xml_table_position_vertical_reference(
+                               position.vertical_reference));
+    ensure_attribute_value(position_node, "w:tblpY", vertical_offset.c_str());
+    set_optional_unsigned_attribute(position_node, "w:leftFromText",
+                                    position.left_from_text_twips);
+    set_optional_unsigned_attribute(position_node, "w:rightFromText",
+                                    position.right_from_text_twips);
+    set_optional_unsigned_attribute(position_node, "w:topFromText",
+                                    position.top_from_text_twips);
+    set_optional_unsigned_attribute(position_node, "w:bottomFromText",
+                                    position.bottom_from_text_twips);
+    if (position.overlap.has_value()) {
+        ensure_attribute_value(position_node, "w:tblOverlap",
+                               to_xml_table_overlap(*position.overlap));
+    } else if (position_node.attribute("w:tblOverlap") != pugi::xml_attribute{}) {
+        position_node.remove_attribute("w:tblOverlap");
+    }
+    return true;
+}
+
+bool Table::clear_position() {
+    if (this->current == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto table_properties = this->current.child("w:tblPr");
+    if (table_properties == pugi::xml_node{}) {
+        return true;
+    }
+
+    const auto position_node = table_properties.child("w:tblpPr");
+    return position_node == pugi::xml_node{} ||
+           table_properties.remove_child(position_node);
+}
+
 std::optional<std::uint32_t> Table::cell_margin_twips(
     featherdoc::cell_margin_edge edge) const {
     if (this->current == pugi::xml_node{}) {
@@ -3835,6 +4222,18 @@ bool Table::clear_style_look() {
     return table_look_node == pugi::xml_node{} || table_properties.remove_child(table_look_node);
 }
 
+std::optional<featherdoc::border_inspection_summary>
+Table::border(featherdoc::table_border_edge edge) const {
+    if (this->current == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    return read_border_inspection_summary(
+        this->current.child("w:tblPr")
+            .child("w:tblBorders")
+            .child(to_xml_border_name(edge)));
+}
+
 bool Table::set_border(featherdoc::table_border_edge edge,
                        featherdoc::border_definition border) {
     if (this->current == pugi::xml_node{}) {
@@ -3940,6 +4339,21 @@ Table Table::insert_table_after(std::size_t row_count, std::size_t column_count)
     this->current = table_node;
     this->row.set_parent(this->current);
     return created_table;
+}
+
+Paragraph Table::insert_paragraph_after(const std::string &text,
+                                        featherdoc::formatting_flag formatting) {
+    if (this->parent == pugi::xml_node{} || this->current == pugi::xml_node{}) {
+        return {};
+    }
+
+    const auto paragraph_node =
+        detail::insert_paragraph_node(this->parent, this->current.next_sibling());
+    auto paragraph = Paragraph(this->parent, paragraph_node);
+    if (!text.empty() && !paragraph.add_run(text, formatting).has_next()) {
+        return {};
+    }
+    return paragraph;
 }
 
 Table Table::insert_table_like_before() {

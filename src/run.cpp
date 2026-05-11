@@ -1,6 +1,8 @@
 #include "featherdoc.hpp"
 #include "xml_helpers.hpp"
 
+#include <cstdlib>
+
 namespace featherdoc {
 namespace {
 
@@ -32,6 +34,10 @@ auto read_language_attribute(pugi::xml_node run_language, const char *attribute_
     return std::string{attribute.value()};
 }
 
+auto read_text_color(pugi::xml_node run_properties) -> std::optional<std::string> {
+    return read_language_attribute(run_properties.child("w:color"), "w:val");
+}
+
 auto read_on_off_value(pugi::xml_node node) -> std::optional<bool> {
     if (node == pugi::xml_node{}) {
         return std::nullopt;
@@ -44,6 +50,34 @@ auto read_on_off_value(pugi::xml_node node) -> std::optional<bool> {
 
     const auto value = std::string_view{attribute.value()};
     return value != "0" && value != "false" && value != "off";
+}
+
+auto read_underline_value(pugi::xml_node node) -> std::optional<bool> {
+    if (node == pugi::xml_node{}) {
+        return std::nullopt;
+    }
+
+    const auto attribute = node.attribute("w:val");
+    if (attribute == pugi::xml_attribute{} || attribute.value()[0] == '\0') {
+        return true;
+    }
+
+    const auto value = std::string_view{attribute.value()};
+    return value != "0" && value != "false" && value != "none";
+}
+
+auto parse_half_point_size(const char *text) -> std::optional<double> {
+    if (text == nullptr || *text == '\0') {
+        return std::nullopt;
+    }
+
+    char *end = nullptr;
+    const auto value = std::strtod(text, &end);
+    if (end == text || *end != '\0' || value <= 0.0) {
+        return std::nullopt;
+    }
+
+    return value / 2.0;
 }
 
 void set_xml_attribute(pugi::xml_node node, const char *attribute_name,
@@ -384,6 +418,27 @@ std::optional<std::string> Run::bidi_language() const {
 
 std::optional<bool> Run::rtl() const {
     return read_on_off_value(this->current.child("w:rPr").child("w:rtl"));
+}
+
+std::optional<std::string> Run::text_color() const {
+    return read_text_color(this->current.child("w:rPr"));
+}
+
+std::optional<bool> Run::bold() const {
+    return read_on_off_value(this->current.child("w:rPr").child("w:b"));
+}
+
+std::optional<bool> Run::italic() const {
+    return read_on_off_value(this->current.child("w:rPr").child("w:i"));
+}
+
+std::optional<bool> Run::underline() const {
+    return read_underline_value(this->current.child("w:rPr").child("w:u"));
+}
+
+std::optional<double> Run::font_size_points() const {
+    return parse_half_point_size(
+        this->current.child("w:rPr").child("w:sz").attribute("w:val").value());
 }
 
 bool Run::set_font_family(std::string_view font_family) const {

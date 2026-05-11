@@ -1,0 +1,476 @@
+{
+  "$schema": "pdf_regression_manifest.schema.json",
+  "samples": [
+    {
+      "id": "single-text",
+      "kind": "single_text",
+      "output_file": "featherdoc-pdf-regression-single-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "FeatherDoc PDF regression sample",
+        "Single-page text smoke"
+      ]
+    },
+    {
+      "id": "multi-page-text",
+      "kind": "multi_page_text",
+      "output_file": "featherdoc-pdf-regression-multi-page-text.pdf",
+      "expected_pages": 2,
+      "expected_text": [
+        "Page 1 regression sample",
+        "Page 2 regression sample"
+      ]
+    },
+    {
+      "id": "cjk-text",
+      "kind": "cjk_text",
+      "output_file": "featherdoc-pdf-regression-cjk-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "中文文本路径回归样本",
+        "PDFium 回读"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true
+    },
+    {
+      "id": "styled-text",
+      "kind": "styled_text",
+      "output_file": "featherdoc-pdf-regression-styled-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Small blue text",
+        "Large red text",
+        "Bold italic text",
+        "Underlined text"
+      ],
+      "expect_styled_text": true
+    },
+    {
+      "id": "font-size-text",
+      "kind": "font_size_text",
+      "output_file": "featherdoc-pdf-regression-font-size-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Tiny text 8pt",
+        "Body text 12pt",
+        "Display text 20pt"
+      ]
+    },
+    {
+      "id": "color-text",
+      "kind": "color_text",
+      "output_file": "featherdoc-pdf-regression-color-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Black text",
+        "Blue text",
+        "Green text",
+        "Red text"
+      ]
+    },
+    {
+      "id": "mixed-style-text",
+      "kind": "mixed_style_text",
+      "output_file": "featherdoc-pdf-regression-mixed-style-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Plain text",
+        "Bold text",
+        "Italic text",
+        "Bold italic underline"
+      ]
+    },
+    {
+      "id": "contract-cjk-style",
+      "kind": "contract_cjk_style",
+      "output_file": "featherdoc-pdf-regression-contract-cjk-style.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "SERVICE AGREEMENT",
+        "中文合同样本",
+        "Party A: FeatherDoc",
+        "甲方：羽文档",
+        "Amount: USD 12,000",
+        "生效日期：2026年05月06日",
+        "Authorized signature"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-contract-cjk-style",
+      "kind": "document_contract_cjk_style",
+      "output_file": "featherdoc-pdf-regression-document-contract-cjk-style.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "SERVICE AGREEMENT",
+        "中文合同样本",
+        "Contract No: FD-2026-0507",
+        "Party A: FeatherDoc",
+        "甲方：羽文档",
+        "Amount: USD 12,000",
+        "生效日期：2026年05月06日",
+        "第一条：服务范围覆盖文档生成 PDF。",
+        "第二条：双方确认输出可回读、可验证。",
+        "Contract header",
+        "Page 1 of 1",
+        "Authorized signature"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "three-page-text",
+      "kind": "three_page_text",
+      "output_file": "featherdoc-pdf-regression-three-page-text.pdf",
+      "expected_pages": 3,
+      "expected_text": [
+        "Three page sample page 1",
+        "Three page sample page 2",
+        "Three page sample page 3"
+      ]
+    },
+    {
+      "id": "landscape-text",
+      "kind": "landscape_text",
+      "output_file": "featherdoc-pdf-regression-landscape-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Landscape text regression sample",
+        "Wide page keeps the text path visible",
+        "PDFium still extracts landscape text"
+      ]
+    },
+    {
+      "id": "title-body-text",
+      "kind": "title_body_text",
+      "output_file": "featherdoc-pdf-regression-title-body-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Title line",
+        "Subtitle line",
+        "Body paragraph line one",
+        "Body paragraph line two",
+        "Footer line"
+      ]
+    },
+    {
+      "id": "dense-text",
+      "kind": "dense_text",
+      "output_file": "featherdoc-pdf-regression-dense-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Dense line 1",
+        "Dense line 2",
+        "Dense line 3",
+        "Dense line 4",
+        "Dense line 5",
+        "Dense line 6"
+      ]
+    },
+    {
+      "id": "four-page-text",
+      "kind": "four_page_text",
+      "output_file": "featherdoc-pdf-regression-four-page-text.pdf",
+      "expected_pages": 4,
+      "expected_text": [
+        "Four page sample page 1",
+        "Four page sample page 2",
+        "Four page sample page 3",
+        "Four page sample page 4"
+      ]
+    },
+    {
+      "id": "underline-text",
+      "kind": "underline_text",
+      "output_file": "featherdoc-pdf-regression-underline-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Underlined line 1",
+        "Underlined line 2",
+        "Bold underlined line",
+        "Italic underlined line"
+      ]
+    },
+    {
+      "id": "punctuation-text",
+      "kind": "punctuation_text",
+      "output_file": "featherdoc-pdf-regression-punctuation-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Alpha, beta, gamma.",
+        "Numbers: 12345",
+        "Quote FeatherDoc"
+      ]
+    },
+    {
+      "id": "two-page-text",
+      "kind": "two_page_text",
+      "output_file": "featherdoc-pdf-regression-two-page-text.pdf",
+      "expected_pages": 2,
+      "expected_text": [
+        "Two page sample page 1",
+        "Two page sample page 2"
+      ]
+    },
+    {
+      "id": "repeat-phrase-text",
+      "kind": "repeat_phrase_text",
+      "output_file": "featherdoc-pdf-regression-repeat-phrase-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Repeat phrase alpha",
+        "Repeat phrase beta",
+        "Repeat phrase gamma",
+        "Repeat phrase delta"
+      ]
+    },
+    {
+      "id": "bordered-box-text",
+      "kind": "bordered_box_text",
+      "output_file": "featherdoc-pdf-regression-bordered-box-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Bordered box sample",
+        "Box body text"
+      ]
+    },
+    {
+      "id": "line-primitive-text",
+      "kind": "line_primitive_text",
+      "output_file": "featherdoc-pdf-regression-line-primitive-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Line primitive sample",
+        "Dashed and solid lines"
+      ]
+    },
+    {
+      "id": "table-like-grid-text",
+      "kind": "table_like_grid_text",
+      "output_file": "featherdoc-pdf-regression-table-like-grid-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Grid sample header",
+        "Cell A1",
+        "Cell B2",
+        "Cell C3"
+      ]
+    },
+    {
+      "id": "metadata-long-title-text",
+      "kind": "metadata_long_title_text",
+      "output_file": "featherdoc-pdf-regression-metadata-long-title-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Long metadata title sample",
+        "Metadata path stays parseable"
+      ]
+    },
+    {
+      "id": "header-footer-text",
+      "kind": "header_footer_text",
+      "output_file": "featherdoc-pdf-regression-header-footer-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document header area",
+        "Header footer sample",
+        "Page 1 footer marker"
+      ]
+    },
+    {
+      "id": "two-column-text",
+      "kind": "two_column_text",
+      "output_file": "featherdoc-pdf-regression-two-column-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Two column sample",
+        "Left column alpha",
+        "Right column beta"
+      ]
+    },
+    {
+      "id": "invoice-grid-text",
+      "kind": "invoice_grid_text",
+      "output_file": "featherdoc-pdf-regression-invoice-grid-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Invoice grid sample",
+        "Line item alpha",
+        "Total USD 42"
+      ]
+    },
+    {
+      "id": "image-caption-text",
+      "kind": "image_caption_text",
+      "output_file": "featherdoc-pdf-regression-image-caption-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Image caption sample",
+        "Generated inline image asset",
+        "PDFium reads caption beside image"
+      ],
+      "expected_image_count": 1
+    },
+    {
+      "id": "sectioned-report-text",
+      "kind": "sectioned_report_text",
+      "output_file": "featherdoc-pdf-regression-sectioned-report-text.pdf",
+      "expected_pages": 2,
+      "expected_text": [
+        "Sectioned report sample",
+        "Appendix paragraph one keeps the second section",
+        "Appendix paragraph three closes the wider section"
+      ]
+    },
+    {
+      "id": "list-report-text",
+      "kind": "list_report_text",
+      "output_file": "featherdoc-pdf-regression-list-report-text.pdf",
+      "expected_pages": 2,
+      "expected_text": [
+        "List report sample",
+        "The first list uses bullet markers and exercises prefix extraction.",
+        "Bullet item 1:",
+        "The second list restarts numbering so PDFium sees list restarts in the extracted text.",
+        "Numbered item 1:"
+      ]
+    },
+    {
+      "id": "long-report-text",
+      "kind": "long_report_text",
+      "output_file": "featherdoc-pdf-regression-long-report-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Long report sample",
+        "Background section",
+        "Operational findings",
+        "Action plan"
+      ]
+    },
+    {
+      "id": "image-report-text",
+      "kind": "image_report_text",
+      "output_file": "featherdoc-pdf-regression-image-report-text.pdf",
+      "expected_pages": 2,
+      "expected_text": [
+        "Image report sample",
+        "Figure 1:",
+        "Image report sample page 2",
+        "Figure 2:",
+        "Page 2 text extraction remains intact"
+      ],
+      "expected_image_count": 2
+    },
+    {
+      "id": "cjk-report-text",
+      "kind": "cjk_report_text",
+      "output_file": "featherdoc-pdf-regression-cjk-report-text.pdf",
+      "expected_pages": 2,
+      "expected_text": [
+        "中文报告样本",
+        "第一页正文保持可读",
+        "第二页中文标题",
+        "第二页继续验证分页",
+        "中文报告样本结束"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true
+    },
+    {
+      "id": "cjk-image-report-text",
+      "kind": "cjk_image_report_text",
+      "output_file": "featherdoc-pdf-regression-cjk-image-report-text.pdf",
+      "expected_pages": 2,
+      "expected_text": [
+        "中文图文报告样本",
+        "第一页包含图片和中文段落",
+        "PDFium 回读中文和图片",
+        "第二页继续图文回读",
+        "第二页复用同一张位图",
+        "中文图文回归保持稳定"
+      ],
+      "expected_image_count": 2,
+      "expect_cjk": true,
+      "expect_unicode": true
+    },
+    {
+      "id": "document-eastasia-style-probe",
+      "kind": "document_eastasia_style_probe",
+      "output_file": "featherdoc-pdf-regression-document-eastasia-style-probe.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document eastAsia style probe",
+        "Styled Latin run:",
+        "bold italic blue 16pt",
+        "East Asia run mapping:",
+        "中文样式映射 ABC 123",
+        "East Asia note style:",
+        "蓝色 14pt 中文备注"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true,
+      "expect_styled_text": true
+    },
+    {
+      "id": "document-image-semantics-text",
+      "kind": "document_image_semantics_text",
+      "output_file": "featherdoc-pdf-regression-document-image-semantics-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document image semantics sample",
+        "Inline image intro",
+        "Text after inline image",
+        "Square wrap text",
+        "Behind text image anchor"
+      ],
+      "expected_image_count": 3
+    },
+    {
+      "id": "document-table-semantics-text",
+      "kind": "document_table_semantics_text",
+      "output_file": "featherdoc-pdf-regression-document-table-semantics-text.pdf",
+      "expected_pages": 2,
+      "expected_text": [
+        "Document table semantics sample",
+        "Header",
+        "Row 1",
+        "Row 5"
+      ]
+    },
+    {
+      "id": "document-long-flow-text",
+      "kind": "document_long_flow_text",
+      "output_file": "featherdoc-pdf-regression-document-long-flow-text.pdf",
+      "expected_pages": 5,
+      "expected_text": [
+        "Document long flow sample",
+        "Long flow header",
+        "Long flow paragraph 1 keeps pagination",
+        "Long flow paragraph 60 keeps pagination",
+        "Long flow paragraph 120 keeps pagination",
+        "Page 1 of 5",
+        "Page 5 of 5"
+      ]
+    },
+    {
+      "id": "document-invoice-table-text",
+      "kind": "document_invoice_table_text",
+      "output_file": "featherdoc-pdf-regression-document-invoice-table-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "Document invoice table sample",
+        "Invoice No: INV-2026-0507",
+        "Bill to: FeatherDoc QA",
+        "Item",
+        "PDF export design",
+        "Visual validation",
+        "Grand total",
+        "USD 135"
+      ]
+    }
+  ]
+}

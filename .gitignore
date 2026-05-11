@@ -34,11 +34,18 @@
 .DS_Store
 build/*
 build-*/
+cmake-build-*/
+.codex-build-*/
+.bpdf/
+.bpdf-*/
+.bdefault-*/
+CMakeFiles/
 docs/_build/
 output/
 RELEASE_METADATA_START_HERE.md
 tmp/
 .venv-word-visual-smoke/
+.venv-pdf-visual-smoke/
 .idea/
 ~$*.doc
 ~$*.docx
@@ -62,6 +69,8 @@ syntax_*.log
 syntax_*.err
 targeted_direction_language_tests.log
 tmp-word-com.txt
+/featherdoc-*.pdf
+/featherdoc-*.ttf
 
 # vim swap files
 **/*.swp

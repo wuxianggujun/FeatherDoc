@@ -167,6 +167,38 @@ function Get-BookmarkName {
     return $bookmarkName
 }
 
+function Convert-ToNonNegativeInt {
+    param(
+        [string]$Text,
+        [string]$Label
+    )
+
+    $value = 0
+    if (-not [int]::TryParse($Text, [ref]$value) -or $value -lt 0) {
+        throw "$Label must be a non-negative integer."
+    }
+
+    return $value
+}
+
+function Convert-ToSupportedSelectorKind {
+    param(
+        [string]$Text,
+        [string]$Label
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return "default"
+    }
+
+    $supportedKinds = @("default", "first", "even")
+    if ($supportedKinds -notcontains $Text) {
+        throw "$Label uses unsupported kind '$Text'."
+    }
+
+    return $Text
+}
+
 function Convert-ToNormalizedSelection {
     param(
         $Item,
@@ -205,7 +237,7 @@ function Convert-ToNormalizedSelection {
 
             return [pscustomobject]@{
                 part = "header"
-                index = [int]$indexValue
+                index = Convert-ToNonNegativeInt -Text $indexValue -Label "$Category index"
             }
         }
         "footer" {
@@ -219,7 +251,7 @@ function Convert-ToNormalizedSelection {
 
             return [pscustomobject]@{
                 part = "footer"
-                index = [int]$indexValue
+                index = Convert-ToNonNegativeInt -Text $indexValue -Label "$Category index"
             }
         }
         "section-header" {
@@ -235,8 +267,10 @@ function Convert-ToNormalizedSelection {
 
             return [pscustomobject]@{
                 part = "section-header"
-                section = [int]$sectionValue
-                kind = $kindValue
+                section = Convert-ToNonNegativeInt -Text $sectionValue -Label "$Category section"
+                kind = Convert-ToSupportedSelectorKind `
+                    -Text $kindValue `
+                    -Label "$Category entries targeting '$part'"
             }
         }
         "section-footer" {
@@ -252,8 +286,10 @@ function Convert-ToNormalizedSelection {
 
             return [pscustomobject]@{
                 part = "section-footer"
-                section = [int]$sectionValue
-                kind = $kindValue
+                section = Convert-ToNonNegativeInt -Text $sectionValue -Label "$Category section"
+                kind = Convert-ToSupportedSelectorKind `
+                    -Text $kindValue `
+                    -Label "$Category entries targeting '$part'"
             }
         }
         default {
@@ -310,7 +346,7 @@ function Convert-ToPatchSelector {
             return [pscustomobject]@{
                 has_selection = $true
                 part = "header"
-                index = [int]$indexValue
+                index = Convert-ToNonNegativeInt -Text $indexValue -Label "$Category patch index"
             }
         }
         "footer" {
@@ -325,7 +361,7 @@ function Convert-ToPatchSelector {
             return [pscustomobject]@{
                 has_selection = $true
                 part = "footer"
-                index = [int]$indexValue
+                index = Convert-ToNonNegativeInt -Text $indexValue -Label "$Category patch index"
             }
         }
         "section-header" {
@@ -342,8 +378,10 @@ function Convert-ToPatchSelector {
             return [pscustomobject]@{
                 has_selection = $true
                 part = "section-header"
-                section = [int]$sectionValue
-                kind = $kindValue
+                section = Convert-ToNonNegativeInt -Text $sectionValue -Label "$Category patch section"
+                kind = Convert-ToSupportedSelectorKind `
+                    -Text $kindValue `
+                    -Label "$Category patch entries targeting '$part'"
             }
         }
         "section-footer" {
@@ -360,8 +398,10 @@ function Convert-ToPatchSelector {
             return [pscustomobject]@{
                 has_selection = $true
                 part = "section-footer"
-                section = [int]$sectionValue
-                kind = $kindValue
+                section = Convert-ToNonNegativeInt -Text $sectionValue -Label "$Category patch section"
+                kind = Convert-ToSupportedSelectorKind `
+                    -Text $kindValue `
+                    -Label "$Category patch entries targeting '$part'"
             }
         }
         default {

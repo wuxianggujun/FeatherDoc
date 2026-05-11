@@ -21,6 +21,11 @@ constexpr auto content_types_xml_entry = std::string_view{"[Content_Types].xml"}
 constexpr auto settings_xml_entry = std::string_view{"word/settings.xml"};
 constexpr auto numbering_xml_entry = std::string_view{"word/numbering.xml"};
 constexpr auto styles_xml_entry = std::string_view{"word/styles.xml"};
+constexpr auto footnotes_xml_entry = std::string_view{"word/footnotes.xml"};
+constexpr auto endnotes_xml_entry = std::string_view{"word/endnotes.xml"};
+constexpr auto comments_xml_entry = std::string_view{"word/comments.xml"};
+constexpr auto comments_extended_xml_entry =
+    std::string_view{"word/commentsExtended.xml"};
 constexpr auto office_document_relationships_namespace_uri = std::string_view{
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships"};
 constexpr auto header_relationship_type = std::string_view{
@@ -29,12 +34,28 @@ constexpr auto footer_relationship_type = std::string_view{
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"};
 constexpr auto settings_relationship_type = std::string_view{
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings"};
+constexpr auto footnotes_relationship_type = std::string_view{
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"};
+constexpr auto endnotes_relationship_type = std::string_view{
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"};
+constexpr auto comments_relationship_type = std::string_view{
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"};
+constexpr auto comments_extended_relationship_type = std::string_view{
+    "http://schemas.microsoft.com/office/2011/relationships/commentsExtended"};
 constexpr auto header_content_type = std::string_view{
     "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"};
 constexpr auto footer_content_type = std::string_view{
     "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"};
 constexpr auto settings_content_type = std::string_view{
     "application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"};
+constexpr auto footnotes_content_type = std::string_view{
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"};
+constexpr auto endnotes_content_type = std::string_view{
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"};
+constexpr auto comments_content_type = std::string_view{
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"};
+constexpr auto comments_extended_content_type = std::string_view{
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"};
 constexpr auto empty_document_xml = std::string_view{
     R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -1021,6 +1042,10 @@ std::error_code Document::create_empty() {
     this->has_settings_part = false;
     this->has_numbering_part = false;
     this->has_styles_part = false;
+    this->has_footnotes_part = false;
+    this->has_endnotes_part = false;
+    this->has_comments_part = false;
+    this->has_comments_extended_part = false;
     this->document_relationships_dirty = false;
     this->content_types_loaded = false;
     this->content_types_dirty = false;
@@ -1030,6 +1055,14 @@ std::error_code Document::create_empty() {
     this->numbering_dirty = false;
     this->styles_loaded = false;
     this->styles_dirty = false;
+    this->footnotes_loaded = false;
+    this->footnotes_dirty = false;
+    this->endnotes_loaded = false;
+    this->endnotes_dirty = false;
+    this->comments_loaded = false;
+    this->comments_dirty = false;
+    this->comments_extended_loaded = false;
+    this->comments_extended_dirty = false;
     this->removed_related_part_entries.clear();
     this->removed_archive_entries.clear();
     this->document.reset();
@@ -1038,6 +1071,10 @@ std::error_code Document::create_empty() {
     this->settings.reset();
     this->numbering.reset();
     this->styles.reset();
+    this->footnotes.reset();
+    this->endnotes.reset();
+    this->comments.reset();
+    this->comments_extended.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
@@ -1473,6 +1510,10 @@ void Document::set_path(std::filesystem::path file_path) {
     this->has_settings_part = false;
     this->has_numbering_part = false;
     this->has_styles_part = false;
+    this->has_footnotes_part = false;
+    this->has_endnotes_part = false;
+    this->has_comments_part = false;
+    this->has_comments_extended_part = false;
     this->document_relationships_dirty = false;
     this->content_types_loaded = false;
     this->content_types_dirty = false;
@@ -1482,6 +1523,14 @@ void Document::set_path(std::filesystem::path file_path) {
     this->numbering_dirty = false;
     this->styles_loaded = false;
     this->styles_dirty = false;
+    this->footnotes_loaded = false;
+    this->footnotes_dirty = false;
+    this->endnotes_loaded = false;
+    this->endnotes_dirty = false;
+    this->comments_loaded = false;
+    this->comments_dirty = false;
+    this->comments_extended_loaded = false;
+    this->comments_extended_dirty = false;
     this->removed_related_part_entries.clear();
     this->removed_archive_entries.clear();
     this->document.reset();
@@ -1490,6 +1539,10 @@ void Document::set_path(std::filesystem::path file_path) {
     this->settings.reset();
     this->numbering.reset();
     this->styles.reset();
+    this->footnotes.reset();
+    this->endnotes.reset();
+    this->comments.reset();
+    this->comments_extended.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
@@ -1506,6 +1559,10 @@ std::error_code Document::open() {
     this->has_settings_part = false;
     this->has_numbering_part = false;
     this->has_styles_part = false;
+    this->has_footnotes_part = false;
+    this->has_endnotes_part = false;
+    this->has_comments_part = false;
+    this->has_comments_extended_part = false;
     this->document_relationships_dirty = false;
     this->content_types_loaded = false;
     this->content_types_dirty = false;
@@ -1515,6 +1572,14 @@ std::error_code Document::open() {
     this->numbering_dirty = false;
     this->styles_loaded = false;
     this->styles_dirty = false;
+    this->footnotes_loaded = false;
+    this->footnotes_dirty = false;
+    this->endnotes_loaded = false;
+    this->endnotes_dirty = false;
+    this->comments_loaded = false;
+    this->comments_dirty = false;
+    this->comments_extended_loaded = false;
+    this->comments_extended_dirty = false;
     this->removed_related_part_entries.clear();
     this->removed_archive_entries.clear();
     this->document.reset();
@@ -1523,6 +1588,10 @@ std::error_code Document::open() {
     this->settings.reset();
     this->numbering.reset();
     this->styles.reset();
+    this->footnotes.reset();
+    this->endnotes.reset();
+    this->comments.reset();
+    this->comments_extended.reset();
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
@@ -1937,6 +2006,19 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     if (this->has_styles_part && (this->styles_dirty || !this->has_source_archive)) {
         rewritten_entries.insert(std::string{styles_xml_entry});
     }
+    if (this->has_footnotes_part && (this->footnotes_dirty || !this->has_source_archive)) {
+        rewritten_entries.insert(std::string{footnotes_xml_entry});
+    }
+    if (this->has_endnotes_part && (this->endnotes_dirty || !this->has_source_archive)) {
+        rewritten_entries.insert(std::string{endnotes_xml_entry});
+    }
+    if (this->has_comments_part && (this->comments_dirty || !this->has_source_archive)) {
+        rewritten_entries.insert(std::string{comments_xml_entry});
+    }
+    if (this->has_comments_extended_part &&
+        (this->comments_extended_dirty || !this->has_source_archive)) {
+        rewritten_entries.insert(std::string{comments_extended_xml_entry});
+    }
     for (const auto &part : this->header_parts) {
         rewritten_entries.insert(part->entry_name);
         if (!part->relationships_entry_name.empty()) {
@@ -2057,6 +2139,26 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     if (!result && this->has_styles_part &&
         (this->styles_dirty || !this->has_source_archive)) {
         write_xml_entry(styles_xml_entry, this->styles);
+    }
+
+    if (!result && this->has_footnotes_part &&
+        (this->footnotes_dirty || !this->has_source_archive)) {
+        write_xml_entry(footnotes_xml_entry, this->footnotes);
+    }
+
+    if (!result && this->has_endnotes_part &&
+        (this->endnotes_dirty || !this->has_source_archive)) {
+        write_xml_entry(endnotes_xml_entry, this->endnotes);
+    }
+
+    if (!result && this->has_comments_part &&
+        (this->comments_dirty || !this->has_source_archive)) {
+        write_xml_entry(comments_xml_entry, this->comments);
+    }
+
+    if (!result && this->has_comments_extended_part &&
+        (this->comments_extended_dirty || !this->has_source_archive)) {
+        write_xml_entry(comments_extended_xml_entry, this->comments_extended);
     }
 
     if (!result) {
@@ -2296,6 +2398,50 @@ std::optional<bool> Document::inspect_even_and_odd_headers_enabled() {
         read_on_off_value(settings_root.child("w:evenAndOddHeaders")).value_or(false);
     this->last_error_info = previous_error;
     return enabled;
+}
+
+std::optional<bool> Document::inspect_update_fields_on_open_enabled() {
+    const auto previous_error = this->last_error_info;
+    if (this->ensure_settings_loaded()) {
+        this->last_error_info = previous_error;
+        return std::nullopt;
+    }
+
+    const auto settings_root = this->settings.child("w:settings");
+    if (settings_root == pugi::xml_node{}) {
+        this->last_error_info = previous_error;
+        return std::nullopt;
+    }
+
+    const auto enabled =
+        read_on_off_value(settings_root.child("w:updateFields")).value_or(false);
+    this->last_error_info = previous_error;
+    return enabled;
+}
+
+std::optional<bool> Document::update_fields_on_open_enabled() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before reading updateFields",
+                       std::string{settings_xml_entry});
+        return std::nullopt;
+    }
+
+    if (this->ensure_settings_loaded()) {
+        return std::nullopt;
+    }
+
+    const auto settings_root = this->settings.child("w:settings");
+    if (settings_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       document_errc::settings_xml_parse_failed,
+                       "word/settings.xml does not contain the expected w:settings root",
+                       std::string{settings_xml_entry});
+        return std::nullopt;
+    }
+
+    this->last_error_info.clear();
+    return read_on_off_value(settings_root.child("w:updateFields")).value_or(false);
 }
 
 featherdoc::sections_inspection_summary Document::inspect_sections() {
@@ -3156,6 +3302,69 @@ std::error_code Document::ensure_settings_part_attached() {
     this->has_settings_part = true;
     this->content_types_dirty = true;
     return {};
+}
+
+bool Document::enable_update_fields_on_open() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before enabling updateFields",
+                       std::string{settings_xml_entry});
+        return false;
+    }
+    if (const auto error = this->ensure_settings_part_attached()) {
+        return false;
+    }
+
+    auto settings_root = this->settings.child("w:settings");
+    if (settings_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       document_errc::settings_xml_parse_failed,
+                       "word/settings.xml does not contain the expected w:settings root",
+                       std::string{settings_xml_entry});
+        return false;
+    }
+
+    if (ensure_on_off_node_enabled(settings_root, "w:updateFields") ==
+        pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to enable w:updateFields in word/settings.xml",
+                       std::string{settings_xml_entry});
+        return false;
+    }
+
+    this->settings_dirty = true;
+    this->last_error_info.clear();
+    return true;
+}
+
+bool Document::clear_update_fields_on_open() {
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before clearing updateFields",
+                       std::string{settings_xml_entry});
+        return false;
+    }
+    if (const auto error = this->ensure_settings_loaded()) {
+        return false;
+    }
+
+    auto settings_root = this->settings.child("w:settings");
+    if (settings_root == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       document_errc::settings_xml_parse_failed,
+                       "word/settings.xml does not contain the expected w:settings root",
+                       std::string{settings_xml_entry});
+        return false;
+    }
+
+    if (settings_root.child("w:updateFields") != pugi::xml_node{}) {
+        settings_root.remove_child("w:updateFields");
+        this->settings_dirty = true;
+    }
+
+    this->last_error_info.clear();
+    return true;
 }
 
 std::error_code Document::ensure_even_and_odd_headers_enabled() {

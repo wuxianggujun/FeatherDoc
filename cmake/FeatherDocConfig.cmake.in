@@ -4,6 +4,16 @@ set(FeatherDoc_VERSION "@PROJECT_VERSION@")
 set(FeatherDoc_DESCRIPTION "@PROJECT_DESCRIPTION@")
 set_and_check(FeatherDoc_PACKAGE_DATA_DIR "@PACKAGE_FEATHERDOC_INSTALL_DATADIR@")
 
+set(FeatherDoc_WITH_PDF "@FEATHERDOC_INSTALLS_PDF@")
+set(FeatherDoc_WITH_PDF_IMPORT "@FEATHERDOC_INSTALLS_PDF_IMPORT@")
+
+if(FeatherDoc_WITH_PDF_IMPORT)
+    include(CMakeFindDependencyMacro)
+    # Installed packages only need an external PDFium package when the import
+    # target was exported. Source builds are resolved before installation.
+    find_dependency(PDFium)
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/FeatherDocTargets.cmake")
 
 check_required_components(FeatherDoc)
