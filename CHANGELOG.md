@@ -280,6 +280,9 @@ performance.
 - Fixed CLI `--text-file` replacements to strip a leading UTF-8 BOM before
   writing section header/footer text, with CLI and section text multiline
   visual regression coverage.
+- Fixed release preflight MSVC command launches to use UTF-8 code pages before
+  running CTest so PowerShell render-plan tests can parse CLI JSON containing
+  CJK text consistently.
 
 ### Tests
 

@@ -240,10 +240,13 @@ function Invoke-MsvcCommand {
         [string]$CommandText
     )
 
+    # Keep native CLI JSON output decodable when CTest launches PowerShell
+    # scripts from the MSVC cmd environment.
+    $utf8CommandText = "chcp 65001 >NUL && $CommandText"
     if ($MsvcBootstrap.mode -eq "current_env") {
-        & cmd.exe /c $CommandText
+        & cmd.exe /c $utf8CommandText
     } else {
-        & cmd.exe /c "call `"$($MsvcBootstrap.vcvars_path)`" && $CommandText"
+        & cmd.exe /c "call `"$($MsvcBootstrap.vcvars_path)`" && $utf8CommandText"
     }
 
     if ($LASTEXITCODE -ne 0) {
