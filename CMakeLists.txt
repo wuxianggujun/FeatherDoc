@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(
     FeatherDoc
-    VERSION 1.10.0
+    VERSION 1.11.0
     DESCRIPTION "Modern C++ .docx library focused on explicit diagnostics, MSVC support, and clean API behavior"
     LANGUAGES C CXX
 )

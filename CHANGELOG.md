@@ -8,6 +8,19 @@ performance.
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-05-12
+
+### Added
+
+- Added `PdfDocumentImportOptions::min_table_continuation_confidence` so
+  callers can keep low-confidence cross-page PDF table continuations as
+  separate editable Word tables while retaining diagnostics for the actual
+  confidence and blocker.
+- Added `scripts/run_reused_build_check.ps1` as a guarded local validation
+  entry point that reuses an existing build directory, refuses concurrent
+  FeatherDoc build/test processes, and enforces timeouts to avoid stale local
+  build workers.
+
 ## [1.10.0] - 2026-05-11
 
 ### Added

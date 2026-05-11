@@ -35,6 +35,7 @@ enum class PdfDocumentImportFailureKind {
 struct PdfDocumentImportOptions {
     PdfParseOptions parse_options{};
     bool import_table_candidates_as_tables{false};
+    std::uint32_t min_table_continuation_confidence{0U};
 };
 
 enum class PdfTableContinuationDisposition {
@@ -52,6 +53,7 @@ enum class PdfTableContinuationBlocker {
     column_count_mismatch,
     column_anchors_mismatch,
     repeated_header_mismatch,
+    continuation_confidence_below_threshold,
 };
 
 struct PdfTableContinuationDiagnostic {
@@ -59,6 +61,7 @@ struct PdfTableContinuationDiagnostic {
     std::size_t block_index{0U};
     std::size_t source_row_offset{0U};
     std::uint32_t continuation_confidence{0U};
+    std::uint32_t minimum_continuation_confidence{0U};
     bool has_previous_table{false};
     bool is_first_block_on_page{false};
     bool is_near_page_top{false};
