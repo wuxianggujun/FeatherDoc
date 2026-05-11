@@ -277,8 +277,9 @@ performance.
 - Fixed the template-table selector visual regression aggregate contact sheet
   filename so release-gate review task packaging finds
   `aggregate-evidence/before_after_contact_sheet.png`.
-- Fixed section text multiline visual regression assertions to tolerate a
-  leading UTF-8 BOM emitted from text-file replacements.
+- Fixed CLI `--text-file` replacements to strip a leading UTF-8 BOM before
+  writing section header/footer text, with CLI and section text multiline
+  visual regression coverage.
 
 ### Tests
 

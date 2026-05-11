@@ -2736,11 +2736,8 @@ TEST_CASE("cli can show and replace section header footer text") {
     CHECK_EQ(run_cli({"show-section-header", source.string(), "1"}, header_output), 0);
     CHECK_EQ(read_text_file(header_output), std::string("section 1 header\n"));
 
-    {
-        std::ofstream stream(text_source);
-        REQUIRE(stream.good());
-        stream << "alpha\nbeta\n";
-    }
+    write_binary_file(text_source,
+                      std::string("\xEF\xBB\xBF") + "alpha\nbeta\n");
     {
         std::ofstream stream(footer_text_source);
         REQUIRE(stream.good());

@@ -25954,6 +25954,16 @@ void inspect_sections(featherdoc::Document &doc, bool json_output) {
     }
 }
 
+auto strip_utf8_bom(std::string text) -> std::string {
+    if (text.size() >= 3 &&
+        static_cast<unsigned char>(text[0]) == 0xEF &&
+        static_cast<unsigned char>(text[1]) == 0xBB &&
+        static_cast<unsigned char>(text[2]) == 0xBF) {
+        text.erase(0, 3);
+    }
+    return text;
+}
+
 auto read_text_source_value(const std::optional<std::string> &inline_text,
                             const std::optional<path_type> &text_file,
                             std::string_view expected_message,
@@ -25977,6 +25987,7 @@ auto read_text_source_value(const std::optional<std::string> &inline_text,
 
     text.assign(std::istreambuf_iterator<char>(stream),
                 std::istreambuf_iterator<char>());
+    text = strip_utf8_bom(std::move(text));
     return true;
 }
 
