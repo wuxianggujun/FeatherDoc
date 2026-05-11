@@ -20,6 +20,26 @@ function Write-Step {
     Write-Host "[word-smoke] $Message"
 }
 
+function Release-ComReference {
+    param($ComObject)
+
+    if ($null -eq $ComObject) {
+        return
+    }
+
+    try {
+        [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($ComObject)
+    } catch {
+    }
+}
+
+function Invoke-ComCleanup {
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+}
+
 function Resolve-RepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 }
@@ -93,6 +113,7 @@ function Test-PythonImport {
 }
 
 function Test-WordComAvailability {
+    $word = $null
     try {
         $word = New-Object -ComObject Word.Application
         try {
@@ -109,6 +130,9 @@ function Test-WordComAvailability {
         return $true
     } catch {
         return $false
+    } finally {
+        Release-ComReference -ComObject $word
+        Invoke-ComCleanup
     }
 }
 
@@ -297,6 +321,12 @@ function Export-DocxToPdf {
             }
         }
         throw
+    } finally {
+        if (-not $KeepOpen) {
+            Release-ComReference -ComObject $document
+            Release-ComReference -ComObject $word
+            Invoke-ComCleanup
+        }
     }
 }
 
