@@ -274,6 +274,9 @@ performance.
 - Fixed MSVC unit-test compilation for existing UTF-8 literals by enabling
   `/utf-8` on `unit_tests` and using explicit UTF-8 byte literals for checkbox
   content-control fallback text.
+- Fixed the template-table selector visual regression aggregate contact sheet
+  filename so release-gate review task packaging finds
+  `aggregate-evidence/before_after_contact_sheet.png`.
 
 ### Tests
 

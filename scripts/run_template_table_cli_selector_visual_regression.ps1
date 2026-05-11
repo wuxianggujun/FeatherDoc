@@ -256,7 +256,7 @@ New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
 $aggregateEvidenceDir = Join-Path $resolvedOutputDir "aggregate-evidence"
 $aggregateFirstPagesDir = Join-Path $aggregateEvidenceDir "first-pages"
 $aggregateSelectedPagesDir = Join-Path $aggregateEvidenceDir "selected-pages"
-$aggregateContactSheetPath = Join-Path $aggregateEvidenceDir "contact_sheet.png"
+$aggregateContactSheetPath = Join-Path $aggregateEvidenceDir "before_after_contact_sheet.png"
 New-Item -ItemType Directory -Path $aggregateFirstPagesDir -Force | Out-Null
 New-Item -ItemType Directory -Path $aggregateSelectedPagesDir -Force | Out-Null
 
