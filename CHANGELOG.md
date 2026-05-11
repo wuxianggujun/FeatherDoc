@@ -8,6 +8,8 @@ performance.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-05-11
+
 ### Added
 
 - Added experimental PDF export/import plumbing behind the opt-in PDF build,
