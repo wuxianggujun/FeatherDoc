@@ -1421,6 +1421,22 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   该规则只覆盖分隔符引起的同 token 变体；`USD Amount`、币种缺失、单位缩写误识别、
   OCR 错字和跨 cell 单位拆分仍保持保守。
 
+2026-05-12 继续推进（跨页 repeated-header 匹配诊断外提）：
+
+- 已把 repeated-header 匹配命中路径写入公开诊断：
+  `PdfTableContinuationDiagnostic::header_match_kind` 现在会区分
+  `exact`、`normalized_text`、`plural_variant`、`canonical_text` 和 `token_set`，
+  便于回归和调用方解释为什么第二页重复表头被跳过。
+- 已保持行为边界不变：
+  诊断只记录既有合并判断的命中原因，不新增模糊匹配，也不放宽列锚点、页顶位置、
+  repeated-header 判定或语义不匹配时的拆表策略。
+- 已补导入侧回归断言：
+  exact、separator/case 归一化、复数、缩写 canonical、词序 token-set 和语义不匹配
+  都会检查对应 `header_match_kind`，避免后续规则调整时变成不可追踪的布尔值。
+- 已知限制更新：
+  `header_match_kind` 只解释 repeated-header 文本匹配路径；它不是版面置信度，
+  也不覆盖复杂表头结构、跨 cell 语义重排或 OCR 近似字符。
+
 2026-05-11 继续推进（宽文本合并落表）：
 
 - 已给 `PdfParsedTableCell` 补入最小 `column_span` 语义，并让 `PdfiumParser`

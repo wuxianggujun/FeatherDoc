@@ -1115,6 +1115,9 @@ TEST_CASE("PDF table import skips repeated source header rows while merging cros
              featherdoc::pdf::PdfDocumentImportFailureKind::none);
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 1U);
+    REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    CHECK_EQ(import_result.table_continuation_diagnostics[1].header_match_kind,
+             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::exact);
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 3U);
@@ -1209,6 +1212,9 @@ TEST_CASE(
              featherdoc::pdf::PdfDocumentImportFailureKind::none);
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 1U);
+    REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    CHECK_EQ(import_result.table_continuation_diagnostics[1].header_match_kind,
+             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::exact);
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 3U);
@@ -1299,6 +1305,9 @@ TEST_CASE(
              featherdoc::pdf::PdfDocumentImportFailureKind::none);
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 1U);
+    REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    CHECK_EQ(import_result.table_continuation_diagnostics[1].header_match_kind,
+             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::normalized_text);
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 3U);
@@ -1393,6 +1402,9 @@ TEST_CASE(
              featherdoc::pdf::PdfDocumentImportFailureKind::none);
     CHECK_EQ(import_result.paragraphs_imported, 2U);
     CHECK_EQ(import_result.tables_imported, 1U);
+    REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+    CHECK_EQ(import_result.table_continuation_diagnostics[1].header_match_kind,
+             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::plural_variant);
 
     const auto blocks = document.inspect_body_blocks();
     REQUIRE_EQ(blocks.size(), 3U);
@@ -1478,6 +1490,8 @@ TEST_CASE(
     CHECK_EQ(import_result.table_continuation_diagnostics[1].blocker,
              featherdoc::pdf::PdfTableContinuationBlocker::none);
     CHECK(import_result.table_continuation_diagnostics[1].header_matches_previous);
+    CHECK_EQ(import_result.table_continuation_diagnostics[1].header_match_kind,
+             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::canonical_text);
     CHECK(import_result.table_continuation_diagnostics[1].skipped_repeating_header);
     CHECK_EQ(import_result.table_continuation_diagnostics[1].source_row_offset,
              1U);
@@ -1576,6 +1590,8 @@ TEST_CASE(
     CHECK_EQ(import_result.table_continuation_diagnostics[1].blocker,
              featherdoc::pdf::PdfTableContinuationBlocker::none);
     CHECK(import_result.table_continuation_diagnostics[1].header_matches_previous);
+    CHECK_EQ(import_result.table_continuation_diagnostics[1].header_match_kind,
+             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::token_set);
     CHECK(import_result.table_continuation_diagnostics[1].skipped_repeating_header);
     CHECK_EQ(import_result.table_continuation_diagnostics[1].source_row_offset,
              1U);
@@ -1674,6 +1690,8 @@ TEST_CASE(
     CHECK_EQ(import_result.table_continuation_diagnostics[1].blocker,
              featherdoc::pdf::PdfTableContinuationBlocker::none);
     CHECK(import_result.table_continuation_diagnostics[1].header_matches_previous);
+    CHECK_EQ(import_result.table_continuation_diagnostics[1].header_match_kind,
+             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::normalized_text);
     CHECK(import_result.table_continuation_diagnostics[1].skipped_repeating_header);
     CHECK_EQ(import_result.table_continuation_diagnostics[1].source_row_offset,
              1U);
@@ -1770,6 +1788,10 @@ TEST_CASE(
              featherdoc::pdf::PdfTableContinuationDisposition::created_new_table);
     CHECK_EQ(import_result.table_continuation_diagnostics[1].blocker,
              featherdoc::pdf::PdfTableContinuationBlocker::repeated_header_mismatch);
+    CHECK_FALSE(
+        import_result.table_continuation_diagnostics[1].header_matches_previous);
+    CHECK_EQ(import_result.table_continuation_diagnostics[1].header_match_kind,
+             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::none);
     CHECK_EQ(import_result.table_continuation_diagnostics[1].source_row_offset,
              0U);
 

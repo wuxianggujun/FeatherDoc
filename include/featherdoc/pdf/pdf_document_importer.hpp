@@ -56,6 +56,16 @@ enum class PdfTableContinuationBlocker {
     continuation_confidence_below_threshold,
 };
 
+enum class PdfTableContinuationHeaderMatchKind {
+    none,
+    not_required,
+    exact,
+    normalized_text,
+    plural_variant,
+    canonical_text,
+    token_set,
+};
+
 struct PdfTableContinuationDiagnostic {
     std::size_t page_index{0U};
     std::size_t block_index{0U};
@@ -71,6 +81,8 @@ struct PdfTableContinuationDiagnostic {
     bool previous_has_repeating_header{false};
     bool source_has_repeating_header{false};
     bool header_matches_previous{false};
+    PdfTableContinuationHeaderMatchKind header_match_kind{
+        PdfTableContinuationHeaderMatchKind::none};
     bool skipped_repeating_header{false};
     PdfTableContinuationDisposition disposition{
         PdfTableContinuationDisposition::none};

@@ -15,6 +15,9 @@ performance.
   `Amt`/`Amount`, `Project Status`/`Status Project`, and parenthesized unit
   labels such as `Amount USD`/`Amount (USD)`, while keeping semantic header
   changes split into separate editable tables.
+- Added PDF repeated-header continuation diagnostics that expose whether a
+  matched source header used exact, normalized text, plural variant, canonical
+  abbreviation, or token-set word-order matching.
 
 ## [1.11.0] - 2026-05-12
 
