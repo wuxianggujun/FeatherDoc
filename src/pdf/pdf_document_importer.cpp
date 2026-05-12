@@ -623,10 +623,9 @@ enum class TableAppendResult { failed, created, merged };
     return std::string{token};
 }
 
-[[nodiscard]] std::string canonicalize_header_match_text(
+[[nodiscard]] std::vector<std::string> collect_canonical_header_match_tokens(
     std::string_view text) {
-    std::string canonical;
-    canonical.reserve(text.size());
+    std::vector<std::string> tokens;
 
     std::size_t token_start = 0U;
     while (token_start < text.size()) {
@@ -637,16 +636,28 @@ enum class TableAppendResult { failed, created, merged };
                             ? std::string_view::npos
                             : token_end - token_start);
         if (!token.empty()) {
-            if (!canonical.empty()) {
-                canonical.push_back(' ');
-            }
-            canonical += canonicalize_header_match_token(token);
+            tokens.push_back(canonicalize_header_match_token(token));
         }
 
         if (token_end == std::string_view::npos) {
             break;
         }
         token_start = token_end + 1U;
+    }
+
+    return tokens;
+}
+
+[[nodiscard]] std::string canonicalize_header_match_text(
+    std::string_view text) {
+    const auto tokens = collect_canonical_header_match_tokens(text);
+    std::string canonical;
+    canonical.reserve(text.size());
+    for (const auto &token : tokens) {
+        if (!canonical.empty()) {
+            canonical.push_back(' ');
+        }
+        canonical += token;
     }
 
     return canonical;
@@ -669,15 +680,31 @@ enum class TableAppendResult { failed, created, merged };
     return suffix == "s" || suffix == "es";
 }
 
+[[nodiscard]] bool header_tokens_match_in_any_order(std::string_view left,
+                                                    std::string_view right) {
+    auto left_tokens = collect_canonical_header_match_tokens(left);
+    auto right_tokens = collect_canonical_header_match_tokens(right);
+    if (left_tokens.size() != right_tokens.size() ||
+        left_tokens.size() < 2U || left_tokens.size() > 4U) {
+        return false;
+    }
+
+    std::sort(left_tokens.begin(), left_tokens.end());
+    std::sort(right_tokens.begin(), right_tokens.end());
+    return left_tokens == right_tokens;
+}
+
 [[nodiscard]] bool header_cell_texts_match(std::string_view left,
                                            std::string_view right) {
     if (header_texts_match_exact_or_plural_variant(left, right)) {
         return true;
     }
 
-    return header_texts_match_exact_or_plural_variant(
-        canonicalize_header_match_text(left),
-        canonicalize_header_match_text(right));
+    const auto canonical_left = canonicalize_header_match_text(left);
+    const auto canonical_right = canonicalize_header_match_text(right);
+    return header_texts_match_exact_or_plural_variant(canonical_left,
+                                                      canonical_right) ||
+           header_tokens_match_in_any_order(canonical_left, canonical_right);
 }
 
 [[nodiscard]] bool is_header_label_text(std::string_view text) {

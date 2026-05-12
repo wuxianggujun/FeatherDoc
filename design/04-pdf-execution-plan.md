@@ -1390,6 +1390,22 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   缩写映射是固定白名单，只覆盖低歧义英文表头；OCR 错字、词序变化、同义改写、
   多语表头和复杂多层表头仍保持保守，不会强行合并。
 
+2026-05-12 继续推进（跨页 repeated-header 词序归一化）：
+
+- 已把 repeated-header 页间匹配继续推进到“同一 cell 内 token 集合完全一致”的
+  词序变化：
+  例如 `Project Status` 与 `Status Project` 会被视为同一个表头单元格。
+- 已保持保守边界：
+  该规则只在 canonical token 数量为 2 到 4 个且两侧 token 多集合完全一致时触发；
+  它不会处理缺字、错字、同义改写、跨 cell 重排，也不会放宽列锚点或跨页续表条件。
+- 已补导入侧回归：
+  新样本第 1 页表头为 `Item / Owner Name / Project Status`，第 2 页重复表头为
+  `Item / Name Owner / Status Project`；导入后仍应合并成单个可编辑表格，并跳过
+  第 2 页重复表头行。
+- 已知限制更新：
+  词序归一化不是语义相似度模型，只覆盖 token 完全一致的受控场景；多语混排、
+  OCR 扰动、近义词替换和复杂多层表头仍保持保守。
+
 2026-05-11 继续推进（宽文本合并落表）：
 
 - 已给 `PdfParsedTableCell` 补入最小 `column_span` 语义，并让 `PdfiumParser`

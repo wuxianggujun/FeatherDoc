@@ -1385,6 +1385,60 @@ write_paragraph_table_pagebreak_repeated_header_abbreviation_variant_pdf(
 }
 
 [[nodiscard]] inline std::filesystem::path
+write_paragraph_table_pagebreak_repeated_header_word_order_variant_pdf(
+    std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc paragraph-table-pagebreak-repeated-header-word-order-variant import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    auto add_table_row = [](featherdoc::pdf::PdfPageLayout &page,
+                            double y_points, std::string first,
+                            std::string second, std::string third) {
+        page.text_runs.push_back(
+            make_pdf_text_run(86.0, y_points, std::move(first)));
+        page.text_runs.push_back(
+            make_pdf_text_run(246.0, y_points, std::move(second)));
+        page.text_runs.push_back(
+            make_pdf_text_run(406.0, y_points, std::move(third)));
+    };
+
+    featherdoc::pdf::PdfPageLayout first_page;
+    first_page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    first_page.text_runs.push_back(make_pdf_text_run(
+        72.0, 724.0, "Repeated header word order variant sample"));
+    append_three_by_three_grid(first_page, 72.0, 664.0, 160.0, 32.0);
+    add_table_row(first_page, 642.0, "Item", "Owner Name", "Project Status");
+    add_table_row(first_page, 610.0, "Feature alpha rollout",
+                  "Design crew west", "Shipment cleared");
+    add_table_row(first_page, 578.0, "Metrics review sync",
+                  "QA operations lane", "Approval recorded");
+    layout.pages.push_back(std::move(first_page));
+
+    featherdoc::pdf::PdfPageLayout second_page;
+    second_page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    append_three_by_three_grid(second_page, 72.0, 700.0, 160.0, 32.0);
+    add_table_row(second_page, 678.0, "Item", "Name Owner", "Status Project");
+    add_table_row(second_page, 646.0, "Invoice merge pass",
+                  "Import lane west", "Tracking verified");
+    add_table_row(second_page, 614.0, "Header dedupe audit",
+                  "Parser team shift", "Verification closed");
+    second_page.text_runs.push_back(make_pdf_text_run(
+        72.0, 548.0,
+        "Footer note: repeated source header word order variant should merge cleanly"));
+    layout.pages.push_back(std::move(second_page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
 write_paragraph_table_pagebreak_repeated_header_semantic_variant_pdf(
     std::string_view filename) {
     featherdoc::pdf::PdfDocumentLayout layout;

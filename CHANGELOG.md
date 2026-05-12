@@ -10,9 +10,10 @@ performance.
 
 ### Added
 
-- Added conservative PDF repeated-header abbreviation matching for common
-  cross-page table headers such as `Qty`/`Quantity` and `Amt`/`Amount`, while
-  keeping semantic header changes split into separate editable tables.
+- Added conservative PDF repeated-header abbreviation and same-token word-order
+  matching for common cross-page table headers such as `Qty`/`Quantity`,
+  `Amt`/`Amount`, and `Project Status`/`Status Project`, while keeping
+  semantic header changes split into separate editable tables.
 
 ## [1.11.0] - 2026-05-12
 
