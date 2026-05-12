@@ -587,7 +587,9 @@ enum class TableAppendResult { failed, created, merged };
         }
 
         if (std::isspace(ch) || ch == '-' || ch == '_' || ch == '/' ||
-            ch == '\\' || ch == ':' || ch == '.') {
+            ch == '\\' || ch == ':' || ch == '.' || ch == ',' ||
+            ch == ';' || ch == '(' || ch == ')' || ch == '[' ||
+            ch == ']') {
             pending_space = !normalized.empty();
             continue;
         }

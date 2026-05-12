@@ -1406,6 +1406,21 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   词序归一化不是语义相似度模型，只覆盖 token 完全一致的受控场景；多语混排、
   OCR 扰动、近义词替换和复杂多层表头仍保持保守。
 
+2026-05-12 继续推进（跨页 repeated-header 单位标点归一化）：
+
+- 已把 repeated-header 表头文本归一化继续扩展到逗号、分号、括号和方括号：
+  `Owner, Name` 会折叠为 `Owner Name`，`Amount (USD)` 会折叠为 `Amount USD`。
+- 已保持保守边界：
+  这只是 separator 级别的文本折叠，不引入 OCR 近似字符、不处理单位换算，也不放宽
+  repeated-header 的列锚点、页顶位置和跨页续表判断。
+- 已补导入侧回归：
+  新样本第 1 页表头为 `Item / Owner Name / Amount USD`，第 2 页重复表头为
+  `Item / Owner, Name / Amount (USD)`；导入后仍应合并成单个可编辑表格，并跳过
+  第 2 页重复表头行。
+- 已知限制更新：
+  该规则只覆盖分隔符引起的同 token 变体；`USD Amount`、币种缺失、单位缩写误识别、
+  OCR 错字和跨 cell 单位拆分仍保持保守。
+
 2026-05-11 继续推进（宽文本合并落表）：
 
 - 已给 `PdfParsedTableCell` 补入最小 `column_span` 语义，并让 `PdfiumParser`
