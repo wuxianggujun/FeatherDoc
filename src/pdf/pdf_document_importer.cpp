@@ -602,8 +602,58 @@ enum class TableAppendResult { failed, created, merged };
     return normalized;
 }
 
-[[nodiscard]] bool header_cell_texts_match(std::string_view left,
-                                           std::string_view right) {
+[[nodiscard]] std::string canonicalize_header_match_token(
+    std::string_view token) {
+    if (token == "qty" || token == "quantity" ||
+        token == "quantities") {
+        return "quantity";
+    }
+    if (token == "amt" || token == "amount" || token == "amounts") {
+        return "amount";
+    }
+    if (token == "desc" || token == "description" ||
+        token == "descriptions") {
+        return "description";
+    }
+    if (token == "no" || token == "num" || token == "number" ||
+        token == "numbers") {
+        return "number";
+    }
+
+    return std::string{token};
+}
+
+[[nodiscard]] std::string canonicalize_header_match_text(
+    std::string_view text) {
+    std::string canonical;
+    canonical.reserve(text.size());
+
+    std::size_t token_start = 0U;
+    while (token_start < text.size()) {
+        const auto token_end = text.find(' ', token_start);
+        const auto token =
+            text.substr(token_start,
+                        token_end == std::string_view::npos
+                            ? std::string_view::npos
+                            : token_end - token_start);
+        if (!token.empty()) {
+            if (!canonical.empty()) {
+                canonical.push_back(' ');
+            }
+            canonical += canonicalize_header_match_token(token);
+        }
+
+        if (token_end == std::string_view::npos) {
+            break;
+        }
+        token_start = token_end + 1U;
+    }
+
+    return canonical;
+}
+
+[[nodiscard]] bool header_texts_match_exact_or_plural_variant(
+    std::string_view left, std::string_view right) {
     if (left == right) {
         return true;
     }
@@ -617,6 +667,17 @@ enum class TableAppendResult { failed, created, merged };
 
     const auto suffix = longer.substr(shorter.size());
     return suffix == "s" || suffix == "es";
+}
+
+[[nodiscard]] bool header_cell_texts_match(std::string_view left,
+                                           std::string_view right) {
+    if (header_texts_match_exact_or_plural_variant(left, right)) {
+        return true;
+    }
+
+    return header_texts_match_exact_or_plural_variant(
+        canonicalize_header_match_text(left),
+        canonicalize_header_match_text(right));
 }
 
 [[nodiscard]] bool is_header_label_text(std::string_view text) {

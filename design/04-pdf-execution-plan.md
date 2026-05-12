@@ -1375,6 +1375,21 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   当前诊断仍只覆盖表格候选的续接路径；如果后续要把更多 `PdfParsedTableCandidate`
   提升为可编辑 AST，还需要单独设计 cell 合并、表头语义和分页语义的中间表示。
 
+2026-05-12 继续推进（跨页 repeated-header 缩写归一化）：
+
+- 已把 repeated-header 页间匹配从“大小写/分隔符/复数”继续推进到少量明确缩写：
+  `Qty`/`Quantity`、`Amt`/`Amount`、`Desc`/`Description`、`No`/`Num`/`Number`
+  会在表头匹配时映射到同一个规范词。
+- 已保持保守边界：
+  归一化只发生在已经满足跨页续表、列锚点兼容、两侧都像 repeated header 的路径里；
+  不引入模糊文本相似度，也不把 `Owner Team` / `Owner Name` 这类语义变化合并。
+- 已补导入侧回归：
+  新样本第 1 页表头为 `Item / Quantity / Amount`，第 2 页重复表头为
+  `Item / Qty / Amt`；导入后仍应合并成单个可编辑表格，并跳过第 2 页重复表头行。
+- 已知限制更新：
+  缩写映射是固定白名单，只覆盖低歧义英文表头；OCR 错字、词序变化、同义改写、
+  多语表头和复杂多层表头仍保持保守，不会强行合并。
+
 2026-05-11 继续推进（宽文本合并落表）：
 
 - 已给 `PdfParsedTableCell` 补入最小 `column_span` 语义，并让 `PdfiumParser`
