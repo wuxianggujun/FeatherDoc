@@ -1250,6 +1250,9 @@ Use `replace_bookmark_table`, `remove_bookmark_block`,
 `set_bookmark_block_visibility`, and `apply_bookmark_block_visibility` when an
 edit plan needs the same rich bookmark replacement and conditional-block
 controls exposed by the CLI.
+Use `fill_bookmarks` when an edit plan needs to set bookmark text values in one
+step; it accepts either a `values` object or a `bindings` array of
+bookmark/text pairs.
 Use `replace_content_control_text`, `replace_content_control_paragraphs`,
 `replace_content_control_table`, `replace_content_control_table_rows`,
 `replace_content_control_image`, and `set_content_control_form_state` when an

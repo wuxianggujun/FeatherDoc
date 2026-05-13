@@ -722,6 +722,62 @@ function Add-BookmarkVisibilityBindings {
     }
 }
 
+function Add-FillBookmarkBindings {
+    param(
+        [System.Collections.Generic.List[string]]$Arguments,
+        $Operation,
+        [string]$Label,
+        [int]$OperationIndex,
+        [string]$TemporaryRoot
+    )
+
+    $bindingCount = 0
+    $bindings = Get-OptionalObjectPropertyObject -Object $Operation -Name "bindings"
+    if ($null -ne $bindings) {
+        $valueIndex = 1
+        foreach ($binding in @($bindings)) {
+            $bookmark = Get-BookmarkNameForOperation -Operation $binding -Label $Label
+            $text = Get-RequiredObjectPropertyValue -Object $binding -Name "text" -Label $Label
+            $textPath = New-EditOperationTextFile `
+                -TemporaryRoot $TemporaryRoot `
+                -OperationIndex $OperationIndex `
+                -ValueIndex $valueIndex `
+                -Text $text
+            $Arguments.Add("--set-file") | Out-Null
+            $Arguments.Add($bookmark) | Out-Null
+            $Arguments.Add($textPath) | Out-Null
+            $valueIndex += 1
+            $bindingCount += 1
+        }
+    }
+
+    $values = Get-OptionalObjectPropertyObject -Object $Operation -Name "values"
+    if ($null -ne $values) {
+        $valueIndex = $bindingCount + 1
+        foreach ($property in @($values.PSObject.Properties)) {
+            $bookmark = [string]$property.Name
+            if ([string]::IsNullOrWhiteSpace($bookmark)) {
+                throw "$Label 'values' bookmark names must not be empty."
+            }
+            $text = [string]$property.Value
+            $textPath = New-EditOperationTextFile `
+                -TemporaryRoot $TemporaryRoot `
+                -OperationIndex $OperationIndex `
+                -ValueIndex $valueIndex `
+                -Text $text
+            $Arguments.Add("--set-file") | Out-Null
+            $Arguments.Add($bookmark) | Out-Null
+            $Arguments.Add($textPath) | Out-Null
+            $valueIndex += 1
+            $bindingCount += 1
+        }
+    }
+
+    if ($bindingCount -eq 0) {
+        throw "$Label must provide 'bindings' or 'values'."
+    }
+}
+
 function Get-TemplateTableHeaderCellValues {
     param($Operation)
 
@@ -4229,6 +4285,17 @@ function New-OperationArguments {
     $arguments = New-Object 'System.Collections.Generic.List[string]'
 
     switch ($normalizedOp) {
+        "fill_bookmarks" {
+            $arguments.Add("fill-bookmarks") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            Add-FillBookmarkBindings `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Label $Label `
+                -OperationIndex $OperationIndex `
+                -TemporaryRoot $TemporaryRoot
+            Add-BookmarkSelectorArguments -Arguments $arguments -Operation $Operation
+        }
         "replace_bookmark_text" {
             $bookmark = Get-BookmarkNameForOperation -Operation $Operation -Label $Label
             $text = Get-RequiredObjectPropertyValue -Object $Operation -Name "text" -Label $Label

@@ -389,6 +389,11 @@ function New-BookmarkRichFixtureDocx {
     <w:p><w:bookmarkStart w:id="6" w:name="hide_batch_block"/></w:p>
     <w:p><w:r><w:t>Batch hide me</w:t></w:r></w:p>
     <w:p><w:bookmarkEnd w:id="6"/></w:p>
+    <w:p>
+      <w:bookmarkStart w:id="7" w:name="fill_only"/>
+      <w:r><w:t>fill only placeholder</w:t></w:r>
+      <w:bookmarkEnd w:id="7"/>
+    </w:p>
     <w:p><w:r><w:t>after rich bookmarks</w:t></w:r></w:p>
   </w:body>
 </w:document>
@@ -1932,6 +1937,12 @@ Set-Content -LiteralPath $bookmarkRichPlanPath -Encoding UTF8 -Value @"
 {
   "operations": [
     {
+      "op": "fill_bookmarks",
+      "values": {
+        "fill_only": "Filled bookmark value"
+      }
+    },
+    {
       "op": "replace_bookmark_table",
       "bookmark": "metrics_table",
       "rows": [
@@ -2008,22 +2019,26 @@ $bookmarkRichNamespaceManager = New-WordNamespaceManager -Document $bookmarkRich
 
 Assert-Equal -Actual $bookmarkRichSummary.status -Expected "completed" `
     -Message "Bookmark-rich summary did not report status=completed."
-Assert-Equal -Actual $bookmarkRichSummary.operation_count -Expected 6 `
-    -Message "Bookmark-rich summary should record six operations."
-Assert-Equal -Actual $bookmarkRichSummary.operations[0].command -Expected "replace-bookmark-table" `
+Assert-Equal -Actual $bookmarkRichSummary.operation_count -Expected 7 `
+    -Message "Bookmark-rich summary should record seven operations."
+Assert-Equal -Actual $bookmarkRichSummary.operations[0].command -Expected "fill-bookmarks" `
+    -Message "Fill-bookmarks should use the CLI fill-bookmarks command."
+Assert-Equal -Actual $bookmarkRichSummary.operations[1].command -Expected "replace-bookmark-table" `
     -Message "Bookmark table edit should use the CLI replace-bookmark-table command."
-Assert-Equal -Actual $bookmarkRichSummary.operations[1].command -Expected "remove-bookmark-block" `
+Assert-Equal -Actual $bookmarkRichSummary.operations[2].command -Expected "remove-bookmark-block" `
     -Message "Bookmark block removal should use the CLI remove-bookmark-block command."
-Assert-Equal -Actual $bookmarkRichSummary.operations[2].command -Expected "replace-bookmark-image" `
+Assert-Equal -Actual $bookmarkRichSummary.operations[3].command -Expected "replace-bookmark-image" `
     -Message "Bookmark image edit should use the CLI replace-bookmark-image command."
-Assert-Equal -Actual $bookmarkRichSummary.operations[3].command -Expected "replace-bookmark-floating-image" `
+Assert-Equal -Actual $bookmarkRichSummary.operations[4].command -Expected "replace-bookmark-floating-image" `
     -Message "Bookmark floating-image edit should use the CLI replace-bookmark-floating-image command."
-Assert-Equal -Actual $bookmarkRichSummary.operations[4].command -Expected "set-bookmark-block-visibility" `
+Assert-Equal -Actual $bookmarkRichSummary.operations[5].command -Expected "set-bookmark-block-visibility" `
     -Message "Bookmark block visibility edit should use the CLI set-bookmark-block-visibility command."
-Assert-Equal -Actual $bookmarkRichSummary.operations[5].command -Expected "apply-bookmark-block-visibility" `
+Assert-Equal -Actual $bookmarkRichSummary.operations[6].command -Expected "apply-bookmark-block-visibility" `
     -Message "Bookmark block visibility batch edit should use the CLI apply-bookmark-block-visibility command."
 Assert-ContainsText -Text $bookmarkRichXml -ExpectedText "Metric" -Label "Bookmark-rich document.xml"
 Assert-ContainsText -Text $bookmarkRichXml -ExpectedText "Quality" -Label "Bookmark-rich document.xml"
+Assert-ContainsText -Text $bookmarkRichXml -ExpectedText "Filled bookmark value" -Label "Bookmark-rich document.xml"
+Assert-NotContainsText -Text $bookmarkRichXml -UnexpectedText "fill only placeholder" -Label "Bookmark-rich document.xml"
 Assert-ContainsText -Text $bookmarkRichXml -ExpectedText "Keep me" -Label "Bookmark-rich document.xml"
 Assert-ContainsText -Text $bookmarkRichXml -ExpectedText "wp:inline" -Label "Bookmark-rich document.xml"
 Assert-ContainsText -Text $bookmarkRichXml -ExpectedText "wp:anchor" -Label "Bookmark-rich document.xml"

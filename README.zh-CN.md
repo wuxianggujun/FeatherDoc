@@ -1024,6 +1024,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_works
 `replace_bookmark_table`、`remove_bookmark_block`、`replace_bookmark_image`、
 `replace_bookmark_floating_image`、`set_bookmark_block_visibility` 和
 `apply_bookmark_block_visibility`。
+如果编辑计划需要一次性填充书签文本，可以用 `fill_bookmarks`，它支持
+`values` 对象或 `bindings` 数组来提供书签和值的对应关系。
 如果编辑计划需要按内容控件定位，可以用
 `replace_content_control_text`、`replace_content_control_paragraphs`、
 `replace_content_control_table`、`replace_content_control_table_rows`、
