@@ -3229,6 +3229,9 @@ $styleRefactorPlanPath = Join-Path $resolvedWorkingDir "style_refactor.edit_plan
 $styleRefactorEditedDocx = Join-Path $resolvedWorkingDir "style_refactor.edited.docx"
 $styleRefactorSummaryPath = Join-Path $resolvedWorkingDir "style_refactor.edit.summary.json"
 $styleRefactorRollbackPath = Join-Path $resolvedWorkingDir "style_refactor.rollback.json"
+$styleRefactorRestorePlanPath = Join-Path $resolvedWorkingDir "style_refactor.restore_plan.json"
+$styleRefactorRestoredDocx = Join-Path $resolvedWorkingDir "style_refactor.restored.docx"
+$styleRefactorRestoreSummaryPath = Join-Path $resolvedWorkingDir "style_refactor.restore.summary.json"
 
 New-StyleRefactorFixtureDocx -Path $styleRefactorSourceDocx
 Set-Content -LiteralPath $styleRefactorPlanPath -Encoding UTF8 -Value @"
@@ -3307,6 +3310,43 @@ Assert-NotContainsText -Text $styleRefactorStylesXml -UnexpectedText 'w:styleId=
 Assert-NotContainsText -Text $styleRefactorStylesXml -UnexpectedText 'w:styleId="UnusedCharacter"' -Label "Style-refactor styles.xml"
 Assert-True -Condition (Test-Path -LiteralPath $styleRefactorRollbackPath) `
     -Message "apply_style_refactor should write the requested rollback plan."
+
+Set-Content -LiteralPath $styleRefactorRestorePlanPath -Encoding UTF8 -Value @"
+{
+  "operations": [
+    {
+      "op": "restore_style_merge",
+      "rollback_plan": "$($styleRefactorRollbackPath.Replace('\', '\\'))",
+      "entries": [1]
+    }
+  ]
+}
+"@
+
+& $scriptPath `
+    -InputDocx $styleRefactorEditedDocx `
+    -EditPlan $styleRefactorRestorePlanPath `
+    -OutputDocx $styleRefactorRestoredDocx `
+    -SummaryJson $styleRefactorRestoreSummaryPath `
+    -BuildDir $resolvedBuildDir `
+    -SkipBuild
+
+if ($LASTEXITCODE -ne 0) {
+    throw "edit_document_from_plan.ps1 failed for the restore style merge edit plan."
+}
+
+$styleRefactorRestoreSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $styleRefactorRestoreSummaryPath | ConvertFrom-Json
+$styleRefactorRestoredDocumentXml = Read-DocxEntryText -DocxPath $styleRefactorRestoredDocx -EntryName "word/document.xml"
+$styleRefactorRestoredStylesXml = Read-DocxEntryText -DocxPath $styleRefactorRestoredDocx -EntryName "word/styles.xml"
+
+Assert-Equal -Actual $styleRefactorRestoreSummary.status -Expected "completed" `
+    -Message "Style-refactor restore summary did not report status=completed."
+Assert-Equal -Actual $styleRefactorRestoreSummary.operation_count -Expected 1 `
+    -Message "Style-refactor restore summary should record one operation."
+Assert-Equal -Actual $styleRefactorRestoreSummary.operations[0].command -Expected "restore-style-merge" `
+    -Message "restore_style_merge should use the CLI restore-style-merge command."
+Assert-ContainsText -Text $styleRefactorRestoredDocumentXml -ExpectedText 'w:pStyle w:val="BulkMergeSource"' -Label "Style-refactor restored document.xml"
+Assert-ContainsText -Text $styleRefactorRestoredStylesXml -ExpectedText 'w:styleId="BulkMergeSource"' -Label "Style-refactor restored styles.xml"
 
 $removeTablePlanPath = Join-Path $resolvedWorkingDir "invoice.remove_table_plan.json"
 $tableRemovedDocx = Join-Path $resolvedWorkingDir "invoice.table_removed.docx"

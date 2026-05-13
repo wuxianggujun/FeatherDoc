@@ -1213,6 +1213,73 @@ function Add-StyleRefactorApplyArguments {
     }
 }
 
+function Add-StyleMergeRestoreSelectionArguments {
+    param(
+        [System.Collections.Generic.List[string]]$Arguments,
+        $Operation,
+        [string]$Label
+    )
+
+    $rollbackPlan = Get-FirstObjectPropertyValue `
+        -Object $Operation `
+        -Names @("rollback_plan", "rollback_plan_file", "rollback_path", "rollback_plan_path") `
+        -Label $Label
+    $Arguments.Add("--rollback-plan") | Out-Null
+    $Arguments.Add($rollbackPlan) | Out-Null
+
+    foreach ($name in @("entries", "entry_indexes", "entry_index", "entry")) {
+        $entries = Get-OptionalObjectPropertyObject -Object $Operation -Name $name
+        if ($null -ne $entries) {
+            foreach ($entry in @($entries)) {
+                $entryText = [string]$entry
+                if ([string]::IsNullOrWhiteSpace($entryText)) {
+                    throw "$Label '$name' values must not be empty."
+                }
+                $Arguments.Add("--entry") | Out-Null
+                $Arguments.Add($entryText) | Out-Null
+            }
+            break
+        }
+    }
+
+    foreach ($name in @("source_style_ids", "source_styles", "source_style_id", "source_style")) {
+        $sourceStyles = Get-OptionalObjectPropertyObject -Object $Operation -Name $name
+        if ($null -ne $sourceStyles) {
+            foreach ($styleId in @($sourceStyles)) {
+                $styleText = [string]$styleId
+                if ([string]::IsNullOrWhiteSpace($styleText)) {
+                    throw "$Label '$name' values must not be empty."
+                }
+                $Arguments.Add("--source-style") | Out-Null
+                $Arguments.Add($styleText) | Out-Null
+            }
+            break
+        }
+    }
+
+    foreach ($name in @("target_style_ids", "target_styles", "target_style_id", "target_style")) {
+        $targetStyles = Get-OptionalObjectPropertyObject -Object $Operation -Name $name
+        if ($null -ne $targetStyles) {
+            foreach ($styleId in @($targetStyles)) {
+                $styleText = [string]$styleId
+                if ([string]::IsNullOrWhiteSpace($styleText)) {
+                    throw "$Label '$name' values must not be empty."
+                }
+                $Arguments.Add("--target-style") | Out-Null
+                $Arguments.Add($styleText) | Out-Null
+            }
+            break
+        }
+    }
+
+    foreach ($name in @("dry_run", "plan_only")) {
+        if ((Test-ObjectPropertyExists -Object $Operation -Name $name) -and
+            (Get-OptionalBooleanPropertyValue -Object $Operation -Name $name -DefaultValue $false)) {
+            throw "$Label does not support '$name' because edit plans write an output DOCX for each operation."
+        }
+    }
+}
+
 function Add-EnsureStyleCatalogArguments {
     param(
         [System.Collections.Generic.List[string]]$Arguments,
@@ -6772,6 +6839,22 @@ function New-OperationArguments {
             $arguments.Add("apply-style-refactor") | Out-Null
             $arguments.Add($InputPath) | Out-Null
             Add-StyleRefactorApplyArguments `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Label $Label
+        }
+        "restore_style_merge" {
+            $arguments.Add("restore-style-merge") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            Add-StyleMergeRestoreSelectionArguments `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Label $Label
+        }
+        "restore_style_refactor" {
+            $arguments.Add("restore-style-merge") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            Add-StyleMergeRestoreSelectionArguments `
                 -Arguments $arguments `
                 -Operation $Operation `
                 -Label $Label
