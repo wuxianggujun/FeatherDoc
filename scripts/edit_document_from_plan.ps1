@@ -1071,6 +1071,148 @@ function Get-StyleIdValue {
         -Label $Label
 }
 
+function Get-OldStyleIdValue {
+    param(
+        $Operation,
+        [string]$Label
+    )
+
+    return Get-FirstObjectPropertyValue `
+        -Object $Operation `
+        -Names @("old_style_id", "old_style", "source_style_id", "source_style", "style_id", "style") `
+        -Label $Label
+}
+
+function Get-NewStyleIdValue {
+    param(
+        $Operation,
+        [string]$Label
+    )
+
+    return Get-FirstObjectPropertyValue `
+        -Object $Operation `
+        -Names @("new_style_id", "new_style", "target_style_id", "target_style", "replacement_style_id", "replacement_style") `
+        -Label $Label
+}
+
+function Add-StyleRefactorPairArguments {
+    param(
+        [System.Collections.Generic.List[string]]$Arguments,
+        $Operation,
+        [string]$Label,
+        [string]$PairPropertyName,
+        [string]$Flag,
+        [string[]]$SourceNames,
+        [string[]]$TargetNames,
+        [string]$SourceLabel,
+        [string]$TargetLabel
+    )
+
+    $pairs = Get-OptionalObjectPropertyObject -Object $Operation -Name $PairPropertyName
+    if ($null -ne $pairs) {
+        if ($pairs -is [string]) {
+            if ([string]::IsNullOrWhiteSpace([string]$pairs)) {
+                throw "$Label '$PairPropertyName' strings must not be empty."
+            }
+            $Arguments.Add($Flag) | Out-Null
+            $Arguments.Add([string]$pairs) | Out-Null
+            return 1
+        }
+
+        $count = 0
+        foreach ($pair in @($pairs)) {
+            if ($pair -is [string]) {
+                if ([string]::IsNullOrWhiteSpace([string]$pair)) {
+                    throw "$Label '$PairPropertyName' strings must not be empty."
+                }
+                $Arguments.Add($Flag) | Out-Null
+                $Arguments.Add([string]$pair) | Out-Null
+                $count += 1
+                continue
+            }
+
+            $source = Get-FirstObjectPropertyValue `
+                -Object $pair `
+                -Names $SourceNames `
+                -Label $Label
+            $target = Get-FirstObjectPropertyValue `
+                -Object $pair `
+                -Names $TargetNames `
+                -Label $Label
+            $Arguments.Add($Flag) | Out-Null
+            $Arguments.Add("$source`:$target") | Out-Null
+            $count += 1
+        }
+
+        return $count
+    }
+
+    $source = Get-FirstOptionalObjectPropertyValue -Object $Operation -Names $SourceNames
+    $target = Get-FirstOptionalObjectPropertyValue -Object $Operation -Names $TargetNames
+    if ([string]::IsNullOrWhiteSpace($source) -and [string]::IsNullOrWhiteSpace($target)) {
+        return 0
+    }
+    if ([string]::IsNullOrWhiteSpace($source) -or [string]::IsNullOrWhiteSpace($target)) {
+        throw "$Label must provide both '$SourceLabel' and '$TargetLabel'."
+    }
+
+    $Arguments.Add($Flag) | Out-Null
+    $Arguments.Add("$source`:$target") | Out-Null
+    return 1
+}
+
+function Add-StyleRefactorApplyArguments {
+    param(
+        [System.Collections.Generic.List[string]]$Arguments,
+        $Operation,
+        [string]$Label
+    )
+
+    $planFile = Get-FirstOptionalObjectPropertyValue `
+        -Object $Operation `
+        -Names @("plan_file", "plan_path", "style_refactor_plan_file", "style_refactor_plan_path")
+    $requestCount = 0
+
+    if (-not [string]::IsNullOrWhiteSpace($planFile)) {
+        $Arguments.Add("--plan-file") | Out-Null
+        $Arguments.Add($planFile) | Out-Null
+        $requestCount += 1
+    }
+
+    $requestCount += Add-StyleRefactorPairArguments `
+        -Arguments $Arguments `
+        -Operation $Operation `
+        -Label $Label `
+        -PairPropertyName "renames" `
+        -Flag "--rename" `
+        -SourceNames @("old_style_id", "old_style", "source_style_id", "source_style", "from_style_id", "from_style", "style_id", "style") `
+        -TargetNames @("new_style_id", "new_style", "target_style_id", "target_style", "to_style_id", "to_style", "replacement_style_id", "replacement_style") `
+        -SourceLabel "old_style_id" `
+        -TargetLabel "new_style_id"
+    $requestCount += Add-StyleRefactorPairArguments `
+        -Arguments $Arguments `
+        -Operation $Operation `
+        -Label $Label `
+        -PairPropertyName "merges" `
+        -Flag "--merge" `
+        -SourceNames @("source_style_id", "source_style", "old_style_id", "old_style", "from_style_id", "from_style", "style_id", "style") `
+        -TargetNames @("target_style_id", "target_style", "new_style_id", "new_style", "to_style_id", "to_style", "replacement_style_id", "replacement_style") `
+        -SourceLabel "source_style_id" `
+        -TargetLabel "target_style_id"
+
+    if ($requestCount -eq 0) {
+        throw "$Label must provide 'plan_file', 'renames', or 'merges'."
+    }
+
+    $rollbackPlan = Get-FirstOptionalObjectPropertyValue `
+        -Object $Operation `
+        -Names @("rollback_plan", "rollback_plan_file", "rollback_path", "rollback_plan_path")
+    if (-not [string]::IsNullOrWhiteSpace($rollbackPlan)) {
+        $Arguments.Add("--rollback-plan") | Out-Null
+        $Arguments.Add($rollbackPlan) | Out-Null
+    }
+}
+
 function Add-EnsureStyleCatalogArguments {
     param(
         [System.Collections.Generic.List[string]]$Arguments,
@@ -6603,6 +6745,40 @@ function New-OperationArguments {
             $arguments.Add($InputPath) | Out-Null
             $arguments.Add($styleId) | Out-Null
             $arguments.Add($basedOn) | Out-Null
+        }
+        "rename_style" {
+            $oldStyleId = Get-OldStyleIdValue -Operation $Operation -Label $Label
+            $newStyleId = Get-NewStyleIdValue -Operation $Operation -Label $Label
+            $arguments.Add("rename-style") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add($oldStyleId) | Out-Null
+            $arguments.Add($newStyleId) | Out-Null
+        }
+        "merge_style" {
+            $sourceStyleId = Get-FirstObjectPropertyValue `
+                -Object $Operation `
+                -Names @("source_style_id", "source_style", "old_style_id", "old_style", "from_style_id", "from_style", "style_id", "style") `
+                -Label $Label
+            $targetStyleId = Get-FirstObjectPropertyValue `
+                -Object $Operation `
+                -Names @("target_style_id", "target_style", "new_style_id", "new_style", "to_style_id", "to_style", "replacement_style_id", "replacement_style") `
+                -Label $Label
+            $arguments.Add("merge-style") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add($sourceStyleId) | Out-Null
+            $arguments.Add($targetStyleId) | Out-Null
+        }
+        "apply_style_refactor" {
+            $arguments.Add("apply-style-refactor") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            Add-StyleRefactorApplyArguments `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Label $Label
+        }
+        "prune_unused_styles" {
+            $arguments.Add("prune-unused-styles") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
         }
         "ensure_numbering_definition" {
             $definitionName = Get-FirstObjectPropertyValue `

@@ -1388,6 +1388,12 @@ retarget a style's base style using `based_on`, `based_on_style`,
 `target_style_id`. `ensure_style_linked_numbering` accepts the same numbering
 definition inputs plus `style_links` / `links`, where each link can be a
 `StyleId:level` string or an object with `style` / `style_id` and `level`.
+Style refactor commands are available as `rename_style`, `merge_style`,
+`apply_style_refactor`, and `prune_unused_styles`. `rename_style` accepts
+`old_style_id` / `old_style` and `new_style_id` / `new_style`; `merge_style`
+accepts `source_style_id` / `source_style` and `target_style_id` /
+`target_style`; `apply_style_refactor` accepts `plan_file` or inline
+`renames` / `merges` pairs, plus optional `rollback_plan`.
 Use `merge_table_cells` to merge table cells and `unmerge_table_cells` to split
 an existing merge; `count` controls how many cells the merge spans. Use
 `remove_table` when an edit plan needs to delete an entire body table. Use
