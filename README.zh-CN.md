@@ -1170,6 +1170,8 @@ edit-plan。`rename_style` 接受 `old_style_id` / `old_style` 和
 rollback 项。
 修复型样式 / 表格命令也可以通过 `apply_table_style_quality_fixes`、
 `repair_table_style_look` 和 `repair_style_numbering` 进入 edit-plan；
+`ensure_table_style` 也可以通过 edit-plan 进入；它接受 `style_id`
+以及与 `ensure-table-style` 相同的表格样式目录和区域输入。
 脚本会调用这些命令的安全应用模式，并把中间 DOCX 继续传给下一步。
 `repair_style_numbering` 还可以传入 `catalog_file`。
 单元格合并使用 `merge_table_cells`，取消合并使用 `unmerge_table_cells`；

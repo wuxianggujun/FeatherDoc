@@ -1396,6 +1396,58 @@ function Add-EnsureCharacterStyleArguments {
     Add-EnsureStyleRunArguments -Arguments $Arguments -Operation $Operation
 }
 
+function Add-RepeatableCliValueArgument {
+    param(
+        [System.Collections.Generic.List[string]]$Arguments,
+        $Operation,
+        [string[]]$Names,
+        [string]$Flag,
+        [string]$Label
+    )
+
+    foreach ($name in $Names) {
+        $value = Get-OptionalObjectPropertyObject -Object $Operation -Name $name
+        if ($null -eq $value) {
+            continue
+        }
+
+        foreach ($item in @($value)) {
+            $itemText = [string]$item
+            if ([string]::IsNullOrWhiteSpace($itemText)) {
+                throw "$Label '$name' values must not be empty."
+            }
+            $Arguments.Add($Flag) | Out-Null
+            $Arguments.Add($itemText) | Out-Null
+        }
+        return
+    }
+}
+
+function Add-EnsureTableStyleArguments {
+    param(
+        [System.Collections.Generic.List[string]]$Arguments,
+        $Operation,
+        [string]$Label
+    )
+
+    Add-EnsureStyleCatalogArguments -Arguments $Arguments -Operation $Operation -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_fill", "fills") -Flag "--style-fill" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_text_color", "text_colors") -Flag "--style-text-color" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_bold", "bold") -Flag "--style-bold" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_italic", "italic") -Flag "--style-italic" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_font_size", "font_size") -Flag "--style-font-size" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_font_family", "font_family") -Flag "--style-font-family" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_east_asia_font_family", "east_asia_font_family") -Flag "--style-east-asia-font-family" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_cell_vertical_alignment", "cell_vertical_alignment") -Flag "--style-cell-vertical-alignment" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_cell_text_direction", "cell_text_direction") -Flag "--style-cell-text-direction" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_paragraph_alignment", "paragraph_alignment") -Flag "--style-paragraph-alignment" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_paragraph_spacing_before", "paragraph_spacing_before") -Flag "--style-paragraph-spacing-before" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_paragraph_spacing_after", "paragraph_spacing_after") -Flag "--style-paragraph-spacing-after" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_paragraph_line_spacing", "paragraph_line_spacing") -Flag "--style-paragraph-line-spacing" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_margin", "margins") -Flag "--style-margin" -Label $Label
+    Add-RepeatableCliValueArgument -Arguments $Arguments -Operation $Operation -Names @("style_border", "borders") -Flag "--style-border" -Label $Label
+}
+
 function Add-StyleLinkArguments {
     param(
         [System.Collections.Generic.List[string]]$Arguments,
@@ -6884,6 +6936,16 @@ function New-OperationArguments {
                 $arguments.Add("--catalog-file") | Out-Null
                 $arguments.Add($catalogFile) | Out-Null
             }
+        }
+        "ensure_table_style" {
+            $styleId = Get-StyleIdValue -Operation $Operation -Label $Label
+            $arguments.Add("ensure-table-style") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add($styleId) | Out-Null
+            Add-EnsureTableStyleArguments `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Label $Label
         }
         "ensure_numbering_definition" {
             $definitionName = Get-FirstObjectPropertyValue `

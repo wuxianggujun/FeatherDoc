@@ -1396,6 +1396,8 @@ Style refactor commands are available as `rename_style`, `merge_style`,
 or inline `renames` / `merges` pairs, plus optional `rollback_plan`.
 `restore_style_merge` accepts `rollback_plan` and optional `entries`,
 `source_style_ids`, or `target_style_ids` filters.
+`ensure_table_style` accepts `style_id` plus the same table-style catalog and
+region inputs as `ensure-table-style`.
 Repair-oriented style and table operations are available as
 `apply_table_style_quality_fixes`, `repair_table_style_look`, and
 `repair_style_numbering`; edit plans run their safe apply modes and write the

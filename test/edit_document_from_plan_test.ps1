@@ -3263,6 +3263,28 @@ Set-Content -LiteralPath $styleDefinitionPlanPath -Encoding UTF8 -Value @'
       "run_rtl": true
     },
     {
+      "op": "ensure_table_style",
+      "style_id": "ReviewTable",
+      "name": "Review Table",
+      "based_on": "TableGrid",
+      "custom": true,
+      "unhide_when_used": true,
+      "quick_format": true,
+      "style_fill": [
+        "whole_table:DDEEFF",
+        "first_row:1F4E79"
+      ],
+      "style_text_color": [
+        "first_row:FFFFFF"
+      ],
+      "style_bold": [
+        "first_row:true"
+      ],
+      "style_border": [
+        "whole_table:top:single:12:4472C4"
+      ]
+    },
+    {
       "op": "materialize_style_run_properties",
       "style_id": "ReviewHeading"
     },
@@ -3338,21 +3360,23 @@ $styleDefinitionWordNamespace = $styleDefinitionStylesNamespaceManager.LookupNam
 
 Assert-Equal -Actual $styleDefinitionSummary.status -Expected "completed" `
     -Message "Style-definition summary did not report status=completed."
-Assert-Equal -Actual $styleDefinitionSummary.operation_count -Expected 7 `
-    -Message "Style-definition summary should record seven operations."
+Assert-Equal -Actual $styleDefinitionSummary.operation_count -Expected 8 `
+    -Message "Style-definition summary should record eight operations."
 Assert-Equal -Actual $styleDefinitionSummary.operations[0].command -Expected "ensure-paragraph-style" `
     -Message "Ensure-paragraph-style should use the CLI paragraph style command."
 Assert-Equal -Actual $styleDefinitionSummary.operations[1].command -Expected "ensure-character-style" `
     -Message "Ensure-character-style should use the CLI character style command."
-Assert-Equal -Actual $styleDefinitionSummary.operations[2].command -Expected "materialize-style-run-properties" `
+Assert-Equal -Actual $styleDefinitionSummary.operations[2].command -Expected "ensure-table-style" `
+    -Message "Ensure-table-style should use the CLI table style command."
+Assert-Equal -Actual $styleDefinitionSummary.operations[3].command -Expected "materialize-style-run-properties" `
     -Message "Materialize-style-run-properties should use the CLI materialize command."
-Assert-Equal -Actual $styleDefinitionSummary.operations[3].command -Expected "rebase-character-style-based-on" `
+Assert-Equal -Actual $styleDefinitionSummary.operations[4].command -Expected "rebase-character-style-based-on" `
     -Message "Rebase-character-style-based-on should use the CLI rebase command."
-Assert-Equal -Actual $styleDefinitionSummary.operations[4].command -Expected "rebase-paragraph-style-based-on" `
+Assert-Equal -Actual $styleDefinitionSummary.operations[5].command -Expected "rebase-paragraph-style-based-on" `
     -Message "Rebase-paragraph-style-based-on should use the CLI rebase command."
-Assert-Equal -Actual $styleDefinitionSummary.operations[5].command -Expected "ensure-numbering-definition" `
+Assert-Equal -Actual $styleDefinitionSummary.operations[6].command -Expected "ensure-numbering-definition" `
     -Message "Ensure-numbering-definition should use the CLI numbering command."
-Assert-Equal -Actual $styleDefinitionSummary.operations[6].command -Expected "ensure-style-linked-numbering" `
+Assert-Equal -Actual $styleDefinitionSummary.operations[7].command -Expected "ensure-style-linked-numbering" `
     -Message "Ensure-style-linked-numbering should use the CLI style-linked numbering command."
 
 $reviewHeadingStyleNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styles/w:style[@w:styleId='ReviewHeading']", $styleDefinitionStylesNamespaceManager)
@@ -3386,6 +3410,12 @@ $reviewStrongNameNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styl
 $reviewStrongBasedOnNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styles/w:style[@w:styleId='ReviewStrong']/w:basedOn", $styleDefinitionStylesNamespaceManager)
 $reviewStrongRunFontsNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styles/w:style[@w:styleId='ReviewStrong']/w:rPr/w:rFonts", $styleDefinitionStylesNamespaceManager)
 $reviewStrongRunRtlNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styles/w:style[@w:styleId='ReviewStrong']/w:rPr/w:rtl", $styleDefinitionStylesNamespaceManager)
+$reviewTableStyleNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styles/w:style[@w:styleId='ReviewTable']", $styleDefinitionStylesNamespaceManager)
+$reviewTableNameNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styles/w:style[@w:styleId='ReviewTable']/w:name", $styleDefinitionStylesNamespaceManager)
+$reviewTableBasedOnNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styles/w:style[@w:styleId='ReviewTable']/w:basedOn", $styleDefinitionStylesNamespaceManager)
+$reviewTableWholeFillNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styles/w:style[@w:styleId='ReviewTable']/w:tcPr/w:shd", $styleDefinitionStylesNamespaceManager)
+$reviewTableTopBorderNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styles/w:style[@w:styleId='ReviewTable']/w:tblPr/w:tblBorders/w:top", $styleDefinitionStylesNamespaceManager)
+$reviewTableFirstRowFillNode = $styleDefinitionStylesDocument.SelectSingleNode("/w:styles/w:style[@w:styleId='ReviewTable']/w:tblStylePr[@w:type='firstRow']/w:tcPr/w:shd", $styleDefinitionStylesNamespaceManager)
 
 Assert-True -Condition ($null -ne $reviewStrongStyleNode) `
     -Message "Ensure-character-style should create ReviewStrong."
@@ -3397,6 +3427,18 @@ Assert-Equal -Actual $reviewStrongRunFontsNode.GetAttribute("ascii", $styleDefin
     -Message "Ensure-character-style should set ReviewStrong run font metadata."
 Assert-True -Condition ($null -ne $reviewStrongRunRtlNode) `
     -Message "Ensure-character-style should set ReviewStrong RTL metadata."
+Assert-True -Condition ($null -ne $reviewTableStyleNode) `
+    -Message "Ensure-table-style should create ReviewTable."
+Assert-Equal -Actual $reviewTableNameNode.GetAttribute("val", $styleDefinitionWordNamespace) -Expected "Review Table" `
+    -Message "Ensure-table-style should set the table style display name."
+Assert-Equal -Actual $reviewTableBasedOnNode.GetAttribute("val", $styleDefinitionWordNamespace) -Expected "TableGrid" `
+    -Message "Ensure-table-style should set the based-on table style."
+Assert-Equal -Actual $reviewTableWholeFillNode.GetAttribute("fill", $styleDefinitionWordNamespace) -Expected "DDEEFF" `
+    -Message "Ensure-table-style should set whole-table fill."
+Assert-Equal -Actual $reviewTableTopBorderNode.GetAttribute("color", $styleDefinitionWordNamespace) -Expected "4472C4" `
+    -Message "Ensure-table-style should set whole-table top border color."
+Assert-Equal -Actual $reviewTableFirstRowFillNode.GetAttribute("fill", $styleDefinitionWordNamespace) -Expected "1F4E79" `
+    -Message "Ensure-table-style should set first-row fill."
 
 $definitionOnlyNode = $styleDefinitionNumberingDocument.SelectSingleNode("/w:numbering/w:abstractNum[w:name[@w:val='DefinitionOnly']]", $styleDefinitionNumberingNamespaceManager)
 $sharedHeadingOutlineNode = $styleDefinitionNumberingDocument.SelectSingleNode("/w:numbering/w:abstractNum[w:name[@w:val='SharedHeadingOutline']]", $styleDefinitionNumberingNamespaceManager)
