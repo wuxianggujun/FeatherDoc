@@ -6863,6 +6863,28 @@ function New-OperationArguments {
             $arguments.Add("prune-unused-styles") | Out-Null
             $arguments.Add($InputPath) | Out-Null
         }
+        "apply_table_style_quality_fixes" {
+            $arguments.Add("apply-table-style-quality-fixes") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add("--look-only") | Out-Null
+        }
+        "repair_table_style_look" {
+            $arguments.Add("repair-table-style-look") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add("--apply") | Out-Null
+        }
+        "repair_style_numbering" {
+            $arguments.Add("repair-style-numbering") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add("--apply") | Out-Null
+            $catalogFile = Get-FirstOptionalObjectPropertyValue `
+                -Object $Operation `
+                -Names @("catalog_file", "catalog_path", "numbering_catalog_file", "numbering_catalog_path")
+            if (-not [string]::IsNullOrWhiteSpace($catalogFile)) {
+                $arguments.Add("--catalog-file") | Out-Null
+                $arguments.Add($catalogFile) | Out-Null
+            }
+        }
         "ensure_numbering_definition" {
             $definitionName = Get-FirstObjectPropertyValue `
                 -Object $Operation `

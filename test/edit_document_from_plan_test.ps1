@@ -893,6 +893,194 @@ function New-StyleRefactorFixtureDocx {
     }
 }
 
+function New-TableStyleRepairFixtureDocx {
+    param([string]$Path)
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $parent = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+
+    $relationshipsXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+'@
+    $contentTypesXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+'@
+    $documentRelationshipsXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+</Relationships>
+'@
+    $documentXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblStyle w:val="QualityLookTable"/>
+        <w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
+      </w:tblPr>
+      <w:tblGrid><w:gridCol w:w="2400"/></w:tblGrid>
+      <w:tr><w:tc><w:tcPr><w:tcW w:w="2400" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>seed</w:t></w:r></w:p></w:tc></w:tr>
+    </w:tbl>
+    <w:sectPr/>
+  </w:body>
+</w:document>
+'@
+    $stylesXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="table" w:styleId="QualityLookTable">
+    <w:name w:val="Quality Look Table"/>
+    <w:tblStylePr w:type="firstRow"><w:rPr><w:b/></w:rPr></w:tblStylePr>
+  </w:style>
+</w:styles>
+'@
+
+    $fileStream = [System.IO.File]::Open(
+        $Path,
+        [System.IO.FileMode]::Create,
+        [System.IO.FileAccess]::ReadWrite,
+        [System.IO.FileShare]::None)
+    try {
+        $archive = New-Object System.IO.Compression.ZipArchive($fileStream, [System.IO.Compression.ZipArchiveMode]::Create)
+        try {
+            Add-ZipTextEntry -Archive $archive -EntryName "_rels/.rels" -Content $relationshipsXml
+            Add-ZipTextEntry -Archive $archive -EntryName "[Content_Types].xml" -Content $contentTypesXml
+            Add-ZipTextEntry -Archive $archive -EntryName "word/document.xml" -Content $documentXml
+            Add-ZipTextEntry -Archive $archive -EntryName "word/_rels/document.xml.rels" -Content $documentRelationshipsXml
+            Add-ZipTextEntry -Archive $archive -EntryName "word/styles.xml" -Content $stylesXml
+        } finally {
+            $archive.Dispose()
+        }
+    } finally {
+        $fileStream.Dispose()
+    }
+}
+
+function New-StyleNumberingRepairFixtureDocx {
+    param([string]$Path)
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $parent = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+
+    $relationshipsXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+'@
+    $contentTypesXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/numbering.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+</Types>
+'@
+    $documentRelationshipsXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="styles.xml"/>
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering"
+                Target="numbering.xml"/>
+</Relationships>
+'@
+    $documentXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:pPr><w:pStyle w:val="OrphanNumId"/></w:pPr><w:r><w:t>Broken numbering style</w:t></w:r></w:p>
+    <w:sectPr/>
+  </w:body>
+</w:document>
+'@
+    $stylesXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="OrphanNumId">
+    <w:name w:val="Orphan NumId"/>
+    <w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="777"/></w:numPr></w:pPr>
+  </w:style>
+</w:styles>
+'@
+    $numberingXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:abstractNum w:abstractNumId="1">
+    <w:lvl w:ilvl="0">
+      <w:start w:val="1"/>
+      <w:numFmt w:val="decimal"/>
+      <w:lvlText w:val="%1."/>
+    </w:lvl>
+  </w:abstractNum>
+  <w:num w:numId="7"><w:abstractNumId w:val="1"/></w:num>
+</w:numbering>
+'@
+
+    $fileStream = [System.IO.File]::Open(
+        $Path,
+        [System.IO.FileMode]::Create,
+        [System.IO.FileAccess]::ReadWrite,
+        [System.IO.FileShare]::None)
+    try {
+        $archive = New-Object System.IO.Compression.ZipArchive($fileStream, [System.IO.Compression.ZipArchiveMode]::Create)
+        try {
+            Add-ZipTextEntry -Archive $archive -EntryName "_rels/.rels" -Content $relationshipsXml
+            Add-ZipTextEntry -Archive $archive -EntryName "[Content_Types].xml" -Content $contentTypesXml
+            Add-ZipTextEntry -Archive $archive -EntryName "word/document.xml" -Content $documentXml
+            Add-ZipTextEntry -Archive $archive -EntryName "word/_rels/document.xml.rels" -Content $documentRelationshipsXml
+            Add-ZipTextEntry -Archive $archive -EntryName "word/styles.xml" -Content $stylesXml
+            Add-ZipTextEntry -Archive $archive -EntryName "word/numbering.xml" -Content $numberingXml
+        } finally {
+            $archive.Dispose()
+        }
+    } finally {
+        $fileStream.Dispose()
+    }
+}
+
 function New-ReviewFixtureDocx {
     param([string]$Path)
 
@@ -3347,6 +3535,117 @@ Assert-Equal -Actual $styleRefactorRestoreSummary.operations[0].command -Expecte
     -Message "restore_style_merge should use the CLI restore-style-merge command."
 Assert-ContainsText -Text $styleRefactorRestoredDocumentXml -ExpectedText 'w:pStyle w:val="BulkMergeSource"' -Label "Style-refactor restored document.xml"
 Assert-ContainsText -Text $styleRefactorRestoredStylesXml -ExpectedText 'w:styleId="BulkMergeSource"' -Label "Style-refactor restored styles.xml"
+
+$tableStyleQualitySourceDocx = Join-Path $resolvedWorkingDir "table_style_quality.source.docx"
+$tableStyleQualityPlanPath = Join-Path $resolvedWorkingDir "table_style_quality.edit_plan.json"
+$tableStyleQualityEditedDocx = Join-Path $resolvedWorkingDir "table_style_quality.edited.docx"
+$tableStyleQualitySummaryPath = Join-Path $resolvedWorkingDir "table_style_quality.edit.summary.json"
+
+New-TableStyleRepairFixtureDocx -Path $tableStyleQualitySourceDocx
+Set-Content -LiteralPath $tableStyleQualityPlanPath -Encoding UTF8 -Value @'
+{
+  "operations": [
+    {
+      "op": "apply_table_style_quality_fixes"
+    }
+  ]
+}
+'@
+
+& $scriptPath `
+    -InputDocx $tableStyleQualitySourceDocx `
+    -EditPlan $tableStyleQualityPlanPath `
+    -OutputDocx $tableStyleQualityEditedDocx `
+    -SummaryJson $tableStyleQualitySummaryPath `
+    -BuildDir $resolvedBuildDir `
+    -SkipBuild
+
+if ($LASTEXITCODE -ne 0) {
+    throw "edit_document_from_plan.ps1 failed for the table style quality edit plan."
+}
+
+$tableStyleQualitySummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $tableStyleQualitySummaryPath | ConvertFrom-Json
+$tableStyleQualityDocumentXml = Read-DocxEntryText -DocxPath $tableStyleQualityEditedDocx -EntryName "word/document.xml"
+
+Assert-Equal -Actual $tableStyleQualitySummary.status -Expected "completed" `
+    -Message "Table-style-quality summary did not report status=completed."
+Assert-Equal -Actual $tableStyleQualitySummary.operations[0].command -Expected "apply-table-style-quality-fixes" `
+    -Message "apply_table_style_quality_fixes should use the CLI apply-table-style-quality-fixes command."
+Assert-ContainsText -Text $tableStyleQualityDocumentXml -ExpectedText 'w:firstRow="1"' -Label "Table-style-quality document.xml"
+
+$tableStyleLookSourceDocx = Join-Path $resolvedWorkingDir "table_style_look.source.docx"
+$tableStyleLookPlanPath = Join-Path $resolvedWorkingDir "table_style_look.edit_plan.json"
+$tableStyleLookEditedDocx = Join-Path $resolvedWorkingDir "table_style_look.edited.docx"
+$tableStyleLookSummaryPath = Join-Path $resolvedWorkingDir "table_style_look.edit.summary.json"
+
+New-TableStyleRepairFixtureDocx -Path $tableStyleLookSourceDocx
+Set-Content -LiteralPath $tableStyleLookPlanPath -Encoding UTF8 -Value @'
+{
+  "operations": [
+    {
+      "op": "repair_table_style_look"
+    }
+  ]
+}
+'@
+
+& $scriptPath `
+    -InputDocx $tableStyleLookSourceDocx `
+    -EditPlan $tableStyleLookPlanPath `
+    -OutputDocx $tableStyleLookEditedDocx `
+    -SummaryJson $tableStyleLookSummaryPath `
+    -BuildDir $resolvedBuildDir `
+    -SkipBuild
+
+if ($LASTEXITCODE -ne 0) {
+    throw "edit_document_from_plan.ps1 failed for the table style look edit plan."
+}
+
+$tableStyleLookSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $tableStyleLookSummaryPath | ConvertFrom-Json
+$tableStyleLookDocumentXml = Read-DocxEntryText -DocxPath $tableStyleLookEditedDocx -EntryName "word/document.xml"
+
+Assert-Equal -Actual $tableStyleLookSummary.status -Expected "completed" `
+    -Message "Table-style-look summary did not report status=completed."
+Assert-Equal -Actual $tableStyleLookSummary.operations[0].command -Expected "repair-table-style-look" `
+    -Message "repair_table_style_look should use the CLI repair-table-style-look command."
+Assert-ContainsText -Text $tableStyleLookDocumentXml -ExpectedText 'w:firstRow="1"' -Label "Table-style-look document.xml"
+
+$styleNumberingRepairSourceDocx = Join-Path $resolvedWorkingDir "style_numbering_repair.source.docx"
+$styleNumberingRepairPlanPath = Join-Path $resolvedWorkingDir "style_numbering_repair.edit_plan.json"
+$styleNumberingRepairEditedDocx = Join-Path $resolvedWorkingDir "style_numbering_repair.edited.docx"
+$styleNumberingRepairSummaryPath = Join-Path $resolvedWorkingDir "style_numbering_repair.edit.summary.json"
+
+New-StyleNumberingRepairFixtureDocx -Path $styleNumberingRepairSourceDocx
+Set-Content -LiteralPath $styleNumberingRepairPlanPath -Encoding UTF8 -Value @'
+{
+  "operations": [
+    {
+      "op": "repair_style_numbering"
+    }
+  ]
+}
+'@
+
+& $scriptPath `
+    -InputDocx $styleNumberingRepairSourceDocx `
+    -EditPlan $styleNumberingRepairPlanPath `
+    -OutputDocx $styleNumberingRepairEditedDocx `
+    -SummaryJson $styleNumberingRepairSummaryPath `
+    -BuildDir $resolvedBuildDir `
+    -SkipBuild
+
+if ($LASTEXITCODE -ne 0) {
+    throw "edit_document_from_plan.ps1 failed for the style numbering repair edit plan."
+}
+
+$styleNumberingRepairSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $styleNumberingRepairSummaryPath | ConvertFrom-Json
+$styleNumberingRepairStylesXml = Read-DocxEntryText -DocxPath $styleNumberingRepairEditedDocx -EntryName "word/styles.xml"
+
+Assert-Equal -Actual $styleNumberingRepairSummary.status -Expected "completed" `
+    -Message "Style-numbering-repair summary did not report status=completed."
+Assert-Equal -Actual $styleNumberingRepairSummary.operations[0].command -Expected "repair-style-numbering" `
+    -Message "repair_style_numbering should use the CLI repair-style-numbering command."
+Assert-NotContainsText -Text $styleNumberingRepairStylesXml -UnexpectedText 'w:numId w:val="777"' -Label "Style-numbering-repair styles.xml"
 
 $removeTablePlanPath = Join-Path $resolvedWorkingDir "invoice.remove_table_plan.json"
 $tableRemovedDocx = Join-Path $resolvedWorkingDir "invoice.table_removed.docx"

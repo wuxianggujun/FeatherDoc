@@ -1168,6 +1168,10 @@ edit-plan。`rename_style` 接受 `old_style_id` / `old_style` 和
 `rollback_plan`。`restore_style_merge` 接受 `rollback_plan`，并可选使用
 `entries`、`source_style_ids` 或 `target_style_ids` 过滤要恢复的 merge
 rollback 项。
+修复型样式 / 表格命令也可以通过 `apply_table_style_quality_fixes`、
+`repair_table_style_look` 和 `repair_style_numbering` 进入 edit-plan；
+脚本会调用这些命令的安全应用模式，并把中间 DOCX 继续传给下一步。
+`repair_style_numbering` 还可以传入 `catalog_file`。
 单元格合并使用 `merge_table_cells`，取消合并使用 `unmerge_table_cells`；
 合并可通过 `count` 指定跨几个单元格；需要删除整张正文表格时用
 `remove_table`。

@@ -1396,6 +1396,11 @@ Style refactor commands are available as `rename_style`, `merge_style`,
 or inline `renames` / `merges` pairs, plus optional `rollback_plan`.
 `restore_style_merge` accepts `rollback_plan` and optional `entries`,
 `source_style_ids`, or `target_style_ids` filters.
+Repair-oriented style and table operations are available as
+`apply_table_style_quality_fixes`, `repair_table_style_look`, and
+`repair_style_numbering`; edit plans run their safe apply modes and write the
+intermediate DOCX for the next operation. `repair_style_numbering` can also pass
+a `catalog_file`.
 Use `merge_table_cells` to merge table cells and `unmerge_table_cells` to split
 an existing merge; `count` controls how many cells the merge spans. Use
 `remove_table` when an edit plan needs to delete an entire body table. Use
