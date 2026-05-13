@@ -77,8 +77,7 @@ function Get-OptionalObjectPropertyObject {
 
     if ($Object -is [System.Collections.IDictionary]) {
         if ($Object.Contains($Name)) {
-            Write-Output -NoEnumerate $Object[$Name]
-            return
+            return ,$Object[$Name]
         }
 
         return $null
@@ -89,7 +88,7 @@ function Get-OptionalObjectPropertyObject {
         return $null
     }
 
-    Write-Output -NoEnumerate $property.Value
+    return ,$property.Value
 }
 
 function Test-ObjectPropertyExists {
@@ -109,6 +108,50 @@ function Test-ObjectPropertyExists {
     return $null -ne $Object.PSObject.Properties[$Name]
 }
 
+function Get-ObjectOwnProperties {
+    param(
+        $Object,
+        [string]$Label
+    )
+
+    if ($null -eq $Object) {
+        return @()
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        foreach ($key in $Object.Keys) {
+            [pscustomobject]@{
+                Name = [string]$key
+                Value = $Object[$key]
+            }
+        }
+        return
+    }
+
+    if ($Object -is [System.Collections.IEnumerable] -and
+        -not ($Object -is [string]) -and
+        -not ($Object -is [System.Management.Automation.PSCustomObject])) {
+        $items = @($Object)
+        if ($items.Count -eq 1) {
+            Get-ObjectOwnProperties -Object $items[0] -Label $Label
+            return
+        }
+
+        throw "$Label must be a JSON object."
+    }
+
+    foreach ($property in $Object.PSObject.Properties) {
+        if ([string]$property.MemberType -ne "NoteProperty") {
+            continue
+        }
+
+        [pscustomobject]@{
+            Name = [string]$property.Name
+            Value = $property.Value
+        }
+    }
+}
+
 function Get-OptionalObjectPropertyValue {
     param(
         $Object,
@@ -119,8 +162,24 @@ function Get-OptionalObjectPropertyValue {
     if ($null -eq $value) {
         return ""
     }
+    if ($value -is [System.DateTime]) {
+        return $value.ToUniversalTime().ToString(
+            "yyyy-MM-ddTHH:mm:ssZ",
+            [System.Globalization.CultureInfo]::InvariantCulture)
+    }
 
     return [string]$value
+}
+
+function ConvertFrom-EditPlanJson {
+    param([string]$Json)
+
+    $convertFromJsonCommand = Get-Command ConvertFrom-Json
+    if ($convertFromJsonCommand.Parameters.ContainsKey("DateKind")) {
+        return $Json | ConvertFrom-Json -DateKind String
+    }
+
+    return $Json | ConvertFrom-Json
 }
 
 function Get-RequiredObjectPropertyValue {
@@ -754,7 +813,7 @@ function Add-FillBookmarkBindings {
     $values = Get-OptionalObjectPropertyObject -Object $Operation -Name "values"
     if ($null -ne $values) {
         $valueIndex = $bindingCount + 1
-        foreach ($property in @($values.PSObject.Properties)) {
+        foreach ($property in @(Get-ObjectOwnProperties -Object $values -Label "$Label 'values'")) {
             $bookmark = [string]$property.Name
             if ([string]::IsNullOrWhiteSpace($bookmark)) {
                 throw "$Label 'values' bookmark names must not be empty."
@@ -1029,6 +1088,39 @@ function Add-AppendFieldPartSelectionArguments {
     if ([string]::IsNullOrWhiteSpace($partIndex)) {
         $partIndex = Get-OptionalObjectPropertyValue -Object $Operation -Name "index"
     }
+    if (-not [string]::IsNullOrWhiteSpace($partIndex)) {
+        $Arguments.Add("--index") | Out-Null
+        $Arguments.Add($partIndex) | Out-Null
+    }
+
+    $section = Get-OptionalObjectPropertyValue -Object $Operation -Name "section"
+    if (-not [string]::IsNullOrWhiteSpace($section)) {
+        $Arguments.Add("--section") | Out-Null
+        $Arguments.Add($section) | Out-Null
+    }
+
+    $kind = Get-OptionalObjectPropertyValue -Object $Operation -Name "kind"
+    if (-not [string]::IsNullOrWhiteSpace($kind)) {
+        $Arguments.Add("--kind") | Out-Null
+        $Arguments.Add($kind) | Out-Null
+    }
+}
+
+function Add-FieldPartSelectionArguments {
+    param(
+        [System.Collections.Generic.List[string]]$Arguments,
+        $Operation
+    )
+
+    $part = Get-OptionalObjectPropertyValue -Object $Operation -Name "part"
+    if ([string]::IsNullOrWhiteSpace($part)) {
+        $part = "body"
+    }
+
+    $Arguments.Add("--part") | Out-Null
+    $Arguments.Add($part) | Out-Null
+
+    $partIndex = Get-OptionalObjectPropertyValue -Object $Operation -Name "part_index"
     if (-not [string]::IsNullOrWhiteSpace($partIndex)) {
         $Arguments.Add("--index") | Out-Null
         $Arguments.Add($partIndex) | Out-Null
@@ -4543,7 +4635,7 @@ function New-OperationArguments {
             $arguments.Add("append-omml") | Out-Null
             $arguments.Add($InputPath) | Out-Null
             $arguments.Add("--xml") | Out-Null
-            $arguments.Add((ConvertTo-NativeCliQuotedArgument -Value $xml)) | Out-Null
+            $arguments.Add($xml) | Out-Null
         }
         "replace_omml" {
             $formulaIndex = Get-FirstObjectPropertyValue `
@@ -4558,7 +4650,7 @@ function New-OperationArguments {
             $arguments.Add($InputPath) | Out-Null
             $arguments.Add($formulaIndex) | Out-Null
             $arguments.Add("--xml") | Out-Null
-            $arguments.Add((ConvertTo-NativeCliQuotedArgument -Value $xml)) | Out-Null
+            $arguments.Add($xml) | Out-Null
         }
         "remove_omml" {
             $formulaIndex = Get-FirstObjectPropertyValue `
@@ -5078,6 +5170,21 @@ function New-OperationArguments {
                 -AllowPreserveFormatting `
                 -AllowFieldState
         }
+        "append_field" {
+            $instruction = Get-FirstObjectPropertyValue `
+                -Object $Operation `
+                -Names @("instruction", "field_instruction") `
+                -Label $Label
+            $arguments.Add("append-field") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add($instruction) | Out-Null
+            Add-AppendFieldArguments `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Label $Label `
+                -AllowResultText `
+                -AllowFieldState
+        }
         "append_date_field" {
             $arguments.Add("append-date-field") | Out-Null
             $arguments.Add($InputPath) | Out-Null
@@ -5089,6 +5196,47 @@ function New-OperationArguments {
                 -AllowDateFormat `
                 -AllowPreserveFormatting `
                 -AllowFieldState
+        }
+        "append_reference_field" {
+            $bookmarkName = Get-FirstObjectPropertyValue `
+                -Object $Operation `
+                -Names @("bookmark_name", "bookmark", "name") `
+                -Label $Label
+            $arguments.Add("append-reference-field") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add($bookmarkName) | Out-Null
+            Add-AppendFieldArguments `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Label $Label `
+                -AllowResultText `
+                -AllowPreserveFormatting `
+                -AllowFieldState
+
+            $hasNoHyperlink = Test-ObjectPropertyExists -Object $Operation -Name "no_hyperlink"
+            $hasHyperlink = Test-ObjectPropertyExists -Object $Operation -Name "hyperlink"
+            $noHyperlink = $false
+            if ($hasNoHyperlink) {
+                $noHyperlink = Get-OptionalBooleanPropertyValue `
+                    -Object $Operation `
+                    -Name "no_hyperlink" `
+                    -DefaultValue $false
+            }
+            if ($hasHyperlink) {
+                $hyperlink = Get-OptionalBooleanPropertyValue `
+                    -Object $Operation `
+                    -Name "hyperlink" `
+                    -DefaultValue $true
+                if ($hasNoHyperlink -and ($noHyperlink -eq $hyperlink)) {
+                    throw "$Label cannot combine contradictory 'no_hyperlink' and 'hyperlink' values."
+                }
+                if (-not $hyperlink) {
+                    $noHyperlink = $true
+                }
+            }
+            if ($noHyperlink) {
+                $arguments.Add("--no-hyperlink") | Out-Null
+            }
         }
         "append_page_reference_field" {
             $bookmarkName = Get-FirstObjectPropertyValue `
@@ -5289,6 +5437,32 @@ function New-OperationArguments {
                 -Names @("columns", "column_count") `
                 -Flag "--columns"
         }
+        "append_sequence_field" {
+            $identifier = Get-FirstObjectPropertyValue `
+                -Object $Operation `
+                -Names @("identifier", "sequence_identifier", "name") `
+                -Label $Label
+            $arguments.Add("append-sequence-field") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add($identifier) | Out-Null
+            Add-AppendFieldArguments `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Label $Label `
+                -AllowResultText `
+                -AllowPreserveFormatting `
+                -AllowFieldState
+            $null = Add-OptionalCliValueArgument `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Names @("number_format", "format") `
+                -Flag "--number-format"
+            $null = Add-OptionalCliValueArgument `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Names @("restart", "restart_value") `
+                -Flag "--restart"
+        }
         "append_complex_field" {
             $instruction = Get-FirstOptionalObjectPropertyValue `
                 -Object $Operation `
@@ -5350,6 +5524,26 @@ function New-OperationArguments {
                 -Arguments $arguments `
                 -Operation $Operation
             Add-AppendFieldStateArguments `
+                -Arguments $arguments `
+                -Operation $Operation
+        }
+        "replace_field" {
+            $fieldIndex = Get-FirstObjectPropertyValue `
+                -Object $Operation `
+                -Names @("field_index", "index") `
+                -Label $Label
+            $instruction = Get-FirstObjectPropertyValue `
+                -Object $Operation `
+                -Names @("instruction", "field_instruction") `
+                -Label $Label
+            $arguments.Add("replace-field") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add($fieldIndex) | Out-Null
+            $arguments.Add($instruction) | Out-Null
+            Add-FieldPartSelectionArguments `
+                -Arguments $arguments `
+                -Operation $Operation
+            Add-AppendFieldResultTextArgument `
                 -Arguments $arguments `
                 -Operation $Operation
         }
@@ -7428,7 +7622,9 @@ $resolvedBuildDir = if ([string]::IsNullOrWhiteSpace($BuildDir)) {
 Ensure-PathParent -Path $resolvedOutputDocx
 Ensure-PathParent -Path $resolvedSummaryJson
 
-$planObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $resolvedEditPlan | ConvertFrom-Json
+$planObject = ConvertFrom-EditPlanJson -Json (
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $resolvedEditPlan
+)
 $operations = @(Get-EditPlanOperations -Plan $planObject)
 if ($operations.Count -eq 0) {
     throw "Edit plan must contain at least one operation."

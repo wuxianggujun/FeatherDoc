@@ -649,11 +649,15 @@ featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.d
 featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
 featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
 featherdoc_cli append-table-of-contents-field input.docx --part body --min-outline-level 1 --max-outline-level 3 --result-text "Table of contents" --output toc.docx --json
+featherdoc_cli append-field input.docx " AUTHOR " --part body --result-text "Ada Lovelace" --output author-field.docx --json
+featherdoc_cli append-reference-field input.docx target_heading --part body --result-text "Referenced heading" --output ref.docx --json
 featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --result-text "Page reference" --output page-ref.docx --json
 featherdoc_cli append-style-reference-field input.docx "Heading 1" --part body --paragraph-number --result-text "Section heading" --output style-ref.docx --json
 featherdoc_cli append-document-property-field input.docx Title --part body --result-text "Document title" --output doc-property.docx --json
 featherdoc_cli append-date-field input.docx --part body --format "yyyy-MM-dd" --result-text "2026-05-01" --dirty --output date-field.docx --json
 featherdoc_cli append-hyperlink-field input.docx https://example.com/report --part body --anchor target_heading --tooltip "Open target heading" --result-text "Open report" --locked --output hyperlink-field.docx --json
+featherdoc_cli append-sequence-field input.docx Figure --part body --number-format ROMAN --restart 4 --result-text "IV" --output sequence.docx --json
+featherdoc_cli replace-field input.docx 0 " SEQ Table \* ARABIC \r 1 " --part body --result-text "1" --output replaced-field.docx --json
 featherdoc_cli append-caption input.docx Figure --part body --text "Architecture overview" --number-result "1" --output caption.docx --json
 featherdoc_cli append-index-entry-field input.docx FeatherDoc --part body --subentry API --bookmark target_heading --cross-reference "See API" --output xe.docx --json
 featherdoc_cli append-index-field input.docx --part body --columns 2 --result-text "Index placeholder" --output index.docx --json
@@ -1621,9 +1625,13 @@ featherdoc_cli remove-image input.docx --relationship-id rId5 --output image-rem
 featherdoc_cli append-image input.docx badge.png --width 96 --height 48 --output image-appended.docx --json
 featherdoc_cli append-total-pages-field input.docx --part section-footer --section 1 --kind first --output total-pages.docx --json
 featherdoc_cli append-table-of-contents-field input.docx --part body --min-outline-level 1 --max-outline-level 3 --output toc.docx --json
+featherdoc_cli append-field input.docx " AUTHOR " --part body --result-text "Ada Lovelace" --output author-field.docx --json
+featherdoc_cli append-reference-field input.docx target_heading --part body --output ref.docx --json
 featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --output page-ref.docx --json
 featherdoc_cli append-date-field input.docx --part body --format "yyyy-MM-dd" --dirty --output date-field.docx --json
 featherdoc_cli append-hyperlink-field input.docx https://example.com/report --part body --result-text "Open report" --locked --output hyperlink-field.docx --json
+featherdoc_cli append-sequence-field input.docx Figure --part body --number-format ROMAN --restart 4 --output sequence.docx --json
+featherdoc_cli replace-field input.docx 0 " SEQ Table \* ARABIC \r 1 " --part body --result-text "1" --output replaced-field.docx --json
 featherdoc_cli append-caption input.docx Figure --part body --text "Architecture overview" --output caption.docx --json
 featherdoc_cli append-index-field input.docx --part body --columns 2 --output index.docx --json
 ```
@@ -1944,11 +1952,13 @@ you want to get done:
   `inspect-*`, `inspect-hyperlinks`, `inspect-review`, `inspect-omml`,
   `validate-template`, `replace-content-control-*`, `append-hyperlink`,
   `accept-all-revisions`, `append-page-number-field`,
-  `append-table-of-contents-field`, `append-page-reference-field`,
+  `append-table-of-contents-field`, `append-field`,
+  `append-reference-field`, `append-page-reference-field`,
   `append-style-reference-field`,
   `append-document-property-field`, `append-date-field`,
-  `append-hyperlink-field`, `append-caption`, `append-index-entry-field`,
-  `append-index-field`, `set-section-page-setup`
+  `append-hyperlink-field`, `append-sequence-field`, `append-caption`,
+  `append-index-entry-field`, `append-index-field`, `append-complex-field`,
+  `replace-field`, `set-section-page-setup`
 
 For fuller parameter details, runnable samples, and edge-case notes, continue
 into `docs/index.rst`; its `Task-Oriented API Map` and

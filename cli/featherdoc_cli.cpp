@@ -1531,6 +1531,7 @@ struct append_field_options {
     std::optional<std::string> instruction_before;
     std::optional<std::string> instruction_after;
     std::optional<std::string> nested_instruction;
+    std::optional<std::size_t> field_index;
     std::string nested_result_text;
     std::uint32_t min_outline_level = 1U;
     std::uint32_t max_outline_level = 3U;
@@ -1540,6 +1541,7 @@ struct append_field_options {
     bool has_result_text = false;
     bool has_caption_text = false;
     bool has_number_result_text = false;
+    bool has_field_index = false;
     bool hyperlink = true;
     bool relative_position = false;
     bool paragraph_number = false;
@@ -12730,6 +12732,7 @@ auto parse_append_field_options(std::string_view command,
                                 std::size_t start_index,
                                 append_field_options &options,
                                 std::string &error_message) -> bool {
+    const auto is_generic = command == "append-field";
     const auto is_page_number = command == "append-page-number-field";
     const auto is_total_pages = command == "append-total-pages-field";
     const auto is_table_of_contents =
@@ -12739,19 +12742,28 @@ auto parse_append_field_options(std::string_view command,
     const auto is_document_property = command == "append-document-property-field";
     const auto is_date = command == "append-date-field";
     const auto is_hyperlink = command == "append-hyperlink-field";
+    const auto is_reference = command == "append-reference-field";
+    const auto is_sequence = command == "append-sequence-field";
     const auto is_caption = command == "append-caption";
     const auto is_index_entry = command == "append-index-entry-field";
     const auto is_index = command == "append-index-field";
     const auto is_complex = command == "append-complex-field";
-    const auto requires_field_argument = is_page_reference || is_style_reference ||
-                                         is_document_property || is_hyperlink ||
-                                         is_caption || is_index_entry;
+    const auto is_replace = command == "replace-field";
+    const auto requires_field_argument =
+        is_generic || is_reference || is_sequence || is_page_reference ||
+        is_style_reference || is_document_property || is_hyperlink || is_caption ||
+        is_index_entry;
     const auto is_typed_field = requires_field_argument || is_date || is_index ||
                                 is_complex;
-    const auto supports_result_text = is_table_of_contents || is_typed_field;
+    const auto supports_result_text = is_table_of_contents || is_typed_field ||
+                                      is_replace;
     const auto supports_field_state =
         is_page_number || is_total_pages || is_table_of_contents ||
         is_typed_field;
+    const auto supports_preserve_formatting =
+        is_reference || is_page_reference || is_style_reference ||
+        is_document_property || is_date || is_hyperlink || is_sequence ||
+        is_caption || is_index;
 
     for (std::size_t index = start_index; index < arguments.size(); ++index) {
         const auto argument = arguments[index];
@@ -13003,7 +13015,7 @@ auto parse_append_field_options(std::string_view command,
         }
 
         if (argument == "--number-format") {
-            if (!is_caption) {
+            if (!is_caption && !is_sequence) {
                 error_message = std::string(command) +
                                 " does not support --number-format";
                 return false;
@@ -13018,7 +13030,7 @@ auto parse_append_field_options(std::string_view command,
         }
 
         if (argument == "--restart") {
-            if (!is_caption) {
+            if (!is_caption && !is_sequence) {
                 error_message = std::string(command) + " does not support --restart";
                 return false;
             }
@@ -13233,7 +13245,7 @@ auto parse_append_field_options(std::string_view command,
         }
 
         if (argument == "--no-hyperlink") {
-            if (!is_page_reference) {
+            if (!is_reference && !is_page_reference) {
                 error_message = std::string(command) +
                                 " does not support --no-hyperlink";
                 return false;
@@ -13263,7 +13275,7 @@ auto parse_append_field_options(std::string_view command,
         }
 
         if (argument == "--no-preserve-formatting") {
-            if (!is_typed_field || is_index_entry) {
+            if (!supports_preserve_formatting) {
                 error_message = std::string(command) +
                                 " does not support --no-preserve-formatting";
                 return false;
@@ -13351,6 +13363,30 @@ auto parse_append_field_options(std::string_view command,
         }
 
         if (!argument.empty() && argument.front() != '-') {
+            if (is_replace) {
+                if (!options.has_field_index) {
+                    std::size_t field_index = 0U;
+                    if (!parse_index(argument, field_index)) {
+                        error_message = "invalid field index: " +
+                                        std::string(argument);
+                        return false;
+                    }
+                    options.field_index = field_index;
+                    options.has_field_index = true;
+                    continue;
+                }
+
+                if (!options.has_field_argument) {
+                    options.field_argument = std::string(argument);
+                    options.has_field_argument = true;
+                    continue;
+                }
+
+                error_message = "duplicate replace-field instruction: " +
+                                std::string(argument);
+                return false;
+            }
+
             if (options.has_field_argument) {
                 error_message = "duplicate field argument: " + std::string(argument);
                 return false;
@@ -13365,7 +13401,13 @@ auto parse_append_field_options(std::string_view command,
     }
 
     if (requires_field_argument && !options.has_field_argument) {
-        if (is_page_reference) {
+        if (is_generic) {
+            error_message = "append-field expects <instruction>";
+        } else if (is_reference) {
+            error_message = "append-reference-field expects <bookmark-name>";
+        } else if (is_sequence) {
+            error_message = "append-sequence-field expects <identifier>";
+        } else if (is_page_reference) {
             error_message = "append-page-reference-field expects <bookmark-name>";
         } else if (is_style_reference) {
             error_message = "append-style-reference-field expects <style-name>";
@@ -13415,7 +13457,18 @@ auto parse_append_field_options(std::string_view command,
         return false;
     }
 
-    if (!requires_field_argument && options.has_field_argument) {
+    if (is_replace) {
+        if (!options.has_field_index) {
+            error_message = "replace-field expects <field-index>";
+            return false;
+        }
+        if (!options.has_field_argument) {
+            error_message = "replace-field expects <instruction>";
+            return false;
+        }
+    }
+
+    if (!requires_field_argument && !is_replace && options.has_field_argument) {
         error_message = std::string(command) +
                         " does not accept a field argument";
         return false;
@@ -16367,21 +16420,28 @@ auto floating_image_wrap_mode_name(featherdoc::floating_image_wrap_mode mode)
 }
 
 auto is_append_field_command(std::string_view command) -> bool {
-    return command == "append-page-number-field" ||
+    return command == "append-field" ||
+           command == "append-page-number-field" ||
            command == "append-total-pages-field" ||
            command == "append-table-of-contents-field" ||
+           command == "append-reference-field" ||
            command == "append-page-reference-field" ||
            command == "append-style-reference-field" ||
            command == "append-document-property-field" ||
            command == "append-date-field" ||
            command == "append-hyperlink-field" ||
+           command == "append-sequence-field" ||
            command == "append-caption" ||
            command == "append-index-field" ||
            command == "append-index-entry-field" ||
-           command == "append-complex-field";
+           command == "append-complex-field" ||
+           command == "replace-field";
 }
 
 auto template_field_name(std::string_view command) -> const char * {
+    if (command == "append-field") {
+        return "field";
+    }
     if (command == "append-page-number-field") {
         return "page_number";
     }
@@ -16390,6 +16450,9 @@ auto template_field_name(std::string_view command) -> const char * {
     }
     if (command == "append-table-of-contents-field") {
         return "table_of_contents";
+    }
+    if (command == "append-reference-field") {
+        return "reference";
     }
     if (command == "append-page-reference-field") {
         return "page_reference";
@@ -16406,6 +16469,9 @@ auto template_field_name(std::string_view command) -> const char * {
     if (command == "append-hyperlink-field") {
         return "hyperlink";
     }
+    if (command == "append-sequence-field") {
+        return "sequence";
+    }
     if (command == "append-caption") {
         return "caption";
     }
@@ -16417,6 +16483,9 @@ auto template_field_name(std::string_view command) -> const char * {
     }
     if (command == "append-complex-field") {
         return "complex";
+    }
+    if (command == "replace-field") {
+        return "replacement";
     }
     return "field";
 }
@@ -33481,7 +33550,10 @@ auto append_template_part_field(featherdoc::Document &doc,
     auto field_state = featherdoc::field_state_options{};
     field_state.dirty = options.dirty;
     field_state.locked = options.locked;
-    if (command == "append-page-number-field") {
+    if (command == "append-field") {
+        success = selected.part.append_field(
+            options.field_argument, options.result_text, field_state);
+    } else if (command == "append-page-number-field") {
         success = selected.part.append_page_number_field(field_state);
     } else if (command == "append-total-pages-field") {
         success = selected.part.append_total_pages_field(field_state);
@@ -33496,6 +33568,13 @@ auto append_template_part_field(featherdoc::Document &doc,
         field_options.state = field_state;
         success = selected.part.append_table_of_contents_field(
             field_options, options.result_text);
+    } else if (command == "append-reference-field") {
+        auto field_options = featherdoc::reference_field_options{};
+        field_options.hyperlink = options.hyperlink;
+        field_options.preserve_formatting = options.preserve_formatting;
+        field_options.state = field_state;
+        success = selected.part.append_reference_field(
+            options.field_argument, field_options, options.result_text);
     } else if (command == "append-page-reference-field") {
         auto field_options = featherdoc::page_reference_field_options{};
         field_options.hyperlink = options.hyperlink;
@@ -33532,6 +33611,16 @@ auto append_template_part_field(featherdoc::Document &doc,
         field_options.state = field_state;
         success = selected.part.append_hyperlink_field(
             options.field_argument, field_options, options.result_text);
+    } else if (command == "append-sequence-field") {
+        auto field_options = featherdoc::sequence_field_options{};
+        field_options.number_format = options.number_format;
+        field_options.restart_value = options.restart_value;
+        field_options.preserve_formatting = options.preserve_formatting;
+        field_options.state = field_state;
+        success = selected.part.append_sequence_field(
+            options.field_argument, field_options,
+            options.has_result_text ? std::string_view{options.result_text}
+                                    : std::string_view{"1"});
     } else if (command == "append-caption") {
         auto field_options = featherdoc::caption_field_options{};
         field_options.number_format = options.number_format;
@@ -33575,6 +33664,9 @@ auto append_template_part_field(featherdoc::Document &doc,
                      *options.instruction_after)},
                 options.result_text, field_options);
         }
+    } else if (command == "replace-field") {
+        success = selected.part.replace_field(
+            *options.field_index, options.field_argument, options.result_text);
     }
 
     if (!success) {
@@ -57527,6 +57619,9 @@ int featherdoc_cli_main(int argc, char **argv) {
                     write_json_string(stream, std::string(selected.part.entry_name()));
                     stream << ",\"field\":";
                     write_json_string(stream, template_field_name(command));
+                    if (options.field_index.has_value()) {
+                        stream << ",\"field_index\":" << *options.field_index;
+                    }
                     if (options.has_field_argument) {
                         stream << ",\"field_argument\":";
                         write_json_string(stream, options.field_argument);

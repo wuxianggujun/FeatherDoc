@@ -339,11 +339,15 @@ setup, bookmarks, images, and template parts.
     featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
     featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
     featherdoc_cli append-total-pages-field input.docx --part section-footer --section 1 --kind first --output total-pages.docx --json
+    featherdoc_cli append-field input.docx " AUTHOR " --part body --result-text "Ada Lovelace" --output author-field.docx --json
+    featherdoc_cli append-reference-field input.docx target_heading --part body --result-text "Referenced heading" --output ref.docx --json
     featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --result-text "Page reference" --output page-ref.docx --json
     featherdoc_cli append-style-reference-field input.docx "Heading 1" --part body --paragraph-number --result-text "Section heading" --output style-ref.docx --json
     featherdoc_cli append-document-property-field input.docx Title --part body --result-text "Document title" --output doc-property.docx --json
     featherdoc_cli append-date-field input.docx --part body --format "yyyy-MM-dd" --result-text "2026-05-01" --dirty --output date-field.docx --json
     featherdoc_cli append-hyperlink-field input.docx https://example.com/report --part body --anchor target_heading --tooltip "Open target heading" --result-text "Open report" --locked --output hyperlink-field.docx --json
+    featherdoc_cli append-sequence-field input.docx Figure --part body --number-format ROMAN --restart 4 --result-text "IV" --output sequence.docx --json
+    featherdoc_cli replace-field input.docx 0 " SEQ Table \* ARABIC \r 1 " --part body --result-text "1" --output replaced-field.docx --json
     featherdoc_cli append-caption input.docx Figure --part body --text "Architecture overview" --number-result "1" --output caption.docx --json
     featherdoc_cli append-complex-field input.docx --part body --instruction-before " IF " --nested-instruction " MERGEFIELD CustomerName " --nested-result-text "Ada" --instruction-after " = \"Ada\" \"Matched\" \"Other\" " --result-text "Matched" --output complex-field.docx --json
     featherdoc_cli inspect-update-fields-on-open input.docx --json
@@ -725,12 +729,15 @@ it is missing. ``show-section-header`` / ``show-section-footer`` also accept
 ``append-page-number-field`` / ``append-total-pages-field`` append Word
 ``PAGE`` and ``NUMPAGES`` simple fields through
 ``TemplatePart::append_page_number_field()`` and
-``TemplatePart::append_total_pages_field()``. ``append-page-reference-field``,
+``TemplatePart::append_total_pages_field()``. ``append-field``,
+``append-reference-field``, ``append-page-reference-field``,
 ``append-style-reference-field``, ``append-document-property-field``,
 ``append-date-field``, ``append-hyperlink-field``, ``append-caption``,
-``append-index-entry-field``, and ``append-index-field`` add typed ``PAGEREF``,
-``STYLEREF``, ``DOCPROPERTY``, ``DATE``, ``HYPERLINK``, ``SEQ`` caption,
-``XE``, ``INDEX``, and complex nested fields with common switches such as ``--relative-position``,
+``append-sequence-field``, ``append-index-entry-field``, ``append-index-field``,
+``append-complex-field``, and ``replace-field`` add or replace custom,
+``REF``, ``PAGEREF``, ``STYLEREF``, ``DOCPROPERTY``, ``DATE``,
+``HYPERLINK``, ``SEQ`` / caption ``SEQ``, ``XE``, ``INDEX``, and complex
+nested fields with common switches such as ``--relative-position``,
 ``--paragraph-number``, ``--format``, ``--anchor``, ``--tooltip``,
 ``--columns``, ``--dirty``, ``--locked``, ``--no-hyperlink``,
 ``--no-preserve-formatting``, and ``--result-text``. They use the same target
@@ -969,10 +976,13 @@ If you want the API-first version of the same categories, jump back to
   ``featherdoc_sample_page_number_fields``. The matching CLI entry points are
   ``inspect-bookmarks``, ``validate-template``,
   ``append-page-number-field``, ``append-total-pages-field``,
+  ``append-field``, ``append-reference-field``,
   ``append-page-reference-field``, ``append-style-reference-field``,
   ``append-document-property-field``, ``append-date-field``,
-  ``append-hyperlink-field``, ``append-caption``,
-  ``append-index-entry-field``, and ``append-index-field``. See
+  ``append-hyperlink-field``, ``append-sequence-field``,
+  ``append-caption``, ``append-index-entry-field``,
+  ``append-index-field``, ``append-complex-field``, and
+  ``replace-field``. See
   :ref:`Bookmarks And Templates <featherdoc-bookmarks-templates>` and
   :ref:`Headers, Footers, Sections, And Page Setup <featherdoc-sections-page-setup>`.
 - Sections, page setup, and header/footer layout:

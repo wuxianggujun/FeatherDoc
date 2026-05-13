@@ -498,11 +498,15 @@ featherdoc_cli remove-footer-part input.docx 0 --output footers-pruned.docx
 featherdoc_cli move-footer-part input.docx 1 0 --output footers-reordered.docx --json
 featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
 featherdoc_cli append-table-of-contents-field input.docx --part body --min-outline-level 1 --max-outline-level 3 --result-text "目录" --output toc.docx --json
+featherdoc_cli append-field input.docx " AUTHOR " --part body --result-text "Ada Lovelace" --output author-field.docx --json
+featherdoc_cli append-reference-field input.docx target_heading --part body --result-text "Referenced heading" --output ref.docx --json
 featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --result-text "Page reference" --output page-ref.docx --json
 featherdoc_cli append-style-reference-field input.docx "Heading 1" --part body --paragraph-number --result-text "Section heading" --output style-ref.docx --json
 featherdoc_cli append-document-property-field input.docx Title --part body --result-text "Document title" --output doc-property.docx --json
 featherdoc_cli append-date-field input.docx --part body --format "yyyy-MM-dd" --result-text "2026-05-01" --dirty --output date-field.docx --json
 featherdoc_cli append-hyperlink-field input.docx https://example.com/report --part body --anchor target_heading --tooltip "Open target heading" --result-text "Open report" --locked --output hyperlink-field.docx --json
+featherdoc_cli append-sequence-field input.docx Figure --part body --number-format ROMAN --restart 4 --result-text "IV" --output sequence.docx --json
+featherdoc_cli replace-field input.docx 0 " SEQ Table \* ARABIC \r 1 " --part body --result-text "1" --output replaced-field.docx --json
 featherdoc_cli append-caption input.docx Figure --part body --text "Architecture overview" --number-result "1" --output caption.docx --json
 featherdoc_cli append-index-entry-field input.docx FeatherDoc --part body --subentry API --bookmark target_heading --cross-reference "See API" --output xe.docx --json
 featherdoc_cli append-index-field input.docx --part body --columns 2 --result-text "Index placeholder" --output index.docx --json
@@ -1457,9 +1461,13 @@ featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.tx
 featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
 featherdoc_cli append-total-pages-field input.docx --part section-footer --section 1 --kind first --output total-pages.docx --json
 featherdoc_cli append-table-of-contents-field input.docx --part body --min-outline-level 1 --max-outline-level 3 --output toc.docx --json
+featherdoc_cli append-field input.docx " AUTHOR " --part body --result-text "Ada Lovelace" --output author-field.docx --json
+featherdoc_cli append-reference-field input.docx target_heading --part body --output ref.docx --json
 featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --output page-ref.docx --json
 featherdoc_cli append-date-field input.docx --part body --format "yyyy-MM-dd" --dirty --output date-field.docx --json
 featherdoc_cli append-hyperlink-field input.docx https://example.com/report --part body --result-text "Open report" --locked --output hyperlink-field.docx --json
+featherdoc_cli append-sequence-field input.docx Figure --part body --number-format ROMAN --restart 4 --output sequence.docx --json
+featherdoc_cli replace-field input.docx 0 " SEQ Table \* ARABIC \r 1 " --part body --result-text "1" --output replaced-field.docx --json
 featherdoc_cli append-caption input.docx Figure --part body --text "Architecture overview" --output caption.docx --json
 featherdoc_cli append-index-field input.docx --part body --columns 2 --output index.docx --json
 ```
@@ -1563,7 +1571,7 @@ int main() {
 - 处理超链接、审阅对象和 OMML 公式：`list_hyperlinks()`、`append_hyperlink()`、`replace_hyperlink()`、`remove_hyperlink()`、`list_footnotes()` / `append_footnote()` / `replace_footnote()` / `remove_footnote()`、`list_endnotes()` / `append_endnote()` / `replace_endnote()` / `remove_endnote()`、`list_comments()` / `append_comment()` / `replace_comment()` / `remove_comment()`、`list_revisions()`、`accept_*revision*()`、`reject_*revision*()`、`list_omml()`、`append_omml()`、`replace_omml()`、`remove_omml()`、`make_omml_*()`（含 `make_omml_delimiter()` / `make_omml_nary()`）
 - 处理分节、页眉页脚和页面设置：`inspect_sections()`、`get_section_page_setup()`、`set_section_page_setup()`、`ensure_*header*()`、`ensure_*footer*()`、`append_section()`、`insert_section()`、`move_section()`、`copy_section_layout()`、`assign_section_*()`、`remove_section_*()`、`move_header_part()`、`move_footer_part()`
 - 处理样式、编号和语言元数据：`list_styles()`、`find_style()`、`find_style_usage()`、`list_style_usage()`、`plan_style_refactor()`、`apply_style_refactor()`、`plan_style_refactor_restore()`、`restore_style_refactor()`、`rename_style()`、`merge_style()`、`plan_prune_unused_styles()`、`prune_unused_styles()`、`ensure_*style()`、`ensure_numbering_definition()`、`ensure_style_linked_numbering()`、`set_paragraph_style_numbering()`、`default_run_*()`、`style_run_*()`、`resolve_style_properties()`、`materialize_style_run_properties()`、`rebase_character_style_based_on()`、`set_paragraph_style_based_on()`、`set_paragraph_style_next_style()`、`set_paragraph_style_outline_level()`、`rebase_paragraph_style_based_on()`
-- 想做脚本化检查或一次性改写：优先看 CLI 的 `inspect-*`、`inspect-hyperlinks`、`inspect-review`、`inspect-omml`、`validate-template`、`set-content-control-form-state`、`replace-content-control-*`、`append-hyperlink`、`accept-all-revisions`、`append-page-number-field`、`append-table-of-contents-field`、`append-page-reference-field`、`append-style-reference-field`、`append-document-property-field`、`append-date-field`、`append-hyperlink-field`、`append-caption`、`append-index-entry-field`、`append-index-field`、`append-complex-field`、`inspect-update-fields-on-open`、`set-update-fields-on-open`、`set-section-page-setup`
+- 想做脚本化检查或一次性改写：优先看 CLI 的 `inspect-*`、`inspect-hyperlinks`、`inspect-review`、`inspect-omml`、`validate-template`、`set-content-control-form-state`、`replace-content-control-*`、`append-hyperlink`、`accept-all-revisions`、`append-page-number-field`、`append-table-of-contents-field`、`append-field`、`append-reference-field`、`append-page-reference-field`、`append-style-reference-field`、`append-document-property-field`、`append-date-field`、`append-hyperlink-field`、`append-sequence-field`、`append-caption`、`append-index-entry-field`、`append-index-field`、`append-complex-field`、`replace-field`、`inspect-update-fields-on-open`、`set-update-fields-on-open`、`set-section-page-setup`
 
 如果你需要更完整的参数说明、可运行 sample 对照和边界行为说明，继续看
 `docs/index.rst` 会更高效；它现在也补了按任务分组的 sample / CLI 导航。

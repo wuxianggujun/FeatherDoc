@@ -2314,6 +2314,34 @@ Set-Content -LiteralPath $advancedFieldPlanPath -Encoding UTF8 -Value @'
 {
   "operations": [
     {
+      "op": "append_field",
+      "instruction": " AUTHOR ",
+      "result_text": "Plan author",
+      "dirty": true,
+      "locked": true
+    },
+    {
+      "op": "append_reference_field",
+      "bookmark_name": "metrics_table",
+      "result_text": "Plan reference",
+      "no_hyperlink": true,
+      "preserve_formatting": false
+    },
+    {
+      "op": "append_sequence_field",
+      "identifier": "Figure",
+      "number_format": "ROMAN",
+      "restart": 4,
+      "result_text": "IV",
+      "preserve_formatting": false
+    },
+    {
+      "op": "replace_field",
+      "index": 2,
+      "instruction": " SEQ Table \\* ARABIC \\r 1 ",
+      "result_text": "1"
+    },
+    {
       "op": "append_page_reference_field",
       "bookmark_name": "metrics_table",
       "result_text": "Plan page reference",
@@ -2399,24 +2427,39 @@ $advancedFieldXml = Read-DocxEntryText -DocxPath $advancedFieldEditedDocx -Entry
 
 Assert-Equal -Actual $advancedFieldSummary.status -Expected "completed" `
     -Message "Advanced-fields summary did not report status=completed."
-Assert-Equal -Actual $advancedFieldSummary.operation_count -Expected 8 `
-    -Message "Advanced-fields summary should record eight operations."
-Assert-Equal -Actual $advancedFieldSummary.operations[0].command -Expected "append-page-reference-field" `
+Assert-Equal -Actual $advancedFieldSummary.operation_count -Expected 12 `
+    -Message "Advanced-fields summary should record twelve operations."
+Assert-Equal -Actual $advancedFieldSummary.operations[0].command -Expected "append-field" `
+    -Message "Append-field should use the CLI field command."
+Assert-Equal -Actual $advancedFieldSummary.operations[1].command -Expected "append-reference-field" `
+    -Message "Append-reference-field should use the CLI field command."
+Assert-Equal -Actual $advancedFieldSummary.operations[2].command -Expected "append-sequence-field" `
+    -Message "Append-sequence-field should use the CLI field command."
+Assert-Equal -Actual $advancedFieldSummary.operations[3].command -Expected "replace-field" `
+    -Message "Replace-field should use the CLI field command."
+Assert-Equal -Actual $advancedFieldSummary.operations[4].command -Expected "append-page-reference-field" `
     -Message "Append-page-reference-field should use the CLI field command."
-Assert-Equal -Actual $advancedFieldSummary.operations[1].command -Expected "append-style-reference-field" `
+Assert-Equal -Actual $advancedFieldSummary.operations[5].command -Expected "append-style-reference-field" `
     -Message "Append-style-reference-field should use the CLI field command."
-Assert-Equal -Actual $advancedFieldSummary.operations[2].command -Expected "append-hyperlink-field" `
+Assert-Equal -Actual $advancedFieldSummary.operations[6].command -Expected "append-hyperlink-field" `
     -Message "Append-hyperlink-field should use the CLI field command."
-Assert-Equal -Actual $advancedFieldSummary.operations[3].command -Expected "append-caption" `
+Assert-Equal -Actual $advancedFieldSummary.operations[7].command -Expected "append-caption" `
     -Message "Append-caption should use the CLI field command."
-Assert-Equal -Actual $advancedFieldSummary.operations[4].command -Expected "append-index-entry-field" `
+Assert-Equal -Actual $advancedFieldSummary.operations[8].command -Expected "append-index-entry-field" `
     -Message "Append-index-entry-field should use the CLI field command."
-Assert-Equal -Actual $advancedFieldSummary.operations[5].command -Expected "append-index-field" `
+Assert-Equal -Actual $advancedFieldSummary.operations[9].command -Expected "append-index-field" `
     -Message "Append-index-field should use the CLI field command."
-Assert-Equal -Actual $advancedFieldSummary.operations[6].command -Expected "append-complex-field" `
+Assert-Equal -Actual $advancedFieldSummary.operations[10].command -Expected "append-complex-field" `
     -Message "Append-complex-field should use the CLI field command."
-Assert-Equal -Actual $advancedFieldSummary.operations[7].command -Expected "append-complex-field" `
+Assert-Equal -Actual $advancedFieldSummary.operations[11].command -Expected "append-complex-field" `
     -Message "Nested append-complex-field should use the CLI field command."
+Assert-ContainsText -Text $advancedFieldXml -ExpectedText "AUTHOR" -Label "Advanced-fields document.xml"
+Assert-ContainsText -Text $advancedFieldXml -ExpectedText "Plan author" -Label "Advanced-fields document.xml"
+Assert-ContainsText -Text $advancedFieldXml -ExpectedText "REF metrics_table" -Label "Advanced-fields document.xml"
+Assert-NotContainsText -Text $advancedFieldXml -UnexpectedText 'REF metrics_table \h' -Label "Advanced-fields document.xml"
+Assert-NotContainsText -Text $advancedFieldXml -UnexpectedText 'REF metrics_table \* MERGEFORMAT' -Label "Advanced-fields document.xml"
+Assert-ContainsText -Text $advancedFieldXml -ExpectedText 'SEQ Table \* ARABIC \r 1' -Label "Advanced-fields document.xml"
+Assert-ContainsText -Text $advancedFieldXml -ExpectedText ">1<" -Label "Advanced-fields document.xml"
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText 'PAGEREF metrics_table \p' -Label "Advanced-fields document.xml"
 Assert-NotContainsText -Text $advancedFieldXml -UnexpectedText 'PAGEREF metrics_table \h' -Label "Advanced-fields document.xml"
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText 'STYLEREF &quot;Heading 1&quot; \n \p' -Label "Advanced-fields document.xml"
@@ -2428,7 +2471,6 @@ Assert-ContainsText -Text $advancedFieldXml -ExpectedText "VII" -Label "Advanced
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText 'XE &quot;Plan entry:Sub entry&quot; \r metrics_table \t &quot;See also&quot; \b \i' -Label "Advanced-fields document.xml"
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText 'INDEX \c &quot;2&quot;' -Label "Advanced-fields document.xml"
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText "Plan index field" -Label "Advanced-fields document.xml"
-Assert-ContainsText -Text $advancedFieldXml -ExpectedText "AUTHOR" -Label "Advanced-fields document.xml"
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText "Ada Lovelace" -Label "Advanced-fields document.xml"
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText "PAGE" -Label "Advanced-fields document.xml"
 Assert-ContainsText -Text $advancedFieldXml -ExpectedText "one" -Label "Advanced-fields document.xml"

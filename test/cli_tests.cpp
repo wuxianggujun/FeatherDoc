@@ -28074,6 +28074,105 @@ TEST_CASE("cli append typed reference fields updates body") {
     remove_if_exists(output);
 }
 
+TEST_CASE("cli append generic reference sequence and replace fields updates body") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_append_generic_reference_sequence_fields_source.docx";
+    const fs::path generic_updated =
+        working_directory / "cli_append_generic_reference_sequence_fields_generic.docx";
+    const fs::path reference_updated =
+        working_directory / "cli_append_generic_reference_sequence_fields_ref.docx";
+    const fs::path sequence_updated =
+        working_directory / "cli_append_generic_reference_sequence_fields_seq.docx";
+    const fs::path replaced =
+        working_directory / "cli_append_generic_reference_sequence_fields_replaced.docx";
+    const fs::path output =
+        working_directory / "cli_append_generic_reference_sequence_fields_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(generic_updated);
+    remove_if_exists(reference_updated);
+    remove_if_exists(sequence_updated);
+    remove_if_exists(replaced);
+    remove_if_exists(output);
+
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"append-field", source.string(), " AUTHOR ", "--part",
+                      "body", "--result-text", "Ada Lovelace", "--dirty",
+                      "--locked", "--output", generic_updated.string(), "--json"},
+                     output),
+             0);
+    auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-field\""), std::string::npos);
+    CHECK_NE(json.find("\"field\":\"field\""), std::string::npos);
+    CHECK_NE(json.find("\"field_argument\":\" AUTHOR \""),
+             std::string::npos);
+    CHECK_NE(json.find("\"result_text\":\"Ada Lovelace\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"append-reference-field", generic_updated.string(),
+                      "target_bookmark", "--part", "body", "--no-hyperlink",
+                      "--no-preserve-formatting", "--result-text",
+                      "Referenced heading", "--output", reference_updated.string(),
+                      "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-reference-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"reference\""), std::string::npos);
+    CHECK_NE(json.find("\"field_argument\":\"target_bookmark\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"append-sequence-field", reference_updated.string(),
+                      "Figure", "--part", "body", "--number-format", "ROMAN",
+                      "--restart", "4", "--result-text", "IV",
+                      "--no-preserve-formatting", "--output",
+                      sequence_updated.string(), "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-sequence-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"sequence\""), std::string::npos);
+    CHECK_NE(json.find("\"field_argument\":\"Figure\""), std::string::npos);
+    CHECK_NE(json.find("\"result_text\":\"IV\""), std::string::npos);
+    CHECK_NE(json.find("\"restart\":4"), std::string::npos);
+
+    CHECK_EQ(run_cli({"replace-field", sequence_updated.string(), "2",
+                      " SEQ Table \\* ARABIC \\r 1 ", "--part", "body",
+                      "--result-text", "1", "--output", replaced.string(),
+                      "--json"},
+                     output),
+             0);
+    json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"replace-field\""), std::string::npos);
+    CHECK_NE(json.find("\"field_index\":2"), std::string::npos);
+    CHECK_NE(json.find("\"field_argument\":\" SEQ Table \\\\* ARABIC \\\\r 1 \""),
+             std::string::npos);
+
+    const auto document_xml = read_docx_entry(replaced, "word/document.xml");
+    CHECK_NE(document_xml.find("AUTHOR"), std::string::npos);
+    CHECK_NE(document_xml.find("Ada Lovelace"), std::string::npos);
+    CHECK_NE(document_xml.find("REF target_bookmark"), std::string::npos);
+    CHECK_EQ(document_xml.find("REF target_bookmark \\h"), std::string::npos);
+    CHECK_EQ(document_xml.find("REF target_bookmark \\* MERGEFORMAT"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("SEQ Table \\* ARABIC \\r 1"),
+             std::string::npos);
+    CHECK_EQ(document_xml.find("SEQ Figure"), std::string::npos);
+    CHECK_NE(document_xml.find("w:dirty=\"true\""), std::string::npos);
+    CHECK_NE(document_xml.find("w:fldLock=\"true\""), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(generic_updated);
+    remove_if_exists(reference_updated);
+    remove_if_exists(sequence_updated);
+    remove_if_exists(replaced);
+    remove_if_exists(output);
+}
+
 
 TEST_CASE("cli append caption and index fields updates body") {
     const fs::path working_directory = fs::current_path();
