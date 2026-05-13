@@ -524,13 +524,19 @@ featherdoc_set_test_labels(cli_usage cli smoke cli_smoke)
 if(WIN32)
     find_program(FEATHERDOC_POWERSHELL_EXECUTABLE NAMES pwsh powershell)
     if(FEATHERDOC_POWERSHELL_EXECUTABLE)
+        set(FEATHERDOC_POWERSHELL_TEST_COMMAND
+            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            -NoLogo
+            -NoProfile
+            -NonInteractive
+        )
         find_program(FEATHERDOC_PYTHON_EXECUTABLE NAMES python python3)
 
         add_test(
             NAME
             release_note_bundle_version
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -545,7 +551,7 @@ if(WIN32)
             NAME
             release_note_bundle_visual_verdict_metadata
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -560,7 +566,7 @@ if(WIN32)
             NAME
             release_blocker_action_registry
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -575,7 +581,7 @@ if(WIN32)
             NAME
             package_release_assets_safety
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -590,7 +596,7 @@ if(WIN32)
             NAME
             package_release_assets_allow_incomplete
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -605,7 +611,7 @@ if(WIN32)
             NAME
             public_release_wording_regression
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -619,8 +625,7 @@ if(WIN32)
                 NAME
                 pdf_unicode_font_roundtrip_visual
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
-                -NoProfile
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -650,7 +655,7 @@ if(WIN32)
             NAME
             sync_github_release_notes
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -665,7 +670,7 @@ if(WIN32)
             NAME
             sync_github_release_notes_publish_guard
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -680,7 +685,7 @@ if(WIN32)
             NAME
             publish_github_release
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -695,7 +700,7 @@ if(WIN32)
             NAME
             assert_release_material_safety
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -710,7 +715,7 @@ if(WIN32)
             NAME
             prepare_document_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -725,7 +730,7 @@ if(WIN32)
             NAME
             prepare_word_review_task_verdict
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -740,7 +745,7 @@ if(WIN32)
             NAME
             prepare_visual_regression_bundle_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -755,7 +760,7 @@ if(WIN32)
             NAME
             refresh_readme_visual_assets
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -770,7 +775,7 @@ if(WIN32)
             NAME
             prepare_section_page_setup_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -785,7 +790,7 @@ if(WIN32)
             NAME
             prepare_page_number_fields_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -800,7 +805,7 @@ if(WIN32)
             NAME
             open_latest_section_page_setup_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -815,7 +820,7 @@ if(WIN32)
             NAME
             open_latest_page_number_fields_review_task
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -830,7 +835,7 @@ if(WIN32)
             NAME
             word_visual_release_gate_smoke_verdict
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -845,7 +850,7 @@ if(WIN32)
             NAME
             release_candidate_visual_verdict
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -860,7 +865,7 @@ if(WIN32)
             NAME
             release_candidate_blocker_rollup
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -876,7 +881,7 @@ if(WIN32)
             NAME
             release_candidate_governance_handoff
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -894,7 +899,7 @@ if(WIN32)
             NAME
             release_visual_verdict_metadata_consistency
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -909,7 +914,7 @@ if(WIN32)
             NAME
             word_visual_review_report
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -924,7 +929,7 @@ if(WIN32)
             NAME
             table_style_quality_visual_regression
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -941,7 +946,7 @@ if(WIN32)
             NAME
             sync_visual_review_verdict_section_page_setup
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -956,7 +961,7 @@ if(WIN32)
             NAME
             sync_visual_review_verdict_page_number_fields
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -971,7 +976,7 @@ if(WIN32)
             NAME
             sync_visual_review_verdict_curated_visual_bundle
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -986,7 +991,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1001,7 +1006,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_uses_latest_release_summary_candidate
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1016,7 +1021,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_tiebreaks_release_summary_candidate
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1031,7 +1036,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_curated_visual_bundle
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1046,7 +1051,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_table_style_quality
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1061,7 +1066,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_no_release_summary
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1076,7 +1081,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_malformed_release_summary_candidate_only
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1091,7 +1096,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_conflicting_gates
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1106,7 +1111,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_missing_source_path
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1121,7 +1126,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_unsupported_source_kind
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1136,7 +1141,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_malformed_pointer_json
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1151,7 +1156,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_malformed_release_summary
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1166,7 +1171,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_skips_malformed_release_summary_candidate
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1181,7 +1186,7 @@ if(WIN32)
             NAME
             sync_latest_visual_review_verdict_missing_release_summary
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1196,7 +1201,7 @@ if(WIN32)
             NAME
             find_superseded_review_tasks
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1211,7 +1216,7 @@ if(WIN32)
             NAME
             find_superseded_review_tasks_curated_visual_bundle
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1226,7 +1231,7 @@ if(WIN32)
             NAME
             convert_render_data_to_patch_plan
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1241,7 +1246,7 @@ if(WIN32)
             NAME
             lint_render_data_mapping
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1256,7 +1261,7 @@ if(WIN32)
             NAME
             export_render_data_mapping_draft
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1271,7 +1276,7 @@ if(WIN32)
             NAME
             export_render_data_skeleton
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1286,7 +1291,7 @@ if(WIN32)
             NAME
             new_project_template_smoke_onboarding_plan
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1303,7 +1308,7 @@ if(WIN32)
             NAME
             onboard_project_template
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -1321,7 +1326,7 @@ if(WIN32)
                 NAME
                 docs_conf_version_sync
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1343,7 +1348,7 @@ if(WIN32)
                 NAME
                 fixed_grid_regression_bundle
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1365,7 +1370,7 @@ if(WIN32)
                 NAME
                 section_page_setup_regression_bundle
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1388,7 +1393,7 @@ if(WIN32)
                 NAME
                 page_number_fields_regression_bundle
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1411,7 +1416,7 @@ if(WIN32)
                 NAME
                 template_validation_regression_bundle
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1430,7 +1435,7 @@ if(WIN32)
                 NAME
                 check_numbering_catalog_baseline
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1447,7 +1452,7 @@ if(WIN32)
                 NAME
                 check_numbering_catalog_manifest
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1464,7 +1469,7 @@ if(WIN32)
                 NAME
                 check_template_schema_baseline
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1481,7 +1486,7 @@ if(WIN32)
                 NAME
                 check_template_schema_manifest
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1498,7 +1503,7 @@ if(WIN32)
                 NAME
                 run_project_template_smoke_schema_review
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1515,7 +1520,7 @@ if(WIN32)
                 NAME
                 sync_project_template_schema_approval
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1532,7 +1537,7 @@ if(WIN32)
                 NAME
                 write_project_template_schema_approval_history
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1547,7 +1552,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_report_passing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1566,7 +1571,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_report_failing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1585,7 +1590,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_report_fail_on_issue
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1604,7 +1609,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_rollup_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1621,7 +1626,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_rollup_report_empty
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1638,7 +1643,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_rollup_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1655,7 +1660,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_rollup_report_failed_source_report
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1672,7 +1677,7 @@ if(WIN32)
                 NAME
                 build_document_skeleton_governance_rollup_report_fail_on_issue
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1689,7 +1694,7 @@ if(WIN32)
                 NAME
                 build_numbering_catalog_governance_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1706,7 +1711,7 @@ if(WIN32)
                 NAME
                 build_numbering_catalog_governance_report_clean
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1723,7 +1728,7 @@ if(WIN32)
                 NAME
                 build_numbering_catalog_governance_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1740,7 +1745,7 @@ if(WIN32)
                 NAME
                 build_numbering_catalog_governance_report_fail_on_blocker
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1757,7 +1762,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_report_passing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1776,7 +1781,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_report_failing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1795,7 +1800,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_report_fail_on_issue
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1814,7 +1819,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1831,7 +1836,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_empty
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1848,7 +1853,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1865,7 +1870,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_failed_source_report
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1882,7 +1887,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_fail_on_issue
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1899,7 +1904,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_rollup_report_fail_on_blocker
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1916,7 +1921,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_governance_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1933,7 +1938,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_governance_report_ready
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1950,7 +1955,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_governance_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1967,7 +1972,7 @@ if(WIN32)
                 NAME
                 build_table_layout_delivery_governance_report_fail_on_blocker
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -1984,7 +1989,7 @@ if(WIN32)
                 NAME
                 table_layout_delivery_report
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2001,7 +2006,7 @@ if(WIN32)
                 NAME
                 build_project_template_onboarding_governance_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2018,7 +2023,7 @@ if(WIN32)
                 NAME
                 build_project_template_onboarding_governance_report_fail_on_blocker
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2035,7 +2040,7 @@ if(WIN32)
                 NAME
                 build_project_template_delivery_readiness_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2052,7 +2057,7 @@ if(WIN32)
                 NAME
                 build_project_template_delivery_readiness_report_ready
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2069,7 +2074,7 @@ if(WIN32)
                 NAME
                 build_project_template_delivery_readiness_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2086,7 +2091,7 @@ if(WIN32)
                 NAME
                 build_project_template_delivery_readiness_report_fail_on_blocker
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2103,7 +2108,7 @@ if(WIN32)
                 NAME
                 build_release_blocker_rollup_report_passing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2120,7 +2125,7 @@ if(WIN32)
                 NAME
                 build_release_governance_handoff_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2138,7 +2143,7 @@ if(WIN32)
             NAME
             build_release_governance_pipeline_report_aggregate
             COMMAND
-            ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -2156,7 +2161,7 @@ if(WIN32)
             NAME
             build_release_governance_handoff_report_missing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2173,7 +2178,7 @@ if(WIN32)
                 NAME
                 build_release_governance_handoff_report_fail_on_missing
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2190,7 +2195,7 @@ if(WIN32)
                 NAME
                 build_release_governance_handoff_report_explicit_input
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2207,7 +2212,7 @@ if(WIN32)
                 NAME
                 build_release_governance_handoff_report_include_rollup
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2224,7 +2229,7 @@ if(WIN32)
                 NAME
                 build_release_blocker_rollup_report_empty
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2241,7 +2246,7 @@ if(WIN32)
                 NAME
                 build_release_blocker_rollup_report_comma_input
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2258,7 +2263,7 @@ if(WIN32)
                 NAME
                 build_release_blocker_rollup_report_malformed
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2275,7 +2280,7 @@ if(WIN32)
                 NAME
                 build_release_blocker_rollup_report_dedupe
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2292,7 +2297,7 @@ if(WIN32)
                 NAME
                 write_schema_patch_confidence_calibration_report_aggregate
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2309,7 +2314,7 @@ if(WIN32)
                 NAME
                 write_schema_patch_confidence_calibration_report_fail_on_pending
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2328,7 +2333,7 @@ if(WIN32)
                 NAME
                 template_render_plan
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2345,7 +2350,7 @@ if(WIN32)
                 NAME
                 export_template_render_plan
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2362,7 +2367,7 @@ if(WIN32)
                 NAME
                 prepare_template_render_data_workspace
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2379,7 +2384,7 @@ if(WIN32)
                 NAME
                 render_template_document_from_workspace
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2396,7 +2401,7 @@ if(WIN32)
                 NAME
                 validate_render_data_mapping
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2413,7 +2418,7 @@ if(WIN32)
                 NAME
                 edit_document_from_plan
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2430,7 +2435,7 @@ if(WIN32)
                 NAME
                 patch_template_render_plan
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2447,7 +2452,7 @@ if(WIN32)
                 NAME
                 render_template_document_from_patch
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2464,7 +2469,7 @@ if(WIN32)
                 NAME
                 render_template_document_from_data
                 COMMAND
-                ${FEATHERDOC_POWERSHELL_EXECUTABLE}
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
                 -ExecutionPolicy
                 Bypass
                 -File
@@ -2484,11 +2489,17 @@ endif()
 if(NOT WIN32)
     find_program(FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE NAMES pwsh)
     if(FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE)
+        set(FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            -NoLogo
+            -NoProfile
+            -NonInteractive
+        )
         add_test(
             NAME
             release_candidate_blocker_rollup
             COMMAND
-            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -2504,7 +2515,7 @@ if(NOT WIN32)
             NAME
             release_candidate_governance_handoff
             COMMAND
-            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -2522,7 +2533,7 @@ if(NOT WIN32)
             NAME
             build_release_governance_handoff_report_aggregate
             COMMAND
-            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
@@ -2540,7 +2551,7 @@ if(NOT WIN32)
             NAME
             build_release_governance_pipeline_report_aggregate
             COMMAND
-            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_EXECUTABLE}
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
             -ExecutionPolicy
             Bypass
             -File
