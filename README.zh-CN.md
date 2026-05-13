@@ -88,6 +88,17 @@ cmake -S . -B build-pdf-import \
 如果要继续使用预编译包，可以传
 `-DFEATHERDOC_PDFIUM_PROVIDER=package -DPDFium_DIR=/path/to/pdfium`。
 
+启用 PDF 读入后，`featherdoc_cli` 还会提供：
+
+```bash
+featherdoc_cli import-pdf input.pdf --output output.docx \
+  [--import-table-candidates-as-tables] \
+  [--min-table-continuation-confidence <count>] [--json]
+```
+
+默认会拒绝表格候选。需要时再加
+`--import-table-candidates-as-tables`，把它们提升为 DOCX 表格。
+
 ## MSVC 构建
 
 请先打开 `x64` 的 Visual Studio Developer Command Prompt，或先执行：
@@ -486,6 +497,7 @@ featherdoc_cli move-header-part input.docx 1 0 --output headers-reordered.docx -
 featherdoc_cli remove-footer-part input.docx 0 --output footers-pruned.docx
 featherdoc_cli move-footer-part input.docx 1 0 --output footers-reordered.docx --json
 featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
+featherdoc_cli append-table-of-contents-field input.docx --part body --min-outline-level 1 --max-outline-level 3 --result-text "目录" --output toc.docx --json
 featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --result-text "Page reference" --output page-ref.docx --json
 featherdoc_cli append-style-reference-field input.docx "Heading 1" --part body --paragraph-number --result-text "Section heading" --output style-ref.docx --json
 featherdoc_cli append-document-property-field input.docx Title --part body --result-text "Document title" --output doc-property.docx --json
@@ -772,6 +784,58 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_works
       "rows": [["服务", "说明", "金额"]]
     },
     {
+      "op": "replace_bookmark_table",
+      "bookmark": "metrics_table",
+      "rows": [["指标", "值"], ["质量", "通过"]]
+    },
+    {
+      "op": "remove_bookmark_block",
+      "bookmark": "optional_note"
+    },
+    {
+      "op": "replace_bookmark_image",
+      "bookmark": "logo",
+      "image_path": "assets/logo.png",
+      "width": 120,
+      "height": 40
+    },
+    {
+      "op": "replace_bookmark_floating_image",
+      "bookmark": "hero",
+      "image_path": "assets/hero.png",
+      "width": 320,
+      "height": 180,
+      "horizontal_reference": "margin",
+      "vertical_reference": "paragraph",
+      "wrap_mode": "square"
+    },
+    {
+      "op": "apply_bookmark_block_visibility",
+      "show": "totals",
+      "hide": "optional_terms"
+    },
+    {
+      "op": "replace_content_control_text",
+      "content_control_tag": "order_no",
+      "text": "INV-002"
+    },
+    {
+      "op": "replace_content_control_paragraphs",
+      "content_control_tag": "summary",
+      "paragraphs": ["第一段摘要", "第二段摘要"]
+    },
+    {
+      "op": "replace_content_control_table_rows",
+      "content_control_alias": "Line Items",
+      "rows": [["SKU-1", "Ready"], ["SKU-2", "Queued"]]
+    },
+    {
+      "op": "set_content_control_form_state",
+      "content_control_tag": "approved",
+      "checked": false,
+      "clear_lock": true
+    },
+    {
       "op": "set_table_cell_text",
       "table_index": 0,
       "row_index": 3,
@@ -784,6 +848,28 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_works
       "row_index": 3,
       "cell_index": 2,
       "background_color": "FFF2CC"
+    },
+    {
+      "op": "set_table_cell_width",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "width_twips": 2400
+    },
+    {
+      "op": "set_table_cell_margin",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "edge": "left",
+      "margin_twips": 180
+    },
+    {
+      "op": "set_table_cell_text_direction",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "direction": "top_to_bottom_right_to_left"
     },
     {
       "op": "set_table_cell_border",
@@ -856,6 +942,61 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_works
       "width_twips": 5200
     },
     {
+      "op": "set_table_style_id",
+      "table_index": 0,
+      "style_id": "TableGrid"
+    },
+    {
+      "op": "set_table_style_look",
+      "table_index": 0,
+      "first_row": false,
+      "last_row": true,
+      "first_column": false,
+      "last_column": true,
+      "banded_rows": false,
+      "banded_columns": true
+    },
+    {
+      "op": "set_table_width",
+      "table_index": 0,
+      "width_twips": 7200
+    },
+    {
+      "op": "set_table_layout_mode",
+      "table_index": 0,
+      "layout_mode": "fixed"
+    },
+    {
+      "op": "set_table_alignment",
+      "table_index": 0,
+      "alignment": "center"
+    },
+    {
+      "op": "set_table_indent",
+      "table_index": 0,
+      "indent_twips": 360
+    },
+    {
+      "op": "set_table_cell_spacing",
+      "table_index": 0,
+      "cell_spacing_twips": 180
+    },
+    {
+      "op": "set_table_default_cell_margin",
+      "table_index": 0,
+      "edge": "left",
+      "margin_twips": 240
+    },
+    {
+      "op": "set_table_border",
+      "table_index": 0,
+      "edge": "inside_horizontal",
+      "style": "dashed",
+      "size": 8,
+      "color": "00AA00",
+      "space": 2
+    },
+    {
       "op": "merge_table_cells",
       "table_index": 0,
       "row_index": 3,
@@ -869,7 +1010,9 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_works
 
 其中，单元格垂直对齐支持 `top` / `center` / `bottom` / `both`；
 单元格和普通正文段落的水平对齐支持 `left` / `center` / `right` / `both`。
-表格版式可以设置列宽，也可以按 `right` / `down` 方向合并或取消合并单元格；
+表格版式可以设置样式 id、总宽度、布局模式、水平对齐、缩进、
+单元格间距、表格默认单元格边距、表格边框、显式单元格宽度和列宽，也可以按
+`right` / `down` 方向合并或取消合并单元格；
 单元格外观可以设置背景色、单边框样式、边框粗细、边框颜色；
 文本样式可以设置加粗、字体颜色、字号、英文字体、中文字体和语言标签；
 段落排版可以设置段前距、段后距和行距。
@@ -877,7 +1020,184 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_works
 如果文档没有书签，可以用 `replace_text` 做
 普通正文替换；它按段落合并可见文字后查找，能覆盖 Word 把文字拆成多个 run 的常见情况。
 如果要让“垂直居中”在 Word 里更明显，通常还要配合 `set_table_row_height` 给行一个明确高度。
-单元格合并使用 `merge_table_cells`，取消合并使用 `unmerge_table_cells`；合并可通过 `count` 指定跨几个单元格。
+如果编辑计划需要使用 CLI 已有的书签高级替换和条件块能力，可以用
+`replace_bookmark_table`、`remove_bookmark_block`、`replace_bookmark_image`、
+`replace_bookmark_floating_image`、`set_bookmark_block_visibility` 和
+`apply_bookmark_block_visibility`。
+如果编辑计划需要按内容控件定位，可以用
+`replace_content_control_text`、`replace_content_control_paragraphs`、
+`replace_content_control_table`、`replace_content_control_table_rows`、
+`replace_content_control_image` 和 `set_content_control_form_state`，通过
+`content_control_tag` 或 `content_control_alias` 选择目标；需要从内嵌
+Custom XML 刷新数据绑定内容控件时，使用 `sync_content_controls_from_custom_xml`。
+需要清理审阅状态或批量维护批注时，可以用 `accept_all_revisions`、
+`reject_all_revisions`、`set_comment_resolved`、`set_comment_metadata`、
+`replace_comment` 和 `remove_comment`。批注类操作会转交给
+`apply-review-mutation-plan`，因此可继续使用 `expected_text`、
+`expected_comment_text`、`expected_resolved` 和 `expected_parent_index`
+做预检保护；`replace_comment` 也接受 `text` 作为 `comment_text` 的简写。
+需要在编辑计划里创建修订时，可以使用 `append_insertion_revision`、
+`append_deletion_revision`、`insert_run_revision_after`、
+`delete_run_revision` 和 `replace_run_revision`。修订作者化操作支持可选
+`author` 与 `date`；会产生新文本的操作需要 `text`。
+`insert_paragraph_text_revision`、`delete_paragraph_text_revision` 和
+`replace_paragraph_text_revision` 可用于段落内文本范围；
+`insert_text_range_revision`、`delete_text_range_revision` 和
+`replace_text_range_revision` 可用于跨段文本范围。这些范围操作支持
+`paragraph_index` / `start_paragraph_index`、`text_offset` / `start_offset`、
+`end_paragraph_index`、`end_offset`、`length`，并在对应 CLI 支持时接受
+`expected_text` 预检保护。单条修订清理和元数据维护可用
+`accept_revision`、`reject_revision` 和 `set_revision_metadata`。
+需要新增批注或回复时，可以使用 `append_comment` 和
+`append_comment_reply`。`append_comment` 通过 `selected_text` 或
+`anchor_text` 锚定正文，`append_comment_reply` 通过
+`parent_comment_index` 锚定父批注；批注正文可用 `comment_text` 或 `text`，
+并支持可选 `author`、`initials` 和 `date`。
+需要把批注锚定到段落内或跨段文本范围时，可以使用
+`append_paragraph_text_comment` 和 `append_text_range_comment`；已有批注锚点可用
+`set_paragraph_text_comment_range` 与 `set_text_range_comment_range` 重新定位。
+需要在编辑计划里维护脚注或尾注时，可以使用 `append_footnote`、
+`replace_footnote`、`remove_footnote` 以及 `append_endnote`、
+`replace_endnote`、`remove_endnote`。追加操作需要 `reference_text` 与
+`note_text`，也支持用 `selected_text` 或 `anchor_text` 作为
+`reference_text` 的别名；替换和移除操作可通过 `note_index`、
+`footnote_index`、`endnote_index` 或 `index` 定位目标，其中替换操作还需要
+`note_text`。`text` 与 `body` 也可作为 `note_text` 的简写。
+需要维护普通超链接 run 时，可以使用 `append_hyperlink`、
+`replace_hyperlink` 和 `remove_hyperlink`。追加与替换操作接受 `text`，以及
+`target`、`url` 或 `href`；移除操作可用 `hyperlink_index` 或 `index` 定位。
+需要维护 Word 公式时，可以使用 `append_omml`、`replace_omml` 和
+`remove_omml`。追加与替换操作接受 `xml`、`omml` 或 `omml_xml`；移除操作可用
+`formula_index`、`omml_index` 或 `index` 定位。
+需要维护正文、页眉、页脚或节级 part 里的普通 drawing 图片时，可以使用
+`append_image`、`replace_image` 和 `remove_image`。`append_image` 支持和 CLI
+`append-image` 一致的尺寸、浮动图、环绕和裁剪参数；`replace_image` 与
+`remove_image` 可以通过 `image_index`、`relationship_id` 或
+`image_entry_name` 定位已有图片。
+需要通过编辑计划追加常用 Word 字段时，可以使用
+`append_page_number_field`、`append_total_pages_field`、
+`append_table_of_contents_field`、`append_document_property_field` 和
+`append_date_field`。字段操作默认写入 `part: "body"`，也接受 `part`、
+`index` / `part_index`、`section`、`kind`、`dirty` 和 `locked`；目录字段支持
+`min_outline_level`、`max_outline_level`、`no_hyperlinks`、
+`show_page_numbers_in_web_layout`、`no_outline_levels` 和 `result_text`。
+文档属性字段与日期字段还支持 `result_text` 和
+`preserve_formatting: false`，日期字段可用 `format` 或 `date_format` 指定
+Word 日期格式。需要控制文档级打开时更新字段开关时，可以使用
+`set_update_fields_on_open`、`enable_update_fields_on_open`、
+`disable_update_fields_on_open` 或 `clear_update_fields_on_open`。
+需要追加更丰富的字段对象时，可以使用
+`append_page_reference_field`、`append_style_reference_field`、
+`append_hyperlink_field`、`append_caption`、
+`append_index_entry_field`、`append_index_field` 和
+`append_complex_field`。页码/样式引用字段支持 `result_text`、
+`relative_position` 和 `preserve_formatting: false`，其中页码引用还支持
+`bookmark_name` / `bookmark` 与 `no_hyperlink`；超链接字段支持 `target`、
+`anchor`、`tooltip` 和 `result_text`；题注支持
+`label`、`caption_text` / `text`、`number_result_text`、`number_format`、
+`restart` 和 `separator`；索引项字段支持 `entry_text`、`subentry`、
+`bookmark`、`cross_reference`、`bold_page_number` 和
+`italic_page_number`；索引字段支持 `columns`；复杂字段支持直接提供
+`instruction`，或使用 `instruction_before` / `nested_instruction` /
+`nested_result_text` / `instruction_after` 的嵌套形式。
+当 edit-plan 需要通过成熟 CLI 统一处理默认 / 样式元数据、段落 / run
+格式、编号或 section 页面设置时，可以使用
+`set_default_run_properties`、`clear_default_run_properties`、
+`set_style_run_properties`、`clear_style_run_properties`、
+`set_paragraph_style_properties`、`clear_paragraph_style_properties`、
+`set_paragraph_style_numbering`、`clear_paragraph_style_numbering`、
+`set_paragraph_style`、`clear_paragraph_style`、`set_run_style`、
+`clear_run_style`、`set_run_font_family`、`clear_run_font_family`、
+`set_run_language`、`clear_run_language`、`set_paragraph_numbering`、
+`set_paragraph_list`、`restart_paragraph_list`、`clear_paragraph_list` 和
+`set_section_page_setup`。段落选择器使用 `paragraph_index` /
+`paragraph`；run 级操作还需要 `run_index` / `run`；样式目标操作接受
+`style_id` / `style`。默认 / 样式 run 属性写入支持
+`font_family` / `font`、`east_asia_font_family` / `east_asia_font`、
+`language` / `lang`、`east_asia_language` / `east_asia_lang`、
+`bidi_language` / `bidi_lang`、`rtl` 和 `paragraph_bidi`；clear 变体既支持
+同名布尔字段，也支持 `clear_*` 布尔字段，并额外支持
+`primary_language`。段落样式属性写入支持 `based_on`、
+`based_on_style`、`based_on_style_id`、`next_style`、`next_style_id`、
+`next`、`outline_level` 或 `level`。段落样式编号支持
+`definition_name` / `name`、`numbering_levels` / `levels` /
+`definition_levels` 以及可选 `style_level` / `level`，其中每个级别既可以
+直接写 CLI 字符串，也可以写成包含 `level`、`kind`、可选 `start` 和
+`text_pattern` / `pattern` 的对象。段落编号继续支持 `definition`、
+`definition_id`、`numbering_definition`、`numbering_definition_id` 或
+`abstract_num_id`，并可附带 `level`；列表操作接受 `kind` 与可选
+`level`；page setup 接受 `section_index` / `section`，以及
+`orientation`、`width`、`height`、各类 `margin_*` 字段、
+`page_number_start` 或 `clear_page_number_start`。分节与页眉页脚 part
+也可以通过 `insert_section`、`remove_section` / `delete_section`、
+`move_section`、`copy_section_layout`、`set_section_header`、
+`set_section_footer`、`assign_section_header`、`assign_section_footer`、
+`remove_section_header`、`remove_section_footer`、`remove_header_part`、
+`remove_footer_part`、`move_header_part` 和 `move_footer_part` 进入
+edit-plan。section 命令接受 `section_index` / `section`，移动和复制命令接受
+`source_index` / `source` / `from_index` / `from` 以及
+`target_index` / `target` / `to_index` / `to` /
+`destination_index` / `destination`，页眉页脚引用类型接受 `kind` /
+`reference_kind` / `section_part_kind` / `header_footer_kind`。设置页眉页脚时，
+`text` / `content` 会写入临时文本文件，也可以直接传
+`text_file` / `text_path` / `content_file` / `content_path`；`insert_section`
+默认继承页眉页脚引用，可用 `no_inherit: true` 或
+`inherit_header_footer: false` 关闭。`ensure_numbering_definition`
+可以创建或更新编号定义，但不会自动绑定到样式。`ensure_paragraph_style`
+和 `ensure_character_style` 可以按 `style_id` / `style` 创建或更新样式定义，
+并支持 `name` / `style_name` / `display_name`、`based_on` /
+`based_on_style` / `based_on_style_id`、`custom` / `is_custom`、
+`semi_hidden` / `is_semi_hidden`、`unhide_when_used` /
+`is_unhide_when_used`、`quick_format` / `is_quick_format`，以及与 run
+属性命令相同的元数据字段。段落样式还支持 `next_style` /
+`next_style_id` / `next`、`paragraph_bidi` 和 `outline_level` /
+`level`。`materialize_style_run_properties` 会把某个样式解析后的 run
+属性落成具体的样式 XML。`rebase_character_style_based_on` 和
+`rebase_paragraph_style_based_on` 可以用 `based_on`、
+`based_on_style`、`based_on_style_id`、`target_based_on`、
+`target_style` 或 `target_style_id` 重新指定样式基准。`ensure_style_linked_numbering`
+在相同的编号定义输入之外，还接受 `style_links` / `links`；每个关联既
+可以写成 `StyleId:level` 字符串，也可以写成包含 `style` /
+`style_id` 和 `level` 的对象。
+单元格合并使用 `merge_table_cells`，取消合并使用 `unmerge_table_cells`；
+合并可通过 `count` 指定跨几个单元格；需要删除整张正文表格时用
+`remove_table`。
+
+需要围绕现有正文表格新建空白同级表格时，使用 `insert_table_before` / `insert_table_after`。
+需要克隆现有表格结构和样式但清空单元格文本时，使用 `insert_table_like_before` /
+`insert_table_like_after`。
+需要在选中正文表格后紧接着插入普通正文段落时，使用 `insert_paragraph_after_table`。
+需要在编辑计划中设置或清除浮动表格 `w:tblpPr` 定位时，使用 `set_table_position` /
+`clear_table_position`。
+需要通过编辑计划追加、插入或删除正文表格行时，使用 `append_table_row`、
+`insert_table_row_before`、`insert_table_row_after`、`remove_table_row`。
+如果同样的行编辑需要作用在模板 part 表格上，可以使用
+`append_template_table_row`、`insert_template_table_row_before`、
+`insert_template_table_row_after`、`remove_template_table_row` 或
+`delete_template_table_row`，并通过表格索引、书签或文本选择器定位目标表格。
+需要通过同一套选择器克隆或删除模板 part 表格列时，使用
+`insert_template_table_column_before`、`insert_template_table_column_after`、
+`remove_template_table_column` 或 `delete_template_table_column`。
+需要通过编辑计划更新模板表格整行文本、单元格文本或矩形文本块时，使用
+`set_template_table_row_texts`、`set_template_table_cell_text` 或
+`set_template_table_cell_block_texts`。
+需要通过 JSON 合并或拆分模板 part 表格单元格时，使用
+`merge_template_table_cells` 与 `unmerge_template_table_cells`。
+需要把 CLI 的模板表格 JSON patch 格式纳入编辑计划时，使用
+`set_template_table_from_json` 或 `set_template_tables_from_json`，分别应用到单表或批量表格选择器。
+需要通过编辑计划控制正文表格行级布局元数据时，使用 `set_table_row_height`、
+`clear_table_row_height`、`set_table_row_cant_split`、
+`clear_table_row_cant_split`、`set_table_row_repeat_header`、
+`clear_table_row_repeat_header`。
+需要通过编辑计划控制单元格级外观元数据时，使用 `set_table_cell_fill`、
+`clear_table_cell_fill`、`set_table_cell_width`、`clear_table_cell_width`、
+`set_table_cell_margin`、`clear_table_cell_margin`、`set_table_cell_text_direction`、
+`clear_table_cell_text_direction`、`set_table_cell_border`、`clear_table_cell_border`。
+需要移除单元格直接外观或对齐覆盖时，也可以使用 `clear_table_cell_fill`、
+`clear_table_cell_border`、`clear_table_cell_vertical_alignment`、
+`clear_table_cell_horizontal_alignment`。
+需要通过编辑计划插入或删除正文表格列时，使用 `insert_table_column_before`、
+`insert_table_column_after`、`remove_table_column`。
 
 ```bash
 pwsh -ExecutionPolicy Bypass -File .\scripts\edit_document_from_plan.ps1 -InputDocx .\samples\chinese_invoice_template.docx -EditPlan .\output\rendered\invoice.edit_plan.json -OutputDocx .\output\rendered\invoice.edited.docx -SummaryJson .\output\rendered\invoice.edit.summary.json -BuildDir build-codex-clang-compat -SkipBuild
@@ -1030,6 +1350,26 @@ featherdoc_cli set-table-cell-text-direction input.docx 0 1 1 top_to_bottom_righ
 featherdoc_cli clear-table-cell-text-direction input.docx 0 1 1 --output cell-text-direction-cleared.docx --json
 featherdoc_cli set-table-cell-width input.docx 0 1 1 2400 --output cell-width.docx --json
 featherdoc_cli clear-table-cell-width input.docx 0 1 1 --output cell-width-cleared.docx --json
+featherdoc_cli set-table-column-width input.docx 0 1 2400 --output column-width.docx --json
+featherdoc_cli clear-table-column-width input.docx 0 1 --output column-width-cleared.docx --json
+featherdoc_cli set-table-style-id input.docx 0 TableGrid --output table-style-id.docx --json
+featherdoc_cli clear-table-style-id input.docx 0 --output table-style-id-cleared.docx --json
+featherdoc_cli set-table-style-look input.docx 0 --first-row false --last-row true --first-column false --last-column true --banded-rows false --banded-columns true --output table-style-look.docx --json
+featherdoc_cli clear-table-style-look input.docx 0 --output table-style-look-cleared.docx --json
+featherdoc_cli set-table-width input.docx 0 7200 --output table-width.docx --json
+featherdoc_cli clear-table-width input.docx 0 --output table-width-cleared.docx --json
+featherdoc_cli set-table-layout-mode input.docx 0 fixed --output table-layout-fixed.docx --json
+featherdoc_cli clear-table-layout-mode input.docx 0 --output table-layout-cleared.docx --json
+featherdoc_cli set-table-alignment input.docx 0 center --output table-aligned.docx --json
+featherdoc_cli clear-table-alignment input.docx 0 --output table-alignment-cleared.docx --json
+featherdoc_cli set-table-indent input.docx 0 360 --output table-indented.docx --json
+featherdoc_cli clear-table-indent input.docx 0 --output table-indent-cleared.docx --json
+featherdoc_cli set-table-cell-spacing input.docx 0 180 --output table-spacing.docx --json
+featherdoc_cli clear-table-cell-spacing input.docx 0 --output table-spacing-cleared.docx --json
+featherdoc_cli set-table-default-cell-margin input.docx 0 left 240 --output table-default-margin.docx --json
+featherdoc_cli clear-table-default-cell-margin input.docx 0 left --output table-default-margin-cleared.docx --json
+featherdoc_cli set-table-border input.docx 0 inside_horizontal --style dashed --size 8 --color 00AA00 --space 2 --output table-border.docx --json
+featherdoc_cli clear-table-border input.docx 0 inside_horizontal --output table-border-cleared.docx --json
 featherdoc_cli set-table-cell-margin input.docx 0 1 1 left 160 --output cell-margin.docx --json
 featherdoc_cli clear-table-cell-margin input.docx 0 1 1 left --output cell-margin-cleared.docx --json
 featherdoc_cli set-table-cell-border input.docx 0 1 1 right --style single --size 8 --color FF0000 --output cell-border.docx --json
@@ -1044,6 +1384,15 @@ featherdoc_cli append-table-row input.docx 0 --cell-count 3 --output row-appende
 featherdoc_cli insert-table-row-before input.docx 0 1 --output row-inserted-before.docx --json
 featherdoc_cli insert-table-row-after input.docx 0 1 --output row-inserted-after.docx --json
 featherdoc_cli remove-table-row input.docx 0 1 --output row-removed.docx --json
+featherdoc_cli remove-table input.docx 0 --output table-removed.docx --json
+featherdoc_cli insert-table-before input.docx 0 1 2 --output table-before.docx --json
+featherdoc_cli insert-table-after input.docx 0 1 2 --output table-after.docx --json
+featherdoc_cli insert-table-like-before input.docx 0 --output table-like-before.docx --json
+featherdoc_cli insert-table-like-after input.docx 0 --output table-like-after.docx --json
+featherdoc_cli insert-paragraph-after-table input.docx 0 --text "表格后说明" --output paragraph-after-table.docx --json
+featherdoc_cli insert-table-column-before input.docx 0 1 1 --output column-before.docx --json
+featherdoc_cli insert-table-column-after input.docx 0 1 1 --output column-after.docx --json
+featherdoc_cli remove-table-column input.docx 0 1 1 --output column-removed.docx --json
 featherdoc_cli merge-table-cells input.docx 0 0 0 --direction right --count 2 --output merged.docx --json
 featherdoc_cli unmerge-table-cells input.docx 0 0 0 --direction right --output unmerged.docx --json
 
@@ -1090,6 +1439,7 @@ featherdoc_cli show-section-footer input.docx 2 --json
 featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
 featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
 featherdoc_cli append-total-pages-field input.docx --part section-footer --section 1 --kind first --output total-pages.docx --json
+featherdoc_cli append-table-of-contents-field input.docx --part body --min-outline-level 1 --max-outline-level 3 --output toc.docx --json
 featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --output page-ref.docx --json
 featherdoc_cli append-date-field input.docx --part body --format "yyyy-MM-dd" --dirty --output date-field.docx --json
 featherdoc_cli append-hyperlink-field input.docx https://example.com/report --part body --result-text "Open report" --locked --output hyperlink-field.docx --json
@@ -1194,9 +1544,9 @@ int main() {
 - 做模板填充、书签校验或 content control 检查 / 替换：`list_bookmarks()`、`validate_template()`、`fill_bookmarks()`、`replace_bookmark_with_*()`、`body_template()` / `header_template()` / `footer_template()`、`list_content_controls()`、`find_content_controls_by_*()`、`replace_content_control_text_by_*()`、`set_content_control_form_state_by_*()`、`replace_content_control_with_*()`
 - 处理图片和字段：`append_image()`、`append_floating_image()`、`replace_*image()`、`list_fields()`、`append_field()`、`append_table_of_contents_field()`、`append_reference_field()`、`append_page_reference_field()`、`append_style_reference_field()`、`append_document_property_field()`、`append_date_field()`、`append_hyperlink_field()`、`append_sequence_field()`、`append_caption()`、`append_index_entry_field()`、`append_index_field()`、`append_complex_field()`、`replace_field()`、`append_page_number_field()`、`append_total_pages_field()`、`enable_update_fields_on_open()`、`clear_update_fields_on_open()`
 - 处理超链接、审阅对象和 OMML 公式：`list_hyperlinks()`、`append_hyperlink()`、`replace_hyperlink()`、`remove_hyperlink()`、`list_footnotes()` / `append_footnote()` / `replace_footnote()` / `remove_footnote()`、`list_endnotes()` / `append_endnote()` / `replace_endnote()` / `remove_endnote()`、`list_comments()` / `append_comment()` / `replace_comment()` / `remove_comment()`、`list_revisions()`、`accept_*revision*()`、`reject_*revision*()`、`list_omml()`、`append_omml()`、`replace_omml()`、`remove_omml()`、`make_omml_*()`（含 `make_omml_delimiter()` / `make_omml_nary()`）
-- 处理分节、页眉页脚和页面设置：`inspect_sections()`、`get_section_page_setup()`、`set_section_page_setup()`、`ensure_*header*()`、`ensure_*footer*()`、`append_section()`、`insert_section()`、`move_section()`、`move_header_part()`、`move_footer_part()`
+- 处理分节、页眉页脚和页面设置：`inspect_sections()`、`get_section_page_setup()`、`set_section_page_setup()`、`ensure_*header*()`、`ensure_*footer*()`、`append_section()`、`insert_section()`、`move_section()`、`copy_section_layout()`、`assign_section_*()`、`remove_section_*()`、`move_header_part()`、`move_footer_part()`
 - 处理样式、编号和语言元数据：`list_styles()`、`find_style()`、`find_style_usage()`、`list_style_usage()`、`plan_style_refactor()`、`apply_style_refactor()`、`plan_style_refactor_restore()`、`restore_style_refactor()`、`rename_style()`、`merge_style()`、`plan_prune_unused_styles()`、`prune_unused_styles()`、`ensure_*style()`、`ensure_numbering_definition()`、`ensure_style_linked_numbering()`、`set_paragraph_style_numbering()`、`default_run_*()`、`style_run_*()`、`resolve_style_properties()`、`materialize_style_run_properties()`、`rebase_character_style_based_on()`、`set_paragraph_style_based_on()`、`set_paragraph_style_next_style()`、`set_paragraph_style_outline_level()`、`rebase_paragraph_style_based_on()`
-- 想做脚本化检查或一次性改写：优先看 CLI 的 `inspect-*`、`inspect-hyperlinks`、`inspect-review`、`inspect-omml`、`validate-template`、`set-content-control-form-state`、`replace-content-control-*`、`append-hyperlink`、`accept-all-revisions`、`append-page-number-field`、`append-page-reference-field`、`append-style-reference-field`、`append-document-property-field`、`append-date-field`、`append-hyperlink-field`、`append-caption`、`append-index-entry-field`、`append-index-field`、`append-complex-field`、`inspect-update-fields-on-open`、`set-update-fields-on-open`、`set-section-page-setup`
+- 想做脚本化检查或一次性改写：优先看 CLI 的 `inspect-*`、`inspect-hyperlinks`、`inspect-review`、`inspect-omml`、`validate-template`、`set-content-control-form-state`、`replace-content-control-*`、`append-hyperlink`、`accept-all-revisions`、`append-page-number-field`、`append-table-of-contents-field`、`append-page-reference-field`、`append-style-reference-field`、`append-document-property-field`、`append-date-field`、`append-hyperlink-field`、`append-caption`、`append-index-entry-field`、`append-index-field`、`append-complex-field`、`inspect-update-fields-on-open`、`set-update-fields-on-open`、`set-section-page-setup`
 
 如果你需要更完整的参数说明、可运行 sample 对照和边界行为说明，继续看
 `docs/index.rst` 会更高效；它现在也补了按任务分组的 sample / CLI 导航。

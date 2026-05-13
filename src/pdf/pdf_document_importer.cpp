@@ -1259,7 +1259,7 @@ populate_document_from_parsed_pdf(featherdoc::Document &document,
             PdfDocumentImportFailureKind::table_candidates_detected;
         result.error_message =
             "PDF text import detected table-like structure candidates; "
-            "table import is not supported yet";
+            "enable table-candidate import to import them as DOCX tables";
         return result;
     }
 

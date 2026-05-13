@@ -233,6 +233,21 @@ if(TARGET FeatherDocPdf)
             ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
     endif()
 
+    if(TARGET FeatherDocPdfImport)
+        set(FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR
+            "${CMAKE_CURRENT_BINARY_DIR}/pdf-fixtures")
+        configure_file(
+            "${PROJECT_SOURCE_DIR}/featherdoc-adapter-cjk-roundtrip.pdf"
+            "${FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR}/featherdoc-adapter-cjk-roundtrip.pdf"
+            COPYONLY
+        )
+        configure_file(
+            "${PROJECT_SOURCE_DIR}/featherdoc-adapter-table-roundtrip.pdf"
+            "${FEATHERDOC_PDF_CLI_IMPORT_FIXTURE_DIR}/featherdoc-adapter-table-roundtrip.pdf"
+            COPYONLY
+        )
+    endif()
+
     if(TARGET featherdoc_cli)
         featherdoc_add_cpp_test(
             pdf_cli_export_tests
@@ -257,6 +272,28 @@ if(TARGET FeatherDocPdf)
         featherdoc_set_test_labels(pdf_cli_export cli smoke pdf)
         if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(pdf_cli_export PROPERTIES
+                ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+        endif()
+    endif()
+
+    if(TARGET featherdoc_cli AND TARGET FeatherDocPdfImport)
+        featherdoc_add_cpp_test(
+            pdf_cli_import_tests
+            pdf_cli_import
+            pdf_cli_import_tests.cpp
+        )
+        target_include_directories(
+            pdf_cli_import_tests
+            PRIVATE ${PROJECT_SOURCE_DIR}/cli
+        )
+        target_link_libraries(
+            pdf_cli_import_tests
+            PRIVATE FeatherDoc::Pdf
+        )
+        add_dependencies(pdf_cli_import_tests featherdoc_cli)
+        featherdoc_set_test_labels(pdf_cli_import cli smoke pdf import)
+        if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+            set_tests_properties(pdf_cli_import PROPERTIES
                 ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
         endif()
     endif()

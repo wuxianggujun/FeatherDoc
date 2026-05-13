@@ -80,6 +80,17 @@ and `design/dependencies/pdfium.md` for design context. Prebuilt packages are
 still supported with
 `-DFEATHERDOC_PDFIUM_PROVIDER=package -DPDFium_DIR=/path/to/pdfium`.
 
+When PDF import is enabled, `featherdoc_cli` also exposes:
+
+```bash
+featherdoc_cli import-pdf input.pdf --output output.docx \
+  [--import-table-candidates-as-tables] \
+  [--min-table-continuation-confidence <count>] [--json]
+```
+
+By default, table candidates are rejected. Pass
+`--import-table-candidates-as-tables` to promote them into DOCX tables.
+
 ## Build With MSVC
 
 Open an `x64` Visual Studio Developer Command Prompt first, or initialize the
@@ -637,6 +648,7 @@ featherdoc_cli show-section-footer input.docx 2 --json
 featherdoc_cli set-section-footer input.docx 0 --text "Page 1" --output footer.docx --json
 featherdoc_cli set-section-header input.docx 2 --kind even --text-file header.txt --json
 featherdoc_cli append-page-number-field input.docx --part section-header --section 1 --output page-number.docx --json
+featherdoc_cli append-table-of-contents-field input.docx --part body --min-outline-level 1 --max-outline-level 3 --result-text "Table of contents" --output toc.docx --json
 featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --result-text "Page reference" --output page-ref.docx --json
 featherdoc_cli append-style-reference-field input.docx "Heading 1" --part body --paragraph-number --result-text "Section heading" --output style-ref.docx --json
 featherdoc_cli append-document-property-field input.docx Title --part body --result-text "Document title" --output doc-property.docx --json
@@ -993,6 +1005,58 @@ instructions = new document”.
       "rows": [["Service", "Description", "Amount"]]
     },
     {
+      "op": "replace_bookmark_table",
+      "bookmark": "metrics_table",
+      "rows": [["Metric", "Value"], ["Quality", "Pass"]]
+    },
+    {
+      "op": "remove_bookmark_block",
+      "bookmark": "optional_note"
+    },
+    {
+      "op": "replace_bookmark_image",
+      "bookmark": "logo",
+      "image_path": "assets/logo.png",
+      "width": 120,
+      "height": 40
+    },
+    {
+      "op": "replace_bookmark_floating_image",
+      "bookmark": "hero",
+      "image_path": "assets/hero.png",
+      "width": 320,
+      "height": 180,
+      "horizontal_reference": "margin",
+      "vertical_reference": "paragraph",
+      "wrap_mode": "square"
+    },
+    {
+      "op": "apply_bookmark_block_visibility",
+      "show": "totals",
+      "hide": "optional_terms"
+    },
+    {
+      "op": "replace_content_control_text",
+      "content_control_tag": "order_no",
+      "text": "INV-002"
+    },
+    {
+      "op": "replace_content_control_paragraphs",
+      "content_control_tag": "summary",
+      "paragraphs": ["First summary paragraph", "Second summary paragraph"]
+    },
+    {
+      "op": "replace_content_control_table_rows",
+      "content_control_alias": "Line Items",
+      "rows": [["SKU-1", "Ready"], ["SKU-2", "Queued"]]
+    },
+    {
+      "op": "set_content_control_form_state",
+      "content_control_tag": "approved",
+      "checked": false,
+      "clear_lock": true
+    },
+    {
       "op": "set_table_cell_text",
       "table_index": 0,
       "row_index": 3,
@@ -1005,6 +1069,28 @@ instructions = new document”.
       "row_index": 3,
       "cell_index": 2,
       "background_color": "FFF2CC"
+    },
+    {
+      "op": "set_table_cell_width",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "width_twips": 2400
+    },
+    {
+      "op": "set_table_cell_margin",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "edge": "left",
+      "margin_twips": 180
+    },
+    {
+      "op": "set_table_cell_text_direction",
+      "table_index": 0,
+      "row_index": 3,
+      "cell_index": 2,
+      "direction": "top_to_bottom_right_to_left"
     },
     {
       "op": "set_table_cell_border",
@@ -1077,6 +1163,61 @@ instructions = new document”.
       "width_twips": 5200
     },
     {
+      "op": "set_table_style_id",
+      "table_index": 0,
+      "style_id": "TableGrid"
+    },
+    {
+      "op": "set_table_style_look",
+      "table_index": 0,
+      "first_row": false,
+      "last_row": true,
+      "first_column": false,
+      "last_column": true,
+      "banded_rows": false,
+      "banded_columns": true
+    },
+    {
+      "op": "set_table_width",
+      "table_index": 0,
+      "width_twips": 7200
+    },
+    {
+      "op": "set_table_layout_mode",
+      "table_index": 0,
+      "layout_mode": "fixed"
+    },
+    {
+      "op": "set_table_alignment",
+      "table_index": 0,
+      "alignment": "center"
+    },
+    {
+      "op": "set_table_indent",
+      "table_index": 0,
+      "indent_twips": 360
+    },
+    {
+      "op": "set_table_cell_spacing",
+      "table_index": 0,
+      "cell_spacing_twips": 180
+    },
+    {
+      "op": "set_table_default_cell_margin",
+      "table_index": 0,
+      "edge": "left",
+      "margin_twips": 240
+    },
+    {
+      "op": "set_table_border",
+      "table_index": 0,
+      "edge": "inside_horizontal",
+      "style": "dashed",
+      "size": 8,
+      "color": "00AA00",
+      "space": 2
+    },
+    {
       "op": "merge_table_cells",
       "table_index": 0,
       "row_index": 3,
@@ -1090,10 +1231,13 @@ instructions = new document”.
 
 Table-cell vertical alignment supports `top` / `center` / `bottom` / `both`;
 table-cell and normal body-paragraph horizontal alignment both support `left` /
-`center` / `right` / `both`. Table layout edits include column width and
-cell merge/unmerge in the `right` or `down` direction. Cell appearance edits
-include background fill, single-edge border style, border
-thickness, and border color. Text style edits include bold, text color, font size,
+`center` / `right` / `both`. Table layout edits include table style id, table
+width, layout mode, table alignment, table indent, table cell spacing, table
+default cell margins, table borders, explicit cell width, column width, and
+cell merge/unmerge in the `right` or `down` direction.
+Cell appearance edits
+include background fill, per-cell margins, cell text direction, single-edge
+border style, border thickness, and border color. Text style edits include bold, text color, font size,
 Latin font, CJK font, primary language, and East Asian language metadata.
 Paragraph layout edits include spacing before, spacing after, and line spacing.
 Body paragraphs can be targeted by `paragraph_index` or by `text_contains`.
@@ -1101,8 +1245,192 @@ If a document has no bookmarks, use `replace_text` for ordinary
 body text replacement; it searches the merged visible paragraph text, so it
 handles common Word run splitting. For vertical centering to be visible in Word,
 pair it with `set_table_row_height` so the row has an explicit height.
+Use `replace_bookmark_table`, `remove_bookmark_block`,
+`replace_bookmark_image`, `replace_bookmark_floating_image`,
+`set_bookmark_block_visibility`, and `apply_bookmark_block_visibility` when an
+edit plan needs the same rich bookmark replacement and conditional-block
+controls exposed by the CLI.
+Use `replace_content_control_text`, `replace_content_control_paragraphs`,
+`replace_content_control_table`, `replace_content_control_table_rows`,
+`replace_content_control_image`, and `set_content_control_form_state` when an
+edit plan needs to target content controls by `content_control_tag` or
+`content_control_alias`. Use `sync_content_controls_from_custom_xml` when
+data-bound content controls should be refreshed from embedded Custom XML.
+Use `accept_all_revisions`, `reject_all_revisions`,
+`set_comment_resolved`, `set_comment_metadata`, `replace_comment`, and
+`remove_comment` when a plan needs to clean review state or update comments.
+Comment mutations are applied through `apply-review-mutation-plan`, so they can
+use `expected_text`, `expected_comment_text`, `expected_resolved`, and
+`expected_parent_index` preflight guards; `replace_comment` also accepts `text`
+as shorthand for `comment_text`.
+Use `append_insertion_revision`, `append_deletion_revision`,
+`insert_run_revision_after`, `delete_run_revision`, and `replace_run_revision`
+when a plan needs to author tracked changes. Revision authoring operations
+accept optional `author` and `date`; text-producing operations require `text`.
+Use `insert_paragraph_text_revision`, `delete_paragraph_text_revision`, and
+`replace_paragraph_text_revision` for paragraph-local text ranges, or
+`insert_text_range_revision`, `delete_text_range_revision`, and
+`replace_text_range_revision` for ranges that can span paragraphs. These range
+operations accept `paragraph_index`/`start_paragraph_index`,
+`text_offset`/`start_offset`, `end_paragraph_index`, `end_offset`, `length`,
+and optional `expected_text` guards where the matching CLI command supports
+them.
+Use `accept_revision`, `reject_revision`, and `set_revision_metadata` for
+single-revision cleanup and metadata maintenance.
+Use `append_comment` to add a new comment anchored by `selected_text` or
+`anchor_text`, and `append_comment_reply` to add a threaded reply by
+`parent_comment_index`. Comment authoring accepts `comment_text` or `text`,
+plus optional `author`, `initials`, and `date`.
+Use `append_paragraph_text_comment` and `append_text_range_comment` to anchor a
+new comment to paragraph-local or cross-paragraph text ranges. Existing comment
+anchors can be retargeted with `set_paragraph_text_comment_range` and
+`set_text_range_comment_range`.
+Use `append_footnote`, `replace_footnote`, and `remove_footnote`, plus
+`append_endnote`, `replace_endnote`, and `remove_endnote`, when a plan needs
+to manage review notes. Append operations require `reference_text` plus
+`note_text`, and also accept `selected_text` or `anchor_text` as aliases for
+`reference_text`. Replace and remove operations target `note_index`,
+`footnote_index`, `endnote_index`, or `index`; replace operations require
+`note_text`, with `text` and `body` accepted as shorthand.
+Use `append_hyperlink`, `replace_hyperlink`, and `remove_hyperlink` to manage
+ordinary hyperlink runs. Append and replace operations accept `text` plus
+`target`, `url`, or `href`; removal targets `hyperlink_index` or `index`.
+Use `append_omml`, `replace_omml`, and `remove_omml` for Word equations.
+Append and replace operations accept `xml`, `omml`, or `omml_xml`; removal
+targets `formula_index`, `omml_index`, or `index`.
+Use `append_image`, `replace_image`, and `remove_image` when a plan needs to
+manage ordinary drawing images in the body, header, footer, or section-scoped
+parts. `append_image` accepts the same sizing and floating-image options as the
+CLI `append-image` command, while `replace_image` and `remove_image` target an
+existing drawing by `image_index`, `relationship_id`, or `image_entry_name`.
+Use `append_page_number_field`, `append_total_pages_field`,
+`append_table_of_contents_field`, `append_document_property_field`, and
+`append_date_field` when a plan needs to add common Word fields. Field
+operations default to `part: "body"` and also accept `part`, `index` /
+`part_index`, `section`, `kind`, `dirty`, and `locked`; table-of-contents
+fields accept `min_outline_level`, `max_outline_level`, `no_hyperlinks`,
+`show_page_numbers_in_web_layout`, `no_outline_levels`, and `result_text`.
+Document property and date fields additionally accept `result_text` and
+`preserve_formatting: false`, while date fields accept `format` or
+`date_format`. Use `set_update_fields_on_open`, `enable_update_fields_on_open`,
+`disable_update_fields_on_open`, or `clear_update_fields_on_open` to control
+the document-level update-fields-on-open setting.
+Use `append_page_reference_field`, `append_style_reference_field`,
+`append_hyperlink_field`, `append_caption`, `append_index_entry_field`,
+`append_index_field`, and `append_complex_field` when a plan needs richer field
+authoring. Page/style reference fields accept `result_text`,
+`relative_position`, and `preserve_formatting: false`; page references also
+accept `bookmark_name` / `bookmark`, plus `no_hyperlink`. Hyperlink fields
+accept `target`, `anchor`, `tooltip`, and `result_text`; captions accept
+`label`, `caption_text` / `text`, `number_result_text`, `number_format`,
+`restart`, and `separator`; index-entry fields accept `entry_text`, `subentry`,
+`bookmark`, `cross_reference`, `bold_page_number`, and
+`italic_page_number`; index fields accept `columns`; complex fields accept
+either `instruction` or the nested `instruction_before` /
+`nested_instruction` / `nested_result_text` / `instruction_after` form.
+Use `set_default_run_properties`, `clear_default_run_properties`,
+`set_style_run_properties`, `clear_style_run_properties`,
+`set_paragraph_style_properties`, `clear_paragraph_style_properties`,
+`set_paragraph_style_numbering`, `clear_paragraph_style_numbering`,
+`set_paragraph_style`, `clear_paragraph_style`, `set_run_style`,
+`clear_run_style`, `set_run_font_family`, `clear_run_font_family`,
+`set_run_language`, `clear_run_language`, `set_paragraph_numbering`,
+`set_paragraph_list`, `restart_paragraph_list`, `clear_paragraph_list`, and
+`set_section_page_setup` when a plan needs default/style metadata,
+paragraph/run formatting, numbering, or section layout mutations through
+mature CLI primitives. Paragraph selectors use `paragraph_index` /
+`paragraph`; run mutations also require `run_index` / `run`; style-targeted
+mutations accept `style_id` / `style`. Default/style run-property writes accept
+`font_family` / `font`, `east_asia_font_family` / `east_asia_font`,
+`language` / `lang`, `east_asia_language` / `east_asia_lang`,
+`bidi_language` / `bidi_lang`, `rtl`, and `paragraph_bidi`; clear variants
+accept the same boolean field names or `clear_*` booleans, including
+`primary_language`. Paragraph style property writes accept `based_on`,
+`based_on_style`, `based_on_style_id`, `next_style`, `next_style_id`, `next`,
+`outline_level`, or `level`. Paragraph style numbering accepts
+`definition_name` / `name`, `numbering_levels` / `levels` / `definition_levels`,
+and optional `style_level` / `level`, with each level supplied either as a
+CLI-ready string or as an object containing `level`, `kind`, optional `start`,
+and `text_pattern` / `pattern`. Paragraph numbering accepts `definition`,
+`definition_id`, `numbering_definition`, `numbering_definition_id`, or
+`abstract_num_id` plus optional `level`, list mutations accept `kind` plus
+optional `level`, and page setup accepts `section_index` / `section` together
+with `orientation`, `width`, `height`, the `margin_*` fields,
+`page_number_start`, or `clear_page_number_start`.
+Section and header/footer part mutations are also available through
+`insert_section`, `remove_section` / `delete_section`, `move_section`,
+`copy_section_layout`, `set_section_header`, `set_section_footer`,
+`assign_section_header`, `assign_section_footer`, `remove_section_header`,
+`remove_section_footer`, `remove_header_part`, `remove_footer_part`,
+`move_header_part`, and `move_footer_part`. Section commands accept
+`section_index` / `section`, move/copy commands accept `source_index` /
+`source` / `from_index` / `from` and `target_index` / `target` / `to_index` /
+`to` / `destination_index` / `destination`, and header/footer reference
+commands accept `kind` / `reference_kind` / `section_part_kind` /
+`header_footer_kind`. `set_section_header` and `set_section_footer` accept
+inline `text` / `content` or `text_file` / `text_path` / `content_file` /
+`content_path`; `insert_section` inherits header/footer references by default
+and accepts `no_inherit: true` or `inherit_header_footer: false`.
+`ensure_numbering_definition` can create or update a numbering definition
+without linking it to styles. `ensure_paragraph_style` and
+`ensure_character_style` create or update style definitions by `style_id` /
+`style`, and accept `name` / `style_name` / `display_name`,
+`based_on` / `based_on_style` / `based_on_style_id`, `custom` / `is_custom`,
+`semi_hidden` / `is_semi_hidden`, `unhide_when_used` /
+`is_unhide_when_used`, `quick_format` / `is_quick_format`, plus the same run
+metadata fields as the run-property commands. Paragraph styles also accept
+`next_style` / `next_style_id` / `next`, `paragraph_bidi`, and
+`outline_level` / `level`. `materialize_style_run_properties` copies the
+resolved run properties for a style into concrete style XML.
+`rebase_character_style_based_on` and `rebase_paragraph_style_based_on`
+retarget a style's base style using `based_on`, `based_on_style`,
+`based_on_style_id`, `target_based_on`, `target_style`, or
+`target_style_id`. `ensure_style_linked_numbering` accepts the same numbering
+definition inputs plus `style_links` / `links`, where each link can be a
+`StyleId:level` string or an object with `style` / `style_id` and `level`.
 Use `merge_table_cells` to merge table cells and `unmerge_table_cells` to split
-an existing merge; `count` controls how many cells the merge spans.
+an existing merge; `count` controls how many cells the merge spans. Use
+`remove_table` when an edit plan needs to delete an entire body table. Use
+`insert_table_before` and `insert_table_after` to create an empty sibling table
+around an existing body table, or `insert_table_like_before` and
+`insert_table_like_after` to clone the selected table's layout while clearing
+cell text. Use `insert_paragraph_after_table` when an edit plan needs to add a
+regular body paragraph immediately after a selected table. Use
+`set_table_position` and `clear_table_position` when an edit plan needs to add
+or remove floating `w:tblpPr` table placement. Use `append_table_row`,
+`insert_table_row_before`, `insert_table_row_after`, and `remove_table_row`
+when an edit plan needs to grow or shrink body-table rows. Use
+`append_template_table_row`, `insert_template_table_row_before`,
+`insert_template_table_row_after`, `remove_template_table_row`, or
+`delete_template_table_row` when the same row edits need to target a template
+part table by table index, bookmark, or text-based table selector. Use
+`insert_template_table_column_before`, `insert_template_table_column_after`,
+`remove_template_table_column`, or `delete_template_table_column` when a
+template part table needs column cloning or removal through the same selector
+model. Use `set_template_table_row_texts`, `set_template_table_cell_text`, or
+`set_template_table_cell_block_texts` when an edit plan needs to update
+complete template table rows, one template table cell, or a rectangular cell
+text block. Use
+`merge_template_table_cells` and `unmerge_template_table_cells` when a template
+part table needs cell merge or split operations from JSON. Use
+`set_template_table_from_json` or `set_template_tables_from_json` when a plan
+needs to apply the CLI's template-table JSON patch format to one table or to a
+batch of table selectors. Use
+`set_table_row_height`, `clear_table_row_height`,
+`set_table_row_cant_split`, `clear_table_row_cant_split`,
+`set_table_row_repeat_header`, and `clear_table_row_repeat_header` when an
+edit plan needs to control row-level layout metadata. Use
+`set_table_cell_width`, `clear_table_cell_width`,
+`set_table_cell_margin`, `clear_table_cell_margin`,
+`set_table_cell_text_direction`, and `clear_table_cell_text_direction` when an
+edit plan needs to control per-cell geometry, spacing, and text flow metadata.
+Use `clear_table_cell_fill`, `clear_table_cell_border`,
+`clear_table_cell_vertical_alignment`, and
+`clear_table_cell_horizontal_alignment` when a plan needs to remove direct
+cell appearance and alignment overrides. Use
+`insert_table_column_before`, `insert_table_column_after`, and
+`remove_table_column` when an edit plan needs to clone or remove body-table
+columns.
 
 ```bash
 pwsh -ExecutionPolicy Bypass -File .\scripts\edit_document_from_plan.ps1 -InputDocx .\samples\chinese_invoice_template.docx -EditPlan .\output\rendered\invoice.edit_plan.json -OutputDocx .\output\rendered\invoice.edited.docx -SummaryJson .\output\rendered\invoice.edit.summary.json -BuildDir build-codex-clang-compat -SkipBuild
@@ -1274,6 +1602,7 @@ featherdoc_cli replace-image input.docx replacement.png --relationship-id rId5 -
 featherdoc_cli remove-image input.docx --relationship-id rId5 --output image-removed.docx --json
 featherdoc_cli append-image input.docx badge.png --width 96 --height 48 --output image-appended.docx --json
 featherdoc_cli append-total-pages-field input.docx --part section-footer --section 1 --kind first --output total-pages.docx --json
+featherdoc_cli append-table-of-contents-field input.docx --part body --min-outline-level 1 --max-outline-level 3 --output toc.docx --json
 featherdoc_cli append-page-reference-field input.docx target_heading --part body --relative-position --output page-ref.docx --json
 featherdoc_cli append-date-field input.docx --part body --format "yyyy-MM-dd" --dirty --output date-field.docx --json
 featherdoc_cli append-hyperlink-field input.docx https://example.com/report --part body --result-text "Open report" --locked --output hyperlink-field.docx --json
@@ -1597,7 +1926,8 @@ you want to get done:
   `inspect-*`, `inspect-hyperlinks`, `inspect-review`, `inspect-omml`,
   `validate-template`, `replace-content-control-*`, `append-hyperlink`,
   `accept-all-revisions`, `append-page-number-field`,
-  `append-page-reference-field`, `append-style-reference-field`,
+  `append-table-of-contents-field`, `append-page-reference-field`,
+  `append-style-reference-field`,
   `append-document-property-field`, `append-date-field`,
   `append-hyperlink-field`, `append-caption`, `append-index-entry-field`,
   `append-index-field`, `set-section-page-setup`
@@ -2837,6 +3167,33 @@ direction from the command line.
 Use `featherdoc_cli set-table-cell-width` and
 `clear-table-cell-width` when you need to assign or remove an explicit
 body-table cell width from the command line.
+Use `featherdoc_cli set-table-column-width` and
+`clear-table-column-width` when you need to assign or remove a body-table
+grid column width from the command line while keeping table inspection
+metadata aligned.
+Use `featherdoc_cli set-table-style-id` and `clear-table-style-id` when you
+need to assign or remove a body table's `w:tblStyle` reference from the command
+line.
+Use `featherdoc_cli set-table-style-look` and `clear-table-style-look` when you
+need to assign or remove a body table's `w:tblLook` first/last row, first/last
+column, and banded-region routing flags from the command line.
+Use `featherdoc_cli set-table-width` and `clear-table-width` when you need to
+assign or remove the body-table total `w:tblW` width from the command line.
+Use `featherdoc_cli set-table-layout-mode` and `clear-table-layout-mode` when
+you need to switch a body table between Word's `autofit` and `fixed` layout
+modes or remove the explicit layout override.
+Use `featherdoc_cli set-table-alignment` and `clear-table-alignment` when you
+need to assign or remove a body table's `w:jc` horizontal placement.
+Use `featherdoc_cli set-table-indent` and `clear-table-indent` when you need to
+assign or remove the body-table `w:tblInd` indent.
+Use `featherdoc_cli set-table-cell-spacing` and `clear-table-cell-spacing` when
+you need to assign or remove body-table `w:tblCellSpacing`.
+Use `featherdoc_cli set-table-default-cell-margin` and
+`clear-table-default-cell-margin` when you need to edit a body table's default
+`w:tblCellMar` edge without touching per-cell overrides.
+Use `featherdoc_cli set-table-border` and `clear-table-border` when you need to
+edit a body table's `w:tblBorders` edge, including inside horizontal and inside
+vertical borders.
 Use `featherdoc_cli set-table-cell-margin` and
 `clear-table-cell-margin` when you need to edit one edge of a body-table
 cell's internal margin from the command line.
@@ -2857,6 +3214,20 @@ Use `featherdoc_cli append-table-row`, `insert-table-row-before`,
 insert, or remove body-table rows from the command line. When no explicit
 `--cell-count` is provided, appended rows default to the current table column
 count.
+Use `featherdoc_cli remove-table` when you need to delete one body table while
+preserving the surrounding document content.
+Use `featherdoc_cli insert-table-before` and `insert-table-after` when you need
+to create a new empty sibling table around an existing body table.
+Use `featherdoc_cli insert-table-like-before` and `insert-table-like-after`
+when the inserted table should clone the selected table's structure and table
+or cell formatting while clearing copied cell text.
+Use `featherdoc_cli insert-paragraph-after-table` when a body-table edit needs
+to insert follow-up prose immediately after the selected table.
+Use `featherdoc_cli insert-table-column-before`,
+`insert-table-column-after`, and `remove-table-column` when you need to clone
+or remove a body-table column selected by `<table-index> <row-index>
+<cell-index>`; the commands reject edits that would cut through a horizontal
+merge span.
 Use `featherdoc_cli merge-table-cells` when you need to merge a specific body
 table cell to the right or downward from the command line.
 Use `featherdoc_cli unmerge-table-cells` when you need to split an existing

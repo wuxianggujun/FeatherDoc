@@ -7,6 +7,9 @@
 #include <featherdoc/pdf/pdf_document_adapter.hpp>
 #include <featherdoc/pdf/pdf_writer.hpp>
 #endif
+#if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
+#include <featherdoc/pdf/pdf_document_importer.hpp>
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -55,6 +58,13 @@ struct export_pdf_options {
     bool render_inline_images = false;
     bool subset_unicode_fonts = true;
     std::optional<path_type> summary_json_path;
+    bool json_output = false;
+};
+
+struct import_pdf_options {
+    std::optional<path_type> output_path;
+    bool import_table_candidates_as_tables = false;
+    std::optional<std::uint32_t> min_table_continuation_confidence;
     bool json_output = false;
 };
 
@@ -311,6 +321,17 @@ struct unmerge_table_cells_options {
 };
 
 struct table_cell_style_options {
+    std::optional<path_type> output_path;
+    bool json_output = false;
+};
+
+struct table_style_look_options {
+    std::optional<bool> first_row;
+    std::optional<bool> last_row;
+    std::optional<bool> first_column;
+    std::optional<bool> last_column;
+    std::optional<bool> banded_rows;
+    std::optional<bool> banded_columns;
     std::optional<path_type> output_path;
     bool json_output = false;
 };
@@ -1511,6 +1532,8 @@ struct append_field_options {
     std::optional<std::string> instruction_after;
     std::optional<std::string> nested_instruction;
     std::string nested_result_text;
+    std::uint32_t min_outline_level = 1U;
+    std::uint32_t max_outline_level = 3U;
     bool has_part = false;
     bool has_kind = false;
     bool has_field_argument = false;
@@ -1521,6 +1544,9 @@ struct append_field_options {
     bool relative_position = false;
     bool paragraph_number = false;
     bool preserve_formatting = true;
+    bool hyperlinks = true;
+    bool hide_page_numbers_in_web_layout = true;
+    bool use_outline_levels = true;
     bool dirty = false;
     bool locked = false;
     bool bold_page_number = false;
@@ -2078,6 +2104,72 @@ auto parse_export_pdf_options(const std::vector<std::string_view> &arguments,
 
     return true;
 }
+
+#if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
+auto parse_import_pdf_options(const std::vector<std::string_view> &arguments,
+                              std::size_t start_index,
+                              import_pdf_options &options,
+                              std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--import-table-candidates-as-tables") {
+            options.import_table_candidates_as_tables = true;
+            continue;
+        }
+
+        if (argument == "--min-table-continuation-confidence") {
+            if (options.min_table_continuation_confidence.has_value()) {
+                error_message =
+                    "duplicate --min-table-continuation-confidence option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message =
+                    "missing value after --min-table-continuation-confidence";
+                return false;
+            }
+            std::uint32_t value = 0U;
+            if (!parse_uint32(arguments[index + 1U], value)) {
+                error_message =
+                    "invalid value after --min-table-continuation-confidence";
+                return false;
+            }
+            options.min_table_continuation_confidence = value;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    if (!options.output_path.has_value()) {
+        error_message = "import-pdf requires --output <path>";
+        return false;
+    }
+
+    return true;
+}
+#endif
 
 auto parse_export_template_schema_options(
     const std::vector<std::string_view> &arguments, std::size_t start_index,
@@ -8897,6 +8989,111 @@ auto parse_table_cell_style_options(
     return true;
 }
 
+auto table_style_look_options_have_flag(
+    const table_style_look_options &options) -> bool {
+    return options.first_row.has_value() || options.last_row.has_value() ||
+           options.first_column.has_value() || options.last_column.has_value() ||
+           options.banded_rows.has_value() || options.banded_columns.has_value();
+}
+
+auto parse_table_style_look_options(
+    const std::vector<std::string_view> &arguments, std::size_t start_index,
+    table_style_look_options &options, std::string &error_message) -> bool {
+    for (std::size_t index = start_index; index < arguments.size(); ++index) {
+        const auto argument = arguments[index];
+
+        auto parse_bool_option = [&](std::optional<bool> &target,
+                                     std::string_view option_name) -> bool {
+            if (target.has_value()) {
+                error_message = "duplicate " + std::string(option_name) + " option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after " + std::string(option_name);
+                return false;
+            }
+
+            bool value = false;
+            if (!parse_bool(arguments[index + 1U], value)) {
+                error_message = "invalid " + std::string(option_name) +
+                                " value: " + std::string(arguments[index + 1U]);
+                return false;
+            }
+
+            target = value;
+            ++index;
+            return true;
+        };
+
+        if (argument == "--first-row") {
+            if (!parse_bool_option(options.first_row, argument)) {
+                return false;
+            }
+            continue;
+        }
+
+        if (argument == "--last-row") {
+            if (!parse_bool_option(options.last_row, argument)) {
+                return false;
+            }
+            continue;
+        }
+
+        if (argument == "--first-column") {
+            if (!parse_bool_option(options.first_column, argument)) {
+                return false;
+            }
+            continue;
+        }
+
+        if (argument == "--last-column") {
+            if (!parse_bool_option(options.last_column, argument)) {
+                return false;
+            }
+            continue;
+        }
+
+        if (argument == "--banded-rows") {
+            if (!parse_bool_option(options.banded_rows, argument)) {
+                return false;
+            }
+            continue;
+        }
+
+        if (argument == "--banded-columns") {
+            if (!parse_bool_option(options.banded_columns, argument)) {
+                return false;
+            }
+            continue;
+        }
+
+        if (argument == "--output") {
+            if (options.output_path.has_value()) {
+                error_message = "duplicate --output option";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing path after --output";
+                return false;
+            }
+
+            options.output_path = path_type(std::string(arguments[index + 1U]));
+            ++index;
+            continue;
+        }
+
+        if (argument == "--json") {
+            options.json_output = true;
+            continue;
+        }
+
+        error_message = "unknown option: " + std::string(argument);
+        return false;
+    }
+
+    return true;
+}
+
 auto parse_append_table_row_options(
     const std::vector<std::string_view> &arguments, std::size_t start_index,
     append_table_row_options &options, std::string &error_message) -> bool {
@@ -8997,6 +9194,11 @@ auto parse_cell_border_edge_text(std::string_view text,
     }
 
     return false;
+}
+
+auto parse_table_border_edge_text(std::string_view text,
+                                  featherdoc::table_border_edge &edge) -> bool {
+    return parse_table_style_border_edge_text(text, edge);
 }
 
 auto parse_border_style_text(std::string_view text,
@@ -9177,6 +9379,39 @@ auto parse_cell_vertical_alignment_text(
     }
     if (text == "both") {
         alignment = featherdoc::cell_vertical_alignment::both;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_table_layout_mode_text(std::string_view text,
+                                  featherdoc::table_layout_mode &layout_mode)
+    -> bool {
+    if (text == "autofit") {
+        layout_mode = featherdoc::table_layout_mode::autofit;
+        return true;
+    }
+    if (text == "fixed") {
+        layout_mode = featherdoc::table_layout_mode::fixed;
+        return true;
+    }
+
+    return false;
+}
+
+auto parse_table_alignment_text(std::string_view text,
+                                featherdoc::table_alignment &alignment) -> bool {
+    if (text == "left") {
+        alignment = featherdoc::table_alignment::left;
+        return true;
+    }
+    if (text == "center") {
+        alignment = featherdoc::table_alignment::center;
+        return true;
+    }
+    if (text == "right") {
+        alignment = featherdoc::table_alignment::right;
         return true;
     }
 
@@ -12495,6 +12730,10 @@ auto parse_append_field_options(std::string_view command,
                                 std::size_t start_index,
                                 append_field_options &options,
                                 std::string &error_message) -> bool {
+    const auto is_page_number = command == "append-page-number-field";
+    const auto is_total_pages = command == "append-total-pages-field";
+    const auto is_table_of_contents =
+        command == "append-table-of-contents-field";
     const auto is_page_reference = command == "append-page-reference-field";
     const auto is_style_reference = command == "append-style-reference-field";
     const auto is_document_property = command == "append-document-property-field";
@@ -12509,6 +12748,10 @@ auto parse_append_field_options(std::string_view command,
                                          is_caption || is_index_entry;
     const auto is_typed_field = requires_field_argument || is_date || is_index ||
                                 is_complex;
+    const auto supports_result_text = is_table_of_contents || is_typed_field;
+    const auto supports_field_state =
+        is_page_number || is_total_pages || is_table_of_contents ||
+        is_typed_field;
 
     for (std::size_t index = start_index; index < arguments.size(); ++index) {
         const auto argument = arguments[index];
@@ -12610,7 +12853,7 @@ auto parse_append_field_options(std::string_view command,
         }
 
         if (argument == "--result-text") {
-            if (!is_typed_field) {
+            if (!supports_result_text) {
                 error_message = std::string(command) +
                                 " does not support --result-text";
                 return false;
@@ -12838,6 +13081,50 @@ auto parse_append_field_options(std::string_view command,
             continue;
         }
 
+        if (argument == "--min-outline-level") {
+            if (!is_table_of_contents) {
+                error_message = std::string(command) +
+                                " does not support --min-outline-level";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --min-outline-level";
+                return false;
+            }
+            std::uint32_t level = 0U;
+            if (!parse_uint32(arguments[index + 1U], level) || level == 0U ||
+                level > 9U) {
+                error_message = "invalid TOC minimum outline level: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.min_outline_level = level;
+            ++index;
+            continue;
+        }
+
+        if (argument == "--max-outline-level") {
+            if (!is_table_of_contents) {
+                error_message = std::string(command) +
+                                " does not support --max-outline-level";
+                return false;
+            }
+            if (index + 1U >= arguments.size()) {
+                error_message = "missing value after --max-outline-level";
+                return false;
+            }
+            std::uint32_t level = 0U;
+            if (!parse_uint32(arguments[index + 1U], level) || level == 0U ||
+                level > 9U) {
+                error_message = "invalid TOC maximum outline level: " +
+                                std::string(arguments[index + 1U]);
+                return false;
+            }
+            options.max_outline_level = level;
+            ++index;
+            continue;
+        }
+
         if (argument == "--subentry") {
             if (!is_index_entry) {
                 error_message = std::string(command) +
@@ -12912,6 +13199,36 @@ auto parse_append_field_options(std::string_view command,
                 return false;
             }
             options.italic_page_number = true;
+            continue;
+        }
+
+        if (argument == "--no-hyperlinks") {
+            if (!is_table_of_contents) {
+                error_message = std::string(command) +
+                                " does not support --no-hyperlinks";
+                return false;
+            }
+            options.hyperlinks = false;
+            continue;
+        }
+
+        if (argument == "--show-page-numbers-in-web-layout") {
+            if (!is_table_of_contents) {
+                error_message = std::string(command) +
+                                " does not support --show-page-numbers-in-web-layout";
+                return false;
+            }
+            options.hide_page_numbers_in_web_layout = false;
+            continue;
+        }
+
+        if (argument == "--no-outline-levels") {
+            if (!is_table_of_contents) {
+                error_message = std::string(command) +
+                                " does not support --no-outline-levels";
+                return false;
+            }
+            options.use_outline_levels = false;
             continue;
         }
 
@@ -13009,7 +13326,7 @@ auto parse_append_field_options(std::string_view command,
         }
 
         if (argument == "--dirty") {
-            if (!is_typed_field) {
+            if (!supports_field_state) {
                 error_message = std::string(command) +
                                 " does not support --dirty";
                 return false;
@@ -13019,7 +13336,7 @@ auto parse_append_field_options(std::string_view command,
         }
 
         if (argument == "--locked") {
-            if (!is_typed_field) {
+            if (!supports_field_state) {
                 error_message = std::string(command) +
                                 " does not support --locked";
                 return false;
@@ -13069,7 +13386,7 @@ auto parse_append_field_options(std::string_view command,
         return false;
     }
 
-    if (is_complex) {
+        if (is_complex) {
         const auto has_plain_instruction = options.instruction.has_value();
         const auto has_nested_instruction = options.nested_instruction.has_value();
         if (has_plain_instruction &&
@@ -13090,6 +13407,12 @@ auto parse_append_field_options(std::string_view command,
                 "append-complex-field nested mode requires --instruction-before and --instruction-after";
             return false;
         }
+    }
+
+    if (is_table_of_contents &&
+        options.min_outline_level > options.max_outline_level) {
+        error_message = "TOC minimum outline level must be less than or equal to maximum outline level";
+        return false;
     }
 
     if (!requires_field_argument && options.has_field_argument) {
@@ -16046,6 +16369,7 @@ auto floating_image_wrap_mode_name(featherdoc::floating_image_wrap_mode mode)
 auto is_append_field_command(std::string_view command) -> bool {
     return command == "append-page-number-field" ||
            command == "append-total-pages-field" ||
+           command == "append-table-of-contents-field" ||
            command == "append-page-reference-field" ||
            command == "append-style-reference-field" ||
            command == "append-document-property-field" ||
@@ -16063,6 +16387,9 @@ auto template_field_name(std::string_view command) -> const char * {
     }
     if (command == "append-total-pages-field") {
         return "total_pages";
+    }
+    if (command == "append-table-of-contents-field") {
+        return "table_of_contents";
     }
     if (command == "append-page-reference-field") {
         return "page_reference";
@@ -16550,6 +16877,98 @@ auto resolve_template_table_cell_by_grid_column(selected_template_part &selected
     return report_operation_failure(command, stage,
                                     "grid column is out of range", error_info,
                                     json_output);
+}
+
+auto load_body_table_summary(featherdoc::Document &doc,
+                             std::size_t table_index,
+                             featherdoc::table_inspection_summary &table,
+                             std::string_view command, bool json_output,
+                             std::string_view stage = "mutate") -> bool {
+    const auto inspected_table = doc.inspect_table(table_index);
+    if (const auto &error_info = doc.last_error(); error_info.code) {
+        report_document_error(command, stage, error_info, json_output);
+        return false;
+    }
+
+    if (inspected_table.has_value()) {
+        table = *inspected_table;
+        return true;
+    }
+
+    featherdoc::document_error_info error_info{};
+    error_info.code = std::make_error_code(std::errc::invalid_argument);
+    error_info.detail =
+        "table index '" + std::to_string(table_index) + "' is out of range";
+    error_info.entry_name = "word/document.xml";
+    return report_operation_failure(command, stage,
+                                    "table index is out of range", error_info,
+                                    json_output);
+}
+
+auto load_body_table_cell_summary(
+    featherdoc::Document &doc, std::size_t table_index, std::size_t row_index,
+    std::size_t cell_index, featherdoc::table_cell_inspection_summary &cell,
+    std::string_view command, bool json_output,
+    std::string_view stage = "mutate") -> bool {
+    featherdoc::table_inspection_summary table{};
+    if (!load_body_table_summary(doc, table_index, table, command, json_output,
+                                 stage)) {
+        return false;
+    }
+
+    const auto inspected_cell =
+        doc.inspect_table_cell(table_index, row_index, cell_index);
+    if (const auto &error_info = doc.last_error(); error_info.code) {
+        report_document_error(command, stage, error_info, json_output);
+        return false;
+    }
+
+    if (inspected_cell.has_value()) {
+        cell = *inspected_cell;
+        return true;
+    }
+
+    featherdoc::document_error_info error_info{};
+    error_info.code = std::make_error_code(std::errc::invalid_argument);
+    if (row_index >= table.row_count) {
+        error_info.detail =
+            "row index '" + std::to_string(row_index) +
+            "' is out of range for table index '" + std::to_string(table_index) +
+            "'";
+        error_info.entry_name = "word/document.xml";
+        return report_operation_failure(command, stage,
+                                        "row index is out of range", error_info,
+                                        json_output);
+    }
+
+    error_info.detail =
+        "cell index '" + std::to_string(cell_index) +
+        "' is out of range for row index '" + std::to_string(row_index) +
+        "' in table index '" + std::to_string(table_index) + "'";
+    error_info.entry_name = "word/document.xml";
+    return report_operation_failure(command, stage,
+                                    "cell index is out of range", error_info,
+                                    json_output);
+}
+
+auto load_body_table_cells_summary(
+    featherdoc::Document &doc, std::size_t table_index,
+    std::vector<featherdoc::table_cell_inspection_summary> &cells,
+    std::string_view command, bool json_output,
+    std::string_view stage = "mutate") -> bool {
+    featherdoc::table_inspection_summary table{};
+    if (!load_body_table_summary(doc, table_index, table, command, json_output,
+                                 stage)) {
+        return false;
+    }
+
+    cells = doc.inspect_table_cells(table_index);
+    if (const auto &error_info = doc.last_error(); error_info.code) {
+        report_document_error(command, stage, error_info, json_output);
+        return false;
+    }
+
+    return true;
 }
 
 auto load_template_table_summary(featherdoc::Document &doc,
@@ -18494,6 +18913,32 @@ auto cell_vertical_alignment_name(
     return "top";
 }
 
+auto table_layout_mode_name(featherdoc::table_layout_mode layout_mode) noexcept
+    -> std::string_view {
+    switch (layout_mode) {
+    case featherdoc::table_layout_mode::autofit:
+        return "autofit";
+    case featherdoc::table_layout_mode::fixed:
+        return "fixed";
+    }
+
+    return "autofit";
+}
+
+auto table_alignment_name(featherdoc::table_alignment alignment) noexcept
+    -> std::string_view {
+    switch (alignment) {
+    case featherdoc::table_alignment::left:
+        return "left";
+    case featherdoc::table_alignment::center:
+        return "center";
+    case featherdoc::table_alignment::right:
+        return "right";
+    }
+
+    return "left";
+}
+
 auto cell_margin_edge_name(featherdoc::cell_margin_edge edge) noexcept
     -> std::string_view {
     switch (edge) {
@@ -18521,6 +18966,26 @@ auto cell_border_edge_name(featherdoc::cell_border_edge edge) noexcept
         return "bottom";
     case featherdoc::cell_border_edge::right:
         return "right";
+    }
+
+    return "top";
+}
+
+auto table_border_edge_name(featherdoc::table_border_edge edge) noexcept
+    -> std::string_view {
+    switch (edge) {
+    case featherdoc::table_border_edge::top:
+        return "top";
+    case featherdoc::table_border_edge::left:
+        return "left";
+    case featherdoc::table_border_edge::bottom:
+        return "bottom";
+    case featherdoc::table_border_edge::right:
+        return "right";
+    case featherdoc::table_border_edge::inside_horizontal:
+        return "inside_horizontal";
+    case featherdoc::table_border_edge::inside_vertical:
+        return "inside_vertical";
     }
 
     return "top";
@@ -19009,12 +19474,83 @@ void write_text_table_position_preset_plan(
     }
 }
 
+void write_json_border_inspection_summary(
+    std::ostream &stream, const featherdoc::border_inspection_summary &border) {
+    stream << "{\"style\":";
+    write_json_string(stream, border_style_name(border.style));
+    stream << ",\"size_eighth_points\":" << border.size_eighth_points
+           << ",\"color\":";
+    write_json_string(stream, border.color);
+    stream << ",\"space_points\":" << border.space_points << '}';
+}
+
+void write_json_optional_border_inspection_summary(
+    std::ostream &stream,
+    const std::optional<featherdoc::border_inspection_summary> &border) {
+    if (!border.has_value()) {
+        stream << "null";
+        return;
+    }
+
+    write_json_border_inspection_summary(stream, *border);
+}
+
+void write_json_table_borders_inspection_summary(
+    std::ostream &stream,
+    const featherdoc::table_borders_inspection_summary &borders) {
+    stream << "{\"top\":";
+    write_json_optional_border_inspection_summary(stream, borders.top);
+    stream << ",\"left\":";
+    write_json_optional_border_inspection_summary(stream, borders.left);
+    stream << ",\"bottom\":";
+    write_json_optional_border_inspection_summary(stream, borders.bottom);
+    stream << ",\"right\":";
+    write_json_optional_border_inspection_summary(stream, borders.right);
+    stream << ",\"inside_horizontal\":";
+    write_json_optional_border_inspection_summary(stream, borders.inside_horizontal);
+    stream << ",\"inside_vertical\":";
+    write_json_optional_border_inspection_summary(stream, borders.inside_vertical);
+    stream << '}';
+}
+
+void write_json_optional_table_borders_inspection_summary(
+    std::ostream &stream,
+    const std::optional<featherdoc::table_borders_inspection_summary> &borders) {
+    if (!borders.has_value()) {
+        stream << "null";
+        return;
+    }
+
+    write_json_table_borders_inspection_summary(stream, *borders);
+}
+
 void write_json_table_summary(std::ostream &stream,
                               const featherdoc::table_inspection_summary &table) {
     stream << "{\"index\":" << table.index << ",\"style_id\":";
     write_json_optional_string(stream, table.style_id);
     stream << ",\"width_twips\":";
     write_json_optional_u32(stream, table.width_twips);
+    stream << ",\"alignment\":";
+    if (table.alignment.has_value()) {
+        write_json_string(stream, table_alignment_name(*table.alignment));
+    } else {
+        stream << "null";
+    }
+    stream << ",\"indent_twips\":";
+    write_json_optional_u32(stream, table.indent_twips);
+    stream << ",\"cell_spacing_twips\":";
+    write_json_optional_u32(stream, table.cell_spacing_twips);
+    stream << ",\"cell_margins\":{\"top\":";
+    write_json_optional_u32(stream, table.cell_margin_top_twips);
+    stream << ",\"left\":";
+    write_json_optional_u32(stream, table.cell_margin_left_twips);
+    stream << ",\"bottom\":";
+    write_json_optional_u32(stream, table.cell_margin_bottom_twips);
+    stream << ",\"right\":";
+    write_json_optional_u32(stream, table.cell_margin_right_twips);
+    stream << '}';
+    stream << ",\"borders\":";
+    write_json_optional_table_borders_inspection_summary(stream, table.borders);
     stream << ",\"position\":";
     write_json_optional_table_position(stream, table.position);
     stream << ",\"row_count\":" << table.row_count
@@ -19029,6 +19565,17 @@ void write_json_table_summary(std::ostream &stream,
     stream << "],\"text\":";
     write_json_string(stream, table.text);
     stream << '}';
+}
+
+void write_json_table_style_look(std::ostream &stream,
+                                 const featherdoc::table_style_look &style_look) {
+    stream << "{\"first_row\":" << json_bool(style_look.first_row)
+           << ",\"last_row\":" << json_bool(style_look.last_row)
+           << ",\"first_column\":" << json_bool(style_look.first_column)
+           << ",\"last_column\":" << json_bool(style_look.last_column)
+           << ",\"banded_rows\":" << json_bool(style_look.banded_rows)
+           << ",\"banded_columns\":" << json_bool(style_look.banded_columns)
+           << '}';
 }
 
 void write_json_optional_bool_value(std::ostream &stream,
@@ -22498,6 +23045,18 @@ void print_template_run_summary(std::ostream &stream,
     stream << " text=" << format_paragraph_text(run.text);
 }
 
+void print_optional_table_border(
+    std::ostream &stream,
+    const std::optional<featherdoc::border_inspection_summary> &border) {
+    if (!border.has_value()) {
+        stream << "none";
+        return;
+    }
+
+    stream << border_style_name(border->style) << '/' << border->size_eighth_points
+           << '/' << border->color << '/' << border->space_points;
+}
+
 void print_table_summary(std::ostream &stream,
                          const featherdoc::table_inspection_summary &table) {
     stream << "table[" << table.index << "]: style_id=";
@@ -22514,7 +23073,68 @@ void print_table_summary(std::ostream &stream,
     }
     stream << " rows=" << table.row_count
            << " columns=" << table.column_count
-           << " column_widths=[";
+           << " alignment=";
+    if (table.alignment.has_value()) {
+        stream << table_alignment_name(*table.alignment);
+    } else {
+        stream << "none";
+    }
+    stream << " indent_twips=";
+    if (table.indent_twips.has_value()) {
+        stream << *table.indent_twips;
+    } else {
+        stream << "none";
+    }
+    stream << " cell_spacing_twips=";
+    if (table.cell_spacing_twips.has_value()) {
+        stream << *table.cell_spacing_twips;
+    } else {
+        stream << "none";
+    }
+    stream << " cell_margins={top:";
+    if (table.cell_margin_top_twips.has_value()) {
+        stream << *table.cell_margin_top_twips;
+    } else {
+        stream << "none";
+    }
+    stream << ",left:";
+    if (table.cell_margin_left_twips.has_value()) {
+        stream << *table.cell_margin_left_twips;
+    } else {
+        stream << "none";
+    }
+    stream << ",bottom:";
+    if (table.cell_margin_bottom_twips.has_value()) {
+        stream << *table.cell_margin_bottom_twips;
+    } else {
+        stream << "none";
+    }
+    stream << ",right:";
+    if (table.cell_margin_right_twips.has_value()) {
+        stream << *table.cell_margin_right_twips;
+    } else {
+        stream << "none";
+    }
+    stream << '}';
+    stream << " borders=";
+    if (table.borders.has_value()) {
+        stream << "{top:";
+        print_optional_table_border(stream, table.borders->top);
+        stream << ",left:";
+        print_optional_table_border(stream, table.borders->left);
+        stream << ",bottom:";
+        print_optional_table_border(stream, table.borders->bottom);
+        stream << ",right:";
+        print_optional_table_border(stream, table.borders->right);
+        stream << ",inside_horizontal:";
+        print_optional_table_border(stream, table.borders->inside_horizontal);
+        stream << ",inside_vertical:";
+        print_optional_table_border(stream, table.borders->inside_vertical);
+        stream << '}';
+    } else {
+        stream << "none";
+    }
+    stream << " column_widths=[";
     for (std::size_t index = 0; index < table.column_widths.size(); ++index) {
         if (index != 0U) {
             stream << ',';
@@ -25813,6 +26433,60 @@ auto write_pdf_export_summary_json(std::string_view command,
     }
 
     return true;
+}
+#endif
+
+#if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
+[[nodiscard]] auto pdf_import_failure_kind_name(
+    featherdoc::pdf::PdfDocumentImportFailureKind failure_kind) -> std::string_view {
+    using featherdoc::pdf::PdfDocumentImportFailureKind;
+    switch (failure_kind) {
+    case PdfDocumentImportFailureKind::none:
+        return "none";
+    case PdfDocumentImportFailureKind::parse_failed:
+        return "parse_failed";
+    case PdfDocumentImportFailureKind::document_create_failed:
+        return "document_create_failed";
+    case PdfDocumentImportFailureKind::document_population_failed:
+        return "document_population_failed";
+    case PdfDocumentImportFailureKind::extract_text_disabled:
+        return "extract_text_disabled";
+    case PdfDocumentImportFailureKind::extract_geometry_disabled:
+        return "extract_geometry_disabled";
+    case PdfDocumentImportFailureKind::table_candidates_detected:
+        return "table_candidates_detected";
+    case PdfDocumentImportFailureKind::no_text_paragraphs:
+        return "no_text_paragraphs";
+    }
+
+    return "unknown";
+}
+
+void print_pdf_import_failure(
+    std::string_view command, const path_type &input_path,
+    const path_type &output_path,
+    const featherdoc::pdf::PdfDocumentImportResult &result, bool json_output) {
+    if (json_output) {
+        std::cerr << "{\"command\":";
+        write_json_string(std::cerr, command);
+        std::cerr << ",\"ok\":false,\"stage\":\"import\",\"failure_kind\":";
+        write_json_string(std::cerr, pdf_import_failure_kind_name(result.failure_kind));
+        std::cerr << ",\"message\":";
+        write_json_string(std::cerr, result.error_message);
+        std::cerr << ",\"input\":";
+        write_json_string(std::cerr, input_path.string());
+        std::cerr << ",\"output\":";
+        write_json_string(std::cerr, output_path.string());
+        std::cerr << "}\n";
+        return;
+    }
+
+    std::cerr << "PDF import failed ("
+              << pdf_import_failure_kind_name(result.failure_kind) << ")";
+    if (!result.error_message.empty()) {
+        std::cerr << ": " << result.error_message;
+    }
+    std::cerr << '\n';
 }
 #endif
 
@@ -32811,6 +33485,17 @@ auto append_template_part_field(featherdoc::Document &doc,
         success = selected.part.append_page_number_field(field_state);
     } else if (command == "append-total-pages-field") {
         success = selected.part.append_total_pages_field(field_state);
+    } else if (command == "append-table-of-contents-field") {
+        auto field_options = featherdoc::table_of_contents_field_options{};
+        field_options.min_outline_level = options.min_outline_level;
+        field_options.max_outline_level = options.max_outline_level;
+        field_options.hyperlinks = options.hyperlinks;
+        field_options.hide_page_numbers_in_web_layout =
+            options.hide_page_numbers_in_web_layout;
+        field_options.use_outline_levels = options.use_outline_levels;
+        field_options.state = field_state;
+        success = selected.part.append_table_of_contents_field(
+            field_options, options.result_text);
     } else if (command == "append-page-reference-field") {
         auto field_options = featherdoc::page_reference_field_options{};
         field_options.hyperlink = options.hyperlink;
@@ -40746,6 +41431,76 @@ int featherdoc_cli_main(int argc, char **argv) {
 #endif
     }
 
+#if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
+    if (command == "import-pdf") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 2U) {
+            print_parse_error(command, "import-pdf expects an input path",
+                              json_output);
+            return 2;
+        }
+
+        import_pdf_options options;
+        std::string error_message;
+        if (!parse_import_pdf_options(arguments, 2U, options, error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        featherdoc::pdf::PdfDocumentImportOptions import_options;
+        import_options.import_table_candidates_as_tables =
+            options.import_table_candidates_as_tables;
+        if (options.min_table_continuation_confidence.has_value()) {
+            import_options.min_table_continuation_confidence =
+                *options.min_table_continuation_confidence;
+        }
+
+        const auto input_path = path_type(std::string(arguments[1]));
+        const auto import_result = featherdoc::pdf::import_pdf_text_document(
+            input_path, doc, import_options);
+        if (!import_result) {
+            print_pdf_import_failure(command, input_path, *options.output_path,
+                                     import_result, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [&input_path, &options, &import_result](std::ostream &stream) {
+                    stream << ",\"input\":";
+                    write_json_string(stream, input_path.string());
+                    stream << ",\"output\":";
+                    write_json_string(stream, options.output_path->string());
+                    stream << ",\"paragraphs_imported\":"
+                           << import_result.paragraphs_imported;
+                    stream << ",\"tables_imported\":"
+                           << import_result.tables_imported;
+                    stream << ",\"table_continuation_diagnostics_count\":"
+                           << import_result.table_continuation_diagnostics.size();
+                    stream << ",\"import_table_candidates_as_tables\":"
+                           << json_bool(options.import_table_candidates_as_tables);
+                    if (options.min_table_continuation_confidence.has_value()) {
+                        stream << ",\"min_table_continuation_confidence\":"
+                               << *options.min_table_continuation_confidence;
+                    }
+                });
+        } else {
+            std::cout << "imported " << input_path.string() << " -> "
+                      << options.output_path->string() << " ("
+                      << import_result.paragraphs_imported << " paragraphs, "
+                      << import_result.tables_imported << " tables)\n";
+        }
+
+        return 0;
+    }
+#endif
+
     if (command == "inspect-sections") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 2U) {
@@ -44147,6 +44902,1525 @@ int featherdoc_cli_main(int argc, char **argv) {
         return 0;
     }
 
+    if (command == "set-table-column-width") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "set-table-column-width expects an input path, a table index, a column index, and a width in twips",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t column_index = 0U;
+        if (!parse_index(arguments[3], column_index)) {
+            print_parse_error(command,
+                              "invalid column index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t width_twips = 0U;
+        if (!parse_uint32(arguments[4], width_twips)) {
+            print_parse_error(command,
+                              "invalid width twips: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::table_inspection_summary inspected_table{};
+        if (!load_body_table_summary(doc, table_index, inspected_table, command,
+                                     options.json_output)) {
+            return 1;
+        }
+
+        if (column_index >= inspected_table.column_count) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "column index '" + std::to_string(column_index) +
+                "' is out of range for table index '" +
+                std::to_string(table_index) + "'";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "column index is out of range", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.set_column_width_twips(column_index, width_twips)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table column width",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, column_index, width_twips](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"column_index\":" << column_index
+                           << ",\"width_twips\":" << width_twips;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-column-width") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "clear-table-column-width expects an input path, a table index, and a column index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t column_index = 0U;
+        if (!parse_index(arguments[3], column_index)) {
+            print_parse_error(command,
+                              "invalid column index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::table_inspection_summary inspected_table{};
+        if (!load_body_table_summary(doc, table_index, inspected_table, command,
+                                     options.json_output)) {
+            return 1;
+        }
+
+        if (column_index >= inspected_table.column_count) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "column index '" + std::to_string(column_index) +
+                "' is out of range for table index '" +
+                std::to_string(table_index) + "'";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "column index is out of range", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.clear_column_width(column_index)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table column width",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, column_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"column_index\":" << column_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-style-id") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-table-style-id expects an input path, a table index, and a style id",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        const auto style_id = std::string(arguments[3]);
+        if (style_id.empty()) {
+            print_parse_error(command, "style id must not be empty", json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.set_style_id(style_id)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table style id", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, &style_id](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"style_id\":";
+                    write_json_string(stream, style_id);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-style-id") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "clear-table-style-id expects an input path and a table index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.clear_style_id()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table style id", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-style-look") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "set-table-style-look expects an input path, a table index, "
+                "and at least one style-look flag",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_style_look_options options;
+        std::string error_message;
+        if (!parse_table_style_look_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (!table_style_look_options_have_flag(options)) {
+            print_parse_error(command,
+                              "set-table-style-look requires at least one "
+                              "style-look flag",
+                              json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        auto style_look =
+            table.style_look().value_or(featherdoc::table_style_look{});
+        if (options.first_row.has_value()) {
+            style_look.first_row = *options.first_row;
+        }
+        if (options.last_row.has_value()) {
+            style_look.last_row = *options.last_row;
+        }
+        if (options.first_column.has_value()) {
+            style_look.first_column = *options.first_column;
+        }
+        if (options.last_column.has_value()) {
+            style_look.last_column = *options.last_column;
+        }
+        if (options.banded_rows.has_value()) {
+            style_look.banded_rows = *options.banded_rows;
+        }
+        if (options.banded_columns.has_value()) {
+            style_look.banded_columns = *options.banded_columns;
+        }
+
+        if (!table.set_style_look(style_look)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table style look",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, &style_look](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"style_look\":";
+                    write_json_table_style_look(stream, style_look);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-style-look") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "clear-table-style-look expects an input path and a table index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.clear_style_look()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table style look",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-width") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-table-width expects an input path, a table index, and a width in twips",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t width_twips = 0U;
+        if (!parse_uint32(arguments[3], width_twips)) {
+            print_parse_error(command,
+                              "invalid width twips: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.set_width_twips(width_twips)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table width", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, width_twips](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"width_twips\":" << width_twips;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-width") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "clear-table-width expects an input path and a table index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.clear_width()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table width", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-layout-mode") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-table-layout-mode expects an input path, a table index, and a layout mode",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::table_layout_mode layout_mode =
+            featherdoc::table_layout_mode::autofit;
+        if (!parse_table_layout_mode_text(arguments[3], layout_mode)) {
+            print_parse_error(command,
+                              "invalid table layout mode: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.set_layout_mode(layout_mode)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table layout mode",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, layout_mode](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"layout_mode\":";
+                    write_json_string(stream, table_layout_mode_name(layout_mode));
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-layout-mode") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "clear-table-layout-mode expects an input path and a table index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.clear_layout_mode()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table layout mode",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-alignment") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-table-alignment expects an input path, a table index, and an alignment",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::table_alignment alignment = featherdoc::table_alignment::left;
+        if (!parse_table_alignment_text(arguments[3], alignment)) {
+            print_parse_error(command,
+                              "invalid table alignment: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.set_alignment(alignment)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table alignment",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, alignment](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"alignment\":";
+                    write_json_string(stream, table_alignment_name(alignment));
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-alignment") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "clear-table-alignment expects an input path and a table index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.clear_alignment()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table alignment",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-indent") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-table-indent expects an input path, a table index, and an indent in twips",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t indent_twips = 0U;
+        if (!parse_uint32(arguments[3], indent_twips)) {
+            print_parse_error(command,
+                              "invalid indent twips: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.set_indent_twips(indent_twips)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table indent", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, indent_twips](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"indent_twips\":" << indent_twips;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-indent") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(command,
+                              "clear-table-indent expects an input path and a table index",
+                              json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.clear_indent()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table indent", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-cell-spacing") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-table-cell-spacing expects an input path, a table index, and spacing in twips",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t spacing_twips = 0U;
+        if (!parse_uint32(arguments[3], spacing_twips)) {
+            print_parse_error(command,
+                              "invalid cell spacing twips: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.set_cell_spacing_twips(spacing_twips)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table cell spacing",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, spacing_twips](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"cell_spacing_twips\":" << spacing_twips;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-cell-spacing") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "clear-table-cell-spacing expects an input path and a table index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.clear_cell_spacing()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table cell spacing",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-default-cell-margin") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "set-table-default-cell-margin expects an input path, a table index, a margin edge, and a margin in twips",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::cell_margin_edge edge = featherdoc::cell_margin_edge::top;
+        if (!parse_cell_margin_edge_text(arguments[3], edge)) {
+            print_parse_error(command,
+                              "invalid margin edge: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::uint32_t margin_twips = 0U;
+        if (!parse_uint32(arguments[4], margin_twips)) {
+            print_parse_error(command,
+                              "invalid margin twips: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.set_cell_margin_twips(edge, margin_twips)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table default cell margin",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, edge, margin_twips](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"edge\":";
+                    write_json_string(stream, cell_margin_edge_name(edge));
+                    stream << ",\"margin_twips\":" << margin_twips;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-default-cell-margin") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "clear-table-default-cell-margin expects an input path, a table index, and a margin edge",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::cell_margin_edge edge = featherdoc::cell_margin_edge::top;
+        if (!parse_cell_margin_edge_text(arguments[3], edge)) {
+            print_parse_error(command,
+                              "invalid margin edge: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.clear_cell_margin(edge)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table default cell margin",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, edge](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"edge\":";
+                    write_json_string(stream, cell_margin_edge_name(edge));
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "set-table-border") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "set-table-border expects an input path, a table index, and a border edge",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::table_border_edge edge = featherdoc::table_border_edge::top;
+        if (!parse_table_border_edge_text(arguments[3], edge)) {
+            print_parse_error(command,
+                              "invalid table border edge: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_border_options options;
+        std::string error_message;
+        if (!parse_table_cell_border_options(arguments, 4U, options,
+                                             error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!options.style.has_value()) {
+            print_parse_error(command, "missing --style option", json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::border_definition border{};
+        border.style = *options.style;
+        if (options.size_eighth_points.has_value()) {
+            border.size_eighth_points = *options.size_eighth_points;
+        }
+        if (options.color.has_value()) {
+            border.color = *options.color;
+        }
+        if (options.space_points.has_value()) {
+            border.space_points = *options.space_points;
+        }
+
+        if (!table.set_border(edge, border)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to set table border",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, edge, border](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"edge\":";
+                    write_json_string(stream, table_border_edge_name(edge));
+                    stream << ",\"style\":";
+                    write_json_string(stream, border_style_name(border.style));
+                    stream << ",\"size_eighth_points\":"
+                           << border.size_eighth_points
+                           << ",\"color\":";
+                    write_json_string(stream, border.color);
+                    stream << ",\"space_points\":" << border.space_points;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "clear-table-border") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 4U) {
+            print_parse_error(
+                command,
+                "clear-table-border expects an input path, a table index, and a border edge",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        featherdoc::table_border_edge edge = featherdoc::table_border_edge::top;
+        if (!parse_table_border_edge_text(arguments[3], edge)) {
+            print_parse_error(command,
+                              "invalid table border edge: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 4U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.clear_border(edge)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to clear table border",
+                                     error_info, options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, edge](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"edge\":";
+                    write_json_string(stream, table_border_edge_name(edge));
+                });
+        }
+
+        return 0;
+    }
+
     if (command == "set-table-cell-margin") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 7U) {
@@ -44894,6 +47168,724 @@ int featherdoc_cli_main(int argc, char **argv) {
                 [table_index, row_index](std::ostream &stream) {
                     stream << ",\"table_index\":" << table_index
                            << ",\"row_index\":" << row_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-table-before" || command == "insert-table-after") {
+        const auto json_output = has_json_flag(arguments);
+        const auto insert_before = command == "insert-table-before";
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                std::string(command) +
+                    std::string{
+                        " expects an input path, a table index, a row count, and a column count"},
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_count = 0U;
+        if (!parse_index(arguments[3], row_count)) {
+            print_parse_error(command,
+                              "invalid row count: " + std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+        if (row_count == 0U) {
+            print_parse_error(command, "row count must be greater than 0",
+                              json_output);
+            return 2;
+        }
+
+        std::size_t column_count = 0U;
+        if (!parse_index(arguments[4], column_count)) {
+            print_parse_error(command,
+                              "invalid column count: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+        if (column_count == 0U) {
+            print_parse_error(command, "column count must be greater than 0",
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        auto inserted_table =
+            insert_before ? table.insert_table_before(row_count, column_count)
+                          : table.insert_table_after(row_count, column_count);
+        if (!inserted_table.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_count, column_count,
+                 insert_before](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"inserted_table_index\":"
+                           << (insert_before ? table_index : table_index + 1U)
+                           << ",\"row_count\":" << row_count
+                           << ",\"column_count\":" << column_count;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-table-like-before" ||
+        command == "insert-table-like-after") {
+        const auto json_output = has_json_flag(arguments);
+        const auto insert_before = command == "insert-table-like-before";
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                std::string(command) +
+                    std::string{" expects an input path and a table index"},
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        auto inserted_table =
+            insert_before ? table.insert_table_like_before()
+                          : table.insert_table_like_after();
+        if (!inserted_table.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, insert_before](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"inserted_table_index\":"
+                           << (insert_before ? table_index : table_index + 1U);
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-paragraph-after-table") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(
+                command,
+                "insert-paragraph-after-table expects an input path and a table index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_text_options options;
+        std::string error_message;
+        if (!parse_table_cell_text_options(arguments, 3U, options,
+                                           error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+        if (options.grid_column.has_value()) {
+            print_parse_error(
+                command,
+                "insert-paragraph-after-table does not accept --grid-column",
+                json_output);
+            return 2;
+        }
+
+        std::string paragraph_text;
+        if (!read_text_source(options, paragraph_text, error_message)) {
+            print_parse_error(command, error_message, options.json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        auto inserted_paragraph = table.insert_paragraph_after(paragraph_text);
+        if (!inserted_paragraph.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail = "target table handle is not valid";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to insert paragraph", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        std::optional<std::size_t> inserted_paragraph_index;
+        const auto body_blocks = doc.inspect_body_blocks();
+        for (std::size_t index = 0U; index + 1U < body_blocks.size(); ++index) {
+            if (body_blocks[index].kind == featherdoc::body_block_kind::table &&
+                body_blocks[index].item_index == table_index &&
+                body_blocks[index + 1U].kind ==
+                    featherdoc::body_block_kind::paragraph) {
+                inserted_paragraph_index = body_blocks[index + 1U].item_index;
+                break;
+            }
+        }
+
+        if (!save_document(doc, options.output_path, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, inserted_paragraph_index,
+                 text_length = paragraph_text.size()](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"paragraph_index\":";
+                    if (inserted_paragraph_index.has_value()) {
+                        stream << *inserted_paragraph_index;
+                    } else {
+                        stream << "null";
+                    }
+                    stream << ",\"text_length\":" << text_length;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "remove-table") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 3U) {
+            print_parse_error(command,
+                              "remove-table expects an input path and a table index",
+                              json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 3U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::Table table;
+        if (!resolve_body_table(doc, table_index, table, command,
+                                options.json_output)) {
+            return 1;
+        }
+
+        if (!table.remove()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot remove table index '" + std::to_string(table_index) +
+                "' because its parent would be left without block content";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to remove table", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-table-column-before") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "insert-table-column-before expects an input path, a table index, a row index, and a cell index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::table_cell_inspection_summary inspected_cell{};
+        if (!load_body_table_cell_summary(doc, table_index, row_index, cell_index,
+                                          inspected_cell, command,
+                                          options.json_output)) {
+            return 1;
+        }
+
+        std::vector<featherdoc::table_cell_inspection_summary> inspected_cells;
+        if (!load_body_table_cells_summary(doc, table_index, inspected_cells,
+                                           command, options.json_output)) {
+            return 1;
+        }
+
+        const auto inserted_column_index = inspected_cell.column_index;
+        if (insertion_boundary_intersects_horizontal_merge(inspected_cells,
+                                                           inserted_column_index)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot insert a column before cell index '" +
+                std::to_string(cell_index) + "' at row index '" +
+                std::to_string(row_index) + "' in table index '" +
+                std::to_string(table_index) +
+                "' because the insertion boundary intersects a horizontal merge span";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        auto inserted_cell = cell.insert_cell_before();
+        if (!inserted_cell.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "failed to create a cloned column before the requested cell";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index,
+                 inserted_column_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"inserted_cell_index\":" << cell_index
+                           << ",\"inserted_column_index\":"
+                           << inserted_column_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "insert-table-column-after") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "insert-table-column-after expects an input path, a table index, a row index, and a cell index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::table_cell_inspection_summary inspected_cell{};
+        if (!load_body_table_cell_summary(doc, table_index, row_index, cell_index,
+                                          inspected_cell, command,
+                                          options.json_output)) {
+            return 1;
+        }
+
+        std::vector<featherdoc::table_cell_inspection_summary> inspected_cells;
+        if (!load_body_table_cells_summary(doc, table_index, inspected_cells,
+                                           command, options.json_output)) {
+            return 1;
+        }
+
+        const auto inserted_column_index =
+            inspected_cell.column_index + inspected_cell.column_span;
+        if (insertion_boundary_intersects_horizontal_merge(inspected_cells,
+                                                           inserted_column_index)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot insert a column after cell index '" +
+                std::to_string(cell_index) + "' at row index '" +
+                std::to_string(row_index) + "' in table index '" +
+                std::to_string(table_index) +
+                "' because the insertion boundary intersects a horizontal merge span";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        auto inserted_cell = cell.insert_cell_after();
+        if (!inserted_cell.has_next()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "failed to create a cloned column after the requested cell";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to insert table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index,
+                 inserted_column_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"inserted_cell_index\":" << (cell_index + 1U)
+                           << ",\"inserted_column_index\":"
+                           << inserted_column_index;
+                });
+        }
+
+        return 0;
+    }
+
+    if (command == "remove-table-column") {
+        const auto json_output = has_json_flag(arguments);
+        if (arguments.size() < 5U) {
+            print_parse_error(
+                command,
+                "remove-table-column expects an input path, a table index, a row index, and a cell index",
+                json_output);
+            return 2;
+        }
+
+        std::size_t table_index = 0U;
+        if (!parse_index(arguments[2], table_index)) {
+            print_parse_error(command,
+                              "invalid table index: " +
+                                  std::string(arguments[2]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t row_index = 0U;
+        if (!parse_index(arguments[3], row_index)) {
+            print_parse_error(command,
+                              "invalid row index: " +
+                                  std::string(arguments[3]),
+                              json_output);
+            return 2;
+        }
+
+        std::size_t cell_index = 0U;
+        if (!parse_index(arguments[4], cell_index)) {
+            print_parse_error(command,
+                              "invalid cell index: " +
+                                  std::string(arguments[4]),
+                              json_output);
+            return 2;
+        }
+
+        table_cell_style_options options;
+        std::string error_message;
+        if (!parse_table_cell_style_options(arguments, 5U, options,
+                                            error_message)) {
+            print_parse_error(command, error_message, json_output);
+            return 2;
+        }
+
+        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+                           options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::table_inspection_summary inspected_table{};
+        if (!load_body_table_summary(doc, table_index, inspected_table, command,
+                                     options.json_output)) {
+            return 1;
+        }
+
+        featherdoc::table_cell_inspection_summary inspected_cell{};
+        if (!load_body_table_cell_summary(doc, table_index, row_index, cell_index,
+                                          inspected_cell, command,
+                                          options.json_output)) {
+            return 1;
+        }
+
+        const auto removed_column_index = inspected_cell.column_index;
+        if (inspected_table.column_count <= 1U) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot remove the last column from table index '" +
+                std::to_string(table_index) + "'";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to remove table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        std::vector<featherdoc::table_cell_inspection_summary> inspected_cells;
+        if (!load_body_table_cells_summary(doc, table_index, inspected_cells,
+                                           command, options.json_output)) {
+            return 1;
+        }
+
+        if (column_intersects_horizontal_merge(inspected_cells,
+                                               removed_column_index)) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "cannot remove column index '" +
+                std::to_string(removed_column_index) + "' from table index '" +
+                std::to_string(table_index) +
+                "' because it intersects a horizontal merge span";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to remove table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        featherdoc::TableCell cell;
+        if (!resolve_body_table_cell(doc, table_index, row_index, cell_index, cell,
+                                     command, options.json_output)) {
+            return 1;
+        }
+
+        if (!cell.remove()) {
+            featherdoc::document_error_info error_info{};
+            error_info.code = std::make_error_code(std::errc::invalid_argument);
+            error_info.detail =
+                "failed to remove the requested column from the body table";
+            error_info.entry_name = "word/document.xml";
+            report_operation_failure(command, "mutate",
+                                     "failed to remove table column", error_info,
+                                     options.json_output);
+            return 1;
+        }
+
+        if (!save_document(doc, options.output_path, command, options.json_output)) {
+            return 1;
+        }
+
+        if (options.json_output) {
+            write_json_mutation_result(
+                command, doc, options.output_path,
+                [table_index, row_index, cell_index,
+                 removed_column_index](std::ostream &stream) {
+                    stream << ",\"table_index\":" << table_index
+                           << ",\"row_index\":" << row_index
+                           << ",\"cell_index\":" << cell_index
+                           << ",\"column_index\":" << removed_column_index;
                 });
         }
 
@@ -54542,6 +57534,19 @@ int featherdoc_cli_main(int argc, char **argv) {
                     if (options.has_result_text) {
                         stream << ",\"result_text\":";
                         write_json_string(stream, options.result_text);
+                    }
+                    if (command == "append-table-of-contents-field") {
+                        stream << ",\"min_outline_level\":"
+                               << options.min_outline_level;
+                        stream << ",\"max_outline_level\":"
+                               << options.max_outline_level;
+                        stream << ",\"hyperlinks\":"
+                               << json_bool(options.hyperlinks);
+                        stream << ",\"hide_page_numbers_in_web_layout\":"
+                               << json_bool(
+                                      options.hide_page_numbers_in_web_layout);
+                        stream << ",\"use_outline_levels\":"
+                               << json_bool(options.use_outline_levels);
                     }
                     if (options.has_caption_text) {
                         stream << ",\"caption_text\":";

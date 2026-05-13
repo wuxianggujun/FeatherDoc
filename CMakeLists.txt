@@ -108,6 +108,22 @@ function(featherdoc_copy_runtime_dlls target_name)
                 list(APPEND copy_runtime_dlls_extra "${runtime_dll}")
             endif()
         endforeach()
+        set(copy_runtime_companion_names
+            zlib1.dll
+            bz2.dll
+            brotlicommon.dll
+            brotlidec.dll
+            brotlienc.dll
+        )
+        foreach(runtime_dll IN LISTS copy_runtime_dlls_extra)
+            get_filename_component(runtime_dir "${runtime_dll}" DIRECTORY)
+            foreach(companion_name IN LISTS copy_runtime_companion_names)
+                set(companion_dll "${runtime_dir}/${companion_name}")
+                if(EXISTS "${companion_dll}")
+                    list(APPEND copy_runtime_dlls_extra "${companion_dll}")
+                endif()
+            endforeach()
+        endforeach()
         if(copy_runtime_dlls_extra)
             list(REMOVE_DUPLICATES copy_runtime_dlls_extra)
         endif()
@@ -1079,6 +1095,11 @@ if(BUILD_CLI)
     if(FEATHERDOC_BUILD_PDF AND TARGET FeatherDocPdf)
         target_compile_definitions(featherdoc_cli PRIVATE FEATHERDOC_CLI_ENABLE_PDF=1)
         target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::Pdf)
+    endif()
+    if(FEATHERDOC_BUILD_PDF_IMPORT AND TARGET FeatherDocPdfImport)
+        target_compile_definitions(
+            featherdoc_cli PRIVATE FEATHERDOC_CLI_ENABLE_PDF_IMPORT=1)
+        target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::PdfImport)
     endif()
     featherdoc_copy_runtime_dlls(featherdoc_cli)
 

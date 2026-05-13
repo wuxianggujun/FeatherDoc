@@ -18,6 +18,83 @@ performance.
 - Added PDF repeated-header continuation diagnostics that expose whether a
   matched source header used exact, normalized text, plural variant, canonical
   abbreviation, or token-set word-order matching.
+- Added `featherdoc_cli set-table-width`, `clear-table-width`,
+  `set-table-layout-mode`, and `clear-table-layout-mode` so body-table total
+  width and layout mode can be edited without dropping to the C++ API, including
+  `edit_document_from_plan.ps1` operation support for table width and layout
+  mode edits.
+- Added `featherdoc_cli set-table-alignment`, `clear-table-alignment`,
+  `set-table-indent`, `clear-table-indent`, `set-table-cell-spacing`, and
+  `clear-table-cell-spacing` plus edit-plan operations for body-table placement
+  and spacing metadata.
+- Added `featherdoc_cli set-table-default-cell-margin`,
+  `clear-table-default-cell-margin`, `set-table-border`, and
+  `clear-table-border` plus edit-plan operations for table-level default cell
+  margins and `w:tblBorders` edges.
+- Added `featherdoc_cli set-table-style-id` and `clear-table-style-id` plus
+  edit-plan operations for assigning and removing body-table `w:tblStyle`
+  references.
+- Added `featherdoc_cli set-table-style-look` and `clear-table-style-look` plus
+  edit-plan operations for assigning and removing body-table `w:tblLook`
+  style-routing flags.
+- Added `featherdoc_cli remove-table` and `remove_table` / `delete_table`
+  edit-plan operations for deleting a selected body table.
+- Added `featherdoc_cli insert-table-before` and `insert-table-after` plus
+  edit-plan operations for creating empty sibling body tables around an
+  existing table.
+- Added `featherdoc_cli insert-table-like-before` and
+  `insert-table-like-after` plus edit-plan operations for cloning a selected
+  body table's structure and formatting while clearing copied cell text.
+- Added `featherdoc_cli insert-paragraph-after-table` plus an edit-plan
+  operation for inserting follow-up body paragraphs immediately after a
+  selected table.
+- Added `set_table_position` and `clear_table_position` edit-plan operations
+  that reuse the existing floating table `w:tblpPr` CLI placement controls.
+- Added edit-plan operations for body-table row edits: `append_table_row`,
+  `insert_table_row_before`, `insert_table_row_after`, `remove_table_row`, and
+  `delete_table_row`.
+- Added edit-plan operations for template-part table row edits:
+  `append_template_table_row`, `insert_template_table_row_before`,
+  `insert_template_table_row_after`, `remove_template_table_row`, and
+  `delete_template_table_row`.
+- Added edit-plan operations for template-part table column edits:
+  `insert_template_table_column_before`, `insert_template_table_column_after`,
+  `remove_template_table_column`, and `delete_template_table_column`.
+- Added `set_template_table_cell_text` and
+  `set_template_table_cell_block_texts` edit-plan operations for template-part
+  table cell text updates.
+- Added `set_template_table_row_texts` and `set_template_table_rows_texts`
+  edit-plan operations for contiguous template-part table row text updates.
+- Added `merge_template_table_cells` / `merge_template_table_cell` and
+  `unmerge_template_table_cells` / `unmerge_template_table_cell` edit-plan
+  operations for template-part table cell merge and split workflows.
+- Added `set_template_table_from_json` / `patch_template_table_from_json` and
+  `set_template_tables_from_json` / `patch_template_tables_from_json`
+  edit-plan operations for single-table and batch template-table JSON patches.
+- Added content-control edit-plan operations for text, paragraph, table,
+  table-row, image, form-state, and Custom XML sync workflows by tag or alias.
+- Added bookmark rich-replacement edit-plan operations for full-table
+  replacement, block removal, inline image replacement, floating image
+  replacement, and single or batched block-visibility updates.
+- Added edit-plan operations for body-table column edits:
+  `insert_table_column_before`, `insert_table_column_after`,
+  `remove_table_column`, and `delete_table_column`.
+- Added `set_table_row_cant_split`, `clear_table_row_cant_split`,
+  `set_table_row_repeat_header`, and `clear_table_row_repeat_header`
+  edit-plan operations, with clear-row-height coverage for row layout metadata.
+- Added `set_table_cell_margin`, `clear_table_cell_margin`,
+  `set_table_cell_text_direction`, and `clear_table_cell_text_direction`
+  edit-plan operations for per-cell spacing and text-flow metadata.
+- Added `set_table_cell_width` and `clear_table_cell_width` edit-plan
+  operations, plus regression coverage for clearing direct table-column widths.
+- Expanded edit-plan regression coverage for clearing direct table-cell fill,
+  border, vertical alignment, and horizontal alignment overrides.
+
+### Fixed
+
+- Fixed Windows runtime DLL copying for CLI-oriented test executables so
+  vcpkg FreeType/Harfbuzz companions such as zlib, bzip2, and Brotli DLLs are
+  available without an ad hoc `PATH`.
 
 ## [1.11.0] - 2026-05-12
 

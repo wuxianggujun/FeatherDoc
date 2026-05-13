@@ -2449,6 +2449,29 @@ void create_cli_table_merge_fixture(const fs::path &path) {
     REQUIRE_FALSE(document.save());
 }
 
+void create_cli_table_column_horizontal_merge_fixture(const fs::path &path) {
+    remove_if_exists(path);
+
+    featherdoc::Document document(path);
+    REQUIRE_FALSE(document.create_empty());
+
+    auto table = document.append_table(2, 3);
+    REQUIRE(table.has_next());
+    populate_table_cells(table,
+                         {{"h00", "h01", "h02"},
+                          {"m00", "m01", "m02"}});
+
+    auto row = table.rows();
+    REQUIRE(row.has_next());
+    row.next();
+    REQUIRE(row.has_next());
+    auto cell = row.cells();
+    REQUIRE(cell.has_next());
+    REQUIRE(cell.merge_right(1U));
+
+    REQUIRE_FALSE(document.save());
+}
+
 void create_cli_table_unmerge_right_fixture(const fs::path &path) {
     remove_if_exists(path);
 
@@ -7183,6 +7206,10 @@ TEST_CASE("cli inspect-tables lists body tables in text mode and supports single
         read_text_file(single_output),
         std::string{
             "{\"table\":{\"index\":1,\"style_id\":null,\"width_twips\":null,"
+            "\"alignment\":null,\"indent_twips\":null,"
+            "\"cell_spacing_twips\":null,"
+            "\"cell_margins\":{\"top\":null,\"left\":null,"
+            "\"bottom\":null,\"right\":null},\"borders\":null,"
             "\"position\":null,"
             "\"row_count\":2,\"column_count\":3,"
             "\"column_widths\":[1200,2200,3200],"
@@ -7192,6 +7219,254 @@ TEST_CASE("cli inspect-tables lists body tables in text mode and supports single
     remove_if_exists(source);
     remove_if_exists(inspect_output);
     remove_if_exists(single_output);
+}
+
+TEST_CASE("cli table style id commands set and clear body table style references") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_table_style_id_source.docx";
+    const fs::path styled = working_directory / "cli_table_style_id_styled.docx";
+    const fs::path cleared = working_directory / "cli_table_style_id_cleared.docx";
+    const fs::path set_output =
+        working_directory / "cli_table_style_id_set_output.json";
+    const fs::path clear_output =
+        working_directory / "cli_table_style_id_clear_output.json";
+    const fs::path inspect_output =
+        working_directory / "cli_table_style_id_inspect_output.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_table_style_id_parse_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(styled);
+    remove_if_exists(cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(parse_error_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"set-table-style-id",
+                      source.string(),
+                      "1",
+                      "TableGrid",
+                      "--output",
+                      styled.string(),
+                      "--json"},
+                     set_output),
+             0);
+    CHECK_EQ(
+        read_text_file(set_output),
+        std::string{
+            "{\"command\":\"set-table-style-id\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":1,\"style_id\":\"TableGrid\"}\n"});
+
+    const auto styled_document_xml = read_docx_entry(styled, "word/document.xml");
+    pugi::xml_document styled_xml_document;
+    REQUIRE(styled_xml_document.load_string(styled_document_xml.c_str()));
+    auto table_index = std::size_t{0U};
+    auto styled_table_style = pugi::xml_node{};
+    for (auto table_node :
+         styled_xml_document.child("w:document").child("w:body").children("w:tbl")) {
+        if (table_index == 1U) {
+            styled_table_style =
+                table_node.child("w:tblPr").child("w:tblStyle");
+            break;
+        }
+        ++table_index;
+    }
+    REQUIRE(styled_table_style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{styled_table_style.attribute("w:val").value()},
+             "TableGrid");
+
+    featherdoc::Document reopened_styled(styled);
+    REQUIRE_FALSE(reopened_styled.open());
+    const auto inspected_styled = reopened_styled.inspect_table(1U);
+    REQUIRE(inspected_styled.has_value());
+    REQUIRE(inspected_styled->style_id.has_value());
+    CHECK_EQ(*inspected_styled->style_id, "TableGrid");
+
+    CHECK_EQ(run_cli({"inspect-tables", styled.string(), "--table", "1", "--json"},
+                     inspect_output),
+             0);
+    CHECK_NE(read_text_file(inspect_output).find("\"style_id\":\"TableGrid\""),
+             std::string::npos);
+
+    CHECK_EQ(run_cli({"clear-table-style-id",
+                      styled.string(),
+                      "1",
+                      "--output",
+                      cleared.string(),
+                      "--json"},
+                     clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(clear_output),
+        std::string{
+            "{\"command\":\"clear-table-style-id\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":1}\n"});
+
+    featherdoc::Document reopened_cleared(cleared);
+    REQUIRE_FALSE(reopened_cleared.open());
+    const auto inspected_cleared = reopened_cleared.inspect_table(1U);
+    REQUIRE(inspected_cleared.has_value());
+    CHECK_FALSE(inspected_cleared->style_id.has_value());
+
+    CHECK_EQ(run_cli({"set-table-style-id", source.string(), "x", "TableGrid", "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"set-table-style-id\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"invalid table index: x\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(styled);
+    remove_if_exists(cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(parse_error_output);
+}
+
+TEST_CASE("cli table style look commands set and clear body table style flags") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_table_style_look_source.docx";
+    const fs::path styled = working_directory / "cli_table_style_look_styled.docx";
+    const fs::path cleared = working_directory / "cli_table_style_look_cleared.docx";
+    const fs::path set_output =
+        working_directory / "cli_table_style_look_set_output.json";
+    const fs::path clear_output =
+        working_directory / "cli_table_style_look_clear_output.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_table_style_look_parse_output.json";
+    const fs::path missing_flag_output =
+        working_directory / "cli_table_style_look_missing_flag_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(styled);
+    remove_if_exists(cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(parse_error_output);
+    remove_if_exists(missing_flag_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"set-table-style-look",
+                      source.string(),
+                      "0",
+                      "--first-row",
+                      "false",
+                      "--last-row",
+                      "true",
+                      "--first-column",
+                      "false",
+                      "--last-column",
+                      "true",
+                      "--banded-rows",
+                      "false",
+                      "--banded-columns",
+                      "true",
+                      "--output",
+                      styled.string(),
+                      "--json"},
+                     set_output),
+             0);
+    CHECK_EQ(
+        read_text_file(set_output),
+        std::string{
+            "{\"command\":\"set-table-style-look\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"style_look\":{\"first_row\":false,"
+            "\"last_row\":true,\"first_column\":false,\"last_column\":true,"
+            "\"banded_rows\":false,\"banded_columns\":true}}\n"});
+
+    const auto styled_document_xml = read_docx_entry(styled, "word/document.xml");
+    pugi::xml_document styled_xml_document;
+    REQUIRE(styled_xml_document.load_string(styled_document_xml.c_str()));
+    const auto table_look = styled_xml_document.child("w:document")
+                                .child("w:body")
+                                .child("w:tbl")
+                                .child("w:tblPr")
+                                .child("w:tblLook");
+    REQUIRE(table_look != pugi::xml_node{});
+    CHECK_EQ(std::string_view{table_look.attribute("w:val").value()}, "0340");
+    CHECK_EQ(std::string_view{table_look.attribute("w:firstRow").value()}, "0");
+    CHECK_EQ(std::string_view{table_look.attribute("w:lastRow").value()}, "1");
+    CHECK_EQ(std::string_view{table_look.attribute("w:firstColumn").value()}, "0");
+    CHECK_EQ(std::string_view{table_look.attribute("w:lastColumn").value()}, "1");
+    CHECK_EQ(std::string_view{table_look.attribute("w:noHBand").value()}, "1");
+    CHECK_EQ(std::string_view{table_look.attribute("w:noVBand").value()}, "0");
+
+    featherdoc::Document reopened_styled(styled);
+    REQUIRE_FALSE(reopened_styled.open());
+    auto reopened_styled_table = reopened_styled.tables();
+    REQUIRE(reopened_styled_table.has_next());
+    const auto style_look = reopened_styled_table.style_look();
+    REQUIRE(style_look.has_value());
+    CHECK_FALSE(style_look->first_row);
+    CHECK(style_look->last_row);
+    CHECK_FALSE(style_look->first_column);
+    CHECK(style_look->last_column);
+    CHECK_FALSE(style_look->banded_rows);
+    CHECK(style_look->banded_columns);
+
+    CHECK_EQ(run_cli({"clear-table-style-look",
+                      styled.string(),
+                      "0",
+                      "--output",
+                      cleared.string(),
+                      "--json"},
+                     clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(clear_output),
+        std::string{
+            "{\"command\":\"clear-table-style-look\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0}\n"});
+
+    featherdoc::Document reopened_cleared(cleared);
+    REQUIRE_FALSE(reopened_cleared.open());
+    auto reopened_cleared_table = reopened_cleared.tables();
+    REQUIRE(reopened_cleared_table.has_next());
+    CHECK_FALSE(reopened_cleared_table.style_look().has_value());
+
+    CHECK_EQ(run_cli({"set-table-style-look",
+                      source.string(),
+                      "0",
+                      "--first-row",
+                      "maybe",
+                      "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"set-table-style-look\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"invalid --first-row value: "
+            "maybe\"}\n"});
+
+    CHECK_EQ(run_cli({"set-table-style-look", source.string(), "0", "--json"},
+                     missing_flag_output),
+             2);
+    CHECK_EQ(
+        read_text_file(missing_flag_output),
+        std::string{
+            "{\"command\":\"set-table-style-look\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"set-table-style-look requires "
+            "at least one style-look flag\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(styled);
+    remove_if_exists(cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(parse_error_output);
+    remove_if_exists(missing_flag_output);
 }
 
 TEST_CASE("cli plans table position preset application") {
@@ -14213,6 +14488,722 @@ TEST_CASE("cli table cell width commands set and clear body cell width") {
     remove_if_exists(clear_output);
 }
 
+TEST_CASE("cli table column width commands set and clear body column widths") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_table_column_width_source.docx";
+    const fs::path sized =
+        working_directory / "cli_table_column_width_sized.docx";
+    const fs::path cleared =
+        working_directory / "cli_table_column_width_cleared.docx";
+    const fs::path set_output =
+        working_directory / "cli_table_column_width_set_output.json";
+    const fs::path clear_output =
+        working_directory / "cli_table_column_width_clear_output.json";
+    const fs::path error_output =
+        working_directory / "cli_table_column_width_error_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(sized);
+    remove_if_exists(cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(error_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"set-table-column-width",
+                      source.string(),
+                      "0",
+                      "1",
+                      "2400",
+                      "--output",
+                      sized.string(),
+                      "--json"},
+                     set_output),
+             0);
+    CHECK_EQ(
+        read_text_file(set_output),
+        std::string{
+            "{\"command\":\"set-table-column-width\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"column_index\":1,\"width_twips\":2400}\n"});
+
+    featherdoc::Document reopened_sized(sized);
+    REQUIRE_FALSE(reopened_sized.open());
+    const auto sized_table = reopened_sized.inspect_table(0U);
+    REQUIRE(sized_table.has_value());
+    CHECK_EQ(sized_table->column_count, 2U);
+    REQUIRE(sized_table->column_widths.size() >= 2U);
+    REQUIRE(sized_table->column_widths[0].has_value());
+    REQUIRE(sized_table->column_widths[1].has_value());
+    CHECK_EQ(*sized_table->column_widths[0], 1800U);
+    CHECK_EQ(*sized_table->column_widths[1], 2400U);
+
+    CHECK_EQ(run_cli({"clear-table-column-width",
+                      sized.string(),
+                      "0",
+                      "1",
+                      "--output",
+                      cleared.string(),
+                      "--json"},
+                     clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(clear_output),
+        std::string{
+            "{\"command\":\"clear-table-column-width\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"column_index\":1}\n"});
+
+    featherdoc::Document reopened_cleared(cleared);
+    REQUIRE_FALSE(reopened_cleared.open());
+    const auto cleared_table = reopened_cleared.inspect_table(0U);
+    REQUIRE(cleared_table.has_value());
+    CHECK_EQ(cleared_table->column_count, 2U);
+    REQUIRE(cleared_table->column_widths.size() >= 2U);
+    REQUIRE(cleared_table->column_widths[0].has_value());
+    CHECK_EQ(*cleared_table->column_widths[0], 1800U);
+    CHECK_FALSE(cleared_table->column_widths[1].has_value());
+
+    CHECK_EQ(run_cli({"set-table-column-width",
+                      source.string(),
+                      "0",
+                      "9",
+                      "2400",
+                      "--json"},
+                     error_output),
+             1);
+    const auto error_json = read_text_file(error_output);
+    CHECK_NE(error_json.find("\"command\":\"set-table-column-width\""),
+             std::string::npos);
+    CHECK_NE(error_json.find("\"stage\":\"mutate\""), std::string::npos);
+    CHECK_NE(
+        error_json.find(
+            "\"detail\":\"column index '9' is out of range for table index '0'\""),
+        std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(sized);
+    remove_if_exists(cleared);
+    remove_if_exists(set_output);
+    remove_if_exists(clear_output);
+    remove_if_exists(error_output);
+}
+
+TEST_CASE("cli table geometry commands set and clear body table width and layout mode") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_table_geometry_source.docx";
+    const fs::path width_set =
+        working_directory / "cli_table_geometry_width_set.docx";
+    const fs::path width_cleared =
+        working_directory / "cli_table_geometry_width_cleared.docx";
+    const fs::path layout_set =
+        working_directory / "cli_table_geometry_layout_set.docx";
+    const fs::path layout_cleared =
+        working_directory / "cli_table_geometry_layout_cleared.docx";
+    const fs::path width_set_output =
+        working_directory / "cli_table_geometry_width_set_output.json";
+    const fs::path width_clear_output =
+        working_directory / "cli_table_geometry_width_clear_output.json";
+    const fs::path layout_set_output =
+        working_directory / "cli_table_geometry_layout_set_output.json";
+    const fs::path layout_clear_output =
+        working_directory / "cli_table_geometry_layout_clear_output.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_table_geometry_parse_error_output.json";
+    const fs::path range_error_output =
+        working_directory / "cli_table_geometry_range_error_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(width_set);
+    remove_if_exists(width_cleared);
+    remove_if_exists(layout_set);
+    remove_if_exists(layout_cleared);
+    remove_if_exists(width_set_output);
+    remove_if_exists(width_clear_output);
+    remove_if_exists(layout_set_output);
+    remove_if_exists(layout_clear_output);
+    remove_if_exists(parse_error_output);
+    remove_if_exists(range_error_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"set-table-width",
+                      source.string(),
+                      "0",
+                      "6600",
+                      "--output",
+                      width_set.string(),
+                      "--json"},
+                     width_set_output),
+             0);
+    CHECK_EQ(
+        read_text_file(width_set_output),
+        std::string{
+            "{\"command\":\"set-table-width\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"width_twips\":6600}\n"});
+
+    featherdoc::Document reopened_width_set(width_set);
+    REQUIRE_FALSE(reopened_width_set.open());
+    const auto sized_table = reopened_width_set.inspect_table(0U);
+    REQUIRE(sized_table.has_value());
+    REQUIRE(sized_table->width_twips.has_value());
+    CHECK_EQ(*sized_table->width_twips, 6600U);
+
+    CHECK_EQ(run_cli({"clear-table-width",
+                      width_set.string(),
+                      "0",
+                      "--output",
+                      width_cleared.string(),
+                      "--json"},
+                     width_clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(width_clear_output),
+        std::string{
+            "{\"command\":\"clear-table-width\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0}\n"});
+
+    featherdoc::Document reopened_width_cleared(width_cleared);
+    REQUIRE_FALSE(reopened_width_cleared.open());
+    const auto cleared_width_table = reopened_width_cleared.inspect_table(0U);
+    REQUIRE(cleared_width_table.has_value());
+    CHECK_FALSE(cleared_width_table->width_twips.has_value());
+
+    CHECK_EQ(run_cli({"set-table-layout-mode",
+                      width_cleared.string(),
+                      "0",
+                      "fixed",
+                      "--output",
+                      layout_set.string(),
+                      "--json"},
+                     layout_set_output),
+             0);
+    CHECK_EQ(
+        read_text_file(layout_set_output),
+        std::string{
+            "{\"command\":\"set-table-layout-mode\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"layout_mode\":\"fixed\"}\n"});
+
+    featherdoc::Document reopened_layout_set(layout_set);
+    REQUIRE_FALSE(reopened_layout_set.open());
+    auto layout_table = reopened_layout_set.tables();
+    REQUIRE(layout_table.has_next());
+    REQUIRE(layout_table.layout_mode().has_value());
+    CHECK_EQ(*layout_table.layout_mode(), featherdoc::table_layout_mode::fixed);
+
+    CHECK_EQ(run_cli({"clear-table-layout-mode",
+                      layout_set.string(),
+                      "0",
+                      "--output",
+                      layout_cleared.string(),
+                      "--json"},
+                     layout_clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(layout_clear_output),
+        std::string{
+            "{\"command\":\"clear-table-layout-mode\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0}\n"});
+
+    featherdoc::Document reopened_layout_cleared(layout_cleared);
+    REQUIRE_FALSE(reopened_layout_cleared.open());
+    auto cleared_layout_table = reopened_layout_cleared.tables();
+    REQUIRE(cleared_layout_table.has_next());
+    CHECK_FALSE(cleared_layout_table.layout_mode().has_value());
+
+    CHECK_EQ(run_cli({"set-table-layout-mode",
+                      source.string(),
+                      "0",
+                      "fluid",
+                      "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"set-table-layout-mode\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"invalid table layout mode: fluid\"}\n"});
+
+    CHECK_EQ(
+        run_cli({"clear-table-width", source.string(), "9", "--json"},
+                range_error_output),
+        1);
+    const auto range_error_json = read_text_file(range_error_output);
+    CHECK_NE(range_error_json.find("\"command\":\"clear-table-width\""),
+             std::string::npos);
+    CHECK_NE(range_error_json.find("\"stage\":\"mutate\""), std::string::npos);
+    CHECK_NE(range_error_json.find("\"detail\":\"table index '9' is out of range\""),
+             std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(width_set);
+    remove_if_exists(width_cleared);
+    remove_if_exists(layout_set);
+    remove_if_exists(layout_cleared);
+    remove_if_exists(width_set_output);
+    remove_if_exists(width_clear_output);
+    remove_if_exists(layout_set_output);
+    remove_if_exists(layout_clear_output);
+    remove_if_exists(parse_error_output);
+    remove_if_exists(range_error_output);
+}
+
+TEST_CASE("cli table placement commands set and clear body table metadata") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_table_placement_source.docx";
+    const fs::path aligned =
+        working_directory / "cli_table_placement_aligned.docx";
+    const fs::path alignment_cleared =
+        working_directory / "cli_table_placement_alignment_cleared.docx";
+    const fs::path indented =
+        working_directory / "cli_table_placement_indented.docx";
+    const fs::path indent_cleared =
+        working_directory / "cli_table_placement_indent_cleared.docx";
+    const fs::path spaced =
+        working_directory / "cli_table_placement_spaced.docx";
+    const fs::path spacing_cleared =
+        working_directory / "cli_table_placement_spacing_cleared.docx";
+    const fs::path alignment_output =
+        working_directory / "cli_table_placement_alignment_output.json";
+    const fs::path alignment_clear_output =
+        working_directory / "cli_table_placement_alignment_clear_output.json";
+    const fs::path indent_output =
+        working_directory / "cli_table_placement_indent_output.json";
+    const fs::path indent_clear_output =
+        working_directory / "cli_table_placement_indent_clear_output.json";
+    const fs::path spacing_output =
+        working_directory / "cli_table_placement_spacing_output.json";
+    const fs::path spacing_clear_output =
+        working_directory / "cli_table_placement_spacing_clear_output.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_table_placement_parse_error_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(aligned);
+    remove_if_exists(alignment_cleared);
+    remove_if_exists(indented);
+    remove_if_exists(indent_cleared);
+    remove_if_exists(spaced);
+    remove_if_exists(spacing_cleared);
+    remove_if_exists(alignment_output);
+    remove_if_exists(alignment_clear_output);
+    remove_if_exists(indent_output);
+    remove_if_exists(indent_clear_output);
+    remove_if_exists(spacing_output);
+    remove_if_exists(spacing_clear_output);
+    remove_if_exists(parse_error_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"set-table-alignment",
+                      source.string(),
+                      "0",
+                      "center",
+                      "--output",
+                      aligned.string(),
+                      "--json"},
+                     alignment_output),
+             0);
+    CHECK_EQ(
+        read_text_file(alignment_output),
+        std::string{
+            "{\"command\":\"set-table-alignment\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"alignment\":\"center\"}\n"});
+
+    featherdoc::Document reopened_aligned(aligned);
+    REQUIRE_FALSE(reopened_aligned.open());
+    const auto aligned_table = reopened_aligned.inspect_table(0U);
+    REQUIRE(aligned_table.has_value());
+    REQUIRE(aligned_table->alignment.has_value());
+    CHECK_EQ(*aligned_table->alignment, featherdoc::table_alignment::center);
+
+    CHECK_EQ(run_cli({"clear-table-alignment",
+                      aligned.string(),
+                      "0",
+                      "--output",
+                      alignment_cleared.string(),
+                      "--json"},
+                     alignment_clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(alignment_clear_output),
+        std::string{
+            "{\"command\":\"clear-table-alignment\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0}\n"});
+
+    featherdoc::Document reopened_alignment_cleared(alignment_cleared);
+    REQUIRE_FALSE(reopened_alignment_cleared.open());
+    const auto alignment_cleared_table =
+        reopened_alignment_cleared.inspect_table(0U);
+    REQUIRE(alignment_cleared_table.has_value());
+    CHECK_FALSE(alignment_cleared_table->alignment.has_value());
+
+    CHECK_EQ(run_cli({"set-table-indent",
+                      source.string(),
+                      "0",
+                      "360",
+                      "--output",
+                      indented.string(),
+                      "--json"},
+                     indent_output),
+             0);
+    CHECK_EQ(
+        read_text_file(indent_output),
+        std::string{
+            "{\"command\":\"set-table-indent\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"indent_twips\":360}\n"});
+
+    featherdoc::Document reopened_indented(indented);
+    REQUIRE_FALSE(reopened_indented.open());
+    const auto indented_table = reopened_indented.inspect_table(0U);
+    REQUIRE(indented_table.has_value());
+    REQUIRE(indented_table->indent_twips.has_value());
+    CHECK_EQ(*indented_table->indent_twips, 360U);
+
+    CHECK_EQ(run_cli({"clear-table-indent",
+                      indented.string(),
+                      "0",
+                      "--output",
+                      indent_cleared.string(),
+                      "--json"},
+                     indent_clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(indent_clear_output),
+        std::string{
+            "{\"command\":\"clear-table-indent\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0}\n"});
+
+    featherdoc::Document reopened_indent_cleared(indent_cleared);
+    REQUIRE_FALSE(reopened_indent_cleared.open());
+    const auto indent_cleared_table = reopened_indent_cleared.inspect_table(0U);
+    REQUIRE(indent_cleared_table.has_value());
+    CHECK_FALSE(indent_cleared_table->indent_twips.has_value());
+
+    CHECK_EQ(run_cli({"set-table-cell-spacing",
+                      source.string(),
+                      "0",
+                      "180",
+                      "--output",
+                      spaced.string(),
+                      "--json"},
+                     spacing_output),
+             0);
+    CHECK_EQ(
+        read_text_file(spacing_output),
+        std::string{
+            "{\"command\":\"set-table-cell-spacing\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"cell_spacing_twips\":180}\n"});
+
+    featherdoc::Document reopened_spaced(spaced);
+    REQUIRE_FALSE(reopened_spaced.open());
+    const auto spaced_table = reopened_spaced.inspect_table(0U);
+    REQUIRE(spaced_table.has_value());
+    REQUIRE(spaced_table->cell_spacing_twips.has_value());
+    CHECK_EQ(*spaced_table->cell_spacing_twips, 180U);
+
+    CHECK_EQ(run_cli({"clear-table-cell-spacing",
+                      spaced.string(),
+                      "0",
+                      "--output",
+                      spacing_cleared.string(),
+                      "--json"},
+                     spacing_clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(spacing_clear_output),
+        std::string{
+            "{\"command\":\"clear-table-cell-spacing\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0}\n"});
+
+    featherdoc::Document reopened_spacing_cleared(spacing_cleared);
+    REQUIRE_FALSE(reopened_spacing_cleared.open());
+    const auto spacing_cleared_table =
+        reopened_spacing_cleared.inspect_table(0U);
+    REQUIRE(spacing_cleared_table.has_value());
+    CHECK_FALSE(spacing_cleared_table->cell_spacing_twips.has_value());
+
+    CHECK_EQ(run_cli({"set-table-alignment",
+                      source.string(),
+                      "0",
+                      "middle",
+                      "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"set-table-alignment\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"invalid table alignment: middle\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(aligned);
+    remove_if_exists(alignment_cleared);
+    remove_if_exists(indented);
+    remove_if_exists(indent_cleared);
+    remove_if_exists(spaced);
+    remove_if_exists(spacing_cleared);
+    remove_if_exists(alignment_output);
+    remove_if_exists(alignment_clear_output);
+    remove_if_exists(indent_output);
+    remove_if_exists(indent_clear_output);
+    remove_if_exists(spacing_output);
+    remove_if_exists(spacing_clear_output);
+    remove_if_exists(parse_error_output);
+}
+
+TEST_CASE("cli table default margin and border commands set and clear body table metadata") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_table_default_style_source.docx";
+    const fs::path margined =
+        working_directory / "cli_table_default_style_margined.docx";
+    const fs::path margin_cleared =
+        working_directory / "cli_table_default_style_margin_cleared.docx";
+    const fs::path bordered =
+        working_directory / "cli_table_default_style_bordered.docx";
+    const fs::path border_cleared =
+        working_directory / "cli_table_default_style_border_cleared.docx";
+    const fs::path margin_output =
+        working_directory / "cli_table_default_margin_set_output.json";
+    const fs::path margin_clear_output =
+        working_directory / "cli_table_default_margin_clear_output.json";
+    const fs::path border_output =
+        working_directory / "cli_table_border_set_output.json";
+    const fs::path border_clear_output =
+        working_directory / "cli_table_border_clear_output.json";
+    const fs::path inspect_output =
+        working_directory / "cli_table_default_style_inspect_output.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_table_border_parse_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(margined);
+    remove_if_exists(margin_cleared);
+    remove_if_exists(bordered);
+    remove_if_exists(border_cleared);
+    remove_if_exists(margin_output);
+    remove_if_exists(margin_clear_output);
+    remove_if_exists(border_output);
+    remove_if_exists(border_clear_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(parse_error_output);
+
+    create_cli_table_cell_style_fixture(source);
+
+    CHECK_EQ(run_cli({"set-table-default-cell-margin",
+                      source.string(),
+                      "0",
+                      "left",
+                      "240",
+                      "--output",
+                      margined.string(),
+                      "--json"},
+                     margin_output),
+             0);
+    CHECK_EQ(
+        read_text_file(margin_output),
+        std::string{
+            "{\"command\":\"set-table-default-cell-margin\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"edge\":\"left\",\"margin_twips\":240}\n"});
+
+    const auto margined_document_xml =
+        read_docx_entry(margined, "word/document.xml");
+    pugi::xml_document margined_xml_document;
+    REQUIRE(margined_xml_document.load_string(margined_document_xml.c_str()));
+    const auto table_left_margin =
+        margined_xml_document.child("w:document")
+            .child("w:body")
+            .child("w:tbl")
+            .child("w:tblPr")
+            .child("w:tblCellMar")
+            .child("w:left");
+    REQUIRE(table_left_margin != pugi::xml_node{});
+    CHECK_EQ(std::string_view{table_left_margin.attribute("w:w").value()},
+             "240");
+    CHECK_EQ(std::string_view{table_left_margin.attribute("w:type").value()},
+             "dxa");
+
+    featherdoc::Document reopened_margined(margined);
+    REQUIRE_FALSE(reopened_margined.open());
+    const auto margined_table = reopened_margined.inspect_table(0U);
+    REQUIRE(margined_table.has_value());
+    REQUIRE(margined_table->cell_margin_left_twips.has_value());
+    CHECK_EQ(*margined_table->cell_margin_left_twips, 240U);
+
+    CHECK_EQ(run_cli({"inspect-tables", margined.string(), "--table", "0", "--json"},
+                     inspect_output),
+             0);
+    const auto margined_inspect_json = read_text_file(inspect_output);
+    CHECK_NE(
+        margined_inspect_json.find(
+            "\"cell_margins\":{\"top\":null,\"left\":240,"
+            "\"bottom\":null,\"right\":null}"),
+        std::string::npos);
+
+    CHECK_EQ(run_cli({"clear-table-default-cell-margin",
+                      margined.string(),
+                      "0",
+                      "left",
+                      "--output",
+                      margin_cleared.string(),
+                      "--json"},
+                     margin_clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(margin_clear_output),
+        std::string{
+            "{\"command\":\"clear-table-default-cell-margin\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"edge\":\"left\"}\n"});
+
+    featherdoc::Document reopened_margin_cleared(margin_cleared);
+    REQUIRE_FALSE(reopened_margin_cleared.open());
+    const auto margin_cleared_table =
+        reopened_margin_cleared.inspect_table(0U);
+    REQUIRE(margin_cleared_table.has_value());
+    CHECK_FALSE(margin_cleared_table->cell_margin_left_twips.has_value());
+
+    CHECK_EQ(run_cli({"set-table-border",
+                      source.string(),
+                      "0",
+                      "inside_horizontal",
+                      "--style",
+                      "dashed",
+                      "--size",
+                      "8",
+                      "--color",
+                      "00AA00",
+                      "--space",
+                      "2",
+                      "--output",
+                      bordered.string(),
+                      "--json"},
+                     border_output),
+             0);
+    CHECK_EQ(
+        read_text_file(border_output),
+        std::string{
+            "{\"command\":\"set-table-border\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"edge\":\"inside_horizontal\","
+            "\"style\":\"dashed\",\"size_eighth_points\":8,"
+            "\"color\":\"00AA00\",\"space_points\":2}\n"});
+
+    const auto bordered_document_xml =
+        read_docx_entry(bordered, "word/document.xml");
+    pugi::xml_document bordered_xml_document;
+    REQUIRE(bordered_xml_document.load_string(bordered_document_xml.c_str()));
+    const auto inside_horizontal_border =
+        bordered_xml_document.child("w:document")
+            .child("w:body")
+            .child("w:tbl")
+            .child("w:tblPr")
+            .child("w:tblBorders")
+            .child("w:insideH");
+    REQUIRE(inside_horizontal_border != pugi::xml_node{});
+    CHECK_EQ(std::string_view{inside_horizontal_border.attribute("w:val").value()},
+             "dashed");
+    CHECK_EQ(std::string_view{inside_horizontal_border.attribute("w:sz").value()},
+             "8");
+    CHECK_EQ(
+        std::string_view{inside_horizontal_border.attribute("w:space").value()},
+        "2");
+    CHECK_EQ(
+        std::string_view{inside_horizontal_border.attribute("w:color").value()},
+        "00AA00");
+
+    featherdoc::Document reopened_bordered(bordered);
+    REQUIRE_FALSE(reopened_bordered.open());
+    const auto bordered_table = reopened_bordered.inspect_table(0U);
+    REQUIRE(bordered_table.has_value());
+    REQUIRE(bordered_table->borders.has_value());
+    REQUIRE(bordered_table->borders->inside_horizontal.has_value());
+    CHECK_EQ(bordered_table->borders->inside_horizontal->style,
+             featherdoc::border_style::dashed);
+    CHECK_EQ(bordered_table->borders->inside_horizontal->size_eighth_points,
+             8U);
+    CHECK_EQ(bordered_table->borders->inside_horizontal->color, "00AA00");
+    CHECK_EQ(bordered_table->borders->inside_horizontal->space_points, 2U);
+
+    CHECK_EQ(run_cli({"inspect-tables", bordered.string(), "--table", "0", "--json"},
+                     inspect_output),
+             0);
+    const auto bordered_inspect_json = read_text_file(inspect_output);
+    CHECK_NE(
+        bordered_inspect_json.find(
+            "\"inside_horizontal\":{\"style\":\"dashed\","
+            "\"size_eighth_points\":8,\"color\":\"00AA00\","
+            "\"space_points\":2}"),
+        std::string::npos);
+
+    CHECK_EQ(run_cli({"clear-table-border",
+                      bordered.string(),
+                      "0",
+                      "inside_horizontal",
+                      "--output",
+                      border_cleared.string(),
+                      "--json"},
+                     border_clear_output),
+             0);
+    CHECK_EQ(
+        read_text_file(border_clear_output),
+        std::string{
+            "{\"command\":\"clear-table-border\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"edge\":\"inside_horizontal\"}\n"});
+
+    featherdoc::Document reopened_border_cleared(border_cleared);
+    REQUIRE_FALSE(reopened_border_cleared.open());
+    const auto border_cleared_table =
+        reopened_border_cleared.inspect_table(0U);
+    REQUIRE(border_cleared_table.has_value());
+    CHECK_FALSE(border_cleared_table->borders.has_value());
+
+    CHECK_EQ(run_cli({"set-table-border",
+                      source.string(),
+                      "0",
+                      "diagonal",
+                      "--style",
+                      "single",
+                      "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"set-table-border\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"invalid table border edge: "
+            "diagonal\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(margined);
+    remove_if_exists(margin_cleared);
+    remove_if_exists(bordered);
+    remove_if_exists(border_cleared);
+    remove_if_exists(margin_output);
+    remove_if_exists(margin_clear_output);
+    remove_if_exists(border_output);
+    remove_if_exists(border_clear_output);
+    remove_if_exists(inspect_output);
+    remove_if_exists(parse_error_output);
+}
+
 TEST_CASE("cli table cell margin commands set and clear body cell margins") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =
@@ -15057,6 +16048,637 @@ TEST_CASE("cli remove-table-row removes a body row") {
     remove_if_exists(source);
     remove_if_exists(removed);
     remove_if_exists(output);
+}
+
+TEST_CASE("cli insert-table-before and insert-table-after insert body tables") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_insert_table_source.docx";
+    const fs::path inserted_before =
+        working_directory / "cli_insert_table_before.docx";
+    const fs::path inserted_after =
+        working_directory / "cli_insert_table_after.docx";
+    const fs::path before_output =
+        working_directory / "cli_insert_table_before_output.json";
+    const fs::path after_output =
+        working_directory / "cli_insert_table_after_output.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_insert_table_parse_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(inserted_before);
+    remove_if_exists(inserted_after);
+    remove_if_exists(before_output);
+    remove_if_exists(after_output);
+    remove_if_exists(parse_error_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"insert-table-before",
+                      source.string(),
+                      "1",
+                      "1",
+                      "2",
+                      "--output",
+                      inserted_before.string(),
+                      "--json"},
+                     before_output),
+             0);
+    CHECK_EQ(
+        read_text_file(before_output),
+        std::string{
+            "{\"command\":\"insert-table-before\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":1,\"inserted_table_index\":1,"
+            "\"row_count\":1,\"column_count\":2}\n"});
+
+    featherdoc::Document reopened_before(inserted_before);
+    REQUIRE_FALSE(reopened_before.open());
+    const auto before_tables = reopened_before.inspect_tables();
+    REQUIRE_EQ(before_tables.size(), 3U);
+    CHECK_EQ(before_tables[0].row_count, 2U);
+    CHECK_EQ(before_tables[0].column_count, 2U);
+    CHECK_NE(before_tables[0].text.find("r0c0"), std::string::npos);
+    CHECK_EQ(before_tables[1].row_count, 1U);
+    CHECK_EQ(before_tables[1].column_count, 2U);
+    const auto before_inserted_first_cell =
+        reopened_before.inspect_table_cell(1U, 0U, 0U);
+    REQUIRE(before_inserted_first_cell.has_value());
+    CHECK_EQ(before_inserted_first_cell->text, "");
+    const auto before_inserted_second_cell =
+        reopened_before.inspect_table_cell(1U, 0U, 1U);
+    REQUIRE(before_inserted_second_cell.has_value());
+    CHECK_EQ(before_inserted_second_cell->text, "");
+    CHECK_EQ(before_tables[2].row_count, 2U);
+    CHECK_EQ(before_tables[2].column_count, 3U);
+    CHECK_NE(before_tables[2].text.find("merged-top"), std::string::npos);
+
+    CHECK_EQ(run_cli({"insert-table-after",
+                      source.string(),
+                      "0",
+                      "1",
+                      "3",
+                      "--output",
+                      inserted_after.string(),
+                      "--json"},
+                     after_output),
+             0);
+    CHECK_EQ(
+        read_text_file(after_output),
+        std::string{
+            "{\"command\":\"insert-table-after\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"inserted_table_index\":1,"
+            "\"row_count\":1,\"column_count\":3}\n"});
+
+    featherdoc::Document reopened_after(inserted_after);
+    REQUIRE_FALSE(reopened_after.open());
+    const auto after_tables = reopened_after.inspect_tables();
+    REQUIRE_EQ(after_tables.size(), 3U);
+    CHECK_EQ(after_tables[0].row_count, 2U);
+    CHECK_EQ(after_tables[0].column_count, 2U);
+    CHECK_NE(after_tables[0].text.find("r0c0"), std::string::npos);
+    CHECK_EQ(after_tables[1].row_count, 1U);
+    CHECK_EQ(after_tables[1].column_count, 3U);
+    const auto after_inserted_first_cell =
+        reopened_after.inspect_table_cell(1U, 0U, 0U);
+    REQUIRE(after_inserted_first_cell.has_value());
+    CHECK_EQ(after_inserted_first_cell->text, "");
+    const auto after_inserted_second_cell =
+        reopened_after.inspect_table_cell(1U, 0U, 1U);
+    REQUIRE(after_inserted_second_cell.has_value());
+    CHECK_EQ(after_inserted_second_cell->text, "");
+    const auto after_inserted_third_cell =
+        reopened_after.inspect_table_cell(1U, 0U, 2U);
+    REQUIRE(after_inserted_third_cell.has_value());
+    CHECK_EQ(after_inserted_third_cell->text, "");
+    CHECK_EQ(after_tables[2].row_count, 2U);
+    CHECK_EQ(after_tables[2].column_count, 3U);
+    CHECK_NE(after_tables[2].text.find("merged-top"), std::string::npos);
+
+    CHECK_EQ(run_cli({"insert-table-before",
+                      source.string(),
+                      "0",
+                      "0",
+                      "2",
+                      "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"insert-table-before\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"row count must be greater than "
+            "0\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(inserted_before);
+    remove_if_exists(inserted_after);
+    remove_if_exists(before_output);
+    remove_if_exists(after_output);
+    remove_if_exists(parse_error_output);
+}
+
+TEST_CASE("cli insert-table-like-before and insert-table-like-after clone body tables") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_insert_table_like_source.docx";
+    const fs::path inserted_before =
+        working_directory / "cli_insert_table_like_before.docx";
+    const fs::path inserted_after =
+        working_directory / "cli_insert_table_like_after.docx";
+    const fs::path before_output =
+        working_directory / "cli_insert_table_like_before_output.json";
+    const fs::path after_output =
+        working_directory / "cli_insert_table_like_after_output.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_insert_table_like_parse_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(inserted_before);
+    remove_if_exists(inserted_after);
+    remove_if_exists(before_output);
+    remove_if_exists(after_output);
+    remove_if_exists(parse_error_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"insert-table-like-before",
+                      source.string(),
+                      "1",
+                      "--output",
+                      inserted_before.string(),
+                      "--json"},
+                     before_output),
+             0);
+    CHECK_EQ(
+        read_text_file(before_output),
+        std::string{
+            "{\"command\":\"insert-table-like-before\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":1,\"inserted_table_index\":1}\n"});
+
+    featherdoc::Document reopened_before(inserted_before);
+    REQUIRE_FALSE(reopened_before.open());
+    const auto before_tables = reopened_before.inspect_tables();
+    REQUIRE_EQ(before_tables.size(), 3U);
+    CHECK_NE(before_tables[0].text.find("r0c0"), std::string::npos);
+    CHECK_EQ(before_tables[1].row_count, 2U);
+    CHECK_EQ(before_tables[1].column_count, 3U);
+    REQUIRE_EQ(before_tables[1].column_widths.size(), 3U);
+    REQUIRE(before_tables[1].column_widths[0].has_value());
+    REQUIRE(before_tables[1].column_widths[1].has_value());
+    REQUIRE(before_tables[1].column_widths[2].has_value());
+    CHECK_EQ(*before_tables[1].column_widths[0], 1200U);
+    CHECK_EQ(*before_tables[1].column_widths[1], 2200U);
+    CHECK_EQ(*before_tables[1].column_widths[2], 3200U);
+    CHECK_NE(before_tables[2].text.find("merged-top"), std::string::npos);
+
+    const auto before_cloned_cell =
+        reopened_before.inspect_table_cell(1U, 0U, 0U);
+    REQUIRE(before_cloned_cell.has_value());
+    CHECK_EQ(before_cloned_cell->text, "");
+    CHECK_EQ(before_cloned_cell->column_span, 2U);
+    REQUIRE(before_cloned_cell->vertical_alignment.has_value());
+    CHECK_EQ(*before_cloned_cell->vertical_alignment,
+             featherdoc::cell_vertical_alignment::center);
+    REQUIRE(before_cloned_cell->text_direction.has_value());
+    CHECK_EQ(*before_cloned_cell->text_direction,
+             featherdoc::cell_text_direction::top_to_bottom_right_to_left);
+
+    CHECK_EQ(run_cli({"insert-table-like-after",
+                      source.string(),
+                      "0",
+                      "--output",
+                      inserted_after.string(),
+                      "--json"},
+                     after_output),
+             0);
+    CHECK_EQ(
+        read_text_file(after_output),
+        std::string{
+            "{\"command\":\"insert-table-like-after\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"inserted_table_index\":1}\n"});
+
+    featherdoc::Document reopened_after(inserted_after);
+    REQUIRE_FALSE(reopened_after.open());
+    const auto after_tables = reopened_after.inspect_tables();
+    REQUIRE_EQ(after_tables.size(), 3U);
+    CHECK_NE(after_tables[0].text.find("r0c0"), std::string::npos);
+    CHECK_EQ(after_tables[1].row_count, 2U);
+    CHECK_EQ(after_tables[1].column_count, 2U);
+    REQUIRE(after_tables[1].style_id.has_value());
+    CHECK_EQ(*after_tables[1].style_id, "TableGrid");
+    REQUIRE(after_tables[1].width_twips.has_value());
+    CHECK_EQ(*after_tables[1].width_twips, 7200U);
+    REQUIRE_EQ(after_tables[1].column_widths.size(), 2U);
+    REQUIRE(after_tables[1].column_widths[0].has_value());
+    REQUIRE(after_tables[1].column_widths[1].has_value());
+    CHECK_EQ(*after_tables[1].column_widths[0], 1800U);
+    CHECK_EQ(*after_tables[1].column_widths[1], 5400U);
+    CHECK_NE(after_tables[2].text.find("merged-top"), std::string::npos);
+
+    for (std::size_t row_index = 0U; row_index < 2U; ++row_index) {
+        for (std::size_t cell_index = 0U; cell_index < 2U; ++cell_index) {
+            const auto cell =
+                reopened_after.inspect_table_cell(1U, row_index, cell_index);
+            REQUIRE(cell.has_value());
+            CHECK_EQ(cell->text, "");
+        }
+    }
+
+    CHECK_EQ(run_cli({"insert-table-like-before", source.string(), "x", "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"insert-table-like-before\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"invalid table index: x\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(inserted_before);
+    remove_if_exists(inserted_after);
+    remove_if_exists(before_output);
+    remove_if_exists(after_output);
+    remove_if_exists(parse_error_output);
+}
+
+TEST_CASE("cli insert-paragraph-after-table inserts a body paragraph after a table") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_insert_paragraph_after_table_source.docx";
+    const fs::path inserted =
+        working_directory / "cli_insert_paragraph_after_table_inserted.docx";
+    const fs::path output =
+        working_directory / "cli_insert_paragraph_after_table_output.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_insert_paragraph_after_table_parse_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(output);
+    remove_if_exists(parse_error_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"insert-paragraph-after-table",
+                      source.string(),
+                      "0",
+                      "--text",
+                      "after first table",
+                      "--output",
+                      inserted.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"insert-paragraph-after-table\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"paragraph_index\":1,\"text_length\":17}\n"});
+
+    featherdoc::Document reopened(inserted);
+    REQUIRE_FALSE(reopened.open());
+    const auto tables = reopened.inspect_tables();
+    REQUIRE_EQ(tables.size(), 2U);
+    CHECK_NE(tables[0].text.find("r0c0"), std::string::npos);
+    CHECK_NE(tables[1].text.find("merged-top"), std::string::npos);
+
+    const auto body_blocks = reopened.inspect_body_blocks();
+    const auto table_block = std::find_if(
+        body_blocks.begin(), body_blocks.end(), [](const auto &block) {
+            return block.kind == featherdoc::body_block_kind::table &&
+                   block.item_index == 0U;
+        });
+    REQUIRE(table_block != body_blocks.end());
+    REQUIRE(std::next(table_block) != body_blocks.end());
+    CHECK_EQ(std::next(table_block)->kind,
+             featherdoc::body_block_kind::paragraph);
+
+    const auto paragraph =
+        reopened.inspect_paragraph(std::next(table_block)->item_index);
+    REQUIRE(paragraph.has_value());
+    CHECK_EQ(paragraph->text, "after first table");
+
+    CHECK_EQ(run_cli({"insert-paragraph-after-table",
+                      source.string(),
+                      "x",
+                      "--text",
+                      "after",
+                      "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"insert-paragraph-after-table\",\"ok\":false,"
+            "\"stage\":\"parse\",\"message\":\"invalid table index: x\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(inserted);
+    remove_if_exists(output);
+    remove_if_exists(parse_error_output);
+}
+
+TEST_CASE("cli remove-table removes a body table") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source = working_directory / "cli_remove_table_source.docx";
+    const fs::path removed = working_directory / "cli_remove_table_removed.docx";
+    const fs::path output = working_directory / "cli_remove_table_output.json";
+    const fs::path parse_error_output =
+        working_directory / "cli_remove_table_parse_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(removed);
+    remove_if_exists(output);
+    remove_if_exists(parse_error_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"remove-table",
+                      source.string(),
+                      "0",
+                      "--output",
+                      removed.string(),
+                      "--json"},
+                     output),
+             0);
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"command\":\"remove-table\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0}\n"});
+
+    featherdoc::Document reopened(removed);
+    REQUIRE_FALSE(reopened.open());
+
+    const auto tables = reopened.inspect_tables();
+    REQUIRE_EQ(tables.size(), 1U);
+    CHECK_EQ(tables[0].row_count, 2U);
+    CHECK_EQ(tables[0].column_count, 3U);
+    CHECK_NE(tables[0].text.find("merged-top"), std::string::npos);
+
+    CHECK_EQ(run_cli({"remove-table", source.string(), "x", "--json"},
+                     parse_error_output),
+             2);
+    CHECK_EQ(
+        read_text_file(parse_error_output),
+        std::string{
+            "{\"command\":\"remove-table\",\"ok\":false,\"stage\":\"parse\","
+            "\"message\":\"invalid table index: x\"}\n"});
+
+    remove_if_exists(source);
+    remove_if_exists(removed);
+    remove_if_exists(output);
+    remove_if_exists(parse_error_output);
+}
+
+TEST_CASE("cli table column commands insert and remove body columns") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_table_column_source.docx";
+    const fs::path inserted_before =
+        working_directory / "cli_table_column_before.docx";
+    const fs::path inserted_after =
+        working_directory / "cli_table_column_after.docx";
+    const fs::path removed =
+        working_directory / "cli_table_column_removed.docx";
+    const fs::path before_output =
+        working_directory / "cli_table_column_before_output.json";
+    const fs::path after_output =
+        working_directory / "cli_table_column_after_output.json";
+    const fs::path remove_output =
+        working_directory / "cli_table_column_remove_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(inserted_before);
+    remove_if_exists(inserted_after);
+    remove_if_exists(removed);
+    remove_if_exists(before_output);
+    remove_if_exists(after_output);
+    remove_if_exists(remove_output);
+
+    create_cli_table_inspection_fixture(source);
+
+    CHECK_EQ(run_cli({"insert-table-column-before",
+                      source.string(),
+                      "0",
+                      "0",
+                      "1",
+                      "--output",
+                      inserted_before.string(),
+                      "--json"},
+                     before_output),
+             0);
+    CHECK_EQ(
+        read_text_file(before_output),
+        std::string{
+            "{\"command\":\"insert-table-column-before\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"row_index\":0,\"cell_index\":1,"
+            "\"inserted_cell_index\":1,\"inserted_column_index\":1}\n"});
+
+    featherdoc::Document reopened_before(inserted_before);
+    REQUIRE_FALSE(reopened_before.open());
+    const auto before_table = reopened_before.inspect_table(0U);
+    REQUIRE(before_table.has_value());
+    CHECK_EQ(before_table->row_count, 2U);
+    CHECK_EQ(before_table->column_count, 3U);
+    REQUIRE(before_table->column_widths.size() >= 3U);
+    REQUIRE(before_table->column_widths[0].has_value());
+    REQUIRE(before_table->column_widths[1].has_value());
+    REQUIRE(before_table->column_widths[2].has_value());
+    CHECK_EQ(*before_table->column_widths[0], 1800U);
+    CHECK_EQ(*before_table->column_widths[1], 5400U);
+    CHECK_EQ(*before_table->column_widths[2], 5400U);
+    const auto before_inserted_header =
+        reopened_before.inspect_table_cell(0U, 0U, 1U);
+    REQUIRE(before_inserted_header.has_value());
+    CHECK_EQ(before_inserted_header->text, "");
+    const auto before_shifted_header =
+        reopened_before.inspect_table_cell(0U, 0U, 2U);
+    REQUIRE(before_shifted_header.has_value());
+    CHECK_EQ(before_shifted_header->text, "r0c1");
+    const auto before_inserted_body =
+        reopened_before.inspect_table_cell(0U, 1U, 1U);
+    REQUIRE(before_inserted_body.has_value());
+    CHECK_EQ(before_inserted_body->text, "");
+
+    CHECK_EQ(run_cli({"insert-table-column-after",
+                      source.string(),
+                      "0",
+                      "0",
+                      "0",
+                      "--output",
+                      inserted_after.string(),
+                      "--json"},
+                     after_output),
+             0);
+    CHECK_EQ(
+        read_text_file(after_output),
+        std::string{
+            "{\"command\":\"insert-table-column-after\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"row_index\":0,\"cell_index\":0,"
+            "\"inserted_cell_index\":1,\"inserted_column_index\":1}\n"});
+
+    featherdoc::Document reopened_after(inserted_after);
+    REQUIRE_FALSE(reopened_after.open());
+    const auto after_table = reopened_after.inspect_table(0U);
+    REQUIRE(after_table.has_value());
+    CHECK_EQ(after_table->row_count, 2U);
+    CHECK_EQ(after_table->column_count, 3U);
+    REQUIRE(after_table->column_widths.size() >= 3U);
+    REQUIRE(after_table->column_widths[0].has_value());
+    REQUIRE(after_table->column_widths[1].has_value());
+    REQUIRE(after_table->column_widths[2].has_value());
+    CHECK_EQ(*after_table->column_widths[0], 1800U);
+    CHECK_EQ(*after_table->column_widths[1], 1800U);
+    CHECK_EQ(*after_table->column_widths[2], 5400U);
+    const auto after_inserted_header =
+        reopened_after.inspect_table_cell(0U, 0U, 1U);
+    REQUIRE(after_inserted_header.has_value());
+    CHECK_EQ(after_inserted_header->text, "");
+    const auto after_shifted_header =
+        reopened_after.inspect_table_cell(0U, 0U, 2U);
+    REQUIRE(after_shifted_header.has_value());
+    CHECK_EQ(after_shifted_header->text, "r0c1");
+
+    CHECK_EQ(run_cli({"remove-table-column",
+                      source.string(),
+                      "0",
+                      "0",
+                      "0",
+                      "--output",
+                      removed.string(),
+                      "--json"},
+                     remove_output),
+             0);
+    CHECK_EQ(
+        read_text_file(remove_output),
+        std::string{
+            "{\"command\":\"remove-table-column\",\"ok\":true,"
+            "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
+            "\"table_index\":0,\"row_index\":0,\"cell_index\":0,"
+            "\"column_index\":0}\n"});
+
+    featherdoc::Document reopened_removed(removed);
+    REQUIRE_FALSE(reopened_removed.open());
+    const auto removed_table = reopened_removed.inspect_table(0U);
+    REQUIRE(removed_table.has_value());
+    CHECK_EQ(removed_table->row_count, 2U);
+    CHECK_EQ(removed_table->column_count, 1U);
+    const auto removed_header = reopened_removed.inspect_table_cell(0U, 0U, 0U);
+    REQUIRE(removed_header.has_value());
+    CHECK_EQ(removed_header->text, "r0c1");
+    const auto removed_body = reopened_removed.inspect_table_cell(0U, 1U, 0U);
+    REQUIRE(removed_body.has_value());
+    CHECK_EQ(removed_body->text, "r1c1");
+
+    remove_if_exists(source);
+    remove_if_exists(inserted_before);
+    remove_if_exists(inserted_after);
+    remove_if_exists(removed);
+    remove_if_exists(before_output);
+    remove_if_exists(after_output);
+    remove_if_exists(remove_output);
+}
+
+TEST_CASE("cli table column commands report merge and last-column errors") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path merged_source =
+        working_directory / "cli_table_column_merge_error_source.docx";
+    const fs::path single_column_source =
+        working_directory / "cli_table_column_single_error_source.docx";
+    const fs::path insert_error_output =
+        working_directory / "cli_table_column_insert_error.json";
+    const fs::path remove_merge_error_output =
+        working_directory / "cli_table_column_remove_merge_error.json";
+    const fs::path remove_last_error_output =
+        working_directory / "cli_table_column_remove_last_error.json";
+
+    remove_if_exists(merged_source);
+    remove_if_exists(single_column_source);
+    remove_if_exists(insert_error_output);
+    remove_if_exists(remove_merge_error_output);
+    remove_if_exists(remove_last_error_output);
+
+    create_cli_table_column_horizontal_merge_fixture(merged_source);
+
+    CHECK_EQ(run_cli({"insert-table-column-before",
+                      merged_source.string(),
+                      "0",
+                      "0",
+                      "1",
+                      "--json"},
+                     insert_error_output),
+             1);
+    const auto insert_error_json = read_text_file(insert_error_output);
+    CHECK_NE(insert_error_json.find("\"command\":\"insert-table-column-before\""),
+             std::string::npos);
+    CHECK_NE(insert_error_json.find("\"stage\":\"mutate\""), std::string::npos);
+    CHECK_NE(
+        insert_error_json.find(
+            "\"detail\":\"cannot insert a column before cell index '1' at row "
+            "index '0' in table index '0' because the insertion boundary "
+            "intersects a horizontal merge span\""),
+        std::string::npos);
+
+    CHECK_EQ(run_cli({"remove-table-column",
+                      merged_source.string(),
+                      "0",
+                      "0",
+                      "0",
+                      "--json"},
+                     remove_merge_error_output),
+             1);
+    const auto remove_merge_error_json =
+        read_text_file(remove_merge_error_output);
+    CHECK_NE(remove_merge_error_json.find("\"command\":\"remove-table-column\""),
+             std::string::npos);
+    CHECK_NE(remove_merge_error_json.find("\"stage\":\"mutate\""),
+             std::string::npos);
+    CHECK_NE(
+        remove_merge_error_json.find(
+            "\"detail\":\"cannot remove column index '0' from table index '0' "
+            "because it intersects a horizontal merge span\""),
+        std::string::npos);
+
+    featherdoc::Document single_column_document(single_column_source);
+    REQUIRE_FALSE(single_column_document.create_empty());
+    auto single_column_table = single_column_document.append_table(2, 1);
+    REQUIRE(single_column_table.has_next());
+    populate_table_cells(single_column_table, {{"only-header"}, {"only-body"}});
+    REQUIRE_FALSE(single_column_document.save());
+
+    CHECK_EQ(run_cli({"remove-table-column",
+                      single_column_source.string(),
+                      "0",
+                      "0",
+                      "0",
+                      "--json"},
+                     remove_last_error_output),
+             1);
+    const auto remove_last_error_json =
+        read_text_file(remove_last_error_output);
+    CHECK_NE(remove_last_error_json.find("\"command\":\"remove-table-column\""),
+             std::string::npos);
+    CHECK_NE(remove_last_error_json.find("\"stage\":\"mutate\""),
+             std::string::npos);
+    CHECK_NE(
+        remove_last_error_json.find(
+            "\"detail\":\"cannot remove the last column from table index '0'\""),
+        std::string::npos);
+
+    remove_if_exists(merged_source);
+    remove_if_exists(single_column_source);
+    remove_if_exists(insert_error_output);
+    remove_if_exists(remove_merge_error_output);
+    remove_if_exists(remove_last_error_output);
 }
 
 TEST_CASE("cli table row structure commands report parse and mutate errors") {
@@ -26263,6 +27885,72 @@ TEST_CASE("cli append total pages field materializes a missing section footer") 
     const auto footer_xml = read_docx_entry(updated, footer_entry_name.c_str());
     CHECK_NE(footer_xml.find("w:fldSimple"), std::string::npos);
     CHECK_NE(footer_xml.find("w:instr=\" NUMPAGES \""), std::string::npos);
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+}
+
+TEST_CASE("cli append table of contents field updates body") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path source =
+        working_directory / "cli_append_toc_field_source.docx";
+    const fs::path updated =
+        working_directory / "cli_append_toc_field_updated.docx";
+    const fs::path output =
+        working_directory / "cli_append_toc_field_output.json";
+
+    remove_if_exists(source);
+    remove_if_exists(updated);
+    remove_if_exists(output);
+
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"append-table-of-contents-field",
+                      source.string(),
+                      "--part",
+                      "body",
+                      "--min-outline-level",
+                      "1",
+                      "--max-outline-level",
+                      "2",
+                      "--no-hyperlinks",
+                      "--show-page-numbers-in-web-layout",
+                      "--no-outline-levels",
+                      "--result-text",
+                      "TOC placeholder",
+                      "--dirty",
+                      "--locked",
+                      "--output",
+                      updated.string(),
+                      "--json"},
+                     output),
+             0);
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"command\":\"append-table-of-contents-field\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"field\":\"table_of_contents\""),
+             std::string::npos);
+    CHECK_NE(json.find("\"min_outline_level\":1"), std::string::npos);
+    CHECK_NE(json.find("\"max_outline_level\":2"), std::string::npos);
+    CHECK_NE(json.find("\"hyperlinks\":false"), std::string::npos);
+    CHECK_NE(json.find("\"hide_page_numbers_in_web_layout\":false"),
+             std::string::npos);
+    CHECK_NE(json.find("\"use_outline_levels\":false"), std::string::npos);
+    CHECK_NE(json.find("\"result_text\":\"TOC placeholder\""),
+             std::string::npos);
+
+    const auto document_xml = read_docx_entry(updated, "word/document.xml");
+    CHECK_NE(document_xml.find("TOC \\o &quot;1-2&quot;"), std::string::npos);
+    CHECK_EQ(document_xml.find("TOC \\o &quot;1-2&quot; \\h"),
+             std::string::npos);
+    CHECK_EQ(document_xml.find("TOC \\o &quot;1-2&quot; \\z"),
+             std::string::npos);
+    CHECK_EQ(document_xml.find("TOC \\o &quot;1-2&quot; \\u"),
+             std::string::npos);
+    CHECK_NE(document_xml.find("TOC placeholder"), std::string::npos);
+    CHECK_NE(document_xml.find("w:dirty=\"true\""), std::string::npos);
+    CHECK_NE(document_xml.find("w:fldLock=\"true\""), std::string::npos);
 
     remove_if_exists(source);
     remove_if_exists(updated);
