@@ -407,7 +407,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_pdf_visual_release_gate.p
 - `pdf_cli_export`
 - `pdf_regression_`
 - `pdf_unicode_font_roundtrip_visual`
-- 核心样本的 PNG baseline 渲染
+- 核心样本的 PNG baseline 渲染，其中包含 `styled-text`、`mixed-style-text`、
+  `underline-text`、`document-contract-cjk-style` 和
+  `document-eastasia-style-probe` 这组样式视觉样本
 - 聚合 contact sheet 生成
 
 主要产物会落到：

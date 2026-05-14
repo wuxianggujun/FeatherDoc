@@ -148,7 +148,8 @@ function Render-PdfSample {
         [string]$SampleName,
         [string]$InputPdf,
         [string]$SampleOutputDir,
-        [int]$ExpectedPageCount = 0
+        [int]$ExpectedPageCount = 0,
+        [string[]]$StyleFocus = @()
     )
 
     New-Item -ItemType Directory -Path $SampleOutputDir -Force | Out-Null
@@ -188,6 +189,7 @@ function Render-PdfSample {
         pdf_path = $InputPdf
         page_count = $summary.page_count
         expected_page_count = if ($ExpectedPageCount -gt 0) { $ExpectedPageCount } else { $null }
+        style_focus = @($StyleFocus)
         bytes = (Get-Item $InputPdf).Length
         pages_dir = $pagesDir
         first_page = $page1
@@ -242,10 +244,39 @@ $renderPython = Get-RenderPython -RepoRoot $repoRoot
 
 $samples = @(
     [ordered]@{
+        name = "styled-text"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-styled-text.pdf"
+        output = Join-Path $baselineDir "styled-text"
+        expected_pages = 1
+        style_focus = @("font-size", "color", "bold-italic", "underline")
+    },
+    [ordered]@{
+        name = "mixed-style-text"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-mixed-style-text.pdf"
+        output = Join-Path $baselineDir "mixed-style-text"
+        expected_pages = 1
+        style_focus = @("plain", "bold", "italic", "bold-italic-underline")
+    },
+    [ordered]@{
+        name = "underline-text"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-underline-text.pdf"
+        output = Join-Path $baselineDir "underline-text"
+        expected_pages = 1
+        style_focus = @("underline", "bold-underline", "italic-underline")
+    },
+    [ordered]@{
         name = "document-contract-cjk-style"
         pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-contract-cjk-style.pdf"
         output = Join-Path $baselineDir "document-contract-cjk-style"
         expected_pages = 1
+        style_focus = @("document-style-inheritance", "cjk-font-mapping", "bold", "color", "underline-signature")
+    },
+    [ordered]@{
+        name = "document-eastasia-style-probe"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-eastasia-style-probe.pdf"
+        output = Join-Path $baselineDir "document-eastasia-style-probe"
+        expected_pages = 1
+        style_focus = @("east-asia-font-mapping", "cjk-color", "bold-italic", "underline")
     },
     [ordered]@{
         name = "document-invoice-table-text"
@@ -278,6 +309,10 @@ foreach ($sample in $samples) {
     if (-not (Test-Path $sample.pdf)) {
         throw "Expected PDF sample not found: $($sample.pdf)"
     }
+    $styleFocus = @()
+    if ($sample.Contains("style_focus")) {
+        $styleFocus = @($sample.style_focus)
+    }
     $renderedSamples.Add(
         (Render-PdfSample `
             -Python $renderPython `
@@ -285,7 +320,8 @@ foreach ($sample in $samples) {
             -SampleName $sample.name `
             -InputPdf $sample.pdf `
             -SampleOutputDir $sample.output `
-            -ExpectedPageCount $sample.expected_pages)
+            -ExpectedPageCount $sample.expected_pages `
+            -StyleFocus $styleFocus)
     ) | Out-Null
 }
 

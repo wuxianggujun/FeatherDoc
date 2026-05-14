@@ -210,11 +210,13 @@ Phase 1 的重点是：
 - [x] PDFio backend 在 content stream 里展开标准字体粗斜体、字号、颜色和下划线
 - [x] 给 PDF document adapter / writer 加样式 sample 和 `pdf_document_adapter_font`
       回归
-- [ ] 补合同级样式视觉 baseline，把粗体 / 斜体 / 字号 / 颜色 / 下划线纳入发布门禁
+- [x] 补合同级样式视觉 baseline，把粗体 / 斜体 / 字号 / 颜色 / 下划线纳入
+      `run_pdf_visual_release_gate.ps1` 的核心 PNG 渲染和聚合 contact sheet
 - [ ] 明确非标准字体缺少 bold / italic 变体时的质量策略
 
 **验收**：基础段落和表格单元格的粗体 / 斜体 / 字号 / 颜色 / 下划线已有专项
-CTest 覆盖；发布级验收仍需补合同 sample 的视觉 baseline。
+CTest 覆盖；发布级视觉门禁已覆盖合同样式和样式矩阵样本，剩余是非标准字体
+bold / italic 变体质量策略。
 
 ### 优先级 4：HarfBuzz 文字塑形（约 1 个月）
 

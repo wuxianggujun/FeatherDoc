@@ -2557,6 +2557,29 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   优先推进发布级视觉门禁或 HarfBuzz 文字塑形；如果继续补样式相关能力，应先补
   合同 sample 的视觉 baseline，而不是重复扩展已存在的 `PdfTextRun` 字段。
 
+2026-05-15 继续推进（样式视觉 baseline 门禁）：
+
+- 已把 `run_pdf_visual_release_gate.ps1` 的核心 PNG baseline 渲染从“合同、发票、
+  长文档、图片语义、CLI font-map”扩展到样式专用样本：
+  `styled-text`、`mixed-style-text`、`underline-text`、
+  `document-contract-cjk-style` 和 `document-eastasia-style-probe`。
+- 已给每个样式视觉样本补 `style_focus` 摘要，发布门禁的 `summary.json` 可以直接标出
+  当前 contact sheet 需要人工关注的字号、颜色、粗斜体、下划线、CJK 字体映射和
+  文档样式继承点。
+- 已新增 `pdf_visual_release_gate_style_baselines` 轻量回归，静态解析
+  `run_pdf_visual_release_gate.ps1` 并断言样式样本和 `style_focus` 标记不会被误删。
+- 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md`，把合同级样式视觉 baseline
+  从“待补”推进到“已纳入 PDF 视觉发布门禁”。
+- 已完成验证：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test/pdf_visual_release_gate_style_baselines_test.ps1 -RepoRoot . -WorkingDir .bpdf-roundtrip-msvc/pdf_visual_release_gate_style_baselines`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_visual_release_gate_style_baselines|pdf_regression_(styled|mixed|underline|document-contract|document-eastasia)|pdf_document_adapter_font|pdf_regression_manifest" --output-on-failure --timeout 60`
+  通过 8/8；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-style-visual-release-gate -SkipUnicodeBaseline`
+  通过，并生成 `output/pdf-style-visual-release-gate/report/aggregate-contact-sheet.png`。
+- 下一阶段入口保留：
+  非标准字体缺少 bold / italic 变体时的质量策略，或继续进入 HarfBuzz 文字塑形。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
