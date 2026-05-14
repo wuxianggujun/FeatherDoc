@@ -462,6 +462,43 @@ write_irregular_width_header_table_pdf(std::string_view filename) {
 }
 
 [[nodiscard]] inline std::filesystem::path
+write_borderless_irregular_width_header_table_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc borderless irregular-width table PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 724.0, "Borderless irregular width table sample"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 660.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(178.0, 660.0, "Description"));
+    page.text_runs.push_back(make_pdf_text_run(388.0, 660.0, "Amount"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 630.0, "SKU-11"));
+    page.text_runs.push_back(make_pdf_text_run(178.0, 630.0, "Document import"));
+    page.text_runs.push_back(make_pdf_text_run(388.0, 630.0, "USD 420"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 600.0, "SKU-12"));
+    page.text_runs.push_back(make_pdf_text_run(178.0, 600.0, "Visual evidence"));
+    page.text_runs.push_back(make_pdf_text_run(388.0, 600.0, "USD 260"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 570.0, "Total"));
+    page.text_runs.push_back(make_pdf_text_run(178.0, 570.0, "Import batch 77"));
+    page.text_runs.push_back(make_pdf_text_run(388.0, 570.0, "USD 680"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 518.0, "Tail paragraph after borderless irregular width table"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
 write_two_column_short_label_prose_pdf(std::string_view filename) {
     featherdoc::pdf::PdfDocumentLayout layout;
     layout.metadata.title =

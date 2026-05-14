@@ -1785,6 +1785,34 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   更复杂的嵌套合并、缺失线条的多列表格、扫描件和 OCR 场景。
 
+2026-05-14 继续推进（缺失线条的多列表格）：
+
+- 已补充无网格线的 3 列不规则列宽表格样本：
+  `featherdoc-pdf-import-borderless-irregular-width-table.pdf` 只包含表头和数据文本，
+  不绘制任何表格线，用于覆盖“缺失装饰线条的多列表格”入口。
+- 已补 parser 和 importer 回归：
+  parser 断言该样本仍产生 1 个 4 行 x 3 列 `PdfParsedTableCandidate`，并保持
+  `paragraph / table / paragraph` 块顺序；importer 断言显式 opt-in 后写入真实
+  `Document` 表格，保存重开后行列数和关键文本仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-borderless-irregular-width-table-import-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-borderless-irregular-width-table-import-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-borderless-irregular-width-table-import-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  本轮只覆盖规则行距、列数完整、表头明确且数据特征明显的无线条多列表格；
+  缺列、跨列表头、自由表单、扫描/OCR 和需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、跨列表头、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
