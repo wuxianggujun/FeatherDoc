@@ -303,6 +303,8 @@ subtotal / total 跨列行存在都不会绕过该版面边界。即使两页仍
 单个空格、中间双空格、有完整相邻行支撑的金额-only 表体行，以及只依赖重复表头和
 汇总行支撑列锚的孤立金额-only 表体行，仍可跨页续接；这不等同于支持局部列错位、
 孤立自由表单或任意稀疏表。
+整张表一致的不规则列宽可以被识别；每行列位置各自漂移的自由表单文本会保守保留为
+段落，即使启用 `import_table_candidates_as_tables` 也不会写入表格。
 跨页表格合并默认维持原有启发式；如果调用方更担心误合并，可以设置
 `PdfDocumentImportOptions::min_table_continuation_confidence`，把低于阈值的候选保留为
 独立表格，同时从 `table_continuation_diagnostics` 读取实际 confidence 和 blocker。

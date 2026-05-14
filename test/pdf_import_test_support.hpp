@@ -654,6 +654,38 @@ write_two_row_three_column_prose_pdf(std::string_view filename) {
 }
 
 [[nodiscard]] inline std::filesystem::path
+write_free_form_column_drift_prose_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc free-form column drift prose PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Free-form column drift sample"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 678.0, "Topic"));
+    page.text_runs.push_back(make_pdf_text_run(218.0, 678.0, "Owner"));
+    page.text_runs.push_back(make_pdf_text_run(350.0, 678.0, "Status"));
+    page.text_runs.push_back(make_pdf_text_run(118.0, 646.0, "Scope"));
+    page.text_runs.push_back(make_pdf_text_run(278.0, 646.0, "Review"));
+    page.text_runs.push_back(make_pdf_text_run(430.0, 646.0, "Open"));
+    page.text_runs.push_back(make_pdf_text_run(74.0, 614.0, "Evidence"));
+    page.text_runs.push_back(make_pdf_text_run(254.0, 614.0, "Imported"));
+    page.text_runs.push_back(make_pdf_text_run(506.0, 614.0, "Closed"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
 write_table_first_pdf(std::string_view filename) {
     featherdoc::pdf::PdfDocumentLayout layout;
     layout.metadata.title = "FeatherDoc table-first PDF import structure";

@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <numeric>
 
 TEST_CASE("PDFium parser detects sparse table-like grid candidates") {
     const auto output_path =
@@ -264,6 +265,31 @@ TEST_CASE("PDFium parser does not classify two-row three-column prose as table c
 
     const auto &page = parse_result.document.pages.front();
     CHECK(page.table_candidates.empty());
+}
+
+TEST_CASE("PDFium parser does not classify free-form column drift prose as table candidate") {
+    const auto output_path =
+        featherdoc::test_support::write_free_form_column_drift_prose_pdf(
+            "featherdoc-pdf-import-free-form-column-drift-prose.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    CHECK(page.table_candidates.empty());
+    REQUIRE_GE(page.paragraphs.size(), 2U);
+    const auto combined_text =
+        std::accumulate(page.paragraphs.begin(), page.paragraphs.end(),
+                        std::string{}, [](std::string text,
+                                           const auto &paragraph) {
+                            text += paragraph.text;
+                            text.push_back('\n');
+                            return text;
+                        });
+    CHECK(featherdoc::test_support::contains_text(combined_text, "Topic"));
+    CHECK(featherdoc::test_support::contains_text(combined_text, "Closed"));
 }
 
 TEST_CASE("PDFium parser does not classify two-column short-label prose as table candidate") {
@@ -1116,6 +1142,51 @@ TEST_CASE("PDF text importer can opt in to table candidate import") {
     CHECK_EQ(reopened_table->text, "Cell A1\t\t\n\tCell B2\t\n\t\tCell C3");
 
     // 保留该样本的导入 DOCX，供 E7 视觉验证复用；后续同名回归会覆盖它。
+}
+
+TEST_CASE("PDF text importer keeps free-form column drift prose as paragraphs") {
+    const auto input_path =
+        featherdoc::test_support::write_free_form_column_drift_prose_pdf(
+            "featherdoc-pdf-import-free-form-column-drift-prose-import.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-free-form-column-drift-prose.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.tables_imported, 0U);
+    CHECK_GE(import_result.paragraphs_imported, 2U);
+    CHECK_FALSE(document.inspect_table(0U).has_value());
+
+    const auto text = featherdoc::test_support::collect_document_text(document);
+    CHECK(featherdoc::test_support::contains_text(
+        text, "Free-form column drift sample"));
+    CHECK(featherdoc::test_support::contains_text(text, "Topic"));
+    CHECK(featherdoc::test_support::contains_text(text, "Closed"));
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    CHECK_FALSE(reopened.inspect_table(0U).has_value());
+    const auto reopened_text =
+        featherdoc::test_support::collect_document_text(reopened);
+    CHECK(featherdoc::test_support::contains_text(
+        reopened_text, "Free-form column drift sample"));
+    CHECK(featherdoc::test_support::contains_text(reopened_text, "Topic"));
+    CHECK(featherdoc::test_support::contains_text(reopened_text, "Closed"));
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
 }
 
 TEST_CASE("PDF text importer can opt in to two-row table import") {

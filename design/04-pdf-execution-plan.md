@@ -2430,6 +2430,40 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   自由表单列漂移、更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-15 继续推进（自由表单列漂移负样本）：
+
+- 已补充自由表单列漂移样本：
+  `featherdoc-pdf-import-free-form-column-drift-prose-import.pdf`。
+  样本保留稳定行距和每行 3 个文本簇，但每行列位置都不同，模拟自由表单式并列文本；
+  该场景不应因为行距稳定而被误识别为表格。
+- 已补 parser 侧回归：
+  `PDFium parser does not classify free-form column drift prose as table candidate`
+  断言 `table_candidates.empty()`，并确认 `Topic` 到 `Closed` 的文本仍保留在段落结构中。
+- 已补导入侧回归：
+  `PDF text importer keeps free-form column drift prose as paragraphs`
+  断言即使启用 `import_table_candidates_as_tables`，也保持
+  `tables_imported = 0`，保存重开后仍没有表格，文本内容完整保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-free-form-column-drift-prose-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-free-form-column-drift-prose-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-free-form-column-drift-prose-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前支持整张表一致的不规则列宽；每行列位置各自漂移的自由表单仍按段落保留，
+  不做表格结构推断、跨行字段对齐、扫描/OCR 或图像理解。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
