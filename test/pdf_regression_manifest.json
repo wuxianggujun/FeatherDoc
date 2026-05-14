@@ -471,6 +471,30 @@
         "Grand total",
         "USD 135"
       ]
+    },
+    {
+      "id": "mixed-cjk-punctuation-text",
+      "kind": "mixed_cjk_punctuation_text",
+      "output_file": "featherdoc-pdf-regression-mixed-cjk-punctuation-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "中英混排标点样本",
+        "FeatherDoc，PDF；office 123。",
+        "括号（中文）与引号“mixed”。"
+      ],
+      "expect_cjk": true,
+      "expect_unicode": true
+    },
+    {
+      "id": "latin-ligature-text",
+      "kind": "latin_ligature_text",
+      "output_file": "featherdoc-pdf-regression-latin-ligature-text.pdf",
+      "expected_pages": 1,
+      "expected_text": [
+        "office affinity flow",
+        "file fixture flings",
+        "efficient workflow"
+      ]
     }
   ]
 }

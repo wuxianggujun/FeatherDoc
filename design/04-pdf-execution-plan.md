@@ -33,8 +33,8 @@ PDFium 回读验证
 - `IPdfGenerator` / `IPdfParser` 已经把 Core 与 PDFio / PDFium 隔离开。
 - `Document -> PdfDocumentLayout -> PDFio -> PDF` 已经跑通。
 - `PDFio -> PDF -> PDFium` 回读验证已经跑通。
-- 当前 `pdf_regression_manifest.json` 包含 37 个样本。
-- 当前 `ctest -R "pdf_regression_"` 覆盖 38 个回归测试，包含 manifest 校验。
+- 当前 `pdf_regression_manifest.json` 包含 39 个样本。
+- 当前 `ctest -R "pdf_regression_"` 覆盖 40 个回归测试，包含 manifest 校验。
 - 已覆盖基础段落、字体解析、真实字体度量、CJK / ToUnicode 回读、基础样式、页眉页脚、动态页码、图片、表格，以及 `table_position` 水平/纵向基础映射。
 
 ## 路线总览
@@ -2670,6 +2670,25 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口：
   若继续推进 writer，需要先设计新的 glyph-id font resource：要么让 CIDToGIDMap 变为
   identity 并为 clusters 生成 ToUnicode，要么继续借助 ActualText 做复制语义兜底。
+
+2026-05-15 继续推进（HarfBuzz 相关 regression 样本扩展）：
+
+- 已新增两个导出回归样本：
+  `mixed-cjk-punctuation-text` 覆盖中英混排、中文逗号/分号/句号、中文括号和弯引号；
+  `latin-ligature-text` 覆盖 `office`、`affinity`、`flow`、`file`、`fixture` 等
+  fi/fl 相关文本。
+- 已把 `pdf_regression_manifest.json` 从 37 个样本扩展到 39 个样本；
+  `pdf_regression_*` 当前覆盖 40 个 CTest，包含 manifest 校验。
+- 已更新 `test/CMakeLists.txt` 的 CJK skip 规则，让 `mixed_cjk_punctuation_text`
+  和其他 CJK 样本一样，在缺少 CJK 字体时以 77 跳过。
+- 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md` 的样本数量与覆盖范围。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^(pdf_regression_manifest|pdf_regression_(mixed-cjk-punctuation-text|latin-ligature-text))$" --output-on-failure --timeout 60`
+  通过 3/3；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过 40/40。
+- 下一阶段入口：
+  继续考虑是否把这两个 HarfBuzz 相关样本纳入视觉发布门禁 baseline。
 
 ## 阶段推进规则
 

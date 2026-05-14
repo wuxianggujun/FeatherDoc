@@ -345,8 +345,8 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "^cli_usage$" --output-on-failure --tim
 
 ## PDF regression samples
 
-同时开启 PDFio 写出和 PDFium 读入后，可以直接跑首批 37 个 regression manifest 样本。
-`pdf_regression_*` 当前覆盖 38 个 CTest，其中包含 manifest 校验测试。
+同时开启 PDFio 写出和 PDFium 读入后，可以直接跑首批 39 个 regression manifest 样本。
+`pdf_regression_*` 当前覆盖 40 个 CTest，其中包含 manifest 校验测试。
 
 ```powershell
 cmake --build .bpdf-roundtrip-msvc --target featherdoc_pdf_regression_sample pdf_regression_manifest_tests
@@ -358,6 +358,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - `single-text`
 - `multi-page-text`
 - `cjk-text`
+- `mixed-cjk-punctuation-text`
 - `styled-text`
 - `font-size-text`
 - `color-text`
@@ -371,6 +372,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - `four-page-text`
 - `underline-text`
 - `punctuation-text`
+- `latin-ligature-text`
 - `two-page-text`
 - `repeat-phrase-text`
 - `bordered-box-text`
@@ -525,7 +527,7 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 - 可以让 document adapter 在 `PdfTextRun` 上携带成功塑形的 `PdfGlyphRun`
 - 可以让 layout 宽度和后续 run 坐标优先使用 GlyphRun 的 x advance
 - 可以跑 PDFio → PDFium 的端到端 smoke
-- 已有首批 37 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
+- 已有首批 39 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、中英混排标点、Latin ligature 文本、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
 
 还不能算正式可用：
 

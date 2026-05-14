@@ -471,6 +471,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
                 --expect-image-count "${sample_expected_image_count}")
         endif()
         if(sample_kind STREQUAL "cjk_text" OR
+           sample_kind STREQUAL "mixed_cjk_punctuation_text" OR
            sample_kind STREQUAL "cjk_image_report_text" OR
            sample_kind STREQUAL "cjk_report_text" OR
            sample_kind STREQUAL "contract_cjk_style" OR
@@ -492,6 +493,7 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
                     ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
         endif()
         if(sample_kind STREQUAL "cjk_text" OR
+           sample_kind STREQUAL "mixed_cjk_punctuation_text" OR
            sample_kind STREQUAL "cjk_image_report_text" OR
            sample_kind STREQUAL "cjk_report_text" OR
            sample_kind STREQUAL "contract_cjk_style" OR

@@ -411,6 +411,31 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     return sample;
 }
 
+[[nodiscard]] ScenarioResult build_mixed_cjk_punctuation_text_sample(
+    const std::filesystem::path &font_path) {
+    ScenarioResult sample;
+    sample.layout.metadata.title =
+        "FeatherDoc regression sample: mixed CJK punctuation text";
+    sample.layout.metadata.creator = "FeatherDoc regression tests";
+
+    auto page = make_letter_page();
+    page.text_runs.push_back(make_text_run(
+        72.0, 720.0, utf8_from_u8(u8"中英混排标点样本"), 16.0,
+        featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0}, false, false, false,
+        true, "CJK Regression Font", font_path));
+    page.text_runs.push_back(make_text_run(
+        72.0, 692.0, utf8_from_u8(u8"FeatherDoc，PDF；office 123。"), 12.0,
+        featherdoc::pdf::PdfRgbColor{0.08, 0.18, 0.38}, false, false, false,
+        true, "CJK Regression Font", font_path));
+    page.text_runs.push_back(make_text_run(
+        72.0, 666.0, utf8_from_u8(u8"括号（中文）与引号“mixed”。"), 12.0,
+        featherdoc::pdf::PdfRgbColor{0.18, 0.12, 0.08}, false, false, false,
+        true, "CJK Regression Font", font_path));
+
+    sample.layout.pages.push_back(std::move(page));
+    return sample;
+}
+
 [[nodiscard]] ScenarioResult build_cjk_report_text_sample(
     const std::filesystem::path &font_path) {
     ScenarioResult sample;
@@ -1092,6 +1117,30 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     page.text_runs.push_back(make_text_run(
         72.0, 642.0, "Quote FeatherDoc", 12.0,
         featherdoc::pdf::PdfRgbColor{0.12, 0.28, 0.78}, false, false, false,
+        false));
+
+    sample.layout.pages.push_back(std::move(page));
+    return sample;
+}
+
+[[nodiscard]] ScenarioResult build_latin_ligature_text_sample() {
+    ScenarioResult sample;
+    sample.layout.metadata.title =
+        "FeatherDoc regression sample: Latin ligature text";
+    sample.layout.metadata.creator = "FeatherDoc regression tests";
+
+    auto page = make_letter_page();
+    page.text_runs.push_back(make_text_run(
+        72.0, 720.0, "office affinity flow", 16.0,
+        featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0}, false, false, false,
+        false));
+    page.text_runs.push_back(make_text_run(
+        72.0, 692.0, "file fixture flings", 12.0,
+        featherdoc::pdf::PdfRgbColor{0.08, 0.18, 0.38}, false, false, false,
+        false));
+    page.text_runs.push_back(make_text_run(
+        72.0, 666.0, "efficient workflow", 12.0,
+        featherdoc::pdf::PdfRgbColor{0.18, 0.12, 0.08}, false, false, false,
         false));
 
     sample.layout.pages.push_back(std::move(page));
@@ -2303,6 +2352,19 @@ int run_program(const std::vector<std::string> &args) {
             return 1;
         }
         sample = build_cjk_text_sample(cjk_font);
+    } else if (config.scenario == "mixed_cjk_punctuation_text") {
+        if (cjk_font.empty() || !std::filesystem::exists(cjk_font)) {
+            if (require_cjk_font) {
+                std::cerr << "skipping CJK regression sample: no usable CJK font "
+                             "found; set FEATHERDOC_TEST_CJK_FONT or install a "
+                             "common CJK font\n";
+                return 77;
+            }
+            std::cerr
+                << "missing CJK font for scenario mixed_cjk_punctuation_text\n";
+            return 1;
+        }
+        sample = build_mixed_cjk_punctuation_text_sample(cjk_font);
     } else if (config.scenario == "styled_text") {
         sample = build_styled_text_sample();
     } else if (config.scenario == "font_size_text") {
@@ -2363,6 +2425,8 @@ int run_program(const std::vector<std::string> &args) {
         sample = build_underline_text_sample();
     } else if (config.scenario == "punctuation_text") {
         sample = build_punctuation_text_sample();
+    } else if (config.scenario == "latin_ligature_text") {
+        sample = build_latin_ligature_text_sample();
     } else if (config.scenario == "two_page_text") {
         sample = build_two_page_text_sample();
     } else if (config.scenario == "repeat_phrase_text") {

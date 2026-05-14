@@ -92,8 +92,8 @@ Phase 1 的重点是：
 
 4. **建立测试集**
 
-   准备一组 10+ 个样本（当前 manifest 已扩展到 37 个样本，`pdf_regression_*`
-   覆盖 38 个 CTest，包含 manifest 校验），覆盖：
+   准备一组 10+ 个样本（当前 manifest 已扩展到 39 个样本，`pdf_regression_*`
+   覆盖 40 个 CTest，包含 manifest 校验），覆盖：
 
    - 纯文本 PDF
    - 中文 PDF
@@ -117,8 +117,8 @@ Phase 1 的重点是：
 - [ ] PDFio 写出 probe 可通过 `LayoutResult` 生成 PDF
 - [ ] PDFium 读入 probe 可提取文本和坐标
 - [ ] `IPdfGenerator` / `IPdfParser` 不暴露 PDFio / PDFium 类型
-- [x] 首批 PDF 样本进入回归测试（当前 manifest 已扩展到 37 个样本，
-      `pdf_regression_*` 覆盖 38 个 CTest，包含 manifest 校验）
+- [x] 首批 PDF 样本进入回归测试（当前 manifest 已扩展到 39 个样本，
+      `pdf_regression_*` 覆盖 40 个 CTest，包含 manifest 校验）
 
 ### 当前实现进展
 
@@ -144,7 +144,7 @@ Phase 1 的重点是：
 - [x] 已打通基础样式映射，`PdfTextRun`、`layout_document_paragraphs()` 和
       PDFio writer 已覆盖字体族/字体文件、字号、颜色、粗体、斜体和下划线，
       并由 `pdf_document_adapter_font` 覆盖段落、继承样式、表格单元格和 writer 回归
-- [x] 已建立首批 37 个 PDF regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
+- [x] 已建立首批 39 个 PDF regression manifest 样本，覆盖纯文本、多页文本、中文路径、中英混排标点、Latin ligature 文本、样式、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
 - [ ] 仍需继续扩展复杂视觉回归和发布门禁；真实文档样本集已经进入 manifest，但还没有把文件大小、图片数量/尺寸和 PNG baseline 全部自动化，CJK 字体也还没有进入发行包捆绑策略
 
 ## 当前下一步任务（按优先级）
