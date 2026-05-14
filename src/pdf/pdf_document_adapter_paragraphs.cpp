@@ -34,6 +34,12 @@ resolve_run_style_properties(featherdoc::Document &document,
     return document.resolve_style_properties(*run.style_id);
 }
 
+[[nodiscard]] PdfGlyphDirection
+shaping_direction_from_rtl(bool rtl) noexcept {
+    return rtl ? PdfGlyphDirection::right_to_left
+               : PdfGlyphDirection::unknown;
+}
+
 [[nodiscard]] ResolvedRunStyle
 resolve_plain_text_style(featherdoc::Document &document, std::string_view text,
                          const PdfDocumentAdapterOptions &options,
@@ -54,6 +60,8 @@ resolve_plain_text_style(featherdoc::Document &document, std::string_view text,
         false,
         false,
         false,
+        shaping_direction_from_rtl(document.default_run_rtl().value_or(false)),
+        {},
     };
 }
 
@@ -188,6 +196,10 @@ resolve_run_style(featherdoc::Document &document,
         style_properties && style_properties->run_underline.value
             ? *style_properties->run_underline.value
             : false);
+    const bool rtl = run.rtl.value_or(
+        style_properties && style_properties->run_rtl.value
+            ? *style_properties->run_rtl.value
+            : document.default_run_rtl().value_or(false));
 
     const auto text_color =
         first_present(run.text_color,
@@ -210,6 +222,8 @@ resolve_run_style(featherdoc::Document &document,
         bold,
         italic,
         underline,
+        shaping_direction_from_rtl(rtl),
+        {},
     };
 }
 

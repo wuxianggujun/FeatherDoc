@@ -22,6 +22,8 @@ struct ResolvedRunStyle {
     bool bold{false};
     bool italic{false};
     bool underline{false};
+    PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
+    std::string shaping_script_tag;
 };
 
 struct TextFragment {
@@ -32,6 +34,8 @@ struct TextFragment {
     bool bold{false};
     bool italic{false};
     bool underline{false};
+    PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
+    std::string shaping_script_tag;
 };
 
 struct TextToken {
@@ -44,6 +48,8 @@ struct TextToken {
     bool bold{false};
     bool italic{false};
     bool underline{false};
+    PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
+    std::string shaping_script_tag;
 };
 
 struct LineState {
@@ -62,7 +68,10 @@ metrics_options_for(const PdfResolvedFont &font);
 
 [[nodiscard]] double measure_text(std::string_view text,
                                   double font_size_points,
-                                  const PdfResolvedFont &font);
+                                  const PdfResolvedFont &font,
+                                  PdfGlyphDirection shaping_direction =
+                                      PdfGlyphDirection::unknown,
+                                  std::string_view shaping_script_tag = {});
 
 [[nodiscard]] double line_height_points_for(const LineState &line,
                                             double fallback_points,

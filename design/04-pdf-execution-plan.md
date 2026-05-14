@@ -2877,6 +2877,29 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   可以开始把上游文档语义中的 RTL / bidi / language 信息映射到 shaper options；在 writer
   支持前，非 LTR 仍保持字符串 fallback。
 
+2026-05-15 继续推进（Document run RTL -> shaper direction）：
+
+- 已把 `run_inspection_summary::rtl` / style `run_rtl` / 默认 run RTL 解析进
+  `ResolvedRunStyle`，并在 token、fragment、测宽和最终 `shape_fragment_text()` 之间保留
+  `shaping_direction`。
+- `rtl=true` 的 run 会把 `PdfTextShaperOptions::direction` 设置为 `right_to_left`；没有 RTL
+  语义时仍保持 unknown，让 HarfBuzz 继续按文本自动 guess。
+- 已扩展 `pdf_document_adapter_font`：Latin `office` run 显式 `set_rtl()` 后，layout 中的
+  `PdfGlyphRun` 会记录 `right_to_left` direction 和 `Latn` script，证明上游 Word run
+  格式已经进入 shaper options。
+- 已同步 `BUILDING_PDF.md`，记录 run 级 `rtl` 到 shaper direction 的映射，以及 writer
+  仍保持非 LTR 字符串 fallback。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests pdf_text_shaper_tests pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  可以继续把 `bidi_language` 映射到 shaper language / script，或开始定义 RTL writer 的
+  glyph order、text matrix 和文本提取验收；在 writer 语义明确前仍不直接写非 LTR CID 流。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
