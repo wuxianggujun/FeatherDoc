@@ -541,6 +541,43 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     return data_like_value_count >= minimum_data_values;
 }
 
+[[nodiscard]] bool is_conservative_irregular_header_table(
+    const std::vector<CandidateLine> &rows,
+    const std::vector<double> &anchors) {
+    if (rows.size() < 3U || anchors.size() < 3U) {
+        return false;
+    }
+
+    const auto &header_row = rows.front().clusters;
+    if (header_row.size() != anchors.size()) {
+        return false;
+    }
+    if (!std::all_of(header_row.begin(), header_row.end(),
+                     [](const TextCluster &cluster) {
+                         return is_short_header_label(cluster.text);
+                     })) {
+        return false;
+    }
+
+    const auto minimum_data_cells = (anchors.size() + 1U) / 2U;
+    for (std::size_t row_index = 1U; row_index < rows.size(); ++row_index) {
+        const auto &row = rows[row_index].clusters;
+        if (row.size() != anchors.size()) {
+            return false;
+        }
+
+        const auto data_like_count = static_cast<std::size_t>(std::count_if(
+            row.begin(), row.end(), [](const TextCluster &cluster) {
+                return is_data_like_cell_text(cluster.text);
+            }));
+        if (data_like_count < minimum_data_cells) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 [[nodiscard]] std::size_t nearest_column_index(
     const std::vector<double> &anchors, double x_points) {
     std::size_t best_index = 0U;
@@ -646,11 +683,15 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     }
 
     const auto anchors = build_column_anchors(rows);
+    const bool has_regular_spacing = has_regular_column_spacing(anchors);
+    const bool is_irregular_header_table =
+        !has_regular_spacing &&
+        is_conservative_irregular_header_table(rows, anchors);
     if (anchors.size() < 3U &&
         !(anchors.size() == 2U && is_two_column_key_value_table)) {
         return false;
     }
-    if (!has_regular_column_spacing(anchors)) {
+    if (!has_regular_spacing && !is_irregular_header_table) {
         return false;
     }
 

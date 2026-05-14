@@ -6,6 +6,7 @@
 #include <featherdoc/pdf/pdf_document_importer.hpp>
 #include <featherdoc/pdf/pdf_parser.hpp>
 
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 
@@ -167,6 +168,48 @@ TEST_CASE("PDFium parser detects borderless two-column key-value table candidate
                                                   "Amount"));
     CHECK(featherdoc::test_support::contains_text(table.rows[3].cells[1].text,
                                                   "USD 960"));
+}
+
+TEST_CASE("PDFium parser detects conservative irregular-width header table candidate") {
+    const auto output_path =
+        featherdoc::test_support::write_irregular_width_header_table_pdf(
+            "featherdoc-pdf-import-irregular-width-table-source.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    REQUIRE_EQ(page.table_candidates.size(), 1U);
+    REQUIRE_EQ(page.content_blocks.size(), 3U);
+    CHECK_EQ(page.content_blocks[0].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
+    CHECK_EQ(page.content_blocks[1].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::table_candidate);
+    CHECK_EQ(page.content_blocks[2].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
+
+    const auto &table = page.table_candidates.front();
+    REQUIRE_EQ(table.rows.size(), 4U);
+    REQUIRE_EQ(table.column_anchor_x_points.size(), 3U);
+    const double first_gap =
+        table.column_anchor_x_points[1] - table.column_anchor_x_points[0];
+    const double second_gap =
+        table.column_anchor_x_points[2] - table.column_anchor_x_points[1];
+    CHECK_GT(std::abs(second_gap - first_gap), 24.0);
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[0].text,
+                                                  "Item"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[1].text,
+                                                  "Description"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[2].text,
+                                                  "Amount"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[1].cells[0].text,
+                                                  "SKU-01"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[1].cells[1].text,
+                                                  "Annual subscription"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[3].cells[2].text,
+                                                  "USD 880"));
 }
 
 TEST_CASE("PDFium parser does not classify two-row three-column prose as table candidate") {
@@ -754,6 +797,74 @@ TEST_CASE("PDF text importer can opt in to borderless key-value table import") {
                                                   "INV-2026-0610"));
     CHECK(featherdoc::test_support::contains_text(reopened_table->text,
                                                   "USD 960"));
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE("PDF text importer can opt in to irregular-width table import") {
+    const auto input_path =
+        featherdoc::test_support::write_irregular_width_header_table_pdf(
+            "featherdoc-pdf-import-irregular-width-table.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-irregular-width-table.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 3U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Irregular width table sample\n"
+             "Tail paragraph after irregular width table\n");
+
+    const auto imported_table = document.inspect_table(0U);
+    REQUIRE(imported_table.has_value());
+    CHECK_EQ(imported_table->row_count, 4U);
+    CHECK_EQ(imported_table->column_count, 3U);
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Description"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "SKU-01"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Annual subscription"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Visual support"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "USD 880"));
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_blocks = reopened.inspect_body_blocks();
+    REQUIRE_EQ(reopened_blocks.size(), 3U);
+    CHECK_EQ(reopened_blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(reopened_blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    const auto reopened_table = reopened.inspect_table(0U);
+    REQUIRE(reopened_table.has_value());
+    CHECK_EQ(reopened_table->row_count, 4U);
+    CHECK_EQ(reopened_table->column_count, 3U);
+    CHECK(featherdoc::test_support::contains_text(reopened_table->text,
+                                                  "SKU-02"));
+    CHECK(featherdoc::test_support::contains_text(reopened_table->text,
+                                                  "USD 880"));
 
     if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
         std::filesystem::remove(docx_path);

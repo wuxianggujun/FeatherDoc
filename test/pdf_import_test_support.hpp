@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace featherdoc::test_support {
 
@@ -69,6 +70,45 @@ inline void append_grid(featherdoc::pdf::PdfPageLayout &page, double left,
             0.75,
         });
     }
+    for (std::size_t row = 0U; row <= row_count; ++row) {
+        const double y = top - cell_height * static_cast<double>(row);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{left, y},
+            featherdoc::pdf::PdfPoint{right, y},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+}
+
+inline void append_irregular_grid(featherdoc::pdf::PdfPageLayout &page,
+                                  double left, double top,
+                                  const std::vector<double> &column_widths,
+                                  double cell_height,
+                                  std::size_t row_count) {
+    double right = left;
+    for (const double column_width : column_widths) {
+        right += column_width;
+    }
+    const double bottom = top - cell_height * static_cast<double>(row_count);
+
+    double x = left;
+    page.lines.push_back(featherdoc::pdf::PdfLine{
+        featherdoc::pdf::PdfPoint{x, bottom},
+        featherdoc::pdf::PdfPoint{x, top},
+        featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+        0.75,
+    });
+    for (const double column_width : column_widths) {
+        x += column_width;
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{x, bottom},
+            featherdoc::pdf::PdfPoint{x, top},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+
     for (std::size_t row = 0U; row <= row_count; ++row) {
         const double y = top - cell_height * static_cast<double>(row);
         page.lines.push_back(featherdoc::pdf::PdfLine{
@@ -371,6 +411,44 @@ write_two_column_borderless_key_value_table_pdf(std::string_view filename) {
     page.text_runs.push_back(make_pdf_text_run(266.0, 570.0, "USD 960"));
     page.text_runs.push_back(make_pdf_text_run(
         72.0, 518.0, "Tail paragraph after borderless key-value table"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_irregular_width_header_table_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc irregular-width table PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Irregular width table sample"));
+    append_irregular_grid(page, 72.0, 680.0, {92.0, 210.0, 96.0}, 30.0, 4U);
+    page.text_runs.push_back(make_pdf_text_run(86.0, 660.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(178.0, 660.0, "Description"));
+    page.text_runs.push_back(make_pdf_text_run(388.0, 660.0, "Amount"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 630.0, "SKU-01"));
+    page.text_runs.push_back(make_pdf_text_run(178.0, 630.0, "Annual subscription"));
+    page.text_runs.push_back(make_pdf_text_run(388.0, 630.0, "USD 700"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 600.0, "SKU-02"));
+    page.text_runs.push_back(make_pdf_text_run(178.0, 600.0, "Visual support"));
+    page.text_runs.push_back(make_pdf_text_run(388.0, 600.0, "USD 180"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 570.0, "Total"));
+    page.text_runs.push_back(make_pdf_text_run(178.0, 570.0, "Invoice 2026"));
+    page.text_runs.push_back(make_pdf_text_run(388.0, 570.0, "USD 880"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 518.0, "Tail paragraph after irregular width table"));
     layout.pages.push_back(std::move(page));
 
     const auto output_path =

@@ -1754,6 +1754,37 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   更复杂的嵌套合并、不规则跨列宽、扫描件和 OCR 场景。
 
+2026-05-14 继续推进（不规则列宽表格导入）：
+
+- 已把 3 列以上表格的列距规则从“必须近似等宽”保守扩展到一类不规则列宽表：
+  仅当首行全部是短标签表头、后续每行列数完整、且每个数据行至少半数单元格具备明显
+  数据特征时，才允许不规则列距候选进入 `PdfParsedTableCandidate`。
+- 已保留误判边界：
+  既有 invoice summary 三列表单仍保持不命中；普通双栏、编号列表、短标签并列文本等
+  负样本继续由 `pdf_import_table_heuristic` 覆盖。
+- 已补 parser 和 importer 回归：
+  新样本 `featherdoc-pdf-import-irregular-width-table.pdf` 使用窄 item 列、
+  宽 description 列和窄 amount 列，列距差超过常规 spacing tolerance；
+  parser 断言仍能产生 1 个 4 行 x 3 列候选，importer 断言显式 opt-in 后写入真实
+  `Document` 表格，保存重开后行列数和关键文本仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  均通过；导入相关 5 项组合回归也通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-irregular-width-table-import-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-irregular-width-table-import-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-irregular-width-table-import-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  本轮不处理缺列、跨列标题、自由表单、不规则行距、扫描/OCR 或需要视觉线条解析的表格。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、缺失线条的多列表格、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
