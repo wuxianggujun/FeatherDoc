@@ -279,6 +279,18 @@ $samples = @(
         style_focus = @("east-asia-font-mapping", "cjk-color", "bold-italic", "underline")
     },
     [ordered]@{
+        name = "mixed-cjk-punctuation-text"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-mixed-cjk-punctuation-text.pdf"
+        output = Join-Path $baselineDir "mixed-cjk-punctuation-text"
+        expected_pages = 1
+    },
+    [ordered]@{
+        name = "latin-ligature-text"
+        pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-latin-ligature-text.pdf"
+        output = Join-Path $baselineDir "latin-ligature-text"
+        expected_pages = 1
+    },
+    [ordered]@{
         name = "document-invoice-table-text"
         pdf = Join-Path $resolvedBuildDir "test\featherdoc-pdf-regression-document-invoice-table-text.pdf"
         output = Join-Path $baselineDir "document-invoice-table-text"

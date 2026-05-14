@@ -235,7 +235,9 @@ HarfBuzz 文字塑形。
       `PdfGlyphRun`，layout 宽度和后续 run 坐标已优先使用 glyph advance，但 PDFio
       writer 仍保留字符串路径
 - [ ] PDFio backend 用 glyph ID 写出 content stream
-- [ ] 视觉回归 sample 集扩展到中英混排、CJK 标点用例
+- [x] 视觉回归 sample 集扩展到中英混排、CJK 标点用例；当前
+      `mixed-cjk-punctuation-text` 和 `latin-ligature-text` 已进入 regression manifest
+      和 PDF 视觉发布门禁 baseline
 
 **验收**：CJK 标点挤压、连字、混排间距与 LibreOffice 输出对比可接受。
 

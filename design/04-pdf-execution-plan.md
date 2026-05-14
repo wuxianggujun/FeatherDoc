@@ -2690,6 +2690,23 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口：
   继续考虑是否把这两个 HarfBuzz 相关样本纳入视觉发布门禁 baseline。
 
+2026-05-15 继续推进（文字塑形样本纳入视觉发布门禁）：
+
+- 已把 `mixed-cjk-punctuation-text` 和 `latin-ligature-text` 加入
+  `run_pdf_visual_release_gate.ps1` 的核心 PNG baseline 渲染列表。
+- 已新增 `pdf_visual_release_gate_text_shaping_baselines` 静态回归，解析视觉门禁脚本并断言
+  两个文字塑形样本的 `name`、PDF 路径和 baseline 输出目录不会被误删。
+- 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md`，把优先级 4 的
+  “视觉回归 sample 集扩展到中英混排、CJK 标点用例”推进为已完成。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过 2/2；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-text-shaping-visual-release-gate -SkipUnicodeBaseline`
+  通过，并生成文字塑形样本 baseline 与 aggregate contact sheet。
+- 下一阶段入口：
+  优先级 4 剩余核心风险集中在 PDFio writer 的 glyph-id content stream 与自定义
+  CIDToGIDMap / ToUnicode 设计。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
