@@ -2143,6 +2143,43 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   缺列 / 错位列锚点下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-14 继续推进（跨页 subtotal 列锚点错位负样本）：
+
+- 已补充跨页 invoice subtotal 的列锚点错位负样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-anchor-mismatch-table.pdf`。
+  两页表头文本都为 `Item / Qty / Unit / Total`，也都保留 total/subtotal 稀疏跨列行；
+  但第二页网格列宽从 130pt 改为 150pt，用于验证列锚点不兼容时不会因为表头相同而误合并。
+- 已补导入侧回归：
+  `PDF table import keeps cross-page subtotal tables separate for anchor mismatches`
+  断言第二页 continuation diagnostic 同时记录
+  `previous_has_repeating_header = true`、`source_has_repeating_header = true`、
+  `header_match_kind = exact`、`column_count_matches = true`、
+  `column_anchors_match = false`、`blocker = column_anchors_mismatch`，
+  最终导入结果保留为两张 `Document` 表格。
+- 已确认保存重开后的结构：
+  第一张表的 `Design subtotal` 和第二张表的 `Grand total` 仍保留
+  `column_span = 3`；第二张表的重复表头没有被跳过，因为列锚点不兼容优先阻止续接。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-anchor-mismatch-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-anchor-mismatch-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-anchor-mismatch-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认列宽变化导致的列锚点错位会保守拆表；缺列表体、局部错位、跨页金额合计推导、
+  自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  缺列表体 / 局部错位下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
