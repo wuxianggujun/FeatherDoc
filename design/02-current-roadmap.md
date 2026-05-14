@@ -228,9 +228,9 @@ HarfBuzz 文字塑形。
 
 **子任务**：
 
-- [ ] HarfBuzz 接入 `FeatherDoc::Pdf` 构建
-- [ ] 实现 `shaper_bridge`：输入 Unicode 字符串 + 字体，输出 GlyphRun（glyphId / xAdvance /
-      xOffset / yOffset）
+- [x] HarfBuzz 接入 `FeatherDoc::Pdf` 构建
+- [x] 实现 `shaper_bridge`：输入 Unicode 字符串 + 字体，输出 GlyphRun（glyphId / xAdvance /
+      xOffset / yOffset）；当前已落到独立 `pdf_text_shaper`，还未接入 layout / writer
 - [ ] `PdfDocumentLayout` 改为消费 GlyphRun 而非字符串
 - [ ] PDFio backend 用 glyph ID 写出 content stream
 - [ ] 视觉回归 sample 集扩展到中英混排、CJK 标点用例

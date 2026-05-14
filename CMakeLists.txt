@@ -45,6 +45,7 @@ set(PDF_COMMON_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_interfaces.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_layout.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_text_metrics.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_text_shaper.hpp"
 )
 set(PDF_WRITER_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_document_adapter.hpp"
@@ -377,6 +378,7 @@ if(FEATHERDOC_BUILD_PDF)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_font_resolver.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_font_subset.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_text_metrics.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_text_shaper.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_writer.cpp"
         $<TARGET_OBJECTS:featherdoc_pdfio_objects>
     )
@@ -412,9 +414,13 @@ if(FEATHERDOC_BUILD_PDF)
     )
     if(FEATHERDOC_HARFBUZZ_SUBSET_AVAILABLE)
         target_compile_definitions(FeatherDocPdf
-            PRIVATE FEATHERDOC_ENABLE_PDF_FONT_SUBSET=1)
+            PRIVATE
+                FEATHERDOC_ENABLE_PDF_FONT_SUBSET=1
+                FEATHERDOC_ENABLE_PDF_TEXT_SHAPER=1)
         target_link_libraries(FeatherDocPdf
-            PRIVATE harfbuzz::harfbuzz-subset)
+            PRIVATE
+                harfbuzz::harfbuzz
+                harfbuzz::harfbuzz-subset)
     endif()
 
     if(MSVC)

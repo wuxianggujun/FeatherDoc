@@ -2608,6 +2608,29 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口：
   优先级 3 基础样式映射收口完成，下一步进入优先级 4 HarfBuzz 文字塑形。
 
+2026-05-15 继续推进（HarfBuzz shaper bridge 最小接口）：
+
+- 已新增独立 `pdf_text_shaper` 桥接层，先不改现有 writer/layout 行为：
+  `shape_pdf_text()` 输入 UTF-8 文本、字体文件路径和字号，输出 `PdfGlyphRun`，
+  包含 glyph id、cluster、x/y advance 和 x/y offset。
+- 已在 `FeatherDoc::Pdf` 的 HarfBuzz 可用构建中定义
+  `FEATHERDOC_ENABLE_PDF_TEXT_SHAPER=1`，并显式链接 `harfbuzz::harfbuzz`。
+  `pdf_text_shaper_has_harfbuzz()` 可用于测试和诊断当前构建是否启用 HarfBuzz。
+- 已补 `pdf_text_shaper` 单测，覆盖空文本、非法字号、缺字体路径，以及 HarfBuzz 可用时
+  `office` 能产出非空 glyph run、正向 advance 和合法 cluster。
+- 已同步 `design/02-current-roadmap.md` 和 `BUILDING_PDF.md`：
+  优先级 4 的“接入 HarfBuzz 构建”和“最小 shaper_bridge”已完成；
+  已知限制是 `PdfDocumentLayout` 仍消费字符串 `PdfTextRun`，PDFio writer 还没有用 glyph id
+  写 content stream。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_text_shaper$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  把 GlyphRun 接入 `PdfDocumentLayout` 的内部文本片段，先保留字符串回退，再让 PDFio writer
+  增加 glyph id 写出路径。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

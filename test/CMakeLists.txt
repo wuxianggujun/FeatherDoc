@@ -209,6 +209,18 @@ if(TARGET FeatherDocPdf)
     endif()
 
     featherdoc_add_cpp_test(
+        pdf_text_shaper_tests
+        pdf_text_shaper
+        pdf_text_shaper_tests.cpp
+    )
+    target_link_libraries(pdf_text_shaper_tests PRIVATE FeatherDoc::Pdf)
+    featherdoc_set_test_labels(pdf_text_shaper core smoke pdf)
+    if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
+        set_tests_properties(pdf_text_shaper PROPERTIES
+            ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
+    endif()
+
+    featherdoc_add_cpp_test(
         pdf_document_adapter_font_tests
         pdf_document_adapter_font
         pdf_document_adapter_font_tests.cpp

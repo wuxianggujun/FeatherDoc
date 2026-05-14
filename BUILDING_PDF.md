@@ -245,6 +245,7 @@ pdfium_document_parser_probe ..... Passed
   简单表格候选导入为 `Document` 表格
 - `pdf_font_resolver`：字体解析和回退规则单测
 - `pdf_text_metrics`：文本宽度 / 行高估算单测
+- `pdf_text_shaper`：HarfBuzz glyph run 桥接层单测
 - `pdf_document_adapter_font`：PDF adapter 的字体映射、样式和列表前缀回归
 - `pdf_unicode_font_roundtrip`：Unicode / CJK 字体嵌入和 PDFium 回读回环
 - `pdf_unicode_font_roundtrip_visual`：Unicode / CJK 字体 PDF 渲染为 PNG 后的视觉 smoke
@@ -460,6 +461,30 @@ CJK 字体选择的默认顺序是：
 对中文或混排内容，优先给 run / 默认属性设置 `east_asia_font_family`。
 这样 `PdfFontResolver` 会先选 East Asia 字体，再回退到普通 `font_family`。
 
+## 文字塑形
+
+当 HarfBuzz 目标可用时，`FeatherDoc::Pdf` 会同时启用字体子集化和文字塑形：
+
+- `FEATHERDOC_ENABLE_PDF_FONT_SUBSET=1`
+- `FEATHERDOC_ENABLE_PDF_TEXT_SHAPER=1`
+
+当前 `pdf_text_shaper` 提供独立桥接层：
+
+- 输入 UTF-8 文本、字体文件路径和字号
+- 输出 `PdfGlyphRun`，包含 glyph id、cluster、x/y advance、x/y offset
+- 通过 `pdf_text_shaper_has_harfbuzz()` 暴露当前构建是否启用 HarfBuzz
+
+这一步还没有改变现有 PDF 写出路径。`PdfDocumentLayout` 仍然保存字符串
+`PdfTextRun`，PDFio writer 仍然按文本写 content stream；后续任务才会把
+GlyphRun 接入 layout，并让 writer 用 glyph id 写出。
+
+单独验证文字塑形桥接层：
+
+```powershell
+cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests
+ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_text_shaper$" --output-on-failure --timeout 60
+```
+
 如果你只想把一个已有 `.ttf` / `.ttc` 文件接进来，最直接的入口是：
 
 ```cpp
@@ -495,12 +520,14 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
   `pdf_document_adapter_font` 回归
 - 可以做 Unicode / ToUnicode roundtrip 验证，并用 PDFium 解析页数和文字 span
 - 可以对 Unicode / CJK 字体 roundtrip 产物做 PNG 渲染级视觉 smoke
+- 可以独立调用 HarfBuzz shaper bridge，把 UTF-8 文本和字体塑形成 GlyphRun
 - 可以跑 PDFio → PDFium 的端到端 smoke
 - 已有首批 37 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
 
 还不能算正式可用：
 
 - 还没有 `AST → PDFio` 完整翻译层；复杂分页、图片锚点/裁剪/环绕和发布级合同样式视觉 baseline 还没收口
+- `PdfDocumentLayout` 和 PDFio writer 还没有消费 GlyphRun，复杂文字塑形尚未进入最终 PDF content stream
 - 还没有 `PDFium → AST` 文档结构重建
 - 还需要继续扩充真实 PDF 样本回归集
 - 发布级 CJK 字体许可证 / 捆绑策略、复杂表格分页和 PNG baseline 门禁还在专项推进中
