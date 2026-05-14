@@ -2797,6 +2797,32 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   shaped writer 的 LTR 安全子集已覆盖 glyph id、advance、offset、cluster 边界和重复
   cluster 提取语义；继续向外扩展时应优先单独设计 RTL / 竖排方向模型。
 
+2026-05-15 继续推进（shaped glyph direction 元数据与非 LTR 回退）：
+
+- 已在 `PdfGlyphRun` 增加 `PdfGlyphDirection`，`shape_pdf_text()` 会在 HarfBuzz
+  `hb_buffer_guess_segment_properties()` 后记录 buffer direction；document adapter 保留该
+  direction，避免后续 writer 只能靠 cluster 倒序推断 RTL / 竖排。
+- 已收紧 shaped glyph writer 入口：当前 glyph-id CID content stream 只接受
+  `left_to_right` 方向；`right_to_left`、`top_to_bottom`、`bottom_to_top` 或 unknown direction
+  都回退到原字符串写出路径，继续保留 ToUnicode / ActualText 文本提取语义。
+- 已扩展回归：
+  `pdf_text_shaper` 断言 Latin `office` 的 HarfBuzz direction 为 `left_to_right`；
+  `pdf_document_adapter_font` 断言 adapter 携带该 direction；`pdf_unicode_font_roundtrip`
+  手写一个其它条件都满足但 direction 为 `right_to_left` 的 shaped run，确认不会生成
+  `/FeatherDocGlyph` 字体资源且 PDFium 仍只回读一次原文。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests pdf_document_adapter_font_tests pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-glyph-direction-visual-release-gate -SkipUnicodeBaseline`
+  通过。
+- 下一阶段入口：
+  RTL / 竖排不再是 writer 入口的隐式边界条件，但真正支持它们还需要单独设计基线方向、
+  text matrix、glyph order 和文本选择语义；在那之前保持字符串 fallback。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

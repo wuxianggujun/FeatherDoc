@@ -182,6 +182,7 @@ can_write_shaped_glyph_run(const PdfTextRun &text_run) noexcept {
         !text_run.glyph_run.used_harfbuzz ||
         !text_run.glyph_run.error_message.empty() ||
         text_run.glyph_run.glyphs.empty() ||
+        text_run.glyph_run.direction != PdfGlyphDirection::left_to_right ||
         text_run.glyph_run.text != text_run.text ||
         text_run.glyph_run.font_file_path != text_run.font_file_path ||
         std::abs(text_run.glyph_run.font_size_points -

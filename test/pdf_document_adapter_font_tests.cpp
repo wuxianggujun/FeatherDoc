@@ -303,6 +303,8 @@ TEST_CASE("document PDF adapter carries shaped glyph run for file-backed text") 
     CHECK_EQ(text_run.glyph_run.text, "office");
     CHECK_EQ(text_run.glyph_run.font_file_path, latin_font);
     CHECK(text_run.glyph_run.font_size_points == doctest::Approx(12.0));
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::left_to_right);
     REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
 
     double total_advance = 0.0;

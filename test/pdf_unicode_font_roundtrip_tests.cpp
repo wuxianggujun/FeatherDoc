@@ -908,6 +908,73 @@ TEST_CASE("PDFio falls back for non-forward shaped glyph clusters") {
     CHECK_NE(extracted_text.find(expected_text), std::string::npos);
 }
 
+TEST_CASE("PDFio falls back for non-LTR shaped glyph directions") {
+    const auto font_path = find_latin_font();
+    if (font_path.empty()) {
+        MESSAGE("skipping shaped glyph direction fallback smoke: configure "
+                "test Latin font");
+        return;
+    }
+
+    const std::string expected_text = "abc";
+    constexpr double font_size = 18.0;
+    featherdoc::pdf::PdfGlyphRun glyph_run;
+    glyph_run.text = expected_text;
+    glyph_run.font_file_path = font_path;
+    glyph_run.font_size_points = font_size;
+    glyph_run.direction = featherdoc::pdf::PdfGlyphDirection::right_to_left;
+    glyph_run.used_harfbuzz = true;
+    glyph_run.glyphs = {
+        featherdoc::pdf::PdfGlyphPosition{1U, 0U, 6.0, 0.0, 0.0, 0.0},
+        featherdoc::pdf::PdfGlyphPosition{2U, 1U, 6.0, 0.0, 0.0, 0.0},
+        featherdoc::pdf::PdfGlyphPosition{3U, 2U, 6.0, 0.0, 0.0, 0.0},
+    };
+
+    const auto output_path =
+        std::filesystem::current_path() /
+        "featherdoc-shaped-glyph-direction-fallback.pdf";
+
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title = "FeatherDoc shaped glyph direction fallback";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::a4_portrait();
+    page.text_runs.push_back(featherdoc::pdf::PdfTextRun{
+        featherdoc::pdf::PdfPoint{72.0, 720.0},
+        expected_text,
+        "Latin Test Font",
+        font_path,
+        font_size,
+        featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
+        false,
+        false,
+        false,
+        true,
+        0.0,
+        false,
+        false,
+        std::move(glyph_run),
+    });
+    layout.pages.push_back(std::move(page));
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    CHECK_GT(write_result.bytes_written, 0U);
+
+    const auto pdf_bytes = read_file_bytes(output_path);
+    CHECK_EQ(pdf_bytes.find("/FeatherDocGlyph"), std::string::npos);
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+
+    const auto extracted_text = collect_text(parse_result.document);
+    CHECK_EQ(count_occurrences(extracted_text, expected_text), 1U);
+}
+
 TEST_CASE("PDFio reports a missing Unicode font path") {
     const auto missing_font_path =
         std::filesystem::current_path() / "featherdoc-missing-cjk-font.ttf";

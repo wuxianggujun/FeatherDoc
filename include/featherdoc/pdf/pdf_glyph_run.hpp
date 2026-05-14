@@ -15,6 +15,14 @@
 
 namespace featherdoc::pdf {
 
+enum class PdfGlyphDirection {
+    left_to_right,
+    right_to_left,
+    top_to_bottom,
+    bottom_to_top,
+    unknown,
+};
+
 struct PdfGlyphPosition {
     std::uint32_t glyph_id{0U};
     std::uint32_t cluster{0U};
@@ -29,6 +37,7 @@ struct PdfGlyphRun {
     std::string text;
     std::filesystem::path font_file_path;
     double font_size_points{12.0};
+    PdfGlyphDirection direction{PdfGlyphDirection::left_to_right};
     bool used_harfbuzz{false};
     std::string error_message;
 };

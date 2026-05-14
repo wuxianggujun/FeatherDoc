@@ -473,7 +473,7 @@ CJK 字体选择的默认顺序是：
 当前 `pdf_text_shaper` 提供独立桥接层：
 
 - 输入 UTF-8 文本、字体文件路径和字号
-- 输出 `PdfGlyphRun`，包含 glyph id、cluster、x/y advance、x/y offset
+- 输出 `PdfGlyphRun`，包含 glyph id、cluster、direction、x/y advance、x/y offset
 - 通过 `pdf_text_shaper_has_harfbuzz()` 暴露当前构建是否启用 HarfBuzz
 
 当前 document adapter 会在 file-backed `PdfTextRun` 上保留成功塑形得到的
@@ -481,6 +481,7 @@ CJK 字体选择的默认顺序是：
 PDFio writer 会在满足安全条件的 shaped run 上创建独立 Type0 / CIDFontType2 字体资源：
 
 - 为每个 shaped glyph occurrence 分配私有 CID
+- 只接受 `PdfGlyphDirection::left_to_right` 的 shaped glyph CID 写出；RTL / 竖排先保留字符串路径
 - 用 `CIDToGIDMap` 把 CID 映射到 HarfBuzz glyph id
 - 用 `W` 数组写入 HarfBuzz x advance，避免回退到未塑形字宽
 - 遇到非零 glyph x/y offset 或 y advance 时，逐 glyph 写 `Tm` + `Tj`，用 HarfBuzz
@@ -489,9 +490,10 @@ PDFio writer 会在满足安全条件的 shaped run 上创建独立 Type0 / CIDF
   cluster CID 不写 ToUnicode entry，避免复制文本重复
 - 用 ToUnicode / ActualText 保留原始文本提取语义
 
-如果 run 没有 file-backed font、HarfBuzz 不可用、字体大小不匹配、cluster 越界或倒序、
-cluster 不在 UTF-8 codepoint 边界上，writer 会保留原字符串路径。这样 RTL / 竖排等还没有
-完整方向语义的 shaped run 不会误走 LTR glyph-id content stream。
+如果 run 没有 file-backed font、HarfBuzz 不可用、字体大小不匹配、direction 不是
+`left_to_right`、cluster 越界或倒序、cluster 不在 UTF-8 codepoint 边界上，writer 会保留
+原字符串路径。这样 RTL / 竖排等还没有完整方向语义的 shaped run 不会误走 LTR
+glyph-id content stream。
 
 单独验证文字塑形桥接层：
 
@@ -542,7 +544,7 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
   PDFium 回读验证文本不重复、不丢失；`pdf_unicode_font_roundtrip` 还会解压 PDF stream
   检查 shaped glyph ToUnicode CMap 的 cluster 映射，验证带 offset / y advance 的 glyph
   会逐 glyph 写定位矩阵，验证重复 cluster 只映射一次，并验证倒序 cluster / 非 UTF-8
-  边界 cluster 会回退到字符串路径
+  边界 cluster / 非 LTR direction 会回退到字符串路径
 - 可以跑 PDFio → PDFium 的端到端 smoke
 - 已有首批 39 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、中英混排标点、Latin ligature 文本、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
 

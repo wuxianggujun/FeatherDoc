@@ -44,6 +44,22 @@ template <typename T, typename Closer> using HbPtr = std::unique_ptr<T, Closer>;
                                            double scale) noexcept {
     return static_cast<double>(value) * scale;
 }
+
+[[nodiscard]] PdfGlyphDirection
+pdf_glyph_direction_from_harfbuzz(hb_direction_t direction) noexcept {
+    switch (direction) {
+    case HB_DIRECTION_LTR:
+        return PdfGlyphDirection::left_to_right;
+    case HB_DIRECTION_RTL:
+        return PdfGlyphDirection::right_to_left;
+    case HB_DIRECTION_TTB:
+        return PdfGlyphDirection::top_to_bottom;
+    case HB_DIRECTION_BTT:
+        return PdfGlyphDirection::bottom_to_top;
+    default:
+        return PdfGlyphDirection::unknown;
+    }
+}
 #endif
 
 [[nodiscard]] PdfGlyphRun make_base_run(std::string_view text,
@@ -139,6 +155,8 @@ PdfGlyphRun shape_pdf_text(std::string_view text,
     const auto text_size = static_cast<int>(text.size());
     hb_buffer_add_utf8(buffer.get(), text.data(), text_size, 0, text_size);
     hb_buffer_guess_segment_properties(buffer.get());
+    run.direction =
+        pdf_glyph_direction_from_harfbuzz(hb_buffer_get_direction(buffer.get()));
     hb_shape(font.get(), buffer.get(), nullptr, 0U);
 
     unsigned int glyph_count = 0U;
