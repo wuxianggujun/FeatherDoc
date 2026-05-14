@@ -1657,6 +1657,103 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   组合合并目前只覆盖规则网格里可稳定复原的 2x2 锚点；不处理更复杂的嵌套合并、
   不规则跨列宽、扫描件或带装饰线条缺失的表格。
 
+2026-05-14 继续推进（两行表格导入）：
+
+- 已把 PDF 表格候选识别从“至少 3 行”保守扩展到受控的 2 行表：
+  仅当候选有 3 列以上、首行全部像短标签表头、第二行至少包含一个明显数据型单元格时，
+  才允许 `PdfiumParser` 把它提升为 `PdfParsedTableCandidate`。
+- 已保持误判边界：
+  普通两行三列 prose 样本不会被识别为表格；既有 two-column prose、aligned list、
+  invoice summary 等负样本继续保持不命中。
+- 已补导入侧回归：
+  新样本 `featherdoc-pdf-import-two-row-table.pdf` 覆盖
+  `paragraph / table / paragraph` 块顺序、2 行 x 3 列真实 `Document` 表格、
+  保存重开后的表格行列数和关键单元格文本。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_structure_tests pdf_import_failure_tests pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过；单独保留样本的 `pdf_import_table_heuristic` 也通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-two-row-table-import-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-two-row-table-import-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-two-row-table-import-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 本轮继续保持导入与导出回归分离：
+  新样本只存在于 `pdf_import_table_heuristic` 相关测试内，未加入
+  `pdf_regression_manifest.json`，也未扩展 E6 发布 baseline。
+- 已知限制更新：
+  2 行表格识别仍是规则型启发式，偏向“短标签表头 + 明显数据行”的业务表；
+  纯文本数据行、无明显数据特征的 2 行表、不规则列宽或扫描/OCR
+  场景仍保持保守，不会强行导入为表格。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、不规则跨列宽、扫描件和缺失装饰线条的表格。
+
+2026-05-14 继续推进（两列 key-value 表格导入）：
+
+- 已把 PDF 表格候选识别继续扩展到保守的 2 列 key-value 表：
+  仅当候选至少 3 行、每行恰好 2 个文本簇、左列全部像短标签、
+  右列至少半数具备明显数据特征时，才允许 `PdfiumParser` 把 2 列候选提升为
+  `PdfParsedTableCandidate`。
+- 已保持误判边界：
+  普通 two-column prose、aligned numbered list、invoice summary、两列短标签 prose
+  均继续保持不命中，避免把普通并列文本误导入为表格。
+- 已补导入侧回归：
+  新样本 `featherdoc-pdf-import-key-value-table.pdf` 覆盖
+  `paragraph / table / paragraph` 块顺序、4 行 x 2 列真实 `Document` 表格、
+  保存重开后的表格行列数和关键单元格文本。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  均通过；保留样本的同一专项回归也通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-key-value-table-import-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-key-value-table-import-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-key-value-table-import-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 本轮继续保持导入与导出回归分离：
+  新样本只存在于 `pdf_import_table_heuristic` 相关测试内，未加入
+  `pdf_regression_manifest.json`，也未扩展 E6 发布 baseline。
+- 已知限制更新：
+  2 列 key-value 表识别仍偏向“左短标签 + 右明显数据值”的业务表；
+  右列全是短文本、标签和值跨行、缺失网格线、扫描/OCR 或更自由的表单布局仍保持保守。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、不规则跨列宽、缺失装饰线条的表格、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（无装饰线条 key-value 表格）：
+
+- 已补充无网格线的 2 列 key-value PDF 样本：
+  `featherdoc-pdf-import-key-value-borderless-table.pdf` 只包含两列对齐文本，
+  不绘制表格线，用于确认当前候选识别确实基于文本几何，而不是依赖装饰线条。
+- 已补 parser 和 importer 回归：
+  parser 断言该样本仍产生 1 个 `PdfParsedTableCandidate`，并保持
+  `paragraph / table / paragraph` 块顺序；importer 断言显式 opt-in 后会写入
+  4 行 x 2 列 `Document` 表格，保存重开后行列数和关键文本仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  均通过；导入相关 5 项组合回归也通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-key-value-borderless-table-import-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-key-value-borderless-table-import-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-key-value-borderless-table-import-visual/merged-docx/table_visual_smoke.pdf`。
+- 已知限制更新：
+  本轮只覆盖规则两列、稳定行距的无装饰线条 key-value 表；缺失线条的多列表格、
+  不规则跨列宽、扫描件和 OCR 场景仍未覆盖。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、不规则跨列宽、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

@@ -56,6 +56,147 @@ TEST_CASE("PDFium parser detects sparse table-like grid candidates") {
         table.rows[2].cells[2].text, "Cell C3"));
 }
 
+TEST_CASE("PDFium parser detects conservative two-row header-data table candidate") {
+    const auto output_path =
+        featherdoc::test_support::write_two_row_header_data_table_pdf(
+            "featherdoc-pdf-import-two-row-table-source.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    REQUIRE_EQ(page.table_candidates.size(), 1U);
+    REQUIRE_EQ(page.content_blocks.size(), 3U);
+    CHECK_EQ(page.content_blocks[0].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
+    CHECK_EQ(page.content_blocks[1].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::table_candidate);
+    CHECK_EQ(page.content_blocks[2].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
+
+    const auto &table = page.table_candidates.front();
+    REQUIRE_EQ(table.rows.size(), 2U);
+    REQUIRE_EQ(table.column_anchor_x_points.size(), 3U);
+    REQUIRE_EQ(table.rows[0].cells.size(), 3U);
+    REQUIRE_EQ(table.rows[1].cells.size(), 3U);
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[0].text,
+                                                  "Item"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[1].text,
+                                                  "Owner"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[2].text,
+                                                  "Due"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[1].cells[0].text,
+                                                  "INV-2026-05"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[1].cells[1].text,
+                                                  "QA Team"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[1].cells[2].text,
+                                                  "2026-05-14"));
+}
+
+TEST_CASE("PDFium parser detects conservative two-column key-value table candidate") {
+    const auto output_path =
+        featherdoc::test_support::write_two_column_key_value_table_pdf(
+            "featherdoc-pdf-import-key-value-table-source.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    REQUIRE_EQ(page.table_candidates.size(), 1U);
+    REQUIRE_EQ(page.content_blocks.size(), 3U);
+    CHECK_EQ(page.content_blocks[0].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
+    CHECK_EQ(page.content_blocks[1].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::table_candidate);
+    CHECK_EQ(page.content_blocks[2].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
+
+    const auto &table = page.table_candidates.front();
+    REQUIRE_EQ(table.rows.size(), 4U);
+    REQUIRE_EQ(table.column_anchor_x_points.size(), 2U);
+    REQUIRE_EQ(table.rows[0].cells.size(), 2U);
+    REQUIRE_EQ(table.rows[3].cells.size(), 2U);
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[0].text,
+                                                  "Invoice No"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[1].text,
+                                                  "INV-2026-0514"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[1].cells[0].text,
+                                                  "Customer"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[1].cells[1].text,
+                                                  "FeatherDoc QA"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[3].cells[0].text,
+                                                  "Total"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[3].cells[1].text,
+                                                  "USD 480"));
+}
+
+TEST_CASE("PDFium parser detects borderless two-column key-value table candidate") {
+    const auto output_path = featherdoc::test_support::
+        write_two_column_borderless_key_value_table_pdf(
+            "featherdoc-pdf-import-key-value-borderless-table-source.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    REQUIRE_EQ(page.table_candidates.size(), 1U);
+    REQUIRE_EQ(page.content_blocks.size(), 3U);
+    CHECK_EQ(page.content_blocks[0].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
+    CHECK_EQ(page.content_blocks[1].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::table_candidate);
+    CHECK_EQ(page.content_blocks[2].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
+
+    const auto &table = page.table_candidates.front();
+    REQUIRE_EQ(table.rows.size(), 4U);
+    REQUIRE_EQ(table.column_anchor_x_points.size(), 2U);
+    REQUIRE_EQ(table.rows[0].cells.size(), 2U);
+    REQUIRE_EQ(table.rows[3].cells.size(), 2U);
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[0].text,
+                                                  "Invoice No"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[1].text,
+                                                  "INV-2026-0610"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[3].cells[0].text,
+                                                  "Amount"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[3].cells[1].text,
+                                                  "USD 960"));
+}
+
+TEST_CASE("PDFium parser does not classify two-row three-column prose as table candidate") {
+    const auto output_path =
+        featherdoc::test_support::write_two_row_three_column_prose_pdf(
+            "featherdoc-pdf-import-two-row-prose.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    CHECK(page.table_candidates.empty());
+}
+
+TEST_CASE("PDFium parser does not classify two-column short-label prose as table candidate") {
+    const auto output_path =
+        featherdoc::test_support::write_two_column_short_label_prose_pdf(
+            "featherdoc-pdf-import-two-column-short-label-prose.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    CHECK(page.table_candidates.empty());
+}
+
 TEST_CASE("PDFium parser does not classify two-column prose as table candidate") {
     const auto output_path =
         featherdoc::test_support::write_two_column_pdf(
@@ -411,6 +552,212 @@ TEST_CASE("PDF text importer can opt in to table candidate import") {
     CHECK_EQ(reopened_table->text, "Cell A1\t\t\n\tCell B2\t\n\t\tCell C3");
 
     // 保留该样本的导入 DOCX，供 E7 视觉验证复用；后续同名回归会覆盖它。
+}
+
+TEST_CASE("PDF text importer can opt in to two-row table import") {
+    const auto input_path =
+        featherdoc::test_support::write_two_row_header_data_table_pdf(
+            "featherdoc-pdf-import-two-row-table.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() / "featherdoc-pdf-import-two-row-table.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 3U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Two-row table sample\n"
+             "Tail paragraph after two-row table\n");
+
+    const auto imported_table = document.inspect_table(0U);
+    REQUIRE(imported_table.has_value());
+    CHECK_EQ(imported_table->row_count, 2U);
+    CHECK_EQ(imported_table->column_count, 3U);
+    REQUIRE_EQ(imported_table->row_repeats_header.size(), 2U);
+    CHECK_FALSE(imported_table->row_repeats_header[0]);
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Item"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "INV-2026-05"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "QA Team"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "2026-05-14"));
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_blocks = reopened.inspect_body_blocks();
+    REQUIRE_EQ(reopened_blocks.size(), 3U);
+    CHECK_EQ(reopened_blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(reopened_blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    const auto reopened_table = reopened.inspect_table(0U);
+    REQUIRE(reopened_table.has_value());
+    CHECK_EQ(reopened_table->row_count, 2U);
+    CHECK_EQ(reopened_table->column_count, 3U);
+    CHECK(featherdoc::test_support::contains_text(reopened_table->text,
+                                                  "INV-2026-05"));
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE("PDF text importer can opt in to two-column key-value table import") {
+    const auto input_path =
+        featherdoc::test_support::write_two_column_key_value_table_pdf(
+            "featherdoc-pdf-import-key-value-table.pdf");
+    const auto docx_path = std::filesystem::current_path() /
+                           "featherdoc-pdf-import-key-value-table.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 3U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Key-value table sample\n"
+             "Tail paragraph after key-value table\n");
+
+    const auto imported_table = document.inspect_table(0U);
+    REQUIRE(imported_table.has_value());
+    CHECK_EQ(imported_table->row_count, 4U);
+    CHECK_EQ(imported_table->column_count, 2U);
+    REQUIRE_EQ(imported_table->row_repeats_header.size(), 4U);
+    CHECK_FALSE(imported_table->row_repeats_header[0]);
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Invoice No"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "INV-2026-0514"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Customer"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "FeatherDoc QA"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Due Date"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "2026-05-14"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Total"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "USD 480"));
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_blocks = reopened.inspect_body_blocks();
+    REQUIRE_EQ(reopened_blocks.size(), 3U);
+    CHECK_EQ(reopened_blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(reopened_blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    const auto reopened_table = reopened.inspect_table(0U);
+    REQUIRE(reopened_table.has_value());
+    CHECK_EQ(reopened_table->row_count, 4U);
+    CHECK_EQ(reopened_table->column_count, 2U);
+    CHECK(featherdoc::test_support::contains_text(reopened_table->text,
+                                                  "INV-2026-0514"));
+    CHECK(featherdoc::test_support::contains_text(reopened_table->text,
+                                                  "USD 480"));
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE("PDF text importer can opt in to borderless key-value table import") {
+    const auto input_path = featherdoc::test_support::
+        write_two_column_borderless_key_value_table_pdf(
+            "featherdoc-pdf-import-key-value-borderless-table.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-key-value-borderless-table.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 3U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Borderless key-value sample\n"
+             "Tail paragraph after borderless key-value table\n");
+
+    const auto imported_table = document.inspect_table(0U);
+    REQUIRE(imported_table.has_value());
+    CHECK_EQ(imported_table->row_count, 4U);
+    CHECK_EQ(imported_table->column_count, 2U);
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "Invoice No"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "INV-2026-0610"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "FeatherDoc Ops"));
+    CHECK(featherdoc::test_support::contains_text(imported_table->text,
+                                                  "USD 960"));
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_blocks = reopened.inspect_body_blocks();
+    REQUIRE_EQ(reopened_blocks.size(), 3U);
+    CHECK_EQ(reopened_blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(reopened_blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(reopened_blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    const auto reopened_table = reopened.inspect_table(0U);
+    REQUIRE(reopened_table.has_value());
+    CHECK_EQ(reopened_table->row_count, 4U);
+    CHECK_EQ(reopened_table->column_count, 2U);
+    CHECK(featherdoc::test_support::contains_text(reopened_table->text,
+                                                  "INV-2026-0610"));
+    CHECK(featherdoc::test_support::contains_text(reopened_table->text,
+                                                  "USD 960"));
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
 }
 
 TEST_CASE("PDF text importer can opt in to invoice grid table import") {

@@ -42,8 +42,12 @@ cmake-build-*/
 CMakeFiles/
 docs/_build/
 output/
+output_cli_commands.txt
+output_edit_plan_ops.txt
 RELEASE_METADATA_START_HERE.md
 tmp/
+tmp_section_probe.docx
+tmp_section_probe_header.docx
 .venv-word-visual-smoke/
 .venv-pdf-visual-smoke/
 .idea/

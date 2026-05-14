@@ -285,6 +285,163 @@ write_table_like_grid_pdf(std::string_view filename) {
 }
 
 [[nodiscard]] inline std::filesystem::path
+write_two_row_header_data_table_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc two-row header-data table PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Two-row table sample"));
+    append_grid(page, 72.0, 680.0, 132.0, 32.0, 3U, 2U);
+    page.text_runs.push_back(make_pdf_text_run(86.0, 658.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(218.0, 658.0, "Owner"));
+    page.text_runs.push_back(make_pdf_text_run(350.0, 658.0, "Due"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 626.0, "INV-2026-05"));
+    page.text_runs.push_back(make_pdf_text_run(218.0, 626.0, "QA Team"));
+    page.text_runs.push_back(make_pdf_text_run(350.0, 626.0, "2026-05-14"));
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 570.0, "Tail paragraph after two-row table"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_two_column_key_value_table_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc two-column key-value table PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Key-value table sample"));
+    append_grid(page, 72.0, 680.0, 180.0, 30.0, 2U, 4U);
+    page.text_runs.push_back(make_pdf_text_run(86.0, 660.0, "Invoice No"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 660.0, "INV-2026-0514"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 630.0, "Customer"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 630.0, "FeatherDoc QA"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 600.0, "Due Date"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 600.0, "2026-05-14"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 570.0, "Total"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 570.0, "USD 480"));
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 518.0, "Tail paragraph after key-value table"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_two_column_borderless_key_value_table_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc borderless key-value table PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Borderless key-value sample"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 660.0, "Invoice No"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 660.0, "INV-2026-0610"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 630.0, "Customer"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 630.0, "FeatherDoc Ops"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 600.0, "Due Date"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 600.0, "2026-06-10"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 570.0, "Amount"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 570.0, "USD 960"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 518.0, "Tail paragraph after borderless key-value table"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_two_column_short_label_prose_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc two-column short-label prose PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Two-column labels sample"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 678.0, "Topic"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 678.0, "Scope"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 646.0, "Owner"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 646.0, "Review"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 614.0, "Status"));
+    page.text_runs.push_back(make_pdf_text_run(266.0, 614.0, "Closed"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_two_row_three_column_prose_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc two-row three-column prose PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Two-row prose sample"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 678.0, "Step 1"));
+    page.text_runs.push_back(make_pdf_text_run(218.0, 678.0, "Build 2"));
+    page.text_runs.push_back(make_pdf_text_run(350.0, 678.0, "Ship 3"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 646.0, "Alpha note"));
+    page.text_runs.push_back(make_pdf_text_run(218.0, 646.0, "Beta note"));
+    page.text_runs.push_back(make_pdf_text_run(350.0, 646.0, "Gamma note"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
 write_table_first_pdf(std::string_view filename) {
     featherdoc::pdf::PdfDocumentLayout layout;
     layout.metadata.title = "FeatherDoc table-first PDF import structure";

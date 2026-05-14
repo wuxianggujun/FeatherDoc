@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <memory>
@@ -456,6 +457,90 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     return (max_gap - min_gap) <= (std::max)(24.0, average_gap * 0.25);
 }
 
+[[nodiscard]] bool is_short_header_label(const std::string &text) {
+    if (text.empty() || text.size() > 24U) {
+        return false;
+    }
+
+    bool has_alpha = false;
+    for (unsigned char ch : text) {
+        if (std::isdigit(ch)) {
+            return false;
+        }
+        if (std::isalpha(ch)) {
+            has_alpha = true;
+        }
+    }
+
+    return has_alpha;
+}
+
+[[nodiscard]] bool is_data_like_cell_text(const std::string &text) {
+    if (text.empty()) {
+        return false;
+    }
+
+    for (unsigned char ch : text) {
+        if (std::isdigit(ch)) {
+            return true;
+        }
+    }
+
+    return !is_short_header_label(text);
+}
+
+[[nodiscard]] bool is_conservative_two_row_table(
+    const std::vector<CandidateLine> &rows) {
+    if (rows.size() != 2U) {
+        return false;
+    }
+
+    const auto &header_row = rows.front().clusters;
+    const auto &data_row = rows.back().clusters;
+    if (header_row.size() < 3U || data_row.size() < 3U) {
+        return false;
+    }
+
+    if (!std::all_of(header_row.begin(), header_row.end(),
+                     [](const TextCluster &cluster) {
+                         return is_short_header_label(cluster.text);
+                     })) {
+        return false;
+    }
+
+    const auto data_like_count = static_cast<std::size_t>(std::count_if(
+        data_row.begin(), data_row.end(), [](const TextCluster &cluster) {
+            return is_data_like_cell_text(cluster.text);
+        }));
+    return data_like_count >= 1U;
+}
+
+[[nodiscard]] bool is_conservative_two_column_key_value_table(
+    const std::vector<CandidateLine> &rows) {
+    if (rows.size() < 3U) {
+        return false;
+    }
+
+    std::size_t data_like_value_count = 0U;
+    for (const auto &row : rows) {
+        if (row.clusters.size() != 2U) {
+            return false;
+        }
+
+        if (!is_short_header_label(row.clusters[0].text)) {
+            return false;
+        }
+
+        if (is_data_like_cell_text(row.clusters[1].text)) {
+            ++data_like_value_count;
+        }
+    }
+
+    const auto minimum_data_values =
+        (std::max)(std::size_t{2U}, (rows.size() + 1U) / 2U);
+    return data_like_value_count >= minimum_data_values;
+}
+
 [[nodiscard]] std::size_t nearest_column_index(
     const std::vector<double> &anchors, double x_points) {
     std::size_t best_index = 0U;
@@ -552,12 +637,17 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
 
 [[nodiscard]] bool build_table_candidate(
     const std::vector<CandidateLine> &rows, PdfParsedTableCandidate &candidate) {
-    if (rows.size() < 3U) {
+    const bool is_two_row_table = is_conservative_two_row_table(rows);
+    const bool is_two_column_key_value_table =
+        is_conservative_two_column_key_value_table(rows);
+
+    if (rows.size() < 3U && !is_two_row_table) {
         return false;
     }
 
     const auto anchors = build_column_anchors(rows);
-    if (anchors.size() < 3U) {
+    if (anchors.size() < 3U &&
+        !(anchors.size() == 2U && is_two_column_key_value_table)) {
         return false;
     }
     if (!has_regular_column_spacing(anchors)) {
@@ -641,10 +731,6 @@ detect_table_candidates(std::vector<PdfParsedTextLine> &lines) {
                 break;
             }
             ++run_end;
-        }
-
-        if (run_end == gap_index) {
-            continue;
         }
 
         std::vector<CandidateLine> rows;
