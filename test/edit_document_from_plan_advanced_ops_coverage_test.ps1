@@ -53,6 +53,7 @@ $contentControlSyncTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_
 $contentControlTextAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_content_control_text_aliases_test.ps1"
 $floatingImageTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_floating_image_test.ps1"
 $deleteAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_delete_aliases_test.ps1"
+$bodyAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_body_aliases_test.ps1"
 $revisionCleanupTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_revision_cleanup_test.ps1"
 $updateFieldsAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_update_fields_aliases_test.ps1"
 $readmePath = Join-Path $RepoRoot "README.md"
@@ -68,6 +69,7 @@ $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlTextAliasesTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $floatingImageTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $deleteAliasesTestPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $bodyAliasesTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $revisionCleanupTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $updateFieldsAliasesTestPath
 ) -join "`n"
@@ -160,7 +162,17 @@ $advancedOperations = @(
     "append_paragraph_text_comment",
     "append_text_range_comment",
     "set_paragraph_text_comment_range",
-    "set_text_range_comment_range"
+    "set_text_range_comment_range",
+    "replace_text",
+    "replace_document_text",
+    "set_text_style",
+    "set_text_format",
+    "set_paragraph_text_style",
+    "delete_paragraph",
+    "remove_paragraph",
+    "set_paragraph_horizontal_alignment",
+    "set_paragraph_alignment",
+    "clear_paragraph_alignment"
 )
 
 foreach ($operation in $advancedOperations) {

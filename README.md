@@ -1247,7 +1247,13 @@ Paragraph layout edits include spacing before, spacing after, and line spacing.
 Body paragraphs can be targeted by `paragraph_index` or by `text_contains`.
 If a document has no bookmarks, use `replace_text` for ordinary
 body text replacement; it searches the merged visible paragraph text, so it
-handles common Word run splitting. For vertical centering to be visible in Word,
+handles common Word run splitting. `replace_document_text` is accepted as the
+same direct text-replacement alias. `set_text_format` and
+`set_paragraph_text_style` are accepted as direct text-style aliases for
+`set_text_style`; `set_paragraph_alignment` / `clear_paragraph_alignment` are
+aliases for the paragraph horizontal-alignment operations; `delete_paragraph`
+and `remove_paragraph` are accepted as paragraph deletion aliases. For vertical
+centering to be visible in Word,
 pair it with `set_table_row_height` so the row has an explicit height.
 Use `replace_bookmark_table`, `remove_bookmark_block`,
 `replace_bookmark_image`, `replace_bookmark_floating_image`,
