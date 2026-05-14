@@ -1027,7 +1027,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_works
 如果编辑计划需要使用 CLI 已有的书签高级替换和条件块能力，可以用
 `replace_bookmark_table`、`remove_bookmark_block`、`replace_bookmark_image`、
 `replace_bookmark_floating_image`、`set_bookmark_block_visibility` 和
-`apply_bookmark_block_visibility`。
+`apply_bookmark_block_visibility`；`delete_bookmark_block` 也可作为
+`remove_bookmark_block` 的同一移除别名。
 如果编辑计划需要一次性填充书签文本，可以用 `fill_bookmarks`，它支持
 `values` 对象或 `bindings` 数组来提供书签和值的对应关系。
 如果编辑计划需要按内容控件定位，可以用
@@ -1074,10 +1075,12 @@ Custom XML 刷新数据绑定内容控件时，使用 `sync_content_controls_fro
 `note_text`。`text` 与 `body` 也可作为 `note_text` 的简写。
 需要维护普通超链接 run 时，可以使用 `append_hyperlink`、
 `replace_hyperlink` 和 `remove_hyperlink`。追加与替换操作接受 `text`，以及
-`target`、`url` 或 `href`；移除操作可用 `hyperlink_index` 或 `index` 定位。
+`target`、`url` 或 `href`；移除操作可用 `hyperlink_index` 或 `index` 定位；
+`delete_hyperlink` 也可作为同一移除别名。
 需要维护 Word 公式时，可以使用 `append_omml`、`replace_omml` 和
 `remove_omml`。追加与替换操作接受 `xml`、`omml` 或 `omml_xml`；移除操作可用
-`formula_index`、`omml_index` 或 `index` 定位。
+`formula_index`、`omml_index` 或 `index` 定位；`delete_omml` 也可作为同一
+移除别名。
 需要维护正文、页眉、页脚或节级 part 里的普通 drawing 图片时，可以使用
 `append_image`、`replace_image` 和 `remove_image`。`append_image` 支持和 CLI
 `append-image` 一致的尺寸、浮动图、环绕和裁剪参数；`replace_image` 与

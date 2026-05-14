@@ -1253,7 +1253,8 @@ Use `replace_bookmark_table`, `remove_bookmark_block`,
 `replace_bookmark_image`, `replace_bookmark_floating_image`,
 `set_bookmark_block_visibility`, and `apply_bookmark_block_visibility` when an
 edit plan needs the same rich bookmark replacement and conditional-block
-controls exposed by the CLI.
+controls exposed by the CLI. `delete_bookmark_block` is accepted as the same
+removal alias as `remove_bookmark_block`.
 Use `fill_bookmarks` when an edit plan needs to set bookmark text values in one
 step; it accepts either a `values` object or a `bindings` array of
 bookmark/text pairs.
@@ -1305,9 +1306,11 @@ to manage review notes. Append operations require `reference_text` plus
 Use `append_hyperlink`, `replace_hyperlink`, and `remove_hyperlink` to manage
 ordinary hyperlink runs. Append and replace operations accept `text` plus
 `target`, `url`, or `href`; removal targets `hyperlink_index` or `index`.
+`delete_hyperlink` is accepted as the same removal alias.
 Use `append_omml`, `replace_omml`, and `remove_omml` for Word equations.
 Append and replace operations accept `xml`, `omml`, or `omml_xml`; removal
-targets `formula_index`, `omml_index`, or `index`.
+targets `formula_index`, `omml_index`, or `index`. `delete_omml` is accepted
+as the same removal alias.
 Use `append_image`, `replace_image`, and `remove_image` when a plan needs to
 manage ordinary drawing images in the body, header, footer, or section-scoped
 parts. `append_image` accepts the same sizing and floating-image options as the

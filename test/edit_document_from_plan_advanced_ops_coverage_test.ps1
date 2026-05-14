@@ -52,6 +52,7 @@ $numberingCatalogTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_nu
 $contentControlSyncTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_content_control_sync_test.ps1"
 $contentControlTextAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_content_control_text_aliases_test.ps1"
 $floatingImageTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_floating_image_test.ps1"
+$deleteAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_delete_aliases_test.ps1"
 $revisionCleanupTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_revision_cleanup_test.ps1"
 $updateFieldsAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_update_fields_aliases_test.ps1"
 $readmePath = Join-Path $RepoRoot "README.md"
@@ -66,6 +67,7 @@ $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlSyncTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlTextAliasesTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $floatingImageTestPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $deleteAliasesTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $revisionCleanupTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $updateFieldsAliasesTestPath
 ) -join "`n"
@@ -114,6 +116,7 @@ $advancedOperations = @(
     "replace_bookmark_table_rows",
     "replace_bookmark_table",
     "remove_bookmark_block",
+    "delete_bookmark_block",
     "replace_bookmark_image",
     "replace_bookmark_floating_image",
     "append_image",
@@ -143,9 +146,11 @@ $advancedOperations = @(
     "append_hyperlink",
     "replace_hyperlink",
     "remove_hyperlink",
+    "delete_hyperlink",
     "append_omml",
     "replace_omml",
     "remove_omml",
+    "delete_omml",
     "insert_paragraph_text_revision",
     "delete_paragraph_text_revision",
     "replace_paragraph_text_revision",
