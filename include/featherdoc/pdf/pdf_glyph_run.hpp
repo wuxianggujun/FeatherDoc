@@ -38,6 +38,7 @@ struct PdfGlyphRun {
     std::filesystem::path font_file_path;
     double font_size_points{12.0};
     PdfGlyphDirection direction{PdfGlyphDirection::left_to_right};
+    std::string script_tag;
     bool used_harfbuzz{false};
     std::string error_message;
 };

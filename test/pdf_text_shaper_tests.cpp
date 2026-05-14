@@ -135,6 +135,7 @@ TEST_CASE("text shaper produces HarfBuzz glyph positions when available") {
     CHECK(run.error_message.empty());
     CHECK_EQ(run.direction,
              featherdoc::pdf::PdfGlyphDirection::left_to_right);
+    CHECK_EQ(run.script_tag, "Latn");
     REQUIRE_FALSE(run.glyphs.empty());
 
     const auto total_advance = std::accumulate(
@@ -178,5 +179,6 @@ TEST_CASE("text shaper records right-to-left direction when available") {
     CHECK(run.error_message.empty());
     CHECK_EQ(run.direction,
              featherdoc::pdf::PdfGlyphDirection::right_to_left);
+    CHECK_EQ(run.script_tag, "Hebr");
     REQUIRE_FALSE(run.glyphs.empty());
 }

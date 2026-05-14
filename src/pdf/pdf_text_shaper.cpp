@@ -60,6 +60,25 @@ pdf_glyph_direction_from_harfbuzz(hb_direction_t direction) noexcept {
         return PdfGlyphDirection::unknown;
     }
 }
+
+[[nodiscard]] std::string harfbuzz_tag_to_string(hb_tag_t tag) {
+    char tag_chars[4]{};
+    hb_tag_to_string(tag, tag_chars);
+
+    std::string result{tag_chars, tag_chars + 4};
+    while (!result.empty() && result.back() == ' ') {
+        result.pop_back();
+    }
+    return result;
+}
+
+[[nodiscard]] std::string
+pdf_glyph_script_tag_from_harfbuzz(hb_script_t script) {
+    if (script == HB_SCRIPT_INVALID) {
+        return {};
+    }
+    return harfbuzz_tag_to_string(hb_script_to_iso15924_tag(script));
+}
 #endif
 
 [[nodiscard]] PdfGlyphRun make_base_run(std::string_view text,
@@ -157,6 +176,8 @@ PdfGlyphRun shape_pdf_text(std::string_view text,
     hb_buffer_guess_segment_properties(buffer.get());
     run.direction =
         pdf_glyph_direction_from_harfbuzz(hb_buffer_get_direction(buffer.get()));
+    run.script_tag =
+        pdf_glyph_script_tag_from_harfbuzz(hb_buffer_get_script(buffer.get()));
     hb_shape(font.get(), buffer.get(), nullptr, 0U);
 
     unsigned int glyph_count = 0U;

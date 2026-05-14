@@ -2841,6 +2841,24 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   已确认真实 RTL 文本能进入 metadata 层；下一步如果继续推进 RTL，需要先定义 layout
   的逻辑顺序 / 视觉顺序边界，再决定 writer 是否用逐 glyph positioned CID 流承接。
 
+2026-05-15 继续推进（HarfBuzz script tag 元数据）：
+
+- 已在 `PdfGlyphRun` 增加 `script_tag`，`shape_pdf_text()` 会把 HarfBuzz
+  `hb_buffer_get_script()` 转成 ISO 15924 tag；Latin 文本记录 `Latn`，Hebrew RTL 文本
+  记录 `Hebr`。
+- 已扩展 `pdf_text_shaper` 和 `pdf_document_adapter_font` 回归：分别断言 shaper 输出与
+  document adapter layout 中的 `PdfGlyphRun` 都保留 direction 和 script tag，避免后续
+  设计 RTL / Arabic / vertical 策略时丢失脚本上下文。
+- 已同步 `BUILDING_PDF.md`，把 `PdfGlyphRun` 当前 metadata 更新为 direction / script。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font)$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  script tag 现在可以作为后续方向模型的输入；真正改变 layout / writer 前，仍需先定义
+  每种脚本的受控验收样本和 fallback 规则。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

@@ -322,6 +322,7 @@ TEST_CASE("document PDF adapter carries shaped glyph run for file-backed text") 
     CHECK(text_run.glyph_run.font_size_points == doctest::Approx(12.0));
     CHECK_EQ(text_run.glyph_run.direction,
              featherdoc::pdf::PdfGlyphDirection::left_to_right);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
     REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
 
     double total_advance = 0.0;
@@ -384,6 +385,7 @@ TEST_CASE("document PDF adapter carries RTL shaped direction metadata") {
     CHECK_EQ(text_run.glyph_run.font_file_path, rtl_font);
     CHECK_EQ(text_run.glyph_run.direction,
              featherdoc::pdf::PdfGlyphDirection::right_to_left);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Hebr");
     REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
 }
 
