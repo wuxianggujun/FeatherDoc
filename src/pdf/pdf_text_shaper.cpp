@@ -107,6 +107,15 @@ harfbuzz_script_from_pdf_tag(std::string_view script_tag) noexcept {
         hb_tag_from_string(script_tag.data(),
                            static_cast<int>(script_tag.size())));
 }
+
+[[nodiscard]] std::string
+pdf_glyph_language_tag_from_harfbuzz(hb_language_t language) {
+    if (language == HB_LANGUAGE_INVALID) {
+        return {};
+    }
+    const char *language_text = hb_language_to_string(language);
+    return language_text == nullptr ? std::string{} : std::string{language_text};
+}
 #endif
 
 [[nodiscard]] PdfGlyphRun make_base_run(std::string_view text,
@@ -215,11 +224,25 @@ PdfGlyphRun shape_pdf_text(std::string_view text,
         }
         hb_buffer_set_script(buffer.get(), script);
     }
+    if (!options.language_tag.empty()) {
+        const auto language = hb_language_from_string(
+            options.language_tag.c_str(),
+            static_cast<int>(options.language_tag.size()));
+        if (language == HB_LANGUAGE_INVALID) {
+            run.error_message = "Language tag is invalid: " +
+                                options.language_tag;
+            return run;
+        }
+        hb_buffer_set_language(buffer.get(), language);
+    }
     hb_buffer_guess_segment_properties(buffer.get());
     run.direction =
         pdf_glyph_direction_from_harfbuzz(hb_buffer_get_direction(buffer.get()));
     run.script_tag =
         pdf_glyph_script_tag_from_harfbuzz(hb_buffer_get_script(buffer.get()));
+    run.language_tag =
+        pdf_glyph_language_tag_from_harfbuzz(
+            hb_buffer_get_language(buffer.get()));
     hb_shape(font.get(), buffer.get(), nullptr, 0U);
 
     unsigned int glyph_count = 0U;

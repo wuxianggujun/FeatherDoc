@@ -22,6 +22,7 @@ struct PdfTextShaperOptions {
     double font_size_points{12.0};
     PdfGlyphDirection direction{PdfGlyphDirection::unknown};
     std::string script_tag;
+    std::string language_tag;
 };
 
 [[nodiscard]] bool pdf_text_shaper_has_harfbuzz() noexcept;

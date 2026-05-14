@@ -195,6 +195,7 @@ TEST_CASE("text shaper honors explicit direction and script overrides") {
     featherdoc::pdf::PdfTextShaperOptions options{font_path, 12.0};
     options.direction = featherdoc::pdf::PdfGlyphDirection::right_to_left;
     options.script_tag = "Hebr";
+    options.language_tag = "he";
     const auto run = featherdoc::pdf::shape_pdf_text(text, options);
 
     CHECK_EQ(run.text, text);
@@ -212,6 +213,7 @@ TEST_CASE("text shaper honors explicit direction and script overrides") {
     CHECK_EQ(run.direction,
              featherdoc::pdf::PdfGlyphDirection::right_to_left);
     CHECK_EQ(run.script_tag, "Hebr");
+    CHECK_EQ(run.language_tag, "he");
     REQUIRE_FALSE(run.glyphs.empty());
 }
 

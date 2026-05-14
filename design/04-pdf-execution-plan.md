@@ -2900,6 +2900,23 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   可以继续把 `bidi_language` 映射到 shaper language / script，或开始定义 RTL writer 的
   glyph order、text matrix 和文本提取验收；在 writer 语义明确前仍不直接写非 LTR CID 流。
 
+2026-05-15 继续推进（HarfBuzz language tag 元数据）：
+
+- 已在 `PdfGlyphRun` 和 `PdfTextShaperOptions` 增加 `language_tag`；调用方可以显式设置
+  HarfBuzz language，shaper 会从 buffer 回填最终 language tag。
+- 已扩展 `pdf_text_shaper` override 回归：显式设置 RTL / `Hebr` / `he` 后，glyph run 会同时
+  记录 direction、script tag 和 language tag。
+- 已同步 `BUILDING_PDF.md`，把当前 `PdfGlyphRun` 元数据更新为 direction / script /
+  language。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests pdf_document_adapter_font_tests pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  shaper 已能承载 language metadata；下一步可以把 Document 的 `language` /
+  `bidi_language` 解析结果传入 `PdfTextShaperOptions`。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
