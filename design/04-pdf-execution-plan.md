@@ -2766,11 +2766,36 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 已完成验证：
   `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
   通过；
-  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-glyph-cluster-visual-release-gate -SkipUnicodeBaseline`
   通过。
 - 下一阶段入口：
   shaped writer 剩余风险主要是 RTL / 竖排的方向模型，以及多 glyph 同 cluster 在定位和
   文本选择中的更细粒度验收。
+
+2026-05-15 继续推进（shaped glyph cluster 提取语义收口）：
+
+- 已收紧 shaped glyph writer 的 cluster 安全条件：cluster offset 除了必须有界、非倒序，
+  还必须落在 UTF-8 codepoint 边界上；如果 HarfBuzz 数据或上游构造的数据把 cluster 指到
+  多字节字符中间，writer 会保留字符串 fallback，避免把无效 UTF-8 切片写进 ToUnicode。
+- 已固定多 glyph 同 cluster 的 ToUnicode 策略：第一个 CID 映射完整 cluster Unicode 文本，
+  后续同 cluster CID 不写 ToUnicode entry，避免复制/提取时重复输出同一个文本 cluster。
+  `ActualText` 仍包裹完整 run，作为阅读器文本提取兜底。
+- 已扩展 `pdf_unicode_font_roundtrip`：
+  手写 `a + combining acute + b` 的 repeated-cluster shaped run，解压
+  `/FeatherDocGlyphToUnicode` CMap 断言 `<0001>` 映射 `<00610301>`、`<0002>` 不映射、
+  `<0003>` 映射 `<0062>`；同时补 cluster 落在 UTF-8 continuation byte 时的 fallback 回归。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  shaped writer 的 LTR 安全子集已覆盖 glyph id、advance、offset、cluster 边界和重复
+  cluster 提取语义；继续向外扩展时应优先单独设计 RTL / 竖排方向模型。
 
 ## 阶段推进规则
 

@@ -161,6 +161,19 @@ struct FreeTypeFaceOwner {
     return fallback;
 }
 
+[[nodiscard]] bool is_utf8_codepoint_boundary(std::string_view text,
+                                              std::size_t index) noexcept {
+    if (index == 0U || index == text.size()) {
+        return true;
+    }
+    if (index > text.size()) {
+        return false;
+    }
+
+    const auto byte = static_cast<unsigned char>(text[index]);
+    return (byte & 0xC0U) != 0x80U;
+}
+
 [[nodiscard]] bool
 can_write_shaped_glyph_run(const PdfTextRun &text_run) noexcept {
     if (text_run.text.empty() || text_run.font_file_path.empty() ||
@@ -182,6 +195,8 @@ can_write_shaped_glyph_run(const PdfTextRun &text_run) noexcept {
         if (glyph.glyph_id == 0U ||
             glyph.glyph_id > std::numeric_limits<std::uint16_t>::max() ||
             glyph.cluster >= text_run.glyph_run.text.size() ||
+            !is_utf8_codepoint_boundary(text_run.glyph_run.text,
+                                        glyph.cluster) ||
             (has_previous_cluster && glyph.cluster < previous_cluster) ||
             !std::isfinite(glyph.x_advance_points) ||
             !std::isfinite(glyph.y_advance_points) ||

@@ -485,11 +485,13 @@ PDFio writer 会在满足安全条件的 shaped run 上创建独立 Type0 / CIDF
 - 用 `W` 数组写入 HarfBuzz x advance，避免回退到未塑形字宽
 - 遇到非零 glyph x/y offset 或 y advance 时，逐 glyph 写 `Tm` + `Tj`，用 HarfBuzz
   pen position 定位；普通无 offset run 仍走整段 `<cid...> Tj` 快路径
+- 同一 cluster 覆盖多个 glyph 时，只把第一个 CID 映射到完整 cluster Unicode 文本，后续同
+  cluster CID 不写 ToUnicode entry，避免复制文本重复
 - 用 ToUnicode / ActualText 保留原始文本提取语义
 
 如果 run 没有 file-backed font、HarfBuzz 不可用、字体大小不匹配、cluster 越界或倒序、
-writer 会保留原字符串路径。这样 RTL / 竖排等还没有完整方向语义的 shaped run 不会误走
-LTR glyph-id content stream。
+cluster 不在 UTF-8 codepoint 边界上，writer 会保留原字符串路径。这样 RTL / 竖排等还没有
+完整方向语义的 shaped run 不会误走 LTR glyph-id content stream。
 
 单独验证文字塑形桥接层：
 
@@ -539,14 +541,15 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 - 可以让 PDFio writer 对受控 shaped run 写出 glyph-id CID content stream，并用
   PDFium 回读验证文本不重复、不丢失；`pdf_unicode_font_roundtrip` 还会解压 PDF stream
   检查 shaped glyph ToUnicode CMap 的 cluster 映射，验证带 offset / y advance 的 glyph
-  会逐 glyph 写定位矩阵，并验证倒序 cluster 会回退到字符串路径
+  会逐 glyph 写定位矩阵，验证重复 cluster 只映射一次，并验证倒序 cluster / 非 UTF-8
+  边界 cluster 会回退到字符串路径
 - 可以跑 PDFio → PDFium 的端到端 smoke
 - 已有首批 39 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、中英混排标点、Latin ligature 文本、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
 
 还不能算正式可用：
 
 - 还没有 `AST → PDFio` 完整翻译层；复杂分页、图片锚点/裁剪/环绕和发布级合同样式视觉 baseline 还没收口
-- RTL / 竖排文字和多 glyph 同 cluster 的定位/提取策略还需要继续专项收口
+- RTL / 竖排文字的方向模型还需要继续专项收口
 - 还没有 `PDFium → AST` 文档结构重建
 - 还需要继续扩充真实 PDF 样本回归集
 - 发布级 CJK 字体许可证 / 捆绑策略、复杂表格分页和 PNG baseline 门禁还在专项推进中

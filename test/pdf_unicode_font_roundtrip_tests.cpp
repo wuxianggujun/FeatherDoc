@@ -701,6 +701,147 @@ TEST_CASE("PDFio maps shaped glyph clusters in ToUnicode CMap") {
     CHECK(checked_multi_codepoint_cluster);
 }
 
+TEST_CASE("PDFio maps only the first shaped glyph for repeated clusters") {
+    const auto font_path = find_latin_font();
+    if (font_path.empty()) {
+        MESSAGE("skipping repeated shaped cluster smoke: configure test Latin "
+                "font");
+        return;
+    }
+
+    const auto expected_text = utf8_from_u8(u8"a\u0301b");
+    constexpr double font_size = 18.0;
+    featherdoc::pdf::PdfGlyphRun glyph_run;
+    glyph_run.text = expected_text;
+    glyph_run.font_file_path = font_path;
+    glyph_run.font_size_points = font_size;
+    glyph_run.used_harfbuzz = true;
+    glyph_run.glyphs = {
+        featherdoc::pdf::PdfGlyphPosition{1U, 0U, 6.0, 0.0, 0.0, 0.0},
+        featherdoc::pdf::PdfGlyphPosition{2U, 0U, 0.0, 0.0, 0.0, 0.0},
+        featherdoc::pdf::PdfGlyphPosition{3U, 3U, 6.0, 0.0, 0.0, 0.0},
+    };
+
+    const auto output_path =
+        std::filesystem::current_path() /
+        "featherdoc-shaped-glyph-repeated-cluster.pdf";
+
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title = "FeatherDoc repeated shaped cluster";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::a4_portrait();
+    page.text_runs.push_back(featherdoc::pdf::PdfTextRun{
+        featherdoc::pdf::PdfPoint{72.0, 720.0},
+        expected_text,
+        "Latin Test Font",
+        font_path,
+        font_size,
+        featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
+        false,
+        false,
+        false,
+        true,
+        0.0,
+        false,
+        false,
+        std::move(glyph_run),
+    });
+    layout.pages.push_back(std::move(page));
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    CHECK_GT(write_result.bytes_written, 0U);
+
+    const auto pdf_bytes = read_file_bytes(output_path);
+    CHECK_NE(pdf_bytes.find("/FeatherDocGlyph"), std::string::npos);
+
+    const auto streams = inflated_pdf_streams(pdf_bytes);
+    REQUIRE_FALSE(streams.empty());
+    const auto cmap = find_shaped_to_unicode_cmap(streams);
+    REQUIRE_MESSAGE(!cmap.empty(), "shaped glyph ToUnicode CMap not found");
+
+    CHECK_NE(cmap.find("<0001> <00610301>"), std::string::npos);
+    CHECK_EQ(cmap.find("<0002> <"), std::string::npos);
+    CHECK_NE(cmap.find("<0003> <0062>"), std::string::npos);
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+
+    const auto extracted_text = collect_text(parse_result.document);
+    CHECK_EQ(count_occurrences(extracted_text, expected_text), 1U);
+}
+
+TEST_CASE("PDFio falls back for shaped glyph clusters inside UTF-8 codepoints") {
+    const auto font_path = find_latin_font();
+    if (font_path.empty()) {
+        MESSAGE("skipping shaped glyph UTF-8 boundary smoke: configure test "
+                "Latin font");
+        return;
+    }
+
+    const auto expected_text = utf8_from_u8(u8"a\u0301b");
+    constexpr double font_size = 18.0;
+    featherdoc::pdf::PdfGlyphRun glyph_run;
+    glyph_run.text = expected_text;
+    glyph_run.font_file_path = font_path;
+    glyph_run.font_size_points = font_size;
+    glyph_run.used_harfbuzz = true;
+    glyph_run.glyphs = {
+        featherdoc::pdf::PdfGlyphPosition{1U, 0U, 6.0, 0.0, 0.0, 0.0},
+        featherdoc::pdf::PdfGlyphPosition{2U, 2U, 6.0, 0.0, 0.0, 0.0},
+        featherdoc::pdf::PdfGlyphPosition{3U, 3U, 6.0, 0.0, 0.0, 0.0},
+    };
+
+    const auto output_path =
+        std::filesystem::current_path() /
+        "featherdoc-shaped-glyph-utf8-boundary-fallback.pdf";
+
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title = "FeatherDoc shaped glyph UTF-8 boundary";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::a4_portrait();
+    page.text_runs.push_back(featherdoc::pdf::PdfTextRun{
+        featherdoc::pdf::PdfPoint{72.0, 720.0},
+        expected_text,
+        "Latin Test Font",
+        font_path,
+        font_size,
+        featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
+        false,
+        false,
+        false,
+        true,
+        0.0,
+        false,
+        false,
+        std::move(glyph_run),
+    });
+    layout.pages.push_back(std::move(page));
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    CHECK_GT(write_result.bytes_written, 0U);
+
+    const auto pdf_bytes = read_file_bytes(output_path);
+    CHECK_EQ(pdf_bytes.find("/FeatherDocGlyph"), std::string::npos);
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+
+    const auto extracted_text = collect_text(parse_result.document);
+    CHECK_NE(extracted_text.find(expected_text), std::string::npos);
+}
+
 TEST_CASE("PDFio falls back for non-forward shaped glyph clusters") {
     const auto font_path = find_latin_font();
     if (font_path.empty()) {
