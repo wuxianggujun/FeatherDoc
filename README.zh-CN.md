@@ -1035,7 +1035,7 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_works
 `replace_content_control_table`、`replace_content_control_table_rows`、
 `replace_content_control_image` 和 `set_content_control_form_state`，通过
 `content_control_tag` 或 `content_control_alias` 选择目标；需要从内嵌
-Custom XML 刷新数据绑定内容控件时，使用 `sync_content_controls_from_custom_xml`。
+Custom XML 刷新数据绑定内容控件时，使用 `sync_content_controls_from_custom_xml`；`sync_content_control_from_custom_xml` 也可作为同一 edit-plan 别名。
 需要清理审阅状态或批量维护批注时，可以用 `accept_all_revisions`、
 `reject_all_revisions`、`set_comment_resolved`、`set_comment_metadata`、
 `replace_comment` 和 `remove_comment`。批注类操作会转交给

@@ -1262,7 +1262,8 @@ Use `replace_content_control_text`, `replace_content_control_paragraphs`,
 `replace_content_control_image`, and `set_content_control_form_state` when an
 edit plan needs to target content controls by `content_control_tag` or
 `content_control_alias`. Use `sync_content_controls_from_custom_xml` when
-data-bound content controls should be refreshed from embedded Custom XML.
+data-bound content controls should be refreshed from embedded Custom XML;
+`sync_content_control_from_custom_xml` is accepted as the same edit-plan alias.
 Use `accept_all_revisions`, `reject_all_revisions`,
 `set_comment_resolved`, `set_comment_metadata`, `replace_comment`, and
 `remove_comment` when a plan needs to clean review state or update comments.

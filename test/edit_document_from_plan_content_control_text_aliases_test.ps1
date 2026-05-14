@@ -91,7 +91,7 @@ function Read-DocxEntryText {
     }
 }
 
-function New-CustomXmlContentControlFixtureDocx {
+function New-ContentControlTextFixtureDocx {
     param([string]$Path)
 
     Add-Type -AssemblyName System.IO.Compression
@@ -123,35 +123,31 @@ function New-CustomXmlContentControlFixtureDocx {
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
-    <w:sdt>
-      <w:sdtPr>
-        <w:alias w:val="Due Date"/>
-        <w:tag w:val="due_date"/>
-        <w:dataBinding w:storeItemID="{66666666-6666-6666-6666-666666666666}" w:xpath="/invoice/dueDate"/>
-      </w:sdtPr>
-      <w:sdtContent><w:p><w:r><w:t>Pending date</w:t></w:r></w:p></w:sdtContent>
-    </w:sdt>
+    <w:p>
+      <w:r><w:t>Order: </w:t></w:r>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Order Number"/>
+          <w:tag w:val="order_no"/>
+          <w:id w:val="43"/>
+        </w:sdtPr>
+        <w:sdtContent><w:r><w:t>INV-001</w:t></w:r></w:sdtContent>
+      </w:sdt>
+    </w:p>
+    <w:p>
+      <w:r><w:t>Status: </w:t></w:r>
+      <w:sdt>
+        <w:sdtPr>
+          <w:alias w:val="Status"/>
+          <w:tag w:val="status"/>
+          <w:id w:val="44"/>
+        </w:sdtPr>
+        <w:sdtContent><w:r><w:t>Pending</w:t></w:r></w:sdtContent>
+      </w:sdt>
+    </w:p>
+    <w:sectPr/>
   </w:body>
 </w:document>
-'@
-    $customXml = @'
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<invoice><dueDate>2026-08-20</dueDate></invoice>
-'@
-    $itemPropsXml = @'
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<ds:datastoreItem ds:itemID="{66666666-6666-6666-6666-666666666666}"
-                  xmlns:ds="http://schemas.openxmlformats.org/officeDocument/2006/customXml">
-  <ds:schemaRefs/>
-</ds:datastoreItem>
-'@
-    $itemRelationshipsXml = @'
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1"
-                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXmlProps"
-                Target="itemProps1.xml"/>
-</Relationships>
 '@
 
     $fileStream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Create)
@@ -161,9 +157,6 @@ function New-CustomXmlContentControlFixtureDocx {
             Add-ZipTextEntry -Archive $archive -EntryName "_rels/.rels" -Content $relationshipsXml
             Add-ZipTextEntry -Archive $archive -EntryName "[Content_Types].xml" -Content $contentTypesXml
             Add-ZipTextEntry -Archive $archive -EntryName "word/document.xml" -Content $documentXml
-            Add-ZipTextEntry -Archive $archive -EntryName "customXml/item1.xml" -Content $customXml
-            Add-ZipTextEntry -Archive $archive -EntryName "customXml/itemProps1.xml" -Content $itemPropsXml
-            Add-ZipTextEntry -Archive $archive -EntryName "customXml/_rels/item1.xml.rels" -Content $itemRelationshipsXml
         } finally {
             $archive.Dispose()
         }
@@ -179,30 +172,33 @@ if ([string]::IsNullOrWhiteSpace($BuildDir)) {
     $BuildDir = Join-Path $RepoRoot "build-msvc-nmake"
 }
 if ([string]::IsNullOrWhiteSpace($WorkingDir)) {
-    $WorkingDir = Join-Path $BuildDir "test\edit_document_from_plan_content_control_sync"
+    $WorkingDir = Join-Path $BuildDir "test\edit_document_from_plan_content_control_text_aliases"
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedBuildDir = (Resolve-Path $BuildDir).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\edit_document_from_plan.ps1"
-$sourceDocx = Join-Path $resolvedWorkingDir "custom_xml_content_control.source.docx"
-$editPlanPath = Join-Path $resolvedWorkingDir "custom_xml_content_control.edit_plan.json"
-$outputDocx = Join-Path $resolvedWorkingDir "custom_xml_content_control.edited.docx"
-$summaryPath = Join-Path $resolvedWorkingDir "custom_xml_content_control.summary.json"
-$aliasSourceDocx = Join-Path $resolvedWorkingDir "custom_xml_content_control_alias.source.docx"
-$aliasEditPlanPath = Join-Path $resolvedWorkingDir "custom_xml_content_control_alias.edit_plan.json"
-$aliasOutputDocx = Join-Path $resolvedWorkingDir "custom_xml_content_control_alias.edited.docx"
-$aliasSummaryPath = Join-Path $resolvedWorkingDir "custom_xml_content_control_alias.summary.json"
+$sourceDocx = Join-Path $resolvedWorkingDir "content_control_text_aliases.source.docx"
+$editPlanPath = Join-Path $resolvedWorkingDir "content_control_text_aliases.edit_plan.json"
+$outputDocx = Join-Path $resolvedWorkingDir "content_control_text_aliases.edited.docx"
+$summaryPath = Join-Path $resolvedWorkingDir "content_control_text_aliases.summary.json"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
-New-CustomXmlContentControlFixtureDocx -Path $sourceDocx
+New-ContentControlTextFixtureDocx -Path $sourceDocx
 
 Set-Content -LiteralPath $editPlanPath -Encoding UTF8 -Value @'
 {
   "operations": [
     {
-      "op": "sync_content_controls_from_custom_xml"
+      "op": "replace_content_control_text_by_tag",
+      "content_control_tag": "order_no",
+      "text": "INV-ALIAS"
+    },
+    {
+      "op": "replace_content_control_text_by_alias",
+      "content_control_alias": "Status",
+      "text": "Approved"
     }
   ]
 }
@@ -217,59 +213,27 @@ Set-Content -LiteralPath $editPlanPath -Encoding UTF8 -Value @'
     -SkipBuild
 
 if ($LASTEXITCODE -ne 0) {
-    throw "edit_document_from_plan.ps1 failed for the custom XML content-control sync operation."
+    throw "edit_document_from_plan.ps1 failed for content-control text alias operations."
 }
 
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 $documentXml = Read-DocxEntryText -DocxPath $outputDocx -EntryName "word/document.xml"
 
 Assert-Equal -Actual $summary.status -Expected "completed" `
-    -Message "Custom XML content-control sync summary did not report status=completed."
-Assert-Equal -Actual $summary.operation_count -Expected 1 `
-    -Message "Custom XML content-control sync summary should record one operation."
-Assert-Equal -Actual $summary.operations[0].op -Expected "sync_content_controls_from_custom_xml" `
-    -Message "Custom XML content-control sync operation should be recorded."
-Assert-Equal -Actual $summary.operations[0].command -Expected "sync-content-controls-from-custom-xml" `
-    -Message "Custom XML content-control sync operation should use the CLI sync command."
-Assert-ContainsText -Text $documentXml -ExpectedText "<w:t>2026-08-20</w:t>" -Label "Custom XML content-control document.xml"
-Assert-NotContainsText -Text $documentXml -UnexpectedText "Pending date" -Label "Custom XML content-control document.xml"
+    -Message "Content-control text alias summary did not report status=completed."
+Assert-Equal -Actual $summary.operation_count -Expected 2 `
+    -Message "Content-control text alias summary should record two operations."
+Assert-Equal -Actual $summary.operations[0].op -Expected "replace_content_control_text_by_tag" `
+    -Message "Tag content-control text alias should be recorded."
+Assert-Equal -Actual $summary.operations[0].command -Expected "replace-content-control-text" `
+    -Message "Tag content-control text alias should use the CLI replace-content-control-text command."
+Assert-Equal -Actual $summary.operations[1].op -Expected "replace_content_control_text_by_alias" `
+    -Message "Alias content-control text alias should be recorded."
+Assert-Equal -Actual $summary.operations[1].command -Expected "replace-content-control-text" `
+    -Message "Alias content-control text alias should use the CLI replace-content-control-text command."
+Assert-ContainsText -Text $documentXml -ExpectedText "INV-ALIAS" -Label "Content-control text alias document.xml"
+Assert-ContainsText -Text $documentXml -ExpectedText "Approved" -Label "Content-control text alias document.xml"
+Assert-NotContainsText -Text $documentXml -UnexpectedText "INV-001" -Label "Content-control text alias document.xml"
+Assert-NotContainsText -Text $documentXml -UnexpectedText "Pending" -Label "Content-control text alias document.xml"
 
-New-CustomXmlContentControlFixtureDocx -Path $aliasSourceDocx
-
-Set-Content -LiteralPath $aliasEditPlanPath -Encoding UTF8 -Value @'
-{
-  "operations": [
-    {
-      "op": "sync_content_control_from_custom_xml"
-    }
-  ]
-}
-'@
-
-& $scriptPath `
-    -InputDocx $aliasSourceDocx `
-    -EditPlan $aliasEditPlanPath `
-    -OutputDocx $aliasOutputDocx `
-    -SummaryJson $aliasSummaryPath `
-    -BuildDir $resolvedBuildDir `
-    -SkipBuild
-
-if ($LASTEXITCODE -ne 0) {
-    throw "edit_document_from_plan.ps1 failed for the custom XML content-control sync alias operation."
-}
-
-$aliasSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $aliasSummaryPath | ConvertFrom-Json
-$aliasDocumentXml = Read-DocxEntryText -DocxPath $aliasOutputDocx -EntryName "word/document.xml"
-
-Assert-Equal -Actual $aliasSummary.status -Expected "completed" `
-    -Message "Custom XML content-control sync alias summary did not report status=completed."
-Assert-Equal -Actual $aliasSummary.operation_count -Expected 1 `
-    -Message "Custom XML content-control sync alias summary should record one operation."
-Assert-Equal -Actual $aliasSummary.operations[0].op -Expected "sync_content_control_from_custom_xml" `
-    -Message "Custom XML content-control sync alias operation should be recorded."
-Assert-Equal -Actual $aliasSummary.operations[0].command -Expected "sync-content-controls-from-custom-xml" `
-    -Message "Custom XML content-control sync alias operation should use the CLI sync command."
-Assert-ContainsText -Text $aliasDocumentXml -ExpectedText "<w:t>2026-08-20</w:t>" -Label "Custom XML content-control alias document.xml"
-Assert-NotContainsText -Text $aliasDocumentXml -UnexpectedText "Pending date" -Label "Custom XML content-control alias document.xml"
-
-Write-Host "Edit-plan content-control Custom XML sync passed."
+Write-Host "Edit-plan content-control text aliases passed."

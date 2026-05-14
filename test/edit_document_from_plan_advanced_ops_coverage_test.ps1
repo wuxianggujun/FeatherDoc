@@ -50,6 +50,8 @@ $testPath = Join-Path $RepoRoot "test\edit_document_from_plan_test.ps1"
 $tablePositionPlanTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_position_plan_test.ps1"
 $numberingCatalogTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_numbering_catalog_test.ps1"
 $contentControlSyncTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_content_control_sync_test.ps1"
+$contentControlTextAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_content_control_text_aliases_test.ps1"
+$floatingImageTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_floating_image_test.ps1"
 $revisionCleanupTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_revision_cleanup_test.ps1"
 $updateFieldsAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_update_fields_aliases_test.ps1"
 $readmePath = Join-Path $RepoRoot "README.md"
@@ -62,6 +64,8 @@ $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $tablePositionPlanTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $numberingCatalogTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlSyncTestPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlTextAliasesTestPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $floatingImageTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $revisionCleanupTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $updateFieldsAliasesTestPath
 ) -join "`n"
@@ -96,13 +100,24 @@ $advancedOperations = @(
     "apply_table_position_plan",
     "import_numbering_catalog",
     "replace_content_control_text",
+    "replace_content_control_text_by_tag",
+    "replace_content_control_text_by_alias",
     "replace_content_control_paragraphs",
     "replace_content_control_table",
     "replace_content_control_table_rows",
     "replace_content_control_image",
     "set_content_control_form_state",
     "sync_content_controls_from_custom_xml",
+    "sync_content_control_from_custom_xml",
+    "replace_bookmark_text",
+    "replace_bookmark_paragraphs",
+    "replace_bookmark_table_rows",
+    "replace_bookmark_table",
+    "remove_bookmark_block",
+    "replace_bookmark_image",
+    "replace_bookmark_floating_image",
     "append_image",
+    "append_floating_image",
     "replace_image",
     "remove_image",
     "append_page_number_field",
