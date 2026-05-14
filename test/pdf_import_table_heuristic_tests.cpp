@@ -539,6 +539,43 @@ TEST_CASE("PDFium parser detects middle-amount subtotal-row table candidate span
     CHECK_FALSE(table.rows[5].cells[3].has_text);
 }
 
+TEST_CASE(
+    "PDFium parser keeps cross-page subtotal rows with a missing body cell aligned") {
+    const auto output_path = featherdoc::test_support::
+        write_invoice_grid_pagebreak_subtotal_missing_unit_pdf(
+            "featherdoc-pdf-import-pagebreak-subtotal-missing-unit-table-source.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 2U);
+
+    const auto &first_page = parse_result.document.pages[0];
+    const auto &second_page = parse_result.document.pages[1];
+    REQUIRE_EQ(first_page.table_candidates.size(), 1U);
+    REQUIRE_EQ(second_page.table_candidates.size(), 1U);
+
+    const auto &first_table = first_page.table_candidates.front();
+    const auto &second_table = second_page.table_candidates.front();
+    REQUIRE_EQ(first_table.column_anchor_x_points.size(), 4U);
+    REQUIRE_EQ(second_table.column_anchor_x_points.size(), 4U);
+    REQUIRE_EQ(first_table.rows.size(), 4U);
+    REQUIRE_EQ(second_table.rows.size(), 4U);
+    REQUIRE_EQ(second_table.rows[1].cells.size(), 4U);
+
+    CHECK(featherdoc::test_support::contains_text(
+        second_table.rows[1].cells[0].text, "Regression evidence"));
+    CHECK(featherdoc::test_support::contains_text(
+        second_table.rows[1].cells[1].text, "1"));
+    CHECK_FALSE(second_table.rows[1].cells[2].has_text);
+    CHECK(second_table.rows[1].cells[3].has_text);
+    CHECK(featherdoc::test_support::contains_text(
+        second_table.rows[1].cells[3].text, "USD 10"));
+    CHECK_EQ(second_table.rows[3].cells[0].column_span, 3U);
+    CHECK(featherdoc::test_support::contains_text(
+        second_table.rows[3].cells[0].text, "Grand total"));
+}
+
 TEST_CASE("PDFium parser detects wide merged-header table candidate spans") {
     const auto output_path =
         featherdoc::test_support::
@@ -1915,6 +1952,136 @@ TEST_CASE(
                                                   "Design subtotal"));
     CHECK(featherdoc::test_support::contains_text(reopened_pagebreak_data->text,
                                                   "Regression evidence"));
+    CHECK_EQ(reopened_grand_total->column_span, 3U);
+    CHECK(featherdoc::test_support::contains_text(reopened_grand_total->text,
+                                                  "Grand total"));
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE(
+    "PDF table import merges cross-page subtotal rows with missing body cells") {
+    const auto input_path = featherdoc::test_support::
+        write_invoice_grid_pagebreak_subtotal_missing_unit_pdf(
+            "featherdoc-pdf-import-pagebreak-subtotal-missing-unit-table.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-pagebreak-subtotal-missing-unit-table.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+    REQUIRE_EQ(import_result.table_continuation_diagnostics.size(), 2U);
+
+    const auto &pagebreak_diagnostic =
+        import_result.table_continuation_diagnostics[1];
+    CHECK_EQ(pagebreak_diagnostic.disposition,
+             featherdoc::pdf::PdfTableContinuationDisposition::
+                 merged_with_previous_table);
+    CHECK_EQ(pagebreak_diagnostic.blocker,
+             featherdoc::pdf::PdfTableContinuationBlocker::none);
+    CHECK(pagebreak_diagnostic.column_count_matches);
+    CHECK(pagebreak_diagnostic.column_anchors_match);
+    CHECK(pagebreak_diagnostic.header_matches_previous);
+    CHECK(pagebreak_diagnostic.skipped_repeating_header);
+    CHECK_EQ(pagebreak_diagnostic.source_row_offset, 1U);
+    CHECK_EQ(pagebreak_diagnostic.header_match_kind,
+             featherdoc::pdf::PdfTableContinuationHeaderMatchKind::exact);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 3U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Invoice pagebreak subtotal missing unit sample\n"
+             "Footer note: missing Unit cell still merges with the repeated header\n");
+
+    const auto imported_table = document.inspect_table(0U);
+    REQUIRE(imported_table.has_value());
+    CHECK_EQ(imported_table->row_count, 7U);
+    CHECK_EQ(imported_table->column_count, 4U);
+    CHECK_EQ(document.inspect_table_cells(0U).size(), 24U);
+    REQUIRE_EQ(imported_table->row_repeats_header.size(), 7U);
+    CHECK(imported_table->row_repeats_header[0]);
+    CHECK_FALSE(imported_table->row_repeats_header[4]);
+    CHECK_FALSE(imported_table->row_repeats_header.back());
+
+    const auto subtotal_label =
+        document.inspect_table_cell_by_grid_column(0U, 2U, 0U);
+    const auto missing_unit_item =
+        document.inspect_table_cell_by_grid_column(0U, 4U, 0U);
+    const auto missing_unit_qty =
+        document.inspect_table_cell_by_grid_column(0U, 4U, 1U);
+    const auto missing_unit_cell =
+        document.inspect_table_cell_by_grid_column(0U, 4U, 2U);
+    const auto missing_unit_total =
+        document.inspect_table_cell_by_grid_column(0U, 4U, 3U);
+    const auto later_unit =
+        document.inspect_table_cell_by_grid_column(0U, 5U, 2U);
+    const auto grand_total_label =
+        document.inspect_table_cell_by_grid_column(0U, 6U, 0U);
+    const auto grand_total_amount =
+        document.inspect_table_cell_by_grid_column(0U, 6U, 3U);
+    REQUIRE(subtotal_label.has_value());
+    REQUIRE(missing_unit_item.has_value());
+    REQUIRE(missing_unit_qty.has_value());
+    REQUIRE(missing_unit_cell.has_value());
+    REQUIRE(missing_unit_total.has_value());
+    REQUIRE(later_unit.has_value());
+    REQUIRE(grand_total_label.has_value());
+    REQUIRE(grand_total_amount.has_value());
+    CHECK_EQ(subtotal_label->column_span, 3U);
+    CHECK(featherdoc::test_support::contains_text(subtotal_label->text,
+                                                  "Design subtotal"));
+    CHECK(featherdoc::test_support::contains_text(missing_unit_item->text,
+                                                  "Regression evidence"));
+    CHECK(featherdoc::test_support::contains_text(missing_unit_qty->text, "1"));
+    CHECK_EQ(missing_unit_cell->text, "");
+    CHECK(featherdoc::test_support::contains_text(missing_unit_total->text,
+                                                  "USD 10"));
+    CHECK(featherdoc::test_support::contains_text(later_unit->text,
+                                                  "USD 15"));
+    CHECK_EQ(grand_total_label->column_span, 3U);
+    CHECK(featherdoc::test_support::contains_text(grand_total_label->text,
+                                                  "Grand total"));
+    CHECK(featherdoc::test_support::contains_text(grand_total_amount->text,
+                                                  "USD 150"));
+    CHECK_FALSE(document.inspect_table(1U).has_value());
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    const auto reopened_table = reopened.inspect_table(0U);
+    REQUIRE(reopened_table.has_value());
+    CHECK_EQ(reopened_table->row_count, 7U);
+    CHECK_EQ(reopened_table->column_count, 4U);
+    CHECK_FALSE(reopened.inspect_table(1U).has_value());
+
+    const auto reopened_missing_unit =
+        reopened.inspect_table_cell_by_grid_column(0U, 4U, 2U);
+    const auto reopened_missing_total =
+        reopened.inspect_table_cell_by_grid_column(0U, 4U, 3U);
+    const auto reopened_grand_total =
+        reopened.inspect_table_cell_by_grid_column(0U, 6U, 2U);
+    REQUIRE(reopened_missing_unit.has_value());
+    REQUIRE(reopened_missing_total.has_value());
+    REQUIRE(reopened_grand_total.has_value());
+    CHECK_EQ(reopened_missing_unit->text, "");
+    CHECK(featherdoc::test_support::contains_text(reopened_missing_total->text,
+                                                  "USD 10"));
     CHECK_EQ(reopened_grand_total->column_span, 3U);
     CHECK(featherdoc::test_support::contains_text(reopened_grand_total->text,
                                                   "Grand total"));

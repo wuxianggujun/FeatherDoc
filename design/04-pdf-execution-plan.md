@@ -2221,6 +2221,49 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   缺列表体 / 局部错位下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-14 继续推进（跨页 subtotal 局部缺格续接）：
+
+- 已补充跨页 invoice subtotal 的受控局部缺格样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-missing-unit-table.pdf`。
+  第二页重复 `Item / Qty / Unit / Total` 表头后，第一条明细故意缺失 `Unit`
+  文本但保留 4 列网格和末列金额，用于确认同列锚点、同表头、局部空单元格的
+  subtotal 表格仍可续接。
+- 已补 parser 侧回归：
+  `PDFium parser keeps cross-page subtotal rows with a missing body cell aligned`
+  断言两页各生成一张 4 列 table candidate；第二页缺 `Unit` 的明细行仍补齐
+  4 个单元格，其中第 3 列 `has_text = false`，末列 `USD 10` 保持在第 4 列，
+  `Grand total` 仍推断为 `column_span = 3`。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with missing body cells`
+  断言第二页 continuation diagnostic 为
+  `column_count_matches = true`、`column_anchors_match = true`、
+  `header_match_kind = exact`、`source_row_offset = 1`、
+  `skipped_repeating_header = true`、`blocker = none`，最终导入为一张 7 行 4 列表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / paragraph`；缺失 `Unit` 的单元格为空文本，
+  同行 `Qty`、`Total`、后续正常明细以及 `Design subtotal` / `Grand total`
+  跨列状态都保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-missing-unit-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-missing-unit-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-missing-unit-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认受控的单个明细空单元格会被补齐并允许跨页续接；局部列锚点错位、
+  多个缺格导致的稀疏行、跨页金额合计推导、自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  局部列锚点错位 / 多缺格下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
