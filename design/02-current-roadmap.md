@@ -231,10 +231,12 @@ HarfBuzz 文字塑形。
 - [x] HarfBuzz 接入 `FeatherDoc::Pdf` 构建
 - [x] 实现 `shaper_bridge`：输入 Unicode 字符串 + 字体，输出 GlyphRun（glyphId / xAdvance /
       xOffset / yOffset）；当前已落到独立 `pdf_text_shaper`，还未接入 layout / writer
-- [ ] `PdfDocumentLayout` 改为消费 GlyphRun 而非字符串；当前 `PdfTextRun` 已可携带
-      `PdfGlyphRun`，layout 宽度和后续 run 坐标已优先使用 glyph advance，但 PDFio
-      writer 仍保留字符串路径
-- [ ] PDFio backend 用 glyph ID 写出 content stream
+- [x] `PdfDocumentLayout` 改为消费 GlyphRun 而非字符串；当前 `PdfTextRun` 已可携带
+      `PdfGlyphRun`，layout 宽度、后续 run 坐标和受控 writer 路径已优先使用 glyph advance；
+      原始字符串仍保留为 ToUnicode / ActualText 和 fallback 语义
+- [x] PDFio backend 用 glyph ID 写出 content stream；当前实现为 file-backed shaped run
+      创建独立 Type0 / CIDFontType2 资源，用私有 CID、CIDToGIDMap、ToUnicode 和 HarfBuzz
+      advance 写出，复杂 offset / RTL / 竖排仍作为后续专项
 - [x] 视觉回归 sample 集扩展到中英混排、CJK 标点用例；当前
       `mixed-cjk-punctuation-text` 和 `latin-ligature-text` 已进入 regression manifest
       和 PDF 视觉发布门禁 baseline

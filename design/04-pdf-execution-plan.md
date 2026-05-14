@@ -2707,6 +2707,29 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   优先级 4 剩余核心风险集中在 PDFio writer 的 glyph-id content stream 与自定义
   CIDToGIDMap / ToUnicode 设计。
 
+2026-05-15 继续推进（PDFio writer glyph-id content stream）：
+
+- 已在 `pdf_writer.cpp` 增加 shaped glyph font resource 路径：对满足安全条件的
+  file-backed `PdfTextRun::glyph_run` 分配私有 CID，创建独立 Type0 / CIDFontType2 字体资源，
+  用 `CIDToGIDMap` 映射到 HarfBuzz glyph id，用 `W` 数组写入 HarfBuzz x advance，并保留
+  ToUnicode / ActualText 文本提取语义。
+- 已保留字符串 fallback：HarfBuzz 不可用、缺少字体文件、glyph offset / y advance 当前无法安全表达、
+  或 glyph id 超出 16-bit CID 范围时仍走原 `pdfioContentTextShow()` 路径。
+- 已补 `pdf_unicode_font_roundtrip` writer 回归：构造 shaped Latin 文本，断言 PDF 中出现
+  `FeatherDocGlyph` / `CIDToGIDMap` / `ToUnicode`，并用 PDFium 回读确认原文只出现一次。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过 3/3；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过 40/40；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_visual_release_gate_(style|text_shaping)_baselines$" --output-on-failure --timeout 60`
+  通过 2/2；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-glyph-writer-visual-release-gate -SkipUnicodeBaseline`
+  通过，并生成 aggregate contact sheet。
+- 下一阶段入口：
+  后续若扩大 writer 塑形能力，优先处理 x/y offset、RTL / 竖排和
+  多 glyph 同 cluster 的 ToUnicode 映射策略。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

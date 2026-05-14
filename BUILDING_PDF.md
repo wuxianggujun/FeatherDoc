@@ -478,8 +478,15 @@ CJK 字体选择的默认顺序是：
 
 当前 document adapter 会在 file-backed `PdfTextRun` 上保留成功塑形得到的
 `PdfGlyphRun`，并优先使用 glyph advance 计算 layout 宽度和后续 run 坐标。
-这一步还没有改变现有 PDF 写出路径：`PdfTextRun` 仍然保留原始字符串，PDFio writer
-仍然按文本写 content stream；后续任务才会让 writer 用 glyph id 写出。
+PDFio writer 会在满足安全条件的 shaped run 上创建独立 Type0 / CIDFontType2 字体资源：
+
+- 为每个 shaped glyph occurrence 分配私有 CID
+- 用 `CIDToGIDMap` 把 CID 映射到 HarfBuzz glyph id
+- 用 `W` 数组写入 HarfBuzz x advance，避免回退到未塑形字宽
+- 用 ToUnicode / ActualText 保留原始文本提取语义
+
+如果 run 没有 file-backed font、HarfBuzz 不可用、glyph offset / 垂直 advance 当前无法安全表达，
+writer 会保留原字符串路径。
 
 单独验证文字塑形桥接层：
 
@@ -526,13 +533,15 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 - 可以独立调用 HarfBuzz shaper bridge，把 UTF-8 文本和字体塑形成 GlyphRun
 - 可以让 document adapter 在 `PdfTextRun` 上携带成功塑形的 `PdfGlyphRun`
 - 可以让 layout 宽度和后续 run 坐标优先使用 GlyphRun 的 x advance
+- 可以让 PDFio writer 对受控 shaped run 写出 glyph-id CID content stream，并用
+  PDFium 回读验证文本不重复、不丢失
 - 可以跑 PDFio → PDFium 的端到端 smoke
 - 已有首批 39 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、中英混排标点、Latin ligature 文本、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
 
 还不能算正式可用：
 
 - 还没有 `AST → PDFio` 完整翻译层；复杂分页、图片锚点/裁剪/环绕和发布级合同样式视觉 baseline 还没收口
-- `PdfDocumentLayout` 和 PDFio writer 还没有消费 GlyphRun，复杂文字塑形尚未进入最终 PDF content stream
+- 复杂 glyph offset、RTL / 竖排文字和更完整的 cluster 到 ToUnicode 映射还需要继续专项收口
 - 还没有 `PDFium → AST` 文档结构重建
 - 还需要继续扩充真实 PDF 样本回归集
 - 发布级 CJK 字体许可证 / 捆绑策略、复杂表格分页和 PNG baseline 门禁还在专项推进中

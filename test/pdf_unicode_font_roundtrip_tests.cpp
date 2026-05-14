@@ -2,6 +2,7 @@
 #include "doctest.h"
 
 #include <featherdoc/pdf/pdf_parser.hpp>
+#include <featherdoc/pdf/pdf_text_shaper.hpp>
 #include <featherdoc/pdf/pdf_writer.hpp>
 
 #include <cstdlib>
@@ -55,8 +56,34 @@ auto utf8_from_u8(std::u8string_view text) -> std::string {
     return candidates;
 }
 
+[[nodiscard]] std::vector<std::filesystem::path> candidate_latin_fonts() {
+    std::vector<std::filesystem::path> candidates;
+
+    if (const auto configured = environment_value("FEATHERDOC_TEST_LATIN_FONT");
+        !configured.empty()) {
+        candidates.emplace_back(configured);
+    }
+
+#if defined(_WIN32)
+    candidates.emplace_back("C:/Windows/Fonts/arial.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/calibri.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/times.ttf");
+#endif
+
+    return candidates;
+}
+
 [[nodiscard]] std::filesystem::path find_cjk_font() {
     for (const auto &candidate : candidate_cjk_fonts()) {
+        if (std::filesystem::exists(candidate)) {
+            return candidate;
+        }
+    }
+    return {};
+}
+
+[[nodiscard]] std::filesystem::path find_latin_font() {
+    for (const auto &candidate : candidate_latin_fonts()) {
         if (std::filesystem::exists(candidate)) {
             return candidate;
         }
@@ -79,6 +106,17 @@ auto utf8_from_u8(std::u8string_view text) -> std::string {
         }
     }
     return text;
+}
+
+[[nodiscard]] std::size_t count_occurrences(std::string_view haystack,
+                                            std::string_view needle) {
+    std::size_t count = 0U;
+    std::size_t offset = 0U;
+    while ((offset = haystack.find(needle, offset)) != std::string_view::npos) {
+        ++count;
+        offset += needle.size();
+    }
+    return count;
 }
 
 } // namespace
@@ -197,6 +235,75 @@ TEST_CASE("PDFio subsets embedded Unicode CJK font data") {
 
     const auto extracted_text = collect_text(parse_result.document);
     CHECK_NE(extracted_text.find(expected_text), std::string::npos);
+}
+
+TEST_CASE("PDFio writes shaped glyph CID text without duplicate extraction") {
+    const auto font_path = find_latin_font();
+    if (font_path.empty()) {
+        MESSAGE("skipping shaped glyph PDF writer smoke: configure test Latin "
+                "font");
+        return;
+    }
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        MESSAGE("skipping shaped glyph PDF writer smoke: HarfBuzz unavailable");
+        return;
+    }
+
+    const std::string expected_text = "office affinity efficient";
+    constexpr double font_size = 18.0;
+    auto glyph_run = featherdoc::pdf::shape_pdf_text(
+        expected_text,
+        featherdoc::pdf::PdfTextShaperOptions{font_path, font_size});
+    if (!glyph_run.used_harfbuzz || !glyph_run.error_message.empty() ||
+        glyph_run.glyphs.empty()) {
+        MESSAGE("skipping shaped glyph PDF writer smoke: shaping failed");
+        return;
+    }
+
+    const auto output_path =
+        std::filesystem::current_path() / "featherdoc-shaped-glyph-text.pdf";
+
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title = "FeatherDoc shaped glyph text";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::a4_portrait();
+    page.text_runs.push_back(featherdoc::pdf::PdfTextRun{
+        featherdoc::pdf::PdfPoint{72.0, 720.0},
+        expected_text,
+        "Latin Test Font",
+        font_path,
+        font_size,
+        featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
+        false,
+        false,
+        false,
+        true,
+        0.0,
+        false,
+        false,
+        std::move(glyph_run),
+    });
+    layout.pages.push_back(std::move(page));
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    CHECK_GT(write_result.bytes_written, 0U);
+
+    const auto pdf_bytes = read_file_bytes(output_path);
+    CHECK_NE(pdf_bytes.find("/FeatherDocGlyph"), std::string::npos);
+    CHECK_NE(pdf_bytes.find("/CIDToGIDMap"), std::string::npos);
+    CHECK_NE(pdf_bytes.find("/ToUnicode"), std::string::npos);
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+
+    const auto extracted_text = collect_text(parse_result.document);
+    CHECK_EQ(count_occurrences(extracted_text, expected_text), 1U);
 }
 
 TEST_CASE("PDFio reports a missing Unicode font path") {
