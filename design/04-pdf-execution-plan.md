@@ -2350,6 +2350,45 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   局部列锚点错位 / 孤立极稀疏表下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-15 继续推进（跨页 subtotal 局部列锚点漂移负样本）：
+
+- 已补充跨页 invoice subtotal 的局部列锚点漂移负样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-local-anchor-drift-table.pdf`。
+  第二页仍保留 4 列网格和相同 `Item / Qty / Unit / Total` 表头，但明细行与
+  `Grand total` 的数值列在同一列簇内局部右移，用于确认列数相同、表头相同且存在
+  subtotal / total 跨列行时，列锚间距不兼容仍会保守拆表。
+- 已补导入侧回归：
+  `PDF table import keeps cross-page subtotal tables separate for local anchor drift`
+  断言第二页 continuation diagnostic 为
+  `previous_has_repeating_header = true`、`source_has_repeating_header = true`、
+  `column_anchors_match = false`、`source_row_offset = 0`、
+  `skipped_repeating_header = false`、`blocker = column_anchors_mismatch`，
+  最终导入为两张独立的 4 行表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / table / paragraph`；
+  第一张表的 `Design subtotal` 和第二张表的 `Grand total` 均保留
+  `column_span = 3`，第二张表没有因为 repeated header 文本相同而续接到第一页表格。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-local-anchor-drift-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-local-anchor-drift-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-local-anchor-drift-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认同列簇内的受控局部漂移会在平均列锚间距不兼容时拆表；
+  不处理自由表单式列漂移、跨页金额合计推导、扫描/OCR 或需要图像理解的表格。
+- 下一阶段入口保留：
+  孤立极稀疏表、自由表单列漂移、更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
