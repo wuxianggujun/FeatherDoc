@@ -2180,6 +2180,47 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   缺列表体 / 局部错位下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-14 继续推进（跨页 subtotal 列数不匹配负样本）：
+
+- 已补充跨页 invoice subtotal 的列数不匹配负样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-column-count-mismatch-table.pdf`。
+  第一页为 `Item / Qty / Unit / Total` 四列表格并包含 `Design subtotal`
+  稀疏跨列行；第二页改为 `Item / Qty / Total` 三列表格并包含
+  `Grand total`，用于验证列数不同不会因为 repeated header 和 subtotal/total
+  语义相近而误合并。
+- 已补导入侧回归：
+  `PDF table import keeps cross-page subtotal tables separate for column count mismatches`
+  断言第二页 continuation diagnostic 同时记录
+  `previous_has_repeating_header = true`、`source_has_repeating_header = true`、
+  `column_count_matches = false`、`column_anchors_match = false`、
+  `header_match_kind = none`、`header_matches_previous = false`、
+  `skipped_repeating_header = false`、`source_row_offset = 0`、
+  `blocker = column_count_mismatch`，最终导入结果保留为两张 `Document` 表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / table / paragraph`；第一张表保留 4 列，
+  第二张表保留 3 列；`Design subtotal` 的 `column_span = 3`，
+  `Grand total` 的 `column_span = 2`，第二页表头不会被跳过。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-column-count-mismatch-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-column-count-mismatch-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-column-count-mismatch-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认整表列数不匹配会保守拆表；缺列表体、局部错位、跨页金额合计推导、
+  自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  缺列表体 / 局部错位下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
