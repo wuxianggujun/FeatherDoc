@@ -313,6 +313,8 @@ setup, bookmarks, images, and template parts.
     featherdoc_cli append-hyperlink input.docx --text "OpenAI" --target https://openai.com --output link.docx --json
     featherdoc_cli accept-all-revisions input.docx --output accepted.docx --json
     featherdoc_cli apply-review-mutation-plan input.docx --plan-file review-plan.json --output reviewed.docx --json
+    featherdoc_cli plan-table-position-presets input.docx --preset paragraph-callout --output-plan table-position-plan.json --json
+    featherdoc_cli apply-table-position-plan table-position-plan.json --output positioned.docx --json
     featherdoc_cli inspect-images input.docx
     featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
     featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json
@@ -952,7 +954,8 @@ If you want the API-first version of the same categories, jump back to
   ``inspect-tables``, ``inspect-table-rows``, ``inspect-table-cells``,
   ``set-table-cell-text``, ``append-table-row``, ``insert-table-row-before``,
   ``insert-table-row-after``, ``remove-table-row``, ``merge-table-cells``,
-  ``unmerge-table-cells``, and the ``set-template-table-cell-text`` /
+  ``unmerge-table-cells``, ``plan-table-position-presets``,
+  ``apply-table-position-plan``, and the ``set-template-table-cell-text`` /
   ``append-template-table-row`` family for template parts. See
   :ref:`Tables <featherdoc-tables>`.
 - Images and drawing replacement:

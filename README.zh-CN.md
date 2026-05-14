@@ -1192,7 +1192,9 @@ rollback 项。
 `insert_table_like_after`。
 需要在选中正文表格后紧接着插入普通正文段落时，使用 `insert_paragraph_after_table`。
 需要在编辑计划中设置或清除浮动表格 `w:tblpPr` 定位时，使用 `set_table_position` /
-`clear_table_position`。
+`clear_table_position`。需要回放 `plan-table-position-presets` 生成的 JSON
+计划时，使用 `apply_table_position_plan`；它接受 `plan_file` /
+`table_position_plan_file`，也接受内联 `table_position_plan` / `plan` 对象。
 需要通过编辑计划追加、插入或删除正文表格行时，使用 `append_table_row`、
 `insert_table_row_before`、`insert_table_row_after`、`remove_table_row`。
 如果同样的行编辑需要作用在模板 part 表格上，可以使用
@@ -1356,6 +1358,7 @@ featherdoc_cli plan-table-position-presets input.docx --preset paragraph-callout
 featherdoc_cli apply-table-position-plan table-position-plan.json --dry-run --json
 featherdoc_cli apply-table-position-plan table-position-plan.json --json
 # plan 输出 input_path、分类索引、table_fingerprints 和 recommended_* 模板命令；resolved_* 安全命令默认派生 --output，也可由 --output 覆盖；apply-table-position-plan --dry-run 可先校验指纹且不写文件，并返回 table_count / fingerprint_checked_count 等统计；缺少 table_fingerprints 的计划会被拒绝，指纹不匹配会输出变化字段，正式回放也会校验后再保存
+# edit-plan 可通过 apply_table_position_plan 回放同一类计划，支持 plan_file 或内联 table_position_plan 对象
 featherdoc_cli set-table-position input.docx 0 --preset page-corner --horizontal-offset 360 --bottom-from-text 288 --output table-position-preset.docx --json
 featherdoc_cli set-table-position input.docx all --preset paragraph-callout --output table-position-all.docx --json
 featherdoc_cli set-table-position input.docx 0 --table 1 --preset margin-anchor --output table-position-list.docx --json

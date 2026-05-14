@@ -108,6 +108,31 @@ function Test-ObjectPropertyExists {
     return $null -ne $Object.PSObject.Properties[$Name]
 }
 
+function Set-ObjectPropertyValue {
+    param(
+        $Object,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -eq $Object) {
+        throw "Cannot set '$Name' on a null object."
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        $Object[$Name] = $Value
+        return
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        Add-Member -InputObject $Object -NotePropertyName $Name -NotePropertyValue $Value
+        return
+    }
+
+    $property.Value = $Value
+}
+
 function Get-ObjectOwnProperties {
     param(
         $Object,
@@ -2560,6 +2585,84 @@ function Add-ApplyReviewMutationPlanArguments {
     $Arguments.Add($InputPath) | Out-Null
     $Arguments.Add("--plan-file") | Out-Null
     $Arguments.Add($reviewPlanPath) | Out-Null
+}
+
+function Get-InlineTablePositionPlanObject {
+    param(
+        $Operation,
+        [string]$Label
+    )
+
+    foreach ($name in @("table_position_plan", "plan")) {
+        $plan = Get-OptionalObjectPropertyObject -Object $Operation -Name $name
+        if ($null -eq $plan) {
+            continue
+        }
+        if ($plan -is [string]) {
+            throw "$Label inline table position plan '$name' must be a JSON object."
+        }
+
+        return $plan
+    }
+
+    return $null
+}
+
+function Add-ApplyTablePositionPlanArguments {
+    param(
+        [System.Collections.Generic.List[string]]$Arguments,
+        $Operation,
+        [string]$Label,
+        [string]$InputPath,
+        [string]$TemporaryRoot,
+        [int]$OperationIndex
+    )
+
+    $dryRun = Get-OptionalBooleanPropertyValue `
+        -Object $Operation `
+        -Name "dry_run" `
+        -DefaultValue $false
+    if ($dryRun) {
+        throw "$Label cannot use dry_run because edit-plan operations must produce an output DOCX."
+    }
+
+    $planFile = Get-FirstOptionalObjectPropertyValue `
+        -Object $Operation `
+        -Names @(
+            "plan_file",
+            "plan_path",
+            "table_position_plan_file",
+            "table_position_plan_path"
+        )
+    $inlinePlan = Get-InlineTablePositionPlanObject -Operation $Operation -Label $Label
+
+    if ((-not [string]::IsNullOrWhiteSpace($planFile)) -and ($null -ne $inlinePlan)) {
+        throw "$Label cannot combine 'plan_file' with an inline table position plan."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($planFile) -and ($null -eq $inlinePlan)) {
+        throw "$Label must provide 'plan_file' or 'table_position_plan'."
+    }
+
+    $planObject = $inlinePlan
+    if (-not [string]::IsNullOrWhiteSpace($planFile)) {
+        $planObject = ConvertFrom-EditPlanJson -Json (
+            Get-Content -Raw -Encoding UTF8 -LiteralPath $planFile
+        )
+    }
+    if ($null -eq $planObject -or $planObject -is [string]) {
+        throw "$Label table position plan must be a JSON object."
+    }
+    Set-ObjectPropertyValue -Object $planObject -Name "input_path" -Value $InputPath
+
+    $tablePositionPlanPath = New-EditOperationJsonFile `
+        -TemporaryRoot $TemporaryRoot `
+        -OperationIndex $OperationIndex `
+        -ValueIndex 1 `
+        -Value $planObject
+
+    $Arguments.Add("apply-table-position-plan") | Out-Null
+    $Arguments.Add($tablePositionPlanPath) | Out-Null
 }
 
 function Get-TemplateTableJsonPatchObject {
@@ -6452,6 +6555,15 @@ function New-OperationArguments {
                     $arguments.Add([string]$additionalTable) | Out-Null
                 }
             }
+        }
+        "apply_table_position_plan" {
+            Add-ApplyTablePositionPlanArguments `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Label $Label `
+                -InputPath $InputPath `
+                -TemporaryRoot $TemporaryRoot `
+                -OperationIndex $OperationIndex
         }
         "remove_table" {
             $tableIndex = Get-RequiredObjectPropertyValue -Object $Operation -Name "table_index" -Label $Label

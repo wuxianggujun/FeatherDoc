@@ -1421,7 +1421,11 @@ around an existing body table, or `insert_table_like_before` and
 cell text. Use `insert_paragraph_after_table` when an edit plan needs to add a
 regular body paragraph immediately after a selected table. Use
 `set_table_position` and `clear_table_position` when an edit plan needs to add
-or remove floating `w:tblpPr` table placement. Use `append_table_row`,
+or remove floating `w:tblpPr` table placement. Use
+`apply_table_position_plan` when an edit plan needs to replay a saved
+`plan-table-position-presets` JSON plan; it accepts `plan_file` /
+`table_position_plan_file`, or an inline `table_position_plan` / `plan` object.
+Use `append_table_row`,
 `insert_table_row_before`, `insert_table_row_after`, and `remove_table_row`
 when an edit plan needs to grow or shrink body-table rows. Use
 `append_template_table_row`, `insert_template_table_row_before`,
@@ -3168,7 +3172,9 @@ column widths, and text summaries before writing so stale plans are rejected wit
 `apply-table-position-plan --dry-run --json` to
 validate a saved plan without writing the DOCX and reject saved plans that lack
 `table_fingerprints`; dry-run and successful replay both report `table_count` and
-`fingerprint_checked_count` for CI audit logs.
+`fingerprint_checked_count` for CI audit logs. Edit plans can call the same
+replay path with `apply_table_position_plan`, using either a plan file or an
+inline table position plan object.
 Use `doc.inspect_table_cells(table_index)` or
 `doc.inspect_table_cell(table_index, row_index, cell_index)` when you need
 cell-level width/span/layout/text metadata from the core library. For tables
