@@ -2308,6 +2308,48 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   局部列锚点错位 / 极稀疏行下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-15 继续推进（跨页 subtotal 金额-only 极稀疏行续接）：
+
+- 已补充跨页 invoice subtotal 的金额-only 极稀疏行样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-amount-only-body-table.pdf`。
+  第二页重复表头后，第一条明细只保留末列 `Total` 金额，故意缺失
+  `Item` / `Qty` / `Unit` 三个单元格文本，用于确认有完整表头和后续完整行提供
+  列锚点时，单个金额数据簇仍可稳定落在末列。
+- 已补 parser 侧回归：
+  `PDFium parser keeps cross-page subtotal amount-only body rows aligned`
+  断言第二页仍生成 4 列 table candidate；极稀疏行前三列 `has_text = false`，
+  `USD 10` 保持在第 4 列，下一条正常明细和 `Grand total` 跨列推断仍保留。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with amount-only body rows`
+  断言第二页 continuation diagnostic 为
+  `column_count_matches = true`、`column_anchors_match = true`、
+  `header_match_kind = exact`、`source_row_offset = 1`、
+  `skipped_repeating_header = true`、`blocker = none`，最终仍导入为一张
+  7 行 4 列表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / paragraph`；极稀疏行前三列为空文本，
+  末列金额、后续正常明细和 `Grand total` 的 `column_span = 3` 都保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-amount-only-body-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-amount-only-body-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-amount-only-body-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认有完整表头和相邻完整数据行支撑列锚点时的金额-only 极稀疏行；
+  局部列锚点错位、孤立极稀疏表、跨页金额合计推导、自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  局部列锚点错位 / 孤立极稀疏表下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
