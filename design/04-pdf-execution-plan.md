@@ -2823,6 +2823,24 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   RTL / 竖排不再是 writer 入口的隐式边界条件，但真正支持它们还需要单独设计基线方向、
   text matrix、glyph order 和文本选择语义；在那之前保持字符串 fallback。
 
+2026-05-15 继续推进（RTL direction 真实文本 smoke）：
+
+- 已给 `pdf_text_shaper` 增加 Hebrew RTL smoke：通过 `FEATHERDOC_TEST_RTL_FONT` 或 Windows
+  Arial / Segoe UI / Times 候选字体，对 `שלום` 验证 HarfBuzz direction 映射为
+  `right_to_left`。
+- 已给 `pdf_document_adapter_font` 增加 RTL direction metadata 回归：Document run 经字体映射
+  进入 `PdfDocumentLayout` 后，`PdfTextRun::glyph_run.direction` 仍保留 `right_to_left`，
+  证明 adapter 不会丢掉 HarfBuzz 的方向元数据。
+- 已同步 `BUILDING_PDF.md`，记录 `FEATHERDOC_TEST_RTL_FONT` 这个可选测试字体入口。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font)$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  已确认真实 RTL 文本能进入 metadata 层；下一步如果继续推进 RTL，需要先定义 layout
+  的逻辑顺序 / 视觉顺序边界，再决定 writer 是否用逐 glyph positioned CID 流承接。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

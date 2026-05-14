@@ -142,6 +142,23 @@ void write_binary_file(const std::filesystem::path &path,
     return candidates;
 }
 
+[[nodiscard]] std::vector<std::filesystem::path> candidate_rtl_fonts() {
+    std::vector<std::filesystem::path> candidates;
+
+    if (const auto configured = environment_value("FEATHERDOC_TEST_RTL_FONT");
+        !configured.empty()) {
+        candidates.emplace_back(configured);
+    }
+
+#if defined(_WIN32)
+    candidates.emplace_back("C:/Windows/Fonts/arial.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/segoeui.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/times.ttf");
+#endif
+
+    return candidates;
+}
+
 [[nodiscard]] std::filesystem::path
 first_existing_path(const std::vector<std::filesystem::path> &candidates) {
     for (const auto &candidate : candidates) {
@@ -318,6 +335,56 @@ TEST_CASE("document PDF adapter carries shaped glyph run for file-backed text") 
           doctest::Approx(text_run.baseline_origin.x_points +
                           featherdoc::pdf::glyph_run_x_advance_points(
                               text_run.glyph_run)));
+}
+
+TEST_CASE("document PDF adapter carries RTL shaped direction metadata") {
+    const auto rtl_font = first_existing_path(candidate_rtl_fonts());
+    if (rtl_font.empty()) {
+        MESSAGE("skipping adapter RTL glyph direction test: configure test "
+                "RTL font");
+        return;
+    }
+
+    const auto expected_text = utf8_from_u8(u8"\u05E9\u05DC\u05D5\u05DD");
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto rtl_run = paragraph.add_run(expected_text);
+    REQUIRE(rtl_run.has_next());
+    CHECK(rtl_run.set_font_family("Unit RTL"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit RTL", rtl_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, expected_text);
+    CHECK_EQ(text_run.font_file_path, rtl_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.text, expected_text);
+    CHECK_EQ(text_run.glyph_run.font_file_path, rtl_font);
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::right_to_left);
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
 }
 
 TEST_CASE(

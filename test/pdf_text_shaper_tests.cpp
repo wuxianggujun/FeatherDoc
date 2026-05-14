@@ -7,9 +7,14 @@
 #include <filesystem>
 #include <numeric>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
+
+auto utf8_from_u8(std::u8string_view text) -> std::string {
+    return {reinterpret_cast<const char *>(text.data()), text.size()};
+}
 
 [[nodiscard]] std::string environment_value(const char *name) {
 #if defined(_WIN32)
@@ -41,6 +46,23 @@ namespace {
     candidates.emplace_back("C:/Windows/Fonts/arial.ttf");
     candidates.emplace_back("C:/Windows/Fonts/segoeui.ttf");
     candidates.emplace_back("C:/Windows/Fonts/calibri.ttf");
+#endif
+
+    return candidates;
+}
+
+[[nodiscard]] std::vector<std::filesystem::path> candidate_rtl_fonts() {
+    std::vector<std::filesystem::path> candidates;
+
+    if (const auto configured = environment_value("FEATHERDOC_TEST_RTL_FONT");
+        !configured.empty()) {
+        candidates.emplace_back(configured);
+    }
+
+#if defined(_WIN32)
+    candidates.emplace_back("C:/Windows/Fonts/arial.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/segoeui.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/times.ttf");
 #endif
 
     return candidates;
@@ -128,4 +150,33 @@ TEST_CASE("text shaper produces HarfBuzz glyph positions when available") {
         has_nonzero_glyph = has_nonzero_glyph || glyph.glyph_id != 0U;
     }
     CHECK(has_nonzero_glyph);
+}
+
+TEST_CASE("text shaper records right-to-left direction when available") {
+    const auto font_path = first_existing_path(candidate_rtl_fonts());
+    if (font_path.empty()) {
+        MESSAGE("skipping HarfBuzz RTL direction test: set "
+                "FEATHERDOC_TEST_RTL_FONT to run it");
+        return;
+    }
+
+    const auto text = utf8_from_u8(u8"\u05E9\u05DC\u05D5\u05DD");
+    const featherdoc::pdf::PdfTextShaperOptions options{font_path, 12.0};
+    const auto run = featherdoc::pdf::shape_pdf_text(text, options);
+
+    CHECK_EQ(run.text, text);
+    CHECK_EQ(run.font_file_path, font_path);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(run.used_harfbuzz);
+        CHECK(run.glyphs.empty());
+        CHECK(run.error_message.find("not enabled") != std::string::npos);
+        return;
+    }
+
+    CHECK(run.used_harfbuzz);
+    CHECK(run.error_message.empty());
+    CHECK_EQ(run.direction,
+             featherdoc::pdf::PdfGlyphDirection::right_to_left);
+    REQUIRE_FALSE(run.glyphs.empty());
 }

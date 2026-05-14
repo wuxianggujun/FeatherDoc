@@ -475,6 +475,7 @@ CJK 字体选择的默认顺序是：
 - 输入 UTF-8 文本、字体文件路径和字号
 - 输出 `PdfGlyphRun`，包含 glyph id、cluster、direction、x/y advance、x/y offset
 - 通过 `pdf_text_shaper_has_harfbuzz()` 暴露当前构建是否启用 HarfBuzz
+- `FEATHERDOC_TEST_RTL_FONT` 可指定 RTL 字体，用于验证 HarfBuzz direction 元数据
 
 当前 document adapter 会在 file-backed `PdfTextRun` 上保留成功塑形得到的
 `PdfGlyphRun`，并优先使用 glyph advance 计算 layout 宽度和后续 run 坐标。
