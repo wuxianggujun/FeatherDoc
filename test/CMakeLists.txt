@@ -2360,6 +2360,23 @@ if(WIN32)
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_numbering_catalog
             )
+
+            add_test(
+                NAME
+                edit_document_from_plan_content_control_sync
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_content_control_sync_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_content_control_sync
+            )
         endif()
 
         if(TARGET featherdoc_cli AND TARGET featherdoc_sample_bookmark_block_visibility_visual AND TARGET featherdoc_sample_part_template_validation)

@@ -322,6 +322,87 @@ function New-ContentControlFixtureDocx {
     }
 }
 
+function New-CustomXmlContentControlFixtureDocx {
+    param([string]$Path)
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $parent = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+
+    $relationshipsXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>
+'@
+    $contentTypesXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+'@
+    $documentXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:sdt>
+      <w:sdtPr>
+        <w:alias w:val="Due Date"/>
+        <w:tag w:val="due_date"/>
+        <w:dataBinding w:storeItemID="{66666666-6666-6666-6666-666666666666}" w:xpath="/invoice/dueDate"/>
+      </w:sdtPr>
+      <w:sdtContent><w:p><w:r><w:t>Pending date</w:t></w:r></w:p></w:sdtContent>
+    </w:sdt>
+  </w:body>
+</w:document>
+'@
+    $customXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<invoice><dueDate>2026-08-20</dueDate></invoice>
+'@
+    $itemPropsXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ds:datastoreItem ds:itemID="{66666666-6666-6666-6666-666666666666}"
+                  xmlns:ds="http://schemas.openxmlformats.org/officeDocument/2006/customXml">
+  <ds:schemaRefs/>
+</ds:datastoreItem>
+'@
+    $itemRelationshipsXml = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXmlProps"
+                Target="itemProps1.xml"/>
+</Relationships>
+'@
+
+    $fileStream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Create)
+    try {
+        $archive = New-Object System.IO.Compression.ZipArchive($fileStream, [System.IO.Compression.ZipArchiveMode]::Create)
+        try {
+            Add-ZipTextEntry -Archive $archive -EntryName "_rels/.rels" -Content $relationshipsXml
+            Add-ZipTextEntry -Archive $archive -EntryName "[Content_Types].xml" -Content $contentTypesXml
+            Add-ZipTextEntry -Archive $archive -EntryName "word/document.xml" -Content $documentXml
+            Add-ZipTextEntry -Archive $archive -EntryName "customXml/item1.xml" -Content $customXml
+            Add-ZipTextEntry -Archive $archive -EntryName "customXml/itemProps1.xml" -Content $itemPropsXml
+            Add-ZipTextEntry -Archive $archive -EntryName "customXml/_rels/item1.xml.rels" -Content $itemRelationshipsXml
+        } finally {
+            $archive.Dispose()
+        }
+    } finally {
+        $fileStream.Dispose()
+    }
+}
+
 function New-BookmarkRichFixtureDocx {
     param([string]$Path)
 
@@ -1920,6 +2001,47 @@ Assert-NotContainsText -Text $contentControlXml -UnexpectedText "INV-001" -Label
 Assert-NotContainsText -Text $contentControlXml -UnexpectedText "Summary placeholder" -Label "Content-control document.xml"
 Assert-NotContainsText -Text $contentControlXml -UnexpectedText "Metrics placeholder" -Label "Content-control document.xml"
 Assert-NotContainsText -Text $contentControlXml -UnexpectedText "Logo placeholder" -Label "Content-control document.xml"
+
+$customXmlContentControlSourceDocx = Join-Path $resolvedWorkingDir "custom_xml_content_control.source.docx"
+$customXmlContentControlPlanPath = Join-Path $resolvedWorkingDir "custom_xml_content_control.edit_plan.json"
+$customXmlContentControlEditedDocx = Join-Path $resolvedWorkingDir "custom_xml_content_control.edited.docx"
+$customXmlContentControlSummaryPath = Join-Path $resolvedWorkingDir "custom_xml_content_control.edit.summary.json"
+
+New-CustomXmlContentControlFixtureDocx -Path $customXmlContentControlSourceDocx
+
+Set-Content -LiteralPath $customXmlContentControlPlanPath -Encoding UTF8 -Value @'
+{
+  "operations": [
+    {
+      "op": "sync_content_controls_from_custom_xml"
+    }
+  ]
+}
+'@
+
+& $scriptPath `
+    -InputDocx $customXmlContentControlSourceDocx `
+    -EditPlan $customXmlContentControlPlanPath `
+    -OutputDocx $customXmlContentControlEditedDocx `
+    -SummaryJson $customXmlContentControlSummaryPath `
+    -BuildDir $resolvedBuildDir `
+    -SkipBuild
+
+if ($LASTEXITCODE -ne 0) {
+    throw "edit_document_from_plan.ps1 failed for the custom XML content-control sync edit plan."
+}
+
+$customXmlContentControlSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $customXmlContentControlSummaryPath | ConvertFrom-Json
+$customXmlContentControlXml = Read-DocxEntryText -DocxPath $customXmlContentControlEditedDocx -EntryName "word/document.xml"
+
+Assert-Equal -Actual $customXmlContentControlSummary.status -Expected "completed" `
+    -Message "Custom XML content-control sync summary did not report status=completed."
+Assert-Equal -Actual $customXmlContentControlSummary.operation_count -Expected 1 `
+    -Message "Custom XML content-control sync summary should record one operation."
+Assert-Equal -Actual $customXmlContentControlSummary.operations[0].command -Expected "sync-content-controls-from-custom-xml" `
+    -Message "Custom XML content-control sync should use the CLI sync command."
+Assert-ContainsText -Text $customXmlContentControlXml -ExpectedText "<w:t>2026-08-20</w:t>" -Label "Custom XML content-control document.xml"
+Assert-NotContainsText -Text $customXmlContentControlXml -UnexpectedText "Pending date" -Label "Custom XML content-control document.xml"
 
 $bookmarkRichSourceDocx = Join-Path $resolvedWorkingDir "bookmark_rich.source.docx"
 $bookmarkRichPlanPath = Join-Path $resolvedWorkingDir "bookmark_rich.edit_plan.json"

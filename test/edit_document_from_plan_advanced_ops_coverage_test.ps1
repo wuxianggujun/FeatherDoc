@@ -49,6 +49,7 @@ $scriptPath = Join-Path $RepoRoot "scripts\edit_document_from_plan.ps1"
 $testPath = Join-Path $RepoRoot "test\edit_document_from_plan_test.ps1"
 $tablePositionPlanTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_position_plan_test.ps1"
 $numberingCatalogTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_numbering_catalog_test.ps1"
+$contentControlSyncTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_content_control_sync_test.ps1"
 $readmePath = Join-Path $RepoRoot "README.md"
 $readmeZhPath = Join-Path $RepoRoot "README.zh-CN.md"
 $docsPath = Join-Path $RepoRoot "docs\index.rst"
@@ -58,6 +59,7 @@ $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $testPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $tablePositionPlanTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $numberingCatalogTestPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlSyncTestPath
 ) -join "`n"
 $readmeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmePath
 $readmeZhText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeZhPath
@@ -68,11 +70,26 @@ $advancedOperations = @(
     "reject_all_revisions",
     "set_comment_resolved",
     "set_comment_metadata",
+    "append_comment",
+    "append_comment_reply",
     "replace_comment",
     "remove_comment",
     "apply_review_mutation_plan",
+    "append_footnote",
+    "replace_footnote",
+    "remove_footnote",
+    "append_endnote",
+    "replace_endnote",
+    "remove_endnote",
     "apply_table_position_plan",
     "import_numbering_catalog",
+    "replace_content_control_text",
+    "replace_content_control_paragraphs",
+    "replace_content_control_table",
+    "replace_content_control_table_rows",
+    "replace_content_control_image",
+    "set_content_control_form_state",
+    "sync_content_controls_from_custom_xml",
     "append_image",
     "replace_image",
     "remove_image",
