@@ -1244,7 +1244,9 @@ Table cleanup aliases include `set_table_col_width`, `clear_table_col_width`,
 `clear_table_layout_mode`, `clear_table_style_id`, `clear_table_style_look`,
 `clear_table_cell_spacing`, `clear_table_default_cell_margin`,
 `clear_table_border`, `delete_table_row`, `delete_table_column`, and
-`delete_table`.
+`delete_table`. Table structure aliases include `insert_table_before`,
+`insert_table_like_before`, `merge_table_cell`, `unmerge_table_cells`, and
+`unmerge_table_cell`.
 Cell appearance edits
 include background fill, per-cell margins, cell text direction, single-edge
 border style, border thickness, and border color. Text style edits include bold, text color, font size,

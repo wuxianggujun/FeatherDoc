@@ -1022,7 +1022,9 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_works
 `clear_table_layout_mode`、`clear_table_style_id`、`clear_table_style_look`、
 `clear_table_cell_spacing`、`clear_table_default_cell_margin`、
 `clear_table_border`、`delete_table_row`、`delete_table_column` 和
-`delete_table`；
+`delete_table`；表格结构别名包括 `insert_table_before`、
+`insert_table_like_before`、`merge_table_cell`、`unmerge_table_cells` 和
+`unmerge_table_cell`；
 单元格外观可以设置背景色、单边框样式、边框粗细、边框颜色；
 文本样式可以设置加粗、字体颜色、字号、英文字体、中文字体和语言标签；
 段落排版可以设置段前距、段后距和行距。

@@ -55,6 +55,7 @@ $floatingImageTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_float
 $deleteAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_delete_aliases_test.ps1"
 $bodyAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_body_aliases_test.ps1"
 $tableAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_aliases_test.ps1"
+$tableStructureAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_structure_aliases_test.ps1"
 $revisionCleanupTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_revision_cleanup_test.ps1"
 $updateFieldsAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_update_fields_aliases_test.ps1"
 $readmePath = Join-Path $RepoRoot "README.md"
@@ -72,6 +73,7 @@ $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $deleteAliasesTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $bodyAliasesTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $tableAliasesTestPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $tableStructureAliasesTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $revisionCleanupTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $updateFieldsAliasesTestPath
 ) -join "`n"
@@ -191,7 +193,12 @@ $advancedOperations = @(
     "clear_table_border",
     "delete_table_row",
     "delete_table_column",
-    "delete_table"
+    "delete_table",
+    "insert_table_before",
+    "insert_table_like_before",
+    "merge_table_cell",
+    "unmerge_table_cells",
+    "unmerge_table_cell"
 )
 
 foreach ($operation in $advancedOperations) {
