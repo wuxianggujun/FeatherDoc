@@ -2389,6 +2389,47 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   孤立极稀疏表、自由表单列漂移、更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-15 继续推进（跨页 subtotal 孤立金额-only 极稀疏行续接）：
+
+- 已补充跨页 invoice subtotal 的孤立金额-only 极稀疏行样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-isolated-amount-only-body-table.pdf`。
+  第二页只有重复表头、一个只保留末列金额的明细行，以及 `Grand total` 跨列行；
+  不再放置后续完整明细行，用于确认列锚点可由重复表头和汇总行共同支撑。
+- 已补 parser 侧回归：
+  `PDFium parser keeps cross-page subtotal isolated amount-only body rows aligned`
+  断言第二页仍生成 4 列 table candidate；孤立金额行前三列 `has_text = false`，
+  `USD 10` 保持在第 4 列，`Grand total` 仍推断为 `column_span = 3`。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with isolated amount-only body rows`
+  断言第二页 continuation diagnostic 为
+  `column_count_matches = true`、`column_anchors_match = true`、
+  `header_match_kind = exact`、`source_row_offset = 1`、
+  `skipped_repeating_header = true`、`blocker = none`，最终仍导入为一张
+  6 行 4 列表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / paragraph`；孤立金额行前三列为空文本，
+  末列金额和 `Grand total` 的 `column_span = 3` 都保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-isolated-amount-only-body-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-isolated-amount-only-body-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-isolated-amount-only-body-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认重复表头和 subtotal/total 汇总行可支撑孤立金额-only 行的列锚点；
+  孤立自由表单、局部列漂移、跨页金额合计推导、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  自由表单列漂移、更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
