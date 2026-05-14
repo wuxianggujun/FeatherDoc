@@ -141,6 +141,9 @@ Phase 1 的重点是：
 - [x] 已接入 FreeType 字体度量，Layout 换行和行高改为真实字体测量
 - [x] 已有 CJK / Unicode 字体专项回归，覆盖字体解析、CJK 回退、PDFio 子集嵌入、
       `/ToUnicode` 写出和 PDFium 文本回读
+- [x] 已打通基础样式映射，`PdfTextRun`、`layout_document_paragraphs()` 和
+      PDFio writer 已覆盖字体族/字体文件、字号、颜色、粗体、斜体和下划线，
+      并由 `pdf_document_adapter_font` 覆盖段落、继承样式、表格单元格和 writer 回归
 - [x] 已建立首批 37 个 PDF regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
 - [ ] 仍需继续扩展复杂视觉回归和发布门禁；真实文档样本集已经进入 manifest，但还没有把文件大小、图片数量/尺寸和 PNG baseline 全部自动化，CJK 字体也还没有进入发行包捆绑策略
 
@@ -151,7 +154,7 @@ Phase 1 的重点是：
 > 进展应直接更新本节的 checkbox 状态，而不是另开文档。
 
 当前 PDF 输出已经跑通端到端，而且基础样式、表格、字体度量以及 CJK / Unicode 回环
-都已有专项回归。下一步主要是把发行级字体策略、样式映射和复杂视觉门禁继续收口。
+都已有专项回归。下一步主要是把发行级字体策略、复杂视觉门禁和 HarfBuzz 文字塑形继续收口。
 下面四步按依赖顺序推进，**每一步是后一步的前置**。
 
 ### 优先级 1：FreeType 集成 + 字体度量（约 1 个月）
@@ -195,19 +198,23 @@ Phase 1 的重点是：
 
 ### 优先级 3：样式映射（约 2–3 周）
 
-**问题**：当前基础样式已经开始落地，但 `Run.bold` / `italic` /
-`font_size` / `color` 等还没有完整串到 layout 和 writer，整体输出还不够像正式文档。
+**状态 / 问题**：基础样式映射已经贯通，`Run.bold` / `italic` / `font_size` /
+`color` / `underline` 已能进入 layout 并由 PDFio writer 写出。剩余问题不再是字段断链，
+而是合同级视觉 baseline、非标准字体粗斜体质量和发布门禁还没有收口。
 
 **子任务**：
 
-- [ ] 扩展 `PdfDocumentLayout` 的 Run 表达：font weight、font style、font size、color、
+- [x] 扩展 `PdfDocumentLayout` 的 Run 表达：font weight、font style、font size、color、
       下划线
-- [ ] `layout_document_paragraphs()` 把 `Run` 字段翻译进 layout
-- [ ] PDFio backend 在 content stream 里展开（粗体一般通过加粗字体或描边模拟，斜体用
-      字体的 italic 变体或 PDF 矩阵倾斜）
-- [ ] 给 `featherdoc_pdf_document_probe` 加样式 sample
+- [x] `layout_document_paragraphs()` 把 `Run` 字段和继承样式翻译进 layout
+- [x] PDFio backend 在 content stream 里展开标准字体粗斜体、字号、颜色和下划线
+- [x] 给 PDF document adapter / writer 加样式 sample 和 `pdf_document_adapter_font`
+      回归
+- [ ] 补合同级样式视觉 baseline，把粗体 / 斜体 / 字号 / 颜色 / 下划线纳入发布门禁
+- [ ] 明确非标准字体缺少 bold / italic 变体时的质量策略
 
-**验收**：合同 sample DOCX 的粗体 / 斜体 / 字号 / 颜色在输出 PDF 上正确呈现。
+**验收**：基础段落和表格单元格的粗体 / 斜体 / 字号 / 颜色 / 下划线已有专项
+CTest 覆盖；发布级验收仍需补合同 sample 的视觉 baseline。
 
 ### 优先级 4：HarfBuzz 文字塑形（约 1 个月）
 

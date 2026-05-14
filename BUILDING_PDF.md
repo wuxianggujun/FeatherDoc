@@ -477,6 +477,9 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 
 - 可以生成带正文段落、表格和基础样式的 PDF 样例
 - 可以按字体映射和 CJK 回退写出中文 / 混排内容
+- 可以把 `Run` 的字体族/字体文件、字号、颜色、粗体、斜体和下划线从
+  document adapter 传到 PDFio writer；段落继承样式和表格单元格样式已有
+  `pdf_document_adapter_font` 回归
 - 可以做 Unicode / ToUnicode roundtrip 验证，并用 PDFium 解析页数和文字 span
 - 可以对 Unicode / CJK 字体 roundtrip 产物做 PNG 渲染级视觉 smoke
 - 可以跑 PDFio → PDFium 的端到端 smoke
@@ -484,7 +487,7 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 
 还不能算正式可用：
 
-- 还没有 `AST → PDFio` 完整翻译层；复杂分页、图片锚点/裁剪/环绕和更完整的样式覆盖还没收口
+- 还没有 `AST → PDFio` 完整翻译层；复杂分页、图片锚点/裁剪/环绕和发布级合同样式视觉 baseline 还没收口
 - 还没有 `PDFium → AST` 文档结构重建
 - 还需要继续扩充真实 PDF 样本回归集
 - 发布级 CJK 字体许可证 / 捆绑策略、复杂表格分页和 PNG baseline 门禁还在专项推进中

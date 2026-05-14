@@ -2536,6 +2536,27 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-15 继续推进（样式映射状态同步）：
+
+- 已核对样式映射的当前真实实现状态，确认基础链路已经落地：
+  `PdfTextRun` 已表达字体族/字体文件、字号、填充色、粗体、斜体、下划线、
+  Unicode 标记和旋转角度；`layout_document_paragraphs()` 经 paragraph/table
+  adapter 把直接 run 属性和继承样式翻译到 layout fragment；PDFio writer 已在
+  content stream 中写出标准字体粗斜体变体、字号、颜色和下划线。
+- 已同步 `design/02-current-roadmap.md`，把优先级 3 从“字段尚未串通”的过期描述
+  调整为“基础样式映射已完成，剩余为合同级视觉 baseline、非标准字体粗斜体质量和
+  发布门禁”。
+- 已同步 `BUILDING_PDF.md`，在当前可用状态中补充 document adapter → PDFio writer
+  的样式映射能力，并把正式可用前的限制收窄到复杂分页、图片锚点/裁剪/环绕、
+  发布级合同样式视觉 baseline、字体捆绑和 PNG baseline 门禁。
+- 本轮不新增生产代码，目标是避免后续继续推进时重复实现已完成的样式映射能力。
+- 已完成验证：
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_document_adapter_font$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口保留：
+  优先推进发布级视觉门禁或 HarfBuzz 文字塑形；如果继续补样式相关能力，应先补
+  合同 sample 的视觉 baseline，而不是重复扩展已存在的 `PdfTextRun` 字段。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
