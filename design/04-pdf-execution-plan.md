@@ -2500,6 +2500,42 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-15 继续推进（矩形 2x3 组合合并）：
+
+- 已补充更大的内部矩形组合合并样本：
+  `featherdoc-pdf-import-rectangular-merged-table-source.pdf` 与
+  `featherdoc-pdf-import-rectangular-merged-table.pdf`。
+  样本使用 5x5 规则网格，中间 `(row=1, col=1)` 单元格横跨 2 列和 3 行，
+  用于确认组合合并不是 2x2 特例。
+- 已补 parser 侧回归：
+  `PDFium parser detects center two-by-three merged table candidate spans`
+  断言表格候选为 5 行 x 5 列，中心锚点 `column_span = 2`、
+  `row_span = 3`，两行下方覆盖区域都保持为空文本占位。
+- 已补导入侧回归：
+  `PDF text importer preserves center two-by-three merged table cells`
+  断言 opt-in 导入后仍保持 `paragraph / table / paragraph` 顺序，
+  写入 5 行 x 5 列真实 `Document` 表格，保存重开后中心锚点为
+  `vertical_merge = restart`，两行下方覆盖单元格均为 `continue_merge`。
+  Word 实际 cell 节点数为 22，避免把 2x3 合并错误展开成 25 个独立单元格。
+- 已完成构建与测试验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-rectangular-merged-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-rectangular-merged-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-rectangular-merged-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  组合合并现在覆盖规则网格里的左上角 2x2、内部 2x2 和内部 2x3 矩形锚点；
+  仍不处理任意嵌套合并、扫描/OCR、缺失线条后的视觉推断或需要图像理解的表格。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
