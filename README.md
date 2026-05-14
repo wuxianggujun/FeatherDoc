@@ -1239,6 +1239,12 @@ table-cell and normal body-paragraph horizontal alignment both support `left` /
 width, layout mode, table alignment, table indent, table cell spacing, table
 default cell margins, table borders, explicit cell width, column width, and
 cell merge/unmerge in the `right` or `down` direction.
+Table cleanup aliases include `set_table_col_width`, `clear_table_col_width`,
+`clear_table_width`, `clear_table_alignment`, `clear_table_indent`,
+`clear_table_layout_mode`, `clear_table_style_id`, `clear_table_style_look`,
+`clear_table_cell_spacing`, `clear_table_default_cell_margin`,
+`clear_table_border`, `delete_table_row`, `delete_table_column`, and
+`delete_table`.
 Cell appearance edits
 include background fill, per-cell margins, cell text direction, single-edge
 border style, border thickness, and border color. Text style edits include bold, text color, font size,

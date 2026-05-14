@@ -54,6 +54,7 @@ $contentControlTextAliasesTestPath = Join-Path $RepoRoot "test\edit_document_fro
 $floatingImageTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_floating_image_test.ps1"
 $deleteAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_delete_aliases_test.ps1"
 $bodyAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_body_aliases_test.ps1"
+$tableAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_aliases_test.ps1"
 $revisionCleanupTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_revision_cleanup_test.ps1"
 $updateFieldsAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_update_fields_aliases_test.ps1"
 $readmePath = Join-Path $RepoRoot "README.md"
@@ -70,6 +71,7 @@ $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $floatingImageTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $deleteAliasesTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $bodyAliasesTestPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $tableAliasesTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $revisionCleanupTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $updateFieldsAliasesTestPath
 ) -join "`n"
@@ -175,7 +177,21 @@ $advancedOperations = @(
     "clear_paragraph_horizontal_alignment",
     "clear_paragraph_alignment",
     "set_paragraph_line_spacing",
-    "clear_paragraph_spacing"
+    "clear_paragraph_spacing",
+    "set_table_col_width",
+    "clear_table_col_width",
+    "clear_table_width",
+    "clear_table_alignment",
+    "clear_table_indent",
+    "clear_table_layout_mode",
+    "clear_table_style_id",
+    "clear_table_style_look",
+    "clear_table_cell_spacing",
+    "clear_table_default_cell_margin",
+    "clear_table_border",
+    "delete_table_row",
+    "delete_table_column",
+    "delete_table"
 )
 
 foreach ($operation in $advancedOperations) {

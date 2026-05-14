@@ -2448,6 +2448,23 @@ if(WIN32)
 
             add_test(
                 NAME
+                edit_document_from_plan_table_aliases
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_table_aliases_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_table_aliases
+            )
+
+            add_test(
+                NAME
                 edit_document_from_plan_revision_cleanup
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
