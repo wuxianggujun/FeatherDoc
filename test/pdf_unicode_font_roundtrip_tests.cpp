@@ -315,6 +315,17 @@ find_shaped_to_unicode_cmap(const std::vector<std::string> &streams) {
     return {};
 }
 
+[[nodiscard]] std::string
+find_actual_text_content_stream(const std::vector<std::string> &streams) {
+    for (const auto &stream : streams) {
+        if (stream.find("/Span <</ActualText <") != std::string::npos &&
+            stream.find(" Tj") != std::string::npos) {
+            return stream;
+        }
+    }
+    return {};
+}
+
 } // namespace
 
 TEST_CASE("PDFio embeds Unicode CJK font and PDFium extracts text") {
@@ -493,6 +504,89 @@ TEST_CASE("PDFio writes shaped glyph CID text without duplicate extraction") {
     CHECK_NE(pdf_bytes.find("/FeatherDocGlyph"), std::string::npos);
     CHECK_NE(pdf_bytes.find("/CIDToGIDMap"), std::string::npos);
     CHECK_NE(pdf_bytes.find("/ToUnicode"), std::string::npos);
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+
+    const auto extracted_text = collect_text(parse_result.document);
+    CHECK_EQ(count_occurrences(extracted_text, expected_text), 1U);
+}
+
+TEST_CASE("PDFio positions shaped glyph CIDs when glyph offsets are present") {
+    const auto font_path = find_latin_font();
+    if (font_path.empty()) {
+        MESSAGE("skipping shaped glyph positioned writer smoke: configure "
+                "test Latin font");
+        return;
+    }
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        MESSAGE("skipping shaped glyph positioned writer smoke: HarfBuzz "
+                "unavailable");
+        return;
+    }
+
+    const std::string expected_text = "offset office";
+    constexpr double font_size = 18.0;
+    auto glyph_run = featherdoc::pdf::shape_pdf_text(
+        expected_text,
+        featherdoc::pdf::PdfTextShaperOptions{font_path, font_size});
+    if (!glyph_run.used_harfbuzz || !glyph_run.error_message.empty() ||
+        glyph_run.glyphs.size() < 2U) {
+        MESSAGE("skipping shaped glyph positioned writer smoke: shaping "
+                "failed");
+        return;
+    }
+
+    glyph_run.glyphs[0].x_offset_points += 1.25;
+    glyph_run.glyphs[0].y_offset_points += 2.0;
+    glyph_run.glyphs[0].y_advance_points += 0.5;
+
+    const auto glyph_count = glyph_run.glyphs.size();
+    const auto output_path =
+        std::filesystem::current_path() /
+        "featherdoc-shaped-glyph-positioned.pdf";
+
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title = "FeatherDoc shaped glyph positioned";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::a4_portrait();
+    page.text_runs.push_back(featherdoc::pdf::PdfTextRun{
+        featherdoc::pdf::PdfPoint{72.0, 720.0},
+        expected_text,
+        "Latin Test Font",
+        font_path,
+        font_size,
+        featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
+        false,
+        false,
+        false,
+        true,
+        0.0,
+        false,
+        false,
+        std::move(glyph_run),
+    });
+    layout.pages.push_back(std::move(page));
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    CHECK_GT(write_result.bytes_written, 0U);
+
+    const auto pdf_bytes = read_file_bytes(output_path);
+    CHECK_NE(pdf_bytes.find("/FeatherDocGlyph"), std::string::npos);
+
+    const auto streams = inflated_pdf_streams(pdf_bytes);
+    REQUIRE_FALSE(streams.empty());
+    const auto content_stream = find_actual_text_content_stream(streams);
+    REQUIRE_MESSAGE(!content_stream.empty(),
+                    "shaped glyph positioned content stream not found");
+    CHECK_GE(count_occurrences(content_stream, " Tm\n"), glyph_count);
+    CHECK_EQ(count_occurrences(content_stream, "> Tj\n"), glyph_count);
 
     featherdoc::pdf::PdfiumParser parser;
     const auto parse_result = parser.parse(output_path, {});

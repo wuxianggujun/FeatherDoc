@@ -2742,11 +2742,35 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 已完成验证：
   `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
   通过；
-  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-glyph-positioned-visual-release-gate -SkipUnicodeBaseline`
   通过。
 - 下一阶段入口：
   继续扩展 shaped writer 前，先补齐 glyph offset / y advance 的定位模型；RTL 和竖排需要
   独立设计基线、方向和 text matrix 语义，不能直接复用当前 LTR `Tj` 路径。
+
+2026-05-15 继续推进（shaped glyph offset 定位写出）：
+
+- 已放开 shaped glyph writer 对 x/y offset 和 y advance 的硬 fallback：入口仍要求 file-backed
+  font、HarfBuzz 成功、字号一致、cluster 有界且非倒序、glyph id 可放入 16-bit CID，并新增
+  advance / offset 的 finite 检查。
+- 已新增定位写出分支：普通无 offset run 保持原来的整段 `<cid...> Tj`；一旦 shaped run
+  带有 x/y offset 或 y advance，就按 HarfBuzz pen position 逐 glyph 写 `Tm` + `<cid> Tj`。
+  该分支复用当前 text run 的旋转矩阵和 synthetic italic 斜切矩阵，避免定位语义和既有
+  `PdfTextRun` 样式分叉。
+- 已扩展 `pdf_unicode_font_roundtrip`：构造带非零 offset / y advance 的 shaped Latin run，
+  解压 PDF content stream 断言逐 glyph `Tm` 与 `Tj` 数量，并用 PDFium 回读确认原文只出现一次。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  shaped writer 剩余风险主要是 RTL / 竖排的方向模型，以及多 glyph 同 cluster 在定位和
+  文本选择中的更细粒度验收。
 
 ## 阶段推进规则
 

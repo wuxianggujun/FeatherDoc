@@ -33,6 +33,7 @@ namespace featherdoc::pdf {
 namespace {
 
 constexpr double kPi = 3.14159265358979323846;
+constexpr double kGlyphPositionTolerance = 0.0001;
 
 struct PdfioErrorState {
     std::string message;
@@ -162,16 +163,16 @@ struct FreeTypeFaceOwner {
 
 [[nodiscard]] bool
 can_write_shaped_glyph_run(const PdfTextRun &text_run) noexcept {
-    constexpr double kPositionTolerance = 0.0001;
     if (text_run.text.empty() || text_run.font_file_path.empty() ||
         text_run.font_size_points <= 0.0 ||
+        !std::isfinite(text_run.font_size_points) ||
         !text_run.glyph_run.used_harfbuzz ||
         !text_run.glyph_run.error_message.empty() ||
         text_run.glyph_run.glyphs.empty() ||
         text_run.glyph_run.text != text_run.text ||
         text_run.glyph_run.font_file_path != text_run.font_file_path ||
         std::abs(text_run.glyph_run.font_size_points -
-                 text_run.font_size_points) > kPositionTolerance) {
+                 text_run.font_size_points) > kGlyphPositionTolerance) {
         return false;
     }
 
@@ -182,9 +183,10 @@ can_write_shaped_glyph_run(const PdfTextRun &text_run) noexcept {
             glyph.glyph_id > std::numeric_limits<std::uint16_t>::max() ||
             glyph.cluster >= text_run.glyph_run.text.size() ||
             (has_previous_cluster && glyph.cluster < previous_cluster) ||
-            std::abs(glyph.x_offset_points) > kPositionTolerance ||
-            std::abs(glyph.y_offset_points) > kPositionTolerance ||
-            std::abs(glyph.y_advance_points) > kPositionTolerance) {
+            !std::isfinite(glyph.x_advance_points) ||
+            !std::isfinite(glyph.y_advance_points) ||
+            !std::isfinite(glyph.x_offset_points) ||
+            !std::isfinite(glyph.y_offset_points)) {
             return false;
         }
         previous_cluster = glyph.cluster;
@@ -192,6 +194,18 @@ can_write_shaped_glyph_run(const PdfTextRun &text_run) noexcept {
     }
 
     return true;
+}
+
+[[nodiscard]] bool
+needs_positioned_shaped_glyph_show(const PdfTextRun &text_run) noexcept {
+    for (const auto &glyph : text_run.glyph_run.glyphs) {
+        if (std::abs(glyph.x_offset_points) > kGlyphPositionTolerance ||
+            std::abs(glyph.y_offset_points) > kGlyphPositionTolerance ||
+            std::abs(glyph.y_advance_points) > kGlyphPositionTolerance) {
+            return true;
+        }
+    }
+    return false;
 }
 
 [[nodiscard]] FontResourceKey make_font_key(const PdfTextRun &text_run) {
@@ -924,36 +938,59 @@ create_shaped_glyph_font(pdfio_file_t *pdf, const FontResourceKey &key,
     return true;
 }
 
-[[nodiscard]] bool set_text_run_matrix(pdfio_stream_t *stream,
-                                       const PdfTextRun &text_run) {
-    if (std::abs(text_run.rotation_degrees) <= 0.0001) {
+struct TextRunTransform {
+    double a{1.0};
+    double b{0.0};
+    double c{0.0};
+    double d{1.0};
+};
+
+[[nodiscard]] TextRunTransform text_run_transform(
+    const PdfTextRun &text_run) noexcept {
+    if (std::abs(text_run.rotation_degrees) <= kGlyphPositionTolerance) {
         if (text_run.synthetic_italic && text_run.italic) {
             constexpr double kSyntheticItalicDegrees = 12.0;
-            const auto skew =
-                std::tan(kSyntheticItalicDegrees * kPi / 180.0);
-            pdfio_matrix_t matrix = {
-                {1.0, 0.0},
-                {skew, 1.0},
-                {text_run.baseline_origin.x_points,
-                 text_run.baseline_origin.y_points},
-            };
-            return pdfioContentSetTextMatrix(stream, matrix);
+            return TextRunTransform{
+                1.0, 0.0,
+                std::tan(kSyntheticItalicDegrees * kPi / 180.0), 1.0};
+        }
+        return {};
+    }
+
+    const auto radians = text_run.rotation_degrees * kPi / 180.0;
+    const auto cosine = std::cos(radians);
+    const auto sine = std::sin(radians);
+    return TextRunTransform{cosine, sine, -sine, cosine};
+}
+
+[[nodiscard]] bool set_text_matrix_at(pdfio_stream_t *stream,
+                                      const PdfTextRun &text_run,
+                                      double local_x,
+                                      double local_y) {
+    const auto transform = text_run_transform(text_run);
+    pdfio_matrix_t matrix = {
+        {transform.a, transform.b},
+        {transform.c, transform.d},
+        {text_run.baseline_origin.x_points + transform.a * local_x +
+             transform.c * local_y,
+         text_run.baseline_origin.y_points + transform.b * local_x +
+             transform.d * local_y},
+    };
+    return pdfioContentSetTextMatrix(stream, matrix);
+}
+
+[[nodiscard]] bool set_text_run_matrix(pdfio_stream_t *stream,
+                                       const PdfTextRun &text_run) {
+    if (std::abs(text_run.rotation_degrees) <= kGlyphPositionTolerance) {
+        if (text_run.synthetic_italic && text_run.italic) {
+            return set_text_matrix_at(stream, text_run, 0.0, 0.0);
         }
         return pdfioContentTextMoveTo(stream,
                                       text_run.baseline_origin.x_points,
                                       text_run.baseline_origin.y_points);
     }
 
-    const auto radians = text_run.rotation_degrees * kPi / 180.0;
-    const auto cosine = std::cos(radians);
-    const auto sine = std::sin(radians);
-    pdfio_matrix_t matrix = {
-        {cosine, sine},
-        {-sine, cosine},
-        {text_run.baseline_origin.x_points,
-         text_run.baseline_origin.y_points},
-    };
-    return pdfioContentSetTextMatrix(stream, matrix);
+    return set_text_matrix_at(stream, text_run, 0.0, 0.0);
 }
 
 [[nodiscard]] bool set_text_rendering_style(pdfio_stream_t *stream,
@@ -977,6 +1014,22 @@ create_shaped_glyph_font(pdfio_file_t *pdf, const FontResourceKey &key,
            pdfioContentSetLineWidth(stream, stroke_width);
 }
 
+[[nodiscard]] bool write_shaped_glyph_cid_show(pdfio_stream_t *stream,
+                                               std::uint16_t cid,
+                                               std::string &error_message) {
+    std::string command;
+    command.reserve(11U);
+    command.push_back('<');
+    append_utf16be_hex_unit(command, cid);
+    command += "> Tj\n";
+
+    if (!pdfioStreamPuts(stream, command.c_str())) {
+        error_message = "Unable to write shaped PDF glyph text";
+        return false;
+    }
+    return true;
+}
+
 [[nodiscard]] bool write_shaped_glyph_text_show(
     pdfio_stream_t *stream, const PdfTextRun &text_run,
     const GlyphFontResources &glyph_resources,
@@ -997,6 +1050,38 @@ create_shaped_glyph_font(pdfio_file_t *pdf, const FontResourceKey &key,
             "Shaped PDF glyph resource is shorter than its text run: " +
             font_label(font_key);
         return false;
+    }
+
+    if (needs_positioned_shaped_glyph_show(text_run)) {
+        double pen_x = 0.0;
+        double pen_y = 0.0;
+        for (std::size_t index = 0U; index < glyph_count; ++index) {
+            const auto &entry = resource->second.entries[offset + index];
+            const auto &glyph = text_run.glyph_run.glyphs[index];
+            if (entry.glyph_id != glyph.glyph_id) {
+                error_message =
+                    "Shaped PDF glyph resource no longer matches text run: " +
+                    font_label(font_key);
+                return false;
+            }
+
+            if (!set_text_matrix_at(stream, text_run,
+                                    pen_x + glyph.x_offset_points,
+                                    pen_y + glyph.y_offset_points)) {
+                error_message = "Unable to position shaped PDF glyph text";
+                return false;
+            }
+            if (!write_shaped_glyph_cid_show(stream, entry.cid,
+                                             error_message)) {
+                return false;
+            }
+
+            pen_x += glyph.x_advance_points;
+            pen_y += glyph.y_advance_points;
+        }
+
+        offset += glyph_count;
+        return true;
     }
 
     std::string command;
