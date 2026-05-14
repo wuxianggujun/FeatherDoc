@@ -2394,6 +2394,23 @@ if(WIN32)
                 -WorkingDir
                 ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_revision_cleanup
             )
+
+            add_test(
+                NAME
+                edit_document_from_plan_update_fields_aliases
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_update_fields_aliases_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -BuildDir
+                ${PROJECT_BINARY_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/edit_document_from_plan_update_fields_aliases
+            )
         endif()
 
         if(TARGET featherdoc_cli AND TARGET featherdoc_sample_bookmark_block_visibility_visual AND TARGET featherdoc_sample_part_template_validation)

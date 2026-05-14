@@ -51,6 +51,7 @@ $tablePositionPlanTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_t
 $numberingCatalogTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_numbering_catalog_test.ps1"
 $contentControlSyncTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_content_control_sync_test.ps1"
 $revisionCleanupTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_revision_cleanup_test.ps1"
+$updateFieldsAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_update_fields_aliases_test.ps1"
 $readmePath = Join-Path $RepoRoot "README.md"
 $readmeZhPath = Join-Path $RepoRoot "README.zh-CN.md"
 $docsPath = Join-Path $RepoRoot "docs\index.rst"
@@ -62,6 +63,7 @@ $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $numberingCatalogTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlSyncTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $revisionCleanupTestPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $updateFieldsAliasesTestPath
 ) -join "`n"
 $readmeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmePath
 $readmeZhText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeZhPath
@@ -107,8 +109,22 @@ $advancedOperations = @(
     "append_total_pages_field",
     "append_table_of_contents_field",
     "append_document_property_field",
+    "append_field",
     "append_date_field",
+    "append_reference_field",
+    "append_page_reference_field",
+    "append_style_reference_field",
+    "append_hyperlink_field",
+    "append_caption",
+    "append_index_entry_field",
+    "append_index_field",
+    "append_sequence_field",
+    "append_complex_field",
+    "replace_field",
     "set_update_fields_on_open",
+    "enable_update_fields_on_open",
+    "disable_update_fields_on_open",
+    "clear_update_fields_on_open",
     "append_hyperlink",
     "replace_hyperlink",
     "remove_hyperlink",
