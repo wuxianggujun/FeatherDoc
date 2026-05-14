@@ -2264,6 +2264,50 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   局部列锚点错位 / 多缺格下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-14 继续推进（跨页 subtotal 多缺格稀疏行续接）：
+
+- 已补充跨页 invoice subtotal 的受控多缺格稀疏行样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-sparse-body-table.pdf`。
+  第二页重复表头后，第一条明细只保留 `Item` 和 `Total`，故意缺失
+  `Qty` / `Unit` 两个中间单元格文本，用于确认列锚点和列数兼容时，
+  稀疏表体行不会破坏跨页 subtotal 续接。
+- 已补 parser 侧回归：
+  `PDFium parser keeps cross-page subtotal sparse body rows aligned`
+  断言第二页仍生成 4 列 table candidate；稀疏明细行第 2、3 列
+  `has_text = false`，末列 `USD 10` 保持在第 4 列，下一条正常明细和
+  `Grand total` 跨列推断仍保留。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with sparse body rows`
+  断言第二页 continuation diagnostic 为
+  `column_count_matches = true`、`column_anchors_match = true`、
+  `header_match_kind = exact`、`source_row_offset = 1`、
+  `skipped_repeating_header = true`、`blocker = none`，最终仍导入为一张
+  7 行 4 列表格。
+- 已确认保存重开后的结构：
+  body blocks 保持 `paragraph / table / paragraph`；稀疏行的 `Qty` / `Unit`
+  单元格为空文本，末列金额、后续正常明细和 `Grand total` 的 `column_span = 3`
+  都保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-sparse-body-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-sparse-body-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-sparse-body-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认同一明细行两个中间空单元格的受控稀疏行；局部列锚点错位、
+  只有单个数据簇的极稀疏行、跨页金额合计推导、自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  局部列锚点错位 / 极稀疏行下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
