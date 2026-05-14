@@ -2106,6 +2106,43 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   缺列 / 变体表头下的跨页续接负样本、更复杂的嵌套合并、扫描件和 OCR 场景。
 
+2026-05-14 继续推进（跨页 subtotal 语义表头负样本）：
+
+- 已补充跨页 invoice subtotal 的语义变体表头负样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-semantic-header-variant-table.pdf`。
+  第一页表头为 `Item / Quantity / Unit / Amount`，第二页表头改为
+  `Item / Owner / Phase / Amount`，两页都保留 total/subtotal 稀疏跨列行，
+  用于验证上一轮 repeated-header 入口放宽后仍不会误合并语义不同的表格。
+- 已补导入侧回归：
+  `PDF table import keeps cross-page subtotal tables separate for semantic header variants`
+  断言第二页 continuation diagnostic 同时记录
+  `previous_has_repeating_header = true`、`source_has_repeating_header = true`、
+  `header_match_kind = none`、`blocker = repeated_header_mismatch`，
+  最终导入结果保留为两张 `Document` 表格。
+- 已确认保存重开后的结构：
+  第一张表的 `Design subtotal` 和第二张表的 `Grand total` 仍保留
+  `column_span = 3`，且第二张表的语义变体表头 `Owner / Phase` 没有被当作重复表头跳过。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-semantic-header-variant-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-semantic-header-variant-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-semantic-header-variant-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前只确认语义不同的 repeated header 会保守拆表；缺列、错位列锚点、跨页金额合计推导、
+  自由表单、扫描/OCR 或需要图像理解的表格仍未覆盖。
+- 下一阶段入口保留：
+  缺列 / 错位列锚点下的跨页续接边界、更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

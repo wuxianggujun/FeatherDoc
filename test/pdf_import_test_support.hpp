@@ -1809,6 +1809,72 @@ write_invoice_grid_pagebreak_subtotal_header_variant_pdf(
 }
 
 [[nodiscard]] inline std::filesystem::path
+write_invoice_grid_pagebreak_subtotal_semantic_header_variant_pdf(
+    std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc invoice grid pagebreak subtotal semantic-header-variant PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    auto add_invoice_row = [](featherdoc::pdf::PdfPageLayout &page,
+                              double y_points, std::string first,
+                              std::string second, std::string third,
+                              std::string fourth) {
+        page.text_runs.push_back(
+            make_pdf_text_run(86.0, y_points, std::move(first)));
+        if (!second.empty()) {
+            page.text_runs.push_back(
+                make_pdf_text_run(230.0, y_points, std::move(second)));
+        }
+        if (!third.empty()) {
+            page.text_runs.push_back(
+                make_pdf_text_run(364.0, y_points, std::move(third)));
+        }
+        if (!fourth.empty()) {
+            page.text_runs.push_back(
+                make_pdf_text_run(498.0, y_points, std::move(fourth)));
+        }
+    };
+
+    featherdoc::pdf::PdfPageLayout first_page;
+    first_page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    first_page.text_runs.push_back(make_pdf_text_run(
+        72.0, 724.0, "Invoice pagebreak subtotal semantic header variant sample"));
+    append_grid(first_page, 72.0, 700.0, 130.0, 28.0, 4U, 4U);
+    add_invoice_row(first_page, 678.0, "Item", "Quantity", "Unit", "Amount");
+    add_invoice_row(first_page, 650.0, "PDF export design", "2", "USD 50",
+                    "USD 100");
+    add_invoice_row(first_page, 622.0, "Design subtotal", "", "",
+                    "USD 100");
+    add_invoice_row(first_page, 594.0, "Visual validation", "1", "USD 25",
+                    "USD 25");
+    layout.pages.push_back(std::move(first_page));
+
+    featherdoc::pdf::PdfPageLayout second_page;
+    second_page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    append_grid(second_page, 72.0, 700.0, 130.0, 28.0, 4U, 4U);
+    add_invoice_row(second_page, 678.0, "Item", "Owner", "Phase", "Amount");
+    add_invoice_row(second_page, 650.0, "Regression evidence",
+                    "Import lane", "Review pass", "USD 10");
+    add_invoice_row(second_page, 622.0, "Documentation pass", "Docs team",
+                    "Approval", "USD 15");
+    add_invoice_row(second_page, 594.0, "Grand total", "", "", "USD 25");
+    second_page.text_runs.push_back(make_pdf_text_run(
+        72.0, 540.0,
+        "Footer note: semantic repeated header variant stays separate"));
+    layout.pages.push_back(std::move(second_page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
 write_invoice_grid_repeat_header_pdf(std::string_view filename) {
     featherdoc::pdf::PdfDocumentLayout layout;
     layout.metadata.title =
