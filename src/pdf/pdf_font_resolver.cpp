@@ -18,6 +18,12 @@ struct DecodedCodepoint {
     std::size_t size{1U};
 };
 
+struct ResolvedFontPath {
+    std::filesystem::path path;
+    bool synthetic_bold{false};
+    bool synthetic_italic{false};
+};
+
 [[nodiscard]] std::size_t utf8_codepoint_size(unsigned char lead) noexcept {
     if ((lead & 0x80U) == 0U) {
         return 1U;
@@ -122,7 +128,7 @@ first_existing_path(const std::vector<std::filesystem::path> &candidates) {
 #endif
 }
 
-[[nodiscard]] std::optional<std::filesystem::path>
+[[nodiscard]] std::optional<ResolvedFontPath>
 find_mapped_font_path(const std::vector<PdfFontMapping> &mappings,
                       std::string_view font_family, bool bold, bool italic) {
     const auto requested = normalized_family_key(font_family);
@@ -134,7 +140,7 @@ find_mapped_font_path(const std::vector<PdfFontMapping> &mappings,
         if (normalized_family_key(mapping.font_family) == requested &&
             mapping.bold == bold && mapping.italic == italic &&
             path_exists(mapping.font_file_path)) {
-            return mapping.font_file_path;
+            return ResolvedFontPath{mapping.font_file_path, false, false};
         }
     }
 
@@ -142,7 +148,7 @@ find_mapped_font_path(const std::vector<PdfFontMapping> &mappings,
         if (normalized_family_key(mapping.font_family) == requested &&
             !mapping.bold && !mapping.italic &&
             path_exists(mapping.font_file_path)) {
-            return mapping.font_file_path;
+            return ResolvedFontPath{mapping.font_file_path, bold, italic};
         }
     }
 
@@ -353,10 +359,24 @@ system_font_candidates_for_family(std::string_view font_family, bool bold,
            (codepoint >= 0x20000U && codepoint <= 0x2FA1FU);
 }
 
-[[nodiscard]] std::optional<std::filesystem::path>
+[[nodiscard]] std::optional<ResolvedFontPath>
 find_system_font_path(std::string_view font_family, bool bold, bool italic) {
-    return first_existing_path(
-        system_font_candidates_for_family(font_family, bold, italic));
+    const auto candidates =
+        system_font_candidates_for_family(font_family, bold, italic);
+    const auto regular_candidates =
+        system_font_candidates_for_family(font_family, false, false);
+    const auto resolved = first_existing_path(candidates);
+    if (!resolved) {
+        return std::nullopt;
+    }
+
+    const bool requested_style = bold || italic;
+    const bool regular_fallback =
+        requested_style &&
+        std::find(regular_candidates.begin(), regular_candidates.end(),
+                  *resolved) != regular_candidates.end();
+    return ResolvedFontPath{*resolved, regular_fallback && bold,
+                            regular_fallback && italic};
 }
 
 } // namespace
@@ -387,7 +407,7 @@ PdfResolvedFont PdfFontResolver::resolve(std::string_view font_family,
                                            ? std::string_view{"Helvetica"}
                                            : font_family)};
 
-    std::optional<std::filesystem::path> resolved_path;
+    std::optional<ResolvedFontPath> resolved_path;
 
     if (cjk_text) {
         if (!east_asia_font_family.empty()) {
@@ -402,11 +422,15 @@ PdfResolvedFont PdfFontResolver::resolve(std::string_view font_family,
 
         if (!resolved_path &&
             path_exists(this->options_.default_cjk_font_file_path)) {
-            resolved_path = this->options_.default_cjk_font_file_path;
+            resolved_path = ResolvedFontPath{
+                this->options_.default_cjk_font_file_path, bold, italic};
         }
 
         if (!resolved_path && this->options_.use_system_font_fallbacks) {
-            resolved_path = first_existing_path(cjk_fallback_candidates());
+            const auto fallback = first_existing_path(cjk_fallback_candidates());
+            if (fallback) {
+                resolved_path = ResolvedFontPath{*fallback, bold, italic};
+            }
         }
 
         if (!resolved_path && !font_family.empty()) {
@@ -426,12 +450,16 @@ PdfResolvedFont PdfFontResolver::resolve(std::string_view font_family,
     }
 
     if (!resolved_path && path_exists(this->options_.default_font_file_path)) {
-        resolved_path = this->options_.default_font_file_path;
+        resolved_path = ResolvedFontPath{this->options_.default_font_file_path,
+                                         bold, italic};
     }
 
     if (!resolved_path && this->options_.use_system_font_fallbacks &&
         !cjk_text) {
-        resolved_path = first_existing_path(latin_fallback_candidates());
+        const auto fallback = first_existing_path(latin_fallback_candidates());
+        if (fallback) {
+            resolved_path = ResolvedFontPath{*fallback, bold, italic};
+        }
     }
 
     if (resolved_path && resolved_family == "Helvetica" && cjk_text &&
@@ -441,8 +469,10 @@ PdfResolvedFont PdfFontResolver::resolve(std::string_view font_family,
 
     return PdfResolvedFont{
         resolved_family,
-        resolved_path.value_or(std::filesystem::path{}),
+        resolved_path ? resolved_path->path : std::filesystem::path{},
         unicode_text,
+        resolved_path ? resolved_path->synthetic_bold : false,
+        resolved_path ? resolved_path->synthetic_italic : false,
     };
 }
 

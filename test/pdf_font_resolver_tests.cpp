@@ -170,15 +170,23 @@ TEST_CASE("font resolver prefers style-specific explicit mappings") {
     CHECK_EQ(resolver.resolve("Unit Style", {}, "regular", false, false)
                  .font_file_path,
              regular_font);
-    CHECK_EQ(
-        resolver.resolve("Unit Style", {}, "bold", true, false).font_file_path,
-        bold_font);
-    CHECK_EQ(resolver.resolve("Unit Style", {}, "italic", false, true)
-                 .font_file_path,
-             italic_font);
-    CHECK_EQ(resolver.resolve("Unit Style", {}, "bold italic", true, true)
-                 .font_file_path,
-             bold_italic_font);
+    const auto bold_resolved =
+        resolver.resolve("Unit Style", {}, "bold", true, false);
+    CHECK_EQ(bold_resolved.font_file_path, bold_font);
+    CHECK_FALSE(bold_resolved.synthetic_bold);
+    CHECK_FALSE(bold_resolved.synthetic_italic);
+
+    const auto italic_resolved =
+        resolver.resolve("Unit Style", {}, "italic", false, true);
+    CHECK_EQ(italic_resolved.font_file_path, italic_font);
+    CHECK_FALSE(italic_resolved.synthetic_bold);
+    CHECK_FALSE(italic_resolved.synthetic_italic);
+
+    const auto bold_italic_resolved =
+        resolver.resolve("Unit Style", {}, "bold italic", true, true);
+    CHECK_EQ(bold_italic_resolved.font_file_path, bold_italic_font);
+    CHECK_FALSE(bold_italic_resolved.synthetic_bold);
+    CHECK_FALSE(bold_italic_resolved.synthetic_italic);
 }
 
 TEST_CASE("font resolver prefers style-specific explicit mappings for CJK text") {
@@ -231,6 +239,8 @@ TEST_CASE("font resolver prefers style-specific explicit mappings for CJK text")
     CHECK_EQ(bold_italic_resolved.font_family, "Unit CJK");
     CHECK_EQ(bold_italic_resolved.font_file_path, bold_italic_font);
     CHECK(bold_italic_resolved.unicode);
+    CHECK_FALSE(bold_italic_resolved.synthetic_bold);
+    CHECK_FALSE(bold_italic_resolved.synthetic_italic);
 }
 
 TEST_CASE("font resolver falls back to regular mapping when style variant is "
@@ -249,6 +259,8 @@ TEST_CASE("font resolver falls back to regular mapping when style variant is "
         resolver.resolve("Unit Style", {}, "styled fallback", true, true);
 
     CHECK_EQ(resolved.font_file_path, regular_font);
+    CHECK(resolved.synthetic_bold);
+    CHECK(resolved.synthetic_italic);
 }
 
 TEST_CASE("font resolver falls back to regular CJK mapping when style variant "
@@ -269,6 +281,8 @@ TEST_CASE("font resolver falls back to regular CJK mapping when style variant "
     CHECK_EQ(resolved.font_family, "Unit CJK");
     CHECK_EQ(resolved.font_file_path, regular_font);
     CHECK(resolved.unicode);
+    CHECK(resolved.synthetic_bold);
+    CHECK(resolved.synthetic_italic);
 }
 
 TEST_CASE("font resolver falls back to configured default font file path") {

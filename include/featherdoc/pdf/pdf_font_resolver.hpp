@@ -34,6 +34,8 @@ struct PdfResolvedFont {
     std::string font_family{"Helvetica"};
     std::filesystem::path font_file_path;
     bool unicode{false};
+    bool synthetic_bold{false};
+    bool synthetic_italic{false};
 };
 
 class PdfFontResolver final {

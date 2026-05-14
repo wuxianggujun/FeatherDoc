@@ -381,6 +381,46 @@ TEST_CASE("document PDF adapter maps bold italic underline run styling") {
     CHECK(styled_run.italic);
     CHECK(styled_run.underline);
     CHECK_FALSE(styled_run.unicode);
+    CHECK_FALSE(styled_run.synthetic_bold);
+    CHECK_FALSE(styled_run.synthetic_italic);
+}
+
+TEST_CASE("document PDF adapter marks synthetic styles for missing file font "
+          "variants") {
+    const auto regular_font =
+        make_temp_font_file("featherdoc-adapter-synthetic-regular.ttf");
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Synthetic"));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    REQUIRE(paragraph.add_run("Synthetic styled PDF",
+                              featherdoc::formatting_flag::bold |
+                                  featherdoc::formatting_flag::italic)
+                .has_next());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Synthetic", regular_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_GE(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &styled_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(styled_run.text, "Synthetic styled PDF");
+    CHECK_EQ(styled_run.font_family, "Unit Synthetic");
+    CHECK_EQ(styled_run.font_file_path, regular_font);
+    CHECK(styled_run.bold);
+    CHECK(styled_run.italic);
+    CHECK(styled_run.synthetic_bold);
+    CHECK(styled_run.synthetic_italic);
 }
 
 TEST_CASE("document PDF adapter resolves inherited run style formatting") {
@@ -1709,6 +1749,24 @@ TEST_CASE("PDF writer accepts standard font style variants and underlines") {
         false,
         false,
     });
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (!latin_font.empty()) {
+        page.text_runs.push_back(featherdoc::pdf::PdfTextRun{
+            featherdoc::pdf::PdfPoint{72.0, 660.0},
+            "Synthetic file font style",
+            "Unit File Font",
+            latin_font,
+            14.0,
+            featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
+            true,
+            true,
+            false,
+            false,
+            0.0,
+            true,
+            true,
+        });
+    }
     layout.pages.push_back(std::move(page));
 
     featherdoc::pdf::PdfioGenerator generator;
@@ -1725,6 +1783,10 @@ TEST_CASE("PDF writer accepts standard font style variants and underlines") {
     const auto extracted_text = collect_text(parse_result.document);
     CHECK_NE(extracted_text.find("Underlined PDF text"), std::string::npos);
     CHECK_NE(extracted_text.find("Bold italic PDF text"), std::string::npos);
+    if (!latin_font.empty()) {
+        CHECK_NE(extracted_text.find("Synthetic file font style"),
+                 std::string::npos);
+    }
 #endif
 }
 

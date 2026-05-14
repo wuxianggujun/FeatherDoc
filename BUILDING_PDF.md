@@ -434,6 +434,17 @@ FeatherDoc 的 PDF 字体选择已经拆成两层：
 2. 再给 `font_file_path` 和 `cjk_font_file_path` 配默认文件
 3. 最后才依赖系统字体回退
 
+粗体 / 斜体策略是：
+
+1. 标准 PDF base fonts 使用 Helvetica / Times / Courier 自带的 bold / italic 变体。
+2. 显式 `font_mappings` 可以按 `bold` / `italic` 注册真实字体文件，resolver 会优先选中
+   style-specific 映射。
+3. 显式映射、默认字体或 fallback 只能找到 regular 字体时，resolver 会把该 run 标记为
+   synthetic bold / italic；PDFio writer 会用 fill+stroke 做最小加粗，用 12 度斜切矩阵做
+   最小斜体兜底。
+4. synthetic 兜底只是防止样式完全丢失，不等价于真实字重或真实 italic 字体。发布级样本
+   仍应优先配置真实 bold / italic 字体文件。
+
 CJK 字体选择的默认顺序是：
 
 1. run 或文档默认属性里的 `east_asia_font_family` 显式映射

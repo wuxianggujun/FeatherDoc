@@ -57,6 +57,8 @@ struct PdfTextRun {
     bool underline{false};
     bool unicode{false};
     double rotation_degrees{0.0};
+    bool synthetic_bold{false};
+    bool synthetic_italic{false};
 };
 
 struct PdfRectangle {

@@ -369,6 +369,18 @@ void append_utf16be_hex_unit(std::string &output, std::uint16_t value) {
 [[nodiscard]] bool set_text_run_matrix(pdfio_stream_t *stream,
                                        const PdfTextRun &text_run) {
     if (std::abs(text_run.rotation_degrees) <= 0.0001) {
+        if (text_run.synthetic_italic && text_run.italic) {
+            constexpr double kSyntheticItalicDegrees = 12.0;
+            const auto skew =
+                std::tan(kSyntheticItalicDegrees * kPi / 180.0);
+            pdfio_matrix_t matrix = {
+                {1.0, 0.0},
+                {skew, 1.0},
+                {text_run.baseline_origin.x_points,
+                 text_run.baseline_origin.y_points},
+            };
+            return pdfioContentSetTextMatrix(stream, matrix);
+        }
         return pdfioContentTextMoveTo(stream,
                                       text_run.baseline_origin.x_points,
                                       text_run.baseline_origin.y_points);
@@ -384,6 +396,27 @@ void append_utf16be_hex_unit(std::string &output, std::uint16_t value) {
          text_run.baseline_origin.y_points},
     };
     return pdfioContentSetTextMatrix(stream, matrix);
+}
+
+[[nodiscard]] bool set_text_rendering_style(pdfio_stream_t *stream,
+                                            const PdfTextRun &text_run) {
+    const bool synthetic_bold = text_run.synthetic_bold && text_run.bold;
+    if (!pdfioContentSetTextRenderingMode(
+            stream, synthetic_bold ? PDFIO_TEXTRENDERING_FILL_AND_STROKE
+                                   : PDFIO_TEXTRENDERING_FILL)) {
+        return false;
+    }
+
+    if (!synthetic_bold) {
+        return true;
+    }
+
+    const double stroke_width =
+        std::max(0.2, text_run.font_size_points / 48.0);
+    return pdfioContentSetStrokeColorDeviceRGB(
+               stream, text_run.fill_color.red, text_run.fill_color.green,
+               text_run.fill_color.blue) &&
+           pdfioContentSetLineWidth(stream, stroke_width);
 }
 
 [[nodiscard]] pdfio_rect_t
@@ -724,6 +757,7 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
             !pdfioContentSetTextFont(stream.get(),
                                      font_resource->second.c_str(),
                                      text_run.font_size_points) ||
+            !set_text_rendering_style(stream.get(), text_run) ||
             !set_text_run_matrix(stream.get(), text_run) ||
             !pdfioContentTextShow(stream.get(), text_run.unicode,
                                   text_run.text.c_str()) ||

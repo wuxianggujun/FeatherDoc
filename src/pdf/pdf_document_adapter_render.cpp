@@ -91,6 +91,8 @@ void emit_line_at(PdfPageLayout &page, const LineState &line,
                 fragment.underline,
                 fragment.font.unicode,
                 rotation_degrees,
+                fragment.font.synthetic_bold,
+                fragment.font.synthetic_italic,
             });
         }
         current_advance += measure_text(fragment.text,

@@ -2580,6 +2580,34 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   非标准字体缺少 bold / italic 变体时的质量策略，或继续进入 HarfBuzz 文字塑形。
 
+2026-05-15 继续推进（非标准字体 synthetic 粗斜体兜底）：
+
+- 已把非标准字体缺少 bold / italic 变体时的策略从文档 TODO 落到代码：
+  `PdfFontResolver` 仍优先选择 style-specific 映射；当显式映射、默认字体或 fallback
+  只能提供 regular 字体时，会在 `PdfResolvedFont` 上标记 `synthetic_bold` /
+  `synthetic_italic`。
+- 已把 synthetic 标记经 document adapter 传入 `PdfTextRun`，PDFio writer 对 synthetic
+  bold 使用 `PDFIO_TEXTRENDERING_FILL_AND_STROKE` 和小 stroke width，对 synthetic italic
+  使用 12 度斜切 text matrix。这样不会重复 `TextShow`，避免 PDFium 回读出现重复文本。
+- 已补回归：
+  `pdf_font_resolver` 断言 style-specific 映射不会误标 synthetic，regular fallback 会标记
+  synthetic；
+  `pdf_document_adapter_font` 断言 synthetic 标记进入 layout，并覆盖 writer 输出后 PDFium
+  回读不重复文本。
+- 已同步 `BUILDING_PDF.md` 的字体选择说明，明确真实 bold / italic 字体优先，
+  synthetic 只是防止样式完全丢失的视觉兜底。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_font_resolver_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(font_resolver|document_adapter_font)$" --output-on-failure --timeout 60`
+  通过 2/2；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_(styled-text|mixed-style-text|underline-text|document-contract-cjk-style|document-eastasia-style-probe|contract-cjk-style)$" --output-on-failure --timeout 60`
+  通过 6/6；
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/run_pdf_visual_release_gate.ps1 -BuildDir .bpdf-roundtrip-msvc -OutputDir output/pdf-style-visual-release-gate -SkipUnicodeBaseline`
+  通过。
+- 下一阶段入口：
+  优先级 3 基础样式映射收口完成，下一步进入优先级 4 HarfBuzz 文字塑形。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

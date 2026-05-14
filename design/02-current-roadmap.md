@@ -212,11 +212,14 @@ Phase 1 的重点是：
       回归
 - [x] 补合同级样式视觉 baseline，把粗体 / 斜体 / 字号 / 颜色 / 下划线纳入
       `run_pdf_visual_release_gate.ps1` 的核心 PNG 渲染和聚合 contact sheet
-- [ ] 明确非标准字体缺少 bold / italic 变体时的质量策略
+- [x] 明确非标准字体缺少 bold / italic 变体时的质量策略：resolver 优先找
+      style-specific 字体，缺失时显式标记 synthetic bold / italic，writer 使用
+      fill+stroke 和斜切矩阵做最小视觉兜底
 
 **验收**：基础段落和表格单元格的粗体 / 斜体 / 字号 / 颜色 / 下划线已有专项
-CTest 覆盖；发布级视觉门禁已覆盖合同样式和样式矩阵样本，剩余是非标准字体
-bold / italic 变体质量策略。
+CTest 覆盖；发布级视觉门禁已覆盖合同样式和样式矩阵样本；非标准字体缺少
+bold / italic 变体时已有合成兜底和回归覆盖。优先级 3 基础验收完成，下一步进入
+HarfBuzz 文字塑形。
 
 ### 优先级 4：HarfBuzz 文字塑形（约 1 个月）
 
