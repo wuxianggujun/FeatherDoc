@@ -61,6 +61,24 @@ pdf_glyph_direction_from_harfbuzz(hb_direction_t direction) noexcept {
     }
 }
 
+[[nodiscard]] hb_direction_t
+pdf_glyph_direction_to_harfbuzz(PdfGlyphDirection direction) noexcept {
+    switch (direction) {
+    case PdfGlyphDirection::left_to_right:
+        return HB_DIRECTION_LTR;
+    case PdfGlyphDirection::right_to_left:
+        return HB_DIRECTION_RTL;
+    case PdfGlyphDirection::top_to_bottom:
+        return HB_DIRECTION_TTB;
+    case PdfGlyphDirection::bottom_to_top:
+        return HB_DIRECTION_BTT;
+    case PdfGlyphDirection::unknown:
+        return HB_DIRECTION_INVALID;
+    }
+
+    return HB_DIRECTION_INVALID;
+}
+
 [[nodiscard]] std::string harfbuzz_tag_to_string(hb_tag_t tag) {
     char tag_chars[4]{};
     hb_tag_to_string(tag, tag_chars);
@@ -78,6 +96,16 @@ pdf_glyph_script_tag_from_harfbuzz(hb_script_t script) {
         return {};
     }
     return harfbuzz_tag_to_string(hb_script_to_iso15924_tag(script));
+}
+
+[[nodiscard]] hb_script_t
+harfbuzz_script_from_pdf_tag(std::string_view script_tag) noexcept {
+    if (script_tag.empty() || script_tag.size() > 4U) {
+        return HB_SCRIPT_INVALID;
+    }
+    return hb_script_from_iso15924_tag(
+        hb_tag_from_string(script_tag.data(),
+                           static_cast<int>(script_tag.size())));
 }
 #endif
 
@@ -173,6 +201,20 @@ PdfGlyphRun shape_pdf_text(std::string_view text,
 
     const auto text_size = static_cast<int>(text.size());
     hb_buffer_add_utf8(buffer.get(), text.data(), text_size, 0, text_size);
+    if (options.direction != PdfGlyphDirection::unknown) {
+        hb_buffer_set_direction(
+            buffer.get(), pdf_glyph_direction_to_harfbuzz(options.direction));
+    }
+    if (!options.script_tag.empty()) {
+        const auto script = harfbuzz_script_from_pdf_tag(options.script_tag);
+        if (script == HB_SCRIPT_INVALID) {
+            run.error_message =
+                "Script tag must be a valid ISO 15924 tag: " +
+                options.script_tag;
+            return run;
+        }
+        hb_buffer_set_script(buffer.get(), script);
+    }
     hb_buffer_guess_segment_properties(buffer.get());
     run.direction =
         pdf_glyph_direction_from_harfbuzz(hb_buffer_get_direction(buffer.get()));

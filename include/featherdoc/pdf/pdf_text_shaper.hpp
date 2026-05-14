@@ -12,6 +12,7 @@
 #include <featherdoc/pdf/pdf_glyph_run.hpp>
 
 #include <filesystem>
+#include <string>
 #include <string_view>
 
 namespace featherdoc::pdf {
@@ -19,6 +20,8 @@ namespace featherdoc::pdf {
 struct PdfTextShaperOptions {
     std::filesystem::path font_file_path;
     double font_size_points{12.0};
+    PdfGlyphDirection direction{PdfGlyphDirection::unknown};
+    std::string script_tag;
 };
 
 [[nodiscard]] bool pdf_text_shaper_has_harfbuzz() noexcept;

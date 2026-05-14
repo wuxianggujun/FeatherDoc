@@ -2859,6 +2859,24 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   script tag 现在可以作为后续方向模型的输入；真正改变 layout / writer 前，仍需先定义
   每种脚本的受控验收样本和 fallback 规则。
 
+2026-05-15 继续推进（shaper 显式 direction / script override）：
+
+- 已扩展 `PdfTextShaperOptions`：调用方可以显式传入 `PdfGlyphDirection` 和 ISO 15924
+  `script_tag`；未传入时仍由 `hb_buffer_guess_segment_properties()` 自动推断。
+- 已在 `shape_pdf_text()` 中先写入调用方指定的 direction / script，再让 HarfBuzz 补齐未指定
+  的 segment properties；非法 script tag 会返回明确诊断，不继续生成 glyph run。
+- 已扩展 `pdf_text_shaper` 回归：验证 Latin 文本可被显式塑形为 RTL / `Hebr` metadata，
+  并验证超长非法 script tag 会被拒绝。
+- 已同步 `BUILDING_PDF.md`，记录 `PdfTextShaperOptions` 的显式 override 能力。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_text_shaper_tests pdf_document_adapter_font_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font)$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  可以开始把上游文档语义中的 RTL / bidi / language 信息映射到 shaper options；在 writer
+  支持前，非 LTR 仍保持字符串 fallback。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

@@ -476,6 +476,7 @@ CJK 字体选择的默认顺序是：
 - 输出 `PdfGlyphRun`，包含 glyph id、cluster、direction、script tag、x/y advance、x/y offset
 - 通过 `pdf_text_shaper_has_harfbuzz()` 暴露当前构建是否启用 HarfBuzz
 - `FEATHERDOC_TEST_RTL_FONT` 可指定 RTL 字体，用于验证 HarfBuzz direction / script 元数据
+- `PdfTextShaperOptions` 现在也支持显式 direction / script tag override，未指定时继续走 HarfBuzz guess
 
 当前 document adapter 会在 file-backed `PdfTextRun` 上保留成功塑形得到的
 `PdfGlyphRun`，并优先使用 glyph advance 计算 layout 宽度和后续 run 坐标。

@@ -182,3 +182,58 @@ TEST_CASE("text shaper records right-to-left direction when available") {
     CHECK_EQ(run.script_tag, "Hebr");
     REQUIRE_FALSE(run.glyphs.empty());
 }
+
+TEST_CASE("text shaper honors explicit direction and script overrides") {
+    const auto font_path = first_existing_path(candidate_latin_fonts());
+    if (font_path.empty()) {
+        MESSAGE("skipping HarfBuzz override test: set "
+                "FEATHERDOC_TEST_PROPORTIONAL_FONT to run it");
+        return;
+    }
+
+    const auto text = "office";
+    featherdoc::pdf::PdfTextShaperOptions options{font_path, 12.0};
+    options.direction = featherdoc::pdf::PdfGlyphDirection::right_to_left;
+    options.script_tag = "Hebr";
+    const auto run = featherdoc::pdf::shape_pdf_text(text, options);
+
+    CHECK_EQ(run.text, text);
+    CHECK_EQ(run.font_file_path, font_path);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(run.used_harfbuzz);
+        CHECK(run.glyphs.empty());
+        CHECK(run.error_message.find("not enabled") != std::string::npos);
+        return;
+    }
+
+    CHECK(run.used_harfbuzz);
+    CHECK(run.error_message.empty());
+    CHECK_EQ(run.direction,
+             featherdoc::pdf::PdfGlyphDirection::right_to_left);
+    CHECK_EQ(run.script_tag, "Hebr");
+    REQUIRE_FALSE(run.glyphs.empty());
+}
+
+TEST_CASE("text shaper rejects invalid explicit script tags") {
+    const auto font_path = first_existing_path(candidate_latin_fonts());
+    if (font_path.empty()) {
+        MESSAGE("skipping HarfBuzz script validation test: set "
+                "FEATHERDOC_TEST_PROPORTIONAL_FONT to run it");
+        return;
+    }
+
+    featherdoc::pdf::PdfTextShaperOptions options{font_path, 12.0};
+    options.script_tag = "latin";
+    const auto run = featherdoc::pdf::shape_pdf_text("office", options);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(run.used_harfbuzz);
+        CHECK(run.error_message.find("not enabled") != std::string::npos);
+        return;
+    }
+
+    CHECK_FALSE(run.used_harfbuzz);
+    CHECK_FALSE(run.error_message.empty());
+    CHECK(run.error_message.find("Script tag") != std::string::npos);
+}
