@@ -1182,7 +1182,10 @@ rollback 项。
 `ensure_table_style` 也可以通过 edit-plan 进入；它接受 `style_id`
 以及与 `ensure-table-style` 相同的表格样式目录和区域输入。
 脚本会调用这些命令的安全应用模式，并把中间 DOCX 继续传给下一步。
-`repair_style_numbering` 还可以传入 `catalog_file`。
+`repair_style_numbering` 还可以传入 `catalog_file`。需要把保存好的编号
+catalog 导入当前 edit-plan 文档时，使用 `import_numbering_catalog`；它接受
+`catalog_file`、`catalog_path`、`numbering_catalog_file` 或
+`numbering_catalog_path`。
 单元格合并使用 `merge_table_cells`，取消合并使用 `unmerge_table_cells`；
 合并可通过 `count` 指定跨几个单元格；需要删除整张正文表格时用
 `remove_table`。

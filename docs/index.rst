@@ -1593,6 +1593,10 @@ catalogs through stable JSON files:
     featherdoc_cli diff-numbering-catalog numbering-catalog.json numbering-catalog.patched.json --fail-on-diff --json
     featherdoc_cli import-numbering-catalog target.docx --catalog-file numbering-catalog.patched.json --output target-numbering.docx --json
 
+Edit plans can call the same import path with
+``import_numbering_catalog`` and a ``catalog_file`` /
+``numbering_catalog_file`` value.
+
 Catalog patch files accept ``upsert_levels`` entries shaped as a
 ``definition_name`` plus a ``level`` object using the exported
 ``level`` / ``kind`` / ``start`` / ``text_pattern`` schema. They can be

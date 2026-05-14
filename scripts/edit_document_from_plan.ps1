@@ -7417,6 +7417,16 @@ function New-OperationArguments {
                 $arguments.Add($catalogFile) | Out-Null
             }
         }
+        "import_numbering_catalog" {
+            $catalogFile = Get-FirstObjectPropertyValue `
+                -Object $Operation `
+                -Names @("catalog_file", "catalog_path", "numbering_catalog_file", "numbering_catalog_path") `
+                -Label $Label
+            $arguments.Add("import-numbering-catalog") | Out-Null
+            $arguments.Add($InputPath) | Out-Null
+            $arguments.Add("--catalog-file") | Out-Null
+            $arguments.Add($catalogFile) | Out-Null
+        }
         "ensure_table_style" {
             $styleId = Get-StyleIdValue -Operation $Operation -Label $Label
             $arguments.Add("ensure-table-style") | Out-Null

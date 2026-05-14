@@ -1411,7 +1411,9 @@ Repair-oriented style and table operations are available as
 `apply_table_style_quality_fixes`, `repair_table_style_look`, and
 `repair_style_numbering`; edit plans run their safe apply modes and write the
 intermediate DOCX for the next operation. `repair_style_numbering` can also pass
-a `catalog_file`.
+a `catalog_file`. Use `import_numbering_catalog` to import a saved numbering
+catalog into the current edit-plan document; it accepts `catalog_file`,
+`catalog_path`, `numbering_catalog_file`, or `numbering_catalog_path`.
 Use `merge_table_cells` to merge table cells and `unmerge_table_cells` to split
 an existing merge; `count` controls how many cells the merge spans. Use
 `remove_table` when an edit plan needs to delete an entire body table. Use

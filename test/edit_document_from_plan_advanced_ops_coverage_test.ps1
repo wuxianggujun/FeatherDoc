@@ -48,6 +48,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 $scriptPath = Join-Path $RepoRoot "scripts\edit_document_from_plan.ps1"
 $testPath = Join-Path $RepoRoot "test\edit_document_from_plan_test.ps1"
 $tablePositionPlanTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_position_plan_test.ps1"
+$numberingCatalogTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_numbering_catalog_test.ps1"
 $readmePath = Join-Path $RepoRoot "README.md"
 $readmeZhPath = Join-Path $RepoRoot "README.zh-CN.md"
 $docsPath = Join-Path $RepoRoot "docs\index.rst"
@@ -56,6 +57,7 @@ $scriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
 $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $testPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $tablePositionPlanTestPath
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $numberingCatalogTestPath
 ) -join "`n"
 $readmeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmePath
 $readmeZhText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeZhPath
@@ -70,6 +72,7 @@ $advancedOperations = @(
     "remove_comment",
     "apply_review_mutation_plan",
     "apply_table_position_plan",
+    "import_numbering_catalog",
     "append_image",
     "replace_image",
     "remove_image",
