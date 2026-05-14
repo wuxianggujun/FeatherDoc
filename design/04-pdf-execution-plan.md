@@ -2651,6 +2651,26 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   研究 PDFio Unicode CID 字体当前的 `CIDToGIDMap` / `ToUnicode` 写法，再决定 writer
   是直接写 CID/glyph hex string，还是先扩展 PDFio-side helper。
 
+2026-05-15 继续推进（GlyphRun advance 接入 layout 宽度）：
+
+- 已确认 PDFio 当前 Unicode 字体写法是：content stream 写 UTF-16 codepoint，
+  font resource 的 `CIDToGIDMap` 再把 Unicode CID 映射到 glyph id；因此不能直接把
+  HarfBuzz glyph id 当 CID 写入，否则会和现有 `CIDToGIDMap` / `ToUnicode` 语义错配。
+- 已先推进低风险前置：`measure_text()` 在有字体文件时会优先调用 `shape_pdf_text()`，
+  并用 `glyph_run_x_advance_points()` 作为 layout 宽度。HarfBuzz 不可用、缺字体、
+  坏字体或塑形失败时仍回退到 FreeType / 估算宽度。
+- 已扩展 `pdf_document_adapter_font` 回归：同一段落两个 file-backed run 使用不同字体族
+  保持拆分，第二个 run 的 baseline x 坐标必须等于第一个 run 的 baseline x 加上
+  `PdfGlyphRun` 的 x advance。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests pdf_text_shaper_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(font_resolver|text_metrics|text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过 5/5。
+- 下一阶段入口：
+  若继续推进 writer，需要先设计新的 glyph-id font resource：要么让 CIDToGIDMap 变为
+  identity 并为 clusters 生成 ToUnicode，要么继续借助 ActualText 做复制语义兜底。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

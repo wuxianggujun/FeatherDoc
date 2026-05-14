@@ -262,15 +262,20 @@ TEST_CASE("document PDF adapter carries shaped glyph run for file-backed text") 
 
     featherdoc::Document document;
     REQUIRE_FALSE(document.create_empty());
-    CHECK(document.set_default_run_font_family("Unit Latin"));
 
     auto paragraph = document.paragraphs();
     REQUIRE(paragraph.has_next());
-    REQUIRE(paragraph.add_run("office").has_next());
+    auto first_run = paragraph.add_run("office");
+    REQUIRE(first_run.has_next());
+    CHECK(first_run.set_font_family("Unit Latin A"));
+    auto second_run = paragraph.add_run(" after");
+    REQUIRE(second_run.has_next());
+    CHECK(second_run.set_font_family("Unit Latin B"));
 
     featherdoc::pdf::PdfDocumentAdapterOptions options;
     options.font_mappings = {
-        featherdoc::pdf::PdfFontMapping{"Unit Latin", latin_font},
+        featherdoc::pdf::PdfFontMapping{"Unit Latin A", latin_font},
+        featherdoc::pdf::PdfFontMapping{"Unit Latin B", latin_font},
     };
     options.use_system_font_fallbacks = false;
 
@@ -278,11 +283,14 @@ TEST_CASE("document PDF adapter carries shaped glyph run for file-backed text") 
         featherdoc::pdf::layout_document_paragraphs(document, options);
 
     REQUIRE_EQ(layout.pages.size(), 1U);
-    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 2U);
 
-    const auto &text_run = layout.pages.front().text_runs.front();
+    const auto &text_run = layout.pages.front().text_runs[0];
     CHECK_EQ(text_run.text, "office");
     CHECK_EQ(text_run.font_file_path, latin_font);
+    const auto &after_run = layout.pages.front().text_runs[1];
+    CHECK_EQ(after_run.text, " after");
+    CHECK_EQ(after_run.font_file_path, latin_font);
 
     if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
         CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
@@ -304,6 +312,10 @@ TEST_CASE("document PDF adapter carries shaped glyph run for file-backed text") 
                  std::char_traits<char>::length("office"));
     }
     CHECK_GT(total_advance, 1.0);
+    CHECK(after_run.baseline_origin.x_points ==
+          doctest::Approx(text_run.baseline_origin.x_points +
+                          featherdoc::pdf::glyph_run_x_advance_points(
+                              text_run.glyph_run)));
 }
 
 TEST_CASE(

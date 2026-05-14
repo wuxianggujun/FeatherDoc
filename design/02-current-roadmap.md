@@ -232,7 +232,8 @@ HarfBuzz 文字塑形。
 - [x] 实现 `shaper_bridge`：输入 Unicode 字符串 + 字体，输出 GlyphRun（glyphId / xAdvance /
       xOffset / yOffset）；当前已落到独立 `pdf_text_shaper`，还未接入 layout / writer
 - [ ] `PdfDocumentLayout` 改为消费 GlyphRun 而非字符串；当前 `PdfTextRun` 已可携带
-      `PdfGlyphRun`，但换行和 PDFio writer 仍保留字符串路径
+      `PdfGlyphRun`，layout 宽度和后续 run 坐标已优先使用 glyph advance，但 PDFio
+      writer 仍保留字符串路径
 - [ ] PDFio backend 用 glyph ID 写出 content stream
 - [ ] 视觉回归 sample 集扩展到中英混排、CJK 标点用例
 

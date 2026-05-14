@@ -33,6 +33,15 @@ struct PdfGlyphRun {
     std::string error_message;
 };
 
+[[nodiscard]] inline double
+glyph_run_x_advance_points(const PdfGlyphRun &glyph_run) noexcept {
+    double advance_points = 0.0;
+    for (const auto &glyph : glyph_run.glyphs) {
+        advance_points += glyph.x_advance_points;
+    }
+    return advance_points;
+}
+
 } // namespace featherdoc::pdf
 
 #endif // FEATHERDOC_PDF_PDF_GLYPH_RUN_HPP

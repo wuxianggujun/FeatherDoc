@@ -475,9 +475,9 @@ CJK 字体选择的默认顺序是：
 - 通过 `pdf_text_shaper_has_harfbuzz()` 暴露当前构建是否启用 HarfBuzz
 
 当前 document adapter 会在 file-backed `PdfTextRun` 上保留成功塑形得到的
-`PdfGlyphRun`。这一步还没有改变现有 PDF 写出路径：`PdfTextRun` 仍然保留原始
-字符串，PDFio writer 仍然按文本写 content stream；后续任务才会让 writer 用
-glyph id 写出。
+`PdfGlyphRun`，并优先使用 glyph advance 计算 layout 宽度和后续 run 坐标。
+这一步还没有改变现有 PDF 写出路径：`PdfTextRun` 仍然保留原始字符串，PDFio writer
+仍然按文本写 content stream；后续任务才会让 writer 用 glyph id 写出。
 
 单独验证文字塑形桥接层：
 
@@ -523,6 +523,7 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 - 可以对 Unicode / CJK 字体 roundtrip 产物做 PNG 渲染级视觉 smoke
 - 可以独立调用 HarfBuzz shaper bridge，把 UTF-8 文本和字体塑形成 GlyphRun
 - 可以让 document adapter 在 `PdfTextRun` 上携带成功塑形的 `PdfGlyphRun`
+- 可以让 layout 宽度和后续 run 坐标优先使用 GlyphRun 的 x advance
 - 可以跑 PDFio → PDFium 的端到端 smoke
 - 已有首批 37 个 regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式文本、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
 

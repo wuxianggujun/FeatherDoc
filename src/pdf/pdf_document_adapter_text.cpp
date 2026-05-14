@@ -1,5 +1,7 @@
 #include "pdf_document_adapter_text.hpp"
 
+#include <featherdoc/pdf/pdf_text_shaper.hpp>
+
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
@@ -130,6 +132,15 @@ PdfTextMetricsOptions metrics_options_for(const PdfResolvedFont &font) {
 
 double measure_text(std::string_view text, double font_size_points,
                     const PdfResolvedFont &font) {
+    if (!text.empty() && !font.font_file_path.empty()) {
+        const auto glyph_run = shape_pdf_text(
+            text, PdfTextShaperOptions{font.font_file_path, font_size_points});
+        if (glyph_run.used_harfbuzz && glyph_run.error_message.empty() &&
+            !glyph_run.glyphs.empty()) {
+            return glyph_run_x_advance_points(glyph_run);
+        }
+    }
+
     return measure_text_width_points(text, font_size_points,
                                      metrics_options_for(font));
 }
