@@ -487,4 +487,4 @@ parsed .bpdf-roundtrip-msvc\featherdoc-pdfio-probe.pdf (1 pages, 87 text spans)
 - 还没有 `AST → PDFio` 完整翻译层；复杂分页、图片锚点/裁剪/环绕和更完整的样式覆盖还没收口
 - 还没有 `PDFium → AST` 文档结构重建
 - 还需要继续扩充真实 PDF 样本回归集
-- CJK 嵌入、字体度量、表格分页等还在专项推进中
+- 发布级 CJK 字体许可证 / 捆绑策略、复杂表格分页和 PNG baseline 门禁还在专项推进中

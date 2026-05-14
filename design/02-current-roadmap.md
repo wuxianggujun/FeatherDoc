@@ -139,8 +139,10 @@ Phase 1 的重点是：
 - [x] 同时开启 PDFio / PDFium 时，已有 `pdfium_document_parser_probe` CTest 覆盖 docs 段落写出后再读入
 - [x] 已支持基础段落、表格和基础样式写出
 - [x] 已接入 FreeType 字体度量，Layout 换行和行高改为真实字体测量
+- [x] 已有 CJK / Unicode 字体专项回归，覆盖字体解析、CJK 回退、PDFio 子集嵌入、
+      `/ToUnicode` 写出和 PDFium 文本回读
 - [x] 已建立首批 37 个 PDF regression manifest 样本，覆盖纯文本、多页文本、中文路径、样式、字号、颜色、横向页面、标点、边框框体、基础线条、固定坐标表格外观、合同样式、页眉页脚、多栏文本、发票网格、图片说明文字、metadata 长标题，以及 sectioned/list/long report、image report、CJK report、CJK image report、document east-asian style probe、document image semantics、document table semantics、document long flow 和 document invoice table 这几个更接近真实文档流的生成型样本
-- [ ] 仍需继续扩展 CJK 字体专项、复杂视觉回归和发布门禁；真实文档样本集已经进入 manifest，但还没有把文件大小、图片数量/尺寸和 PNG baseline 全部自动化
+- [ ] 仍需继续扩展复杂视觉回归和发布门禁；真实文档样本集已经进入 manifest，但还没有把文件大小、图片数量/尺寸和 PNG baseline 全部自动化，CJK 字体也还没有进入发行包捆绑策略
 
 ## 当前下一步任务（按优先级）
 
@@ -148,9 +150,9 @@ Phase 1 的重点是：
 >
 > 进展应直接更新本节的 checkbox 状态，而不是另开文档。
 
-当前 PDF 输出已经跑通端到端，而且基础样式和表格已经落地。字体度量已经切到真实字体文件，
-下一步主要是把 CJK 嵌入与 Unicode 回环继续稳固。下面四步按依赖顺序推进，**每一步是后一步
-的前置**。
+当前 PDF 输出已经跑通端到端，而且基础样式、表格、字体度量以及 CJK / Unicode 回环
+都已有专项回归。下一步主要是把发行级字体策略、样式映射和复杂视觉门禁继续收口。
+下面四步按依赖顺序推进，**每一步是后一步的前置**。
 
 ### 优先级 1：FreeType 集成 + 字体度量（约 1 个月）
 
@@ -176,11 +178,14 @@ Phase 1 的重点是：
 
 **子任务**：
 
-- [ ] 选定一个开源 CJK TTF（思源黑体 / 思源宋体 / Noto CJK 之一），列出许可证义务
-- [ ] 通过 PDFio 实现字体子集嵌入（不嵌入整个 20 MB 字体）
-- [ ] 写 /ToUnicode CMap，使 PDF 阅读器能复制粘贴出正确 Unicode
-- [ ] 中文 sample DOCX → PDF → 用 PDFium 反向提取文本，断言文本一致
-- [ ] 加 CTest：`pdfium_document_parser_probe` 扩展到中文路径
+- [ ] 选定一个可随发行包分发的开源 CJK TTF（思源黑体 / 思源宋体 / Noto CJK 之一），列出许可证义务；
+      当前测试先使用 `FEATHERDOC_TEST_CJK_FONT`、`FEATHERDOC_PDF_CJK_FONT` 或系统字体候选，
+      不把字体文件重新分发进仓库
+- [x] 通过 PDFio 实现字体子集嵌入（不嵌入整个 20 MB 字体）
+- [x] 写 /ToUnicode CMap，使 PDFium 能回读正确 Unicode 文本
+- [x] 中文 sample → PDF → 用 PDFium 反向提取文本，断言文本一致
+- [x] 加 CTest：`pdf_unicode_font_roundtrip`、`pdf_document_adapter_font` 和
+      `pdf_font_resolver` 覆盖 CJK 字体解析、子集化、ToUnicode 和回读
 
 **关键依赖检查**：如果 PDFio 在 CJK 字体子集 + ToUnicode 上**不可用或不稳定**，触发
 [dependencies/pdfio.md](dependencies/pdfio.md) §"放弃条件"中的"无法满足字体嵌入和 ToUnicode 的最低要求"，进入评估替代方案。**不允许**用"挖 LibreOffice"作为替代，详见
