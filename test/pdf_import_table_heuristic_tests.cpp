@@ -933,6 +933,49 @@ TEST_CASE(
                                                   "Closed"));
 }
 
+TEST_CASE(
+    "PDFium parser detects center two-by-two merged table candidate spans") {
+    const auto output_path =
+        featherdoc::test_support::write_paragraph_center_merged_table_paragraph_pdf(
+            "featherdoc-pdf-import-center-merged-table-source.pdf");
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    REQUIRE_EQ(parse_result.document.pages.size(), 1U);
+
+    const auto &page = parse_result.document.pages.front();
+    REQUIRE_EQ(page.table_candidates.size(), 1U);
+    REQUIRE_EQ(page.content_blocks.size(), 3U);
+    CHECK_EQ(page.content_blocks[0].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
+    CHECK_EQ(page.content_blocks[1].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::table_candidate);
+    CHECK_EQ(page.content_blocks[2].kind,
+             featherdoc::pdf::PdfParsedContentBlockKind::paragraph);
+
+    const auto &table = page.table_candidates.front();
+    REQUIRE_EQ(table.rows.size(), 4U);
+    REQUIRE_EQ(table.column_anchor_x_points.size(), 4U);
+    REQUIRE_EQ(table.rows[0].cells.size(), 4U);
+    REQUIRE_EQ(table.rows[1].cells.size(), 4U);
+    REQUIRE_EQ(table.rows[2].cells.size(), 4U);
+    REQUIRE_EQ(table.rows[3].cells.size(), 4U);
+
+    CHECK(table.rows[1].cells[1].has_text);
+    CHECK_EQ(table.rows[1].cells[1].column_span, 2U);
+    CHECK_EQ(table.rows[1].cells[1].row_span, 2U);
+    CHECK(featherdoc::test_support::contains_text(
+        table.rows[1].cells[1].text, "Owner assignment spans review"));
+    CHECK_FALSE(table.rows[1].cells[2].has_text);
+    CHECK_FALSE(table.rows[2].cells[1].has_text);
+    CHECK_FALSE(table.rows[2].cells[2].has_text);
+    CHECK(featherdoc::test_support::contains_text(table.rows[0].cells[0].text,
+                                                  "Item"));
+    CHECK(featherdoc::test_support::contains_text(table.rows[3].cells[3].text,
+                                                  "Closed"));
+}
+
 TEST_CASE("PDFium parser detects cross-column header table candidate spans") {
     const auto output_path = featherdoc::test_support::
         write_paragraph_cross_column_header_table_paragraph_pdf(
@@ -3404,6 +3447,113 @@ TEST_CASE("PDF text importer preserves top-left two-by-two merged table cells") 
     CHECK_EQ(reopened_lower_right_continuation->text, "");
     CHECK(featherdoc::test_support::contains_text(reopened_final_phase->text,
                                                   "Closed"));
+
+    if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
+        std::filesystem::remove(docx_path);
+    }
+}
+
+TEST_CASE("PDF text importer preserves center two-by-two merged table cells") {
+    const auto input_path =
+        featherdoc::test_support::write_paragraph_center_merged_table_paragraph_pdf(
+            "featherdoc-pdf-import-center-merged-table.pdf");
+    const auto docx_path =
+        std::filesystem::current_path() /
+        "featherdoc-pdf-import-center-merged-table.docx";
+    std::filesystem::remove(docx_path);
+
+    featherdoc::Document document(docx_path);
+    featherdoc::pdf::PdfDocumentImportOptions options;
+    options.import_table_candidates_as_tables = true;
+
+    const auto import_result =
+        featherdoc::pdf::import_pdf_text_document(input_path, document, options);
+    REQUIRE_MESSAGE(import_result.success, import_result.error_message);
+    CHECK_EQ(import_result.failure_kind,
+             featherdoc::pdf::PdfDocumentImportFailureKind::none);
+    CHECK_EQ(import_result.paragraphs_imported, 2U);
+    CHECK_EQ(import_result.tables_imported, 1U);
+
+    const auto blocks = document.inspect_body_blocks();
+    REQUIRE_EQ(blocks.size(), 3U);
+    CHECK_EQ(blocks[0].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(blocks[1].kind, featherdoc::body_block_kind::table);
+    CHECK_EQ(blocks[2].kind, featherdoc::body_block_kind::paragraph);
+    CHECK_EQ(featherdoc::test_support::collect_document_text(document),
+             "Intro paragraph before center merged table\n"
+             "Tail paragraph after center merged table\n");
+
+    const auto imported_table = document.inspect_table(0U);
+    REQUIRE(imported_table.has_value());
+    CHECK_EQ(imported_table->row_count, 4U);
+    CHECK_EQ(imported_table->column_count, 4U);
+    CHECK_EQ(document.inspect_table_cells(0U).size(), 14U);
+
+    const auto merged_anchor =
+        document.inspect_table_cell_by_grid_column(0U, 1U, 1U);
+    const auto right_continuation =
+        document.inspect_table_cell_by_grid_column(0U, 1U, 2U);
+    const auto lower_continuation =
+        document.inspect_table_cell_by_grid_column(0U, 2U, 1U);
+    const auto lower_right_continuation =
+        document.inspect_table_cell_by_grid_column(0U, 2U, 2U);
+    const auto ship_cell = document.inspect_table_cell_by_grid_column(0U, 3U, 0U);
+    REQUIRE(merged_anchor.has_value());
+    REQUIRE(right_continuation.has_value());
+    REQUIRE(lower_continuation.has_value());
+    REQUIRE(lower_right_continuation.has_value());
+    REQUIRE(ship_cell.has_value());
+    CHECK_EQ(merged_anchor->column_span, 2U);
+    CHECK_EQ(merged_anchor->row_span, 2U);
+    CHECK_EQ(merged_anchor->vertical_merge,
+             featherdoc::cell_vertical_merge::restart);
+    CHECK(featherdoc::test_support::contains_text(
+        merged_anchor->text, "Owner assignment spans review"));
+    CHECK_EQ(right_continuation->column_span, 2U);
+    CHECK_EQ(right_continuation->row_span, 2U);
+    CHECK_EQ(right_continuation->vertical_merge,
+             featherdoc::cell_vertical_merge::restart);
+    CHECK_EQ(lower_continuation->column_span, 2U);
+    CHECK_EQ(lower_continuation->vertical_merge,
+             featherdoc::cell_vertical_merge::continue_merge);
+    CHECK_EQ(lower_continuation->text, "");
+    CHECK_EQ(lower_right_continuation->column_span, 2U);
+    CHECK_EQ(lower_right_continuation->vertical_merge,
+             featherdoc::cell_vertical_merge::continue_merge);
+    CHECK_EQ(lower_right_continuation->text, "");
+    CHECK(featherdoc::test_support::contains_text(ship_cell->text, "Ship"));
+
+    REQUIRE_FALSE(document.save());
+
+    featherdoc::Document reopened(docx_path);
+    REQUIRE_FALSE(reopened.open());
+    CHECK_EQ(reopened.inspect_table_cells(0U).size(), 14U);
+    const auto reopened_anchor =
+        reopened.inspect_table_cell_by_grid_column(0U, 1U, 1U);
+    const auto reopened_right_continuation =
+        reopened.inspect_table_cell_by_grid_column(0U, 1U, 2U);
+    const auto reopened_lower_continuation =
+        reopened.inspect_table_cell_by_grid_column(0U, 2U, 1U);
+    const auto reopened_lower_right_continuation =
+        reopened.inspect_table_cell_by_grid_column(0U, 2U, 2U);
+    REQUIRE(reopened_anchor.has_value());
+    REQUIRE(reopened_right_continuation.has_value());
+    REQUIRE(reopened_lower_continuation.has_value());
+    REQUIRE(reopened_lower_right_continuation.has_value());
+    CHECK_EQ(reopened_anchor->column_span, 2U);
+    CHECK_EQ(reopened_anchor->row_span, 2U);
+    CHECK_EQ(reopened_anchor->vertical_merge,
+             featherdoc::cell_vertical_merge::restart);
+    CHECK_EQ(reopened_right_continuation->column_span, 2U);
+    CHECK_EQ(reopened_right_continuation->row_span, 2U);
+    CHECK_EQ(reopened_right_continuation->vertical_merge,
+             featherdoc::cell_vertical_merge::restart);
+    CHECK_EQ(reopened_lower_continuation->column_span, 2U);
+    CHECK_EQ(reopened_lower_continuation->vertical_merge,
+             featherdoc::cell_vertical_merge::continue_merge);
+    CHECK_EQ(reopened_lower_right_continuation->column_span, 2U);
+    CHECK_EQ(reopened_lower_right_continuation->vertical_merge,
+             featherdoc::cell_vertical_merge::continue_merge);
 
     if (std::getenv("FEATHERDOC_KEEP_PDF_IMPORT_TEST_OUTPUTS") == nullptr) {
         std::filesystem::remove(docx_path);

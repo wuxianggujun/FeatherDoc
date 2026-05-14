@@ -305,6 +305,8 @@ subtotal / total 跨列行存在都不会绕过该版面边界。即使两页仍
 孤立自由表单或任意稀疏表。
 整张表一致的不规则列宽可以被识别；每行列位置各自漂移的自由表单文本会保守保留为
 段落，即使启用 `import_table_candidates_as_tables` 也不会写入表格。
+规则网格里的 2x2 组合合并已覆盖左上角锚点和内部锚点；这仍不等同于支持任意嵌套合并、
+扫描/OCR 或需要图像理解的表格。
 跨页表格合并默认维持原有启发式；如果调用方更担心误合并，可以设置
 `PdfDocumentImportOptions::min_table_continuation_confidence`，把低于阈值的候选保留为
 独立表格，同时从 `table_continuation_diagnostics` 读取实际 confidence 和 blocker。

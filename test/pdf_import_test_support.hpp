@@ -251,6 +251,70 @@ inline void append_four_by_three_grid_with_top_left_two_by_two_merge(
     });
 }
 
+inline void append_four_by_four_grid_with_center_two_by_two_merge(
+    featherdoc::pdf::PdfPageLayout &page, double left, double top,
+    double cell_width, double cell_height) {
+    const double right = left + cell_width * 4.0;
+    const double bottom = top - cell_height * 4.0;
+    const double merge_left = left + cell_width;
+    const double merge_right = left + cell_width * 3.0;
+    const double merge_top = top - cell_height;
+    const double merge_middle = top - cell_height * 2.0;
+    const double merge_bottom = top - cell_height * 3.0;
+
+    for (std::size_t column = 0U; column <= 4U; ++column) {
+        const double x = left + cell_width * static_cast<double>(column);
+        if (column == 2U) {
+            page.lines.push_back(featherdoc::pdf::PdfLine{
+                featherdoc::pdf::PdfPoint{x, bottom},
+                featherdoc::pdf::PdfPoint{x, merge_bottom},
+                featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+                0.75,
+            });
+            page.lines.push_back(featherdoc::pdf::PdfLine{
+                featherdoc::pdf::PdfPoint{x, merge_top},
+                featherdoc::pdf::PdfPoint{x, top},
+                featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+                0.75,
+            });
+            continue;
+        }
+
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{x, bottom},
+            featherdoc::pdf::PdfPoint{x, top},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+
+    for (std::size_t row = 0U; row <= 4U; ++row) {
+        const double y = top - cell_height * static_cast<double>(row);
+        if (row == 2U) {
+            page.lines.push_back(featherdoc::pdf::PdfLine{
+                featherdoc::pdf::PdfPoint{left, y},
+                featherdoc::pdf::PdfPoint{merge_left, y},
+                featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+                0.75,
+            });
+            page.lines.push_back(featherdoc::pdf::PdfLine{
+                featherdoc::pdf::PdfPoint{merge_right, y},
+                featherdoc::pdf::PdfPoint{right, y},
+                featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+                0.75,
+            });
+            continue;
+        }
+
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{left, y},
+            featherdoc::pdf::PdfPoint{right, y},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+}
+
 inline void append_four_column_grid_with_cross_column_header(
     featherdoc::pdf::PdfPageLayout &page, double left, double top,
     double cell_width, double cell_height, std::size_t row_count) {
@@ -887,6 +951,47 @@ write_paragraph_merged_corner_table_paragraph_pdf(std::string_view filename) {
     page.text_runs.push_back(make_pdf_text_run(476.0, 578.0, "Closed"));
     page.text_runs.push_back(make_pdf_text_run(
         72.0, 522.0, "Tail paragraph after merged corner table"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_paragraph_center_merged_table_paragraph_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc paragraph-center-merged-table-paragraph PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 724.0, "Intro paragraph before center merged table"));
+    append_four_by_four_grid_with_center_two_by_two_merge(
+        page, 72.0, 664.0, 120.0, 32.0);
+    page.text_runs.push_back(make_pdf_text_run(86.0, 642.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(206.0, 642.0, "Owner"));
+    page.text_runs.push_back(make_pdf_text_run(326.0, 642.0, "Status"));
+    page.text_runs.push_back(make_pdf_text_run(446.0, 642.0, "Phase"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 610.0, "Design"));
+    page.text_runs.push_back(
+        make_pdf_text_run(206.0, 610.0, "Owner assignment spans review"));
+    page.text_runs.push_back(make_pdf_text_run(446.0, 610.0, "Open"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 578.0, "Review"));
+    page.text_runs.push_back(make_pdf_text_run(446.0, 578.0, "Tracked"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 546.0, "Ship"));
+    page.text_runs.push_back(make_pdf_text_run(206.0, 546.0, "Dana"));
+    page.text_runs.push_back(make_pdf_text_run(326.0, 546.0, "Done"));
+    page.text_runs.push_back(make_pdf_text_run(446.0, 546.0, "Closed"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 490.0, "Tail paragraph after center merged table"));
     layout.pages.push_back(std::move(page));
 
     const auto output_path =
