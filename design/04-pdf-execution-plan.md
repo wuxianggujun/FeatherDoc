@@ -2730,6 +2730,24 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   后续若扩大 writer 塑形能力，优先处理 x/y offset、RTL / 竖排和
   多 glyph 同 cluster 的 ToUnicode 映射策略。
 
+2026-05-15 继续推进（shaped glyph writer 安全边界与 CMap 回归）：
+
+- 已收紧 `pdf_writer.cpp` 的 shaped glyph writer 入口：要求 `PdfGlyphRun` 字号与
+  `PdfTextRun` 一致，cluster 必须落在原始 UTF-8 文本范围内，并且 glyph 顺序中的 cluster
+  不能倒序。倒序 cluster 代表 RTL 或更复杂重排语义，当前仍回退到字符串写出路径。
+- 已扩展 `pdf_unicode_font_roundtrip`：
+  解压 PDF Flate stream，定位 `/FeatherDocGlyphToUnicode` CMap，并逐项断言 shaped glyph
+  私有 CID 到 cluster Unicode 文本的 `beginbfchar` 映射；同时新增倒序 cluster 的 fallback
+  回归，确认不会生成 `/FeatherDocGlyph` 字体资源，PDFium 仍能回读原文。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  继续扩展 shaped writer 前，先补齐 glyph offset / y advance 的定位模型；RTL 和竖排需要
+  独立设计基线、方向和 text matrix 语义，不能直接复用当前 LTR `Tj` 路径。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

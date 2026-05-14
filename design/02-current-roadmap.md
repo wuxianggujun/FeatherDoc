@@ -236,7 +236,8 @@ HarfBuzz 文字塑形。
       原始字符串仍保留为 ToUnicode / ActualText 和 fallback 语义
 - [x] PDFio backend 用 glyph ID 写出 content stream；当前实现为 file-backed shaped run
       创建独立 Type0 / CIDFontType2 资源，用私有 CID、CIDToGIDMap、ToUnicode 和 HarfBuzz
-      advance 写出，复杂 offset / RTL / 竖排仍作为后续专项
+      advance 写出，并已用对象级 CMap 解压回归覆盖 shaped cluster 到 ToUnicode 的映射；
+      字号不匹配、cluster 越界或倒序、复杂 offset / RTL / 竖排仍走字符串 fallback 或后续专项
 - [x] 视觉回归 sample 集扩展到中英混排、CJK 标点用例；当前
       `mixed-cjk-punctuation-text` 和 `latin-ligature-text` 已进入 regression manifest
       和 PDF 视觉发布门禁 baseline

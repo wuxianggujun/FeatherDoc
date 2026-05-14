@@ -169,18 +169,26 @@ can_write_shaped_glyph_run(const PdfTextRun &text_run) noexcept {
         !text_run.glyph_run.error_message.empty() ||
         text_run.glyph_run.glyphs.empty() ||
         text_run.glyph_run.text != text_run.text ||
-        text_run.glyph_run.font_file_path != text_run.font_file_path) {
+        text_run.glyph_run.font_file_path != text_run.font_file_path ||
+        std::abs(text_run.glyph_run.font_size_points -
+                 text_run.font_size_points) > kPositionTolerance) {
         return false;
     }
 
+    std::uint32_t previous_cluster = 0U;
+    bool has_previous_cluster = false;
     for (const auto &glyph : text_run.glyph_run.glyphs) {
         if (glyph.glyph_id == 0U ||
             glyph.glyph_id > std::numeric_limits<std::uint16_t>::max() ||
+            glyph.cluster >= text_run.glyph_run.text.size() ||
+            (has_previous_cluster && glyph.cluster < previous_cluster) ||
             std::abs(glyph.x_offset_points) > kPositionTolerance ||
             std::abs(glyph.y_offset_points) > kPositionTolerance ||
             std::abs(glyph.y_advance_points) > kPositionTolerance) {
             return false;
         }
+        previous_cluster = glyph.cluster;
+        has_previous_cluster = true;
     }
 
     return true;
