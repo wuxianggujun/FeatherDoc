@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -399,7 +400,22 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     std::vector<std::size_t> anchor_counts;
     std::vector<double> cluster_positions;
 
+    std::size_t max_cluster_count = 0U;
     for (const auto &row : rows) {
+        max_cluster_count = (std::max)(max_cluster_count, row.clusters.size());
+    }
+    const auto full_width_row_count = static_cast<std::size_t>(std::count_if(
+        rows.begin(), rows.end(), [max_cluster_count](const CandidateLine &row) {
+            return row.clusters.size() == max_cluster_count;
+        }));
+    const bool has_full_table_width_rows =
+        max_cluster_count >= 3U && full_width_row_count >= 2U;
+
+    for (const auto &row : rows) {
+        if (has_full_table_width_rows &&
+            row.clusters.size() < max_cluster_count) {
+            continue;
+        }
         for (const auto &cluster : row.clusters) {
             cluster_positions.push_back(cluster.bounds.x_points);
         }
@@ -627,10 +643,170 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     return (std::min)(anchors.size() - column_index, estimated_span);
 }
 
+[[nodiscard]] double cluster_center_x(const TextCluster &cluster) noexcept {
+    return cluster.bounds.x_points + cluster.bounds.width_points / 2.0;
+}
+
+struct GroupHeaderSpan final {
+    std::size_t column_index{0U};
+    std::size_t column_span{1U};
+};
+
+[[nodiscard]] std::optional<GroupHeaderSpan>
+infer_group_header_span(const std::vector<double> &anchors,
+                        const CandidateLine &row,
+                        std::size_t cluster_index) {
+    if (anchors.size() < 3U || row.clusters.empty() ||
+        row.clusters.size() >= anchors.size() ||
+        cluster_index >= row.clusters.size()) {
+        return std::nullopt;
+    }
+
+    const double average_gap = average_column_gap(anchors);
+    if (average_gap <= 0.0) {
+        return std::nullopt;
+    }
+
+    const auto &cluster = row.clusters[cluster_index];
+    const double cluster_center = cluster_center_x(cluster);
+    const double table_center = (anchors.front() + anchors.back()) / 2.0;
+    if (row.clusters.size() == 1U) {
+        const double center_tolerance = (std::max)(36.0, average_gap * 0.4);
+        if (std::abs(cluster_center - table_center) > center_tolerance) {
+            return std::nullopt;
+        }
+    }
+
+    double left_boundary = anchors.front() - average_gap;
+    if (cluster_index > 0U) {
+        left_boundary =
+            (cluster_center_x(row.clusters[cluster_index - 1U]) +
+             cluster_center) /
+            2.0;
+    }
+
+    double right_boundary = anchors.back() + average_gap;
+    if (cluster_index + 1U < row.clusters.size()) {
+        right_boundary =
+            (cluster_center +
+             cluster_center_x(row.clusters[cluster_index + 1U])) /
+            2.0;
+    }
+
+    std::optional<std::size_t> first_column;
+    std::size_t covered_columns = 0U;
+    const double boundary_tolerance = (std::max)(4.0, average_gap * 0.05);
+    for (std::size_t column_index = 0U; column_index < anchors.size();
+         ++column_index) {
+        const double anchor = anchors[column_index];
+        if (anchor + boundary_tolerance < left_boundary ||
+            anchor - boundary_tolerance > right_boundary) {
+            continue;
+        }
+
+        if (!first_column.has_value()) {
+            first_column = column_index;
+        }
+        ++covered_columns;
+    }
+
+    if (!first_column.has_value() || covered_columns <= 1U) {
+        return std::nullopt;
+    }
+
+    return GroupHeaderSpan{*first_column, covered_columns};
+}
+
+[[nodiscard]] std::vector<std::optional<GroupHeaderSpan>>
+detect_group_header_row_spans(const std::vector<double> &anchors,
+                              const CandidateLine &row) {
+    std::vector<std::optional<GroupHeaderSpan>> spans;
+    spans.reserve(row.clusters.size());
+
+    std::size_t next_column = 0U;
+    for (std::size_t cluster_index = 0U; cluster_index < row.clusters.size();
+         ++cluster_index) {
+        auto span = infer_group_header_span(anchors, row, cluster_index);
+        if (!span.has_value() || span->column_span <= 1U ||
+            span->column_index != next_column ||
+            span->column_index + span->column_span > anchors.size()) {
+            return {};
+        }
+
+        next_column = span->column_index + span->column_span;
+        spans.push_back(span);
+    }
+
+    if (next_column != anchors.size()) {
+        return {};
+    }
+
+    return spans;
+}
+
+[[nodiscard]] bool is_summary_label_text(std::string_view text) {
+    std::string normalized;
+    normalized.reserve(text.size());
+    for (unsigned char ch : text) {
+        if (std::isalnum(ch)) {
+            normalized.push_back(
+                static_cast<char>(std::tolower(ch)));
+        }
+    }
+
+    return normalized.find("total") != std::string::npos;
+}
+
+[[nodiscard]] std::optional<GroupHeaderSpan>
+detect_summary_label_span(const std::vector<double> &anchors,
+                          const CandidateLine &row,
+                          std::size_t cluster_index,
+                          std::size_t first_complete_row_index,
+                          std::size_t row_index) {
+    if (anchors.size() < 3U || row_index <= first_complete_row_index ||
+        row.clusters.size() != 2U || cluster_index != 0U) {
+        return std::nullopt;
+    }
+
+    const auto first_column =
+        nearest_column_index(anchors, row.clusters.front().bounds.x_points);
+    const auto last_column =
+        nearest_column_index(anchors, row.clusters.back().bounds.x_points);
+    if (first_column >= last_column) {
+        return std::nullopt;
+    }
+
+    if (!is_summary_label_text(row.clusters.front().text) ||
+        !is_short_header_label(row.clusters.front().text) ||
+        !is_data_like_cell_text(row.clusters.back().text)) {
+        return std::nullopt;
+    }
+
+    return GroupHeaderSpan{first_column, last_column - first_column};
+}
+
 [[nodiscard]] std::size_t count_text_cells(const PdfParsedTableRow &row) {
     return static_cast<std::size_t>(std::count_if(
         row.cells.begin(), row.cells.end(),
         [](const PdfParsedTableCell &cell) { return cell.has_text; }));
+}
+
+[[nodiscard]] bool is_column_covered_by_text_span(
+    const PdfParsedTableRow &row, std::size_t column_index) {
+    return std::any_of(row.cells.begin(), row.cells.end(),
+                       [column_index](const PdfParsedTableCell &cell) {
+                           return cell.has_text &&
+                                  cell.column_index < column_index &&
+                                  cell.column_index + cell.column_span >
+                                      column_index;
+                       });
+}
+
+[[nodiscard]] bool row_has_text_span(const PdfParsedTableRow &row) {
+    return std::any_of(row.cells.begin(), row.cells.end(),
+                       [](const PdfParsedTableCell &cell) {
+                           return cell.has_text && cell.column_span > 1U;
+                       });
 }
 
 [[nodiscard]] std::size_t detect_row_span(
@@ -663,6 +839,12 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
 
         const auto &continuation_cell = next_row.cells[column_index];
         if (continuation_cell.has_text) {
+            break;
+        }
+        if (row_has_text_span(next_row)) {
+            break;
+        }
+        if (is_column_covered_by_text_span(next_row, column_index)) {
             break;
         }
 
@@ -698,7 +880,33 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
     candidate.column_anchor_x_points = anchors;
     candidate.rows.reserve(rows.size());
 
-    for (const auto &source_row : rows) {
+    const auto first_complete_column_row = std::find_if(
+        rows.begin(), rows.end(), [&anchors](const CandidateLine &row) {
+            return row.clusters.size() == anchors.size();
+        });
+    const std::optional<std::size_t> first_complete_column_row_index =
+        first_complete_column_row == rows.end()
+            ? std::nullopt
+            : std::make_optional(static_cast<std::size_t>(
+                  std::distance(rows.begin(), first_complete_column_row)));
+    std::vector<std::vector<std::optional<GroupHeaderSpan>>> group_header_spans(
+        rows.size());
+    if (first_complete_column_row_index.has_value()) {
+        for (std::size_t row_index = 0U;
+             row_index < *first_complete_column_row_index;
+             ++row_index) {
+            auto row_spans =
+                detect_group_header_row_spans(anchors, rows[row_index]);
+            if (row_spans.empty()) {
+                break;
+            }
+            group_header_spans[row_index] = std::move(row_spans);
+        }
+    }
+
+    for (std::size_t source_row_index = 0U; source_row_index < rows.size();
+         ++source_row_index) {
+        const auto &source_row = rows[source_row_index];
         PdfParsedTableRow row;
         row.cells.reserve(anchors.size());
         for (std::size_t column_index = 0U; column_index < anchors.size();
@@ -708,12 +916,30 @@ collect_candidate_lines(const std::vector<PdfParsedTextLine> &lines) {
             row.cells.push_back(cell);
         }
 
-        for (const auto &cluster : source_row.clusters) {
+        for (std::size_t cluster_index = 0U;
+             cluster_index < source_row.clusters.size(); ++cluster_index) {
+            const auto &cluster = source_row.clusters[cluster_index];
+            std::optional<GroupHeaderSpan> group_header_span;
+            if (source_row_index < group_header_spans.size() &&
+                cluster_index < group_header_spans[source_row_index].size()) {
+                group_header_span =
+                    group_header_spans[source_row_index][cluster_index];
+            }
+            if (!group_header_span.has_value() &&
+                first_complete_column_row_index.has_value()) {
+                group_header_span = detect_summary_label_span(
+                    anchors, source_row, cluster_index,
+                    *first_complete_column_row_index, source_row_index);
+            }
             const auto column_index =
-                nearest_column_index(anchors, cluster.bounds.x_points);
+                group_header_span.has_value()
+                    ? group_header_span->column_index
+                    : nearest_column_index(anchors, cluster.bounds.x_points);
             auto &cell = row.cells[column_index];
             cell.column_span =
-                detect_column_span(anchors, cluster, column_index);
+                group_header_span.has_value()
+                    ? group_header_span->column_span
+                    : detect_column_span(anchors, cluster, column_index);
             if (!cell.has_text) {
                 cell.text = cluster.text;
                 cell.bounds = cluster.bounds;

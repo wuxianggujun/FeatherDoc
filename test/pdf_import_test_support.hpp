@@ -251,6 +251,103 @@ inline void append_four_by_three_grid_with_top_left_two_by_two_merge(
     });
 }
 
+inline void append_four_column_grid_with_cross_column_header(
+    featherdoc::pdf::PdfPageLayout &page, double left, double top,
+    double cell_width, double cell_height, std::size_t row_count) {
+    REQUIRE(row_count >= 3U);
+    const double right = left + cell_width * 4.0;
+    const double bottom = top - cell_height * static_cast<double>(row_count);
+    const double group_header_bottom = top - cell_height;
+
+    for (std::size_t column = 0U; column <= 4U; ++column) {
+        const double x = left + cell_width * static_cast<double>(column);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{x, bottom},
+            featherdoc::pdf::PdfPoint{
+                x, column == 0U || column == 4U ? top : group_header_bottom},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+
+    for (std::size_t row = 0U; row <= row_count; ++row) {
+        const double y = top - cell_height * static_cast<double>(row);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{left, y},
+            featherdoc::pdf::PdfPoint{right, y},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+}
+
+inline void append_four_column_grid_with_parallel_group_headers(
+    featherdoc::pdf::PdfPageLayout &page, double left, double top,
+    double cell_width, double cell_height, std::size_t row_count) {
+    REQUIRE(row_count >= 3U);
+    const double right = left + cell_width * 4.0;
+    const double bottom = top - cell_height * static_cast<double>(row_count);
+    const double group_header_bottom = top - cell_height;
+
+    for (std::size_t column = 0U; column <= 4U; ++column) {
+        const double x = left + cell_width * static_cast<double>(column);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{x, bottom},
+            featherdoc::pdf::PdfPoint{
+                x, column == 0U || column == 2U || column == 4U
+                       ? top
+                       : group_header_bottom},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+
+    for (std::size_t row = 0U; row <= row_count; ++row) {
+        const double y = top - cell_height * static_cast<double>(row);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{left, y},
+            featherdoc::pdf::PdfPoint{right, y},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+}
+
+inline void append_four_column_grid_with_multilevel_group_headers(
+    featherdoc::pdf::PdfPageLayout &page, double left, double top,
+    double cell_width, double cell_height, std::size_t row_count) {
+    REQUIRE(row_count >= 4U);
+    const double right = left + cell_width * 4.0;
+    const double bottom = top - cell_height * static_cast<double>(row_count);
+    const double top_group_bottom = top - cell_height;
+    const double subgroup_bottom = top - cell_height * 2.0;
+
+    for (std::size_t column = 0U; column <= 4U; ++column) {
+        const double x = left + cell_width * static_cast<double>(column);
+        const bool outer_column = column == 0U || column == 4U;
+        const bool subgroup_split = column == 2U;
+        const double line_top =
+            outer_column ? top : (subgroup_split ? top_group_bottom
+                                                 : subgroup_bottom);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{x, bottom},
+            featherdoc::pdf::PdfPoint{x, line_top},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+
+    for (std::size_t row = 0U; row <= row_count; ++row) {
+        const double y = top - cell_height * static_cast<double>(row);
+        page.lines.push_back(featherdoc::pdf::PdfLine{
+            featherdoc::pdf::PdfPoint{left, y},
+            featherdoc::pdf::PdfPoint{right, y},
+            featherdoc::pdf::PdfRgbColor{0.12, 0.16, 0.22},
+            0.75,
+        });
+    }
+}
+
 [[nodiscard]] inline std::filesystem::path
 write_import_structure_pdf(std::string_view filename) {
     featherdoc::pdf::PdfDocumentLayout layout;
@@ -771,6 +868,134 @@ write_paragraph_merged_corner_table_paragraph_pdf(std::string_view filename) {
 }
 
 [[nodiscard]] inline std::filesystem::path
+write_paragraph_cross_column_header_table_paragraph_pdf(
+    std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc paragraph-cross-column-header-table-paragraph PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 724.0, "Intro paragraph before cross-column header table"));
+    append_four_column_grid_with_cross_column_header(page, 72.0, 664.0, 110.0,
+                                                     30.0, 4U);
+    page.text_runs.push_back(
+        make_pdf_text_run(186.0, 644.0, "Project delivery overview"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 614.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(196.0, 614.0, "Owner"));
+    page.text_runs.push_back(make_pdf_text_run(306.0, 614.0, "Status"));
+    page.text_runs.push_back(make_pdf_text_run(416.0, 614.0, "Due"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 584.0, "DOC-17"));
+    page.text_runs.push_back(make_pdf_text_run(196.0, 584.0, "Alice"));
+    page.text_runs.push_back(make_pdf_text_run(306.0, 584.0, "Open"));
+    page.text_runs.push_back(make_pdf_text_run(416.0, 584.0, "2026-05-14"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 554.0, "DOC-18"));
+    page.text_runs.push_back(make_pdf_text_run(196.0, 554.0, "Bob"));
+    page.text_runs.push_back(make_pdf_text_run(306.0, 554.0, "Done"));
+    page.text_runs.push_back(make_pdf_text_run(416.0, 554.0, "2026-05-21"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 506.0, "Tail paragraph after cross-column header table"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_paragraph_parallel_group_header_table_paragraph_pdf(
+    std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc paragraph-parallel-group-header-table-paragraph PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 724.0, "Intro paragraph before parallel group header table"));
+    append_four_column_grid_with_parallel_group_headers(page, 72.0, 664.0,
+                                                        110.0, 30.0, 4U);
+    page.text_runs.push_back(make_pdf_text_run(130.0, 644.0, "Delivery scope"));
+    page.text_runs.push_back(make_pdf_text_run(350.0, 644.0, "Review status"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 614.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(196.0, 614.0, "Owner"));
+    page.text_runs.push_back(make_pdf_text_run(306.0, 614.0, "Status"));
+    page.text_runs.push_back(make_pdf_text_run(416.0, 614.0, "Due"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 584.0, "DOC-27"));
+    page.text_runs.push_back(make_pdf_text_run(196.0, 584.0, "Carol"));
+    page.text_runs.push_back(make_pdf_text_run(306.0, 584.0, "Review"));
+    page.text_runs.push_back(make_pdf_text_run(416.0, 584.0, "2026-06-04"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 554.0, "DOC-28"));
+    page.text_runs.push_back(make_pdf_text_run(196.0, 554.0, "Drew"));
+    page.text_runs.push_back(make_pdf_text_run(306.0, 554.0, "Closed"));
+    page.text_runs.push_back(make_pdf_text_run(416.0, 554.0, "2026-06-11"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 506.0, "Tail paragraph after parallel group header table"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_paragraph_multilevel_group_header_table_paragraph_pdf(
+    std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc paragraph-multilevel-group-header-table-paragraph PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 724.0, "Intro paragraph before multilevel group header table"));
+    append_four_column_grid_with_multilevel_group_headers(
+        page, 72.0, 664.0, 110.0, 28.0, 5U);
+    page.text_runs.push_back(
+        make_pdf_text_run(178.0, 645.0, "Program delivery dashboard"));
+    page.text_runs.push_back(make_pdf_text_run(130.0, 617.0, "Delivery scope"));
+    page.text_runs.push_back(make_pdf_text_run(350.0, 617.0, "Review status"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 589.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(196.0, 589.0, "Owner"));
+    page.text_runs.push_back(make_pdf_text_run(306.0, 589.0, "Status"));
+    page.text_runs.push_back(make_pdf_text_run(416.0, 589.0, "Due"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 561.0, "DOC-37"));
+    page.text_runs.push_back(make_pdf_text_run(196.0, 561.0, "Eve"));
+    page.text_runs.push_back(make_pdf_text_run(306.0, 561.0, "Review"));
+    page.text_runs.push_back(make_pdf_text_run(416.0, 561.0, "2026-06-18"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 533.0, "DOC-38"));
+    page.text_runs.push_back(make_pdf_text_run(196.0, 533.0, "Finn"));
+    page.text_runs.push_back(make_pdf_text_run(306.0, 533.0, "Ready"));
+    page.text_runs.push_back(make_pdf_text_run(416.0, 533.0, "2026-06-25"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 486.0, "Tail paragraph after multilevel group header table"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
 write_out_of_order_paragraph_table_paragraph_pdf(std::string_view filename) {
     featherdoc::pdf::PdfDocumentLayout layout;
     layout.metadata.title =
@@ -1245,6 +1470,267 @@ write_invoice_grid_pdf(std::string_view filename) {
     page.text_runs.push_back(make_pdf_text_run(
         72.0, 520.0, "Footer note: invoice grid is intentionally regular"));
     layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_invoice_grid_merged_summary_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc invoice grid merged-summary PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Invoice merged summary grid sample"));
+    append_grid(page, 72.0, 700.0, 130.0, 28.0, 4U, 5U);
+    page.text_runs.push_back(make_pdf_text_run(86.0, 678.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 678.0, "Qty"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 678.0, "Unit"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 678.0, "Total"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 650.0, "PDF export design"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 650.0, "2"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 650.0, "USD 50"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 650.0, "USD 100"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 622.0, "Visual validation"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 622.0, "1"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 622.0, "USD 25"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 622.0, "USD 25"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 594.0, "Regression evidence"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 594.0, "1"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 594.0, "USD 10"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 594.0, "USD 10"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 566.0, "Grand total"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 566.0, "USD 135"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 520.0, "Footer note: merged summary row spans label columns"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_invoice_grid_inline_subtotal_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc invoice grid inline-subtotal PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Invoice inline subtotal grid sample"));
+    append_grid(page, 72.0, 700.0, 130.0, 28.0, 4U, 6U);
+    page.text_runs.push_back(make_pdf_text_run(86.0, 678.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 678.0, "Qty"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 678.0, "Unit"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 678.0, "Total"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 650.0, "PDF export design"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 650.0, "2"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 650.0, "USD 50"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 650.0, "USD 100"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 622.0, "Design subtotal"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 622.0, "USD 100"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 594.0, "Visual validation"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 594.0, "1"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 594.0, "USD 25"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 594.0, "USD 25"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 566.0, "Regression evidence"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 566.0, "1"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 566.0, "USD 10"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 566.0, "USD 10"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 538.0, "Grand total"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 538.0, "USD 135"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 492.0, "Footer note: inline subtotal keeps later data rows"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_invoice_grid_right_subtotal_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc invoice grid right-subtotal PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Invoice right subtotal grid sample"));
+    append_grid(page, 72.0, 700.0, 130.0, 28.0, 4U, 6U);
+    page.text_runs.push_back(make_pdf_text_run(86.0, 678.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 678.0, "Qty"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 678.0, "Unit"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 678.0, "Total"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 650.0, "PDF export design"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 650.0, "2"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 650.0, "USD 50"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 650.0, "USD 100"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 622.0, "Design subtotal"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 622.0, "USD 100"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 594.0, "Visual validation"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 594.0, "1"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 594.0, "USD 25"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 594.0, "USD 25"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 566.0, "Regression evidence"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 566.0, "1"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 566.0, "USD 10"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 566.0, "USD 10"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 538.0, "Grand total"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 538.0, "USD 135"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 492.0, "Footer note: right subtotal labels keep item column blank"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_invoice_grid_middle_amount_subtotal_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc invoice grid middle-amount subtotal PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 724.0, "Invoice middle amount subtotal grid sample"));
+    append_grid(page, 72.0, 700.0, 130.0, 28.0, 4U, 6U);
+    page.text_runs.push_back(make_pdf_text_run(86.0, 678.0, "Item"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 678.0, "Qty"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 678.0, "Unit"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 678.0, "Total"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 650.0, "PDF export design"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 650.0, "2"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 650.0, "USD 50"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 650.0, "USD 100"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 622.0, "Design subtotal"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 622.0, "USD 100"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 594.0, "Visual validation"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 594.0, "1"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 594.0, "USD 25"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 594.0, "USD 25"));
+    page.text_runs.push_back(
+        make_pdf_text_run(86.0, 566.0, "Regression evidence"));
+    page.text_runs.push_back(make_pdf_text_run(230.0, 566.0, "1"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 566.0, "USD 10"));
+    page.text_runs.push_back(make_pdf_text_run(498.0, 566.0, "USD 10"));
+    page.text_runs.push_back(make_pdf_text_run(86.0, 538.0, "Grand total"));
+    page.text_runs.push_back(make_pdf_text_run(364.0, 538.0, "USD 135"));
+    page.text_runs.push_back(make_pdf_text_run(
+        72.0, 492.0, "Footer note: subtotal amount can occupy a middle column"));
+    layout.pages.push_back(std::move(page));
+
+    const auto output_path =
+        std::filesystem::current_path() / std::string{filename};
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    return output_path;
+}
+
+[[nodiscard]] inline std::filesystem::path
+write_invoice_grid_pagebreak_subtotal_pdf(std::string_view filename) {
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title =
+        "FeatherDoc invoice grid pagebreak subtotal PDF import structure";
+    layout.metadata.creator = "FeatherDoc test";
+
+    auto add_invoice_row = [](featherdoc::pdf::PdfPageLayout &page,
+                              double y_points, std::string item,
+                              std::string qty, std::string unit,
+                              std::string total) {
+        page.text_runs.push_back(
+            make_pdf_text_run(86.0, y_points, std::move(item)));
+        if (!qty.empty()) {
+            page.text_runs.push_back(
+                make_pdf_text_run(230.0, y_points, std::move(qty)));
+        }
+        if (!unit.empty()) {
+            page.text_runs.push_back(
+                make_pdf_text_run(364.0, y_points, std::move(unit)));
+        }
+        if (!total.empty()) {
+            page.text_runs.push_back(
+                make_pdf_text_run(498.0, y_points, std::move(total)));
+        }
+    };
+
+    featherdoc::pdf::PdfPageLayout first_page;
+    first_page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    first_page.text_runs.push_back(
+        make_pdf_text_run(72.0, 724.0, "Invoice pagebreak subtotal sample"));
+    append_grid(first_page, 72.0, 700.0, 130.0, 28.0, 4U, 4U);
+    add_invoice_row(first_page, 678.0, "Item", "Qty", "Unit", "Total");
+    add_invoice_row(first_page, 650.0, "PDF export design", "2", "USD 50",
+                    "USD 100");
+    add_invoice_row(first_page, 622.0, "Design subtotal", "", "",
+                    "USD 100");
+    add_invoice_row(first_page, 594.0, "Visual validation", "1", "USD 25",
+                    "USD 25");
+    layout.pages.push_back(std::move(first_page));
+
+    featherdoc::pdf::PdfPageLayout second_page;
+    second_page.size = featherdoc::pdf::PdfPageSize::letter_portrait();
+    append_grid(second_page, 72.0, 700.0, 130.0, 28.0, 4U, 4U);
+    add_invoice_row(second_page, 678.0, "Item", "Qty", "Unit", "Total");
+    add_invoice_row(second_page, 650.0, "Regression evidence", "1", "USD 10",
+                    "USD 10");
+    add_invoice_row(second_page, 622.0, "Documentation pass", "1", "USD 15",
+                    "USD 15");
+    add_invoice_row(second_page, 594.0, "Grand total", "", "", "USD 150");
+    second_page.text_runs.push_back(make_pdf_text_run(
+        72.0, 540.0,
+        "Footer note: pagebreak subtotal rows merge with the repeated header"));
+    layout.pages.push_back(std::move(second_page));
 
     const auto output_path =
         std::filesystem::current_path() / std::string{filename};

@@ -1813,6 +1813,262 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   更复杂的嵌套合并、跨列表头、扫描件和 OCR 场景。
 
+2026-05-14 继续推进（跨列表头表格导入）：
+
+- 已补充分组表头横跨整表的 4 列 PDF 样本：
+  `featherdoc-pdf-import-cross-column-header-table.pdf`，第一行是居中的
+  `Project delivery overview`，第二行才是完整列标题，用于覆盖“跨列表头 + 明细表头”
+  的正式文档常见结构。
+- 已调整 `PdfiumParser` 的列锚点构建：
+  当候选中存在至少两行完整列数据时，单簇分组表头不再污染列锚点；同时只在存在完整列行、
+  且单簇文本居中时，才把该行提升为横跨全部列的 header cell，避免回退影响稀疏表格样本。
+- 已补 parser 和 importer 回归：
+  parser 断言该样本产生 1 个 4 行 x 4 列候选，首行 `column_span = 4`；
+  importer 断言显式 opt-in 后写入真实 `Document` 表格，保存重开后跨列表头、
+  明细表头和数据单元格仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-cross-column-header-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-cross-column-header-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-cross-column-header-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  本轮只覆盖“单个居中分组表头 + 完整明细列标题 + 完整数据行”的规则结构；
+  不处理多层分组表头、多个分组标题并列、缺列、自由表单、扫描/OCR 或需要图像理解的表格。
+- 下一阶段入口保留：
+  多层 / 并列分组表头、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（并列分组表头导入）：
+
+- 已补充同一表头行内多个分组标题的 4 列 PDF 样本：
+  `featherdoc-pdf-import-parallel-group-header-table.pdf`，第一行包含
+  `Delivery scope` 与 `Review status` 两个并列分组标题，各自横跨 2 列；
+  第二行仍保留完整明细列标题。
+- 已将 `PdfiumParser` 的跨列表头推断从“单个居中标题”推广为“首行少簇分组标题”：
+  仅当候选中存在完整列行时启用，并按相邻分组标题中心点切分列锚点，推断每个分组标题覆盖的
+  连续列范围。规则限制在候选第一行，避免把中间缺项行、纵向合并续行或汇总行误判为分组表头。
+- 已补 parser 和 importer 回归：
+  parser 断言首行两个 header cell 均为 `column_span = 2`；
+  importer 断言显式 opt-in 后写入真实 `Document` 表格，保存重开后两个并列分组标题、
+  明细表头和数据单元格仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-parallel-group-header-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-parallel-group-header-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-parallel-group-header-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  本轮只覆盖第一行并列分组标题；多层分组标题、交错 group、缺列、自由表单、
+  扫描/OCR 和需要图像理解的表格仍不覆盖。
+- 下一阶段入口保留：
+  多层分组表头、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（多层分组表头导入）：
+
+- 已补充两级分组表头的 4 列 PDF 样本：
+  `featherdoc-pdf-import-multilevel-group-header-table.pdf`，第一行
+  `Program delivery dashboard` 横跨整表，第二行 `Delivery scope` 与
+  `Review status` 各自横跨 2 列，第三行才是完整明细列标题。
+- 已把 `PdfiumParser` 的分组表头推断从“仅候选第一行”收敛扩展到
+  “第一个完整列行之前的连续分组行”：
+  每个分组行必须能按相邻标题中心点切分出连续列范围，并且该行所有分组标题共同覆盖整张表；
+  一旦遇到无法完整覆盖的少簇行就停止，避免把缺项数据行、纵向合并续行或汇总行误判为表头。
+- 已补 parser 和 importer 回归：
+  parser 断言第一行 `column_span = 4`，第二行两个 `column_span = 2`；
+  importer 断言显式 opt-in 后写入真实 `Document` 表格，保存重开后两级分组标题、
+  明细表头和数据单元格仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-multilevel-group-header-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-multilevel-group-header-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-multilevel-group-header-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  本轮只覆盖“完整覆盖整表的连续分组表头 + 完整明细列标题 + 完整数据行”；
+  交错 group、缺列、自由表单、扫描/OCR 和需要图像理解的表格仍不覆盖。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、缺列/汇总行识别、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（汇总行跨列导入）：
+
+- 已补充尾部汇总行跨列的 4 列 invoice PDF 样本：
+  `featherdoc-pdf-import-merged-summary-row-table.pdf`，末行只有
+  `Grand total` 与 `USD 135` 两个文本簇，前者视觉上横跨前三列，金额保留在最后一列。
+- 已在 `PdfiumParser` 中增加受控汇总行 span 推断：
+  仅当候选已经出现完整列行之后，且当前行恰好是“首列短标签 + 末列数据值”时，
+  才把首列标签推断为跨到末列之前；同时 row-span 检测会识别下方列已被横向 span
+  覆盖，避免把上一行空缺列误判为纵向合并续行。
+- 已补 parser 和 importer 回归：
+  parser 断言汇总行 `Grand total` 为 `column_span = 3`、金额仍为单列；
+  importer 断言显式 opt-in 后写入真实 `Document` 表格，保存重开后汇总标签跨列和金额单元格仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-merged-summary-row-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-merged-summary-row-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-merged-summary-row-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  本轮只覆盖尾部“首列标签跨到末列前 + 末列金额/数据值”的规则汇总行；
+  中间缺列、任意 subtotal 位置、右对齐标签、自由表单、扫描/OCR 和图像理解仍不覆盖。
+- 下一阶段入口保留：
+  中间缺列 / subtotal 行、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（中间 subtotal 跨列导入）：
+
+- 已补充中间 subtotal 行的 4 列 invoice PDF 样本：
+  `featherdoc-pdf-import-inline-subtotal-row-table.pdf`，明细行之后插入
+  `Design subtotal` / `USD 100` 两簇 subtotal 行，后面继续保留普通明细行和
+  `Grand total` 汇总行，用于确认稀疏跨列行不会截断后续数据。
+- 已补 parser 和 importer 回归：
+  parser 断言中间 subtotal 行的标签 `column_span = 3`，后续 `Visual validation`
+  明细行仍在同一候选中；importer 断言显式 opt-in 后写入真实 `Document` 表格，
+  保存重开后 subtotal、后续明细和 grand total 的跨列状态仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-inline-subtotal-row-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-inline-subtotal-row-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-inline-subtotal-row-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  当前 subtotal 规则仍要求“首列标签 + 末列数据值”，不处理右对齐 subtotal 标签、
+  中间金额列、跨页 subtotal 语义聚合、自由表单、扫描/OCR 或图像理解。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、跨页 subtotal 诊断、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（右侧 subtotal 跨列导入）：
+
+- 已补充右侧 subtotal 标签的 4 列 invoice PDF 样本：
+  `featherdoc-pdf-import-right-subtotal-row-table.pdf`，subtotal / grand total 行保留首列为空，
+  标签从第 2 列开始横跨到金额列之前，金额仍在末列。
+- 已把 `PdfiumParser` 的 subtotal span 推断从“必须首列开始”放宽为
+  “标签列在金额列之前即可”：
+  仍要求候选中已经出现完整列行、当前行只有标签和值两簇、值位于末列，避免把普通缺项明细行
+  扩成汇总行。
+- 已补 parser 和 importer 回归：
+  parser 断言 `Design subtotal` 和 `Grand total` 都从第 2 列开始 `column_span = 2`；
+  importer 断言首列空单元格、右侧 subtotal 标签跨列、后续明细行和保存重开后的状态都保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-right-subtotal-row-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-right-subtotal-row-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-right-subtotal-row-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  当前仍要求 subtotal 值在末列；中间金额列、跨页 subtotal 语义聚合、自由表单、
+  扫描/OCR 或图像理解仍不覆盖。
+- 下一阶段入口保留：
+  中间金额列、更复杂的嵌套合并、跨页 subtotal 诊断、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（中间金额列 subtotal 导入）：
+
+- 已补充金额不在末列的 4 列 invoice PDF 样本：
+  `featherdoc-pdf-import-middle-amount-subtotal-row-table.pdf`，subtotal / grand total 行的
+  标签从首列开始横跨到金额列之前，金额位于第 3 列，最后一列保留为空。
+- 已收紧 subtotal span 推断：
+  只有标签文本包含 `total` / `subtotal` 语义时，才允许“标签 + 值”稀疏行被提升为跨列汇总行；
+  同时 row-span 检测遇到横向 span 行会停止，避免上一行末列被错误纵向合并到尾列空白。
+- 已补 parser 和 importer 回归：
+  parser 断言 `Design subtotal` / `Grand total` 均为 `column_span = 2`，金额在第 3 列，
+  末列保持空白；importer 断言显式 opt-in 后写入真实 `Document` 表格，保存重开后
+  subtotal、后续明细、金额列和尾列空白状态仍保留。
+- 已完成测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  与
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  均通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-middle-amount-subtotal-row-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-middle-amount-subtotal-row-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-middle-amount-subtotal-row-table-visual/merged-docx/table_visual_smoke.pdf`，
+  目检未见裁剪、重叠或块顺序漂移。
+- 已知限制更新：
+  当前只覆盖受控的 total/subtotal 稀疏行，不做跨页 subtotal 语义聚合、自由表单、
+  扫描/OCR 或图像理解。
+- 下一阶段入口保留：
+  跨页 subtotal 诊断、更复杂的嵌套合并、扫描件和 OCR 场景。
+
+2026-05-14 继续推进（跨页 subtotal 行续接导入）：
+
+- 已补充跨页 invoice subtotal PDF 样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-row-table.pdf`。第一页包含
+  `Design subtotal` 稀疏跨列行，第二页重复 `Item / Qty / Unit / Total`
+  表头后继续明细并以 `Grand total` 收尾，用于覆盖 subtotal 跨列与跨页续接的组合场景。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with repeated headers`
+  断言 opt-in 导入后只生成 1 张 `Document` 表格，第二页 continuation diagnostic 为
+  `merged_with_previous_table`，`skipped_repeating_header = true`，
+  `source_row_offset = 1`，并且保存重开后 subtotal / grand total 的
+  `column_span = 3` 状态仍保留。
+- 本轮没有放宽 parser 的 subtotal 语义规则：
+  仍复用已经收紧的 `total` / `subtotal` 标签判断；本增量主要验证 importer
+  在 `append_rows_to_imported_table` 跳过重复表头后，仍能把追加行里的跨列单元格
+  应用到正确的目标行索引。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-row-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-row-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-row-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  当前覆盖“跨页续接 + 重复表头跳过 + 受控 total/subtotal 稀疏行”的组合，
+  不做跨页 subtotal 语义聚合、跨页金额合计推导、自由表单、扫描/OCR 或图像理解。
+- 下一阶段入口保留：
+  更复杂的嵌套合并、缺列 / 变体表头下的跨页续接、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
