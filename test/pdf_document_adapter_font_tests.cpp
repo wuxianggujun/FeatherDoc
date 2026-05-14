@@ -3,6 +3,7 @@
 
 #include <featherdoc/pdf/pdf_document_adapter.hpp>
 #include <featherdoc/pdf/pdf_text_metrics.hpp>
+#include <featherdoc/pdf/pdf_text_shaper.hpp>
 #if defined(FEATHERDOC_BUILD_PDF_IMPORT)
 #include <featherdoc/pdf/pdf_parser.hpp>
 #endif
@@ -250,6 +251,59 @@ TEST_CASE("document PDF adapter resolves run-level CJK font mappings") {
              latin_run.baseline_origin.x_points + 24.0);
     CHECK_EQ(cjk_run.baseline_origin.y_points,
              doctest::Approx(latin_run.baseline_origin.y_points));
+}
+
+TEST_CASE("document PDF adapter carries shaped glyph run for file-backed text") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter glyph run test: configure test Latin font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Latin"));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    REQUIRE(paragraph.add_run("office").has_next());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.text, "office");
+    CHECK_EQ(text_run.glyph_run.font_file_path, latin_font);
+    CHECK(text_run.glyph_run.font_size_points == doctest::Approx(12.0));
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+
+    double total_advance = 0.0;
+    for (const auto &glyph : text_run.glyph_run.glyphs) {
+        total_advance += glyph.x_advance_points;
+        CHECK_LT(glyph.cluster,
+                 std::char_traits<char>::length("office"));
+    }
+    CHECK_GT(total_advance, 1.0);
 }
 
 TEST_CASE(

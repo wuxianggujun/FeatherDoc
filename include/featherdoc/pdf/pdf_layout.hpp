@@ -8,6 +8,8 @@
 #ifndef FEATHERDOC_PDF_PDF_LAYOUT_HPP
 #define FEATHERDOC_PDF_PDF_LAYOUT_HPP
 
+#include <featherdoc/pdf/pdf_glyph_run.hpp>
+
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -59,6 +61,7 @@ struct PdfTextRun {
     double rotation_degrees{0.0};
     bool synthetic_bold{false};
     bool synthetic_italic{false};
+    PdfGlyphRun glyph_run;
 };
 
 struct PdfRectangle {

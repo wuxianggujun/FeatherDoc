@@ -2631,6 +2631,26 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   把 GlyphRun 接入 `PdfDocumentLayout` 的内部文本片段，先保留字符串回退，再让 PDFio writer
   增加 glyph id 写出路径。
 
+2026-05-15 继续推进（GlyphRun 接入 PdfTextRun）：
+
+- 已把 glyph run 数据结构拆成独立 `pdf_glyph_run.hpp`，供 shaper bridge 和 layout
+  共同使用，避免让纯数据 layout 头直接承担 HarfBuzz 调用接口。
+- `PdfTextRun` 现在可以携带 `PdfGlyphRun`。document adapter 在 file-backed text fragment
+  上调用 `shape_pdf_text()`，仅在 HarfBuzz 成功产出非空 glyph run 时保留结果；
+  标准 PDF base font、缺字体和坏字体仍保持原字符串路径。
+- 已补 `pdf_document_adapter_font` 回归，断言 file-backed `office` 文本在 HarfBuzz 可用时
+  会进入 `PdfTextRun::glyph_run`，并检查 glyph advance、cluster、字体路径和字号。
+- 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md`：
+  当前状态是 layout 已能携带 GlyphRun，但 line wrapping 和 PDFio writer 仍然消费字符串。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests pdf_text_shaper_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过 3/3。
+- 下一阶段入口：
+  研究 PDFio Unicode CID 字体当前的 `CIDToGIDMap` / `ToUnicode` 写法，再决定 writer
+  是直接写 CID/glyph hex string，还是先扩展 PDFio-side helper。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

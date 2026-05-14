@@ -1,7 +1,10 @@
 #include "pdf_document_adapter_render.hpp"
 
+#include <featherdoc/pdf/pdf_text_shaper.hpp>
+
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace featherdoc::pdf::detail {
 namespace {
@@ -19,6 +22,22 @@ constexpr double kPi = 3.14159265358979323846;
         return value - 'A' + 10;
     }
     return -1;
+}
+
+[[nodiscard]] PdfGlyphRun shape_fragment_text(const TextFragment &fragment) {
+    if (fragment.text.empty() || fragment.font.font_file_path.empty()) {
+        return {};
+    }
+
+    auto glyph_run = shape_pdf_text(
+        fragment.text,
+        PdfTextShaperOptions{fragment.font.font_file_path,
+                             fragment.font_size_points});
+    if (!glyph_run.used_harfbuzz || !glyph_run.error_message.empty() ||
+        glyph_run.glyphs.empty()) {
+        return {};
+    }
+    return glyph_run;
 }
 
 } // namespace
@@ -78,6 +97,7 @@ void emit_line_at(PdfPageLayout &page, const LineState &line,
     auto current_advance = 0.0;
     for (const auto &fragment : line.fragments) {
         if (!fragment.text.empty()) {
+            auto glyph_run = shape_fragment_text(fragment);
             page.text_runs.push_back(PdfTextRun{
                 PdfPoint{start_x_points + current_advance * x_advance,
                          baseline_y + current_advance * y_advance},
@@ -93,6 +113,7 @@ void emit_line_at(PdfPageLayout &page, const LineState &line,
                 rotation_degrees,
                 fragment.font.synthetic_bold,
                 fragment.font.synthetic_italic,
+                std::move(glyph_run),
             });
         }
         current_advance += measure_text(fragment.text,
