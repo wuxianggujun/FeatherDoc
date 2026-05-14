@@ -1269,7 +1269,9 @@ Use `accept_all_revisions`, `reject_all_revisions`,
 Comment mutations are applied through `apply-review-mutation-plan`, so they can
 use `expected_text`, `expected_comment_text`, `expected_resolved`, and
 `expected_parent_index` preflight guards; `replace_comment` also accepts `text`
-as shorthand for `comment_text`.
+as shorthand for `comment_text`. Use `apply_review_mutation_plan` when a plan
+needs to apply a complete review mutation plan in one step; it accepts
+`plan_file` / `review_plan_file`, or inline `review_plan` / `operations`.
 Use `append_insertion_revision`, `append_deletion_revision`,
 `insert_run_revision_after`, `delete_run_revision`, and `replace_run_revision`
 when a plan needs to author tracked changes. Revision authoring operations

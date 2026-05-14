@@ -1042,6 +1042,9 @@ Custom XML 刷新数据绑定内容控件时，使用 `sync_content_controls_fro
 `apply-review-mutation-plan`，因此可继续使用 `expected_text`、
 `expected_comment_text`、`expected_resolved` 和 `expected_parent_index`
 做预检保护；`replace_comment` 也接受 `text` 作为 `comment_text` 的简写。
+需要一次性套用完整审阅变更计划时，可以使用
+`apply_review_mutation_plan`；它接受 `plan_file` / `review_plan_file`，
+也接受内联 `review_plan` / `operations`。
 需要在编辑计划里创建修订时，可以使用 `append_insertion_revision`、
 `append_deletion_revision`、`insert_run_revision_after`、
 `delete_run_revision` 和 `replace_run_revision`。修订作者化操作支持可选

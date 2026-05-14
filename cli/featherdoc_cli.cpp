@@ -37262,6 +37262,7 @@ auto parse_review_mutation_plan_operation(
                 "expected ':' after operation object member", error_message);
         }
         ++index;
+        skip_json_patch_whitespace(content, index);
 
         if (member_name == "kind") {
             if (saw_kind) {
@@ -38073,6 +38074,7 @@ auto parse_review_mutation_plan_build_request_operation(
                 "expected ':' after operation object member", error_message);
         }
         ++index;
+        skip_json_patch_whitespace(content, index);
 
         if (member_name == "kind") {
             if (saw_kind) {

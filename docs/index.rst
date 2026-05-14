@@ -312,6 +312,7 @@ setup, bookmarks, images, and template parts.
     featherdoc_cli inspect-omml input.docx --json
     featherdoc_cli append-hyperlink input.docx --text "OpenAI" --target https://openai.com --output link.docx --json
     featherdoc_cli accept-all-revisions input.docx --output accepted.docx --json
+    featherdoc_cli apply-review-mutation-plan input.docx --plan-file review-plan.json --output reviewed.docx --json
     featherdoc_cli inspect-images input.docx
     featherdoc_cli inspect-images input.docx --relationship-id rId5 --image-entry-name word/media/image1.png --json
     featherdoc_cli inspect-images input.docx --part header --index 0 --image 0 --json

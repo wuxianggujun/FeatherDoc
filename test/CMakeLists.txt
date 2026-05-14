@@ -2433,6 +2433,19 @@ if(WIN32)
 
             add_test(
                 NAME
+                edit_document_from_plan_advanced_ops_coverage
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/edit_document_from_plan_advanced_ops_coverage_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+            )
+
+            add_test(
+                NAME
                 patch_template_render_plan
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

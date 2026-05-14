@@ -2464,6 +2464,104 @@ function Add-ReviewMutationPlanArguments {
     $Arguments.Add($reviewPlanPath) | Out-Null
 }
 
+function Get-InlineReviewMutationPlanObject {
+    param(
+        $Operation,
+        [string]$Label
+    )
+
+    $reviewPlan = $null
+    foreach ($name in @("review_plan", "review_mutation_plan", "plan")) {
+        $value = Get-OptionalObjectPropertyObject -Object $Operation -Name $name
+        if ($null -ne $value) {
+            $reviewPlan = $value
+            break
+        }
+    }
+
+    $reviewOperations = $null
+    foreach ($name in @("review_operations", "operations")) {
+        $value = Get-OptionalObjectPropertyObject -Object $Operation -Name $name
+        if ($null -ne $value) {
+            $reviewOperations = $value
+            break
+        }
+    }
+
+    if (($null -ne $reviewPlan) -and ($null -ne $reviewOperations)) {
+        throw "$Label cannot combine an inline review mutation plan with inline review operations."
+    }
+
+    if ($null -ne $reviewPlan) {
+        $operations = Get-OptionalObjectPropertyObject -Object $reviewPlan -Name "operations"
+        if ($null -eq $operations) {
+            throw "$Label inline review mutation plan must provide an 'operations' array."
+        }
+        if ($operations -is [string]) {
+            throw "$Label inline review mutation plan 'operations' must be an array."
+        }
+
+        return $reviewPlan
+    }
+
+    if ($null -ne $reviewOperations) {
+        if ($reviewOperations -is [string]) {
+            throw "$Label inline review mutation operations must be an array."
+        }
+
+        return [pscustomobject]@{
+            operations = @($reviewOperations)
+        }
+    }
+
+    return $null
+}
+
+function Add-ApplyReviewMutationPlanArguments {
+    param(
+        [System.Collections.Generic.List[string]]$Arguments,
+        $Operation,
+        [string]$Label,
+        [string]$InputPath,
+        [string]$TemporaryRoot,
+        [int]$OperationIndex
+    )
+
+    $planFile = Get-FirstOptionalObjectPropertyValue `
+        -Object $Operation `
+        -Names @(
+            "plan_file",
+            "plan_path",
+            "review_plan_file",
+            "review_plan_path",
+            "review_mutation_plan_file",
+            "review_mutation_plan_path"
+        )
+    $inlinePlan = Get-InlineReviewMutationPlanObject -Operation $Operation -Label $Label
+
+    if ((-not [string]::IsNullOrWhiteSpace($planFile)) -and ($null -ne $inlinePlan)) {
+        throw "$Label cannot combine 'plan_file' with an inline review mutation plan."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($planFile) -and ($null -eq $inlinePlan)) {
+        throw "$Label must provide 'plan_file', 'review_plan', or 'operations'."
+    }
+
+    $reviewPlanPath = $planFile
+    if ($null -ne $inlinePlan) {
+        $reviewPlanPath = New-EditOperationJsonFile `
+            -TemporaryRoot $TemporaryRoot `
+            -OperationIndex $OperationIndex `
+            -ValueIndex 1 `
+            -Value $inlinePlan
+    }
+
+    $Arguments.Add("apply-review-mutation-plan") | Out-Null
+    $Arguments.Add($InputPath) | Out-Null
+    $Arguments.Add("--plan-file") | Out-Null
+    $Arguments.Add($reviewPlanPath) | Out-Null
+}
+
 function Get-TemplateTableJsonPatchObject {
     param(
         $Operation,
@@ -4920,6 +5018,15 @@ function New-OperationArguments {
                 -Arguments $arguments `
                 -Operation $Operation `
                 -Label $Label
+        }
+        "apply_review_mutation_plan" {
+            Add-ApplyReviewMutationPlanArguments `
+                -Arguments $arguments `
+                -Operation $Operation `
+                -Label $Label `
+                -InputPath $InputPath `
+                -TemporaryRoot $TemporaryRoot `
+                -OperationIndex $OperationIndex
         }
         "append_comment" {
             $arguments.Add("append-comment") | Out-Null
