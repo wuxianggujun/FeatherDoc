@@ -797,6 +797,24 @@ enum class TableAppendResult { failed, created, merged };
     return has_alpha;
 }
 
+[[nodiscard]] bool has_body_spanning_summary_row(
+    const PdfParsedTableCandidate &source) {
+    if (source.rows.size() < 2U) {
+        return false;
+    }
+
+    return std::any_of(source.rows.begin() + 1U, source.rows.end(),
+                       [](const PdfParsedTableRow &row) {
+                           return count_text_cells(row) >= 2U &&
+                                  std::any_of(
+                                      row.cells.begin(), row.cells.end(),
+                                      [](const PdfParsedTableCell &cell) {
+                                          return cell.has_text &&
+                                                 cell.column_span > 1U;
+                                      });
+                       });
+}
+
 [[nodiscard]] bool should_mark_repeating_header_row(
     const PdfParsedTableCandidate &source) {
     if (source.rows.size() < 3U) {
@@ -871,10 +889,17 @@ enum class TableAppendResult { failed, created, merged };
     const double body_average_length =
         static_cast<double>(body_text_length) /
         static_cast<double>(body_text_cell_count);
-    return body_average_length >= header_average_length * 1.5 ||
-           (body_average_length >= header_average_length * 1.15 &&
-            body_rows_with_longer_text >= 2U &&
-            body_longer_than_header_count >= header_row.cells.size());
+    if (body_average_length >= header_average_length * 1.5 ||
+        (body_average_length >= header_average_length * 1.15 &&
+         body_rows_with_longer_text >= 2U &&
+         body_longer_than_header_count >= header_row.cells.size())) {
+        return true;
+    }
+
+    return has_body_spanning_summary_row(source) &&
+           body_average_length >= header_average_length * 1.15 &&
+           body_rows_with_longer_text >= 2U &&
+           body_longer_than_header_count + 1U >= header_text_cell_count;
 }
 
 [[nodiscard]] PdfTableContinuationHeaderMatchKind row_cell_texts_match_kind(

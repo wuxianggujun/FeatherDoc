@@ -2069,6 +2069,43 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - 下一阶段入口保留：
   更复杂的嵌套合并、缺列 / 变体表头下的跨页续接、扫描件和 OCR 场景。
 
+2026-05-14 继续推进（跨页 subtotal 变体表头续接）：
+
+- 已补充跨页 invoice subtotal 的缩写表头变体样本：
+  `featherdoc-pdf-import-pagebreak-subtotal-header-variant-table.pdf`。第一页表头使用
+  `Item / Quantity / Unit / Amount`，第二页重复表头使用
+  `Item / Qty / Unit / Amt`，同时保留第一页 `Design subtotal` 和第二页
+  `Grand total` 稀疏跨列行。
+- 已修正 importer 的 repeated-header 判定入口：
+  当表体存在受控的横向 span 摘要行时，允许较长业务表头使用稍宽松的正文长度判定；
+  这样 `Quantity` / `Amount` 这类较长表头不会阻止后续 canonical abbreviation 匹配，
+  但仍要求首行全是 header-like label、正文至少两行明显长于表头，并且存在正文跨列摘要行。
+- 已补导入侧回归：
+  `PDF table import merges cross-page subtotal rows with abbreviated repeated headers`
+  断言第二页 continuation diagnostic 命中 `canonical_text`，最终 `source_row_offset = 1`、
+  `skipped_repeating_header = true`，并确认第二页 `Qty` / `Amt` 表头没有写入最终表格；
+  保存重开后 subtotal / grand total 的 `column_span = 3` 仍保留。
+- 已完成构建与测试验证：
+  `cmake --build .bpdf-roundtrip-msvc --target pdf_import_table_heuristic_tests`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_table_heuristic$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_import_(structure|failure|table_heuristic)$" --output-on-failure --timeout 60`
+  通过。
+- 已完成视觉验证：
+  源 PDF 渲染产物为
+  `output/pdf-e7-pagebreak-subtotal-header-variant-table-visual/source-pdf/contact-sheet.png`；
+  导入后 DOCX 的 Word smoke 产物为
+  `output/pdf-e7-pagebreak-subtotal-header-variant-table-visual/merged-docx/evidence/contact_sheet.png`
+  和
+  `output/pdf-e7-pagebreak-subtotal-header-variant-table-visual/merged-docx/table_visual_smoke.pdf`，
+  视觉报告 verdict 为 `pass`。
+- 已知限制更新：
+  本轮只放宽“正文含横向 span 摘要行”的 repeated-header 入口；不处理缺列表体、
+  跨页金额合计推导、自由表单、扫描/OCR 或需要图像理解的表格。
+- 下一阶段入口保留：
+  缺列 / 变体表头下的跨页续接负样本、更复杂的嵌套合并、扫描件和 OCR 场景。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
