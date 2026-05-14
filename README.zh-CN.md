@@ -1026,6 +1026,8 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\render_template_document_from_works
 `replace_document_text` 也可作为同一直接文本替换别名；`set_text_format`
 和 `set_paragraph_text_style` 可作为 `set_text_style` 的直接文本样式别名；
 `set_paragraph_alignment` / `clear_paragraph_alignment` 是段落水平对齐操作的别名；
+`clear_paragraph_horizontal_alignment` 是显式清除对齐入口；`set_paragraph_line_spacing`
+可作为段落间距入口，`clear_paragraph_spacing` 会移除直接段落间距；
 `delete_paragraph` 和 `remove_paragraph` 可作为段落删除别名。
 如果要让“垂直居中”在 Word 里更明显，通常还要配合 `set_table_row_height` 给行一个明确高度。
 如果编辑计划需要使用 CLI 已有的书签高级替换和条件块能力，可以用

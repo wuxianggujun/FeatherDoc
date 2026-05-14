@@ -1251,7 +1251,10 @@ handles common Word run splitting. `replace_document_text` is accepted as the
 same direct text-replacement alias. `set_text_format` and
 `set_paragraph_text_style` are accepted as direct text-style aliases for
 `set_text_style`; `set_paragraph_alignment` / `clear_paragraph_alignment` are
-aliases for the paragraph horizontal-alignment operations; `delete_paragraph`
+aliases for the paragraph horizontal-alignment operations, with
+`clear_paragraph_horizontal_alignment` available as the explicit clear form;
+`set_paragraph_line_spacing` is accepted as a paragraph-spacing alias, and
+`clear_paragraph_spacing` removes direct paragraph spacing; `delete_paragraph`
 and `remove_paragraph` are accepted as paragraph deletion aliases. For vertical
 centering to be visible in Word,
 pair it with `set_table_row_height` so the row has an explicit height.

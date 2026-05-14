@@ -172,7 +172,10 @@ $advancedOperations = @(
     "remove_paragraph",
     "set_paragraph_horizontal_alignment",
     "set_paragraph_alignment",
-    "clear_paragraph_alignment"
+    "clear_paragraph_horizontal_alignment",
+    "clear_paragraph_alignment",
+    "set_paragraph_line_spacing",
+    "clear_paragraph_spacing"
 )
 
 foreach ($operation in $advancedOperations) {

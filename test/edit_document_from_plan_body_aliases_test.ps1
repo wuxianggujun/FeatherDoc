@@ -127,7 +127,10 @@ function New-BodyAliasFixtureDocx {
     <w:p><w:r><w:t>Format alias target</w:t></w:r></w:p>
     <w:p><w:r><w:t>Paragraph style alias target</w:t></w:r></w:p>
     <w:p><w:r><w:t>Alignment alias target</w:t></w:r></w:p>
+    <w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:t>Horizontal clear alias target</w:t></w:r></w:p>
     <w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>Clear alignment alias target</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Line spacing alias target</w:t></w:r></w:p>
+    <w:p><w:pPr><w:spacing w:before="120" w:after="240" w:line="360" w:lineRule="exact"/></w:pPr><w:r><w:t>Clear spacing alias target</w:t></w:r></w:p>
     <w:p><w:r><w:t>Delete paragraph alias target</w:t></w:r></w:p>
     <w:p><w:r><w:t>Remove paragraph alias target</w:t></w:r></w:p>
     <w:p><w:r><w:t>Keep paragraph alias target</w:t></w:r></w:p>
@@ -211,6 +214,20 @@ Set-Content -LiteralPath $editPlanPath -Encoding UTF8 -Value @'
       "text_contains": "Clear alignment alias target"
     },
     {
+      "op": "clear_paragraph_horizontal_alignment",
+      "text_contains": "Horizontal clear alias target"
+    },
+    {
+      "op": "set_paragraph_line_spacing",
+      "text_contains": "Line spacing alias target",
+      "line_twips": 480,
+      "line_rule": "at_least"
+    },
+    {
+      "op": "clear_paragraph_spacing",
+      "text_contains": "Clear spacing alias target"
+    },
+    {
       "op": "delete_paragraph",
       "text_contains": "Delete paragraph alias target"
     },
@@ -239,8 +256,8 @@ $documentXml = Read-DocxEntryText -DocxPath $outputDocx -EntryName "word/documen
 
 Assert-Equal -Actual $summary.status -Expected "completed" `
     -Message "Body-alias summary did not report status=completed."
-Assert-Equal -Actual $summary.operation_count -Expected 7 `
-    -Message "Body-alias summary should record seven operations."
+Assert-Equal -Actual $summary.operation_count -Expected 10 `
+    -Message "Body-alias summary should record ten operations."
 Assert-Equal -Actual $summary.operations[0].op -Expected "replace_document_text" `
     -Message "Text replacement alias should be recorded."
 Assert-Equal -Actual $summary.operations[0].command -Expected "replace-text" `
@@ -257,9 +274,21 @@ Assert-Equal -Actual $summary.operations[3].command -Expected "set-paragraph-hor
     -Message "Paragraph alignment alias should use the direct alignment command."
 Assert-Equal -Actual $summary.operations[4].command -Expected "clear-paragraph-horizontal-alignment" `
     -Message "Paragraph clear-alignment alias should use the direct clear-alignment command."
-Assert-Equal -Actual $summary.operations[5].command -Expected "delete-paragraph" `
+Assert-Equal -Actual $summary.operations[5].op -Expected "clear_paragraph_horizontal_alignment" `
+    -Message "Paragraph horizontal clear-alignment alias should be recorded."
+Assert-Equal -Actual $summary.operations[5].command -Expected "clear-paragraph-horizontal-alignment" `
+    -Message "Paragraph horizontal clear-alignment alias should use the direct clear-alignment command."
+Assert-Equal -Actual $summary.operations[6].op -Expected "set_paragraph_line_spacing" `
+    -Message "Paragraph line-spacing alias should be recorded."
+Assert-Equal -Actual $summary.operations[6].command -Expected "set-paragraph-spacing" `
+    -Message "Paragraph line-spacing alias should use the direct paragraph-spacing command."
+Assert-Equal -Actual $summary.operations[7].op -Expected "clear_paragraph_spacing" `
+    -Message "Paragraph clear-spacing alias should be recorded."
+Assert-Equal -Actual $summary.operations[7].command -Expected "clear-paragraph-spacing" `
+    -Message "Paragraph clear-spacing alias should use the direct clear-spacing command."
+Assert-Equal -Actual $summary.operations[8].command -Expected "delete-paragraph" `
     -Message "Delete paragraph alias should use the direct delete-paragraph command."
-Assert-Equal -Actual $summary.operations[6].command -Expected "delete-paragraph" `
+Assert-Equal -Actual $summary.operations[9].command -Expected "delete-paragraph" `
     -Message "Remove paragraph alias should use the direct delete-paragraph command."
 
 Assert-ContainsText -Text $documentXml -ExpectedText "Replace alias new text" -Label "Body-alias document.xml"
@@ -273,7 +302,13 @@ Assert-ContainsText -Text $documentXml -ExpectedText 'w:rFonts w:ascii="Courier 
 Assert-ContainsText -Text $documentXml -ExpectedText 'w:sz w:val="24"' -Label "Body-alias document.xml"
 Assert-ContainsText -Text $documentXml -ExpectedText 'w:jc w:val="center"' -Label "Body-alias document.xml"
 Assert-ContainsText -Text $documentXml -ExpectedText "Clear alignment alias target" -Label "Body-alias document.xml"
+Assert-ContainsText -Text $documentXml -ExpectedText "Horizontal clear alias target" -Label "Body-alias document.xml"
 Assert-NotContainsText -Text $documentXml -UnexpectedText 'w:jc w:val="right"' -Label "Body-alias document.xml"
+Assert-NotContainsText -Text $documentXml -UnexpectedText 'w:jc w:val="left"' -Label "Body-alias document.xml"
+Assert-ContainsText -Text $documentXml -ExpectedText "Line spacing alias target" -Label "Body-alias document.xml"
+Assert-ContainsText -Text $documentXml -ExpectedText 'w:spacing w:line="480" w:lineRule="atLeast"' -Label "Body-alias document.xml"
+Assert-ContainsText -Text $documentXml -ExpectedText "Clear spacing alias target" -Label "Body-alias document.xml"
+Assert-NotContainsText -Text $documentXml -UnexpectedText 'w:spacing w:before="120" w:after="240" w:line="360" w:lineRule="exact"' -Label "Body-alias document.xml"
 Assert-NotContainsText -Text $documentXml -UnexpectedText "Delete paragraph alias target" -Label "Body-alias document.xml"
 Assert-NotContainsText -Text $documentXml -UnexpectedText "Remove paragraph alias target" -Label "Body-alias document.xml"
 Assert-ContainsText -Text $documentXml -ExpectedText "Keep paragraph alias target" -Label "Body-alias document.xml"
