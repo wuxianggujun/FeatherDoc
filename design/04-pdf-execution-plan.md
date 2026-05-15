@@ -3288,6 +3288,15 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 本轮不改变打包行为，只补 CTest 调度边界；继续 E7 时，发布包安全测试可作为
   PDF import 安装文档入口的轻量发布门禁。
 
+2026-05-15 继续推进（PDF import diagnostics 枚举文档契约）：
+
+- 已扩展 `pdf_import_docs_contract_test.ps1`，把
+  `table_continuation_diagnostics` 的布尔诊断字段纳入文档契约。
+- 已把 `header_match_kind`、`disposition` 和 `blocker` 的稳定字符串枚举纳入回归，
+  覆盖重复表头匹配、合并/拆表结论和跨页续接阻断原因。
+- 本轮不改变 CLI JSON 输出，只把已经面向用户文档化的诊断 schema 固定为
+  可回归契约，降低后续 E7 调整时的文档漂移风险。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
