@@ -15,6 +15,7 @@ param(
     [string]$BuildDir = "",
     [string]$Generator = "NMake Makefiles",
     [string]$CliPath = "",
+    [string]$StyleMergeReviewJson = "",
     [string]$SummaryJson = "",
     [string]$ReportMarkdown = "",
     [switch]$SkipBuild,
@@ -253,6 +254,72 @@ function New-ActionItem {
     }
 }
 
+function New-StyleMergeSuggestionReviewSummary {
+    param(
+        [string]$ReviewJsonPath,
+        [string]$RepoRoot,
+        [int]$SuggestionCount
+    )
+
+    $reviewRequested = -not [string]::IsNullOrWhiteSpace($ReviewJsonPath)
+    $review = [ordered]@{
+        requested = $reviewRequested
+        status = if ($SuggestionCount -gt 0) { "missing" } else { "not_required" }
+        decision = ""
+        reviewed_by = ""
+        reviewed_at = ""
+        review_json_path = ""
+        review_json_relative_path = ""
+        reviewed_suggestion_count = 0
+        pending_suggestion_count = $SuggestionCount
+        error = ""
+    }
+
+    if (-not $reviewRequested) {
+        return $review
+    }
+
+    $review.review_json_path = $ReviewJsonPath
+    $review.review_json_relative_path = Convert-ToReportPath -RepoRoot $RepoRoot -Path $ReviewJsonPath
+
+    try {
+        $reviewJson = Read-JsonFileOrNull -Path $ReviewJsonPath
+        if ($null -eq $reviewJson) {
+            throw "Style merge review JSON does not exist: $ReviewJsonPath"
+        }
+
+        $review.decision = [string](Get-JsonPropertyValue -Object $reviewJson -Names @("decision", "status") -DefaultValue "")
+        $review.reviewed_by = [string](Get-JsonPropertyValue -Object $reviewJson -Names @("reviewed_by", "reviewer") -DefaultValue "")
+        $review.reviewed_at = [string](Get-JsonPropertyValue -Object $reviewJson -Names @("reviewed_at") -DefaultValue "")
+        $review.reviewed_suggestion_count = Get-JsonIntValue `
+            -Object $reviewJson `
+            -Names @("reviewed_suggestion_count", "style_merge_suggestion_count", "suggestion_count") `
+            -DefaultValue 0
+
+        $normalizedDecision = $review.decision.ToLowerInvariant()
+        $acceptedDecision = $normalizedDecision -in @("reviewed", "approved", "accepted")
+        if ($acceptedDecision -and $review.reviewed_suggestion_count -ge $SuggestionCount) {
+            $review.status = "reviewed"
+            $review.pending_suggestion_count = 0
+        } elseif ($acceptedDecision -and $review.reviewed_suggestion_count -gt 0) {
+            $review.status = "partial"
+            $review.pending_suggestion_count = [Math]::Max(0, $SuggestionCount - $review.reviewed_suggestion_count)
+        } elseif ($normalizedDecision -in @("deferred", "rejected", "pending")) {
+            $review.status = $normalizedDecision
+            $review.pending_suggestion_count = $SuggestionCount
+        } else {
+            $review.status = "pending"
+            $review.pending_suggestion_count = $SuggestionCount
+        }
+    } catch {
+        $review.status = "invalid"
+        $review.pending_suggestion_count = $SuggestionCount
+        $review.error = $_.Exception.Message
+    }
+
+    return $review
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -265,6 +332,11 @@ function New-ReportMarkdown {
     $lines.Add(("- style_numbering_issue_count: ``{0}``" -f $Summary.style_numbering_issue_count)) | Out-Null
     $lines.Add(("- style_numbering_suggestion_count: ``{0}``" -f $Summary.style_numbering_suggestion_count)) | Out-Null
     $lines.Add(("- style_merge_suggestion_count: ``{0}``" -f $Summary.style_merge_suggestion_count)) | Out-Null
+    $lines.Add(("- style_merge_suggestion_pending_count: ``{0}``" -f $Summary.style_merge_suggestion_pending_count)) | Out-Null
+    $lines.Add(("- style_merge_review_status: ``{0}``" -f $Summary.style_merge_suggestion_review.status)) | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace([string]$Summary.style_merge_suggestion_review.review_json_relative_path)) {
+        $lines.Add(("- style_merge_review_json: ``{0}``" -f $Summary.style_merge_suggestion_review.review_json_relative_path)) | Out-Null
+    }
     $lines.Add(("- release_blocker_count: ``{0}``" -f $Summary.release_blocker_count)) | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("## Issue Summary") | Out-Null
@@ -340,6 +412,11 @@ $resolvedCliPath = if ([string]::IsNullOrWhiteSpace($CliPath)) {
 } else {
     Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $CliPath
 }
+$resolvedStyleMergeReviewJson = if ([string]::IsNullOrWhiteSpace($StyleMergeReviewJson)) {
+    ""
+} else {
+    Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $StyleMergeReviewJson -AllowMissing
+}
 
 Write-Step "Exporting exemplar numbering catalog"
 $exportResult = Invoke-CliJson -ExecutablePath $resolvedCliPath -Command "export-numbering-catalog" -Arguments @(
@@ -390,6 +467,11 @@ $styleMergeSuggestionCount = Get-JsonIntValue `
     -Object $styleMergeSuggestionConfidenceSummary `
     -Names @("suggestion_count") `
     -DefaultValue (Get-JsonIntValue -Object $styleMergeSuggestions -Names @("operation_count") -DefaultValue $styleMergeSuggestionOperations.Count)
+$styleMergeSuggestionReview = New-StyleMergeSuggestionReviewSummary `
+    -ReviewJsonPath $resolvedStyleMergeReviewJson `
+    -RepoRoot $repoRoot `
+    -SuggestionCount $styleMergeSuggestionCount
+$styleMergeSuggestionPendingCount = [int]$styleMergeSuggestionReview.pending_suggestion_count
 
 $styleNumberingIssues = @(Get-JsonArrayValue -Object $styleNumbering -Names @("issues"))
 $issueSummary = @(New-IssueSummary -Issues $styleNumberingIssues)
@@ -458,7 +540,7 @@ if ($suggestionCount -gt 0) {
         -Title "Preview safe style-numbering repairs against the exported catalog" `
         -Command ("featherdoc_cli repair-style-numbering " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " --catalog-file " + (ConvertTo-CommandLine -Arguments @($catalogForCommand)) + " --plan-only --json")
 }
-if ($styleMergeSuggestionCount -gt 0) {
+if ($styleMergeSuggestionPendingCount -gt 0) {
     $actionItems += New-ActionItem `
         -Id "review_style_merge_suggestions" `
         -Title "Review duplicate style merge suggestions before applying refactors" `
@@ -477,7 +559,7 @@ $status = if ($commandFailureCount -gt 0) {
     "failed"
 } elseif ($issueCount -gt 0) {
     "needs_review"
-} elseif ($styleMergeSuggestionCount -gt 0) {
+} elseif ($styleMergeSuggestionPendingCount -gt 0) {
     "needs_review"
 } else {
     "clean"
@@ -507,6 +589,8 @@ $summary = [ordered]@{
     style_usage_report = $styleUsage
     style_merge_suggestions = $styleMergeSuggestions
     style_merge_suggestion_count = $styleMergeSuggestionCount
+    style_merge_suggestion_pending_count = $styleMergeSuggestionPendingCount
+    style_merge_suggestion_review = $styleMergeSuggestionReview
     style_merge_suggestion_confidence_summary = $styleMergeSuggestionConfidenceSummary
     style_numbering_clean = Get-JsonBoolValue -Object $styleNumbering -Names @("clean") -DefaultValue $true
     style_numbering_issue_count = $issueCount

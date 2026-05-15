@@ -361,6 +361,8 @@ function New-ReportMarkdown {
     $lines.Add("- Baseline entries: ``$($Summary.baseline_entry_count)``") | Out-Null
     $lines.Add("- Catalog exemplars: ``$($Summary.catalog_exemplar_count)``") | Out-Null
     $lines.Add("- Style-numbering issues: ``$($Summary.total_style_numbering_issue_count)``") | Out-Null
+    $lines.Add("- Style-merge suggestions: ``$($Summary.total_style_merge_suggestion_count)``") | Out-Null
+    $lines.Add("- Pending style-merge suggestions: ``$($Summary.total_style_merge_suggestion_pending_count)``") | Out-Null
     $lines.Add("- Catalog drift: ``$($Summary.drift_count)``") | Out-Null
     $lines.Add("- Dirty baselines: ``$($Summary.dirty_baseline_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
@@ -494,6 +496,7 @@ $documentCount = 0
 $totalStyleNumberingIssueCount = 0
 $totalStyleNumberingSuggestionCount = 0
 $totalStyleMergeSuggestionCount = 0
+$totalStyleMergeSuggestionPendingCount = 0
 $totalNumberingDefinitionCount = 0
 $totalNumberingInstanceCount = 0
 $totalStyleUsageCount = 0
@@ -517,7 +520,12 @@ foreach ($path in @($inputPaths)) {
                 $totalStyleNumberingIssueCount += Get-JsonInt -Object $json -Name "total_style_numbering_issue_count"
                 $totalStyleNumberingSuggestionCount += Get-JsonInt -Object $json -Name "total_style_numbering_suggestion_count"
                 $styleMergeSuggestionCount = Get-JsonInt -Object $json -Name "total_style_merge_suggestion_count"
+                $styleMergeSuggestionPendingCount = Get-JsonInt `
+                    -Object $json `
+                    -Name "total_style_merge_suggestion_pending_count" `
+                    -DefaultValue $styleMergeSuggestionCount
                 $totalStyleMergeSuggestionCount += $styleMergeSuggestionCount
+                $totalStyleMergeSuggestionPendingCount += $styleMergeSuggestionPendingCount
                 $totalNumberingDefinitionCount += Get-JsonInt -Object $json -Name "total_numbering_definition_count"
                 $totalNumberingInstanceCount += Get-JsonInt -Object $json -Name "total_numbering_instance_count"
                 $totalStyleUsageCount += Get-JsonInt -Object $json -Name "total_style_usage_count"
@@ -542,15 +550,16 @@ foreach ($path in @($inputPaths)) {
                         count = Get-JsonInt -Object $issue -Name "count" -DefaultValue 1
                     }) | Out-Null
                 }
-                if ($styleMergeSuggestionCount -gt 0) {
+                if ($styleMergeSuggestionPendingCount -gt 0) {
                     $warnings.Add([ordered]@{
                         id = "document_skeleton.style_merge_suggestions_pending"
                         source_json = $path
                         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
                         action = "review_style_merge_suggestions"
-                        style_merge_suggestion_count = $styleMergeSuggestionCount
-                        message = "Document skeleton governance reports $styleMergeSuggestionCount duplicate style merge suggestion(s) awaiting review."
+                        style_merge_suggestion_count = $styleMergeSuggestionPendingCount
+                        style_merge_suggestion_pending_count = $styleMergeSuggestionPendingCount
+                        message = "Document skeleton governance reports $styleMergeSuggestionPendingCount duplicate style merge suggestion(s) awaiting review."
                     }) | Out-Null
                 }
                 foreach ($blocker in @(Get-JsonArray -Object $json -Name "release_blockers")) {
@@ -713,6 +722,7 @@ $summary = [ordered]@{
     total_style_numbering_issue_count = $totalStyleNumberingIssueCount
     total_style_numbering_suggestion_count = $totalStyleNumberingSuggestionCount
     total_style_merge_suggestion_count = $totalStyleMergeSuggestionCount
+    total_style_merge_suggestion_pending_count = $totalStyleMergeSuggestionPendingCount
     total_command_failure_count = $totalCommandFailureCount
     style_issue_summary = @(Add-IssueSummary -Items $styleIssueRows.ToArray())
     drift_count = $driftCount

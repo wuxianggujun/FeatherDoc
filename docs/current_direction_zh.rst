@@ -156,17 +156,18 @@
 - numbering catalog JSON lint 结构校验
 - numbering catalog JSON check / diff 准入与单文件 / manifest baseline gate
 - 多份 document skeleton governance summary 的 rollup 汇总入口，可把
-  exemplar catalog、样式编号 issue、重复样式 merge 建议、release blocker 和 action item 先聚合成
+  exemplar catalog、样式编号 issue、重复样式 merge 建议及其复核状态、release blocker 和 action item 先聚合成
   ``featherdoc.document_skeleton_governance_rollup_report.v1``；发布阻断 rollup
-  会把未复核的重复样式 merge 建议作为 warning 暴露，默认不阻断发布，但可用
-  ``-FailOnWarning`` 纳入更严格的 gate
+  会按 ``style_merge_suggestion_pending_count`` 把未复核的重复样式 merge 建议作为 warning 暴露，
+  已通过 ``-StyleMergeReviewJson`` 复核的建议保留审计字段但不再升级为 release warning，
+  默认不阻断发布，但可用 ``-FailOnWarning`` 纳入更严格的 gate
 
 接下来最值得补的是：
 
 1. merge restore 的更完整冲突处理与基于真实语料的样式建议置信度校准
 2. 面向 heading / list / theme 的稳定重构入口
 3. 样式与编号之间更明确的批量治理 mutation API
-4. 在已有骨架治理报告、发布 warning 和多文档 rollup 基础上继续强化 style merge 建议复核、exemplar 冲突审计和 catalog patch 衔接
+4. 在已有骨架治理报告、style merge 复核状态、发布 warning 和多文档 rollup 基础上继续强化 exemplar 冲突审计和 catalog patch 衔接
 
 这条线的目标是：
 

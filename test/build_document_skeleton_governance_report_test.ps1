@@ -2,7 +2,7 @@ param(
     [string]$RepoRoot,
     [string]$BuildDir,
     [string]$WorkingDir,
-    [ValidateSet("all", "passing", "failing", "fail_on_issue")]
+    [ValidateSet("all", "passing", "style_merge_review", "failing", "fail_on_issue")]
     [string]$Scenario = "all"
 )
 
@@ -68,7 +68,8 @@ function Invoke-GovernanceReportScript {
 function Write-MockCli {
     param(
         [string]$Path,
-        [switch]$FailAudit
+        [switch]$FailAudit,
+        [switch]$CleanAudit
     )
 
     $auditBlock = if ($FailAudit) {
@@ -76,6 +77,13 @@ function Write-MockCli {
     "audit-style-numbering" {
         Write-Output '{"command":"audit-style-numbering","error":"mock audit failure"}'
         exit 1
+    }
+'@
+    } elseif ($CleanAudit) {
+        @'
+    "audit-style-numbering" {
+        Write-Output '{"command":"audit-style-numbering","clean":true,"paragraph_style_count":3,"numbered_style_count":2,"issue_count":0,"suggestion_count":0,"styles":[],"issues":[],"suggestions":[]}'
+        exit 0
     }
 '@
     } else {
@@ -203,6 +211,54 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown report should include suggested commands."
     Assert-ContainsText -Text $markdown -ExpectedText "suggest-style-merges" `
         -Message "Markdown report should include style merge suggestion commands."
+}
+
+if (Test-Scenario -Name "style_merge_review") {
+    $reviewCli = Join-Path $resolvedWorkingDir "mock-featherdoc-cli-clean-audit.ps1"
+    $reviewOutputDir = Join-Path $resolvedWorkingDir "style-merge-review-report"
+    $reviewJsonPath = Join-Path $resolvedWorkingDir "style-merge-review.json"
+    Write-MockCli -Path $reviewCli -CleanAudit
+    Set-Content -LiteralPath $reviewJsonPath -Encoding UTF8 -Value (@{
+            schema = "featherdoc.style_merge_suggestion_review.v1"
+            decision = "Approved"
+            reviewed_by = "release-reviewer"
+            reviewed_at = "2026-05-16T08:00:00"
+            reviewed_suggestion_count = 1
+        } | ConvertTo-Json -Depth 6)
+
+    $reviewResult = Invoke-GovernanceReportScript -Arguments @(
+        "-InputDocx", $sampleDocx,
+        "-OutputDir", $reviewOutputDir,
+        "-CliPath", $reviewCli,
+        "-StyleMergeReviewJson", $reviewJsonPath,
+        "-SkipBuild"
+    )
+    Assert-Equal -Actual $reviewResult.ExitCode -Expected 0 `
+        -Message "Reviewed style merge suggestions should not keep the report in needs_review. Output: $($reviewResult.Text)"
+
+    $summaryPath = Join-Path $reviewOutputDir "document_skeleton_governance.summary.json"
+    $markdownPath = Join-Path $reviewOutputDir "document_skeleton_governance.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "clean" `
+        -Message "Reviewed style merge suggestions should allow a clean skeleton governance status."
+    Assert-Equal -Actual ([int]$summary.style_merge_suggestion_count) -Expected 1 `
+        -Message "Summary should retain the original style merge suggestion count."
+    Assert-Equal -Actual ([int]$summary.style_merge_suggestion_pending_count) -Expected 0 `
+        -Message "Summary should clear pending style merge suggestions after full review."
+    Assert-Equal -Actual ([string]$summary.style_merge_suggestion_review.status) -Expected "reviewed" `
+        -Message "Summary should expose reviewed style merge status."
+    Assert-Equal -Actual ([string]$summary.style_merge_suggestion_review.reviewed_by) -Expected "release-reviewer" `
+        -Message "Summary should preserve style merge reviewer metadata."
+    Assert-True -Condition (-not ((@($summary.next_steps) | ForEach-Object { [string]$_.id }) -contains "review_style_merge_suggestions")) `
+        -Message "Reviewed style merge suggestions should not emit a pending review next step."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_suggestion_pending_count:" `
+        -Message "Markdown should show pending style merge suggestion count."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review_status:" `
+        -Message "Markdown should show style merge review status."
+    Assert-ContainsText -Text $markdown -ExpectedText "style-merge-review.json" `
+        -Message "Markdown should link the style merge review JSON."
 }
 
 if (Test-Scenario -Name "failing") {

@@ -236,6 +236,7 @@ function New-ReportMarkdown {
     $lines.Add("- Source failures: ``$($Summary.source_failure_count)``") | Out-Null
     $lines.Add("- Style-numbering issues: ``$($Summary.total_style_numbering_issue_count)``") | Out-Null
     $lines.Add("- Style-merge suggestions: ``$($Summary.total_style_merge_suggestion_count)``") | Out-Null
+    $lines.Add("- Pending style-merge suggestions: ``$($Summary.total_style_merge_suggestion_pending_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -246,12 +247,14 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($document in @($Summary.document_entries)) {
-            $lines.Add(("- ``{0}``: status=``{1}`` issues=``{2}`` suggestions=``{3}`` style_merge_suggestions=``{4}`` definitions=``{5}`` instances=``{6}`` source=``{7}``" -f
+            $lines.Add(("- ``{0}``: status=``{1}`` issues=``{2}`` suggestions=``{3}`` style_merge_suggestions=``{4}`` pending_style_merge_suggestions=``{5}`` style_merge_review=``{6}`` definitions=``{7}`` instances=``{8}`` source=``{9}``" -f
                 $document.document_name,
                 $document.status,
                 $document.style_numbering_issue_count,
                 $document.style_numbering_suggestion_count,
                 $document.style_merge_suggestion_count,
+                $document.style_merge_suggestion_pending_count,
+                $document.style_merge_review_status,
                 $document.numbering_definition_count,
                 $document.numbering_instance_count,
                 $document.source_report_display)) | Out-Null
@@ -385,6 +388,7 @@ $totalStyleUsageCount = 0
 $totalNumberedStyleCount = 0
 $totalCommandFailureCount = 0
 $totalStyleMergeSuggestionCount = 0
+$totalStyleMergeSuggestionPendingCount = 0
 
 foreach ($path in @($inputPaths)) {
     $sourceIndex++
@@ -396,6 +400,8 @@ foreach ($path in @($inputPaths)) {
     $inputDocxDisplay = ""
     $styleIssueCount = 0
     $styleMergeSuggestionCount = 0
+    $styleMergeSuggestionPendingCount = 0
+    $styleMergeReviewStatus = "missing"
     $releaseBlockerCount = 0
 
     try {
@@ -424,6 +430,9 @@ foreach ($path in @($inputPaths)) {
             $styleIssueCount = Get-JsonInt -Object $summaryObject -Name "style_numbering_issue_count"
             $styleSuggestionCount = Get-JsonInt -Object $summaryObject -Name "style_numbering_suggestion_count"
             $styleMergeSuggestionCount = Get-JsonInt -Object $summaryObject -Name "style_merge_suggestion_count"
+            $styleMergeSuggestionPendingCount = Get-JsonInt -Object $summaryObject -Name "style_merge_suggestion_pending_count" -DefaultValue $styleMergeSuggestionCount
+            $styleMergeReview = Get-JsonProperty -Object $summaryObject -Name "style_merge_suggestion_review"
+            $styleMergeReviewStatus = Get-JsonString -Object $styleMergeReview -Name "status" -DefaultValue "missing"
             $numberedStyleCount = Get-JsonInt -Object $summaryObject -Name "numbered_style_count"
             $styleUsageTotal = Get-JsonInt -Object $styleUsage -Name "usage_total"
             $commandFailureCount = Get-JsonInt -Object $summaryObject -Name "command_failure_count"
@@ -461,6 +470,8 @@ foreach ($path in @($inputPaths)) {
                 style_numbering_issue_count = $styleIssueCount
                 style_numbering_suggestion_count = $styleSuggestionCount
                 style_merge_suggestion_count = $styleMergeSuggestionCount
+                style_merge_suggestion_pending_count = $styleMergeSuggestionPendingCount
+                style_merge_review_status = $styleMergeReviewStatus
                 numbered_style_count = $numberedStyleCount
                 numbering_definition_count = $definitionCount
                 numbering_instance_count = $instanceCount
@@ -548,6 +559,7 @@ foreach ($path in @($inputPaths)) {
             $totalNumberedStyleCount += $numberedStyleCount
             $totalCommandFailureCount += $commandFailureCount
             $totalStyleMergeSuggestionCount += $styleMergeSuggestionCount
+            $totalStyleMergeSuggestionPendingCount += $styleMergeSuggestionPendingCount
         }
     } catch {
         $sourceStatus = "failed"
@@ -572,6 +584,8 @@ foreach ($path in @($inputPaths)) {
         input_docx_display = $inputDocxDisplay
         style_numbering_issue_count = $styleIssueCount
         style_merge_suggestion_count = $styleMergeSuggestionCount
+        style_merge_suggestion_pending_count = $styleMergeSuggestionPendingCount
+        style_merge_review_status = $styleMergeReviewStatus
         release_blocker_count = $releaseBlockerCount
         error = $errorMessage
     }) | Out-Null
@@ -582,20 +596,21 @@ $sourceFailureCount = @($sourceReports.ToArray() | Where-Object {
 }).Count
 $sourceReportFailureCount = @($documents.ToArray() | Where-Object { $_.status -eq "failed" }).Count
 $needsReviewCount = @($documents.ToArray() | Where-Object { $_.status -eq "needs_review" }).Count
-if ($totalStyleMergeSuggestionCount -gt 0) {
+if ($totalStyleMergeSuggestionPendingCount -gt 0) {
     $warnings.Add([ordered]@{
         id = "document_skeleton.style_merge_suggestions_pending"
         source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
         action = "review_style_merge_suggestions"
-        style_merge_suggestion_count = $totalStyleMergeSuggestionCount
-        message = "Document skeleton governance reports $totalStyleMergeSuggestionCount duplicate style merge suggestion(s) awaiting review."
+        style_merge_suggestion_count = $totalStyleMergeSuggestionPendingCount
+        style_merge_suggestion_pending_count = $totalStyleMergeSuggestionPendingCount
+        message = "Document skeleton governance reports $totalStyleMergeSuggestionPendingCount duplicate style merge suggestion(s) awaiting review."
     }) | Out-Null
 }
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($sourceReportFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "failed"
-} elseif ($warnings.Count -gt 0 -or $totalStyleNumberingIssueCount -gt 0 -or $totalStyleMergeSuggestionCount -gt 0 -or $blockers.Count -gt 0 -or $needsReviewCount -gt 0) {
+} elseif ($warnings.Count -gt 0 -or $totalStyleNumberingIssueCount -gt 0 -or $totalStyleMergeSuggestionPendingCount -gt 0 -or $blockers.Count -gt 0 -or $needsReviewCount -gt 0) {
     "needs_review"
 } else {
     "clean"
@@ -621,6 +636,7 @@ $summary = [ordered]@{
     total_style_numbering_issue_count = $totalStyleNumberingIssueCount
     total_style_numbering_suggestion_count = $totalStyleNumberingSuggestionCount
     total_style_merge_suggestion_count = $totalStyleMergeSuggestionCount
+    total_style_merge_suggestion_pending_count = $totalStyleMergeSuggestionPendingCount
     total_numbered_style_count = $totalNumberedStyleCount
     total_numbering_definition_count = $totalNumberingDefinitionCount
     total_numbering_instance_count = $totalNumberingInstanceCount

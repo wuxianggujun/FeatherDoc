@@ -81,7 +81,8 @@ release 流水线的详细设计文档；详细字段流向请先阅读
   三层都能透传 warning 明细，而不是只保留计数。
 - 每条 warning 的 ``id``、``action``、``message``、``source_schema`` 不会在中间层被覆盖成
   更弱的信息。
-- ``style_merge_suggestion_count`` 这类可选字段只在存在时写出，不要把缺失值归一化成误导性的 ``0``。
+- ``style_merge_suggestion_count`` / ``style_merge_suggestion_pending_count`` 这类可选字段只在存在时写出，
+  不要把缺失值归一化成误导性的 ``0``。
 - Markdown 报告中的 ``## Warnings`` / ``### ... warnings`` 子段与 JSON 明细保持同一语义。
 
 

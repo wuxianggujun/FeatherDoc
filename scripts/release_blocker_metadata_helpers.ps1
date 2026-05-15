@@ -250,6 +250,10 @@ function Get-NormalizedReleaseGovernanceWarnings {
         if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
             $entry.style_merge_suggestion_count = [int]$styleMergeSuggestionCount
         }
+        $styleMergeSuggestionPendingCount = Get-ReleaseBlockerPropertyObject -Object $warning -Name "style_merge_suggestion_pending_count"
+        if ($null -ne $styleMergeSuggestionPendingCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionPendingCount)) {
+            $entry.style_merge_suggestion_pending_count = [int]$styleMergeSuggestionPendingCount
+        }
 
         [void]$normalizedWarnings.Add([pscustomobject]$entry)
     }
@@ -286,6 +290,10 @@ function Get-ReleaseGovernanceWarningSummaryText {
     $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_count"
     if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
         $summaryText += ('; style_merge_suggestion_count: `{0}`' -f [string]$styleMergeSuggestionCount)
+    }
+    $styleMergeSuggestionPendingCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_pending_count"
+    if ($null -ne $styleMergeSuggestionPendingCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionPendingCount)) {
+        $summaryText += ('; style_merge_suggestion_pending_count: `{0}`' -f [string]$styleMergeSuggestionPendingCount)
     }
 
     return $summaryText
@@ -354,8 +362,11 @@ function Get-ReleaseGovernanceWarningActionGuidanceLines {
     switch ($action) {
         { $_ -in @("review_style_merge_suggestions", "review_style_merge_plan") } {
             $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_count"
+            $styleMergeSuggestionPendingCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_pending_count"
             $countText = ""
-            if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+            if ($null -ne $styleMergeSuggestionPendingCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionPendingCount)) {
+                $countText = (' Current pending style merge suggestion count is `{0}`.' -f [string]$styleMergeSuggestionPendingCount)
+            } elseif ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
                 $countText = (' Current style merge suggestion count is `{0}`.' -f [string]$styleMergeSuggestionCount)
             }
 

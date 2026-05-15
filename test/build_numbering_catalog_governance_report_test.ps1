@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "clean", "malformed", "warning_metadata", "fail_on_blocker")]
+    [ValidateSet("all", "aggregate", "style_merge_review", "clean", "malformed", "warning_metadata", "fail_on_blocker")]
     [string]$Scenario = "all"
 )
 
@@ -73,6 +73,8 @@ function New-SkeletonRollup {
             document_count = 1
             total_style_numbering_issue_count = 0
             total_style_numbering_suggestion_count = 0
+            total_style_merge_suggestion_count = 0
+            total_style_merge_suggestion_pending_count = 0
             total_numbering_definition_count = 2
             total_numbering_instance_count = 3
             total_style_usage_count = 5
@@ -102,6 +104,7 @@ function New-SkeletonRollup {
         total_style_numbering_issue_count = 3
         total_style_numbering_suggestion_count = 2
         total_style_merge_suggestion_count = 2
+        total_style_merge_suggestion_pending_count = 2
         total_numbering_definition_count = 6
         total_numbering_instance_count = 9
         total_style_usage_count = 14
@@ -282,6 +285,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should preserve style-numbering issue totals."
     Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_count) -Expected 2 `
         -Message "Summary should preserve style-merge suggestion totals."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_pending_count) -Expected 2 `
+        -Message "Summary should preserve pending style-merge suggestion totals."
     Assert-Equal -Actual ([int]$summary.drift_count) -Expected 1 `
         -Message "Summary should preserve catalog drift count."
     Assert-Equal -Actual ([int]$summary.dirty_baseline_count) -Expected 1 `
@@ -302,6 +307,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should preserve warning source schema."
     Assert-Equal -Actual ([int]$styleMergeWarning[0].style_merge_suggestion_count) -Expected 2 `
         -Message "Summary should preserve warning style merge counts."
+    Assert-Equal -Actual ([int]$styleMergeWarning[0].style_merge_suggestion_pending_count) -Expected 2 `
+        -Message "Summary should preserve warning pending style merge counts."
 
     $issueSummaryText = ($summary.style_issue_summary | ForEach-Object { "$($_.issue):$($_.count)" }) -join "`n"
     Assert-ContainsText -Text $issueSummaryText -ExpectedText "missing_numbering_definition:2" `
@@ -319,6 +326,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include baseline manifest section."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_numbering_definition" `
         -Message "Markdown should include issue summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "Pending style-merge suggestions: ``2``" `
+        -Message "Markdown should include pending style merge totals."
     Assert-ContainsText -Text $markdown -ExpectedText "### Numbering catalog governance warnings" `
         -Message "Markdown should include the warnings subsection."
     Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `1`' `
@@ -327,6 +336,36 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include warning source schema."
     Assert-ContainsText -Text $markdown -ExpectedText 'style_merge_suggestion_count: `2`' `
         -Message "Markdown should include warning style merge counts."
+}
+
+if (Test-Scenario -Name "style_merge_review") {
+    $evidenceRoot = Join-Path $resolvedWorkingDir "style-merge-review-evidence"
+    $skeletonPath = Join-Path $evidenceRoot "skeleton\summary.json"
+    $manifestPath = Join-Path $evidenceRoot "manifest\summary.json"
+    $outputDir = Join-Path $resolvedWorkingDir "style-merge-review-report"
+
+    $reviewedSkeleton = New-SkeletonRollup -Clean:$true
+    $reviewedSkeleton.total_style_merge_suggestion_count = 2
+    $reviewedSkeleton.total_style_merge_suggestion_pending_count = 0
+    Write-JsonFile -Path $skeletonPath -Value $reviewedSkeleton
+    Write-JsonFile -Path $manifestPath -Value (New-ManifestSummary -Clean:$true)
+
+    $result = Invoke-GovernanceScript -Arguments @(
+        "-InputJson", "$skeletonPath,$manifestPath",
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Reviewed style merge suggestions should not warn. Output: $($result.Text)"
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "clean" `
+        -Message "Reviewed style merge suggestions should allow clean numbering governance."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_count) -Expected 2 `
+        -Message "Summary should preserve reviewed style merge totals."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_pending_count) -Expected 0 `
+        -Message "Summary should not report reviewed suggestions as pending."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
+        -Message "Reviewed style merge suggestions should not produce governance warnings."
 }
 
 if (Test-Scenario -Name "clean") {

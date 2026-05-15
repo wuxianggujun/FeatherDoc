@@ -778,7 +778,16 @@ When several single-document skeleton governance summaries are available,
 `scripts/build_document_skeleton_governance_rollup_report.ps1` first rolls them
 into `featherdoc.document_skeleton_governance_rollup_report.v1`, preserving
 per-document exemplar catalog paths, style-numbering issue totals, release
-blockers, and action items. Pair that rollup with
+blockers, and action items. A single-document report can also take
+`-StyleMergeReviewJson` as read-only reviewer evidence for duplicate style
+merge suggestions. Accepted `decision` / `status` values such as `reviewed`,
+`approved`, or `accepted` clear the matching
+`style_merge_suggestion_pending_count` when the reviewed suggestion count covers
+the detected suggestions; the original `style_merge_suggestion_count` and
+`style_merge_suggestion_review` metadata remain in JSON/Markdown for audit.
+The multi-document rollup then sums `total_style_merge_suggestion_pending_count`
+and only pending suggestions flow onward as release governance warnings. Pair
+that rollup with
 `scripts/check_numbering_catalog_manifest.ps1` output and run
 `scripts/build_numbering_catalog_governance_report.ps1` to produce
 `featherdoc.numbering_catalog_governance_report.v1`, a unified numbering gate
@@ -1787,8 +1796,8 @@ warning details, and auto-discovered inputs in both `report/summary.json` and
 `report/final_review.md`. `final_review.md` now adds a dedicated Release
 governance warnings section so reviewer-facing handoff notes keep the warning
 `id`, `action`, `message`, `source_schema`, and any optional
-`style_merge_suggestion_count` values visible without opening the nested rollup
-JSON. The contract is covered by
+`style_merge_suggestion_count` / `style_merge_suggestion_pending_count` values
+visible without opening the nested rollup JSON. The contract is covered by
 `test/release_governance_warning_contract_test.ps1` and
 `test/release_governance_warning_helper_contract_test.ps1`, so new warning
 producers keep the same fields visible at source and in rollups. The generated
@@ -1798,7 +1807,11 @@ merge suggestions from document skeleton governance remain non-blocking by
 default, but are surfaced as
 `document_skeleton.style_merge_suggestions_pending` warnings with
 `review_style_merge_suggestions` actions so reviewers can resolve them before
-tightening gates. Add `-ReleaseBlockerRollupFailOnBlocker` or
+tightening gates. For these warnings, `style_merge_suggestion_count`
+represents the pending count after any `style_merge_suggestion_review`, and
+source reports also expose `style_merge_suggestion_pending_count` so reviewed
+suggestions stay auditable without reappearing as release warnings. Add
+`-ReleaseBlockerRollupFailOnBlocker` or
 `-ReleaseBlockerRollupFailOnWarning` when the final rollup should behave as a
 hard release gate.
 
@@ -3429,7 +3442,7 @@ drift checks for catalog JSON files,
 extraction plus style usage / style-numbering governance reports,
 `scripts/build_document_skeleton_governance_rollup_report.ps1` for
 multi-document skeleton rollups across exemplar catalogs, issue summaries,
-release blockers, and action items, and
+duplicate style-merge review state, release blockers, and action items, and
 `scripts/build_release_blocker_rollup_report.ps1` for release blocker rollups
 across skeleton, template, and layout reports, and `audit-style-numbering`
 style-to-numbering issue gates with `command_template` repair suggestions,

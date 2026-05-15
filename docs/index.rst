@@ -456,7 +456,15 @@ buckets, approval outcomes, and conservative recommendations such as
 single-document summaries into
 ``featherdoc.document_skeleton_governance_rollup_report.v1`` with exemplar
 catalog paths, style-numbering issue totals, duplicate style-merge suggestion
-totals, release blockers, and action items.
+totals, duplicate style-merge review state, release blockers, and action items.
+Single-document skeleton reports accept ``-StyleMergeReviewJson`` as read-only
+review evidence; accepted ``decision`` / ``status`` values such as
+``reviewed``, ``approved``, or ``accepted`` clear
+``style_merge_suggestion_pending_count`` when the reviewed suggestion count
+covers the detected suggestions while preserving ``style_merge_suggestion_count``
+and ``style_merge_suggestion_review`` for audit. The rollup then exposes
+``total_style_merge_suggestion_pending_count`` so downstream gates only warn on
+pending duplicate style-merge suggestions.
 ``scripts/build_release_blocker_rollup_report.ps1`` normalizes
 ``release_blockers`` and ``action_items`` from these governance reports,
 document-skeleton rollups, table-layout delivery, or release summaries into
@@ -465,8 +473,10 @@ source blockers through composite ids. Pending duplicate style-merge
 suggestions from the skeleton rollup are surfaced as non-blocking warnings by
 default and can be gated with ``-FailOnWarning``. Top-level warning details
 retain ``id``, ``action``, ``message``, ``source_schema``, and optional
-``style_merge_suggestion_count``; document-skeleton pending duplicates use
-``document_skeleton.style_merge_suggestions_pending`` with
+``style_merge_suggestion_count`` / ``style_merge_suggestion_pending_count``;
+for document-skeleton warnings that count is the pending value after
+``style_merge_suggestion_review`` has been applied. Document-skeleton pending
+duplicates use ``document_skeleton.style_merge_suggestions_pending`` with
 ``review_style_merge_suggestions``.
 
 When adding a repository baseline,

@@ -151,11 +151,15 @@ manifest 脚本级 baseline gate 和 JSON 差异对比。``build_document_skelet
 audit 与 catalog baseline gate 汇入统一骨架治理报告。
 ``build_document_skeleton_governance_report.ps1`` 也会把 ``suggest-style-merges
 --confidence-profile recommended`` 的重复样式合并建议纳入 summary，作为需要人工
-复核的样式漂移信号，而不是直接升格为 release blocker。
+复核的样式漂移信号，而不是直接升格为 release blocker；传入
+``-StyleMergeReviewJson`` 后，已通过 ``reviewed`` / ``approved`` / ``accepted``
+决策覆盖的建议会保留 ``style_merge_suggestion_count`` 和
+``style_merge_suggestion_review`` 审计信息，同时把
+``style_merge_suggestion_pending_count`` 清零。
 ``build_document_skeleton_governance_rollup_report.ps1`` 进一步把多份单文档
 骨架治理 summary 聚合成跨模板 exemplar catalog、issue summary、重复样式 merge
 建议、release blocker 和 action item 视图，便于先完成文档骨架治理汇总，再接入发布阻断面板。
-发布阻断 rollup 会把骨架 rollup 中未复核的重复样式 merge 建议作为 warning
+发布阻断 rollup 会把骨架 rollup 中仍 pending 的重复样式 merge 建议作为 warning
 暴露，默认不阻断发布；需要更严格门禁时可以配合 ``-FailOnWarning`` 使用。
 后续对既有文档里的复杂 numbering catalog，仍可继续强化冲突审计和 catalog
 patch 衔接。
@@ -164,7 +168,7 @@ patch 衔接。
 
 - 强化 exemplar 文档自动提取 numbering catalog 后的冲突审计报告
 - 把 ``repair-style-numbering`` 的安全修复建议进一步转成可复用 catalog patch
-- 把重复样式 merge 建议的复核结果继续沉淀为可审计的 style refactor plan
+- 把已复核通过的重复样式 merge 建议进一步沉淀为可执行、可审计的 style refactor plan
 - 对企业模板里的重复、孤儿、跨样式绑定冲突做更细的置信度分级
 - 继续打磨骨架治理 rollup 在 release blocker rollup 和发布面板里的消费体验
 

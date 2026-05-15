@@ -322,7 +322,8 @@ $pipelineExpectedMarkers = @(
     '``action``',
     '``message``',
     '``source_schema``',
-    '``style_merge_suggestion_count``'
+    '``style_merge_suggestion_count``',
+    '``style_merge_suggestion_pending_count``'
 )
 $checklistExpectedMarkers = @(
     ':doc:`release_metadata_pipeline_zh`',
@@ -340,7 +341,8 @@ $checklistExpectedMarkers = @(
     "release_governance_handoff",
     "release_governance_pipeline",
     "source_schema",
-    "style_merge_suggestion_count"
+    "style_merge_suggestion_count",
+    "style_merge_suggestion_pending_count"
 )
 $policyExpectedMarkers = @(':doc:`release_metadata_pipeline_zh`')
 $readmeExpectedMarkers = @(
@@ -350,6 +352,7 @@ $readmeExpectedMarkers = @(
     '`message`',
     '`source_schema`',
     '`style_merge_suggestion_count`',
+    '`style_merge_suggestion_pending_count`',
     "checkbox guidance",
     "release_governance_warning_contract_test.ps1",
     "release_governance_warning_helper_contract_test.ps1"
@@ -360,6 +363,7 @@ $indexExpectedMarkers = @(
     '``message``',
     '``source_schema``',
     '``style_merge_suggestion_count``',
+    '``style_merge_suggestion_pending_count``',
     '``document_skeleton.style_merge_suggestions_pending``',
     '``review_style_merge_suggestions``'
 )

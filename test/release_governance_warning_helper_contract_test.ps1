@@ -66,6 +66,7 @@ $warningWithStyleMergeCount = [pscustomobject]@{
     message = "Document skeleton governance reports 2 duplicate style merge suggestion(s) awaiting review."
     source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
     style_merge_suggestion_count = 2
+    style_merge_suggestion_pending_count = 2
 }
 
 $warningWithoutStyleMergeCount = [pscustomobject]@{
@@ -86,8 +87,12 @@ Assert-Equal -Actual ([string]$normalizedWarnings[0].source_schema) -Expected "f
     -Message "Normalized warning should preserve source schema."
 Assert-True -Condition ($normalizedWarnings[0].PSObject.Properties.Name -contains "style_merge_suggestion_count") `
     -Message "Normalized warning should preserve style merge counts when provided."
+Assert-True -Condition ($normalizedWarnings[0].PSObject.Properties.Name -contains "style_merge_suggestion_pending_count") `
+    -Message "Normalized warning should preserve pending style merge counts when provided."
 Assert-True -Condition (-not ($normalizedWarnings[1].PSObject.Properties.Name -contains "style_merge_suggestion_count")) `
     -Message "Normalized warning should omit style merge counts when absent."
+Assert-True -Condition (-not ($normalizedWarnings[1].PSObject.Properties.Name -contains "style_merge_suggestion_pending_count")) `
+    -Message "Normalized warning should omit pending style merge counts when absent."
 
 $declaredCountSummary = [pscustomobject]@{
     warning_count = 5
@@ -112,10 +117,14 @@ Assert-ContainsText -Text $richSummaryText -ExpectedText 'source_schema: `feathe
     -Message "Summary text should include the warning source schema."
 Assert-ContainsText -Text $richSummaryText -ExpectedText 'style_merge_suggestion_count: `2`' `
     -Message "Summary text should include the optional style merge count when present."
+Assert-ContainsText -Text $richSummaryText -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
+    -Message "Summary text should include the optional pending style merge count when present."
 
 $plainSummaryText = Get-ReleaseGovernanceWarningSummaryText -Warning $warningWithoutStyleMergeCount
 Assert-True -Condition ($plainSummaryText -notmatch 'style_merge_suggestion_count') `
     -Message "Summary text should omit the optional style merge count when absent."
+Assert-True -Condition ($plainSummaryText -notmatch 'style_merge_suggestion_pending_count') `
+    -Message "Summary text should omit the optional pending style merge count when absent."
 
 $subsectionLines = New-Object 'System.Collections.Generic.List[string]'
 $subsectionRendered = Add-ReleaseGovernanceWarningMarkdownSubsection `
@@ -134,6 +143,8 @@ Assert-ContainsText -Text $subsectionMarkdown -ExpectedText '- warning_count: `2
     -Message "Markdown subsection should include the warning count."
 Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'style_merge_suggestion_count: `2`' `
     -Message "Markdown subsection should include the optional style merge count."
+Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
+    -Message "Markdown subsection should include the optional pending style merge count."
 
 $emptyLines = New-Object 'System.Collections.Generic.List[string]'
 $emptyRendered = Add-ReleaseGovernanceWarningMarkdownSubsection `
@@ -177,6 +188,8 @@ Assert-ContainsText -Text $sectionMarkdown -ExpectedText "Numbering catalog repo
     -Message "Markdown section should render plain warning messages."
 Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion_count: `2`' `
     -Message "Markdown section should render optional style merge counts."
+Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
+    -Message "Markdown section should render optional pending style merge counts."
 
 $checklistItems = @(Get-ReleaseGovernanceWarningChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{
@@ -208,8 +221,8 @@ $styleMergeGuidance = (Get-ReleaseGovernanceWarningActionGuidanceLines `
         -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "summary.json")) -join "`n"
 Assert-ContainsText -Text $styleMergeGuidance -ExpectedText 'Use action `review_style_merge_suggestions`' `
     -Message "Style-merge warning guidance should mention its action."
-Assert-ContainsText -Text $styleMergeGuidance -ExpectedText 'Current style merge suggestion count is `2`' `
-    -Message "Style-merge warning guidance should preserve suggestion count."
+Assert-ContainsText -Text $styleMergeGuidance -ExpectedText 'Current pending style merge suggestion count is `2`' `
+    -Message "Style-merge warning guidance should preserve pending suggestion count."
 
 $plainGuidance = (Get-ReleaseGovernanceWarningActionGuidanceLines `
         -Warning $warningWithoutStyleMergeCount `

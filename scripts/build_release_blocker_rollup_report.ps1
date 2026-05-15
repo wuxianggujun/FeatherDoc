@@ -286,6 +286,7 @@ foreach ($path in @($inputPaths)) {
     $status = "loaded"
     $errorMessage = ""
     $styleMergeSuggestionCount = 0
+    $styleMergeSuggestionPendingCount = 0
     try {
         $summaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
         $kind = Get-ReportKind -Summary $summaryObject
@@ -310,15 +311,23 @@ foreach ($path in @($inputPaths)) {
 
         if ($kind -eq "featherdoc.document_skeleton_governance_rollup_report.v1") {
             $styleMergeSuggestionCount = Get-JsonInt -Object $summaryObject -Name "total_style_merge_suggestion_count"
-            if ($styleMergeSuggestionCount -gt 0) {
+            $styleMergeSuggestionPendingCount = Get-JsonInt `
+                -Object $summaryObject `
+                -Name "total_style_merge_suggestion_pending_count" `
+                -DefaultValue $styleMergeSuggestionCount
+            $hasMaterializedStyleMergeWarning = @($sourceWarnings | Where-Object {
+                    (Get-JsonString -Object $_ -Name "id") -eq "document_skeleton.style_merge_suggestions_pending"
+                }).Count -gt 0
+            if ($styleMergeSuggestionPendingCount -gt 0 -and -not $hasMaterializedStyleMergeWarning) {
                 $warnings.Add([ordered]@{
                     id = "document_skeleton.style_merge_suggestions_pending"
                     source_report = $path
                     source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     source_schema = $kind
                     action = "review_style_merge_suggestions"
-                    style_merge_suggestion_count = $styleMergeSuggestionCount
-                    message = "Document skeleton governance reports $styleMergeSuggestionCount duplicate style merge suggestion(s) awaiting review."
+                    style_merge_suggestion_count = $styleMergeSuggestionPendingCount
+                    style_merge_suggestion_pending_count = $styleMergeSuggestionPendingCount
+                    message = "Document skeleton governance reports $styleMergeSuggestionPendingCount duplicate style merge suggestion(s) awaiting review."
                 }) | Out-Null
             }
         }
@@ -336,9 +345,13 @@ foreach ($path in @($inputPaths)) {
                 action = Get-JsonString -Object $warning -Name "action"
                 message = Get-JsonString -Object $warning -Name "message"
             }
-            $styleMergeSuggestionCount = Get-JsonProperty -Object $warning -Name "style_merge_suggestion_count"
-            if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
-                $entry.style_merge_suggestion_count = [int]$styleMergeSuggestionCount
+            $warningStyleMergeSuggestionCount = Get-JsonProperty -Object $warning -Name "style_merge_suggestion_count"
+            if ($null -ne $warningStyleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$warningStyleMergeSuggestionCount)) {
+                $entry.style_merge_suggestion_count = [int]$warningStyleMergeSuggestionCount
+            }
+            $warningStyleMergeSuggestionPendingCount = Get-JsonProperty -Object $warning -Name "style_merge_suggestion_pending_count"
+            if ($null -ne $warningStyleMergeSuggestionPendingCount -and -not [string]::IsNullOrWhiteSpace([string]$warningStyleMergeSuggestionPendingCount)) {
+                $entry.style_merge_suggestion_pending_count = [int]$warningStyleMergeSuggestionPendingCount
             }
             $warnings.Add($entry) | Out-Null
         }
@@ -394,6 +407,7 @@ foreach ($path in @($inputPaths)) {
         schema = $kind
         status = $status
         style_merge_suggestion_count = $styleMergeSuggestionCount
+        style_merge_suggestion_pending_count = $styleMergeSuggestionPendingCount
         error = $errorMessage
     }) | Out-Null
 }

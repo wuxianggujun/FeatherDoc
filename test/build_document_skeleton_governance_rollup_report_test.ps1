@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "empty", "failed_source_report", "malformed", "warning_metadata", "fail_on_issue")]
+    [ValidateSet("all", "aggregate", "style_merge_review", "empty", "failed_source_report", "malformed", "warning_metadata", "fail_on_issue")]
     [string]$Scenario = "all"
 )
 
@@ -84,11 +84,17 @@ function New-SkeletonSummary {
         [int]$IssueCount = 0,
         [int]$SuggestionCount = 0,
         [int]$StyleMergeSuggestionCount = 0,
+        [int]$StyleMergeSuggestionPendingCount = -1,
+        [string]$StyleMergeReviewStatus = "missing",
         [int]$UsageTotal = 0,
         [object[]]$IssueSummary = @(),
         [object[]]$ReleaseBlockers = @(),
         [object[]]$ActionItems = @()
     )
+
+    if ($StyleMergeSuggestionPendingCount -lt 0) {
+        $StyleMergeSuggestionPendingCount = $StyleMergeSuggestionCount
+    }
 
     return [ordered]@{
         schema = "featherdoc.document_skeleton_governance_report.v1"
@@ -107,6 +113,13 @@ function New-SkeletonSummary {
         style_numbering_issue_count = $IssueCount
         style_numbering_suggestion_count = $SuggestionCount
         style_merge_suggestion_count = $StyleMergeSuggestionCount
+        style_merge_suggestion_pending_count = $StyleMergeSuggestionPendingCount
+        style_merge_suggestion_review = [ordered]@{
+            requested = ($StyleMergeReviewStatus -ne "missing")
+            status = $StyleMergeReviewStatus
+            reviewed_suggestion_count = $StyleMergeSuggestionCount - $StyleMergeSuggestionPendingCount
+            pending_suggestion_count = $StyleMergeSuggestionPendingCount
+        }
         numbered_style_count = 2
         issue_summary = @($IssueSummary)
         style_usage = [ordered]@{
@@ -217,6 +230,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate rollup should sum style-numbering suggestions."
     Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_count) -Expected 3 `
         -Message "Aggregate rollup should sum style merge suggestions."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_pending_count) -Expected 3 `
+        -Message "Aggregate rollup should sum pending style merge suggestions."
     Assert-Equal -Actual ([int]$summary.total_numbering_definition_count) -Expected 6 `
         -Message "Aggregate rollup should sum catalog definition counts."
     Assert-Equal -Actual ([int]$summary.total_numbering_instance_count) -Expected 9 `
@@ -237,8 +252,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate rollup should include the contract document entry."
     Assert-Equal -Actual ([int]$invoiceEntry.style_merge_suggestion_count) -Expected 1 `
         -Message "Aggregate rollup should expose invoice style merge suggestion counts."
+    Assert-Equal -Actual ([int]$invoiceEntry.style_merge_suggestion_pending_count) -Expected 1 `
+        -Message "Aggregate rollup should expose invoice pending style merge suggestion counts."
     Assert-Equal -Actual ([int]$contractEntry.style_merge_suggestion_count) -Expected 2 `
         -Message "Aggregate rollup should expose contract style merge suggestion counts."
+    Assert-Equal -Actual ([string]$contractEntry.style_merge_review_status) -Expected "missing" `
+        -Message "Aggregate rollup should expose source style merge review status."
     Assert-ContainsText -Text (($summary.catalog_exemplars | ForEach-Object { [string]$_.exemplar_catalog_path }) -join "`n") `
         -ExpectedText "contract/exemplar.numbering-catalog.json" `
         -Message "Aggregate rollup should include contract exemplar catalog path."
@@ -247,6 +266,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate rollup should preserve warning source schema."
     Assert-Equal -Actual ([int]$styleMergeWarning[0].style_merge_suggestion_count) -Expected 3 `
         -Message "Aggregate rollup should preserve warning style merge counts."
+    Assert-Equal -Actual ([int]$styleMergeWarning[0].style_merge_suggestion_pending_count) -Expected 3 `
+        -Message "Aggregate rollup should preserve warning pending style merge counts."
 
     $issueSummaryText = ($summary.issue_summary | ForEach-Object { "$($_.issue):$($_.count)" }) -join "`n"
     Assert-ContainsText -Text $issueSummaryText -ExpectedText "missing_numbering_definition:2" `
@@ -265,6 +286,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should include issue summary."
     Assert-ContainsText -Text $markdown -ExpectedText "style_merge_suggestions=``2``" `
         -Message "Markdown report should include per-document style merge suggestion counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "pending_style_merge_suggestions=``2``" `
+        -Message "Markdown report should include per-document pending style merge suggestion counts."
     Assert-ContainsText -Text $markdown -ExpectedText "### Document skeleton governance rollup warnings" `
         -Message "Markdown report should include warning subsection."
     Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `1`' `
@@ -273,6 +296,46 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should include warning source schema."
     Assert-ContainsText -Text $markdown -ExpectedText 'style_merge_suggestion_count: `3`' `
         -Message "Markdown report should include warning style merge counts."
+}
+
+if (Test-Scenario -Name "style_merge_review") {
+    $reviewRoot = Join-Path $resolvedWorkingDir "style-merge-review-input"
+    $reviewOutputDir = Join-Path $resolvedWorkingDir "style-merge-review-output"
+    $reviewedReportPath = Join-Path $reviewRoot "reviewed\document_skeleton_governance.summary.json"
+
+    Write-JsonFile -Path $reviewedReportPath -Value (New-SkeletonSummary `
+        -InputDocx "samples/reviewed.docx" `
+        -CatalogPath "output/document-skeleton-governance/reviewed/exemplar.numbering-catalog.json" `
+        -Status "clean" `
+        -StyleMergeSuggestionCount 2 `
+        -StyleMergeSuggestionPendingCount 0 `
+        -StyleMergeReviewStatus "reviewed" `
+        -UsageTotal 3)
+
+    $reviewResult = Invoke-RollupScript -Arguments @(
+        "-InputRoot", $reviewRoot,
+        "-OutputDir", $reviewOutputDir
+    )
+    Assert-Equal -Actual $reviewResult.ExitCode -Expected 0 `
+        -Message "Reviewed style merge suggestions should not keep rollup in needs_review. Output: $($reviewResult.Text)"
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $reviewOutputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "clean" `
+        -Message "Reviewed style merge suggestions should allow a clean rollup status."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_count) -Expected 2 `
+        -Message "Rollup should preserve total reviewed style merge suggestions."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_pending_count) -Expected 0 `
+        -Message "Rollup should not report reviewed style merge suggestions as pending."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
+        -Message "Rollup should not emit pending warning after full review."
+    Assert-Equal -Actual ([string]$summary.document_entries[0].style_merge_review_status) -Expected "reviewed" `
+        -Message "Rollup should expose reviewed style merge status per document."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $reviewOutputDir "document_skeleton_governance_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Pending style-merge suggestions: ``0``" `
+        -Message "Markdown should show zero pending style merge suggestions."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review=``reviewed``" `
+        -Message "Markdown should show reviewed style merge status."
 }
 
 if (Test-Scenario -Name "empty") {
