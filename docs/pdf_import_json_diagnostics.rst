@@ -101,6 +101,11 @@ Use ``blocker`` as the first triage field when a table was kept separate:
   cross-page continuation.
 - ``not_near_page_top`` means the candidate started too far below the top of
   the page to be treated as a carried-over table.
+- ``inconsistent_source_rows`` is an internal consistency guard for malformed
+  table candidates whose rows do not share the same cell count. The current
+  PDF parser normally builds consistent rows from column anchors, so this
+  blocker is documented as a defensive fallback rather than a user-facing
+  fixture example.
 
 For example, a semantic repeated-header mismatch may report:
 

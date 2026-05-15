@@ -3395,6 +3395,15 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 剩余 `inconsistent_source_rows` 目前仍缺少稳定 PDF fixture；继续 E7 时应优先判断是否需要新增专门样本，
   或把该 blocker 保持为内部保守兜底并在文档中明确触发条件。
 
+2026-05-15 继续推进（PDF import blocker 覆盖契约）：
+
+- 已将 `inconsistent_source_rows` 在 `docs/pdf_import_json_diagnostics.rst` 中明确标记为内部一致性兜底：
+  当前 PDF parser 按 column anchors 预填 rows，正常用户样本不应稳定触发该 blocker。
+- 已扩展 `pdf_import_docs_contract_test.ps1`，从 `PdfTableContinuationBlocker` enum 和
+  `pdf_cli_import_tests.cpp` 的 JSON 断言反向校验：除 `none` 与内部兜底
+  `inconsistent_source_rows` 外，每个 blocker 都必须有 CLI JSON 覆盖。
+- 这样后续如果新增 continuation blocker，测试会要求同步 CLI 层可见覆盖，避免只改 importer 内部映射。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

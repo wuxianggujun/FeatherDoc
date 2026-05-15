@@ -98,6 +98,22 @@ function Assert-CliMapsEnumMembers {
     }
 }
 
+function Get-CliJsonBlockerMembers {
+    param(
+        [string]$Text
+    )
+
+    $members = @()
+    foreach ($match in [regex]::Matches($Text, '"blocker":"(?<member>[A-Za-z_][A-Za-z0-9_]*)"')) {
+        $member = $match.Groups["member"].Value
+        if ($members -notcontains $member) {
+            $members += $member
+        }
+    }
+
+    return $members
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 }
@@ -112,6 +128,7 @@ $readmeZhPath = Join-Path $resolvedRepoRoot "README.zh-CN.md"
 $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
 $cliPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli.cpp"
+$pdfCliImportTestsPath = Join-Path $resolvedRepoRoot "test\pdf_cli_import_tests.cpp"
 
 $pdfImportDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportDocsPath
 $pdfImportJsonDiagnosticsDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportJsonDiagnosticsDocsPath
@@ -122,6 +139,7 @@ $readmeZhText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeZhPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
 $cliText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cliPath
+$pdfCliImportTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportTestsPath
 
 $requiredPdfImportDocsTerms = @(
     "PDF Import",
@@ -169,6 +187,7 @@ $requiredPdfImportJsonDiagnosticsDocsTerms = @(
     "not_first_block_on_page",
     "not_near_page_top",
     "inconsistent_source_rows",
+    "internal consistency guard",
     "column_count_mismatch",
     "column_anchors_mismatch",
     "repeated_header_mismatch",
@@ -275,6 +294,21 @@ Assert-CliMapsEnumMembers `
     -Text $cliText `
     -Members $headerMatchKindMembers `
     -Label "cli/featherdoc_cli.cpp"
+
+$cliJsonBlockerMembers = Get-CliJsonBlockerMembers -Text $pdfCliImportTestsText
+foreach ($blockerMember in $blockerMembers) {
+    if ($blockerMember -in @("none", "inconsistent_source_rows")) {
+        continue
+    }
+
+    if ($cliJsonBlockerMembers -notcontains $blockerMember) {
+        throw "test/pdf_cli_import_tests.cpp does not cover blocker '$blockerMember' in CLI JSON assertions."
+    }
+}
+Assert-ContainsText `
+    -Text $pdfImportJsonDiagnosticsDocsText `
+    -ExpectedText '``inconsistent_source_rows`` is an internal consistency guard' `
+    -Label "docs/pdf_import_json_diagnostics.rst"
 
 Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import" -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import_json_diagnostics" -Label "docs/index.rst"
