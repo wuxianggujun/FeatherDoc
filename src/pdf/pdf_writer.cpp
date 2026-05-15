@@ -759,6 +759,7 @@ create_shaped_width_array(pdfio_file_t *pdf,
 [[nodiscard]] pdfio_obj_t *
 create_shaped_glyph_font(pdfio_file_t *pdf, const FontResourceKey &key,
                          const GlyphFontResource &resource,
+                         bool subset_unicode_fonts,
                          std::string &error_message) {
     if (resource.entries.empty()) {
         error_message = "Shaped PDF glyph font has no glyphs: " +
@@ -776,7 +777,7 @@ create_shaped_glyph_font(pdfio_file_t *pdf, const FontResourceKey &key,
     pdfio_obj_t *font_file = nullptr;
     std::vector<unsigned char> subset_font_data;
 #if defined(FEATHERDOC_ENABLE_PDF_FONT_SUBSET)
-    if (!resource.glyph_ids.empty()) {
+    if (subset_unicode_fonts && !resource.glyph_ids.empty()) {
         const auto subset_result =
             subset_font_file_for_glyph_ids(key.file_path, resource.glyph_ids);
         if (subset_result.success && !subset_result.font_data.empty()) {
@@ -790,6 +791,8 @@ create_shaped_glyph_font(pdfio_file_t *pdf, const FontResourceKey &key,
                 font_label(key), error_message);
         }
     }
+#else
+    (void)subset_unicode_fonts;
 #endif
     if (font_file == nullptr) {
         font_file = create_font_file_object(pdf, key, error_message);
@@ -1375,7 +1378,8 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
                 return false;
             }
             pdfio_obj_t *font = create_shaped_glyph_font(
-                pdf, font_key, glyph_resource->second, error_message);
+                pdf, font_key, glyph_resource->second,
+                options.subset_unicode_fonts, error_message);
             if (font == nullptr) {
                 if (error_message.empty()) {
                     error_message =

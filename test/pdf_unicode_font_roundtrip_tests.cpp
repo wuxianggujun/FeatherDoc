@@ -515,6 +515,89 @@ TEST_CASE("PDFio writes shaped glyph CID text without duplicate extraction") {
     CHECK_EQ(count_occurrences(extracted_text, expected_text), 1U);
 }
 
+TEST_CASE("PDFio subsets shaped glyph CID font data") {
+    const auto font_path = find_cjk_font();
+    if (font_path.empty()) {
+        MESSAGE("skipping shaped glyph subset smoke: no CJK font found; set "
+                "FEATHERDOC_TEST_CJK_FONT to run it");
+        return;
+    }
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        MESSAGE("skipping shaped glyph subset smoke: HarfBuzz unavailable");
+        return;
+    }
+
+    const auto expected_text = utf8_from_u8(u8"涓枃 shaped glyph subset ABC 123");
+    constexpr double font_size = 18.0;
+    auto glyph_run = featherdoc::pdf::shape_pdf_text(
+        expected_text,
+        featherdoc::pdf::PdfTextShaperOptions{font_path, font_size});
+    if (!glyph_run.used_harfbuzz || !glyph_run.error_message.empty() ||
+        glyph_run.glyphs.empty() ||
+        glyph_run.direction != featherdoc::pdf::PdfGlyphDirection::left_to_right) {
+        MESSAGE("skipping shaped glyph subset smoke: shaping failed or did "
+                "not produce an LTR run");
+        return;
+    }
+
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title = "FeatherDoc shaped glyph subset";
+    layout.metadata.creator = "FeatherDoc test";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.size = featherdoc::pdf::PdfPageSize::a4_portrait();
+    page.text_runs.push_back(featherdoc::pdf::PdfTextRun{
+        featherdoc::pdf::PdfPoint{72.0, 720.0},
+        expected_text,
+        "CJK Shaped Test Font",
+        font_path,
+        font_size,
+        featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
+        false,
+        false,
+        false,
+        true,
+        0.0,
+        false,
+        false,
+        std::move(glyph_run),
+    });
+    layout.pages.push_back(std::move(page));
+
+    const auto subset_path =
+        std::filesystem::current_path() / "featherdoc-shaped-glyph-subset.pdf";
+    const auto full_path =
+        std::filesystem::current_path() / "featherdoc-shaped-glyph-full.pdf";
+
+    featherdoc::pdf::PdfioGenerator generator;
+    featherdoc::pdf::PdfWriterOptions full_options;
+    full_options.subset_unicode_fonts = false;
+    const auto full_result = generator.write(layout, full_path, full_options);
+    REQUIRE_MESSAGE(full_result.success, full_result.error_message);
+
+    featherdoc::pdf::PdfWriterOptions subset_options;
+    subset_options.subset_unicode_fonts = true;
+    const auto subset_result =
+        generator.write(layout, subset_path, subset_options);
+    REQUIRE_MESSAGE(subset_result.success, subset_result.error_message);
+
+#if defined(FEATHERDOC_ENABLE_PDF_FONT_SUBSET)
+    CHECK_GT(full_result.bytes_written, subset_result.bytes_written);
+#endif
+
+    const auto subset_pdf_bytes = read_file_bytes(subset_path);
+    CHECK_NE(subset_pdf_bytes.find("/CIDToGIDMap"), std::string::npos);
+    CHECK_NE(subset_pdf_bytes.find("/ToUnicode"), std::string::npos);
+    CHECK_NE(subset_pdf_bytes.find("/Identity-H"), std::string::npos);
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(subset_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+
+    const auto extracted_text = collect_text(parse_result.document);
+    CHECK_EQ(count_occurrences(extracted_text, expected_text), 1U);
+}
+
 TEST_CASE("PDFio positions shaped glyph CIDs when glyph offsets are present") {
     const auto font_path = find_latin_font();
     if (font_path.empty()) {

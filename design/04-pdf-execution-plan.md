@@ -2977,6 +2977,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   `document-eastasia-style-probe`、`list-report-text` 触发页数级 PDF 大小阈值。
   已让 shaped glyph CID 字体复用 HarfBuzz glyph-id subset，并保留失败时回退完整字体的行为。
   修复后失败样本输出分别收敛到约 39KB、29KB、1.19MB。
+- 继续补齐 shaped glyph subset 的 writer option 语义：`subset_unicode_fonts=false`
+  现在同样会让 shaped glyph CID 字体回退完整字体嵌入，`true` 时才走 HarfBuzz
+  glyph-id subset；`pdf_unicode_font_roundtrip` 已新增 shaped glyph CJK full/subset
+  直接对比，避免只靠 regression PDF 大小阈值间接覆盖。
 - 下一阶段入口：
   当前已覆盖 Document RTL metadata 到 writer fallback 的闭环；真正支持 RTL glyph-id stream
   前，需要先形成独立验收样本，明确 visual order、logical text extraction、glyph advance
