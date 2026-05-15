@@ -114,6 +114,68 @@ function Get-CliJsonBlockerMembers {
     return $members
 }
 
+function Get-RstCodeBlocks {
+    param(
+        [string]$Text,
+        [string]$Language
+    )
+
+    $lines = $Text -split "`r?`n"
+    $blocks = @()
+    for ($index = 0; $index -lt $lines.Count; ++$index) {
+        if ($lines[$index] -notmatch ('^\.\. code-block::\s+' + [regex]::Escape($Language) + '\s*$')) {
+            continue
+        }
+
+        $blockLines = @()
+        for ($lineIndex = $index + 1; $lineIndex -lt $lines.Count; ++$lineIndex) {
+            $line = $lines[$lineIndex]
+            if ([string]::IsNullOrWhiteSpace($line)) {
+                if ($blockLines.Count -gt 0) {
+                    $blockLines += ""
+                }
+                continue
+            }
+
+            if ($line -match '^    (?<body>.*)$') {
+                $blockLines += $matches["body"]
+                continue
+            }
+
+            if ($blockLines.Count -gt 0) {
+                break
+            }
+        }
+
+        if ($blockLines.Count -gt 0) {
+            $blocks += (($blockLines -join "`n").Trim())
+        }
+    }
+
+    return $blocks
+}
+
+function Assert-RstJsonCodeBlocksParse {
+    param(
+        [string]$Text,
+        [string]$Label
+    )
+
+    $blocks = @(Get-RstCodeBlocks -Text $Text -Language "json")
+    if ($blocks.Count -eq 0) {
+        throw "$Label does not contain any JSON code blocks."
+    }
+
+    for ($index = 0; $index -lt $blocks.Count; ++$index) {
+        try {
+            $null = $blocks[$index] | ConvertFrom-Json
+        }
+        catch {
+            throw "$Label JSON code block $($index + 1) is not valid JSON: $($_.Exception.Message)"
+        }
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 }
@@ -244,6 +306,9 @@ foreach ($term in $requiredPdfImportDocsTerms) {
 foreach ($term in $requiredPdfImportJsonDiagnosticsDocsTerms) {
     Assert-ContainsText -Text $pdfImportJsonDiagnosticsDocsText -ExpectedText $term -Label "docs/pdf_import_json_diagnostics.rst"
 }
+Assert-RstJsonCodeBlocksParse `
+    -Text $pdfImportJsonDiagnosticsDocsText `
+    -Label "docs/pdf_import_json_diagnostics.rst"
 
 foreach ($term in $requiredPdfImportScopeDocsTerms) {
     Assert-ContainsText -Text $pdfImportScopeDocsText -ExpectedText $term -Label "docs/pdf_import_scope.rst"

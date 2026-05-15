@@ -3411,6 +3411,12 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 已记录 `--min-table-continuation-confidence` 缺值、非法值、重复值三类当前 CLI 已覆盖的错误消息。
 - 已扩展 `pdf_import_docs_contract_test.ps1` 固定这些 parse-error 文档片段，避免 CLI 负路径 JSON 契约只留在测试里。
 
+2026-05-15 继续推进（PDF import 文档 JSON 示例解析契约）：
+
+- 已扩展 `pdf_import_docs_contract_test.ps1`，解析 `docs/pdf_import_json_diagnostics.rst` 中全部
+  `.. code-block:: json` 示例并逐个执行 `ConvertFrom-Json`。
+- 该契约确保后续补充 success、failure、continuation blocker 或 parse-error 示例时，文档里的 JSON 片段本身保持可解析。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
