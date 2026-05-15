@@ -3323,6 +3323,15 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   `stage:"parse"` 和对应错误消息，避免被误归类为 import 阶段失败。
 - 本轮不改变 CLI 行为，只补齐 confidence 阈值参数的负路径 JSON 契约。
 
+2026-05-15 继续推进（PDF CLI CTest 超时治理）：
+
+- 已给 `pdf_cli_export` 和 `pdf_cli_import` 两个 CTest 入口补上 `TIMEOUT 60`，
+  对齐 PDF 执行计划中后台测试统一 60 秒超时的约束。
+- 本轮不改变 CLI 导入/导出行为，只收紧 CTest 调度边界，避免本地或 CI 后台任务
+  因 fixture、字体环境或进程异常而无界等待。
+- 继续 E7 时，可优先把 PDF CLI import/export 作为轻量烟测集合，配合
+  `cli;smoke;pdf` 标签筛选执行。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
