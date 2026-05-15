@@ -264,6 +264,7 @@ function New-ReportMarkdown {
     $lines.Add(("- exemplar_catalog: ``{0}``" -f $Summary.exemplar_catalog_path)) | Out-Null
     $lines.Add(("- style_numbering_issue_count: ``{0}``" -f $Summary.style_numbering_issue_count)) | Out-Null
     $lines.Add(("- style_numbering_suggestion_count: ``{0}``" -f $Summary.style_numbering_suggestion_count)) | Out-Null
+    $lines.Add(("- style_merge_suggestion_count: ``{0}``" -f $Summary.style_merge_suggestion_count)) | Out-Null
     $lines.Add(("- release_blocker_count: ``{0}``" -f $Summary.release_blocker_count)) | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("## Issue Summary") | Out-Null
@@ -327,9 +328,11 @@ $markdownPath = if ([string]::IsNullOrWhiteSpace($ReportMarkdown)) {
     Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $ReportMarkdown -AllowMissing
 }
 $catalogPath = Join-Path $resolvedOutputDir "exemplar.numbering-catalog.json"
+$styleMergePlanPath = Join-Path $resolvedOutputDir "style-merge-suggestions.json"
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($summaryPath))
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($markdownPath))
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($catalogPath))
+Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($styleMergePlanPath))
 
 Write-Step "Resolving featherdoc_cli"
 $resolvedCliPath = if ([string]::IsNullOrWhiteSpace($CliPath)) {
@@ -362,10 +365,31 @@ $styleUsageResult = Invoke-CliJson -ExecutablePath $resolvedCliPath -Command "in
     "--json"
 )
 
+Write-Step "Collecting duplicate style merge suggestions"
+$styleMergeSuggestionResult = Invoke-CliJson -ExecutablePath $resolvedCliPath -Command "suggest-style-merges" -Arguments @(
+    "suggest-style-merges",
+    $resolvedInputDocx,
+    "--confidence-profile",
+    "recommended",
+    "--output-plan",
+    $styleMergePlanPath,
+    "--json"
+)
+
 $catalogJson = Read-JsonFileOrNull -Path $catalogPath
 $styleNumbering = $styleNumberingResult.json
 $styleUsage = $styleUsageResult.json
 $styleUsageEntries = @(Get-JsonArrayValue -Object $styleUsage -Names @("entries", "styles"))
+$styleMergeSuggestions = $styleMergeSuggestionResult.json
+$styleMergeSuggestionOperations = @(Get-JsonArrayValue -Object $styleMergeSuggestions -Names @("operations"))
+$styleMergeSuggestionConfidenceSummary = Get-JsonPropertyValue `
+    -Object $styleMergeSuggestions `
+    -Names @("suggestion_confidence_summary") `
+    -DefaultValue ([ordered]@{})
+$styleMergeSuggestionCount = Get-JsonIntValue `
+    -Object $styleMergeSuggestionConfidenceSummary `
+    -Names @("suggestion_count") `
+    -DefaultValue (Get-JsonIntValue -Object $styleMergeSuggestions -Names @("operation_count") -DefaultValue $styleMergeSuggestionOperations.Count)
 
 $styleNumberingIssues = @(Get-JsonArrayValue -Object $styleNumbering -Names @("issues"))
 $issueSummary = @(New-IssueSummary -Issues $styleNumberingIssues)
@@ -386,7 +410,7 @@ foreach ($entry in $styleUsageEntries) {
     $styleUsageTotal += Get-JsonIntValue -Object $usage -Names @("total_count")
 }
 
-$commands = @($exportResult, $styleNumberingResult, $styleUsageResult) |
+$commands = @($exportResult, $styleNumberingResult, $styleUsageResult, $styleMergeSuggestionResult) |
     ForEach-Object {
         [ordered]@{
             command = $_.command
@@ -420,6 +444,7 @@ if ($issueCount -gt 0) {
 
 $inputForCommand = Convert-ToReportPath -RepoRoot $repoRoot -Path $resolvedInputDocx
 $catalogForCommand = Convert-ToReportPath -RepoRoot $repoRoot -Path $catalogPath
+$styleMergePlanForCommand = Convert-ToReportPath -RepoRoot $repoRoot -Path $styleMergePlanPath
 $actionItems = @()
 if ($issueCount -gt 0) {
     $actionItems += New-ActionItem `
@@ -433,6 +458,12 @@ if ($suggestionCount -gt 0) {
         -Title "Preview safe style-numbering repairs against the exported catalog" `
         -Command ("featherdoc_cli repair-style-numbering " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " --catalog-file " + (ConvertTo-CommandLine -Arguments @($catalogForCommand)) + " --plan-only --json")
 }
+if ($styleMergeSuggestionCount -gt 0) {
+    $actionItems += New-ActionItem `
+        -Id "review_style_merge_suggestions" `
+        -Title "Review duplicate style merge suggestions before applying refactors" `
+        -Command ("featherdoc_cli suggest-style-merges " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " --confidence-profile recommended --output-plan " + (ConvertTo-CommandLine -Arguments @($styleMergePlanForCommand)) + " --json")
+}
 $actionItems += New-ActionItem `
     -Id "promote_numbering_catalog_exemplar" `
     -Title "Review and promote the generated exemplar numbering catalog" `
@@ -445,6 +476,8 @@ $actionItems += New-ActionItem `
 $status = if ($commandFailureCount -gt 0) {
     "failed"
 } elseif ($issueCount -gt 0) {
+    "needs_review"
+} elseif ($styleMergeSuggestionCount -gt 0) {
     "needs_review"
 } else {
     "clean"
@@ -462,6 +495,8 @@ $summary = [ordered]@{
     report_markdown = $markdownPath
     exemplar_catalog_path = $catalogPath
     exemplar_catalog_relative_path = $catalogForCommand
+    style_merge_suggestion_plan_path = $styleMergePlanPath
+    style_merge_suggestion_plan_relative_path = $styleMergePlanForCommand
     numbering_catalog_path = $catalogPath
     numbering_catalog = [ordered]@{
         definition_count = $numberingDefinitionCount
@@ -470,6 +505,9 @@ $summary = [ordered]@{
     export_numbering_catalog = $exportResult.json
     style_numbering_audit = $styleNumbering
     style_usage_report = $styleUsage
+    style_merge_suggestions = $styleMergeSuggestions
+    style_merge_suggestion_count = $styleMergeSuggestionCount
+    style_merge_suggestion_confidence_summary = $styleMergeSuggestionConfidenceSummary
     style_numbering_clean = Get-JsonBoolValue -Object $styleNumbering -Names @("clean") -DefaultValue $true
     style_numbering_issue_count = $issueCount
     style_numbering_suggestion_count = $suggestionCount

@@ -107,6 +107,18 @@ switch (`$command) {
         Write-Output '{"command":"inspect-styles","style_count":3,"entries":[{"style":{"style_id":"Heading1"},"usage":{"style_id":"Heading1","paragraph_count":2,"run_count":0,"table_count":0,"total_count":2,"hits":[]}},{"style":{"style_id":"BodyText"},"usage":{"style_id":"BodyText","paragraph_count":1,"run_count":1,"table_count":1,"total_count":3,"hits":[]}}]}'
         exit 0
     }
+    "suggest-style-merges" {
+        `$outputIndex = [Array]::IndexOf(`$Args, "--output-plan")
+        if (`$outputIndex -lt 0 -or `$outputIndex + 1 -ge `$Args.Count) {
+            Write-Output '{"command":"suggest-style-merges","error":"missing output plan"}'
+            exit 2
+        }
+        `$planPath = `$Args[`$outputIndex + 1]
+        New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName(`$planPath)) -Force | Out-Null
+        Set-Content -LiteralPath `$planPath -Encoding UTF8 -Value '{"command":"suggest-style-merges","clean":true,"operation_count":1,"applyable_count":1,"issue_count":0,"suggestion_confidence_summary":{"suggestion_count":1,"min_confidence":95,"max_confidence":95,"exact_xml_match_count":1,"xml_difference_count":0,"recommended_min_confidence":95,"recommendation":"review duplicate style merge suggestions before automation gates"},"operations":[{"action":"merge","source_style_id":"DuplicateBodyB","target_style_id":"DuplicateBodyA","applyable":true,"suggestion":{"reason_code":"matching_style_signature_and_xml","confidence":95}}]}'
+        Write-Output '{"command":"suggest-style-merges","clean":true,"operation_count":1,"applyable_count":1,"issue_count":0,"suggestion_confidence_summary":{"suggestion_count":1,"min_confidence":95,"max_confidence":95,"exact_xml_match_count":1,"xml_difference_count":0,"recommended_min_confidence":95,"recommendation":"review duplicate style merge suggestions before automation gates"},"operations":[{"action":"merge","source_style_id":"DuplicateBodyB","target_style_id":"DuplicateBodyA","applyable":true,"suggestion":{"reason_code":"matching_style_signature_and_xml","confidence":95}}]}'
+        exit 0
+    }
 $auditBlock
     default {
         Write-Output ('{"command":"' + `$command + '","error":"unexpected command"}')
@@ -144,12 +156,15 @@ if (Test-Scenario -Name "passing") {
     $summaryPath = Join-Path $passingOutputDir "document_skeleton_governance.summary.json"
     $markdownPath = Join-Path $passingOutputDir "document_skeleton_governance.md"
     $catalogPath = Join-Path $passingOutputDir "exemplar.numbering-catalog.json"
+    $styleMergePlanPath = Join-Path $passingOutputDir "style-merge-suggestions.json"
     Assert-True -Condition (Test-Path -LiteralPath $summaryPath) `
         -Message "Governance report should write summary.json."
     Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
         -Message "Governance report should write Markdown report."
     Assert-True -Condition (Test-Path -LiteralPath $catalogPath) `
         -Message "Governance report should export the exemplar numbering catalog."
+    Assert-True -Condition (Test-Path -LiteralPath $styleMergePlanPath) `
+        -Message "Governance report should persist style merge suggestions."
 
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([int]$summary.numbering_catalog.definition_count) -Expected 2 `
@@ -160,20 +175,34 @@ if (Test-Scenario -Name "passing") {
         -Message "Summary should aggregate style usage totals."
     Assert-Equal -Actual ([int]$summary.style_numbering_audit.issue_count) -Expected 2 `
         -Message "Summary should include style-numbering audit issue count."
+    Assert-Equal -Actual ([int]$summary.style_merge_suggestion_count) -Expected 1 `
+        -Message "Summary should include style merge suggestion count."
+    Assert-Equal -Actual ([int]$summary.style_merge_suggestion_confidence_summary.recommended_min_confidence) -Expected 95 `
+        -Message "Summary should include style merge confidence summary."
+    Assert-ContainsText -Text ([string]$summary.style_merge_suggestion_plan_relative_path) -ExpectedText "style-merge-suggestions.json" `
+        -Message "Summary should expose the style merge plan path."
     Assert-Equal -Actual ([int]$summary.issue_summary[0].count) -Expected 2 `
         -Message "Summary should group style-numbering issues."
-    Assert-Equal -Actual ([int]$summary.next_steps.Count) -Expected 4 `
+    Assert-Equal -Actual ([int]$summary.next_steps.Count) -Expected 5 `
         -Message "Summary should include suggested next-step commands."
     Assert-ContainsText -Text (($summary.next_steps | ForEach-Object { [string]$_.command }) -join "`n") -ExpectedText "repair-style-numbering" `
         -Message "Next steps should include repair preview command."
+    Assert-ContainsText -Text (($summary.next_steps | ForEach-Object { [string]$_.id }) -join "`n") -ExpectedText "review_style_merge_suggestions" `
+        -Message "Next steps should include style merge review command."
+    Assert-ContainsText -Text (($summary.commands | ForEach-Object { [string]$_.command }) -join "`n") -ExpectedText "suggest-style-merges" `
+        -Message "Summary should include suggest-style-merges command results."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "exemplar_catalog:" `
         -Message "Markdown report should show exemplar catalog path."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_suggestion_count:" `
+        -Message "Markdown report should show style merge suggestion count."
     Assert-ContainsText -Text $markdown -ExpectedText "Issue Summary" `
         -Message "Markdown report should include issue summary section."
     Assert-ContainsText -Text $markdown -ExpectedText "repair-style-numbering" `
         -Message "Markdown report should include suggested commands."
+    Assert-ContainsText -Text $markdown -ExpectedText "suggest-style-merges" `
+        -Message "Markdown report should include style merge suggestion commands."
 }
 
 if (Test-Scenario -Name "failing") {

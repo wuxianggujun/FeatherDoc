@@ -83,6 +83,7 @@ function New-SkeletonSummary {
         [int]$InstanceCount = 1,
         [int]$IssueCount = 0,
         [int]$SuggestionCount = 0,
+        [int]$StyleMergeSuggestionCount = 0,
         [int]$UsageTotal = 0,
         [object[]]$IssueSummary = @(),
         [object[]]$ReleaseBlockers = @(),
@@ -105,6 +106,7 @@ function New-SkeletonSummary {
         }
         style_numbering_issue_count = $IssueCount
         style_numbering_suggestion_count = $SuggestionCount
+        style_merge_suggestion_count = $StyleMergeSuggestionCount
         numbered_style_count = 2
         issue_summary = @($IssueSummary)
         style_usage = [ordered]@{
@@ -138,6 +140,7 @@ if (Test-Scenario -Name "aggregate") {
         -Status "clean" `
         -DefinitionCount 2 `
         -InstanceCount 3 `
+        -StyleMergeSuggestionCount 1 `
         -UsageTotal 5 `
         -ActionItems @(
             [ordered]@{
@@ -155,6 +158,7 @@ if (Test-Scenario -Name "aggregate") {
         -InstanceCount 6 `
         -IssueCount 3 `
         -SuggestionCount 2 `
+        -StyleMergeSuggestionCount 2 `
         -UsageTotal 9 `
         -IssueSummary @(
             [ordered]@{ issue = "missing_numbering_definition"; count = 2 },
@@ -211,6 +215,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate rollup should sum style-numbering issues."
     Assert-Equal -Actual ([int]$summary.total_style_numbering_suggestion_count) -Expected 2 `
         -Message "Aggregate rollup should sum style-numbering suggestions."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_count) -Expected 3 `
+        -Message "Aggregate rollup should sum style merge suggestions."
     Assert-Equal -Actual ([int]$summary.total_numbering_definition_count) -Expected 6 `
         -Message "Aggregate rollup should sum catalog definition counts."
     Assert-Equal -Actual ([int]$summary.total_numbering_instance_count) -Expected 9 `
@@ -223,6 +229,16 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate rollup should preserve action items."
     Assert-Equal -Actual ([int]$summary.catalog_exemplar_count) -Expected 2 `
         -Message "Aggregate rollup should expose per-document exemplar catalogs."
+    $invoiceEntry = @($summary.document_entries | Where-Object { $_.document_name -eq "invoice.docx" } | Select-Object -First 1)
+    $contractEntry = @($summary.document_entries | Where-Object { $_.document_name -eq "contract.docx" } | Select-Object -First 1)
+    Assert-True -Condition ($null -ne $invoiceEntry) `
+        -Message "Aggregate rollup should include the invoice document entry."
+    Assert-True -Condition ($null -ne $contractEntry) `
+        -Message "Aggregate rollup should include the contract document entry."
+    Assert-Equal -Actual ([int]$invoiceEntry.style_merge_suggestion_count) -Expected 1 `
+        -Message "Aggregate rollup should expose invoice style merge suggestion counts."
+    Assert-Equal -Actual ([int]$contractEntry.style_merge_suggestion_count) -Expected 2 `
+        -Message "Aggregate rollup should expose contract style merge suggestion counts."
     Assert-ContainsText -Text (($summary.catalog_exemplars | ForEach-Object { [string]$_.exemplar_catalog_path }) -join "`n") `
         -ExpectedText "contract/exemplar.numbering-catalog.json" `
         -Message "Aggregate rollup should include contract exemplar catalog path."
@@ -242,6 +258,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should include source document names."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_numbering_definition" `
         -Message "Markdown report should include issue summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_suggestions=``2``" `
+        -Message "Markdown report should include per-document style merge suggestion counts."
 }
 
 if (Test-Scenario -Name "empty") {
