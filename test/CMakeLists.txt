@@ -634,6 +634,23 @@ if(WIN32)
             ${PROJECT_SOURCE_DIR}
         )
 
+        add_test(
+            NAME
+            pdf_import_docs_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_import_docs_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+        )
+        set_tests_properties(pdf_import_docs_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;docs;smoke")
+
         if(TARGET pdf_unicode_font_roundtrip_tests)
             add_test(
                 NAME

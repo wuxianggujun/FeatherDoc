@@ -3241,6 +3241,20 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 本轮未改动生产代码；验证范围保持为 `git diff --check`、暂存区空白检查和
   文档引用检索。Sphinx 构建仍受本机缺少 `sphinx` 模块限制，未执行。
 
+2026-05-15 继续推进（PDF import 文档契约回归）：
+
+- 已新增 `test/pdf_import_docs_contract_test.ps1`，固定 `docs/pdf_import.rst`
+  必须包含成功 JSON、失败 JSON、continuation diagnostics 字段、`failure_kind`
+  枚举和支持范围入口。
+- 已把 `pdf_import_docs_contract` 挂入 `test/CMakeLists.txt` 的 Windows
+  PowerShell 测试集合，并设置 60 秒超时和 `pdf;docs;smoke` 标签。
+- 回归同时检查 `docs/index.rst` hidden toctree 仍注册 `pdf_import`，首页只保留
+  `:doc:`pdf_import`` 短入口，且中英文 README 的字段级 schema 指向
+  `docs/pdf_import.rst`。
+- 本轮验证通过：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\test\pdf_import_docs_contract_test.ps1 -RepoRoot .`
+  和 `git diff --check`。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
