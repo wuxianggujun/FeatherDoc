@@ -165,19 +165,27 @@ Set-Content -LiteralPath $installedPdfImportDocsPath -Encoding UTF8 -Value @'
 PDF Import
 ==========
 
-Install package copy for release asset packaging regression.
+Package copy for release asset packaging regression.
+
+- PDF Import JSON Diagnostics (:doc:`pdf_import_json_diagnostics`)
+- PDF Import Supported Scope And Limits (:doc:`pdf_import_scope`)
 '@
 Set-Content -LiteralPath $installedPdfImportJsonDiagnosticsDocsPath -Encoding UTF8 -Value @'
 PDF Import JSON Diagnostics
 ===========================
 
-Install package copy for release asset packaging regression.
+Command-line parse errors
+-------------------------
+
+Package copy for release asset packaging regression.
 '@
 Set-Content -LiteralPath $installedPdfImportScopeDocsPath -Encoding UTF8 -Value @'
 PDF Import Supported Scope And Limits
 =====================================
 
-Install package copy for release asset packaging regression.
+PDF import supported scope and limits.
+
+Package copy for release asset packaging regression.
 '@
 
 Set-Content -LiteralPath (Join-Path $smokeEvidenceDir "README.md") -Encoding UTF8 -Value @"
@@ -284,8 +292,12 @@ Assert-Contains -Path $stagedInstalledReadmePath -ExpectedText '<windows-absolut
 Assert-Contains -Path $stagedInstalledChangelogPath -ExpectedText 'preview' -Label 'staged installed CHANGELOG.md'
 Assert-Contains -Path $stagedInstalledChangelogPath -ExpectedText '<windows-absolute-path>' -Label 'staged installed CHANGELOG.md'
 Assert-Contains -Path $stagedInstalledPdfImportDocsPath -ExpectedText 'PDF Import' -Label 'staged installed PDF import docs'
+Assert-Contains -Path $stagedInstalledPdfImportDocsPath -ExpectedText 'pdf_import_json_diagnostics' -Label 'staged installed PDF import docs'
+Assert-Contains -Path $stagedInstalledPdfImportDocsPath -ExpectedText 'pdf_import_scope' -Label 'staged installed PDF import docs'
 Assert-Contains -Path $stagedInstalledPdfImportJsonDiagnosticsDocsPath -ExpectedText 'PDF Import JSON Diagnostics' -Label 'staged installed PDF import JSON diagnostics docs'
+Assert-Contains -Path $stagedInstalledPdfImportJsonDiagnosticsDocsPath -ExpectedText 'Command-line parse errors' -Label 'staged installed PDF import JSON diagnostics docs'
 Assert-Contains -Path $stagedInstalledPdfImportScopeDocsPath -ExpectedText 'PDF Import Supported Scope And Limits' -Label 'staged installed PDF import scope docs'
+Assert-Contains -Path $stagedInstalledPdfImportScopeDocsPath -ExpectedText 'PDF import supported scope and limits' -Label 'staged installed PDF import scope docs'
 if ($stagedSummary.release_handoff -ne $expectedRelativeHandoff) {
     throw "staged summary.json did not rewrite release_handoff to the expected relative path."
 }

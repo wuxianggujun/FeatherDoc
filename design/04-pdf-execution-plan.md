@@ -3467,6 +3467,13 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   编号列表、短标签正文和 free-form column drift 保持段落的测试覆盖。
 - 这样后续若扩展或重写 scope 文档，必须同时保留可追溯的测试覆盖入口，避免范围说明脱离回归样本。
 
+2026-05-15 继续推进（PDF import 发布包内容入口契约）：
+
+- 已增强 `package_release_assets_safety_test.ps1` 的安装包桩文档，让 `pdf_import.rst`
+  同时引用 `pdf_import_json_diagnostics` 与 `pdf_import_scope`，更贴近真实拆页入口关系。
+- 发布包 safety 回归现在会在 staging 后确认三份 PDF import 文档不仅存在，还保留总览页到
+  JSON diagnostics / scope 页的入口、JSON parse-error 小节，以及 scope 页的支持范围标题。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
