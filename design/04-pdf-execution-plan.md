@@ -3451,6 +3451,12 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 已同步 `featherdoc_cli_usage.cpp`，说明设置 continuation confidence 后 JSON 会记录
   `min_table_continuation_confidence`，让 CLI help 与 JSON diagnostics 文档保持一致。
 
+2026-05-15 继续推进（PDF import toctree 契约）：
+
+- 已扩展 `pdf_import_docs_contract_test.ps1`，解析 RST `.. toctree::` 条目并断言
+  `pdf_import`、`pdf_import_json_diagnostics` 和 `pdf_import_scope` 都在文档目录中。
+- 该检查比单纯文本包含更严格，避免后续正文仍引用页面但 Sphinx 导航目录漏挂拆页文档。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

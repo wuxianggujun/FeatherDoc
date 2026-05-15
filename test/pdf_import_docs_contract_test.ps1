@@ -86,6 +86,55 @@ function Assert-CMakeInstallFilesToDestination {
     throw "$Label does not install expected files to '$Destination': $($ExpectedFiles -join ', ')."
 }
 
+function Get-RstToctreeEntries {
+    param(
+        [string]$Text
+    )
+
+    $lines = $Text -split "`r?`n"
+    $entries = @()
+    for ($index = 0; $index -lt $lines.Count; ++$index) {
+        if ($lines[$index] -notmatch '^\.\. toctree::\s*$') {
+            continue
+        }
+
+        for ($lineIndex = $index + 1; $lineIndex -lt $lines.Count; ++$lineIndex) {
+            $line = $lines[$lineIndex]
+            if ([string]::IsNullOrWhiteSpace($line)) {
+                continue
+            }
+
+            if ($line -notmatch '^   (?<entry>\S.*)$') {
+                break
+            }
+
+            $entry = $matches["entry"].Trim()
+            if ($entry.StartsWith(":")) {
+                continue
+            }
+
+            $entries += $entry
+        }
+    }
+
+    return $entries
+}
+
+function Assert-RstToctreeContainsEntries {
+    param(
+        [string]$Text,
+        [string[]]$ExpectedEntries,
+        [string]$Label
+    )
+
+    $entries = @(Get-RstToctreeEntries -Text $Text)
+    foreach ($expectedEntry in $ExpectedEntries) {
+        if ($entries -notcontains $expectedEntry) {
+            throw "$Label toctree does not contain expected entry '$expectedEntry'."
+        }
+    }
+}
+
 function Get-CppEnumMembers {
     param(
         [string]$Text,
@@ -275,6 +324,11 @@ $pdfImportInstalledDocs = @(
     'docs/pdf_import_json_diagnostics.rst',
     'docs/pdf_import_scope.rst'
 )
+$pdfImportToctreeEntries = @(
+    'pdf_import',
+    'pdf_import_json_diagnostics',
+    'pdf_import_scope'
+)
 
 $requiredPdfImportDocsTerms = @(
     "PDF Import",
@@ -457,6 +511,10 @@ Assert-ContainsText `
 Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import" -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import_json_diagnostics" -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import_scope" -Label "docs/index.rst"
+Assert-RstToctreeContainsEntries `
+    -Text $docsIndexText `
+    -ExpectedEntries $pdfImportToctreeEntries `
+    -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import`' -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import_json_diagnostics`' -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import_scope`' -Label "docs/index.rst"
