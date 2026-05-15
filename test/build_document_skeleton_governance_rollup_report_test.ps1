@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "empty", "failed_source_report", "malformed", "fail_on_issue")]
+    [ValidateSet("all", "aggregate", "empty", "failed_source_report", "malformed", "warning_metadata", "fail_on_issue")]
     [string]$Scenario = "all"
 )
 
@@ -361,6 +361,87 @@ if (Test-Scenario -Name "malformed") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "source_report_read_failed" `
         -Message "Malformed rollup should include a source read warning."
+    $sourceReadWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "source_report_read_failed" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$sourceReadWarning[0].action) -Expected "fix_document_skeleton_governance_rollup_input_json" `
+        -Message "Malformed rollup should expose a fixed remediation action."
+    Assert-Equal -Actual ([string]$sourceReadWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Malformed rollup should expose the rollup source schema."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $malformedOutputDir "document_skeleton_governance_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "### Document skeleton governance rollup warnings" `
+        -Message "Malformed Markdown should include the rollup warning subsection."
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `1`' `
+        -Message "Malformed Markdown should include warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'id: `source_report_read_failed`' `
+        -Message "Malformed Markdown should include warning id."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `fix_document_skeleton_governance_rollup_input_json`' `
+        -Message "Malformed Markdown should include warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' `
+        -Message "Malformed Markdown should include warning source schema."
+}
+
+if (Test-Scenario -Name "warning_metadata") {
+    $warningMetadataRoot = Join-Path $resolvedWorkingDir "warning-metadata-input"
+    $warningMetadataOutputDir = Join-Path $resolvedWorkingDir "warning-metadata-output"
+    $wrongSchemaPath = Join-Path $warningMetadataRoot "wrong-schema\summary.json"
+    $mismatchPath = Join-Path $warningMetadataRoot "mismatch\summary.json"
+
+    Write-JsonFile -Path $wrongSchemaPath -Value ([ordered]@{
+        schema = "featherdoc.unrelated_report.v1"
+        status = "ready"
+    })
+
+    $mismatchSummary = New-SkeletonSummary `
+        -InputDocx "samples/mismatch.docx" `
+        -CatalogPath "output/document-skeleton-governance/mismatch/exemplar.numbering-catalog.json" `
+        -Status "needs_review" `
+        -ReleaseBlockers @(
+            [ordered]@{
+                id = "document_skeleton.style_numbering_issues"
+                severity = "error"
+                message = "Style numbering audit reported issues."
+                action = "review_style_numbering_audit"
+                issue_count = 1
+            }
+        )
+    $mismatchSummary.release_blocker_count = 3
+    Write-JsonFile -Path $mismatchPath -Value $mismatchSummary
+
+    $result = Invoke-RollupScript -Arguments @(
+        "-InputRoot", $warningMetadataRoot,
+        "-OutputDir", $warningMetadataOutputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Warning metadata rollup should not fail without fail switches. Output: $($result.Text)"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $warningMetadataOutputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
+        -Message "Warning metadata rollup should produce schema and mismatch warnings."
+
+    $schemaWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "source_report_schema_skipped" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$schemaWarning[0].action) -Expected "provide_document_skeleton_governance_report" `
+        -Message "Schema skipped warning should expose a remediation action."
+    Assert-Equal -Actual ([string]$schemaWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Schema skipped warning should expose the rollup source schema."
+
+    $countWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "release_blocker_count_mismatch" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$countWarning[0].action) -Expected "reconcile_document_skeleton_governance_rollup_counts" `
+        -Message "Count mismatch warning should expose a remediation action."
+    Assert-Equal -Actual ([string]$countWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Count mismatch warning should expose the rollup source schema."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $warningMetadataOutputDir "document_skeleton_governance_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `2`' `
+        -Message "Warning metadata Markdown should include warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'id: `source_report_schema_skipped`' `
+        -Message "Warning metadata Markdown should include schema warning id."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `provide_document_skeleton_governance_report`' `
+        -Message "Warning metadata Markdown should include schema warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'id: `release_blocker_count_mismatch`' `
+        -Message "Warning metadata Markdown should include count warning id."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `reconcile_document_skeleton_governance_rollup_counts`' `
+        -Message "Warning metadata Markdown should include count warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' `
+        -Message "Warning metadata Markdown should include warning source schema."
 }
 
 if (Test-Scenario -Name "fail_on_issue") {
