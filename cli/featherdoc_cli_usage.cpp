@@ -21,6 +21,8 @@ void print_usage(std::ostream &stream) {
            " [--import-table-candidates-as-tables]"
            " [--min-table-continuation-confidence <count>]"
            " [--json]\n"
+        << "    --json includes table_continuation_diagnostics for PDF table"
+           " merge decisions.\n"
 #endif
         << "  featherdoc_cli inspect-sections <input.docx>\n"
         << "    [--json]\n"

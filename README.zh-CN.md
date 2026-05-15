@@ -98,6 +98,13 @@ featherdoc_cli import-pdf input.pdf --output output.docx \
 
 默认会拒绝表格候选。需要时再加
 `--import-table-candidates-as-tables`，把它们提升为 DOCX 表格。
+带上 `--json` 时，成功导入会输出
+`table_continuation_diagnostics_count` 和
+`table_continuation_diagnostics`。这些诊断用于解释跨页表格决策，
+例如 `merged_with_previous_table`、`column_count_mismatch`、
+`column_anchors_mismatch`、`repeated_header_mismatch` 和
+`continuation_confidence_below_threshold`。字段级 schema 见
+`docs/index.rst`。
 
 ## MSVC 构建
 

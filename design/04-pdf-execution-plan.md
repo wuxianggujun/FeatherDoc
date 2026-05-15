@@ -3104,6 +3104,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   `docs/index.rst` 里的 `import-pdf` 示例补最小受控样本生成命令，或开始整理
   PDF import 的已知限制用户页。
 
+2026-05-15 继续推进（PDF import JSON diagnostics 入口提示）：
+
+- 已把 `import-pdf --json` continuation diagnostics 的入口提示同步到
+  `README.md` 和 `README.zh-CN.md`，说明成功 JSON 会包含
+  `table_continuation_diagnostics_count` 与 `table_continuation_diagnostics`，
+  并指向 `docs/index.rst` 的字段级 schema。
+- 已在 CLI usage 文本里为 PDF import 增加短说明：
+  `--json includes table_continuation_diagnostics for PDF table merge decisions`，
+  避免用户只能从长文档或测试里发现 diagnostics 能力。
+- 已补 `cli_usage` 回归固定 `table_continuation_diagnostics` 出现在帮助文本中。
+- 下一阶段入口：
+  可以继续整理 PDF import 的已知限制用户页，或把 `BUILDING_PDF.md` 中偏开发者的
+  PDF import 限制和 README/docs 中的用户入口进一步去重。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

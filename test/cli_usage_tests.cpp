@@ -24,6 +24,10 @@ TEST_CASE("cli print_usage includes core command families") {
     CHECK_NE(text.find("--no-font-subset"), std::string::npos);
     CHECK_NE(text.find("--no-system-font-fallbacks"), std::string::npos);
     CHECK_NE(text.find("--summary-json <path>"), std::string::npos);
+#if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
+    CHECK_NE(text.find("table_continuation_diagnostics"),
+             std::string::npos);
+#endif
     CHECK_NE(text.find("featherdoc_cli inspect-styles <input.docx>"),
              std::string::npos);
     CHECK_NE(text.find("featherdoc_cli export-numbering-catalog <input.docx>"),

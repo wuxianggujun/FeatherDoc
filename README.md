@@ -90,6 +90,13 @@ featherdoc_cli import-pdf input.pdf --output output.docx \
 
 By default, table candidates are rejected. Pass
 `--import-table-candidates-as-tables` to promote them into DOCX tables.
+When `--json` is present, successful imports include
+`table_continuation_diagnostics_count` and `table_continuation_diagnostics`.
+Those diagnostics explain cross-page table decisions such as
+`merged_with_previous_table`, `column_count_mismatch`,
+`column_anchors_mismatch`, `repeated_header_mismatch`, and
+`continuation_confidence_below_threshold`. See `docs/index.rst` for the
+field-level schema.
 
 ## Build With MSVC
 
