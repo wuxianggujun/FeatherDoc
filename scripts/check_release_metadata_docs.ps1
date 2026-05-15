@@ -316,6 +316,8 @@ $pipelineExpectedMarkers = @(
     "release_blocker_rollup.md",
     "release_governance_handoff.md",
     "release_governance_pipeline.md",
+    '``REVIEWER_CHECKLIST.md``',
+    "checkbox",
     '``id``',
     '``action``',
     '``message``',
@@ -348,6 +350,7 @@ $readmeExpectedMarkers = @(
     '`message`',
     '`source_schema`',
     '`style_merge_suggestion_count`',
+    "checkbox guidance",
     "release_governance_warning_contract_test.ps1",
     "release_governance_warning_helper_contract_test.ps1"
 )

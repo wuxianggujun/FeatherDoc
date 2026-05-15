@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 48) {
-        throw "Expected JSON summary to count 48 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 51) {
+        throw "Expected JSON summary to count 51 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -283,6 +283,8 @@ $defaultPipelineText = @(
     '- release_blocker_rollup.md',
     '- release_governance_handoff.md',
     '- release_governance_pipeline.md',
+    '- ``REVIEWER_CHECKLIST.md``',
+    '- checkbox',
     '- ``id``',
     '- ``action``',
     '- ``message``',
@@ -332,6 +334,7 @@ $defaultReadmeText = @(
     '- `message`',
     '- `source_schema`',
     '- `style_merge_suggestion_count`',
+    '- checkbox guidance',
     '- release_governance_warning_contract_test.ps1',
     '- release_governance_warning_helper_contract_test.ps1',
     ''
@@ -377,8 +380,8 @@ Assert-SummaryAuditFields -Summary $summary
 if ($summary.checked_document_count -ne 5) {
     throw "Expected JSON summary checked document count 5, got: $($summary.checked_document_count)"
 }
-if ($summary.required_pipeline_marker_count -ne 16) {
-    throw "Expected JSON summary pipeline marker count 16, got: $($summary.required_pipeline_marker_count)"
+if ($summary.required_pipeline_marker_count -ne 18) {
+    throw "Expected JSON summary pipeline marker count 18, got: $($summary.required_pipeline_marker_count)"
 }
 if ($summary.required_checklist_marker_count -ne 16) {
     throw "Expected JSON summary checklist marker count 16, got: $($summary.required_checklist_marker_count)"
@@ -386,14 +389,14 @@ if ($summary.required_checklist_marker_count -ne 16) {
 if ($summary.required_policy_marker_count -ne 1) {
     throw "Expected JSON summary policy marker count 1, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_readme_marker_count -ne 8) {
-    throw "Expected JSON summary README marker count 8, got: $($summary.required_readme_marker_count)"
+if ($summary.required_readme_marker_count -ne 9) {
+    throw "Expected JSON summary README marker count 9, got: $($summary.required_readme_marker_count)"
 }
 if ($summary.required_index_marker_count -ne 7) {
     throw "Expected JSON summary index marker count 7, got: $($summary.required_index_marker_count)"
 }
-if ($summary.required_marker_count -ne 48) {
-    throw "Expected JSON summary total marker count 48, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 51) {
+    throw "Expected JSON summary total marker count 51, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 5) {
     throw "Expected JSON summary to list 5 checked documents, got: $($summary.checked_documents.Count)"
@@ -415,8 +418,12 @@ Assert-ArrayContains `
     -ExpectedValue "release_note_bundle_visual_verdict_metadata" `
     -Message "JSON summary should list required checklist markers."
 Assert-ArrayContains `
+    -Values @($summary.required_pipeline_markers) `
+    -ExpectedValue "checkbox" `
+    -Message "JSON summary should list required pipeline warning checklist markers."
+Assert-ArrayContains `
     -Values @($summary.required_readme_markers) `
-    -ExpectedValue "release_governance_warning_helper_contract_test.ps1" `
+    -ExpectedValue "checkbox guidance" `
     -Message "JSON summary should list required README markers."
 Assert-ArrayContains `
     -Values @($summary.required_index_markers) `
