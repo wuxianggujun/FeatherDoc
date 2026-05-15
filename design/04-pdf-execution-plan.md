@@ -3211,7 +3211,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 2026-05-15 继续推进（BUILDING_PDF PDF import 用户内容去重）：
 
 - 已将 `BUILDING_PDF.md` 中面向用户的 PDF import 范围、限制和表格续接说明去重，
-  统一指向 `docs/index.rst` 的 `PDF import JSON diagnostics` 与
+  统一指向 `docs/pdf_import.rst` 的 `PDF import JSON diagnostics` 与
   `PDF import supported scope and limits` 小节。
 - `BUILDING_PDF.md` 现在只保留构建、开发者测试和
   `PdfDocumentImportResult::table_continuation_diagnostics` 调试入口，避免
@@ -3219,6 +3219,17 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 本轮是文档-only 收口，没有改动生产代码；验证范围为 `git diff --check`。
 - 继续 E7 时，优先把 PDF import 长文档拆成独立 `docs/pdf_import_*.rst` 页面，
   或继续补 CLI diagnostics 的用户示例。
+
+2026-05-15 继续推进（PDF import 独立用户文档页）：
+
+- 已新增 `docs/pdf_import.rst`，把 `import-pdf --json` 示例、
+  `table_continuation_diagnostics` 字段契约、支持范围和已知限制从
+  `docs/index.rst` 迁出。
+- 已在 `docs/index.rst` 的 hidden toctree 注册 `pdf_import`，首页只保留短入口，
+  避免主文档继续膨胀。
+- 已同步 `BUILDING_PDF.md` 的用户文档指向，继续保持构建文档只承载开发者入口。
+- 本轮仍是文档-only 结构整理；验证范围为 `git diff --check`、暂存区空白检查和
+  文档引用检索。当前本机 Python 3.13 缺少 `sphinx` 模块，HTML 文档构建未执行。
 
 ## Owner
 
