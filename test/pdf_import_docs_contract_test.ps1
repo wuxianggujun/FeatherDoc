@@ -297,6 +297,9 @@ $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
 $cliPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli.cpp"
 $pdfCliImportTestsPath = Join-Path $resolvedRepoRoot "test\pdf_cli_import_tests.cpp"
+$pdfImportStructureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_structure_tests.cpp"
+$pdfImportFailureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_failure_tests.cpp"
+$pdfImportTableHeuristicTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_table_heuristic_tests.cpp"
 
 $pdfImportDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportDocsPath
 $pdfImportJsonDiagnosticsDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportJsonDiagnosticsDocsPath
@@ -308,6 +311,9 @@ $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
 $cliText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cliPath
 $pdfCliImportTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportTestsPath
+$pdfImportStructureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportStructureTestsPath
+$pdfImportFailureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportFailureTestsPath
+$pdfImportTableHeuristicTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportTableHeuristicTestsPath
 
 $readmePdfImportSection = Get-TextSection `
     -Text $readmeText `
@@ -427,6 +433,153 @@ $requiredPdfImportScopeDocsTerms = @(
     "arbitrary local column drift"
 )
 
+$scopeCoverageAnchors = @(
+    @{
+        Label = "Paragraph import from extractable PDF text"
+        DocExpected = "Paragraph import from extractable PDF text"
+        Text = $pdfImportStructureTestsText
+        Expected = "PDF text importer builds a plain FeatherDoc document"
+    },
+    @{
+        Label = "Table candidates are rejected by default"
+        DocExpected = "Table candidates are rejected by default"
+        Text = $pdfImportFailureTestsText
+        Expected = "PDF text importer classifies detected table candidates"
+    },
+    @{
+        Label = "Opt-in table promotion"
+        DocExpected = "Opt-in table promotion"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF text importer can opt in to table candidate import"
+    },
+    @{
+        Label = "Simple key-value table recovery"
+        DocExpected = "key-value tables"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF text importer can opt in to two-column key-value table import"
+    },
+    @{
+        Label = "Borderless aligned table recovery"
+        DocExpected = "selected borderless aligned tables"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF text importer can opt in to borderless key-value table import"
+    },
+    @{
+        Label = "Cross-page compatible table continuation"
+        DocExpected = "Cross-page table continuation"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import merges compatible table candidates across page boundary"
+    },
+    @{
+        Label = "Repeated-header exact detection"
+        DocExpected = "Repeated-header detection"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import skips repeated source header rows while merging cross-page repeated-header table"
+    },
+    @{
+        Label = "Repeated-header normalized detection"
+        DocExpected = "whitespace/case/punctuation"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import skips case and separator-varied repeated source header rows"
+    },
+    @{
+        Label = "Repeated-header plural detection"
+        DocExpected = "conservative plural variants"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import skips plural-varied repeated source header rows"
+    },
+    @{
+        Label = "Repeated-header abbreviation detection"
+        DocExpected = "small abbreviation whitelist"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import skips abbreviation-varied repeated source header rows"
+    },
+    @{
+        Label = "Repeated-header word order detection"
+        DocExpected = "token-set word"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import skips word-order-varied repeated source header rows"
+    },
+    @{
+        Label = "Subtotal summary-row handling"
+        DocExpected = "Conservative subtotal / total summary-row handling"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF text importer preserves inline subtotal-row table cells"
+    },
+    @{
+        Label = "Continuation diagnostics"
+        DocExpected = 'Diagnostics through ``table_continuation_diagnostics``'
+        Text = $pdfCliImportTestsText
+        Expected = '"table_continuation_diagnostics_count":2'
+    },
+    @{
+        Label = "Column-count mismatch split"
+        DocExpected = "Column-count mismatches"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import keeps cross-page subtotal tables separate for column count mismatches"
+    },
+    @{
+        Label = "Column anchors mismatch split"
+        DocExpected = "incompatible column anchors"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import does not merge cross-page tables with incompatible widths"
+    },
+    @{
+        Label = "Semantic repeated-header mismatch split"
+        DocExpected = "semantic repeated-header"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import keeps semantic header variants as separate cross-page tables"
+    },
+    @{
+        Label = "Low continuation confidence split"
+        DocExpected = "low continuation confidence"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import can require a higher confidence before cross-page merge"
+    },
+    @{
+        Label = "Intervening paragraph split"
+        DocExpected = "intervening paragraphs"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import does not merge through an intervening paragraph"
+    },
+    @{
+        Label = "Too-low next-page table split"
+        DocExpected = "near the top of the page"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import does not merge cross-page tables that start too low on the next page"
+    },
+    @{
+        Label = "Ordinary two-column prose stays paragraphs"
+        DocExpected = "Ordinary two-column prose"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDFium parser does not classify two-column prose as table candidate"
+    },
+    @{
+        Label = "Numbered lists stay paragraphs"
+        DocExpected = "numbered lists"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDFium parser does not classify aligned numbered list as table candidate"
+    },
+    @{
+        Label = "Short-label prose stays paragraphs"
+        DocExpected = "short-label prose"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDFium parser does not classify two-column short-label prose as table candidate"
+    },
+    @{
+        Label = "Free-form column drift stays paragraphs"
+        DocExpected = "free-form"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF text importer keeps free-form column drift prose as paragraphs"
+    },
+    @{
+        Label = "Local anchor drift split"
+        DocExpected = "arbitrary local column drift"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF table import keeps cross-page subtotal tables separate for local anchor drift"
+    }
+)
+
 foreach ($term in $requiredPdfImportDocsTerms) {
     Assert-ContainsText -Text $pdfImportDocsText -ExpectedText $term -Label "docs/pdf_import.rst"
 }
@@ -440,6 +593,16 @@ Assert-RstJsonCodeBlocksParse `
 
 foreach ($term in $requiredPdfImportScopeDocsTerms) {
     Assert-ContainsText -Text $pdfImportScopeDocsText -ExpectedText $term -Label "docs/pdf_import_scope.rst"
+}
+foreach ($anchor in $scopeCoverageAnchors) {
+    Assert-ContainsText `
+        -Text $pdfImportScopeDocsText `
+        -ExpectedText $anchor.DocExpected `
+        -Label "docs/pdf_import_scope.rst"
+    Assert-ContainsText `
+        -Text $anchor.Text `
+        -ExpectedText $anchor.Expected `
+        -Label ("PDF import scope coverage for {0}" -f $anchor.Label)
 }
 
 $failureKindMembers = Get-CppEnumMembers `

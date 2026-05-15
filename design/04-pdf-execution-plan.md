@@ -3457,6 +3457,16 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   `pdf_import`、`pdf_import_json_diagnostics` 和 `pdf_import_scope` 都在文档目录中。
 - 该检查比单纯文本包含更严格，避免后续正文仍引用页面但 Sphinx 导航目录漏挂拆页文档。
 
+2026-05-15 继续推进（PDF import scope 覆盖锚点契约）：
+
+- 已扩展 `pdf_import_docs_contract_test.ps1`，把 `docs/pdf_import_scope.rst` 的支持范围、
+  保守拆表边界和段落保守分类声明映射到代表性测试锚点。
+- 当前契约会检查纯文本导入、默认拒绝表格候选、表格 opt-in、key-value / borderless 表格、
+  跨页合并、repeated-header 各类匹配、subtotal 行、continuation diagnostics、列数 /
+  anchor / semantic header / confidence / intervening paragraph / 低页位拆表，以及两栏正文、
+  编号列表、短标签正文和 free-form column drift 保持段落的测试覆盖。
+- 这样后续若扩展或重写 scope 文档，必须同时保留可追溯的测试覆盖入口，避免范围说明脱离回归样本。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
