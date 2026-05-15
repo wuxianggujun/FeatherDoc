@@ -347,6 +347,16 @@ if (Test-Scenario -Name "malformed") {
         -Message "Malformed input should produce failed status."
     Assert-Equal -Actual ([int]$summary.source_failure_count) -Expected 1 `
         -Message "Malformed input should count one source failure."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
+        -Message "Malformed input should produce read-failure and missing-rollup warnings."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "table_layout_delivery_governance.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "### Table layout delivery governance warnings" `
+        -Message "Markdown should include the table layout warning subsection."
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `2`' `
+        -Message "Markdown should include warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'id: `source_json_read_failed`' `
+        -Message "Markdown should include warning id."
 }
 
 if (Test-Scenario -Name "fail_on_blocker") {

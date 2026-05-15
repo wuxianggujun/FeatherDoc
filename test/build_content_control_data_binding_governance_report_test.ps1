@@ -1,8 +1,8 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("aggregate", "fail_on_blocker")]
-    [string]$Scenario = "aggregate"
+    [ValidateSet("all", "aggregate", "warning_only", "fail_on_blocker")]
+    [string]$Scenario = "all"
 )
 
 Set-StrictMode -Version Latest
@@ -23,6 +23,11 @@ function Assert-ContainsText {
     if ($Text -notmatch [regex]::Escape($ExpectedText)) {
         throw "$Message Missing='$ExpectedText'."
     }
+}
+
+function Test-Scenario {
+    param([string]$Name)
+    return ($Scenario -eq "all" -or $Scenario -eq $Name)
 }
 
 function Write-JsonFile {
@@ -150,59 +155,113 @@ Write-JsonFile -Path $syncPath -Value ([ordered]@{
     })
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\build_content_control_data_binding_governance_report.ps1"
-$arguments = @(
-    "-InputJson"
-    "$inspectPath,$syncPath"
-    "-OutputDir"
-    $outputDir
-)
-if ($Scenario -eq "fail_on_blocker") {
-    $arguments += "-FailOnBlocker"
+
+if (Test-Scenario -Name "aggregate") {
+    $arguments = @(
+        "-InputJson"
+        "$inspectPath,$syncPath"
+        "-OutputDir"
+        $outputDir
+    )
+    $result = Invoke-Report -Arguments $arguments
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Content-control governance aggregate run should pass. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $markdownPath = Join-Path $outputDir "content_control_data_binding_governance.md"
+    Assert-True -Condition (Test-Path -LiteralPath $summaryPath) `
+        -Message "Summary JSON was not created."
+    Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
+        -Message "Markdown report was not created."
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
+        -Message "Summary should expose schema."
+    Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
+        -Message "Summary should be blocked by sync issue and placeholder evidence."
+    Assert-Equal -Actual ([int]$summary.content_control_count) -Expected 3 `
+        -Message "Summary should count inspected content controls."
+    Assert-Equal -Actual ([int]$summary.bound_content_control_count) -Expected 2 `
+        -Message "Summary should count data-bound controls."
+    Assert-Equal -Actual ([int]$summary.sync_issue_count) -Expected 1 `
+        -Message "Summary should count sync issues."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 2 `
+        -Message "Summary should create blockers for sync issue and bound placeholder."
+    Assert-True -Condition ([int]$summary.action_item_count -ge 2) `
+        -Message "Summary should emit lock/unbound/duplicate review actions."
+
+    $blockerIds = @($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n"
+    Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.custom_xml_sync_issue" `
+        -Message "Summary should include Custom XML sync blocker."
+    Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.bound_placeholder" `
+        -Message "Summary should include placeholder blocker."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "# Content Control Data Binding Governance" `
+        -Message "Markdown should include title."
+    Assert-ContainsText -Text $markdown -ExpectedText "fix_custom_xml_data_binding_source" `
+        -Message "Markdown should include remediation action."
 }
 
-$result = Invoke-Report -Arguments $arguments
-if ($Scenario -eq "fail_on_blocker") {
+if (Test-Scenario -Name "warning_only") {
+    $warningOutputDir = Join-Path $resolvedWorkingDir "warning-only-report"
+    $warningInspectPath = Join-Path $inputDir "warning-only-inspect-content-controls.json"
+    Write-JsonFile -Path $warningInspectPath -Value ([ordered]@{
+            part = "body"
+            entry_name = "word/document.xml"
+            count = 1
+            content_controls = @(
+                [ordered]@{
+                    index = 0
+                    kind = "block"
+                    form_kind = "plain_text"
+                    tag = "invoice_no"
+                    alias = "Invoice No"
+                    id = "20"
+                    lock = ""
+                    data_binding_store_item_id = "{55555555-5555-5555-5555-555555555555}"
+                    data_binding_xpath = "/invoice/no"
+                    data_binding_prefix_mappings = ""
+                    checked = $null
+                    date_format = ""
+                    date_locale = ""
+                    selected_list_item = $null
+                    list_items = @()
+                    showing_placeholder = $false
+                    text = "INV-001"
+                }
+            )
+        })
+
+    $warningResult = Invoke-Report -Arguments @(
+        "-InputJson", $warningInspectPath,
+        "-OutputDir", $warningOutputDir
+    )
+    Assert-Equal -Actual $warningResult.ExitCode -Expected 0 `
+        -Message "Warning-only governance run should pass by default. Output: $($warningResult.Text)"
+
+    $warningSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $warningOutputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([int]$warningSummary.warning_count) -Expected 1 `
+        -Message "Warning-only run should surface missing Custom XML sync evidence."
+
+    $warningMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $warningOutputDir "content_control_data_binding_governance.md")
+    Assert-ContainsText -Text $warningMarkdown -ExpectedText "### Content control data-binding governance warnings" `
+        -Message "Markdown should include warning subsection."
+    Assert-ContainsText -Text $warningMarkdown -ExpectedText '- warning_count: `1`' `
+        -Message "Markdown should include warning count."
+    Assert-ContainsText -Text $warningMarkdown -ExpectedText 'id: `custom_xml_sync_evidence_missing`' `
+        -Message "Markdown should include warning id."
+}
+
+if (Test-Scenario -Name "fail_on_blocker") {
+    $result = Invoke-Report -Arguments @(
+        "-InputJson", "$inspectPath,$syncPath",
+        "-OutputDir", (Join-Path $resolvedWorkingDir "fail-on-blocker-report"),
+        "-FailOnBlocker"
+    )
     if ($result.ExitCode -eq 0) {
         throw "Content-control governance fail-on-blocker run should fail. Output: $($result.Text)"
     }
-} else {
-    Assert-Equal -Actual $result.ExitCode -Expected 0 `
-        -Message "Content-control governance aggregate run should pass. Output: $($result.Text)"
 }
-
-$summaryPath = Join-Path $outputDir "summary.json"
-$markdownPath = Join-Path $outputDir "content_control_data_binding_governance.md"
-Assert-True -Condition (Test-Path -LiteralPath $summaryPath) `
-    -Message "Summary JSON was not created."
-Assert-True -Condition (Test-Path -LiteralPath $markdownPath) `
-    -Message "Markdown report was not created."
-
-$summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
-Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
-    -Message "Summary should expose schema."
-Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
-    -Message "Summary should be blocked by sync issue and placeholder evidence."
-Assert-Equal -Actual ([int]$summary.content_control_count) -Expected 3 `
-    -Message "Summary should count inspected content controls."
-Assert-Equal -Actual ([int]$summary.bound_content_control_count) -Expected 2 `
-    -Message "Summary should count data-bound controls."
-Assert-Equal -Actual ([int]$summary.sync_issue_count) -Expected 1 `
-    -Message "Summary should count sync issues."
-Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 2 `
-    -Message "Summary should create blockers for sync issue and bound placeholder."
-Assert-True -Condition ([int]$summary.action_item_count -ge 2) `
-    -Message "Summary should emit lock/unbound/duplicate review actions."
-
-$blockerIds = @($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n"
-Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.custom_xml_sync_issue" `
-    -Message "Summary should include Custom XML sync blocker."
-Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.bound_placeholder" `
-    -Message "Summary should include placeholder blocker."
-
-$markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
-Assert-ContainsText -Text $markdown -ExpectedText "# Content Control Data Binding Governance" `
-    -Message "Markdown should include title."
-Assert-ContainsText -Text $markdown -ExpectedText "fix_custom_xml_data_binding_source" `
-    -Message "Markdown should include remediation action."
 
 Write-Host "Content-control data-binding governance report regression passed."
