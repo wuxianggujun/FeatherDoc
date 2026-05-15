@@ -298,6 +298,7 @@ foreach ($path in @($inputPaths)) {
         if ($sourceActions.Count -eq 0) {
             $sourceActions = @(Get-JsonArray -Object $summaryObject -Name "next_steps")
         }
+        $sourceWarnings = @(Get-JsonArray -Object $summaryObject -Name "warnings")
 
         if ($kind -eq "featherdoc.document_skeleton_governance_rollup_report.v1") {
             $styleMergeSuggestionCount = Get-JsonInt -Object $summaryObject -Name "total_style_merge_suggestion_count"
@@ -312,6 +313,22 @@ foreach ($path in @($inputPaths)) {
                     message = "Document skeleton governance reports $styleMergeSuggestionCount duplicate style merge suggestion(s) awaiting review."
                 }) | Out-Null
             }
+        }
+
+        $warningIndex = 0
+        foreach ($warning in $sourceWarnings) {
+            $warningIndex++
+            $id = Get-JsonString -Object $warning -Name "id" -DefaultValue "source_warning"
+            $warnings.Add([ordered]@{
+                composite_id = ("source{0}.warning{1}.{2}" -f $sourceIndex, $warningIndex, $id)
+                id = $id
+                source_report = $path
+                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_schema = $kind
+                action = Get-JsonString -Object $warning -Name "action"
+                style_merge_suggestion_count = Get-JsonInt -Object $warning -Name "style_merge_suggestion_count"
+                message = Get-JsonString -Object $warning -Name "message"
+            }) | Out-Null
         }
 
         $blockerIndex = 0

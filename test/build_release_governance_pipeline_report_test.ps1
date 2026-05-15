@@ -32,302 +32,157 @@ function Write-JsonFile {
     ($Value | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
-function New-SkeletonRollup {
-    return [ordered]@{
-        schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+function New-InputFixture {
+    param([string]$Root)
+
+    Write-JsonFile -Path (Join-Path $Root "numbering-catalog-governance\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.numbering_catalog_governance_report.v1"
         status = "needs_review"
-        clean = $false
-        document_count = 1
-        total_style_numbering_issue_count = 1
-        total_style_numbering_suggestion_count = 1
-        total_numbering_definition_count = 2
-        total_numbering_instance_count = 3
-        total_style_usage_count = 4
-        total_command_failure_count = 0
-        issue_summary = @([ordered]@{ issue = "missing_numbering_definition"; count = 1 })
-        catalog_exemplars = @(
-            [ordered]@{
-                document_name = "contract.docx"
-                input_docx = "samples/contract.docx"
-                input_docx_display = ".\samples\contract.docx"
-                exemplar_catalog_path = "output/document-skeleton-governance/contract/exemplar.numbering-catalog.json"
-                exemplar_catalog_display = ".\output\document-skeleton-governance\contract\exemplar.numbering-catalog.json"
-                definition_count = 2
-                instance_count = 3
-            }
-        )
+        release_ready = $false
+        release_blocker_count = 1
         release_blockers = @(
             [ordered]@{
                 id = "document_skeleton.style_numbering_issues"
-                document_name = "contract.docx"
                 severity = "error"
                 status = "needs_review"
                 action = "review_style_numbering_audit"
                 message = "Style numbering audit reported issues."
             }
         )
+        action_item_count = 1
         action_items = @(
             [ordered]@{
                 id = "review_style_numbering_audit"
-                document_name = "contract.docx"
                 action = "review_style_numbering_audit"
                 title = "Review contract style numbering audit"
             }
         )
-    }
-}
-
-function New-NumberingManifest {
-    return [ordered]@{
-        generated_at = "2026-05-03T00:00:00"
-        manifest_path = "baselines/numbering-catalog/manifest.json"
-        entry_count = 1
-        drift_count = 0
-        dirty_baseline_count = 0
-        issue_entry_count = 0
-        passed = $true
-        entries = @(
+        warning_count = 1
+        warnings = @(
             [ordered]@{
-                name = "contract"
-                input_docx = "samples/contract.docx"
-                matches = $true
-                clean = $true
-                catalog_file = "baselines/numbering-catalog/contract.json"
-                catalog_lint_clean = $true
-                catalog_lint_issue_count = 0
-                generated_output_path = "output/numbering-catalog-manifest-checks/contract.generated.numbering-catalog.json"
-                baseline_issue_count = 0
-                generated_issue_count = 0
-                added_definition_count = 0
-                removed_definition_count = 0
-                changed_definition_count = 0
+                id = "document_skeleton.style_merge_suggestions_pending"
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                action = "review_style_merge_suggestions"
+                style_merge_suggestion_count = 2
+                message = "Document skeleton governance reports 2 duplicate style merge suggestion(s) awaiting review."
             }
         )
-    }
-}
-
-function New-TableLayoutRollup {
-    return [ordered]@{
-        schema = "featherdoc.table_layout_delivery_rollup_report.v1"
+    })
+    Write-JsonFile -Path (Join-Path $Root "table-layout-delivery-governance\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.table_layout_delivery_governance_report.v1"
         status = "needs_review"
-        ready = $false
-        document_count = 1
-        document_entries = @(
-            [ordered]@{
-                document_name = "contract.docx"
-                input_docx = "samples/contract.docx"
-                input_docx_display = ".\samples\contract.docx"
-                status = "needs_review"
-                ready = $false
-                preset = "margin-anchor"
-                table_style_issue_count = 1
-                automatic_tblLook_fix_count = 1
-                manual_table_style_fix_count = 1
-                table_position_automatic_count = 0
-                table_position_review_count = 1
-                table_position_already_matching_count = 0
-                command_failure_count = 0
-                table_position_plan_path = "output/table-layout-delivery/contract/table-position.plan.json"
-                table_position_plan_display = ".\output\table-layout-delivery\contract\table-position.plan.json"
-            }
-        )
-        table_position_plans = @(
-            [ordered]@{
-                document_name = "contract.docx"
-                input_docx = "samples/contract.docx"
-                preset = "margin-anchor"
-                table_position_plan_path = "output/table-layout-delivery/contract/table-position.plan.json"
-                table_position_plan_display = ".\output\table-layout-delivery\contract\table-position.plan.json"
-                automatic_count = 0
-                review_count = 1
-                already_matching_count = 0
-            }
-        )
-        total_table_style_issue_count = 1
-        total_automatic_tblLook_fix_count = 1
-        total_manual_table_style_fix_count = 1
-        total_table_position_automatic_count = 0
-        total_table_position_review_count = 1
-        total_table_position_already_matching_count = 0
-        total_command_failure_count = 0
+        release_ready = $false
+        release_blocker_count = 4
         release_blockers = @(
             [ordered]@{
                 id = "table_layout.positioned_tables_need_review"
-                document_name = "contract.docx"
                 severity = "warning"
                 status = "needs_review"
                 action = "review_table_position_plan"
                 message = "Floating table position plan needs review."
-            }
-        )
-        action_items = @(
-            [ordered]@{
-                id = "review_table_position_plan"
-                document_name = "contract.docx"
-                action = "review_table_position_plan"
-                title = "Review floating table position plan"
-            }
-        )
-    }
-}
-
-function New-OnboardingGovernance {
-    return [ordered]@{
-        schema = "featherdoc.project_template_onboarding_governance_report.v1"
-        status = "blocked"
-        release_ready = $false
-        entries = @(
-            [ordered]@{
-                name = "contract-template"
-                input_docx = "samples/contract.docx"
-                source_kind = "onboarding_summary"
-                schema_approval_state = [ordered]@{
-                    status = "pending_review"
-                    gate_status = "pending"
-                    release_blocked = $true
-                    action = "review_schema_update_candidate"
-                }
-                schema_approval_status = "pending_review"
-                release_blocked = $true
-                release_blockers = @(
-                    [ordered]@{
-                        id = "project_template_onboarding.schema_approval"
-                        severity = "error"
-                        status = "pending_review"
-                        action = "review_schema_update_candidate"
-                        message = "Schema approval is pending."
-                    }
-                )
-                action_items = @(
-                    [ordered]@{
-                        id = "review_contract_schema"
-                        action = "review_schema_update_candidate"
-                        title = "Review contract schema"
-                    }
-                )
-                manual_review_recommendations = @()
-            }
-        )
-    }
-}
-
-function New-SchemaApprovalHistory {
-    return [ordered]@{
-        schema = "featherdoc.project_template_schema_approval_history.v1"
-        generated_at = "2026-05-03T00:00:00"
-        summary_count = 1
-        latest_gate_status = "pending"
-        blocked_run_count = 0
-        pending_run_count = 1
-        passed_run_count = 0
-        entry_histories = @(
-            [ordered]@{
-                name = "contract-template"
-                run_count = 1
-                blocked_run_count = 0
-                pending_run_count = 1
-                approved_run_count = 0
-                latest_generated_at = "2026-05-03T00:00:00"
-                latest_status = "pending_review"
-                latest_decision = "pending"
-                latest_action = "review_schema_update_candidate"
-                latest_summary_json = "output/project-template-smoke/summary.json"
-                issue_keys = @()
-            }
-        )
-    }
-}
-
-function New-ContentControlInspection {
-    return [ordered]@{
-        part = "body"
-        entry_name = "word/document.xml"
-        count = 2
-        content_controls = @(
-            [ordered]@{
-                index = 0
-                kind = "block"
-                form_kind = "date"
-                tag = "due_date"
-                alias = "Due Date"
-                id = "10"
-                lock = "sdtLocked"
-                data_binding_store_item_id = "{55555555-5555-5555-5555-555555555555}"
-                data_binding_xpath = "/invoice/dueDate"
-                data_binding_prefix_mappings = "xmlns:fd=`"urn:featherdoc`""
-                checked = $null
-                date_format = "yyyy/MM/dd"
-                date_locale = "zh-CN"
-                selected_list_item = $null
-                list_items = @()
-                showing_placeholder = $true
-                text = "Due date placeholder"
             },
             [ordered]@{
-                index = 1
-                kind = "block"
-                form_kind = "plain_text"
-                tag = "due_date_copy"
-                alias = "Due Date Copy"
-                id = "11"
-                lock = ""
-                data_binding_store_item_id = "{55555555-5555-5555-5555-555555555555}"
-                data_binding_xpath = "/invoice/dueDate"
-                data_binding_prefix_mappings = ""
-                checked = $null
-                date_format = ""
-                date_locale = ""
-                selected_list_item = $null
-                list_items = @()
-                showing_placeholder = $false
-                text = "Due date: 2026-07-15"
-            }
-        )
-    }
-}
-
-function New-ContentControlSyncResult {
-    return [ordered]@{
-        scanned_content_controls = 2
-        bound_content_controls = 2
-        synced_content_controls = 1
-        issue_count = 1
-        synced_items = @(
+                id = "table_layout_delivery.safe_tblLook_fixes_pending"
+                severity = "warning"
+                status = "needs_review"
+                action = "apply_safe_tblLook_fixes_then_visual_regression"
+                message = "Safe tblLook fixes are pending."
+            },
             [ordered]@{
-                part_entry_name = "word/document.xml"
-                content_control_index = 1
-                tag = "due_date_copy"
-                alias = "Due Date Copy"
-                store_item_id = "{55555555-5555-5555-5555-555555555555}"
-                xpath = "/invoice/dueDate"
-                previous_text = "old"
-                value = "Due date: 2026-07-15"
-            }
-        )
-        issues = @(
+                id = "table_layout_delivery.manual_table_style_work"
+                severity = "warning"
+                status = "needs_review"
+                action = "review_manual_table_style_definition_work"
+                message = "Manual table style definition work remains."
+            },
             [ordered]@{
-                part_entry_name = "word/document.xml"
-                content_control_index = 0
-                tag = "due_date"
-                alias = "Due Date"
-                store_item_id = "{55555555-5555-5555-5555-555555555555}"
-                xpath = "/invoice/missingDueDate"
-                reason = "custom_xml_value_not_found"
+                id = "table_layout_delivery.floating_table_review_pending"
+                severity = "warning"
+                status = "needs_review"
+                action = "review_floating_table_position_plans"
+                message = "Floating table position review remains."
             }
         )
-    }
-}
-
-function New-InputFixture {
-    param([string]$Root)
-
-    Write-JsonFile -Path (Join-Path $Root "document-skeleton-governance-rollup\summary.json") -Value (New-SkeletonRollup)
-    Write-JsonFile -Path (Join-Path $Root "numbering-catalog-manifest-checks\summary.json") -Value (New-NumberingManifest)
-    Write-JsonFile -Path (Join-Path $Root "table-layout-delivery-rollup\summary.json") -Value (New-TableLayoutRollup)
-    Write-JsonFile -Path (Join-Path $Root "content-control-data-binding\inspect-content-controls.json") -Value (New-ContentControlInspection)
-    Write-JsonFile -Path (Join-Path $Root "content-control-data-binding\sync-content-controls-from-custom-xml.json") -Value (New-ContentControlSyncResult)
-    Write-JsonFile -Path (Join-Path $Root "project-template-onboarding-governance\summary.json") -Value (New-OnboardingGovernance)
-    Write-JsonFile -Path (Join-Path $Root "project-template-schema-approval-history\history.json") -Value (New-SchemaApprovalHistory)
+        action_item_count = 4
+        action_items = @(
+            [ordered]@{ id = "review_table_position_plan"; action = "review_table_position_plan"; title = "Review floating table position plan" },
+            [ordered]@{ id = "apply_safe_tblLook_fixes"; action = "apply_safe_tblLook_fixes_then_visual_regression"; title = "Apply safe tblLook fixes" },
+            [ordered]@{ id = "review_floating_table_position_plans"; action = "review_floating_table_position_plans"; title = "Review floating table position plans" },
+            [ordered]@{ id = "run_table_style_quality_visual_regression"; action = "run_table_style_quality_visual_regression"; title = "Run table visual regression" }
+        )
+        warning_count = 0
+        warnings = @()
+    })
+    Write-JsonFile -Path (Join-Path $Root "content-control-data-binding-governance\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.content_control_data_binding_governance_report.v1"
+        status = "blocked"
+        release_ready = $false
+        release_blocker_count = 2
+        release_blockers = @(
+            [ordered]@{
+                id = "content_control_data_binding.custom_xml_sync_issue"
+                severity = "error"
+                status = "blocked"
+                action = "fix_custom_xml_data_binding_source"
+                message = "A Custom XML binding issue remains."
+            },
+            [ordered]@{
+                id = "content_control_data_binding.bound_placeholder"
+                severity = "error"
+                status = "placeholder_visible"
+                action = "sync_or_fill_bound_content_control"
+                message = "A data-bound content control is still showing placeholder text."
+            }
+        )
+        action_item_count = 2
+        action_items = @(
+            [ordered]@{ id = "review_content_control_lock_strategy"; action = "review_content_control_lock_strategy"; title = "Review lock strategy" },
+            [ordered]@{ id = "review_duplicate_content_control_binding"; action = "review_duplicate_content_control_binding"; title = "Review duplicate content control binding" }
+        )
+        warning_count = 1
+        warnings = @(
+            [ordered]@{ id = "input_json_missing"; message = "Input JSON was not found." }
+        )
+    })
+    Write-JsonFile -Path (Join-Path $Root "project-template-delivery-readiness\summary.json") -Value ([ordered]@{
+        schema = "featherdoc.project_template_delivery_readiness_report.v1"
+        status = "blocked"
+        release_ready = $false
+        release_blocker_count = 3
+        release_blockers = @(
+            [ordered]@{
+                id = "project_template_delivery_readiness.schema_approval_history_gate"
+                severity = "error"
+                status = "blocked"
+                action = "review_schema_approval_history"
+                message = "Schema approval history gate is blocked."
+            },
+            [ordered]@{
+                id = "project_template_onboarding.schema_approval"
+                severity = "error"
+                status = "pending_review"
+                action = "review_schema_update_candidate"
+                message = "Schema approval is pending."
+            },
+            [ordered]@{
+                id = "project_template_delivery_readiness.schema_approval_history"
+                severity = "error"
+                status = "pending_review"
+                action = "review_schema_update_candidate"
+                message = "Schema approval history is pending."
+            }
+        )
+        action_item_count = 1
+        action_items = @(
+            [ordered]@{
+                id = "review_contract_schema"
+                action = "review_schema_update_candidate"
+                title = "Review contract schema"
+            }
+        )
+        warning_count = 0
+        warnings = @()
+    })
 }
 
 function Invoke-Pipeline {
@@ -357,7 +212,7 @@ $arguments = @(
     $inputRoot
     "-OutputRoot"
     $outputRoot
-    "-IncludeHandoffRollup"
+    "-UseExistingGovernanceReports"
 )
 if ($Scenario -eq "fail_on_blocker") {
     $arguments += "-FailOnBlocker"
@@ -376,9 +231,8 @@ if ($Scenario -eq "fail_on_blocker") {
 $summaryPath = Join-Path $outputRoot "summary.json"
 $markdownPath = Join-Path $outputRoot "release_governance_pipeline.md"
 $handoffSummaryPath = Join-Path $outputRoot "release-governance-handoff\summary.json"
-$nestedHandoffRollupPath = Join-Path $outputRoot "release-governance-handoff\release-blocker-rollup\summary.json"
 $rollupSummaryPath = Join-Path $outputRoot "release-blocker-rollup\summary.json"
-foreach ($path in @($summaryPath, $markdownPath, $handoffSummaryPath, $nestedHandoffRollupPath, $rollupSummaryPath)) {
+foreach ($path in @($summaryPath, $markdownPath, $handoffSummaryPath, $rollupSummaryPath)) {
     Assert-True -Condition (Test-Path -LiteralPath $path) `
         -Message "Expected pipeline artifact to exist: $path"
 }
@@ -398,6 +252,8 @@ Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 10 `
     -Message "Pipeline should mirror final rollup blocker count."
 Assert-True -Condition ([int]$summary.action_item_count -ge 4) `
     -Message "Pipeline should mirror final rollup action count."
+Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
+    -Message "Pipeline should mirror final rollup warning count."
 
 $stageIds = @($summary.stages | ForEach-Object { [string]$_.id })
 foreach ($expectedStage in @(
@@ -412,11 +268,21 @@ foreach ($expectedStage in @(
         -Message "Pipeline should include stage $expectedStage."
 }
 
+$handoffStage = @($summary.stages | Where-Object { [string]$_.id -eq "release_governance_handoff" } | Select-Object -First 1)
+$rollupStage = @($summary.stages | Where-Object { [string]$_.id -eq "release_blocker_rollup" } | Select-Object -First 1)
+Assert-Equal -Actual ([int]$handoffStage[0].warning_count) -Expected 2 `
+    -Message "Pipeline should preserve handoff warning count."
+Assert-Equal -Actual ([int]$rollupStage[0].warning_count) -Expected 2 `
+    -Message "Pipeline should preserve final rollup warning count."
+
 $handoffSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$handoffSummary.schema) -Expected "featherdoc.release_governance_handoff_report.v1" `
     -Message "Pipeline handoff should expose schema."
-Assert-Equal -Actual ([bool]$handoffSummary.release_blocker_rollup.included) -Expected $true `
-    -Message "Pipeline handoff should include nested release blocker rollup."
+Assert-Equal -Actual ([bool]$handoffSummary.release_blocker_rollup.included) -Expected $false `
+    -Message "Pipeline handoff should skip nested rollup unless explicitly requested."
+Assert-ContainsText -Text (($handoffSummary.reports | Where-Object { $_.id -eq "numbering_catalog_governance" } | ForEach-Object { $_.warnings } | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+    -Message "Pipeline handoff should preserve source warning details."
 
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline" `

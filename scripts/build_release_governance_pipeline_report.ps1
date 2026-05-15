@@ -15,6 +15,7 @@ param(
     [string]$SummaryJson = "",
     [string]$ReportMarkdown = "",
     [switch]$IncludeHandoffRollup,
+    [switch]$UseExistingGovernanceReports,
     [switch]$FailOnStageFailure,
     [switch]$FailOnMissing,
     [switch]$FailOnBlocker,
@@ -248,6 +249,43 @@ function Invoke-PipelineStage {
         -ErrorMessage $errorMessage
 }
 
+function New-ExistingPipelineStage {
+    param(
+        [string]$RepoRoot,
+        [string]$Id,
+        [string]$Title,
+        [string]$ScriptPath,
+        [string]$SummaryJson,
+        [string[]]$InputJson
+    )
+
+    $summaryPath = $SummaryJson
+    $outputDir = [System.IO.Path]::GetDirectoryName($summaryPath)
+    $summary = Read-Summary -Path $summaryPath
+    $markdownPath = if ($null -eq $summary) {
+        Join-Path $outputDir ("{0}.md" -f $Id)
+    } else {
+        $reportedMarkdown = Get-JsonString -Object $summary -Name "report_markdown"
+        if ([string]::IsNullOrWhiteSpace($reportedMarkdown)) {
+            Join-Path $outputDir ("{0}.md" -f $Id)
+        } else {
+            $reportedMarkdown
+        }
+    }
+
+    return New-StageEntry `
+        -RepoRoot $RepoRoot `
+        -Id $Id `
+        -Title $Title `
+        -Script $ScriptPath `
+        -OutputDir $outputDir `
+        -SummaryJson $summaryPath `
+        -ReportMarkdown $markdownPath `
+        -InputJson $InputJson `
+        -ExitCode 0 `
+        -Summary $summary
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -292,10 +330,15 @@ Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($markdownPath))
 
 $scriptsDir = Join-Path $repoRoot "scripts"
 $outputGovernanceRoot = Join-Path $resolvedOutputRoot "governance"
-$numberingOutputDir = Join-Path $outputGovernanceRoot "numbering-catalog-governance"
-$tableOutputDir = Join-Path $outputGovernanceRoot "table-layout-delivery-governance"
-$contentControlOutputDir = Join-Path $outputGovernanceRoot "content-control-data-binding-governance"
-$projectOutputDir = Join-Path $outputGovernanceRoot "project-template-delivery-readiness"
+$governanceReportRoot = if ($UseExistingGovernanceReports) {
+    $resolvedInputRoot
+} else {
+    $outputGovernanceRoot
+}
+$numberingOutputDir = Join-Path $governanceReportRoot "numbering-catalog-governance"
+$tableOutputDir = Join-Path $governanceReportRoot "table-layout-delivery-governance"
+$contentControlOutputDir = Join-Path $governanceReportRoot "content-control-data-binding-governance"
+$projectOutputDir = Join-Path $governanceReportRoot "project-template-delivery-readiness"
 $handoffOutputDir = Join-Path $resolvedOutputRoot "release-governance-handoff"
 $rollupOutputDir = Join-Path $resolvedOutputRoot "release-blocker-rollup"
 
@@ -317,34 +360,65 @@ $projectInputs = @(
 )
 
 $stages = New-Object 'System.Collections.Generic.List[object]'
-$stages.Add((Invoke-PipelineStage `
-            -RepoRoot $repoRoot `
-            -Id "numbering_catalog_governance" `
-            -Title "Numbering Catalog Governance" `
-            -ScriptPath (Join-Path $scriptsDir "build_numbering_catalog_governance_report.ps1") `
-            -OutputDir $numberingOutputDir `
-            -InputJson $numberingInputs)) | Out-Null
-$stages.Add((Invoke-PipelineStage `
-            -RepoRoot $repoRoot `
-            -Id "table_layout_delivery_governance" `
-            -Title "Table Layout Delivery Governance" `
-            -ScriptPath (Join-Path $scriptsDir "build_table_layout_delivery_governance_report.ps1") `
-            -OutputDir $tableOutputDir `
-            -InputJson $tableInputs)) | Out-Null
-$stages.Add((Invoke-PipelineStage `
-            -RepoRoot $repoRoot `
-            -Id "content_control_data_binding_governance" `
-            -Title "Content Control Data Binding Governance" `
-            -ScriptPath (Join-Path $scriptsDir "build_content_control_data_binding_governance_report.ps1") `
-            -OutputDir $contentControlOutputDir `
-            -InputJson $contentControlInputs)) | Out-Null
-$stages.Add((Invoke-PipelineStage `
-            -RepoRoot $repoRoot `
-            -Id "project_template_delivery_readiness" `
-            -Title "Project Template Delivery Readiness" `
-            -ScriptPath (Join-Path $scriptsDir "build_project_template_delivery_readiness_report.ps1") `
-            -OutputDir $projectOutputDir `
-            -InputJson $projectInputs)) | Out-Null
+if ($UseExistingGovernanceReports) {
+    $stages.Add((New-ExistingPipelineStage `
+                -RepoRoot $repoRoot `
+                -Id "numbering_catalog_governance" `
+                -Title "Numbering Catalog Governance" `
+                -ScriptPath (Join-Path $scriptsDir "build_numbering_catalog_governance_report.ps1") `
+                -SummaryJson (Join-Path $numberingOutputDir "summary.json") `
+                -InputJson $numberingInputs)) | Out-Null
+    $stages.Add((New-ExistingPipelineStage `
+                -RepoRoot $repoRoot `
+                -Id "table_layout_delivery_governance" `
+                -Title "Table Layout Delivery Governance" `
+                -ScriptPath (Join-Path $scriptsDir "build_table_layout_delivery_governance_report.ps1") `
+                -SummaryJson (Join-Path $tableOutputDir "summary.json") `
+                -InputJson $tableInputs)) | Out-Null
+    $stages.Add((New-ExistingPipelineStage `
+                -RepoRoot $repoRoot `
+                -Id "content_control_data_binding_governance" `
+                -Title "Content Control Data Binding Governance" `
+                -ScriptPath (Join-Path $scriptsDir "build_content_control_data_binding_governance_report.ps1") `
+                -SummaryJson (Join-Path $contentControlOutputDir "summary.json") `
+                -InputJson $contentControlInputs)) | Out-Null
+    $stages.Add((New-ExistingPipelineStage `
+                -RepoRoot $repoRoot `
+                -Id "project_template_delivery_readiness" `
+                -Title "Project Template Delivery Readiness" `
+                -ScriptPath (Join-Path $scriptsDir "build_project_template_delivery_readiness_report.ps1") `
+                -SummaryJson (Join-Path $projectOutputDir "summary.json") `
+                -InputJson $projectInputs)) | Out-Null
+} else {
+    $stages.Add((Invoke-PipelineStage `
+                -RepoRoot $repoRoot `
+                -Id "numbering_catalog_governance" `
+                -Title "Numbering Catalog Governance" `
+                -ScriptPath (Join-Path $scriptsDir "build_numbering_catalog_governance_report.ps1") `
+                -OutputDir $numberingOutputDir `
+                -InputJson $numberingInputs)) | Out-Null
+    $stages.Add((Invoke-PipelineStage `
+                -RepoRoot $repoRoot `
+                -Id "table_layout_delivery_governance" `
+                -Title "Table Layout Delivery Governance" `
+                -ScriptPath (Join-Path $scriptsDir "build_table_layout_delivery_governance_report.ps1") `
+                -OutputDir $tableOutputDir `
+                -InputJson $tableInputs)) | Out-Null
+    $stages.Add((Invoke-PipelineStage `
+                -RepoRoot $repoRoot `
+                -Id "content_control_data_binding_governance" `
+                -Title "Content Control Data Binding Governance" `
+                -ScriptPath (Join-Path $scriptsDir "build_content_control_data_binding_governance_report.ps1") `
+                -OutputDir $contentControlOutputDir `
+                -InputJson $contentControlInputs)) | Out-Null
+    $stages.Add((Invoke-PipelineStage `
+                -RepoRoot $repoRoot `
+                -Id "project_template_delivery_readiness" `
+                -Title "Project Template Delivery Readiness" `
+                -ScriptPath (Join-Path $scriptsDir "build_project_template_delivery_readiness_report.ps1") `
+                -OutputDir $projectOutputDir `
+                -InputJson $projectInputs)) | Out-Null
+}
 
 $handoffInputs = @(
     Join-Path $numberingOutputDir "summary.json"
@@ -354,7 +428,7 @@ $handoffInputs = @(
 )
 $handoffExtraArguments = @(
     "-InputRoot"
-    $outputGovernanceRoot
+    $governanceReportRoot
 )
 if ($IncludeHandoffRollup) {
     $handoffExtraArguments += "-IncludeReleaseBlockerRollup"
@@ -424,6 +498,7 @@ $summary = [ordered]@{
     report_markdown = $markdownPath
     report_markdown_display = Get-DisplayPath -RepoRoot $repoRoot -Path $markdownPath
     include_handoff_rollup = [bool]$IncludeHandoffRollup
+    use_existing_governance_reports = [bool]$UseExistingGovernanceReports
     stage_count = $stageItems.Count
     completed_stage_count = $completedStageCount
     failed_stage_count = $failedStageCount

@@ -101,6 +101,7 @@ function New-SkeletonRollup {
         document_count = 2
         total_style_numbering_issue_count = 3
         total_style_numbering_suggestion_count = 2
+        total_style_merge_suggestion_count = 2
         total_numbering_definition_count = 6
         total_numbering_instance_count = 9
         total_style_usage_count = 14
@@ -279,6 +280,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should preserve exemplar catalog entries."
     Assert-Equal -Actual ([int]$summary.total_style_numbering_issue_count) -Expected 3 `
         -Message "Summary should preserve style-numbering issue totals."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_count) -Expected 2 `
+        -Message "Summary should preserve style-merge suggestion totals."
     Assert-Equal -Actual ([int]$summary.drift_count) -Expected 1 `
         -Message "Summary should preserve catalog drift count."
     Assert-Equal -Actual ([int]$summary.dirty_baseline_count) -Expected 1 `
@@ -289,6 +292,11 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should include skeleton and manifest release blockers."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 2 `
         -Message "Summary should include skeleton and manifest action items."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Summary should surface non-blocking style-merge review warnings."
+    Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+        -Message "Summary should warn about pending style merge suggestion review."
 
     $issueSummaryText = ($summary.style_issue_summary | ForEach-Object { "$($_.issue):$($_.count)" }) -join "`n"
     Assert-ContainsText -Text $issueSummaryText -ExpectedText "missing_numbering_definition:2" `

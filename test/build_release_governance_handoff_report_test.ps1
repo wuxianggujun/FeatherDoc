@@ -73,7 +73,7 @@ function Write-GovernanceFixtures {
         status = "needs_review"
         release_ready = $false
         release_blocker_count = 1
-        warning_count = 1
+        warning_count = 2
         release_blockers = @(
             [ordered]@{
                 id = "numbering_catalog_governance.style_numbering_issues"
@@ -95,6 +95,13 @@ function Write-GovernanceFixtures {
             [ordered]@{
                 id = "numbering_catalog_manifest_summary_missing"
                 message = "No numbering catalog manifest summary was loaded."
+            },
+            [ordered]@{
+                id = "document_skeleton.style_merge_suggestions_pending"
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                action = "review_style_merge_suggestions"
+                style_merge_suggestion_count = 2
+                message = "Document skeleton governance reports 2 duplicate style merge suggestion(s) awaiting review."
             }
         )
     })
@@ -209,7 +216,7 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should normalize release blockers."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 4 `
         -Message "Aggregate handoff should normalize action items."
-    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
         -Message "Aggregate handoff should preserve warning counts."
     Assert-ContainsText -Text (($summary.next_commands | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "ReleaseBlockerRollupAutoDiscover" `
@@ -322,6 +329,19 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff summary should record the included rollup."
     Assert-Equal -Actual ([string]$summary.release_blocker_rollup.summary_json) -Expected $rollupSummaryPath `
         -Message "Handoff summary should expose nested rollup summary path."
+    Assert-Equal -Actual ([string]$summary.release_blocker_rollup.status) -Expected "blocked" `
+        -Message "Handoff summary should inline nested rollup status."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.source_report_count) -Expected 4 `
+        -Message "Handoff summary should inline nested rollup source count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_blocker_count) -Expected 3 `
+        -Message "Handoff summary should inline nested rollup blocker count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 4 `
+        -Message "Handoff summary should inline nested rollup action count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 2 `
+        -Message "Handoff summary should inline nested rollup warning count."
+    Assert-ContainsText -Text (($summary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+        -Message "Handoff summary should inline nested rollup warning details."
 
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
@@ -332,6 +352,16 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Nested rollup should preserve blocker count."
     Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 4 `
         -Message "Nested rollup should preserve action item count."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_governance_handoff.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Release Blocker Rollup" `
+        -Message "Handoff Markdown should include nested rollup section."
+    Assert-ContainsText -Text $markdown -ExpectedText "Source reports: ``4``" `
+        -Message "Handoff Markdown should show nested rollup source count."
+    Assert-ContainsText -Text $markdown -ExpectedText "Warnings: ``2``" `
+        -Message "Handoff Markdown should show nested rollup warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+        -Message "Handoff Markdown should show nested rollup warning details."
 }
 
 Write-Host "Release governance handoff report regression passed."

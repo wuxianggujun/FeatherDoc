@@ -312,6 +312,24 @@ function New-ReportMarkdown {
     }
     $lines.Add("") | Out-Null
 
+    $lines.Add("## Release Blocker Rollup") | Out-Null
+    $lines.Add("") | Out-Null
+    $rollup = $Summary.release_blocker_rollup
+    $lines.Add("- Included: ``$($rollup.included)``") | Out-Null
+    $lines.Add("- Status: ``$($rollup.status)``") | Out-Null
+    $lines.Add("- Source reports: ``$($rollup.source_report_count)``") | Out-Null
+    $lines.Add("- Release blockers: ``$($rollup.release_blocker_count)``") | Out-Null
+    $lines.Add("- Action items: ``$($rollup.action_item_count)``") | Out-Null
+    $lines.Add("- Warnings: ``$($rollup.warning_count)``") | Out-Null
+    if (@($rollup.warnings).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($warning in @($rollup.warnings)) {
+            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+
     $lines.Add("## Action Items") | Out-Null
     $lines.Add("") | Out-Null
     if (@($Summary.action_items).Count -eq 0) {
@@ -454,6 +472,27 @@ foreach ($input in @(Expand-InputPathList -Paths $InputJson)) {
     }
 }
 
+$releaseBlockerRollupSummary = $null
+if ($IncludeReleaseBlockerRollup) {
+    $loadedReports = @($reports.ToArray() | Where-Object { $_.status -notin @("missing", "failed") })
+    $loadedReportInputs = @(
+        foreach ($report in $loadedReports) {
+            [string]$report.expected_summary
+        }
+    )
+    Invoke-ReleaseBlockerRollup `
+        -RepoRoot $repoRoot `
+        -OutputDir $releaseBlockerRollupOutputDir `
+        -InputJson $loadedReportInputs
+    if (-not (Test-Path -LiteralPath $releaseBlockerRollupSummaryPath)) {
+        throw "Release blocker rollup was not written: $releaseBlockerRollupSummaryPath"
+    }
+    if (-not (Test-Path -LiteralPath $releaseBlockerRollupMarkdownPath)) {
+        throw "Release blocker rollup Markdown was not written: $releaseBlockerRollupMarkdownPath"
+    }
+    $releaseBlockerRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseBlockerRollupSummaryPath | ConvertFrom-Json
+}
+
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
 foreach ($report in @($reports.ToArray())) {
@@ -501,12 +540,52 @@ $summary = [ordered]@{
     report_markdown_display = Get-DisplayPath -RepoRoot $repoRoot -Path $markdownPath
     release_blocker_rollup = [ordered]@{
         included = [bool]$IncludeReleaseBlockerRollup
+        status = if ($null -eq $releaseBlockerRollupSummary) {
+            if ($IncludeReleaseBlockerRollup) { "missing_summary" } else { "not_requested" }
+        } else {
+            Get-JsonString -Object $releaseBlockerRollupSummary -Name "status" -DefaultValue "completed"
+        }
         output_dir = $releaseBlockerRollupOutputDir
         output_dir_display = Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBlockerRollupOutputDir
         summary_json = $releaseBlockerRollupSummaryPath
         summary_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBlockerRollupSummaryPath
         report_markdown = $releaseBlockerRollupMarkdownPath
         report_markdown_display = Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBlockerRollupMarkdownPath
+        release_ready = if ($null -eq $releaseBlockerRollupSummary) {
+            $false
+        } else {
+            Get-JsonBool -Object $releaseBlockerRollupSummary -Name "release_ready"
+        }
+        source_report_count = if ($null -eq $releaseBlockerRollupSummary) {
+            0
+        } else {
+            Get-JsonInt -Object $releaseBlockerRollupSummary -Name "source_report_count"
+        }
+        source_failure_count = if ($null -eq $releaseBlockerRollupSummary) {
+            0
+        } else {
+            Get-JsonInt -Object $releaseBlockerRollupSummary -Name "source_failure_count"
+        }
+        release_blocker_count = if ($null -eq $releaseBlockerRollupSummary) {
+            0
+        } else {
+            Get-JsonInt -Object $releaseBlockerRollupSummary -Name "release_blocker_count"
+        }
+        action_item_count = if ($null -eq $releaseBlockerRollupSummary) {
+            0
+        } else {
+            Get-JsonInt -Object $releaseBlockerRollupSummary -Name "action_item_count"
+        }
+        warning_count = if ($null -eq $releaseBlockerRollupSummary) {
+            0
+        } else {
+            Get-JsonInt -Object $releaseBlockerRollupSummary -Name "warning_count"
+        }
+        warnings = if ($null -eq $releaseBlockerRollupSummary) {
+            @()
+        } else {
+            @(Get-JsonArray -Object $releaseBlockerRollupSummary -Name "warnings")
+        }
     }
     expected_report_count = $expectedReports.Count
     loaded_report_count = $loadedReportCount
@@ -523,25 +602,6 @@ $summary = [ordered]@{
 
 ($summary | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 (New-ReportMarkdown -Summary $summary) | Set-Content -LiteralPath $markdownPath -Encoding UTF8
-
-if ($IncludeReleaseBlockerRollup) {
-    $loadedReports = @($reports.ToArray() | Where-Object { $_.status -notin @("missing", "failed") })
-    $loadedReportInputs = @(
-        foreach ($report in $loadedReports) {
-            [string]$report.expected_summary
-        }
-    )
-    Invoke-ReleaseBlockerRollup `
-        -RepoRoot $repoRoot `
-        -OutputDir $releaseBlockerRollupOutputDir `
-        -InputJson $loadedReportInputs
-    if (-not (Test-Path -LiteralPath $releaseBlockerRollupSummaryPath)) {
-        throw "Release blocker rollup was not written: $releaseBlockerRollupSummaryPath"
-    }
-    if (-not (Test-Path -LiteralPath $releaseBlockerRollupMarkdownPath)) {
-        throw "Release blocker rollup Markdown was not written: $releaseBlockerRollupMarkdownPath"
-    }
-}
 
 Write-Step "Summary JSON: $summaryPath"
 Write-Step "Report Markdown: $markdownPath"

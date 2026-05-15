@@ -822,7 +822,10 @@ history summaries under `output/`, then writes the four final governance
 reports, release governance handoff, final release blocker rollup, and a
 pipeline-level JSON/Markdown summary under
 `output/release-governance-pipeline/`. It does not rerun CLI, CMake, Word, or
-visual automation.
+visual automation. If those four final governance summaries are already
+available under the input root, pass `-UseExistingGovernanceReports` to reuse
+them directly and only rebuild the handoff, final blocker rollup, and pipeline
+summary.
 The Linux/macOS CI `release_smoke` steps upload the release candidate blocker
 rollup, release governance handoff, and release governance pipeline smoke
 outputs as GitHub Actions artifacts so reviewer evidence can be downloaded from
@@ -1781,7 +1784,11 @@ then runs `build_release_blocker_rollup_report.ps1`, writes
 `report/release-blocker-rollup/summary.json` plus Markdown, and records the
 rollup status, source count, blocker count, action count, warning count, and
 auto-discovered inputs in both `report/summary.json` and
-`report/final_review.md`. Add `-ReleaseBlockerRollupFailOnBlocker` or
+`report/final_review.md`. Duplicate-style merge suggestions from document
+skeleton governance remain non-blocking by default, but are surfaced as
+`document_skeleton.style_merge_suggestions_pending` warnings with
+`review_style_merge_suggestions` actions so reviewers can resolve them before
+tightening gates. Add `-ReleaseBlockerRollupFailOnBlocker` or
 `-ReleaseBlockerRollupFailOnWarning` when the final rollup should behave as a
 hard release gate.
 
@@ -1795,7 +1802,9 @@ release-candidate wrapper consumes the same reports through
 `-ReleaseBlockerRollupAutoDiscover`. Add `-IncludeReleaseBlockerRollup` when
 you also want the handoff directory to contain a nested
 `release-blocker-rollup/summary.json` and Markdown summary generated from the
-loaded governance reports.
+loaded governance reports; the handoff summary now inlines that nested
+rollup's status, source count, blocker/action/warning counts, and warning
+details for reviewer sign-off without opening a second JSON file.
 
 If you also want release-preflight to gate a template DOCX against a committed
 schema baseline, pass `-TemplateSchemaInputDocx`, `-TemplateSchemaBaseline`,
