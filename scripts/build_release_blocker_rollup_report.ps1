@@ -279,6 +279,7 @@ foreach ($path in @($inputPaths)) {
     $kind = "unknown"
     $status = "loaded"
     $errorMessage = ""
+    $styleMergeSuggestionCount = 0
     try {
         $summaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
         $kind = Get-ReportKind -Summary $summaryObject
@@ -296,6 +297,21 @@ foreach ($path in @($inputPaths)) {
         $sourceActions = @(Get-JsonArray -Object $summaryObject -Name "action_items")
         if ($sourceActions.Count -eq 0) {
             $sourceActions = @(Get-JsonArray -Object $summaryObject -Name "next_steps")
+        }
+
+        if ($kind -eq "featherdoc.document_skeleton_governance_rollup_report.v1") {
+            $styleMergeSuggestionCount = Get-JsonInt -Object $summaryObject -Name "total_style_merge_suggestion_count"
+            if ($styleMergeSuggestionCount -gt 0) {
+                $warnings.Add([ordered]@{
+                    id = "document_skeleton.style_merge_suggestions_pending"
+                    source_report = $path
+                    source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                    source_schema = $kind
+                    action = "review_style_merge_suggestions"
+                    style_merge_suggestion_count = $styleMergeSuggestionCount
+                    message = "Document skeleton governance reports $styleMergeSuggestionCount duplicate style merge suggestion(s) awaiting review."
+                }) | Out-Null
+            }
         }
 
         $blockerIndex = 0
@@ -346,6 +362,7 @@ foreach ($path in @($inputPaths)) {
         path_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
         schema = $kind
         status = $status
+        style_merge_suggestion_count = $styleMergeSuggestionCount
         error = $errorMessage
     }) | Out-Null
 }

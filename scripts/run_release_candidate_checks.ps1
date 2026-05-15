@@ -2659,8 +2659,10 @@ if ($releaseGovernanceHandoffRequested) {
 Write-Host "Start here: $startHerePath"
 
 if ($null -ne $releaseBlockerRollupFailure) {
-    throw $releaseBlockerRollupFailure
+    Write-Host $releaseBlockerRollupFailure
+    exit 1
 }
 if ($null -ne $releaseGovernanceHandoffFailure) {
-    throw $releaseGovernanceHandoffFailure
+    Write-Host $releaseGovernanceHandoffFailure
+    exit 1
 }

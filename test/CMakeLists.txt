@@ -2364,6 +2364,23 @@ if(WIN32)
 
             add_test(
                 NAME
+                build_release_blocker_rollup_report_style_merge_warning
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_release_blocker_rollup_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_release_blocker_rollup_report_style_merge_warning
+                -Scenario
+                style_merge_warning
+            )
+
+            add_test(
+                NAME
                 build_release_blocker_rollup_report_comma_input
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

@@ -155,6 +155,8 @@ audit 与 catalog baseline gate 汇入统一骨架治理报告。
 ``build_document_skeleton_governance_rollup_report.ps1`` 进一步把多份单文档
 骨架治理 summary 聚合成跨模板 exemplar catalog、issue summary、重复样式 merge
 建议、release blocker 和 action item 视图，便于先完成文档骨架治理汇总，再接入发布阻断面板。
+发布阻断 rollup 会把骨架 rollup 中未复核的重复样式 merge 建议作为 warning
+暴露，默认不阻断发布；需要更严格门禁时可以配合 ``-FailOnWarning`` 使用。
 后续对既有文档里的复杂 numbering catalog，仍可继续强化冲突审计和 catalog
 patch 衔接。
 
@@ -554,8 +556,8 @@ P2：可以后置的能力
 优先做：
 
 - exemplar 文档到 numbering catalog JSON 的冲突审计和 catalog patch 衔接
-- 多份骨架治理 summary 的 rollup 报告已经落地，并开始汇总重复样式 merge 建议；
-  下一步应让发布面板直接消费
+- 多份骨架治理 summary 的 rollup 报告已经落地，并开始把重复样式 merge 建议
+  作为发布 warning 暴露；下一步应让发布面板直接消费
   ``featherdoc.document_skeleton_governance_rollup_report.v1``
 - ``repair-style-numbering`` 建议到 catalog patch 的衔接
 - style usage report 驱动的 batch audit 与自动建议

@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "passing", "comma_input", "empty", "malformed", "dedupe")]
+    [ValidateSet("all", "passing", "style_merge_warning", "comma_input", "empty", "malformed", "dedupe")]
     [string]$Scenario = "all"
 )
 
@@ -68,6 +68,7 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $fixtureRoot = Join-Path $resolvedWorkingDir "fixtures"
 $documentSkeletonPath = Join-Path $fixtureRoot "document-skeleton\document_skeleton_governance.summary.json"
+$documentSkeletonRollupPath = Join-Path $fixtureRoot "document-skeleton-rollup\summary.json"
 $tableLayoutPath = Join-Path $fixtureRoot "table-layout\summary.json"
 $releaseCandidatePath = Join-Path $fixtureRoot "release-candidate\summary.json"
 $emptyPath = Join-Path $fixtureRoot "empty\summary.json"
@@ -91,6 +92,25 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             action = "preview_style_numbering_repair"
             title = "Preview style numbering repair"
             command = "featherdoc_cli repair-style-numbering input.docx --plan-only --json"
+        }
+    )
+})
+
+Write-JsonFile -Path $documentSkeletonRollupPath -Value ([ordered]@{
+    schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+    status = "needs_review"
+    document_count = 2
+    total_style_numbering_issue_count = 0
+    total_style_numbering_suggestion_count = 0
+    total_style_merge_suggestion_count = 2
+    release_blocker_count = 0
+    release_blockers = @()
+    action_items = @(
+        [ordered]@{
+            id = "review_style_merge_suggestions"
+            action = "review_style_merge_suggestions"
+            title = "Review duplicate style merge suggestions"
+            command = "featherdoc_cli suggest-style-merges input.docx --confidence-profile recommended --json"
         }
     )
 })
@@ -183,6 +203,8 @@ if (Test-Scenario -Name "passing") {
     $passingInputRoot = Join-Path $resolvedWorkingDir "passing-input"
     Write-JsonFile -Path (Join-Path $passingInputRoot "document-skeleton\document_skeleton_governance.summary.json") `
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $documentSkeletonPath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $passingInputRoot "document-skeleton-rollup\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $documentSkeletonRollupPath | ConvertFrom-Json)
     Write-JsonFile -Path (Join-Path $passingInputRoot "table-layout\summary.json") `
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $tableLayoutPath | ConvertFrom-Json)
     Write-JsonFile -Path (Join-Path $passingInputRoot "release-candidate\summary.json") `
@@ -208,10 +230,18 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should be blocked when blockers exist."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 4 `
         -Message "Rollup should aggregate all blockers."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 2 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 3 `
         -Message "Rollup should aggregate action items."
-    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 4 `
         -Message "Rollup should keep source report count."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Rollup should surface non-blocking skeleton review warnings."
+    Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+        -Message "Rollup should warn about pending style merge suggestion review."
+    Assert-ContainsText -Text (($summary.source_reports | ForEach-Object { "$($_.schema):$($_.style_merge_suggestion_count)" }) -join "`n") `
+        -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1:2" `
+        -Message "Rollup should preserve skeleton rollup style merge counts."
     Assert-ContainsText -Text ([string]$summary.release_blockers[0].composite_id) `
         -ExpectedText "source1.blocker1" `
         -Message "Rollup should generate composite blocker ids."
@@ -221,6 +251,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include title."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_smoke.schema_approval" `
         -Message "Markdown should include release candidate blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+        -Message "Markdown should include style merge review warning."
 }
 
 if (Test-Scenario -Name "empty") {
@@ -237,6 +269,36 @@ if (Test-Scenario -Name "empty") {
         -Message "Empty rollup should be ready."
     Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $true `
         -Message "Empty rollup should be release-ready."
+}
+
+if (Test-Scenario -Name "style_merge_warning") {
+    $outputDir = Join-Path $resolvedWorkingDir "style-merge-warning-report"
+    $result = Invoke-RollupScript -Arguments @(
+        "-InputJson", $documentSkeletonRollupPath,
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Style merge warnings should not fail by default. Output: $($result.Text)"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "ready_with_warnings" `
+        -Message "Style merge suggestions should produce a non-blocking warning status."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $true `
+        -Message "Style merge warnings should keep release_ready=true by default."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
+        -Message "Style merge suggestions should not be converted into release blockers."
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 1 `
+        -Message "Style merge suggestions should preserve review action items."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Style merge suggestions should produce exactly one warning."
+
+    $gatedOutputDir = Join-Path $resolvedWorkingDir "style-merge-warning-gated-report"
+    $gatedResult = Invoke-RollupScript -Arguments @(
+        "-InputJson", $documentSkeletonRollupPath,
+        "-OutputDir", $gatedOutputDir,
+        "-FailOnWarning"
+    )
+    Assert-Equal -Actual $gatedResult.ExitCode -Expected 1 `
+        -Message "Style merge warnings should fail when -FailOnWarning is set. Output: $($gatedResult.Text)"
 }
 
 if (Test-Scenario -Name "comma_input") {

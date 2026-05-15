@@ -455,12 +455,15 @@ buckets, approval outcomes, and conservative recommendations such as
 ``scripts/build_document_skeleton_governance_rollup_report.ps1`` rolls multiple
 single-document summaries into
 ``featherdoc.document_skeleton_governance_rollup_report.v1`` with exemplar
-catalog paths, style-numbering issue totals, release blockers, and action
-items. ``scripts/build_release_blocker_rollup_report.ps1`` normalizes
+catalog paths, style-numbering issue totals, duplicate style-merge suggestion
+totals, release blockers, and action items.
+``scripts/build_release_blocker_rollup_report.ps1`` normalizes
 ``release_blockers`` and ``action_items`` from these governance reports,
 document-skeleton rollups, table-layout delivery, or release summaries into
 ``featherdoc.release_blocker_rollup_report.v1`` while preserving duplicate
-source blockers through composite ids.
+source blockers through composite ids. Pending duplicate style-merge
+suggestions from the skeleton rollup are surfaced as non-blocking warnings by
+default and can be gated with ``-FailOnWarning``.
 
 When adding a repository baseline,
 ``scripts/register_template_schema_manifest_entry.ps1`` now runs the same gate
