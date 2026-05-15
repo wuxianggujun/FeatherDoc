@@ -3268,6 +3268,18 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\test\pdf_import_docs_contract_test.ps1 -RepoRoot .`
   和 `git diff --check`。
 
+2026-05-15 继续推进（PDF import 发布打包安全回归）：
+
+- 已扩展 `test/package_release_assets_safety_test.ps1`，在模拟安装前缀中加入
+  `share/FeatherDoc/docs/pdf_import.rst`，并固定 staging 目录必须保留该文件。
+- 已新增安装 ZIP 条目断言，确保
+  `FeatherDoc-v1.6.4-msvc-install.zip` 内继续携带
+  `build-msvc-install/share/FeatherDoc/docs/pdf_import.rst`。
+- ZIP 条目比较已统一归一化路径分隔符，避免 Windows 反斜杠条目导致跨实现误报。
+- 本轮验证通过：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\test\package_release_assets_safety_test.ps1 -RepoRoot . -WorkingDir .\output\package-release-assets-safety-test`
+  和 `git diff --check`。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

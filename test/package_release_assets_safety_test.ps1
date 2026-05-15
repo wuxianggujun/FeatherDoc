@@ -33,6 +33,29 @@ function Assert-NotContains {
     }
 }
 
+function Assert-ZipContainsEntry {
+    param(
+        [string]$ZipPath,
+        [string]$ExpectedEntryName
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $normalizedExpectedEntryName = $ExpectedEntryName.Replace('\', '/')
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($ZipPath)
+    try {
+        foreach ($entry in $zip.Entries) {
+            if ($entry.FullName.Replace('\', '/') -eq $normalizedExpectedEntryName) {
+                return
+            }
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+
+    throw "Expected ZIP archive '$ZipPath' to contain '$ExpectedEntryName'."
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $workingDirParent = Split-Path -Parent $resolvedWorkingDir
@@ -72,6 +95,7 @@ $gateFinalReviewPath = Join-Path $gateReportDir "gate_final_review.md"
 $summaryPath = Join-Path $reportDir "summary.json"
 $installedReadmePath = Join-Path $installPrefix "share\FeatherDoc\README.md"
 $installedChangelogPath = Join-Path $installPrefix "share\FeatherDoc\CHANGELOG.md"
+$installedPdfImportDocsPath = Join-Path $installPrefix "share\FeatherDoc\docs\pdf_import.rst"
 
 Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 # START_HERE
@@ -132,6 +156,14 @@ Set-Content -LiteralPath $installedChangelogPath -Encoding UTF8 -Value @'
 - The release-note drafting helper still keeps the old draft boilerplate.
 - `-Publish` flips `draft=false` after final signoff.
 - Normalize `C:\Users\someone\workspace` before public release.
+'@
+
+New-Item -ItemType Directory -Path (Split-Path -Parent $installedPdfImportDocsPath) -Force | Out-Null
+Set-Content -LiteralPath $installedPdfImportDocsPath -Encoding UTF8 -Value @'
+PDF Import
+==========
+
+Install package copy for release asset packaging regression.
 '@
 
 Set-Content -LiteralPath (Join-Path $smokeEvidenceDir "README.md") -Encoding UTF8 -Value @"
@@ -217,6 +249,7 @@ $stagedGateSummaryPath = Join-Path $stagingRoot "word-visual-release-gate\report
 $stagedHandoffPath = Join-Path $stagingRoot "release-candidate-checks\report\release_handoff.md"
 $stagedInstalledReadmePath = Join-Path $stagingRoot "build-msvc-install\share\FeatherDoc\README.md"
 $stagedInstalledChangelogPath = Join-Path $stagingRoot "build-msvc-install\share\FeatherDoc\CHANGELOG.md"
+$stagedInstalledPdfImportDocsPath = Join-Path $stagingRoot "build-msvc-install\share\FeatherDoc\docs\pdf_import.rst"
 $installZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-msvc-install.zip"
 $galleryZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-visual-validation-gallery.zip"
 $evidenceZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-release-evidence.zip"
@@ -234,6 +267,7 @@ Assert-NotContains -Path $stagedInstalledChangelogPath -UnexpectedText 'C:\Users
 Assert-Contains -Path $stagedInstalledReadmePath -ExpectedText '<windows-absolute-path>' -Label 'staged installed README.md'
 Assert-Contains -Path $stagedInstalledChangelogPath -ExpectedText 'preview' -Label 'staged installed CHANGELOG.md'
 Assert-Contains -Path $stagedInstalledChangelogPath -ExpectedText '<windows-absolute-path>' -Label 'staged installed CHANGELOG.md'
+Assert-Contains -Path $stagedInstalledPdfImportDocsPath -ExpectedText 'PDF Import' -Label 'staged installed PDF import docs'
 if ($stagedSummary.release_handoff -ne $expectedRelativeHandoff) {
     throw "staged summary.json did not rewrite release_handoff to the expected relative path."
 }
@@ -246,5 +280,9 @@ foreach ($zipPath in @($installZipPath, $galleryZipPath, $evidenceZipPath)) {
         throw "Expected ZIP archive was not created: $zipPath"
     }
 }
+
+Assert-ZipContainsEntry `
+    -ZipPath $installZipPath `
+    -ExpectedEntryName 'build-msvc-install/share/FeatherDoc/docs/pdf_import.rst'
 
 Write-Host "Package release assets safety regression passed."
