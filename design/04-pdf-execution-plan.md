@@ -303,7 +303,9 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 ### 验收
 
 - [x] 中文 PDF 在 PDFium 中回读文本一致。
-- [ ] 中文 PDF 在常见阅读器中可复制、可搜索。
+- [x] 中文 PDF 的复制/搜索语义有自动化代理验收：
+  PDFium 文本抽取可命中中文整行与常见搜索片段。
+- [ ] 中文 PDF 在常见阅读器中完成手工复制、搜索验收。
 - [x] 生成 PDF 中嵌入的是字体子集，不是完整大字体。
 - [x] 缺字体时有明确错误或明确 fallback，不静默输出乱码。
 
@@ -316,9 +318,12 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure -
 - 已补充 writer 诊断：Unicode 文本没有解析出嵌入字体文件时直接失败，错误包含 `Unicode PDF text requires an embedded font file` 和字体族名。
 - 已补充 writer 缺字体/坏字体测试：不存在的字体路径、损坏字体文件都会失败并在错误信息里带出字体路径。
 - 已将 Unicode roundtrip 文本扩展为中文、英文、数字、中文标点混排，确认 PDFium 回读和 ToUnicode 路径覆盖混排标点。
+- 已补充 CJK 复制/搜索语义代理回归：生成两行中文混排 PDF，确认 `/ToUnicode`
+  与 `/Identity-H` 存在，PDFium 抽取文本可命中整行中文、中文搜索片段和 ASCII 编号。
 - 已确认 subset PDF 明显小于 full PDF：本地视觉 smoke 中 full 为 10,213,214 bytes，subset 为 19,874 bytes；两者渲染内容一致。
 - 已在 `BUILDING_PDF.md` 记录当前 CJK fallback 顺序和字体许可证义务：默认使用系统/用户显式提供字体，不把系统字体重新分发进仓库。
-- 已知限制：常见阅读器中的手工复制/搜索还没有形成自动化或人工验收记录；后续需要在 E6 发布门禁中补上可复现检查。
+- 已知限制：常见阅读器中的手工复制/搜索还没有形成自动化或人工验收记录；当前新增的是
+  PDFium + ToUnicode 代理验收，后续发布前仍需要补可复现的手工验收记录。
 
 通过命令：
 
