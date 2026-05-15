@@ -23,6 +23,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[release-governance-handoff] $Message"
@@ -272,6 +274,31 @@ function Add-NormalizedActions {
     }
 }
 
+function Add-NormalizedWarnings {
+    param(
+        [System.Collections.Generic.List[object]]$Collection,
+        [object]$Report
+    )
+
+    foreach ($warning in @($Report.warnings)) {
+        $entry = [ordered]@{
+            report_id = [string]$Report.id
+            report_title = [string]$Report.title
+            id = Get-JsonString -Object $warning -Name "id" -DefaultValue "warning"
+            action = Get-JsonString -Object $warning -Name "action"
+            message = Get-JsonString -Object $warning -Name "message"
+            source_schema = Get-JsonString -Object $warning -Name "source_schema" -DefaultValue ([string]$Report.schema)
+        }
+
+        $styleMergeSuggestionCount = Get-JsonProperty -Object $warning -Name "style_merge_suggestion_count"
+        if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+            $entry.style_merge_suggestion_count = [int]$styleMergeSuggestionCount
+        }
+
+        $Collection.Add([pscustomobject]$entry) | Out-Null
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -312,6 +339,31 @@ function New-ReportMarkdown {
     }
     $lines.Add("") | Out-Null
 
+    $lines.Add("## Warnings") | Out-Null
+    $lines.Add("") | Out-Null
+    $warningLines = New-Object 'System.Collections.Generic.List[string]'
+    $hasWarnings = $false
+    if (Add-ReleaseGovernanceWarningMarkdownSubsection `
+            -Lines $warningLines `
+            -Heading "Release governance handoff warnings" `
+            -SummaryObject $Summary) {
+        $hasWarnings = $true
+    }
+    if (Add-ReleaseGovernanceWarningMarkdownSubsection `
+            -Lines $warningLines `
+            -Heading "Release blocker rollup warnings" `
+            -SummaryObject $Summary.release_blocker_rollup) {
+        $hasWarnings = $true
+    }
+    if (-not $hasWarnings) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($line in $warningLines) {
+            $lines.Add($line) | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+
     $lines.Add("## Release Blocker Rollup") | Out-Null
     $lines.Add("") | Out-Null
     $rollup = $Summary.release_blocker_rollup
@@ -321,13 +373,6 @@ function New-ReportMarkdown {
     $lines.Add("- Release blockers: ``$($rollup.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($rollup.action_item_count)``") | Out-Null
     $lines.Add("- Warnings: ``$($rollup.warning_count)``") | Out-Null
-    if (@($rollup.warnings).Count -eq 0) {
-        $lines.Add("- none") | Out-Null
-    } else {
-        foreach ($warning in @($rollup.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
-        }
-    }
     $lines.Add("") | Out-Null
 
     $lines.Add("## Action Items") | Out-Null
@@ -495,9 +540,11 @@ if ($IncludeReleaseBlockerRollup) {
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
+$warnings = New-Object 'System.Collections.Generic.List[object]'
 foreach ($report in @($reports.ToArray())) {
     Add-NormalizedBlockers -Collection $releaseBlockers -Report $report
     Add-NormalizedActions -Collection $actionItems -Report $report
+    Add-NormalizedWarnings -Collection $warnings -Report $report
 }
 
 $loadedReportCount = @($reports.ToArray() | Where-Object { $_.status -notin @("missing", "failed") }).Count
@@ -597,6 +644,7 @@ $summary = [ordered]@{
     action_item_count = $actionItems.Count
     action_items = @($actionItems.ToArray())
     warning_count = $warningCount
+    warnings = @($warnings.ToArray())
     next_commands = @($nextCommands.ToArray())
 }
 

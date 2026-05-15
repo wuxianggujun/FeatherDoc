@@ -20,6 +20,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[release-blocker-rollup] $Message"
@@ -238,11 +240,15 @@ function New-ReportMarkdown {
     $lines.Add("") | Out-Null
     $lines.Add("## Warnings") | Out-Null
     $lines.Add("") | Out-Null
-    if (@($Summary.warnings).Count -eq 0) {
+    $warningLines = New-Object 'System.Collections.Generic.List[string]'
+    if (-not (Add-ReleaseGovernanceWarningMarkdownSubsection `
+                -Lines $warningLines `
+                -Heading "Release blocker rollup warnings" `
+                -SummaryObject $Summary)) {
         $lines.Add("- none") | Out-Null
     } else {
-        foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+        foreach ($line in $warningLines) {
+            $lines.Add($line) | Out-Null
         }
     }
     return @($lines)
@@ -319,16 +325,20 @@ foreach ($path in @($inputPaths)) {
         foreach ($warning in $sourceWarnings) {
             $warningIndex++
             $id = Get-JsonString -Object $warning -Name "id" -DefaultValue "source_warning"
-            $warnings.Add([ordered]@{
+            $entry = [ordered]@{
                 composite_id = ("source{0}.warning{1}.{2}" -f $sourceIndex, $warningIndex, $id)
                 id = $id
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                source_schema = $kind
+                source_schema = Get-JsonString -Object $warning -Name "source_schema" -DefaultValue $kind
                 action = Get-JsonString -Object $warning -Name "action"
-                style_merge_suggestion_count = Get-JsonInt -Object $warning -Name "style_merge_suggestion_count"
                 message = Get-JsonString -Object $warning -Name "message"
-            }) | Out-Null
+            }
+            $styleMergeSuggestionCount = Get-JsonProperty -Object $warning -Name "style_merge_suggestion_count"
+            if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+                $entry.style_merge_suggestion_count = [int]$styleMergeSuggestionCount
+            }
+            $warnings.Add($entry) | Out-Null
         }
 
         $blockerIndex = 0

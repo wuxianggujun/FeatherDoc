@@ -218,6 +218,16 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should normalize action items."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
         -Message "Aggregate handoff should preserve warning counts."
+    Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+        -Message "Aggregate handoff should materialize top-level warning details."
+    $styleMergeWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$styleMergeWarning[0].action) -Expected "review_style_merge_suggestions" `
+        -Message "Aggregate handoff should preserve warning actions."
+    Assert-Equal -Actual ([string]$styleMergeWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Aggregate handoff should preserve warning source schema."
+    Assert-Equal -Actual ([int]$styleMergeWarning[0].style_merge_suggestion_count) -Expected 2 `
+        -Message "Aggregate handoff should preserve warning action, source schema, and style merge counts."
     Assert-ContainsText -Text (($summary.next_commands | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "ReleaseBlockerRollupAutoDiscover" `
         -Message "Aggregate handoff should hand off to release candidate auto-discovery."
@@ -229,6 +239,18 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include project-template delivery readiness."
     Assert-ContainsText -Text $markdown -ExpectedText "content_control_data_binding_governance" `
         -Message "Markdown should include content-control data-binding governance."
+    Assert-ContainsText -Text $markdown -ExpectedText "## Warnings" `
+        -Message "Markdown should include the warnings section."
+    Assert-ContainsText -Text $markdown -ExpectedText "### Release governance handoff warnings" `
+        -Message "Markdown should include the top-level warning subsection."
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `2`' `
+        -Message "Markdown should show the top-level warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `review_style_merge_suggestions`' `
+        -Message "Markdown should include warning actions."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' `
+        -Message "Markdown should include warning source schema."
+    Assert-ContainsText -Text $markdown -ExpectedText 'style_merge_suggestion_count: `2`' `
+        -Message "Markdown should include warning style merge suggestion counts."
 }
 
 if (Test-Scenario -Name "missing") {
@@ -360,8 +382,14 @@ if (Test-Scenario -Name "include_rollup") {
         -Message "Handoff Markdown should show nested rollup source count."
     Assert-ContainsText -Text $markdown -ExpectedText "Warnings: ``2``" `
         -Message "Handoff Markdown should show nested rollup warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText "### Release blocker rollup warnings" `
+        -Message "Handoff Markdown should include nested rollup warning subsection."
     Assert-ContainsText -Text $markdown -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
         -Message "Handoff Markdown should show nested rollup warning details."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' `
+        -Message "Handoff Markdown should show nested rollup warning source schema."
+    Assert-ContainsText -Text $markdown -ExpectedText 'style_merge_suggestion_count: `2`' `
+        -Message "Handoff Markdown should show nested rollup style merge counts."
 }
 
 Write-Host "Release governance handoff report regression passed."

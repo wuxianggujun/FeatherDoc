@@ -274,6 +274,20 @@ Assert-Equal -Actual ([int]$handoffStage[0].warning_count) -Expected 2 `
     -Message "Pipeline should preserve handoff warning count."
 Assert-Equal -Actual ([int]$rollupStage[0].warning_count) -Expected 2 `
     -Message "Pipeline should preserve final rollup warning count."
+$handoffStyleMergeWarning = @($handoffStage[0].warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
+$rollupStyleMergeWarning = @($rollupStage[0].warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
+Assert-Equal -Actual ([string]$handoffStyleMergeWarning[0].action) -Expected "review_style_merge_suggestions" `
+    -Message "Pipeline should preserve normalized warning actions on the handoff stage."
+Assert-Equal -Actual ([string]$handoffStyleMergeWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+    -Message "Pipeline should preserve normalized warning source schema on the handoff stage."
+Assert-Equal -Actual ([int]$handoffStyleMergeWarning[0].style_merge_suggestion_count) -Expected 2 `
+    -Message "Pipeline should preserve normalized warning style merge counts on the handoff stage."
+Assert-Equal -Actual ([string]$rollupStyleMergeWarning[0].action) -Expected "review_style_merge_suggestions" `
+    -Message "Pipeline should preserve normalized warning actions on the final rollup stage."
+Assert-Equal -Actual ([string]$rollupStyleMergeWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+    -Message "Pipeline should preserve normalized warning source schema on the final rollup stage."
+Assert-Equal -Actual ([int]$rollupStyleMergeWarning[0].style_merge_suggestion_count) -Expected 2 `
+    -Message "Pipeline should preserve normalized warning style merge counts on the final rollup stage."
 
 $handoffSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$handoffSummary.schema) -Expected "featherdoc.release_governance_handoff_report.v1" `
@@ -289,5 +303,17 @@ Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline
     -Message "Pipeline Markdown should include title."
 Assert-ContainsText -Text $markdown -ExpectedText "release_blocker_rollup" `
     -Message "Pipeline Markdown should include final rollup stage."
+Assert-ContainsText -Text $markdown -ExpectedText "## Warnings" `
+    -Message "Pipeline Markdown should include warnings section."
+Assert-ContainsText -Text $markdown -ExpectedText "### release_governance_handoff warnings" `
+    -Message "Pipeline Markdown should include handoff stage warning subsection."
+Assert-ContainsText -Text $markdown -ExpectedText "### release_blocker_rollup warnings" `
+    -Message "Pipeline Markdown should include final rollup warning subsection."
+Assert-ContainsText -Text $markdown -ExpectedText 'action: `review_style_merge_suggestions`' `
+    -Message "Pipeline Markdown should include warning actions."
+Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' `
+    -Message "Pipeline Markdown should include warning source schema."
+Assert-ContainsText -Text $markdown -ExpectedText 'style_merge_suggestion_count: `2`' `
+    -Message "Pipeline Markdown should include warning style merge counts."
 
 Write-Host "Release governance pipeline report regression passed."

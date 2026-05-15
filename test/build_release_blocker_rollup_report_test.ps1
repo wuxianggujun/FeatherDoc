@@ -239,6 +239,11 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
         -Message "Rollup should warn about pending style merge suggestion review."
+    $styleMergeWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$styleMergeWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Rollup should preserve warning source schema from source reports."
+    Assert-Equal -Actual ([int]$styleMergeWarning[0].style_merge_suggestion_count) -Expected 2 `
+        -Message "Rollup should preserve warning style merge counts from source reports."
     Assert-ContainsText -Text (($summary.source_reports | ForEach-Object { "$($_.schema):$($_.style_merge_suggestion_count)" }) -join "`n") `
         -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1:2" `
         -Message "Rollup should preserve skeleton rollup style merge counts."
@@ -253,6 +258,16 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include release candidate blocker."
     Assert-ContainsText -Text $markdown -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
         -Message "Markdown should include style merge review warning."
+    Assert-ContainsText -Text $markdown -ExpectedText "### Release blocker rollup warnings" `
+        -Message "Markdown should include the release blocker rollup warning subsection."
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `1`' `
+        -Message "Markdown should show the rollup warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `review_style_merge_suggestions`' `
+        -Message "Markdown should include warning actions."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' `
+        -Message "Markdown should include warning source schema."
+    Assert-ContainsText -Text $markdown -ExpectedText 'style_merge_suggestion_count: `2`' `
+        -Message "Markdown should include warning style merge suggestion counts."
 }
 
 if (Test-Scenario -Name "empty") {

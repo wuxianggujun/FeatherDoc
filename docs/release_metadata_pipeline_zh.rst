@@ -170,6 +170,25 @@ Markdown 文件。
 - ``review_note``
 - ``review_task_summary``
 
+release governance 相关 warning 现在也遵循统一的明细契约。除顶层
+``warning_count`` 外，下列报告都会尽量透传 ``warnings`` 数组中的结构化字段，
+避免 reviewer 只能看到简化计数或丢失来源：
+
+- ``release_blocker_rollup.md`` / ``summary.json``
+- ``release_governance_handoff.md`` / ``summary.json``
+- ``release_governance_pipeline.md`` / ``summary.json``
+- bundle 入口文档，例如 ``START_HERE.md``、``ARTIFACT_GUIDE.md``、
+  ``REVIEWER_CHECKLIST.md``、``release_handoff.md``
+
+当前约定优先保留每条 warning 自身的字段；若源 warning 缺字段，再回退到当前
+报告上下文补齐。维护时至少要保证这些字段在链路中不会被无意丢失：
+
+- ``id``
+- ``action``
+- ``message``
+- ``source_schema``
+- ``style_merge_suggestion_count``（存在时）
+
 公开 release 正文应保持简洁，不应泄露 operator-only 的自由文本 note 或内部
 provenance。当前 ``release_body.zh-CN.md`` 和 ``release_summary.zh-CN.md`` 只保留
 面向发布说明有意义的 verdict / status 摘要。

@@ -72,6 +72,16 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 - ``release_summary.zh-CN.md`` 只保留适合首屏展示的 verdict 摘要。
 - 公开材料默认经过 ``assert_release_material_safety.ps1`` 审计。
 
+涉及 release governance warning 明细时，必须确认：
+
+- ``warning_count`` 与 ``warnings`` 的实际条目数保持一致，或具备明确的兼容降级逻辑。
+- ``release_blocker_rollup``、``release_governance_handoff``、``release_governance_pipeline``
+  三层都能透传 warning 明细，而不是只保留计数。
+- 每条 warning 的 ``id``、``action``、``message``、``source_schema`` 不会在中间层被覆盖成
+  更弱的信息。
+- ``style_merge_suggestion_count`` 这类可选字段只在存在时写出，不要把缺失值归一化成误导性的 ``0``。
+- Markdown 报告中的 ``## Warnings`` / ``### ... warnings`` 子段与 JSON 明细保持同一语义。
+
 
 推荐测试矩阵
 ------------
@@ -123,6 +133,30 @@ release 流水线的详细设计文档；详细字段流向请先阅读
         -R "^(release_note_bundle_version|release_note_bundle_visual_verdict_metadata|release_visual_verdict_metadata_consistency)$" `
         --output-on-failure `
         --timeout 60
+
+修改 release governance handoff / rollup / pipeline warning 契约：
+
+.. code-block:: powershell
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\build_release_blocker_rollup_report_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir .tmp\test-build-release-blocker-rollup
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\build_release_governance_handoff_report_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir .tmp\test-build-release-governance-handoff
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\build_release_governance_pipeline_report_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir .tmp\test-build-release-governance-pipeline
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\release_candidate_blocker_rollup_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir .tmp\test-release-candidate-blocker-rollup
 
 修改公开发布用语：
 

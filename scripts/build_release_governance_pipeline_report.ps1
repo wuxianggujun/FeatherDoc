@@ -25,6 +25,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[release-governance-pipeline] $Message"
@@ -106,6 +108,25 @@ function Get-JsonInt {
     return $DefaultValue
 }
 
+function Get-JsonArray {
+    param($Object, [string]$Name)
+
+    $value = Get-JsonProperty -Object $Object -Name $Name
+    if ($null -eq $value) {
+        return @()
+    }
+    if ($value -is [string]) {
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            return @()
+        }
+        return @($value)
+    }
+    if ($value -is [System.Collections.IEnumerable]) {
+        return @($value | Where-Object { $null -ne $_ })
+    }
+    return @($value)
+}
+
 function Get-ChildPowerShell {
     $powerShellPath = (Get-Process -Id $PID).Path
     if (-not [string]::IsNullOrWhiteSpace($powerShellPath)) {
@@ -146,6 +167,30 @@ function Read-Summary {
         return $null
     }
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+}
+
+function Get-NormalizedSummaryWarnings {
+    param([AllowNull()]$Summary)
+
+    $schema = Get-JsonString -Object $Summary -Name "schema"
+    $warnings = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($warning in @(Get-JsonArray -Object $Summary -Name "warnings")) {
+        $entry = [ordered]@{
+            id = Get-JsonString -Object $warning -Name "id" -DefaultValue "warning"
+            action = Get-JsonString -Object $warning -Name "action"
+            message = Get-JsonString -Object $warning -Name "message"
+            source_schema = Get-JsonString -Object $warning -Name "source_schema" -DefaultValue $schema
+        }
+
+        $styleMergeSuggestionCount = Get-JsonProperty -Object $warning -Name "style_merge_suggestion_count"
+        if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+            $entry.style_merge_suggestion_count = [int]$styleMergeSuggestionCount
+        }
+
+        $warnings.Add([pscustomobject]$entry) | Out-Null
+    }
+
+    return @($warnings.ToArray())
 }
 
 function New-StageEntry {
@@ -190,6 +235,11 @@ function New-StageEntry {
         missing_report_count = Get-JsonInt -Object $Summary -Name "missing_report_count"
         failed_report_count = Get-JsonInt -Object $Summary -Name "failed_report_count"
         source_failure_count = Get-JsonInt -Object $Summary -Name "source_failure_count"
+        warnings = if ($null -eq $Summary) {
+            @()
+        } else {
+            @(Get-NormalizedSummaryWarnings -Summary $Summary)
+        }
         error = $ErrorMessage
     }
 }
@@ -305,6 +355,26 @@ function New-ReportMarkdown {
         $lines.Add("  - summary: ``$($stage.summary_json_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string]$stage.error)) {
             $lines.Add("  - error: ``$($stage.error)``") | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Warnings") | Out-Null
+    $lines.Add("") | Out-Null
+    $warningLines = New-Object 'System.Collections.Generic.List[string]'
+    $hasWarnings = $false
+    foreach ($stage in @($Summary.stages)) {
+        if (Add-ReleaseGovernanceWarningMarkdownSubsection `
+                -Lines $warningLines `
+                -Heading ("{0} warnings" -f [string]$stage.id) `
+                -SummaryObject $stage) {
+            $hasWarnings = $true
+        }
+    }
+    if (-not $hasWarnings) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($line in $warningLines) {
+            $lines.Add($line) | Out-Null
         }
     }
     return @($lines)
