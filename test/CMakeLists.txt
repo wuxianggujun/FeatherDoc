@@ -1029,6 +1029,23 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/release_visual_verdict_metadata_consistency
         )
+        featherdoc_set_test_labels(release_visual_verdict_metadata_consistency release governance)
+
+        add_test(
+            NAME
+            release_governance_warning_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_governance_warning_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_governance_warning_contract
+        )
+        featherdoc_set_test_labels(release_governance_warning_contract release governance)
 
         add_test(
             NAME

@@ -244,6 +244,11 @@ CI 或其它只读取 JSON 的自动化可以额外加 ``-Quiet``，避免控制
         -RepoRoot . `
         -WorkingDir .\output\check-release-metadata-docs-test
 
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\release_governance_warning_contract_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir .\.tmp\test-release-governance-warning-contract
+
 这条检查不能替代 release metadata 的行为回归测试。只要改动涉及脚本输出或
 metadata 字段同步，仍然需要按上一节的测试矩阵执行对应测试。
 

@@ -323,6 +323,7 @@ $checklistExpectedMarkers = @(
     "release_note_bundle_visual_verdict_metadata",
     "public_release_wording_regression_test.ps1",
     "git diff --check",
+    "release_governance_warning_contract_test.ps1",
     "release governance warning",
     "warning_count",
     "release_blocker_rollup",
