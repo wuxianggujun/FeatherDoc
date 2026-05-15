@@ -918,63 +918,82 @@ TEST_CASE("PDFio falls back for non-LTR shaped glyph directions") {
         return;
     }
 
-    const std::string expected_text = "abc";
-    constexpr double font_size = 18.0;
-    featherdoc::pdf::PdfGlyphRun glyph_run;
-    glyph_run.text = expected_text;
-    glyph_run.font_file_path = font_path;
-    glyph_run.font_size_points = font_size;
-    glyph_run.direction = featherdoc::pdf::PdfGlyphDirection::right_to_left;
-    glyph_run.used_harfbuzz = true;
-    glyph_run.glyphs = {
-        featherdoc::pdf::PdfGlyphPosition{1U, 0U, 6.0, 0.0, 0.0, 0.0},
-        featherdoc::pdf::PdfGlyphPosition{2U, 1U, 6.0, 0.0, 0.0, 0.0},
-        featherdoc::pdf::PdfGlyphPosition{3U, 2U, 6.0, 0.0, 0.0, 0.0},
+    struct DirectionFallbackCase {
+        featherdoc::pdf::PdfGlyphDirection direction{
+            featherdoc::pdf::PdfGlyphDirection::unknown};
+        std::string label;
     };
 
-    const auto output_path =
-        std::filesystem::current_path() /
-        "featherdoc-shaped-glyph-direction-fallback.pdf";
+    const std::array<DirectionFallbackCase, 4U> fallback_cases{{
+        {featherdoc::pdf::PdfGlyphDirection::right_to_left, "rtl"},
+        {featherdoc::pdf::PdfGlyphDirection::top_to_bottom, "ttb"},
+        {featherdoc::pdf::PdfGlyphDirection::bottom_to_top, "btt"},
+        {featherdoc::pdf::PdfGlyphDirection::unknown, "unknown"},
+    }};
 
-    featherdoc::pdf::PdfDocumentLayout layout;
-    layout.metadata.title = "FeatherDoc shaped glyph direction fallback";
-    layout.metadata.creator = "FeatherDoc test";
+    const std::string expected_text = "abc";
+    constexpr double font_size = 18.0;
 
-    featherdoc::pdf::PdfPageLayout page;
-    page.size = featherdoc::pdf::PdfPageSize::a4_portrait();
-    page.text_runs.push_back(featherdoc::pdf::PdfTextRun{
-        featherdoc::pdf::PdfPoint{72.0, 720.0},
-        expected_text,
-        "Latin Test Font",
-        font_path,
-        font_size,
-        featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
-        false,
-        false,
-        false,
-        true,
-        0.0,
-        false,
-        false,
-        std::move(glyph_run),
-    });
-    layout.pages.push_back(std::move(page));
+    for (const auto &fallback_case : fallback_cases) {
+        CAPTURE(fallback_case.label);
 
-    featherdoc::pdf::PdfioGenerator generator;
-    const auto write_result =
-        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
-    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
-    CHECK_GT(write_result.bytes_written, 0U);
+        featherdoc::pdf::PdfGlyphRun glyph_run;
+        glyph_run.text = expected_text;
+        glyph_run.font_file_path = font_path;
+        glyph_run.font_size_points = font_size;
+        glyph_run.direction = fallback_case.direction;
+        glyph_run.used_harfbuzz = true;
+        glyph_run.glyphs = {
+            featherdoc::pdf::PdfGlyphPosition{1U, 0U, 6.0, 0.0, 0.0, 0.0},
+            featherdoc::pdf::PdfGlyphPosition{2U, 1U, 6.0, 0.0, 0.0, 0.0},
+            featherdoc::pdf::PdfGlyphPosition{3U, 2U, 6.0, 0.0, 0.0, 0.0},
+        };
 
-    const auto pdf_bytes = read_file_bytes(output_path);
-    CHECK_EQ(pdf_bytes.find("/FeatherDocGlyph"), std::string::npos);
+        const auto output_path =
+            std::filesystem::current_path() /
+            ("featherdoc-shaped-glyph-direction-fallback-" +
+             fallback_case.label + ".pdf");
 
-    featherdoc::pdf::PdfiumParser parser;
-    const auto parse_result = parser.parse(output_path, {});
-    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+        featherdoc::pdf::PdfDocumentLayout layout;
+        layout.metadata.title = "FeatherDoc shaped glyph direction fallback";
+        layout.metadata.creator = "FeatherDoc test";
 
-    const auto extracted_text = collect_text(parse_result.document);
-    CHECK_EQ(count_occurrences(extracted_text, expected_text), 1U);
+        featherdoc::pdf::PdfPageLayout page;
+        page.size = featherdoc::pdf::PdfPageSize::a4_portrait();
+        page.text_runs.push_back(featherdoc::pdf::PdfTextRun{
+            featherdoc::pdf::PdfPoint{72.0, 720.0},
+            expected_text,
+            "Latin Test Font",
+            font_path,
+            font_size,
+            featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
+            false,
+            false,
+            false,
+            true,
+            0.0,
+            false,
+            false,
+            std::move(glyph_run),
+        });
+        layout.pages.push_back(std::move(page));
+
+        featherdoc::pdf::PdfioGenerator generator;
+        const auto write_result = generator.write(
+            layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+        REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+        CHECK_GT(write_result.bytes_written, 0U);
+
+        const auto pdf_bytes = read_file_bytes(output_path);
+        CHECK_EQ(pdf_bytes.find("/FeatherDocGlyph"), std::string::npos);
+
+        featherdoc::pdf::PdfiumParser parser;
+        const auto parse_result = parser.parse(output_path, {});
+        REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+
+        const auto extracted_text = collect_text(parse_result.document);
+        CHECK_EQ(count_occurrences(extracted_text, expected_text), 1U);
+    }
 }
 
 TEST_CASE("PDFio falls back for document adapter RTL shaped runs") {

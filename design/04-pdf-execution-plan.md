@@ -2946,6 +2946,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 
 2026-05-15 继续推进（Document RTL writer fallback E2E）：
 
+- 已把 `pdf_unicode_font_roundtrip` 里的非 LTR writer fallback 回归从单一 RTL 样例扩展为
+  `right_to_left` / `top_to_bottom` / `bottom_to_top` / `unknown` 矩阵，确认当前
+  glyph-id CID writer 入口只接受 `left_to_right`。
 - 已在 `pdf_unicode_font_roundtrip` 增加 Document 级端到端回归：真实 `Run::set_rtl()`
   经 document adapter 生成 `right_to_left` shaped glyph metadata 后，PDFio writer 不生成
   `/FeatherDocGlyph` CID 字体资源，继续走字符串 fallback。
@@ -2960,6 +2963,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   通过；
   `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
   通过。
+- 矩阵扩展后再次完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- 本轮在当前 worktree 重新跑 `pdf_regression_` 时发现 Document adapter 的 shaped glyph
+  CID 字体路径仍嵌入完整字体，导致 `document-contract-cjk-style`、
+  `document-eastasia-style-probe`、`list-report-text` 触发页数级 PDF 大小阈值。
+  已让 shaped glyph CID 字体复用 HarfBuzz glyph-id subset，并保留失败时回退完整字体的行为。
+  修复后失败样本输出分别收敛到约 39KB、29KB、1.19MB。
 - 下一阶段入口：
   当前已覆盖 Document RTL metadata 到 writer fallback 的闭环；真正支持 RTL glyph-id stream
   前，需要先形成独立验收样本，明确 visual order、logical text extraction、glyph advance

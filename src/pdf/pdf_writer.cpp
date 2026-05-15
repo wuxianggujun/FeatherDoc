@@ -115,6 +115,7 @@ struct GlyphCidEntry {
 
 struct GlyphFontResource {
     std::vector<GlyphCidEntry> entries;
+    std::vector<std::uint32_t> glyph_ids;
 };
 
 using GlyphFontResources = std::map<FontResourceKey, GlyphFontResource>;
@@ -566,6 +567,8 @@ read_binary_file(const std::filesystem::path &path) {
                 width_1000,
                 glyph_cluster_text(text_run.glyph_run, index),
             });
+            resource.glyph_ids.push_back(
+                static_cast<std::uint32_t>(glyph.glyph_id));
         }
     }
 
@@ -770,7 +773,27 @@ create_shaped_glyph_font(pdfio_file_t *pdf, const FontResourceKey &key,
         return nullptr;
     }
 
-    pdfio_obj_t *font_file = create_font_file_object(pdf, key, error_message);
+    pdfio_obj_t *font_file = nullptr;
+    std::vector<unsigned char> subset_font_data;
+#if defined(FEATHERDOC_ENABLE_PDF_FONT_SUBSET)
+    if (!resource.glyph_ids.empty()) {
+        const auto subset_result =
+            subset_font_file_for_glyph_ids(key.file_path, resource.glyph_ids);
+        if (subset_result.success && !subset_result.font_data.empty()) {
+            subset_font_data = std::move(subset_result.font_data);
+            pdfio_dict_t *dict = pdfioDictCreate(pdf);
+            if (dict != nullptr) {
+                pdfioDictSetName(dict, "Filter", "FlateDecode");
+            }
+            font_file = create_stream_object_from_bytes(
+                pdf, dict, subset_font_data.data(), subset_font_data.size(),
+                font_label(key), error_message);
+        }
+    }
+#endif
+    if (font_file == nullptr) {
+        font_file = create_font_file_object(pdf, key, error_message);
+    }
     if (font_file == nullptr) {
         return nullptr;
     }
