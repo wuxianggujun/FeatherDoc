@@ -3069,6 +3069,27 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   amount-only / isolated amount-only body rows；之后应整理 `import-pdf --json`
   输出 schema 到用户文档，避免测试覆盖已经扩展但外部契约仍只散落在执行计划里。
 
+2026-05-15 继续推进（CLI continuation 最后边界 JSON 回归）：
+
+- 已补齐上一轮留下的 CLI diagnostics 边界：amount-only body row、
+  isolated amount-only body row 和 local anchor drift。
+- amount-only / isolated amount-only 样本确认 opt-in 导入后仍合并为单表，JSON
+  暴露 `merged_with_previous_table`、`blocker":"none"`、
+  `header_match_kind":"exact"`、`skipped_repeating_header":true` 和
+  `source_row_offset":1`，覆盖极稀疏表体仍可续接的 CLI 解释路径。
+- local anchor drift 样本确认两页列数一致但局部列锚点漂移时仍保守拆表，JSON 暴露
+  `column_count_matches":true`、`column_anchors_match":false`、
+  `disposition":"created_new_table"` 和 `blocker":"column_anchors_mismatch"`，
+  补足“同列数但锚点不兼容”的用户可诊断路径。
+- 已完成验证：
+  `cmake --build .bpdf-cli-import-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-cli-import-msvc -R "^pdf_cli_import$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  CLI JSON diagnostics 的主要正负样本已覆盖到测试层；继续 E7 时，优先整理
+  `import-pdf --json` 输出 schema 到用户文档，并把这些字段定义为稳定调试契约。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
