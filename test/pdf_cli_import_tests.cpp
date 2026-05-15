@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 namespace {
 namespace fs = std::filesystem;
@@ -772,4 +773,57 @@ TEST_CASE("cli import-pdf rejects table candidates by default") {
              std::string::npos);
     CHECK_NE(json.find(R"("input":)"), std::string::npos);
     CHECK_NE(json.find(R"("output":)"), std::string::npos);
+}
+
+TEST_CASE("cli import-pdf reports confidence threshold parse errors as json") {
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const fs::path output = work_dir / "parse-error-output.docx";
+    const auto assert_parse_error =
+        [&](std::vector<std::string> arguments, const char *filename,
+            const char *expected_message) {
+            const fs::path json_output = work_dir / filename;
+            remove_if_exists(json_output);
+
+            CHECK_EQ(run_cli(arguments, json_output), 2);
+
+            const auto json = read_text_file(json_output);
+            CHECK_NE(json.find(R"("command":"import-pdf")"),
+                     std::string::npos);
+            CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
+            CHECK_NE(json.find(R"("stage":"parse")"), std::string::npos);
+            CHECK_NE(json.find(expected_message), std::string::npos);
+        };
+
+    assert_parse_error({"import-pdf",
+                        "input.pdf",
+                        "--json",
+                        "--output",
+                        output.string(),
+                        "--min-table-continuation-confidence"},
+                       "missing-confidence-threshold.json",
+                       "missing value after --min-table-continuation-confidence");
+    assert_parse_error({"import-pdf",
+                        "input.pdf",
+                        "--output",
+                        output.string(),
+                        "--min-table-continuation-confidence",
+                        "not-a-score",
+                        "--json"},
+                       "invalid-confidence-threshold.json",
+                       "invalid value after --min-table-continuation-confidence");
+    assert_parse_error({"import-pdf",
+                        "input.pdf",
+                        "--output",
+                        output.string(),
+                        "--min-table-continuation-confidence",
+                        "80",
+                        "--min-table-continuation-confidence",
+                        "90",
+                        "--json"},
+                       "duplicate-confidence-threshold.json",
+                       "duplicate --min-table-continuation-confidence option");
 }

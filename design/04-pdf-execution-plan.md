@@ -3315,6 +3315,14 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   `<count>`；该参数语义是规则型 continuation confidence 阈值，不是数量。
 - 已扩展 `pdf_import_docs_contract_test.ps1`，同步约束中英文 README 中的同一占位符。
 
+2026-05-15 继续推进（PDF import confidence 解析错误回归）：
+
+- 已补充 `pdf_cli_import_tests.cpp`，覆盖
+  `--min-table-continuation-confidence` 缺失值、非法值和重复传参三类 parse 错误。
+- 回归固定这些错误在 `--json` 下输出 `command:"import-pdf"`、`ok:false`、
+  `stage:"parse"` 和对应错误消息，避免被误归类为 import 阶段失败。
+- 本轮不改变 CLI 行为，只补齐 confidence 阈值参数的负路径 JSON 契约。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
