@@ -296,6 +296,8 @@ foreach ($path in @($inputPaths)) {
                 id = "release_blocker_count_mismatch"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_schema = "featherdoc.release_blocker_rollup_report.v1"
+                action = "reconcile_release_blocker_rollup_counts"
                 message = "release_blocker_count is $declaredBlockerCount but release_blockers contains $($sourceBlockers.Count) item(s)."
             }) | Out-Null
         }
@@ -380,6 +382,8 @@ foreach ($path in @($inputPaths)) {
             id = "source_report_read_failed"
             source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_schema = "featherdoc.release_blocker_rollup_report.v1"
+            action = "fix_release_blocker_rollup_input_json"
             message = $errorMessage
         }) | Out-Null
     }

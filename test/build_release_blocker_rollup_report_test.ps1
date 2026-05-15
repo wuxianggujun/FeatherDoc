@@ -346,8 +346,24 @@ if (Test-Scenario -Name "malformed") {
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
         -Message "Malformed count should produce one warning."
+    Assert-Equal -Actual ([string]$summary.warnings[0].action) -Expected "reconcile_release_blocker_rollup_counts" `
+        -Message "Mismatch warning should expose a remediation action."
+    Assert-Equal -Actual ([string]$summary.warnings[0].source_schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
+        -Message "Mismatch warning should expose the rollup source schema."
     Assert-ContainsText -Text ([string]$summary.warnings[0].message) -ExpectedText "release_blocker_count is 3" `
         -Message "Warning should explain count mismatch."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "release_blocker_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "### Release blocker rollup warnings" `
+        -Message "Markdown should include the rollup warning subsection for malformed counts."
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `1`' `
+        -Message "Markdown should show the malformed warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'id: `release_blocker_count_mismatch`' `
+        -Message "Markdown should include the mismatch warning id."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `reconcile_release_blocker_rollup_counts`' `
+        -Message "Markdown should include the mismatch warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.release_blocker_rollup_report.v1`' `
+        -Message "Markdown should include the mismatch warning source schema."
 }
 
 if (Test-Scenario -Name "dedupe") {
