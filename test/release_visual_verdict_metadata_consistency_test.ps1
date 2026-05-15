@@ -100,18 +100,22 @@ $metadataScripts = @(
     [pscustomobject]@{
         Path = Join-Path $resolvedRepoRoot "scripts\write_release_artifact_handoff.ps1"
         LinesVariable = "handoffLines"
+        SupportsGovernanceWarnings = $true
     },
     [pscustomobject]@{
         Path = Join-Path $resolvedRepoRoot "scripts\write_release_artifact_guide.ps1"
         LinesVariable = "lines"
+        SupportsGovernanceWarnings = $true
     },
     [pscustomobject]@{
         Path = Join-Path $resolvedRepoRoot "scripts\write_release_metadata_start_here.ps1"
         LinesVariable = "lines"
+        SupportsGovernanceWarnings = $true
     },
     [pscustomobject]@{
         Path = Join-Path $resolvedRepoRoot "scripts\write_release_reviewer_checklist.ps1"
         LinesVariable = "lines"
+        SupportsGovernanceWarnings = $true
     }
 )
 
@@ -207,6 +211,30 @@ foreach ($scriptInfo in $metadataScripts) {
     Assert-ContainsText -Text $scriptText `
         -ExpectedText (('[void]${0}.Add("- $($curatedVisualReview.label) review method: $(Get-DisplayValue -Value $curatedVisualReview.review_method)")' -f $scriptInfo.LinesVariable)) `
         -Message "$label should render curated visual review methods."
+
+    if ($scriptInfo.SupportsGovernanceWarnings) {
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText '$releaseBlockerRollupSummary = Get-OptionalPropertyObject -Object $summary -Name "release_blocker_rollup"' `
+            -Message "$label should collect release blocker rollup warning metadata."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText '$releaseGovernanceHandoffSummary = Get-OptionalPropertyObject -Object $summary -Name "release_governance_handoff"' `
+            -Message "$label should collect release governance handoff warning metadata."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText '$releaseGovernanceHandoffRollupSummary = Get-OptionalPropertyObject -Object $releaseGovernanceHandoffSummary -Name "release_blocker_rollup"' `
+            -Message "$label should collect nested handoff rollup warning metadata."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText (('[void]${0}.Add("- Release blocker rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseBlockerRollupSummary)")' -f $scriptInfo.LinesVariable)) `
+            -Message "$label should render the release blocker rollup warning count."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText (('[void]${0}.Add("- Release governance handoff warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffSummary)")' -f $scriptInfo.LinesVariable)) `
+            -Message "$label should render the release governance handoff warning count."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText (('[void]${0}.Add("- Release governance handoff nested rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")' -f $scriptInfo.LinesVariable)) `
+            -Message "$label should render the nested handoff rollup warning count."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText (('Add-ReleaseGovernanceWarningsMarkdownSection -Lines ${0} -Summary $summary' -f $scriptInfo.LinesVariable)) `
+            -Message "$label should render the governance warning detail section."
+    }
 }
 
 $bodyScriptPath = Join-Path $resolvedRepoRoot "scripts\write_release_body_zh.ps1"

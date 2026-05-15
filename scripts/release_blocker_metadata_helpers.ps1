@@ -166,6 +166,19 @@ function Get-ReleaseBlockerDisplayValue {
     return [string]$Value
 }
 
+function Get-ReleaseGovernanceWarningDisplayValue {
+    param(
+        [AllowNull()]$Value,
+        [string]$Fallback = "(not available)"
+    )
+
+    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+        return $Fallback
+    }
+
+    return [string]$Value
+}
+
 function Get-ReleaseBlockerDisplayPath {
     param(
         [string]$RepoRoot,
@@ -215,6 +228,137 @@ function Join-ReleaseBlockerValues {
     }
 
     return ($normalizedValues -join ",")
+}
+
+function Get-NormalizedReleaseGovernanceWarnings {
+    param([AllowNull()]$Warnings)
+
+    $normalizedWarnings = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($warning in @(Get-ReleaseBlockerArrayProperty -Object ([ordered]@{ warnings = $Warnings }) -Name "warnings")) {
+        if ($null -eq $warning) {
+            continue
+        }
+
+        $entry = [ordered]@{
+            id = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "id")
+            action = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "action")
+            message = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "message")
+            source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_schema")
+        }
+
+        $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $warning -Name "style_merge_suggestion_count"
+        if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+            $entry.style_merge_suggestion_count = [int]$styleMergeSuggestionCount
+        }
+
+        [void]$normalizedWarnings.Add([pscustomobject]$entry)
+    }
+
+    return @($normalizedWarnings.ToArray())
+}
+
+function Get-ReleaseGovernanceWarningCount {
+    param([AllowNull()]$SummaryObject)
+
+    $declaredCount = Get-ReleaseBlockerPropertyObject -Object $SummaryObject -Name "warning_count"
+    if ($null -ne $declaredCount -and -not [string]::IsNullOrWhiteSpace([string]$declaredCount)) {
+        try {
+            return [int][string]$declaredCount
+        } catch {
+            # Fall back to the materialized warnings array when historical fixtures
+            # omitted a stable integer value for warning_count.
+        }
+    }
+
+    return @(Get-NormalizedReleaseGovernanceWarnings -Warnings (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "warnings")).Count
+}
+
+function Get-ReleaseGovernanceWarningSummaryText {
+    param([AllowNull()]$Warning)
+
+    $id = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "id") -Fallback "(unknown)"
+    $action = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "action")
+    $message = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "message")
+    $sourceSchema = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_schema")
+    $summaryText = ('id: `{0}`; action: `{1}`; message: {2}; source_schema: `{3}`' -f `
+            $id, $action, $message, $sourceSchema)
+
+    $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_count"
+    if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+        $summaryText += ('; style_merge_suggestion_count: `{0}`' -f [string]$styleMergeSuggestionCount)
+    }
+
+    return $summaryText
+}
+
+function Add-ReleaseGovernanceWarningMarkdownSubsection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [string]$Heading,
+        [AllowNull()]$SummaryObject,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $warnings = @(Get-NormalizedReleaseGovernanceWarnings -Warnings (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "warnings"))
+    $warningCount = Get-ReleaseGovernanceWarningCount -SummaryObject $SummaryObject
+    if ($warningCount -le 0 -and $warnings.Count -le 0 -and -not $IncludeWhenEmpty.IsPresent) {
+        return $false
+    }
+
+    [void]$Lines.Add("### $Heading")
+    [void]$Lines.Add("")
+    [void]$Lines.Add(('- warning_count: `{0}`' -f $warningCount))
+    foreach ($warning in $warnings) {
+        [void]$Lines.Add("- $(Get-ReleaseGovernanceWarningSummaryText -Warning $warning)")
+    }
+    [void]$Lines.Add("")
+
+    return $true
+}
+
+function Add-ReleaseGovernanceWarningsMarkdownSection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    $releaseGovernanceHandoff = Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_governance_handoff"
+    $hadSection = $false
+    foreach ($sectionInfo in @(
+            @{
+                Heading = "Release blocker rollup warnings"
+                SummaryObject = Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_blocker_rollup"
+            },
+            @{
+                Heading = "Release governance handoff warnings"
+                SummaryObject = $releaseGovernanceHandoff
+            },
+            @{
+                Heading = "Release governance handoff nested rollup warnings"
+                SummaryObject = Get-ReleaseBlockerPropertyObject -Object $releaseGovernanceHandoff -Name "release_blocker_rollup"
+            }
+        )) {
+        if (Add-ReleaseGovernanceWarningMarkdownSubsection `
+                -Lines $sectionLines `
+                -Heading $sectionInfo.Heading `
+                -SummaryObject $sectionInfo.SummaryObject `
+                -IncludeWhenEmpty:$IncludeWhenEmpty.IsPresent) {
+            $hadSection = $true
+        }
+    }
+
+    if (-not $hadSection) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add("## Release Governance Warnings")
+    [void]$Lines.Add("")
+    foreach ($line in $sectionLines) {
+        [void]$Lines.Add($line)
+    }
 }
 
 function Get-ReleaseBlockerSummaryText {

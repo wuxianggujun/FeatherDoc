@@ -142,6 +142,9 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$releaseBlockerRollupSummary = Get-OptionalPropertyObject -Object $summary -Name "release_blocker_rollup"
+$releaseGovernanceHandoffSummary = Get-OptionalPropertyObject -Object $summary -Name "release_governance_handoff"
+$releaseGovernanceHandoffRollupSummary = Get-OptionalPropertyObject -Object $releaseGovernanceHandoffSummary -Name "release_blocker_rollup"
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $finalReviewPath = Join-Path $reportDir "final_review.md"
 $releaseHandoffPath = Get-OptionalPropertyValue -Object $summary -Name "release_handoff"
@@ -368,6 +371,9 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Generated at: $(Get-Date -Format s)")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
 [void]$lines.Add("- Release blockers: $(Get-ReleaseBlockerCount -Summary $summary)")
+[void]$lines.Add("- Release blocker rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseBlockerRollupSummary)")
+[void]$lines.Add("- Release governance handoff warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffSummary)")
+[void]$lines.Add("- Release governance handoff nested rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")
 [void]$lines.Add("- Template schema manifest status: $(Get-DisplayValue -Value $templateSchemaManifestStatus)")
 [void]$lines.Add("- Template schema manifest passed: $(Get-DisplayValue -Value $templateSchemaManifestPassed)")
 [void]$lines.Add("- Template schema manifest entries / drifts: $(Get-DisplayValue -Value ('{0}/{1}' -f $templateSchemaManifestEntryCount, $templateSchemaManifestDriftCount))")
@@ -407,6 +413,7 @@ if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Summary JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceWarningsMarkdownSection -Lines $lines -Summary $summary
 [void]$lines.Add("")
 [void]$lines.Add("## Start Here")
 [void]$lines.Add("")

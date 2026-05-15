@@ -181,6 +181,9 @@ $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $summary = Get-Content -Raw $resolvedSummaryPath | ConvertFrom-Json
+$releaseBlockerRollupSummary = Get-OptionalPropertyObject -Object $summary -Name "release_blocker_rollup"
+$releaseGovernanceHandoffSummary = Get-OptionalPropertyObject -Object $summary -Name "release_governance_handoff"
+$releaseGovernanceHandoffRollupSummary = Get-OptionalPropertyObject -Object $releaseGovernanceHandoffSummary -Name "release_blocker_rollup"
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 $artifactGuidePath = Get-OptionalPropertyValue -Object $summary -Name "artifact_guide"
 if ([string]::IsNullOrWhiteSpace($artifactGuidePath)) {
@@ -458,6 +461,9 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
 [void]$lines.Add("- Release blockers: $(Get-ReleaseBlockerCount -Summary $summary)")
+[void]$lines.Add("- Release blocker rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseBlockerRollupSummary)")
+[void]$lines.Add("- Release governance handoff warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffSummary)")
+[void]$lines.Add("- Release governance handoff nested rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")
 [void]$lines.Add("- Template schema gate status: $(Get-DisplayValue -Value $templateSchemaStatus)")
 [void]$lines.Add("- Template schema matches baseline: $(Get-DisplayValue -Value $templateSchemaMatches)")
 [void]$lines.Add("- Template schema drift counts (added/removed/changed): $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $templateSchemaAddedTargetCount, $templateSchemaRemovedTargetCount, $templateSchemaChangedTargetCount))")
@@ -514,6 +520,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceWarningsMarkdownSection -Lines $lines -Summary $summary
 [void]$lines.Add("")
 [void]$lines.Add("## Step 1: Read The Release Notes")
 [void]$lines.Add("")

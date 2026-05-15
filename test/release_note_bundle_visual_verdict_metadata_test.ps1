@@ -246,6 +246,45 @@ $summary = [ordered]@{
     task_output_root = $taskOutputRoot
     superseded_review_tasks_report = $supersededReviewTasksReportPath
     install_dir = $installDir
+    release_blocker_rollup = [ordered]@{
+        status = "ready_with_warnings"
+        warning_count = 1
+        warnings = @(
+            [ordered]@{
+                id = "numbering_catalog.style_merge_suggestions"
+                action = "review_style_merge_plan"
+                message = "numbering catalog reports pending style-merge suggestions"
+                source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+                style_merge_suggestion_count = 3
+            }
+        )
+    }
+    release_governance_handoff = [ordered]@{
+        status = "ready_with_warnings"
+        warning_count = 1
+        warnings = @(
+            [ordered]@{
+                id = "release_governance_handoff.optional_report_missing"
+                action = "inspect_optional_report"
+                message = "optional governance report is missing from the handoff bundle"
+                source_schema = "featherdoc.release_governance_handoff_report.v1"
+            }
+        )
+        release_blocker_rollup = [ordered]@{
+            included = $true
+            status = "ready_with_warnings"
+            warning_count = 1
+            warnings = @(
+                [ordered]@{
+                    id = "document_skeleton.style_merge_suggestions"
+                    action = "review_style_merge_plan"
+                    message = "document skeleton rollup still reports style-merge suggestions"
+                    source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                    style_merge_suggestion_count = 2
+                }
+            )
+        }
+    }
     steps = [ordered]@{
         configure = [ordered]@{ status = "completed" }
         build = [ordered]@{ status = "completed" }
@@ -320,6 +359,34 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata reviewed at: 2026-04-28T12:35:00" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata review method: operator_supplied" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Curated review verdict metadata review note: curated visual evidence checked" -Label $assertion.Label
+}
+
+foreach ($assertion in @(
+        @{ Path = $handoffPath; Label = "release_handoff.md" },
+        @{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+        @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+        @{ Path = $startHerePath; Label = "START_HERE.md" }
+    )) {
+    Assert-Contains -Path $assertion.Path -ExpectedText "Release blocker rollup warning_count: 1" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Release governance handoff warning_count: 1" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Release governance handoff nested rollup warning_count: 1" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "## Release Governance Warnings" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "### Release blocker rollup warnings" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "### Release governance handoff warnings" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "### Release governance handoff nested rollup warnings" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'warning_count: `1`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'id: `numbering_catalog.style_merge_suggestions`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'message: numbering catalog reports pending style-merge suggestions' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'source_schema: `featherdoc.numbering_catalog_governance_report.v1`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'style_merge_suggestion_count: `3`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'id: `release_governance_handoff.optional_report_missing`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'action: `inspect_optional_report`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'message: optional governance report is missing from the handoff bundle' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'source_schema: `featherdoc.release_governance_handoff_report.v1`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'id: `document_skeleton.style_merge_suggestions`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'message: document skeleton rollup still reports style-merge suggestions' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'style_merge_suggestion_count: `2`' -Label $assertion.Label
 }
 
 foreach ($fragments in @(
