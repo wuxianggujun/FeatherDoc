@@ -3046,6 +3046,29 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   missing/sparse body rows、local anchor drift 等更细边界；或开始整理面向用户的
   `import-pdf --json` 输出 schema 文档。
 
+2026-05-15 继续推进（CLI continuation 细边界 JSON 回归）：
+
+- 已继续扩展 `import-pdf --json` continuation diagnostics 的 CLI 回归，覆盖
+  missing Unit cell、sparse body row 两类“应合并”正样本，以及 column count
+  mismatch 一类“应保守拆分”负样本。
+- missing/sparse 样本确认 opt-in 导入后仍合并为 1 张 4 列 7 行表格，JSON 暴露
+  `merged_with_previous_table`、`blocker":"none"`、`header_match_kind":"exact"`、
+  `skipped_repeating_header":true` 和 `source_row_offset":1`，证明 CLI 能解释
+  重复表头跳过后的续接行为。
+- column count mismatch 样本确认 opt-in 导入后保守拆成 4 列表 + 3 列表，JSON 暴露
+  `column_count_matches":false`、`column_anchors_match":false`、
+  `header_match_kind":"none"` 和 `blocker":"column_count_mismatch"`，方便用户定位
+  未合并原因不是阈值或表头文本，而是列结构不兼容。
+- 已完成验证：
+  `cmake --build .bpdf-cli-import-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-cli-import-msvc -R "^pdf_cli_import$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  继续 E7 时，剩余适合 CLI 层补齐的边界主要是 local anchor drift、
+  amount-only / isolated amount-only body rows；之后应整理 `import-pdf --json`
+  输出 schema 到用户文档，避免测试覆盖已经扩展但外部契约仍只散落在执行计划里。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
