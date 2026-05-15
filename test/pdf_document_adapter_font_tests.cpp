@@ -539,6 +539,113 @@ TEST_CASE(
 }
 
 TEST_CASE(
+    "document PDF adapter maps default run language into shaping options") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter default language shaping test: configure "
+                "test Latin font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK(document.set_default_run_font_family("Unit Default Lang"));
+    CHECK(document.set_default_run_language("de"));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    REQUIRE(paragraph.add_run("office").has_next());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Default Lang", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::left_to_right);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+    CHECK_EQ(text_run.glyph_run.language_tag, "de");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+}
+
+TEST_CASE(
+    "document PDF adapter maps inherited style language into shaping options") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter style language shaping test: configure test "
+                "Latin font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto style_definition = featherdoc::character_style_definition{};
+    style_definition.name = "PDF Language Character";
+    style_definition.run_font_family = std::string{"Unit Styled Lang"};
+    style_definition.run_language = std::string{"it"};
+    REQUIRE(document.ensure_character_style("PdfLanguageCharacter",
+                                            style_definition));
+    REQUIRE(document.materialize_style_run_properties("PdfLanguageCharacter"));
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run("office");
+    REQUIRE(run.has_next());
+    REQUIRE(document.set_run_style(run, "PdfLanguageCharacter"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Styled Lang", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_family, "Unit Styled Lang");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::left_to_right);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+    CHECK_EQ(text_run.glyph_run.language_tag, "it");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+}
+
+TEST_CASE(
     "document PDF adapter prefers east Asia font mapping for mixed text") {
     const auto latin_font = first_existing_path(candidate_latin_fonts());
     const auto cjk_font = first_existing_path(candidate_cjk_fonts());

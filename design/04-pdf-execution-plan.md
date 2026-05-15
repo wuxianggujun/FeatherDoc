@@ -2927,7 +2927,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   RTL run 优先使用 `bidi_language`，缺失时再回退到另一侧语言。
 - 已扩展 `pdf_document_adapter_font`：覆盖普通 run `language=fr` 进入
   `PdfGlyphRun::language_tag`，以及 `rtl=true` 时 `bidi_language=he` 优先于
-  `language=en`。
+  `language=en`；随后补充 default run `language=de` 和 inherited character style
+  `language=it` 的 adapter 回归，确认直接 run、样式继承和默认 run 三条语言来源都能进入
+  shaper options。
 - 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md`，记录 document adapter
   已能把 run 级 RTL 与语言语义传给 HarfBuzz shaper。
 - 已完成验证：
