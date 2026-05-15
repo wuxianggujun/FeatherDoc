@@ -104,7 +104,7 @@ featherdoc_cli import-pdf input.pdf --output output.docx \
 例如 `merged_with_previous_table`、`column_count_mismatch`、
 `column_anchors_mismatch`、`repeated_header_mismatch` 和
 `continuation_confidence_below_threshold`。字段级 schema 见
-`docs/index.rst`。
+`docs/pdf_import.rst`。
 
 ## MSVC 构建
 

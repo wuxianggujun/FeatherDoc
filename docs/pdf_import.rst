@@ -99,10 +99,28 @@ A rejected continuation with incompatible columns may report:
       "blocker": "column_count_mismatch"
     }
 
-Failure JSON keeps ``ok`` set to ``false`` and includes ``stage`` plus
-``failure_kind``. For example, running without
+Failure JSON keeps ``ok`` set to ``false`` and reports the ``import`` stage:
+
+.. code-block:: json
+
+    {
+      "command": "import-pdf",
+      "ok": false,
+      "stage": "import",
+      "failure_kind": "table_candidates_detected",
+      "message": "PDF text import detected table-like structure candidates; enable table-candidate import to import them as DOCX tables",
+      "input": "input.pdf",
+      "output": "imported.docx"
+    }
+
+``failure_kind`` can be ``parse_failed``, ``document_create_failed``,
+``document_population_failed``, ``extract_text_disabled``,
+``extract_geometry_disabled``, ``table_candidates_detected``, or
+``no_text_paragraphs``. Running without
 ``--import-table-candidates-as-tables`` against a PDF where table candidates are
-detected reports ``failure_kind`` as ``table_candidates_detected``.
+detected reports ``table_candidates_detected`` and does not write the target
+DOCX. Command-line argument errors still use the common command-error JSON shape
+with ``stage`` set to ``parse``.
 
 PDF import supported scope and limits
 -------------------------------------

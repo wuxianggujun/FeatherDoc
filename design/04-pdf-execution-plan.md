@@ -3231,6 +3231,16 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 本轮仍是文档-only 结构整理；验证范围为 `git diff --check`、暂存区空白检查和
   文档引用检索。当前本机 Python 3.13 缺少 `sphinx` 模块，HTML 文档构建未执行。
 
+2026-05-15 继续推进（PDF import 失败 JSON 文档补强）：
+
+- 已核对 `PdfDocumentImportFailureKind` 和 CLI `print_pdf_import_failure()` 输出，
+  确认失败 JSON 字段为 `command`、`ok`、`stage`、`failure_kind`、`message`、
+  `input` 和 `output`。
+- 已在 `docs/pdf_import.rst` 补充完整失败 JSON 示例、`failure_kind` 枚举，以及
+  `table_candidates_detected` 不写出目标 DOCX 的用户可见语义。
+- 本轮未改动生产代码；验证范围保持为 `git diff --check`、暂存区空白检查和
+  文档引用检索。Sphinx 构建仍受本机缺少 `sphinx` 模块限制，未执行。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
