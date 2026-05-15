@@ -341,8 +341,30 @@ if (Test-Scenario -Name "malformed") {
         -Message "Malformed input should produce failed status."
     Assert-Equal -Actual ([int]$summary.source_failure_count) -Expected 1 `
         -Message "Malformed input should count one source failure."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
+        -Message "Malformed input should preserve source failure and missing evidence warnings."
     Assert-Equal -Actual ([string]$summary.source_files[0].status) -Expected "failed" `
         -Message "Malformed input should mark the source as failed."
+    $sourceReadWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "source_json_read_failed" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$sourceReadWarning[0].action) -Expected "fix_project_template_readiness_input_json" `
+        -Message "Source read warnings should expose a fixed remediation action."
+    Assert-Equal -Actual ([string]$sourceReadWarning[0].source_schema) -Expected "featherdoc.project_template_delivery_readiness_report.v1" `
+        -Message "Source read warnings should expose the source schema."
+    $missingEvidenceWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "template_evidence_missing" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$missingEvidenceWarning[0].action) -Expected "provide_project_template_readiness_evidence" `
+        -Message "Missing evidence warnings should expose a fixed remediation action."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "project_template_delivery_readiness.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "### Project template delivery readiness warnings" `
+        -Message "Markdown should include the warning subsection."
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `2`' `
+        -Message "Markdown should show the warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'id: `source_json_read_failed`' `
+        -Message "Markdown should include warning ids."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `fix_project_template_readiness_input_json`' `
+        -Message "Markdown should include warning actions."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.project_template_delivery_readiness_report.v1`' `
+        -Message "Markdown should include warning source schema."
 }
 
 if (Test-Scenario -Name "fail_on_blocker") {

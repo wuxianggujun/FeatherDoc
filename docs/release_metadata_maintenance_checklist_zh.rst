@@ -161,6 +161,11 @@ release 流水线的详细设计文档；详细字段流向请先阅读
         -WorkingDir .tmp\test-build-content-control-data-binding-governance
 
     powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\build_project_template_delivery_readiness_report_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir .tmp\test-build-project-template-delivery-readiness
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
         .\test\build_release_blocker_rollup_report_test.ps1 `
         -RepoRoot . `
         -WorkingDir .tmp\test-build-release-blocker-rollup

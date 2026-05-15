@@ -20,6 +20,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[project-template-delivery-readiness] $Message"
@@ -411,6 +413,8 @@ function Add-HistoryToTemplates {
         if (-not $historyByName.ContainsKey($key)) {
             $Warnings.Add([ordered]@{
                 id = "schema_approval_history_missing_for_template"
+                action = "review_schema_approval_history"
+                source_schema = "featherdoc.project_template_delivery_readiness_report.v1"
                 template_name = [string]$template.template_name
                 message = "No schema approval history entry matched this template name."
             }) | Out-Null
@@ -525,11 +529,15 @@ function New-ReportMarkdown {
     $lines.Add("") | Out-Null
     $lines.Add("## Warnings") | Out-Null
     $lines.Add("") | Out-Null
-    if (@($Summary.warnings).Count -eq 0) {
+    $warningLines = New-Object 'System.Collections.Generic.List[string]'
+    if (-not (Add-ReleaseGovernanceWarningMarkdownSubsection `
+                -Lines $warningLines `
+                -Heading "Project template delivery readiness warnings" `
+                -SummaryObject $Summary)) {
         $lines.Add("- none") | Out-Null
     } else {
-        foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+        foreach ($line in $warningLines) {
+            $lines.Add($line) | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -607,6 +615,8 @@ foreach ($path in @($inputPaths)) {
                 $status = "skipped"
                 $warnings.Add([ordered]@{
                     id = "source_json_schema_skipped"
+                    action = "provide_project_template_readiness_evidence"
+                    source_schema = "featherdoc.project_template_delivery_readiness_report.v1"
                     source_json = $path
                     source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "Input JSON kind '$kind' is not project-template readiness evidence."
@@ -618,6 +628,8 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_json_read_failed"
+            action = "fix_project_template_readiness_input_json"
+            source_schema = "featherdoc.project_template_delivery_readiness_report.v1"
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
@@ -636,6 +648,8 @@ foreach ($path in @($inputPaths)) {
 if ($templates.Count -eq 0) {
     $warnings.Add([ordered]@{
         id = "template_evidence_missing"
+        action = "provide_project_template_readiness_evidence"
+        source_schema = "featherdoc.project_template_delivery_readiness_report.v1"
         message = "No onboarding template evidence was loaded."
     }) | Out-Null
 }
