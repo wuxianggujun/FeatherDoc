@@ -195,6 +195,8 @@ style merge suggestion warning 会从源头携带 ``source_schema``、``action``
 与 source read failure warning 也遵循同一约定。
 ``numbering_catalog_governance`` 自身生成的 evidence skipped、evidence read failure
 和缺少上游 skeleton / manifest summary 的 warning 同样必须带上这些字段。
+``table_layout_delivery_governance`` 的 evidence skipped、evidence read failure
+和缺少 table layout rollup 的 warning 也使用相同结构。
 
 当前约定优先保留每条 warning 自身的字段；若源 warning 缺字段，再回退到当前
 报告上下文补齐。维护时至少要保证这些字段在链路中不会被无意丢失：

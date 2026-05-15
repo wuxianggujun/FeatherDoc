@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "ready", "malformed", "fail_on_blocker")]
+    [ValidateSet("all", "aggregate", "ready", "malformed", "warning_metadata", "fail_on_blocker")]
     [string]$Scenario = "all"
 )
 
@@ -349,6 +349,16 @@ if (Test-Scenario -Name "malformed") {
         -Message "Malformed input should count one source failure."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
         -Message "Malformed input should produce read-failure and missing-rollup warnings."
+    $sourceReadWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "source_json_read_failed" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$sourceReadWarning[0].action) -Expected "fix_table_layout_delivery_governance_input_json" `
+        -Message "Malformed input warning should expose a fixed remediation action."
+    Assert-Equal -Actual ([string]$sourceReadWarning[0].source_schema) -Expected "featherdoc.table_layout_delivery_governance_report.v1" `
+        -Message "Malformed input warning should expose the governance source schema."
+    $missingRollupWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "table_layout_delivery_rollup_missing" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$missingRollupWarning[0].action) -Expected "run_table_layout_delivery_rollup" `
+        -Message "Missing rollup warning should expose a fixed remediation action."
+    Assert-Equal -Actual ([string]$missingRollupWarning[0].source_schema) -Expected "featherdoc.table_layout_delivery_governance_report.v1" `
+        -Message "Missing rollup warning should expose the governance source schema."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "table_layout_delivery_governance.md")
     Assert-ContainsText -Text $markdown -ExpectedText "### Table layout delivery governance warnings" `
@@ -357,6 +367,56 @@ if (Test-Scenario -Name "malformed") {
         -Message "Markdown should include warning count."
     Assert-ContainsText -Text $markdown -ExpectedText 'id: `source_json_read_failed`' `
         -Message "Markdown should include warning id."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `fix_table_layout_delivery_governance_input_json`' `
+        -Message "Markdown should include read failure warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `run_table_layout_delivery_rollup`' `
+        -Message "Markdown should include missing rollup warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.table_layout_delivery_governance_report.v1`' `
+        -Message "Markdown should include warning source schema."
+}
+
+if (Test-Scenario -Name "warning_metadata") {
+    $evidenceRoot = Join-Path $resolvedWorkingDir "warning-metadata-evidence"
+    $wrongSchema = Join-Path $evidenceRoot "wrong-schema\summary.json"
+    $outputDir = Join-Path $resolvedWorkingDir "warning-metadata-report"
+    Write-JsonFile -Path $wrongSchema -Value ([ordered]@{
+        schema = "featherdoc.unrelated_report.v1"
+        status = "ready"
+    })
+
+    $result = Invoke-GovernanceScript -Arguments @(
+        "-InputJson", $wrongSchema,
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Warning metadata input should not fail without fail switches. Output: $($result.Text)"
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
+        -Message "Warning metadata input should produce schema and missing-rollup warnings."
+
+    $schemaWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "source_json_schema_skipped" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$schemaWarning[0].action) -Expected "provide_table_layout_delivery_governance_evidence" `
+        -Message "Schema skipped warning should expose a fixed remediation action."
+    Assert-Equal -Actual ([string]$schemaWarning[0].source_schema) -Expected "featherdoc.table_layout_delivery_governance_report.v1" `
+        -Message "Schema skipped warning should expose the governance source schema."
+    $missingRollupWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "table_layout_delivery_rollup_missing" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$missingRollupWarning[0].action) -Expected "run_table_layout_delivery_rollup" `
+        -Message "Missing rollup warning should expose a fixed remediation action."
+    Assert-Equal -Actual ([string]$missingRollupWarning[0].source_schema) -Expected "featherdoc.table_layout_delivery_governance_report.v1" `
+        -Message "Missing rollup warning should expose the governance source schema."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "table_layout_delivery_governance.md")
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `2`' `
+        -Message "Warning metadata Markdown should include warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'id: `source_json_schema_skipped`' `
+        -Message "Warning metadata Markdown should include schema warning id."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `provide_table_layout_delivery_governance_evidence`' `
+        -Message "Warning metadata Markdown should include schema warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `run_table_layout_delivery_rollup`' `
+        -Message "Warning metadata Markdown should include missing rollup warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.table_layout_delivery_governance_report.v1`' `
+        -Message "Warning metadata Markdown should include warning source schema."
 }
 
 if (Test-Scenario -Name "fail_on_blocker") {

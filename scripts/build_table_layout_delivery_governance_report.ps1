@@ -501,6 +501,8 @@ foreach ($path in @($inputPaths)) {
             default {
                 $warnings.Add([ordered]@{
                     id = "source_json_schema_skipped"
+                    action = "provide_table_layout_delivery_governance_evidence"
+                    source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
                     source_json = $path
                     source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "Input JSON kind '$kind' is not table layout delivery governance evidence."
@@ -512,6 +514,8 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_json_read_failed"
+            action = "fix_table_layout_delivery_governance_input_json"
+            source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage
@@ -530,6 +534,8 @@ foreach ($path in @($inputPaths)) {
 if ($rollupCount -eq 0) {
     $warnings.Add([ordered]@{
         id = "table_layout_delivery_rollup_missing"
+        action = "run_table_layout_delivery_rollup"
+        source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
         message = "No table layout delivery rollup summary was loaded."
     }) | Out-Null
 }
