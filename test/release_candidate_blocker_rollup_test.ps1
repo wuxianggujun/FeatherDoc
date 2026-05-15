@@ -50,6 +50,7 @@ $autoDiscoverProjectSummaryPath = Join-Path $autoDiscoverOutputRoot "project-tem
 Write-JsonFile -Path $numberingSummaryPath -Value ([ordered]@{
     schema = "featherdoc.numbering_catalog_governance_report.v1"
     release_blocker_count = 1
+    warning_count = 1
     release_blockers = @(
         [ordered]@{
             id = "numbering_catalog_governance.style_numbering_issues"
@@ -64,6 +65,15 @@ Write-JsonFile -Path $numberingSummaryPath -Value ([ordered]@{
             id = "preview_style_numbering_repair"
             action = "preview_style_numbering_repair"
             title = "Preview style numbering repair"
+        }
+    )
+    warnings = @(
+        [ordered]@{
+            id = "document_skeleton.style_merge_suggestions_pending"
+            source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+            action = "review_style_merge_suggestions"
+            style_merge_suggestion_count = 2
+            message = "Document skeleton governance reports 2 duplicate style merge suggestion(s) awaiting review."
         }
     )
 })
@@ -113,6 +123,7 @@ Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
 Write-JsonFile -Path $autoDiscoverNumberingSummaryPath -Value ([ordered]@{
     schema = "featherdoc.numbering_catalog_governance_report.v1"
     release_blocker_count = 1
+    warning_count = 1
     release_blockers = @(
         [ordered]@{
             id = "numbering_catalog_governance.style_numbering_issues"
@@ -127,6 +138,15 @@ Write-JsonFile -Path $autoDiscoverNumberingSummaryPath -Value ([ordered]@{
             id = "preview_style_numbering_repair"
             action = "preview_style_numbering_repair"
             title = "Preview style numbering repair"
+        }
+    )
+    warnings = @(
+        [ordered]@{
+            id = "document_skeleton.style_merge_suggestions_pending"
+            source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+            action = "review_style_merge_suggestions"
+            style_merge_suggestion_count = 2
+            message = "Document skeleton governance reports 2 duplicate style merge suggestion(s) awaiting review."
         }
     )
 })
@@ -246,6 +266,16 @@ if ($Scenario -eq "handoff") {
         -Message "Release candidate summary should surface handoff blocker count."
     Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.action_item_count) -Expected 4 `
         -Message "Release candidate summary should surface handoff action count."
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.warning_count) -Expected 1 `
+        -Message "Release candidate summary should surface handoff warning count."
+    Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+        -Message "Release candidate summary should surface handoff warning details."
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.release_blocker_rollup.warning_count) -Expected 1 `
+        -Message "Release candidate summary should surface nested handoff rollup warning count."
+    Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+        -Message "Release candidate summary should surface nested handoff rollup warning details."
     Assert-Equal -Actual ([string]$handoffReleaseSummary.steps.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate step status should mirror governance handoff status."
 
@@ -258,8 +288,10 @@ if ($Scenario -eq "handoff") {
     $handoffFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffFinalReviewPath
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "- Release governance handoff: blocked" `
         -Message "Final review should include release governance handoff step status."
-    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff counts: 4/4 reports, 0 missing, 4 blockers, 4 actions" `
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff counts: 4/4 reports, 0 missing, 4 blockers, 4 actions, 1 warnings" `
         -Message "Final review should include release governance handoff counts."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+        -Message "Final review should surface governance handoff warning details."
 
     Write-Host "Release candidate governance handoff regression passed."
     exit 0
@@ -309,6 +341,11 @@ Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_blocker_count
     -Message "Release candidate summary should surface blocker count."
 Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 2 `
     -Message "Release candidate summary should surface action item count."
+Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 1 `
+    -Message "Release candidate summary should surface warning count."
+Assert-ContainsText -Text (($summary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+    -Message "Release candidate summary should surface warning details."
 Assert-Equal -Actual ([string]$summary.steps.release_blocker_rollup.status) -Expected "blocked" `
     -Message "Release candidate step status should mirror rollup status."
 
@@ -322,8 +359,10 @@ Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object { [stri
 $finalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $finalReviewPath
 Assert-ContainsText -Text $finalReview -ExpectedText "- Release blocker rollup: blocked" `
     -Message "Final review should include release blocker rollup step status."
-Assert-ContainsText -Text $finalReview -ExpectedText "Release blocker rollup counts: 2 blockers, 2 actions" `
+Assert-ContainsText -Text $finalReview -ExpectedText "Release blocker rollup counts: 2 blockers, 2 actions, 1 warnings" `
     -Message "Final review should include release blocker rollup counts."
+Assert-ContainsText -Text $finalReview -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+    -Message "Final review should surface rollup warning details."
 
 $gateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-fail-on-blocker"
 $gateArguments = @($scriptArguments)

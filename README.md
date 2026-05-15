@@ -1782,9 +1782,12 @@ to collect the default `output/numbering-catalog-governance/summary.json`,
 `output/project-template-delivery-readiness/summary.json` reports. The wrapper
 then runs `build_release_blocker_rollup_report.ps1`, writes
 `report/release-blocker-rollup/summary.json` plus Markdown, and records the
-rollup status, source count, blocker count, action count, warning count, and
-auto-discovered inputs in both `report/summary.json` and
-`report/final_review.md`. Duplicate-style merge suggestions from document
+rollup status, source count, blocker count, action count, warning count,
+warning details, and auto-discovered inputs in both `report/summary.json` and
+`report/final_review.md`. `final_review.md` now adds a dedicated Release
+governance warnings section so reviewer-facing handoff notes keep the warning
+`id`, `action`, `message`, and any `style_merge_suggestion_count` values
+visible without opening the nested rollup JSON. Duplicate-style merge suggestions from document
 skeleton governance remain non-blocking by default, but are surfaced as
 `document_skeleton.style_merge_suggestions_pending` warnings with
 `review_style_merge_suggestions` actions so reviewers can resolve them before
@@ -1804,7 +1807,9 @@ you also want the handoff directory to contain a nested
 `release-blocker-rollup/summary.json` and Markdown summary generated from the
 loaded governance reports; the handoff summary now inlines that nested
 rollup's status, source count, blocker/action/warning counts, and warning
-details for reviewer sign-off without opening a second JSON file.
+details for reviewer sign-off without opening a second JSON file, and release
+preflight now copies the same nested warning details into its own
+`report/summary.json` and `report/final_review.md`.
 
 If you also want release-preflight to gate a template DOCX against a committed
 schema baseline, pass `-TemplateSchemaInputDocx`, `-TemplateSchemaBaseline`,

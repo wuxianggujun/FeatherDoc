@@ -625,6 +625,147 @@ function Get-VisualGateReviewSummaryMarkdown {
     return ($sectionLines -join [Environment]::NewLine)
 }
 
+function Get-ReleaseGovernanceWarningSignature {
+    param([AllowNull()]$Warning)
+
+    if ($null -eq $Warning) {
+        return ""
+    }
+
+    $styleMergeSuggestionCount = Get-OptionalPropertyValue -Object $Warning -Name "style_merge_suggestion_count"
+    return "{0}|{1}|{2}|{3}|{4}" -f `
+        [string](Get-OptionalPropertyValue -Object $Warning -Name "id"),
+        [string](Get-OptionalPropertyValue -Object $Warning -Name "action"),
+        [string](Get-OptionalPropertyValue -Object $Warning -Name "message"),
+        [string](Get-OptionalPropertyValue -Object $Warning -Name "source_schema"),
+        [string]$styleMergeSuggestionCount
+}
+
+function Get-NormalizedReleaseGovernanceWarnings {
+    param([AllowNull()]$Warnings)
+
+    $normalizedWarnings = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($warning in @(Get-OptionalObjectArrayProperty -Object ([ordered]@{ warnings = $Warnings }) -Name "warnings")) {
+        if ($null -eq $warning) {
+            continue
+        }
+
+        $entry = [ordered]@{
+            id = [string](Get-OptionalPropertyValue -Object $warning -Name "id")
+            action = [string](Get-OptionalPropertyValue -Object $warning -Name "action")
+            message = [string](Get-OptionalPropertyValue -Object $warning -Name "message")
+            source_schema = [string](Get-OptionalPropertyValue -Object $warning -Name "source_schema")
+        }
+        $styleMergeSuggestionCount = Get-OptionalPropertyValue -Object $warning -Name "style_merge_suggestion_count"
+        if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+            $entry.style_merge_suggestion_count = [int]$styleMergeSuggestionCount
+        }
+
+        [void]$normalizedWarnings.Add([pscustomobject]$entry)
+    }
+
+    return @($normalizedWarnings.ToArray())
+}
+
+function Get-ReleaseGovernanceWarningSectionMarkdown {
+    param(
+        [string]$Title,
+        [AllowNull()]$Warnings,
+        [System.Collections.Generic.HashSet[string]]$SeenSignatures
+    )
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($warning in @(Get-NormalizedReleaseGovernanceWarnings -Warnings $Warnings)) {
+        $signature = Get-ReleaseGovernanceWarningSignature -Warning $warning
+        if ([string]::IsNullOrWhiteSpace($signature) -or $SeenSignatures.Contains($signature)) {
+            continue
+        }
+
+        [void]$SeenSignatures.Add($signature)
+        if ($sectionLines.Count -eq 0) {
+            [void]$sectionLines.Add("### $Title")
+            [void]$sectionLines.Add("")
+        }
+
+        $line = "- {0}: {1}" -f `
+            (Get-ReleaseCandidateDisplayValue -Value (Get-OptionalPropertyValue -Object $warning -Name "id")),
+            (Get-ReleaseCandidateDisplayValue -Value (Get-OptionalPropertyValue -Object $warning -Name "message"))
+        $action = Get-OptionalPropertyValue -Object $warning -Name "action"
+        if (-not [string]::IsNullOrWhiteSpace([string]$action)) {
+            $line += "; action=$action"
+        }
+
+        $sourceSchema = Get-OptionalPropertyValue -Object $warning -Name "source_schema"
+        if (-not [string]::IsNullOrWhiteSpace([string]$sourceSchema)) {
+            $line += "; source_schema=$sourceSchema"
+        }
+
+        $styleMergeSuggestionCount = Get-OptionalPropertyValue -Object $warning -Name "style_merge_suggestion_count"
+        if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+            $line += "; style_merge_suggestion_count=$styleMergeSuggestionCount"
+        }
+
+        [void]$sectionLines.Add($line)
+    }
+
+    if ($sectionLines.Count -eq 0) {
+        return ""
+    }
+
+    [void]$sectionLines.Add("")
+    return ($sectionLines -join [Environment]::NewLine)
+}
+
+function Get-ReleaseGovernanceWarningSummaryMarkdown {
+    param([AllowNull()]$ReleaseSummary)
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    $seenSignatures = New-Object 'System.Collections.Generic.HashSet[string]'
+
+    $rollupSummary = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "release_blocker_rollup"
+    $rollupSection = Get-ReleaseGovernanceWarningSectionMarkdown `
+        -Title "Release blocker rollup warnings" `
+        -Warnings (Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "warnings") `
+        -SeenSignatures $seenSignatures
+    if (-not [string]::IsNullOrWhiteSpace($rollupSection)) {
+        [void]$sectionLines.Add("## Release governance warnings")
+        [void]$sectionLines.Add("")
+        [void]$sectionLines.Add($rollupSection.TrimEnd())
+    }
+
+    $handoffSummary = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "release_governance_handoff"
+    foreach ($warningSection in @(
+            (Get-ReleaseGovernanceWarningSectionMarkdown `
+                -Title "Release governance handoff warnings" `
+                -Warnings (Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "warnings") `
+                -SeenSignatures $seenSignatures),
+            (Get-ReleaseGovernanceWarningSectionMarkdown `
+                -Title "Release governance handoff nested rollup warnings" `
+                -Warnings (Get-OptionalObjectArrayProperty `
+                    -Object (Get-OptionalPropertyValue -Object $handoffSummary -Name "release_blocker_rollup") `
+                    -Name "warnings") `
+                -SeenSignatures $seenSignatures)
+        )) {
+        if ([string]::IsNullOrWhiteSpace($warningSection)) {
+            continue
+        }
+
+        if ($sectionLines.Count -eq 0) {
+            [void]$sectionLines.Add("## Release governance warnings")
+            [void]$sectionLines.Add("")
+        }
+
+        [void]$sectionLines.Add($warningSection.TrimEnd())
+    }
+
+    if ($sectionLines.Count -eq 0) {
+        return ""
+    }
+
+    [void]$sectionLines.Add("")
+    return ($sectionLines -join [Environment]::NewLine)
+}
+
 function Convert-OptionalBoolean {
     param(
         [AllowNull()]$Value,
@@ -1582,6 +1723,7 @@ $summary = [ordered]@{
         release_blocker_count = 0
         action_item_count = 0
         warning_count = 0
+        warnings = @()
         error = ""
     }
     release_governance_handoff = [ordered]@{
@@ -1603,6 +1745,18 @@ $summary = [ordered]@{
         release_blocker_count = 0
         action_item_count = 0
         warning_count = 0
+        warnings = @()
+        release_blocker_rollup = [ordered]@{
+            included = $false
+            status = "not_requested"
+            summary_json = ""
+            report_markdown = ""
+            source_report_count = 0
+            release_blocker_count = 0
+            action_item_count = 0
+            warning_count = 0
+            warnings = @()
+        }
         error = ""
     }
     template_schema = [ordered]@{
@@ -1700,6 +1854,7 @@ $summary = [ordered]@{
             release_blocker_count = 0
             action_item_count = 0
             warning_count = 0
+            warnings = @()
             error = ""
         }
         release_governance_handoff = [ordered]@{
@@ -1713,6 +1868,7 @@ $summary = [ordered]@{
             release_blocker_count = 0
             action_item_count = 0
             warning_count = 0
+            warnings = @()
             error = ""
         }
     }
@@ -2427,12 +2583,18 @@ try {
             $summary.release_blocker_rollup.release_blocker_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.release_blocker_count }
             $summary.release_blocker_rollup.action_item_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.action_item_count }
             $summary.release_blocker_rollup.warning_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.warning_count }
+            $summary.release_blocker_rollup.warnings = if ($null -eq $rollupSummary) {
+                @()
+            } else {
+                @(Get-NormalizedReleaseGovernanceWarnings -Warnings (Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "warnings"))
+            }
             $summary.release_blocker_rollup.error = ""
             $summary.steps.release_blocker_rollup.status = $summary.release_blocker_rollup.status
             $summary.steps.release_blocker_rollup.source_report_count = $summary.release_blocker_rollup.source_report_count
             $summary.steps.release_blocker_rollup.release_blocker_count = $summary.release_blocker_rollup.release_blocker_count
             $summary.steps.release_blocker_rollup.action_item_count = $summary.release_blocker_rollup.action_item_count
             $summary.steps.release_blocker_rollup.warning_count = $summary.release_blocker_rollup.warning_count
+            $summary.steps.release_blocker_rollup.warnings = @($summary.release_blocker_rollup.warnings)
             $summary.steps.release_blocker_rollup.error = ""
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
         } catch {
@@ -2472,6 +2634,31 @@ try {
             $summary.release_governance_handoff.release_blocker_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.release_blocker_count }
             $summary.release_governance_handoff.action_item_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.action_item_count }
             $summary.release_governance_handoff.warning_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.warning_count }
+            $summary.release_governance_handoff.warnings = if ($null -eq $handoffSummary) {
+                @()
+            } else {
+                @(Get-NormalizedReleaseGovernanceWarnings -Warnings (Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "warnings"))
+            }
+            $handoffRollupSummary = if ($null -eq $handoffSummary) {
+                $null
+            } else {
+                Get-OptionalPropertyValue -Object $handoffSummary -Name "release_blocker_rollup"
+            }
+            $summary.release_governance_handoff.release_blocker_rollup = [ordered]@{
+                included = if ($null -eq $handoffRollupSummary) { $false } else { Convert-OptionalBoolean -Value (Get-OptionalPropertyValue -Object $handoffRollupSummary -Name "included") }
+                status = if ($null -eq $handoffRollupSummary) { "not_requested" } else { [string](Get-OptionalPropertyValue -Object $handoffRollupSummary -Name "status") }
+                summary_json = if ($null -eq $handoffRollupSummary) { "" } else { [string](Get-OptionalPropertyValue -Object $handoffRollupSummary -Name "summary_json") }
+                report_markdown = if ($null -eq $handoffRollupSummary) { "" } else { [string](Get-OptionalPropertyValue -Object $handoffRollupSummary -Name "report_markdown") }
+                source_report_count = if ($null -eq $handoffRollupSummary) { 0 } else { Get-OptionalIntegerProperty -Object $handoffRollupSummary -Name "source_report_count" }
+                release_blocker_count = if ($null -eq $handoffRollupSummary) { 0 } else { Get-OptionalIntegerProperty -Object $handoffRollupSummary -Name "release_blocker_count" }
+                action_item_count = if ($null -eq $handoffRollupSummary) { 0 } else { Get-OptionalIntegerProperty -Object $handoffRollupSummary -Name "action_item_count" }
+                warning_count = if ($null -eq $handoffRollupSummary) { 0 } else { Get-OptionalIntegerProperty -Object $handoffRollupSummary -Name "warning_count" }
+                warnings = if ($null -eq $handoffRollupSummary) {
+                    @()
+                } else {
+                    @(Get-NormalizedReleaseGovernanceWarnings -Warnings (Get-OptionalObjectArrayProperty -Object $handoffRollupSummary -Name "warnings"))
+                }
+            }
             $summary.release_governance_handoff.error = ""
             $summary.steps.release_governance_handoff.status = $summary.release_governance_handoff.status
             $summary.steps.release_governance_handoff.expected_report_count = $summary.release_governance_handoff.expected_report_count
@@ -2481,6 +2668,7 @@ try {
             $summary.steps.release_governance_handoff.release_blocker_count = $summary.release_governance_handoff.release_blocker_count
             $summary.steps.release_governance_handoff.action_item_count = $summary.release_governance_handoff.action_item_count
             $summary.steps.release_governance_handoff.warning_count = $summary.release_governance_handoff.warning_count
+            $summary.steps.release_governance_handoff.warnings = @($summary.release_governance_handoff.warnings)
             $summary.steps.release_governance_handoff.error = ""
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
         } catch {
@@ -2544,6 +2732,8 @@ try {
         -VisualGateStep $summary.steps.visual_gate
     $visualGateReviewSummary = Get-VisualGateReviewSummaryMarkdown -RepoRoot $repoRoot `
         -VisualGateStep $summary.steps.visual_gate
+    $releaseGovernanceWarningSummary = Get-ReleaseGovernanceWarningSummaryMarkdown `
+        -ReleaseSummary $summary
 
     $finalReview = @"
 # Release Candidate Checks
@@ -2600,13 +2790,14 @@ $visualGateReviewSummary
 - Release blocker rollup counts: $($summary.release_blocker_rollup.release_blocker_count) blockers, $($summary.release_blocker_rollup.action_item_count) actions, $($summary.release_blocker_rollup.warning_count) warnings
 - Release governance handoff summary: $releaseGovernanceHandoffSummaryDisplay
 - Release governance handoff report: $releaseGovernanceHandoffReportDisplay
-- Release governance handoff counts: $($summary.release_governance_handoff.loaded_report_count)/$($summary.release_governance_handoff.expected_report_count) reports, $($summary.release_governance_handoff.missing_report_count) missing, $($summary.release_governance_handoff.release_blocker_count) blockers, $($summary.release_governance_handoff.action_item_count) actions
+- Release governance handoff counts: $($summary.release_governance_handoff.loaded_report_count)/$($summary.release_governance_handoff.expected_report_count) reports, $($summary.release_governance_handoff.missing_report_count) missing, $($summary.release_governance_handoff.release_blocker_count) blockers, $($summary.release_governance_handoff.action_item_count) actions, $($summary.release_governance_handoff.warning_count) warnings
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath
 - Artifact guide: $artifactGuideDisplayPath
 - Reviewer checklist: $reviewerChecklistDisplayPath
 - Start here: $startHereDisplayPath
+$releaseGovernanceWarningSummary
 "@
     $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 

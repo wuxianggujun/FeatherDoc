@@ -174,6 +174,24 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'Release blockers:' `
 Assert-ContainsText -Text $scriptText -ExpectedText 'project_template_smoke.schema_approval' `
     -Message "Release blockers should include a stable schema approval blocker id."
 
+Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-NormalizedReleaseGovernanceWarnings' `
+    -Message "Release preflight should normalize governance warning details before copying them into summary.json."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-ReleaseGovernanceWarningSummaryMarkdown' `
+    -Message "Release final review should render governance warning details."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '## Release governance warnings' `
+    -Message "Release final review should add a governance warning details section when warnings exist."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'Release blocker rollup warnings' `
+    -Message "Release final review should label rollup warning details."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'Release governance handoff nested rollup warnings' `
+    -Message "Release final review should label nested handoff rollup warning details."
+
+Assert-ContainsText -Text $scriptText -ExpectedText '$releaseGovernanceWarningSummary' `
+    -Message "Release final review should embed governance warning details."
+
 Assert-ContainsText -Text $scriptText -ExpectedText 'Invoke-ProjectTemplateSchemaApprovalHistory' `
     -Message "Release preflight should isolate schema approval history generation."
 
