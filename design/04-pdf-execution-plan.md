@@ -2917,6 +2917,31 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   shaper 已能承载 language metadata；下一步可以把 Document 的 `language` /
   `bidi_language` 解析结果传入 `PdfTextShaperOptions`。
 
+2026-05-15 继续推进（Document run language -> shaper language）：
+
+- 已把 `ResolvedRunStyle` / `TextToken` / `TextFragment` 扩展为携带
+  `shaping_language_tag`，并在测宽与最终 `shape_fragment_text()` 之间保持同一组
+  HarfBuzz segment options。
+- Document adapter 现在会把 run/style/default 的 `language` / `bidi_language` 映射到
+  `PdfTextShaperOptions::language_tag`；LTR / unknown direction 优先使用 `language`，
+  RTL run 优先使用 `bidi_language`，缺失时再回退到另一侧语言。
+- 已扩展 `pdf_document_adapter_font`：覆盖普通 run `language=fr` 进入
+  `PdfGlyphRun::language_tag`，以及 `rtl=true` 时 `bidi_language=he` 优先于
+  `language=en`。
+- 已同步 `BUILDING_PDF.md` 和 `design/02-current-roadmap.md`，记录 document adapter
+  已能把 run 级 RTL 与语言语义传给 HarfBuzz shaper。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_document_adapter_font_tests pdf_text_shaper_tests pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  language metadata 已贯通到 layout；后续若继续推进 RTL writer，需要单独设计
+  glyph order、baseline advance、text matrix 和文本选择语义，不能直接复用 LTR
+  glyph-id stream。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

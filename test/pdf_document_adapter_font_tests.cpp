@@ -437,6 +437,107 @@ TEST_CASE("document PDF adapter maps run RTL formatting into shaping options") {
     REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
 }
 
+TEST_CASE("document PDF adapter maps run language into shaping options") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter run language shaping test: configure test "
+                "Latin font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run("office");
+    REQUIRE(run.has_next());
+    CHECK(run.set_font_family("Unit Latin Lang"));
+    CHECK(run.set_language("fr"));
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin Lang", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::left_to_right);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+    CHECK_EQ(text_run.glyph_run.language_tag, "fr");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+}
+
+TEST_CASE(
+    "document PDF adapter prefers bidi language for RTL shaping options") {
+    const auto latin_font = first_existing_path(candidate_latin_fonts());
+    if (latin_font.empty()) {
+        MESSAGE("skipping adapter RTL language shaping test: configure test "
+                "Latin font");
+        return;
+    }
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.add_run("office");
+    REQUIRE(run.has_next());
+    CHECK(run.set_font_family("Unit Latin Bidi Lang"));
+    CHECK(run.set_language("en"));
+    CHECK(run.set_bidi_language("he"));
+    CHECK(run.set_rtl());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Unit Latin Bidi Lang", latin_font},
+    };
+    options.use_system_font_fallbacks = false;
+
+    const auto layout =
+        featherdoc::pdf::layout_document_paragraphs(document, options);
+
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, "office");
+    CHECK_EQ(text_run.font_file_path, latin_font);
+
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        CHECK_FALSE(text_run.glyph_run.used_harfbuzz);
+        CHECK(text_run.glyph_run.glyphs.empty());
+        return;
+    }
+
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::right_to_left);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+    CHECK_EQ(text_run.glyph_run.language_tag, "he");
+    REQUIRE_FALSE(text_run.glyph_run.glyphs.empty());
+}
+
 TEST_CASE(
     "document PDF adapter prefers east Asia font mapping for mixed text") {
     const auto latin_font = first_existing_path(candidate_latin_fonts());

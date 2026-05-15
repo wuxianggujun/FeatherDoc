@@ -24,6 +24,7 @@ struct ResolvedRunStyle {
     bool underline{false};
     PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
     std::string shaping_script_tag;
+    std::string shaping_language_tag;
 };
 
 struct TextFragment {
@@ -36,6 +37,7 @@ struct TextFragment {
     bool underline{false};
     PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
     std::string shaping_script_tag;
+    std::string shaping_language_tag;
 };
 
 struct TextToken {
@@ -50,6 +52,7 @@ struct TextToken {
     bool underline{false};
     PdfGlyphDirection shaping_direction{PdfGlyphDirection::unknown};
     std::string shaping_script_tag;
+    std::string shaping_language_tag;
 };
 
 struct LineState {
@@ -71,7 +74,8 @@ metrics_options_for(const PdfResolvedFont &font);
                                   const PdfResolvedFont &font,
                                   PdfGlyphDirection shaping_direction =
                                       PdfGlyphDirection::unknown,
-                                  std::string_view shaping_script_tag = {});
+                                  std::string_view shaping_script_tag = {},
+                                  std::string_view shaping_language_tag = {});
 
 [[nodiscard]] double line_height_points_for(const LineState &line,
                                             double fallback_points,

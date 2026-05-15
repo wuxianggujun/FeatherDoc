@@ -33,6 +33,7 @@ constexpr double kPi = 3.14159265358979323846;
                                         fragment.font_size_points};
     shaper_options.direction = fragment.shaping_direction;
     shaper_options.script_tag = fragment.shaping_script_tag;
+    shaper_options.language_tag = fragment.shaping_language_tag;
     auto glyph_run = shape_pdf_text(fragment.text, shaper_options);
     if (!glyph_run.used_harfbuzz || !glyph_run.error_message.empty() ||
         glyph_run.glyphs.empty()) {
@@ -120,7 +121,8 @@ void emit_line_at(PdfPageLayout &page, const LineState &line,
         current_advance +=
             measure_text(fragment.text, fragment.font_size_points,
                          fragment.font, fragment.shaping_direction,
-                         fragment.shaping_script_tag);
+                         fragment.shaping_script_tag,
+                         fragment.shaping_language_tag);
     }
 }
 

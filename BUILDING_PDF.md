@@ -480,7 +480,9 @@ CJK 字体选择的默认顺序是：
 
 当前 document adapter 会在 file-backed `PdfTextRun` 上保留成功塑形得到的
 `PdfGlyphRun`，并优先使用 glyph advance 计算 layout 宽度和后续 run 坐标。Run 级
-`rtl` 格式会映射为 shaper direction override；writer 尚未支持非 LTR glyph-id stream 时仍回退字符串路径。
+`rtl` 格式会映射为 shaper direction override；`language` / `bidi_language`
+会映射为 shaper language override，RTL run 优先使用 `bidi_language`。writer
+尚未支持非 LTR glyph-id stream 时仍回退字符串路径。
 PDFio writer 会在满足安全条件的 shaped run 上创建独立 Type0 / CIDFontType2 字体资源：
 
 - 为每个 shaped glyph occurrence 分配私有 CID

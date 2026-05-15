@@ -40,6 +40,16 @@ shaping_direction_from_rtl(bool rtl) noexcept {
                : PdfGlyphDirection::unknown;
 }
 
+[[nodiscard]] std::optional<std::string>
+shaping_language_tag_from_rtl(bool rtl,
+                              std::optional<std::string> language,
+                              std::optional<std::string> bidi_language) {
+    return rtl ? first_present(std::move(bidi_language),
+                               std::move(language), std::nullopt)
+               : first_present(std::move(language),
+                               std::move(bidi_language), std::nullopt);
+}
+
 [[nodiscard]] ResolvedRunStyle
 resolve_plain_text_style(featherdoc::Document &document, std::string_view text,
                          const PdfDocumentAdapterOptions &options,
@@ -49,6 +59,11 @@ resolve_plain_text_style(featherdoc::Document &document, std::string_view text,
                                     : options.font_family);
     const auto east_asia_font_family =
         document.default_run_east_asia_font_family().value_or(std::string{});
+    const auto rtl = document.default_run_rtl().value_or(false);
+    const auto shaping_language_tag =
+        shaping_language_tag_from_rtl(rtl, document.default_run_language(),
+                                      document.default_run_bidi_language())
+            .value_or(std::string{});
 
     return ResolvedRunStyle{
         font_family,
@@ -60,8 +75,9 @@ resolve_plain_text_style(featherdoc::Document &document, std::string_view text,
         false,
         false,
         false,
-        shaping_direction_from_rtl(document.default_run_rtl().value_or(false)),
+        shaping_direction_from_rtl(rtl),
         {},
+        shaping_language_tag,
     };
 }
 
@@ -172,6 +188,12 @@ resolve_run_style(featherdoc::Document &document,
     const auto style_east_asia_font_family =
         style_properties ? style_properties->run_east_asia_font_family.value
                          : std::optional<std::string>{};
+    const auto style_language =
+        style_properties ? style_properties->run_language.value
+                         : std::optional<std::string>{};
+    const auto style_bidi_language =
+        style_properties ? style_properties->run_bidi_language.value
+                         : std::optional<std::string>{};
 
     const auto font_family =
         first_present(run.font_family, style_font_family,
@@ -200,6 +222,14 @@ resolve_run_style(featherdoc::Document &document,
         style_properties && style_properties->run_rtl.value
             ? *style_properties->run_rtl.value
             : document.default_run_rtl().value_or(false));
+    const auto shaping_language_tag =
+        shaping_language_tag_from_rtl(
+            rtl,
+            first_present(run.language, style_language,
+                          document.default_run_language()),
+            first_present(run.bidi_language, style_bidi_language,
+                          document.default_run_bidi_language()))
+            .value_or(std::string{});
 
     const auto text_color =
         first_present(run.text_color,
@@ -224,6 +254,7 @@ resolve_run_style(featherdoc::Document &document,
         underline,
         shaping_direction_from_rtl(rtl),
         {},
+        shaping_language_tag,
     };
 }
 
