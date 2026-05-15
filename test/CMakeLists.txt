@@ -22,6 +22,10 @@ function(featherdoc_set_test_labels test_name)
         LABELS
         "${ARGN}"
     )
+    if("pdf" IN_LIST ARGN)
+        # PDF tests may touch font, renderer, or fixture stacks; keep CTest bounded.
+        set_tests_properties(${test_name} PROPERTIES TIMEOUT 60)
+    endif()
 endfunction()
 
 function(featherdoc_get_runtime_dir out_var target_name)
@@ -282,7 +286,6 @@ if(TARGET FeatherDocPdf)
             )
         endif()
         featherdoc_set_test_labels(pdf_cli_export cli smoke pdf)
-        set_tests_properties(pdf_cli_export PROPERTIES TIMEOUT 60)
         if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(pdf_cli_export PROPERTIES
                 ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
@@ -305,7 +308,6 @@ if(TARGET FeatherDocPdf)
         )
         add_dependencies(pdf_cli_import_tests featherdoc_cli)
         featherdoc_set_test_labels(pdf_cli_import cli smoke pdf import)
-        set_tests_properties(pdf_cli_import PROPERTIES TIMEOUT 60)
         if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(pdf_cli_import PROPERTIES
                 ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
@@ -408,7 +410,6 @@ if(TARGET FeatherDocPdf AND TARGET FeatherDocPdfImport)
     target_compile_definitions(
         pdf_regression_manifest_tests
         PRIVATE "${FEATHERDOC_PDF_REGRESSION_MANIFEST_DEFINE}")
-    set_tests_properties(pdf_regression_manifest PROPERTIES TIMEOUT 60)
 
     add_executable(featherdoc_pdf_regression_sample
         ../samples/pdf_regression_sample.cpp

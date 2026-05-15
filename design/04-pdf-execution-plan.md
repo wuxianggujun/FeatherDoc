@@ -3332,6 +3332,15 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 继续 E7 时，可优先把 PDF CLI import/export 作为轻量烟测集合，配合
   `cli;smoke;pdf` 标签筛选执行。
 
+2026-05-15 继续推进（PDF CTest 超时 helper 收口）：
+
+- 已把 `featherdoc_set_test_labels()` 扩展为：凡标签列表包含 `pdf` 的 C++ CTest，
+  默认继承 `TIMEOUT 60`，避免后续新增 PDF smoke 测试时只补标签、漏补超时。
+- 已移除 `pdf_cli_export`、`pdf_cli_import` 和 `pdf_regression_manifest` 的重复手写
+  超时设置，让 PDF C++ 测试的调度边界统一由标签 helper 承担。
+- 仍保留 PowerShell、动态 PDF regression 和视觉 gate 的显式 `TIMEOUT 60`，
+  因为这些测试不是通过 `featherdoc_set_test_labels()` 注册。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
