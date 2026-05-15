@@ -377,6 +377,7 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText 'warning_count: `1`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'id: `numbering_catalog.style_merge_suggestions`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'message: numbering catalog reports pending style-merge suggestions' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'action: `review_style_merge_plan`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'source_schema: `featherdoc.numbering_catalog_governance_report.v1`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'style_merge_suggestion_count: `3`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'id: `release_governance_handoff.optional_report_missing`' -Label $assertion.Label
@@ -385,6 +386,7 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText 'source_schema: `featherdoc.release_governance_handoff_report.v1`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'id: `document_skeleton.style_merge_suggestions`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'message: document skeleton rollup still reports style-merge suggestions' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'action: `review_style_merge_plan`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'style_merge_suggestion_count: `2`' -Label $assertion.Label
 }

@@ -271,11 +271,21 @@ if ($Scenario -eq "handoff") {
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
         -Message "Release candidate summary should surface handoff warning details."
+    $handoffWarning = @($handoffReleaseSummary.release_governance_handoff.warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$handoffWarning[0].action) -Expected "review_style_merge_suggestions" `
+        -Message "Release candidate summary should preserve handoff warning action."
+    Assert-Equal -Actual ([string]$handoffWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Release candidate summary should preserve handoff warning source schema."
     Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.release_blocker_rollup.warning_count) -Expected 1 `
         -Message "Release candidate summary should surface nested handoff rollup warning count."
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
         -Message "Release candidate summary should surface nested handoff rollup warning details."
+    $handoffNestedWarning = @($handoffReleaseSummary.release_governance_handoff.release_blocker_rollup.warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$handoffNestedWarning[0].action) -Expected "review_style_merge_suggestions" `
+        -Message "Release candidate summary should preserve nested handoff rollup warning action."
+    Assert-Equal -Actual ([string]$handoffNestedWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Release candidate summary should preserve nested handoff rollup warning source schema."
     Assert-Equal -Actual ([string]$handoffReleaseSummary.steps.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate step status should mirror governance handoff status."
 
@@ -346,6 +356,11 @@ Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expec
 Assert-ContainsText -Text (($summary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
     -Message "Release candidate summary should surface warning details."
+$rollupWarning = @($summary.release_blocker_rollup.warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
+Assert-Equal -Actual ([string]$rollupWarning[0].action) -Expected "review_style_merge_suggestions" `
+    -Message "Release candidate summary should preserve rollup warning action."
+Assert-Equal -Actual ([string]$rollupWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+    -Message "Release candidate summary should preserve rollup warning source schema."
 Assert-Equal -Actual ([string]$summary.steps.release_blocker_rollup.status) -Expected "blocked" `
     -Message "Release candidate step status should mirror rollup status."
 
@@ -363,6 +378,10 @@ Assert-ContainsText -Text $finalReview -ExpectedText "Release blocker rollup cou
     -Message "Final review should include release blocker rollup counts."
 Assert-ContainsText -Text $finalReview -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
     -Message "Final review should surface rollup warning details."
+Assert-ContainsText -Text $finalReview -ExpectedText "action=review_style_merge_suggestions" `
+    -Message "Final review should surface rollup warning actions."
+Assert-ContainsText -Text $finalReview -ExpectedText "source_schema=featherdoc.document_skeleton_governance_rollup_report.v1" `
+    -Message "Final review should surface rollup warning source schema."
 
 $gateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-fail-on-blocker"
 $gateArguments = @($scriptArguments)

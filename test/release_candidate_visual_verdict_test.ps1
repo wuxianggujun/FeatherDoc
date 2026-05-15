@@ -180,6 +180,12 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-NormalizedRele
 Assert-ContainsText -Text $scriptText -ExpectedText 'function Get-ReleaseGovernanceWarningSummaryMarkdown' `
     -Message "Release final review should render governance warning details."
 
+Assert-ContainsText -Text $scriptText -ExpectedText 'action=$action' `
+    -Message "Release final review should render governance warning actions."
+
+Assert-ContainsText -Text $scriptText -ExpectedText 'source_schema=$sourceSchema' `
+    -Message "Release final review should render governance warning source schema."
+
 Assert-ContainsText -Text $scriptText -ExpectedText '## Release governance warnings' `
     -Message "Release final review should add a governance warning details section when warnings exist."
 
