@@ -25,11 +25,18 @@ TEST_CASE("cli print_usage includes core command families") {
     CHECK_NE(text.find("--no-system-font-fallbacks"), std::string::npos);
     CHECK_NE(text.find("--summary-json <path>"), std::string::npos);
 #if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
+    CHECK_NE(text.find("featherdoc_cli import-pdf <input.pdf> --output "
+                       "<output.docx>"),
+             std::string::npos);
+    CHECK_NE(text.find("--import-table-candidates-as-tables"),
+             std::string::npos);
     CHECK_NE(text.find("--min-table-continuation-confidence <score>"),
              std::string::npos);
     CHECK_EQ(text.find("--min-table-continuation-confidence <count>"),
              std::string::npos);
     CHECK_NE(text.find("table_continuation_diagnostics"),
+             std::string::npos);
+    CHECK_NE(text.find("min_table_continuation_confidence"),
              std::string::npos);
 #endif
     CHECK_NE(text.find("featherdoc_cli inspect-styles <input.docx>"),

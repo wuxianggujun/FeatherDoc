@@ -3441,6 +3441,16 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 同一契约现在还会解析 CMake `install(FILES ... DESTINATION ...)` 块，要求三份 PDF import
   用户文档安装到同一个 `${FEATHERDOC_INSTALL_DATADIR}/docs` 目录，而不是只做全文件弱匹配。
 
+2026-05-15 继续推进（PDF import CLI usage 契约）：
+
+- 已让 `cli_usage_tests` 在 PDF import 构建中同步定义 `FEATHERDOC_CLI_ENABLE_PDF_IMPORT`，
+  避免测试目标单独编译 `featherdoc_cli_usage.cpp` 时漏测真实 CLI 的 `import-pdf` usage。
+- 已扩展 `cli_usage_tests.cpp`，固定 `import-pdf` 命令行、`--import-table-candidates-as-tables`、
+  `--min-table-continuation-confidence <score>`、`table_continuation_diagnostics` 和
+  `min_table_continuation_confidence` 的帮助文本入口。
+- 已同步 `featherdoc_cli_usage.cpp`，说明设置 continuation confidence 后 JSON 会记录
+  `min_table_continuation_confidence`，让 CLI help 与 JSON diagnostics 文档保持一致。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

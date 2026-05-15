@@ -23,6 +23,8 @@ void print_usage(std::ostream &stream) {
            " [--json]\n"
         << "    --json includes table_continuation_diagnostics for PDF table"
            " merge decisions.\n"
+        << "    --min-table-continuation-confidence records"
+           " min_table_continuation_confidence in JSON when set.\n"
 #endif
         << "  featherdoc_cli inspect-sections <input.docx>\n"
         << "    [--json]\n"
