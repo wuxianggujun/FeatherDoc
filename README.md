@@ -85,7 +85,7 @@ When PDF import is enabled, `featherdoc_cli` also exposes:
 ```bash
 featherdoc_cli import-pdf input.pdf --output output.docx \
   [--import-table-candidates-as-tables] \
-  [--min-table-continuation-confidence <count>] [--json]
+  [--min-table-continuation-confidence <score>] [--json]
 ```
 
 By default, table candidates are rejected. Pass

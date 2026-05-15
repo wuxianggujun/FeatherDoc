@@ -93,7 +93,7 @@ cmake -S . -B build-pdf-import \
 ```bash
 featherdoc_cli import-pdf input.pdf --output output.docx \
   [--import-table-candidates-as-tables] \
-  [--min-table-continuation-confidence <count>] [--json]
+  [--min-table-continuation-confidence <score>] [--json]
 ```
 
 默认会拒绝表格候选。需要时再加

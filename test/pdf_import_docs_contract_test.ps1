@@ -236,6 +236,22 @@ Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import suppo
 
 Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_import.rst" -Label "README.md"
 Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_import.rst" -Label "README.zh-CN.md"
+Assert-ContainsText `
+    -Text $readmeText `
+    -ExpectedText "--min-table-continuation-confidence <score>" `
+    -Label "README.md"
+Assert-ContainsText `
+    -Text $readmeZhText `
+    -ExpectedText "--min-table-continuation-confidence <score>" `
+    -Label "README.zh-CN.md"
+Assert-DoesNotContainText `
+    -Text $readmeText `
+    -UnexpectedText "--min-table-continuation-confidence <count>" `
+    -Label "README.md"
+Assert-DoesNotContainText `
+    -Text $readmeZhText `
+    -UnexpectedText "--min-table-continuation-confidence <count>" `
+    -Label "README.zh-CN.md"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import.rst' -Label "CMakeLists.txt"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText '${FEATHERDOC_INSTALL_DATADIR}/docs' -Label "CMakeLists.txt"
 Assert-DoesNotContainText `

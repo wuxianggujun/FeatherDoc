@@ -19,7 +19,7 @@ void print_usage(std::ostream &stream) {
 #if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
         << "  featherdoc_cli import-pdf <input.pdf> --output <output.docx>"
            " [--import-table-candidates-as-tables]"
-           " [--min-table-continuation-confidence <count>]"
+           " [--min-table-continuation-confidence <score>]"
            " [--json]\n"
         << "    --json includes table_continuation_diagnostics for PDF table"
            " merge decisions.\n"

@@ -3307,6 +3307,14 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 同一回归还检查 `cli/featherdoc_cli.cpp` 为每个 enum 成员保留对应
   `return "<member>"` 映射，避免源码 enum、CLI JSON 和用户文档三方漂移。
 
+2026-05-15 继续推进（PDF import confidence 阈值文案统一）：
+
+- 已把 `--min-table-continuation-confidence` 的用户可见占位符从 `<count>`
+  统一为 `<score>`，覆盖 CLI usage、英文 README 和中文 README。
+- 已扩展 `cli_usage_tests.cpp`，固定 usage 必须出现 `<score>` 且不能回退到
+  `<count>`；该参数语义是规则型 continuation confidence 阈值，不是数量。
+- 已扩展 `pdf_import_docs_contract_test.ps1`，同步约束中英文 README 中的同一占位符。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
