@@ -151,6 +151,11 @@ release 流水线的详细设计文档；详细字段流向请先阅读
         -WorkingDir .tmp\test-build-numbering-catalog-governance
 
     powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\build_table_layout_delivery_rollup_report_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir .tmp\test-build-table-layout-delivery-rollup
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
         .\test\build_table_layout_delivery_governance_report_test.ps1 `
         -RepoRoot . `
         -WorkingDir .tmp\test-build-table-layout-delivery-governance

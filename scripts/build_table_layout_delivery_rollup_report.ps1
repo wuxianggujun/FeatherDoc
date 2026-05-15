@@ -21,6 +21,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[table-layout-delivery-rollup] $Message"
@@ -344,14 +346,15 @@ function New-ReportMarkdown {
 
     $lines.Add("## Warnings") | Out-Null
     $lines.Add("") | Out-Null
-    if (@($Summary.warnings).Count -eq 0) {
+    $warningLines = New-Object 'System.Collections.Generic.List[string]'
+    if (-not (Add-ReleaseGovernanceWarningMarkdownSubsection `
+                -Lines $warningLines `
+                -Heading "Table layout delivery rollup warnings" `
+                -SummaryObject $Summary)) {
         $lines.Add("- none") | Out-Null
     } else {
-        foreach ($warning in @($Summary.warnings)) {
-            $lines.Add(("- ``{0}``: source=``{1}`` {2}" -f
-                $warning.id,
-                $warning.source_report_display,
-                $warning.message)) | Out-Null
+        foreach ($line in $warningLines) {
+            $lines.Add($line) | Out-Null
         }
     }
 
@@ -412,6 +415,8 @@ foreach ($path in @($inputPaths)) {
             $sourceStatus = "skipped"
             $warnings.Add([ordered]@{
                 id = "source_report_schema_skipped"
+                action = "provide_table_layout_delivery_report"
+                source_schema = "featherdoc.table_layout_delivery_rollup_report.v1"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 message = "Report schema '$kind' is not a table layout delivery summary."
@@ -437,6 +442,8 @@ foreach ($path in @($inputPaths)) {
             if ($null -ne $declaredBlockerCount -and [int]$declaredBlockerCount -ne $releaseBlockerCount) {
                 $warnings.Add([ordered]@{
                     id = "release_blocker_count_mismatch"
+                    action = "reconcile_table_layout_delivery_rollup_counts"
+                    source_schema = "featherdoc.table_layout_delivery_rollup_report.v1"
                     source_report = $path
                     source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                     message = "release_blocker_count is $declaredBlockerCount but release_blockers contains $releaseBlockerCount item(s)."
@@ -553,6 +560,8 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
+            action = "fix_table_layout_delivery_rollup_input_json"
+            source_schema = "featherdoc.table_layout_delivery_rollup_report.v1"
             source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = $errorMessage

@@ -331,6 +331,23 @@ if (Test-Scenario -Name "malformed") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "source_report_read_failed" `
         -Message "Malformed layout rollup should include a source read warning."
+    $sourceReadWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "source_report_read_failed" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$sourceReadWarning[0].action) -Expected "fix_table_layout_delivery_rollup_input_json" `
+        -Message "Malformed layout rollup should expose a fixed remediation action."
+    Assert-Equal -Actual ([string]$sourceReadWarning[0].source_schema) -Expected "featherdoc.table_layout_delivery_rollup_report.v1" `
+        -Message "Malformed layout rollup should expose the source schema."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $malformedOutputDir "table_layout_delivery_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "### Table layout delivery rollup warnings" `
+        -Message "Markdown should include the rollup warning subsection."
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `1`' `
+        -Message "Markdown should include warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'id: `source_report_read_failed`' `
+        -Message "Markdown should include warning id."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `fix_table_layout_delivery_rollup_input_json`' `
+        -Message "Markdown should include warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.table_layout_delivery_rollup_report.v1`' `
+        -Message "Markdown should include warning source schema."
 }
 
 if (Test-Scenario -Name "fail_on_issue") {
