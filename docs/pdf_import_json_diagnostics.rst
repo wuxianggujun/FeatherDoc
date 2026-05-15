@@ -201,6 +201,6 @@ continuation threshold value reports:
     }
 
 The same parse-error shape is used for invalid threshold values and duplicate
-threshold options. Current messages include
+threshold options. Parse errors do not write the target DOCX. Current messages include
 ``invalid value after --min-table-continuation-confidence`` and
 ``duplicate --min-table-continuation-confidence option``.

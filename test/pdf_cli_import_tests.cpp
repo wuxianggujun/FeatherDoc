@@ -883,9 +883,11 @@ TEST_CASE("cli import-pdf reports confidence threshold parse errors as json") {
         [&](std::vector<std::string> arguments, const char *filename,
             const char *expected_message) {
             const fs::path json_output = work_dir / filename;
+            remove_if_exists(output);
             remove_if_exists(json_output);
 
             CHECK_EQ(run_cli(arguments, json_output), 2);
+            CHECK_FALSE(fs::exists(output));
 
             const auto json = read_text_file(json_output);
             CHECK_NE(json.find(R"("command":"import-pdf")"),

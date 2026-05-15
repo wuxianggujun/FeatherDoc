@@ -3424,6 +3424,13 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 同一契约还固定 `pdf_cli_*` 测试必须带 `cli;smoke;pdf`，把 PDF CLI import/export 作为轻量烟测入口的约定落到回归。
 - 该测试自身注册为 `pdf;ctest;smoke`，并显式设置 `TIMEOUT 60`，继续遵守 PDF 后台测试调度边界。
 
+2026-05-15 继续推进（PDF import parse-error 输出安全）：
+
+- 已增强 `pdf_cli_import_tests.cpp` 的 parse-error 回归：`--min-table-continuation-confidence`
+  缺值、非法值、重复值三类错误在返回 `stage:"parse"` JSON 时，都必须不写目标 DOCX。
+- 已同步 `docs/pdf_import_json_diagnostics.rst`，明确 parse errors do not write the target DOCX，
+  并用 `pdf_import_docs_contract_test.ps1` 固定该用户可见契约。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

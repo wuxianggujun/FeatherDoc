@@ -272,6 +272,7 @@ $requiredPdfImportJsonDiagnosticsDocsTerms = @(
     "missing value after --min-table-continuation-confidence",
     "invalid value after --min-table-continuation-confidence",
     "duplicate --min-table-continuation-confidence option",
+    "Parse errors do not write the target DOCX",
     "document_create_failed",
     "document_population_failed",
     "extract_text_disabled",
