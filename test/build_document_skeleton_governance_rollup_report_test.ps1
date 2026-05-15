@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "style_merge_review", "empty", "failed_source_report", "malformed", "warning_metadata", "fail_on_issue")]
+    [ValidateSet("all", "aggregate", "style_merge_review", "style_merge_review_missing_evidence", "empty", "failed_source_report", "malformed", "warning_metadata", "fail_on_issue")]
     [string]$Scenario = "all"
 )
 
@@ -86,6 +86,7 @@ function New-SkeletonSummary {
         [int]$StyleMergeSuggestionCount = 0,
         [int]$StyleMergeSuggestionPendingCount = -1,
         [string]$StyleMergeReviewStatus = "missing",
+        [int]$StyleMergeReviewEvidenceIssueCount = 0,
         [string]$StyleMergeReviewPlanRelativePath = "",
         [int]$UsageTotal = 0,
         [object[]]$IssueSummary = @(),
@@ -115,11 +116,14 @@ function New-SkeletonSummary {
         style_numbering_suggestion_count = $SuggestionCount
         style_merge_suggestion_count = $StyleMergeSuggestionCount
         style_merge_suggestion_pending_count = $StyleMergeSuggestionPendingCount
+        style_merge_review_evidence_issue_count = $StyleMergeReviewEvidenceIssueCount
         style_merge_suggestion_review = [ordered]@{
             requested = ($StyleMergeReviewStatus -ne "missing")
             status = $StyleMergeReviewStatus
             plan_relative_path = $StyleMergeReviewPlanRelativePath
             plan_exists = (-not [string]::IsNullOrWhiteSpace($StyleMergeReviewPlanRelativePath))
+            evidence_issue_count = $StyleMergeReviewEvidenceIssueCount
+            evidence_issues = @()
             reviewed_suggestion_count = $StyleMergeSuggestionCount - $StyleMergeSuggestionPendingCount
             pending_suggestion_count = $StyleMergeSuggestionPendingCount
         }
@@ -330,6 +334,8 @@ if (Test-Scenario -Name "style_merge_review") {
         -Message "Rollup should preserve total reviewed style merge suggestions."
     Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_pending_count) -Expected 0 `
         -Message "Rollup should not report reviewed style merge suggestions as pending."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_review_evidence_issue_count) -Expected 0 `
+        -Message "Rollup should not report evidence issues for valid reviewed suggestions."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
         -Message "Rollup should not emit pending warning after full review."
     Assert-Equal -Actual ([string]$summary.document_entries[0].style_merge_review_status) -Expected "reviewed" `
@@ -345,6 +351,71 @@ if (Test-Scenario -Name "style_merge_review") {
         -Message "Markdown should show reviewed style merge status."
     Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review_plan=``output/document-skeleton-governance/reviewed/style-merge-suggestions.reviewed.json``" `
         -Message "Markdown should show reviewed style merge plan path."
+}
+
+if (Test-Scenario -Name "style_merge_review_missing_evidence") {
+    $missingEvidenceRoot = Join-Path $resolvedWorkingDir "style-merge-review-missing-evidence-input"
+    $missingEvidenceOutputDir = Join-Path $resolvedWorkingDir "style-merge-review-missing-evidence-output"
+    $missingEvidenceReportPath = Join-Path $missingEvidenceRoot "reviewed\document_skeleton_governance.summary.json"
+
+    Write-JsonFile -Path $missingEvidenceReportPath -Value (New-SkeletonSummary `
+        -InputDocx "samples/reviewed-missing-evidence.docx" `
+        -CatalogPath "output/document-skeleton-governance/reviewed-missing/exemplar.numbering-catalog.json" `
+        -Status "needs_review" `
+        -StyleMergeSuggestionCount 2 `
+        -StyleMergeSuggestionPendingCount 0 `
+        -StyleMergeReviewStatus "reviewed_missing_evidence" `
+        -StyleMergeReviewEvidenceIssueCount 1 `
+        -StyleMergeReviewPlanRelativePath "output/document-skeleton-governance/reviewed-missing/missing-style-merge-plan.json" `
+        -ReleaseBlockers @(
+            [ordered]@{
+                id = "document_skeleton.style_merge_review_evidence_missing"
+                severity = "error"
+                message = "Style merge review references missing plan evidence."
+                action = "fix_style_merge_review_evidence"
+                issue_count = 1
+            }
+        ) `
+        -ActionItems @(
+            [ordered]@{
+                id = "fix_style_merge_review_evidence"
+                title = "Restore referenced style merge review plan evidence"
+                command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 -InputDocx samples/reviewed-missing-evidence.docx"
+            }
+        ))
+
+    $result = Invoke-RollupScript -Arguments @(
+        "-InputRoot", $missingEvidenceRoot,
+        "-OutputDir", $missingEvidenceOutputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Missing style merge review evidence should keep rollup reviewable without fail switches. Output: $($result.Text)"
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $missingEvidenceOutputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
+        -Message "Missing style merge review evidence should keep rollup in needs_review."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_pending_count) -Expected 0 `
+        -Message "Missing evidence should not reclassify reviewed suggestions as pending."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_review_evidence_issue_count) -Expected 1 `
+        -Message "Rollup should sum style merge review evidence issues."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 0 `
+        -Message "Missing evidence should not emit pending suggestion warnings."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
+        -Message "Rollup should preserve missing evidence release blocker."
+    Assert-ContainsText -Text ([string]$summary.document_entries[0].style_merge_review_status) `
+        -ExpectedText "reviewed_missing_evidence" `
+        -Message "Rollup should expose missing evidence review status."
+    Assert-Equal -Actual ([int]$summary.document_entries[0].style_merge_review_evidence_issue_count) -Expected 1 `
+        -Message "Rollup should expose per-document evidence issue count."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "fix_style_merge_review_evidence" `
+        -Message "Rollup should preserve missing evidence fix action."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $missingEvidenceOutputDir "document_skeleton_governance_rollup.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "Style-merge review evidence issues: ``1``" `
+        -Message "Markdown should show aggregate missing evidence count."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review_evidence_issues=``1``" `
+        -Message "Markdown should show per-document missing evidence count."
 }
 
 if (Test-Scenario -Name "empty") {

@@ -2,7 +2,7 @@ param(
     [string]$RepoRoot,
     [string]$BuildDir,
     [string]$WorkingDir,
-    [ValidateSet("all", "passing", "style_merge_review", "failing", "fail_on_issue")]
+    [ValidateSet("all", "passing", "style_merge_review", "style_merge_review_missing_evidence", "failing", "fail_on_issue")]
     [string]$Scenario = "all"
 )
 
@@ -277,6 +277,78 @@ if (Test-Scenario -Name "style_merge_review") {
         -Message "Markdown should link the reviewed style merge plan."
     Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review_rollback_plan:" `
         -Message "Markdown should link the reviewed style merge rollback plan."
+}
+
+if (Test-Scenario -Name "style_merge_review_missing_evidence") {
+    $missingEvidenceCli = Join-Path $resolvedWorkingDir "mock-featherdoc-cli-missing-evidence.ps1"
+    $missingEvidenceOutputDir = Join-Path $resolvedWorkingDir "style-merge-review-missing-evidence-report"
+    $missingEvidenceReviewJsonPath = Join-Path $resolvedWorkingDir "style-merge-review-missing-evidence.json"
+    Write-MockCli -Path $missingEvidenceCli -CleanAudit
+    Set-Content -LiteralPath $missingEvidenceReviewJsonPath -Encoding UTF8 -Value (@{
+            schema = "featherdoc.style_merge_suggestion_review.v1"
+            decision = "approved"
+            reviewed_by = "release-reviewer"
+            reviewed_at = "2026-05-16T09:00:00"
+            reviewed_suggestion_count = 1
+            plan_file = "missing-style-merge-plan.json"
+            rollback_plan_file = "missing-style-merge.rollback.json"
+        } | ConvertTo-Json -Depth 6)
+
+    $missingEvidenceResult = Invoke-GovernanceReportScript -Arguments @(
+        "-InputDocx", $sampleDocx,
+        "-OutputDir", $missingEvidenceOutputDir,
+        "-CliPath", $missingEvidenceCli,
+        "-StyleMergeReviewJson", $missingEvidenceReviewJsonPath,
+        "-SkipBuild"
+    )
+    Assert-Equal -Actual $missingEvidenceResult.ExitCode -Expected 0 `
+        -Message "Missing review evidence should not fail without -FailOnIssue. Output: $($missingEvidenceResult.Text)"
+
+    $summaryPath = Join-Path $missingEvidenceOutputDir "document_skeleton_governance.summary.json"
+    $markdownPath = Join-Path $missingEvidenceOutputDir "document_skeleton_governance.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
+        -Message "Missing referenced review evidence should require review."
+    Assert-Equal -Actual ([int]$summary.style_merge_suggestion_pending_count) -Expected 0 `
+        -Message "Fully reviewed suggestions should remain non-pending even when evidence is missing."
+    Assert-Equal -Actual ([string]$summary.style_merge_suggestion_review.status) -Expected "reviewed_missing_evidence" `
+        -Message "Review status should expose missing evidence."
+    Assert-Equal -Actual ([int]$summary.style_merge_suggestion_review.evidence_issue_count) -Expected 2 `
+        -Message "Summary should count missing plan and rollback evidence."
+    Assert-Equal -Actual ([int]$summary.style_merge_review_evidence_issue_count) -Expected 2 `
+        -Message "Top-level summary should expose missing evidence issue count."
+    Assert-Equal -Actual ([bool]$summary.style_merge_suggestion_review.plan_exists) -Expected $false `
+        -Message "Summary should verify missing style merge plan evidence."
+    Assert-Equal -Actual ([bool]$summary.style_merge_suggestion_review.rollback_plan_exists) -Expected $false `
+        -Message "Summary should verify missing style merge rollback evidence."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "document_skeleton.style_merge_review_evidence_missing" `
+        -Message "Missing review evidence should become a release blocker."
+    Assert-ContainsText -Text (($summary.next_steps | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "fix_style_merge_review_evidence" `
+        -Message "Missing review evidence should emit a fix action."
+    Assert-True -Condition (-not ((@($summary.next_steps) | ForEach-Object { [string]$_.id }) -contains "review_style_merge_suggestions")) `
+        -Message "Fully reviewed suggestions should not re-emit the generic review action."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review_evidence_issue_count: ``2``" `
+        -Message "Markdown should show missing review evidence count."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review.plan_missing" `
+        -Message "Markdown should list the missing plan issue."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review.rollback_plan_missing" `
+        -Message "Markdown should list the missing rollback plan issue."
+
+    $failOnIssueOutputDir = Join-Path $resolvedWorkingDir "style-merge-review-missing-evidence-fail-on-issue-report"
+    $failOnIssueResult = Invoke-GovernanceReportScript -Arguments @(
+        "-InputDocx", $sampleDocx,
+        "-OutputDir", $failOnIssueOutputDir,
+        "-CliPath", $missingEvidenceCli,
+        "-StyleMergeReviewJson", $missingEvidenceReviewJsonPath,
+        "-SkipBuild",
+        "-FailOnIssue"
+    )
+    Assert-Equal -Actual $failOnIssueResult.ExitCode -Expected 1 `
+        -Message "Missing review evidence should fail when -FailOnIssue is set. Output: $($failOnIssueResult.Text)"
 }
 
 if (Test-Scenario -Name "failing") {

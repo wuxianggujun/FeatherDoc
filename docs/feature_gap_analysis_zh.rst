@@ -157,7 +157,10 @@ audit 与 catalog baseline gate 汇入统一骨架治理报告。
 ``style_merge_suggestion_review`` 审计信息，同时把
 ``style_merge_suggestion_pending_count`` 清零；review JSON 还可以携带
 ``plan_file`` / ``style_merge_plan_file`` 和 ``rollback_plan_file``，用于记录已通过复核的
-style refactor plan 与 rollback 证据是否存在。
+style refactor plan 与 rollback 证据是否存在。若 review JSON 引用了缺失的 plan 证据，
+建议本身不会重新计入 pending，但报告会进入 ``needs_review``，并输出
+``document_skeleton.style_merge_review_evidence_missing`` blocker 与
+``fix_style_merge_review_evidence`` action。
 ``build_document_skeleton_governance_rollup_report.ps1`` 进一步把多份单文档
 骨架治理 summary 聚合成跨模板 exemplar catalog、issue summary、重复样式 merge
 建议、release blocker 和 action item 视图，便于先完成文档骨架治理汇总，再接入发布阻断面板。

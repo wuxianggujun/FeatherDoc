@@ -302,6 +302,8 @@ function New-StyleMergeSuggestionReviewSummary {
         rollback_plan_path = ""
         rollback_plan_relative_path = ""
         rollback_plan_exists = $false
+        evidence_issue_count = 0
+        evidence_issues = @()
         reviewed_suggestion_count = 0
         pending_suggestion_count = $SuggestionCount
         error = ""
@@ -335,6 +337,14 @@ function New-StyleMergeSuggestionReviewSummary {
             $review.plan_path = Resolve-ReviewEvidencePath -ReviewJsonPath $ReviewJsonPath -RepoRoot $RepoRoot -InputPath $planPath
             $review.plan_relative_path = Convert-ToReportPath -RepoRoot $RepoRoot -Path $review.plan_path
             $review.plan_exists = Test-Path -LiteralPath $review.plan_path
+            if (-not $review.plan_exists) {
+                $review.evidence_issues += [ordered]@{
+                    id = "style_merge_review.plan_missing"
+                    message = "Referenced style merge review plan does not exist."
+                    path = $review.plan_path
+                    relative_path = $review.plan_relative_path
+                }
+            }
         }
         $rollbackPlanPath = [string](Get-JsonPropertyValue `
                 -Object $reviewJson `
@@ -344,12 +354,21 @@ function New-StyleMergeSuggestionReviewSummary {
             $review.rollback_plan_path = Resolve-ReviewEvidencePath -ReviewJsonPath $ReviewJsonPath -RepoRoot $RepoRoot -InputPath $rollbackPlanPath
             $review.rollback_plan_relative_path = Convert-ToReportPath -RepoRoot $RepoRoot -Path $review.rollback_plan_path
             $review.rollback_plan_exists = Test-Path -LiteralPath $review.rollback_plan_path
+            if (-not $review.rollback_plan_exists) {
+                $review.evidence_issues += [ordered]@{
+                    id = "style_merge_review.rollback_plan_missing"
+                    message = "Referenced style merge rollback plan does not exist."
+                    path = $review.rollback_plan_path
+                    relative_path = $review.rollback_plan_relative_path
+                }
+            }
         }
+        $review.evidence_issue_count = @($review.evidence_issues).Count
 
         $normalizedDecision = $review.decision.ToLowerInvariant()
         $acceptedDecision = $normalizedDecision -in @("reviewed", "approved", "accepted")
         if ($acceptedDecision -and $review.reviewed_suggestion_count -ge $SuggestionCount) {
-            $review.status = "reviewed"
+            $review.status = if ($review.evidence_issue_count -gt 0) { "reviewed_missing_evidence" } else { "reviewed" }
             $review.pending_suggestion_count = 0
         } elseif ($acceptedDecision -and $review.reviewed_suggestion_count -gt 0) {
             $review.status = "partial"
@@ -364,6 +383,7 @@ function New-StyleMergeSuggestionReviewSummary {
     } catch {
         $review.status = "invalid"
         $review.pending_suggestion_count = $SuggestionCount
+        $review.evidence_issue_count = @($review.evidence_issues).Count
         $review.error = $_.Exception.Message
     }
 
@@ -384,6 +404,7 @@ function New-ReportMarkdown {
     $lines.Add(("- style_merge_suggestion_count: ``{0}``" -f $Summary.style_merge_suggestion_count)) | Out-Null
     $lines.Add(("- style_merge_suggestion_pending_count: ``{0}``" -f $Summary.style_merge_suggestion_pending_count)) | Out-Null
     $lines.Add(("- style_merge_review_status: ``{0}``" -f $Summary.style_merge_suggestion_review.status)) | Out-Null
+    $lines.Add(("- style_merge_review_evidence_issue_count: ``{0}``" -f $Summary.style_merge_suggestion_review.evidence_issue_count)) | Out-Null
     if (-not [string]::IsNullOrWhiteSpace([string]$Summary.style_merge_suggestion_review.review_json_relative_path)) {
         $lines.Add(("- style_merge_review_json: ``{0}``" -f $Summary.style_merge_suggestion_review.review_json_relative_path)) | Out-Null
     }
@@ -394,6 +415,9 @@ function New-ReportMarkdown {
     if (-not [string]::IsNullOrWhiteSpace([string]$Summary.style_merge_suggestion_review.rollback_plan_relative_path)) {
         $lines.Add(("- style_merge_review_rollback_plan: ``{0}``" -f $Summary.style_merge_suggestion_review.rollback_plan_relative_path)) | Out-Null
         $lines.Add(("- style_merge_review_rollback_plan_exists: ``{0}``" -f $Summary.style_merge_suggestion_review.rollback_plan_exists)) | Out-Null
+    }
+    foreach ($issue in @($Summary.style_merge_suggestion_review.evidence_issues)) {
+        $lines.Add(("- style_merge_review_evidence_issue: ``{0}`` ``{1}``" -f $issue.id, $issue.relative_path)) | Out-Null
     }
     $lines.Add(("- release_blocker_count: ``{0}``" -f $Summary.release_blocker_count)) | Out-Null
     $lines.Add("") | Out-Null
@@ -530,6 +554,7 @@ $styleMergeSuggestionReview = New-StyleMergeSuggestionReviewSummary `
     -RepoRoot $repoRoot `
     -SuggestionCount $styleMergeSuggestionCount
 $styleMergeSuggestionPendingCount = [int]$styleMergeSuggestionReview.pending_suggestion_count
+$styleMergeReviewEvidenceIssueCount = [int]$styleMergeSuggestionReview.evidence_issue_count
 
 $styleNumberingIssues = @(Get-JsonArrayValue -Object $styleNumbering -Names @("issues"))
 $issueSummary = @(New-IssueSummary -Issues $styleNumberingIssues)
@@ -581,6 +606,15 @@ if ($issueCount -gt 0) {
         issue_count = $issueCount
     }
 }
+if ($styleMergeReviewEvidenceIssueCount -gt 0) {
+    $releaseBlockers += [ordered]@{
+        id = "document_skeleton.style_merge_review_evidence_missing"
+        severity = "error"
+        message = "Style merge review references missing plan evidence."
+        action = "fix_style_merge_review_evidence"
+        issue_count = $styleMergeReviewEvidenceIssueCount
+    }
+}
 
 $inputForCommand = Convert-ToReportPath -RepoRoot $repoRoot -Path $resolvedInputDocx
 $catalogForCommand = Convert-ToReportPath -RepoRoot $repoRoot -Path $catalogPath
@@ -604,6 +638,12 @@ if ($styleMergeSuggestionPendingCount -gt 0) {
         -Title "Review duplicate style merge suggestions before applying refactors" `
         -Command ("featherdoc_cli suggest-style-merges " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " --confidence-profile recommended --output-plan " + (ConvertTo-CommandLine -Arguments @($styleMergePlanForCommand)) + " --json")
 }
+if ($styleMergeReviewEvidenceIssueCount -gt 0) {
+    $actionItems += New-ActionItem `
+        -Id "fix_style_merge_review_evidence" `
+        -Title "Restore referenced style merge review plan evidence" `
+        -Command ("pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 -InputDocx " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " -StyleMergeReviewJson " + (ConvertTo-CommandLine -Arguments @($styleMergeSuggestionReview.review_json_relative_path)) + " -OutputDir " + (ConvertTo-CommandLine -Arguments @((Convert-ToReportPath -RepoRoot $repoRoot -Path $resolvedOutputDir))) + " -SkipBuild")
+}
 $actionItems += New-ActionItem `
     -Id "promote_numbering_catalog_exemplar" `
     -Title "Review and promote the generated exemplar numbering catalog" `
@@ -616,6 +656,8 @@ $actionItems += New-ActionItem `
 $status = if ($commandFailureCount -gt 0) {
     "failed"
 } elseif ($issueCount -gt 0) {
+    "needs_review"
+} elseif ($styleMergeReviewEvidenceIssueCount -gt 0) {
     "needs_review"
 } elseif ($styleMergeSuggestionPendingCount -gt 0) {
     "needs_review"
@@ -648,6 +690,7 @@ $summary = [ordered]@{
     style_merge_suggestions = $styleMergeSuggestions
     style_merge_suggestion_count = $styleMergeSuggestionCount
     style_merge_suggestion_pending_count = $styleMergeSuggestionPendingCount
+    style_merge_review_evidence_issue_count = $styleMergeReviewEvidenceIssueCount
     style_merge_suggestion_review = $styleMergeSuggestionReview
     style_merge_suggestion_confidence_summary = $styleMergeSuggestionConfidenceSummary
     style_numbering_clean = Get-JsonBoolValue -Object $styleNumbering -Names @("clean") -DefaultValue $true

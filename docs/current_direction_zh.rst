@@ -160,7 +160,9 @@
   ``featherdoc.document_skeleton_governance_rollup_report.v1``；发布阻断 rollup
   会按 ``style_merge_suggestion_pending_count`` 把未复核的重复样式 merge 建议作为 warning 暴露，
   已通过 ``-StyleMergeReviewJson`` 复核的建议保留审计字段和可选 style refactor plan / rollback 证据，
-  但不再升级为 release warning，
+  但不再升级为 release warning；若引用的 plan 证据缺失，则通过
+  ``document_skeleton.style_merge_review_evidence_missing`` blocker 和
+  ``fix_style_merge_review_evidence`` action 保持可追踪，
   默认不阻断发布，但可用 ``-FailOnWarning`` 纳入更严格的 gate
 
 接下来最值得补的是：
