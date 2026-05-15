@@ -3208,6 +3208,18 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 每次新增 PDF 能力，必须同时回答四个问题：
   能否生成、能否回读、能否可视化验证、能否回归。
 
+2026-05-15 继续推进（BUILDING_PDF PDF import 用户内容去重）：
+
+- 已将 `BUILDING_PDF.md` 中面向用户的 PDF import 范围、限制和表格续接说明去重，
+  统一指向 `docs/index.rst` 的 `PDF import JSON diagnostics` 与
+  `PDF import supported scope and limits` 小节。
+- `BUILDING_PDF.md` 现在只保留构建、开发者测试和
+  `PdfDocumentImportResult::table_continuation_diagnostics` 调试入口，避免
+  README、Sphinx 文档和构建文档之间的用户契约漂移。
+- 本轮是文档-only 收口，没有改动生产代码；验证范围为 `git diff --check`。
+- 继续 E7 时，优先把 PDF import 长文档拆成独立 `docs/pdf_import_*.rst` 页面，
+  或继续补 CLI diagnostics 的用户示例。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
