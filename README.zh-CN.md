@@ -103,8 +103,9 @@ featherdoc_cli import-pdf input.pdf --output output.docx \
 `table_continuation_diagnostics`。这些诊断用于解释跨页表格决策，
 例如 `merged_with_previous_table`、`column_count_mismatch`、
 `column_anchors_mismatch`、`repeated_header_mismatch` 和
-`continuation_confidence_below_threshold`。字段级 schema 见
-`docs/pdf_import_json_diagnostics.rst`，总览见 `docs/pdf_import.rst`。
+`continuation_confidence_below_threshold`。总览见 `docs/pdf_import.rst`，
+字段级 schema 见 `docs/pdf_import_json_diagnostics.rst`，支持范围与限制见
+`docs/pdf_import_scope.rst`。
 
 ## MSVC 构建
 

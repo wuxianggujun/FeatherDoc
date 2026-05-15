@@ -29,6 +29,63 @@ function Assert-DoesNotContainText {
     }
 }
 
+function Get-TextSection {
+    param(
+        [string]$Text,
+        [string]$StartText,
+        [string]$EndText,
+        [string]$Label
+    )
+
+    $startIndex = $Text.IndexOf($StartText, [System.StringComparison]::Ordinal)
+    if ($startIndex -lt 0) {
+        throw "$Label does not contain start marker '$StartText'."
+    }
+
+    $endIndex = $Text.IndexOf(
+        $EndText,
+        $startIndex + $StartText.Length,
+        [System.StringComparison]::Ordinal)
+    if ($endIndex -lt 0) {
+        throw "$Label does not contain end marker '$EndText'."
+    }
+
+    return $Text.Substring($startIndex, $endIndex - $startIndex)
+}
+
+function Assert-CMakeInstallFilesToDestination {
+    param(
+        [string]$Text,
+        [string[]]$ExpectedFiles,
+        [string]$Destination,
+        [string]$Label
+    )
+
+    $pattern = 'install\s*\(\s*FILES(?<files>.*?)DESTINATION\s+"(?<destination>[^"]+)"(?<tail>.*?)\)'
+    foreach ($match in [regex]::Matches(
+            $Text,
+            $pattern,
+            [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+        if ($match.Groups["destination"].Value -ne $Destination) {
+            continue
+        }
+
+        $filesText = $match.Groups["files"].Value
+        $missingFiles = @()
+        foreach ($expectedFile in $ExpectedFiles) {
+            if (-not $filesText.Contains($expectedFile)) {
+                $missingFiles += $expectedFile
+            }
+        }
+
+        if ($missingFiles.Count -eq 0) {
+            return
+        }
+    }
+
+    throw "$Label does not install expected files to '$Destination': $($ExpectedFiles -join ', ')."
+}
+
 function Get-CppEnumMembers {
     param(
         [string]$Text,
@@ -202,6 +259,22 @@ $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
 $cliText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cliPath
 $pdfCliImportTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportTestsPath
+
+$readmePdfImportSection = Get-TextSection `
+    -Text $readmeText `
+    -StartText "When PDF import is enabled" `
+    -EndText "## Build With MSVC" `
+    -Label "README.md PDF import section"
+$readmeZhPdfImportSection = Get-TextSection `
+    -Text $readmeZhText `
+    -StartText "featherdoc_cli import-pdf input.pdf --output output.docx" `
+    -EndText "## MSVC" `
+    -Label "README.zh-CN.md PDF import section"
+$pdfImportInstalledDocs = @(
+    'docs/pdf_import.rst',
+    'docs/pdf_import_json_diagnostics.rst',
+    'docs/pdf_import_scope.rst'
+)
 
 $requiredPdfImportDocsTerms = @(
     "PDF Import",
@@ -394,6 +467,16 @@ Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_import.rst" -Label
 Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_import_json_diagnostics.rst" -Label "README.md"
 Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_import.rst" -Label "README.zh-CN.md"
 Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_import_json_diagnostics.rst" -Label "README.zh-CN.md"
+foreach ($installedDoc in $pdfImportInstalledDocs) {
+    Assert-ContainsText `
+        -Text $readmePdfImportSection `
+        -ExpectedText $installedDoc `
+        -Label "README.md PDF import section"
+    Assert-ContainsText `
+        -Text $readmeZhPdfImportSection `
+        -ExpectedText $installedDoc `
+        -Label "README.zh-CN.md PDF import section"
+}
 Assert-ContainsText `
     -Text $readmeText `
     -ExpectedText "--min-table-continuation-confidence <score>" `
@@ -414,6 +497,11 @@ Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import.rst' -L
 Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import_json_diagnostics.rst' -Label "CMakeLists.txt"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import_scope.rst' -Label "CMakeLists.txt"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText '${FEATHERDOC_INSTALL_DATADIR}/docs' -Label "CMakeLists.txt"
+Assert-CMakeInstallFilesToDestination `
+    -Text $cmakeListsText `
+    -ExpectedFiles $pdfImportInstalledDocs `
+    -Destination '${FEATHERDOC_INSTALL_DATADIR}/docs' `
+    -Label "CMakeLists.txt"
 Assert-DoesNotContainText `
     -Text $readmeText `
     -UnexpectedText 'docs/index.rst` for the field-level schema' `

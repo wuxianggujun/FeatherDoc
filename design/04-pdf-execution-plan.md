@@ -3431,6 +3431,16 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 已同步 `docs/pdf_import_json_diagnostics.rst`，明确 parse errors do not write the target DOCX，
   并用 `pdf_import_docs_contract_test.ps1` 固定该用户可见契约。
 
+2026-05-15 继续推进（PDF import README 与安装入口契约）：
+
+- 已同步 `README.md` 和 `README.zh-CN.md` 的 PDF import 小节，明确总览、
+  JSON diagnostics、supported scope 三份拆页文档的入口，避免只在安装清单里隐式出现。
+- 已扩展 `pdf_import_docs_contract_test.ps1`，从 README 的 PDF import 小节范围内断言
+  `docs/pdf_import.rst`、`docs/pdf_import_json_diagnostics.rst` 和
+  `docs/pdf_import_scope.rst` 都可见。
+- 同一契约现在还会解析 CMake `install(FILES ... DESTINATION ...)` 块，要求三份 PDF import
+  用户文档安装到同一个 `${FEATHERDOC_INSTALL_DATADIR}/docs` 目录，而不是只做全文件弱匹配。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

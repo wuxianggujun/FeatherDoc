@@ -95,9 +95,9 @@ When `--json` is present, successful imports include
 Those diagnostics explain cross-page table decisions such as
 `merged_with_previous_table`, `column_count_mismatch`,
 `column_anchors_mismatch`, `repeated_header_mismatch`, and
-`continuation_confidence_below_threshold`. See
-`docs/pdf_import_json_diagnostics.rst` for the field-level schema and
-`docs/pdf_import.rst` for the overview.
+`continuation_confidence_below_threshold`. See `docs/pdf_import.rst` for the
+overview, `docs/pdf_import_json_diagnostics.rst` for the field-level schema,
+and `docs/pdf_import_scope.rst` for supported scope and limits.
 
 ## Build With MSVC
 
