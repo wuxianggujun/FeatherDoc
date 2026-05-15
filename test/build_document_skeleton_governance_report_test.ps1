@@ -217,13 +217,19 @@ if (Test-Scenario -Name "style_merge_review") {
     $reviewCli = Join-Path $resolvedWorkingDir "mock-featherdoc-cli-clean-audit.ps1"
     $reviewOutputDir = Join-Path $resolvedWorkingDir "style-merge-review-report"
     $reviewJsonPath = Join-Path $resolvedWorkingDir "style-merge-review.json"
+    $reviewPlanPath = Join-Path $resolvedWorkingDir "style-merge-suggestions.reviewed.json"
+    $reviewRollbackPlanPath = Join-Path $resolvedWorkingDir "style-merge.reviewed.rollback.json"
     Write-MockCli -Path $reviewCli -CleanAudit
+    Set-Content -LiteralPath $reviewPlanPath -Encoding UTF8 -Value '{"command":"suggest-style-merges","operations":[{"action":"merge","source_style_id":"DuplicateBodyB","target_style_id":"DuplicateBodyA"}]}'
+    Set-Content -LiteralPath $reviewRollbackPlanPath -Encoding UTF8 -Value '{"command":"apply-style-refactor","operations":[]}'
     Set-Content -LiteralPath $reviewJsonPath -Encoding UTF8 -Value (@{
             schema = "featherdoc.style_merge_suggestion_review.v1"
             decision = "Approved"
             reviewed_by = "release-reviewer"
             reviewed_at = "2026-05-16T08:00:00"
             reviewed_suggestion_count = 1
+            plan_file = "style-merge-suggestions.reviewed.json"
+            rollback_plan_file = "style-merge.reviewed.rollback.json"
         } | ConvertTo-Json -Depth 6)
 
     $reviewResult = Invoke-GovernanceReportScript -Arguments @(
@@ -249,6 +255,14 @@ if (Test-Scenario -Name "style_merge_review") {
         -Message "Summary should expose reviewed style merge status."
     Assert-Equal -Actual ([string]$summary.style_merge_suggestion_review.reviewed_by) -Expected "release-reviewer" `
         -Message "Summary should preserve style merge reviewer metadata."
+    Assert-Equal -Actual ([bool]$summary.style_merge_suggestion_review.plan_exists) -Expected $true `
+        -Message "Summary should verify the reviewed style merge plan path."
+    Assert-ContainsText -Text ([string]$summary.style_merge_suggestion_review.plan_relative_path) -ExpectedText "style-merge-suggestions.reviewed.json" `
+        -Message "Summary should expose the reviewed style merge plan path."
+    Assert-Equal -Actual ([bool]$summary.style_merge_suggestion_review.rollback_plan_exists) -Expected $true `
+        -Message "Summary should verify the reviewed style merge rollback plan path."
+    Assert-ContainsText -Text ([string]$summary.style_merge_suggestion_review.rollback_plan_relative_path) -ExpectedText "style-merge.reviewed.rollback.json" `
+        -Message "Summary should expose the reviewed style merge rollback plan path."
     Assert-True -Condition (-not ((@($summary.next_steps) | ForEach-Object { [string]$_.id }) -contains "review_style_merge_suggestions")) `
         -Message "Reviewed style merge suggestions should not emit a pending review next step."
 
@@ -259,6 +273,10 @@ if (Test-Scenario -Name "style_merge_review") {
         -Message "Markdown should show style merge review status."
     Assert-ContainsText -Text $markdown -ExpectedText "style-merge-review.json" `
         -Message "Markdown should link the style merge review JSON."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review_plan:" `
+        -Message "Markdown should link the reviewed style merge plan."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review_rollback_plan:" `
+        -Message "Markdown should link the reviewed style merge rollback plan."
 }
 
 if (Test-Scenario -Name "failing") {

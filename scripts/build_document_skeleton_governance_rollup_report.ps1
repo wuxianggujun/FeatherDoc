@@ -247,7 +247,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($document in @($Summary.document_entries)) {
-            $lines.Add(("- ``{0}``: status=``{1}`` issues=``{2}`` suggestions=``{3}`` style_merge_suggestions=``{4}`` pending_style_merge_suggestions=``{5}`` style_merge_review=``{6}`` definitions=``{7}`` instances=``{8}`` source=``{9}``" -f
+            $lines.Add(("- ``{0}``: status=``{1}`` issues=``{2}`` suggestions=``{3}`` style_merge_suggestions=``{4}`` pending_style_merge_suggestions=``{5}`` style_merge_review=``{6}`` style_merge_review_plan=``{7}`` definitions=``{8}`` instances=``{9}`` source=``{10}``" -f
                 $document.document_name,
                 $document.status,
                 $document.style_numbering_issue_count,
@@ -255,6 +255,7 @@ function New-ReportMarkdown {
                 $document.style_merge_suggestion_count,
                 $document.style_merge_suggestion_pending_count,
                 $document.style_merge_review_status,
+                $document.style_merge_review_plan_relative_path,
                 $document.numbering_definition_count,
                 $document.numbering_instance_count,
                 $document.source_report_display)) | Out-Null
@@ -402,6 +403,7 @@ foreach ($path in @($inputPaths)) {
     $styleMergeSuggestionCount = 0
     $styleMergeSuggestionPendingCount = 0
     $styleMergeReviewStatus = "missing"
+    $styleMergeReviewPlanRelativePath = ""
     $releaseBlockerCount = 0
 
     try {
@@ -433,6 +435,7 @@ foreach ($path in @($inputPaths)) {
             $styleMergeSuggestionPendingCount = Get-JsonInt -Object $summaryObject -Name "style_merge_suggestion_pending_count" -DefaultValue $styleMergeSuggestionCount
             $styleMergeReview = Get-JsonProperty -Object $summaryObject -Name "style_merge_suggestion_review"
             $styleMergeReviewStatus = Get-JsonString -Object $styleMergeReview -Name "status" -DefaultValue "missing"
+            $styleMergeReviewPlanRelativePath = Get-JsonString -Object $styleMergeReview -Name "plan_relative_path"
             $numberedStyleCount = Get-JsonInt -Object $summaryObject -Name "numbered_style_count"
             $styleUsageTotal = Get-JsonInt -Object $styleUsage -Name "usage_total"
             $commandFailureCount = Get-JsonInt -Object $summaryObject -Name "command_failure_count"
@@ -472,6 +475,7 @@ foreach ($path in @($inputPaths)) {
                 style_merge_suggestion_count = $styleMergeSuggestionCount
                 style_merge_suggestion_pending_count = $styleMergeSuggestionPendingCount
                 style_merge_review_status = $styleMergeReviewStatus
+                style_merge_review_plan_relative_path = $styleMergeReviewPlanRelativePath
                 numbered_style_count = $numberedStyleCount
                 numbering_definition_count = $definitionCount
                 numbering_instance_count = $instanceCount
@@ -586,6 +590,7 @@ foreach ($path in @($inputPaths)) {
         style_merge_suggestion_count = $styleMergeSuggestionCount
         style_merge_suggestion_pending_count = $styleMergeSuggestionPendingCount
         style_merge_review_status = $styleMergeReviewStatus
+        style_merge_review_plan_relative_path = $styleMergeReviewPlanRelativePath
         release_blocker_count = $releaseBlockerCount
         error = $errorMessage
     }) | Out-Null

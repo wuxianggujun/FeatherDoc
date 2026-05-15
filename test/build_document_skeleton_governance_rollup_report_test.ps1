@@ -86,6 +86,7 @@ function New-SkeletonSummary {
         [int]$StyleMergeSuggestionCount = 0,
         [int]$StyleMergeSuggestionPendingCount = -1,
         [string]$StyleMergeReviewStatus = "missing",
+        [string]$StyleMergeReviewPlanRelativePath = "",
         [int]$UsageTotal = 0,
         [object[]]$IssueSummary = @(),
         [object[]]$ReleaseBlockers = @(),
@@ -117,6 +118,8 @@ function New-SkeletonSummary {
         style_merge_suggestion_review = [ordered]@{
             requested = ($StyleMergeReviewStatus -ne "missing")
             status = $StyleMergeReviewStatus
+            plan_relative_path = $StyleMergeReviewPlanRelativePath
+            plan_exists = (-not [string]::IsNullOrWhiteSpace($StyleMergeReviewPlanRelativePath))
             reviewed_suggestion_count = $StyleMergeSuggestionCount - $StyleMergeSuggestionPendingCount
             pending_suggestion_count = $StyleMergeSuggestionPendingCount
         }
@@ -310,6 +313,7 @@ if (Test-Scenario -Name "style_merge_review") {
         -StyleMergeSuggestionCount 2 `
         -StyleMergeSuggestionPendingCount 0 `
         -StyleMergeReviewStatus "reviewed" `
+        -StyleMergeReviewPlanRelativePath "output/document-skeleton-governance/reviewed/style-merge-suggestions.reviewed.json" `
         -UsageTotal 3)
 
     $reviewResult = Invoke-RollupScript -Arguments @(
@@ -330,12 +334,17 @@ if (Test-Scenario -Name "style_merge_review") {
         -Message "Rollup should not emit pending warning after full review."
     Assert-Equal -Actual ([string]$summary.document_entries[0].style_merge_review_status) -Expected "reviewed" `
         -Message "Rollup should expose reviewed style merge status per document."
+    Assert-ContainsText -Text ([string]$summary.document_entries[0].style_merge_review_plan_relative_path) `
+        -ExpectedText "style-merge-suggestions.reviewed.json" `
+        -Message "Rollup should expose reviewed style merge plan path per document."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $reviewOutputDir "document_skeleton_governance_rollup.md")
     Assert-ContainsText -Text $markdown -ExpectedText "Pending style-merge suggestions: ``0``" `
         -Message "Markdown should show zero pending style merge suggestions."
     Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review=``reviewed``" `
         -Message "Markdown should show reviewed style merge status."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_review_plan=``output/document-skeleton-governance/reviewed/style-merge-suggestions.reviewed.json``" `
+        -Message "Markdown should show reviewed style merge plan path."
 }
 
 if (Test-Scenario -Name "empty") {

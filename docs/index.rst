@@ -462,7 +462,10 @@ review evidence; accepted ``decision`` / ``status`` values such as
 ``reviewed``, ``approved``, or ``accepted`` clear
 ``style_merge_suggestion_pending_count`` when the reviewed suggestion count
 covers the detected suggestions while preserving ``style_merge_suggestion_count``
-and ``style_merge_suggestion_review`` for audit. The rollup then exposes
+and ``style_merge_suggestion_review`` for audit. Review JSON can also carry
+``plan_file`` / ``style_merge_plan_file`` and ``rollback_plan_file`` so the
+report records whether the approved style refactor plan and rollback evidence
+exist before later automation applies the plan. The rollup then exposes
 ``total_style_merge_suggestion_pending_count`` so downstream gates only warn on
 pending duplicate style-merge suggestions.
 ``scripts/build_release_blocker_rollup_report.ps1`` normalizes

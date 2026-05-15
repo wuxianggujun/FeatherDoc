@@ -785,6 +785,9 @@ merge suggestions. Accepted `decision` / `status` values such as `reviewed`,
 `style_merge_suggestion_pending_count` when the reviewed suggestion count covers
 the detected suggestions; the original `style_merge_suggestion_count` and
 `style_merge_suggestion_review` metadata remain in JSON/Markdown for audit.
+Review JSON can also carry `plan_file` / `style_merge_plan_file` and
+`rollback_plan_file` so the report records whether the approved style refactor
+plan and rollback evidence are present before automation applies it later.
 The multi-document rollup then sums `total_style_merge_suggestion_pending_count`
 and only pending suggestions flow onward as release governance warnings. Pair
 that rollup with

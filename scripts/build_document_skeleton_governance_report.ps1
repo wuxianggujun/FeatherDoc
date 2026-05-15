@@ -140,6 +140,32 @@ function Get-JsonArrayValue {
     return @($value)
 }
 
+function Resolve-ReviewEvidencePath {
+    param(
+        [string]$ReviewJsonPath,
+        [string]$RepoRoot,
+        [string]$InputPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($InputPath)) {
+        return ""
+    }
+
+    if ([System.IO.Path]::IsPathRooted($InputPath)) {
+        return [System.IO.Path]::GetFullPath($InputPath)
+    }
+
+    $reviewDir = [System.IO.Path]::GetDirectoryName($ReviewJsonPath)
+    if (-not [string]::IsNullOrWhiteSpace($reviewDir)) {
+        $reviewRelativePath = [System.IO.Path]::GetFullPath((Join-Path $reviewDir $InputPath))
+        if (Test-Path -LiteralPath $reviewRelativePath) {
+            return $reviewRelativePath
+        }
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $InputPath))
+}
+
 function Read-JsonFileOrNull {
     param([string]$Path)
 
@@ -270,6 +296,12 @@ function New-StyleMergeSuggestionReviewSummary {
         reviewed_at = ""
         review_json_path = ""
         review_json_relative_path = ""
+        plan_path = ""
+        plan_relative_path = ""
+        plan_exists = $false
+        rollback_plan_path = ""
+        rollback_plan_relative_path = ""
+        rollback_plan_exists = $false
         reviewed_suggestion_count = 0
         pending_suggestion_count = $SuggestionCount
         error = ""
@@ -295,6 +327,24 @@ function New-StyleMergeSuggestionReviewSummary {
             -Object $reviewJson `
             -Names @("reviewed_suggestion_count", "style_merge_suggestion_count", "suggestion_count") `
             -DefaultValue 0
+        $planPath = [string](Get-JsonPropertyValue `
+                -Object $reviewJson `
+                -Names @("style_refactor_plan_file", "style_refactor_plan_path", "style_merge_plan_file", "style_merge_plan_path", "style_merge_suggestion_plan_file", "style_merge_suggestion_plan_path", "plan_file", "plan_path") `
+                -DefaultValue "")
+        if (-not [string]::IsNullOrWhiteSpace($planPath)) {
+            $review.plan_path = Resolve-ReviewEvidencePath -ReviewJsonPath $ReviewJsonPath -RepoRoot $RepoRoot -InputPath $planPath
+            $review.plan_relative_path = Convert-ToReportPath -RepoRoot $RepoRoot -Path $review.plan_path
+            $review.plan_exists = Test-Path -LiteralPath $review.plan_path
+        }
+        $rollbackPlanPath = [string](Get-JsonPropertyValue `
+                -Object $reviewJson `
+                -Names @("style_refactor_rollback_plan_file", "style_refactor_rollback_plan_path", "rollback_plan_file", "rollback_plan_path", "rollback_plan") `
+                -DefaultValue "")
+        if (-not [string]::IsNullOrWhiteSpace($rollbackPlanPath)) {
+            $review.rollback_plan_path = Resolve-ReviewEvidencePath -ReviewJsonPath $ReviewJsonPath -RepoRoot $RepoRoot -InputPath $rollbackPlanPath
+            $review.rollback_plan_relative_path = Convert-ToReportPath -RepoRoot $RepoRoot -Path $review.rollback_plan_path
+            $review.rollback_plan_exists = Test-Path -LiteralPath $review.rollback_plan_path
+        }
 
         $normalizedDecision = $review.decision.ToLowerInvariant()
         $acceptedDecision = $normalizedDecision -in @("reviewed", "approved", "accepted")
@@ -336,6 +386,14 @@ function New-ReportMarkdown {
     $lines.Add(("- style_merge_review_status: ``{0}``" -f $Summary.style_merge_suggestion_review.status)) | Out-Null
     if (-not [string]::IsNullOrWhiteSpace([string]$Summary.style_merge_suggestion_review.review_json_relative_path)) {
         $lines.Add(("- style_merge_review_json: ``{0}``" -f $Summary.style_merge_suggestion_review.review_json_relative_path)) | Out-Null
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$Summary.style_merge_suggestion_review.plan_relative_path)) {
+        $lines.Add(("- style_merge_review_plan: ``{0}``" -f $Summary.style_merge_suggestion_review.plan_relative_path)) | Out-Null
+        $lines.Add(("- style_merge_review_plan_exists: ``{0}``" -f $Summary.style_merge_suggestion_review.plan_exists)) | Out-Null
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$Summary.style_merge_suggestion_review.rollback_plan_relative_path)) {
+        $lines.Add(("- style_merge_review_rollback_plan: ``{0}``" -f $Summary.style_merge_suggestion_review.rollback_plan_relative_path)) | Out-Null
+        $lines.Add(("- style_merge_review_rollback_plan_exists: ``{0}``" -f $Summary.style_merge_suggestion_review.rollback_plan_exists)) | Out-Null
     }
     $lines.Add(("- release_blocker_count: ``{0}``" -f $Summary.release_blocker_count)) | Out-Null
     $lines.Add("") | Out-Null
