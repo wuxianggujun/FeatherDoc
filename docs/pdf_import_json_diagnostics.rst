@@ -183,3 +183,24 @@ Failure JSON keeps ``ok`` set to ``false`` and reports the ``import`` stage:
 detected reports ``table_candidates_detected`` and does not write the target
 DOCX. Command-line argument errors still use the common command-error JSON shape
 with ``stage`` set to ``parse``.
+
+Command-line parse errors
+-------------------------
+
+When ``--json`` is present, command-line validation errors still report
+``command``, ``ok``, ``stage``, and ``message``. For example, a missing
+continuation threshold value reports:
+
+.. code-block:: json
+
+    {
+      "command": "import-pdf",
+      "ok": false,
+      "stage": "parse",
+      "message": "missing value after --min-table-continuation-confidence"
+    }
+
+The same parse-error shape is used for invalid threshold values and duplicate
+threshold options. Current messages include
+``invalid value after --min-table-continuation-confidence`` and
+``duplicate --min-table-continuation-confidence option``.
