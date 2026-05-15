@@ -455,6 +455,8 @@ foreach ($path in @($inputPaths)) {
         $status = "missing"
         $warnings.Add([ordered]@{
             id = "input_json_missing"
+            action = "provide_content_control_data_binding_evidence"
+            source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = "Input JSON was not found."
@@ -495,6 +497,8 @@ foreach ($path in @($inputPaths)) {
                     $status = "skipped"
                     $warnings.Add([ordered]@{
                         id = "source_json_schema_skipped"
+                        action = "provide_content_control_data_binding_evidence"
+                        source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
                         source_json = $path
                         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         message = "Input JSON kind '$kind' is not content-control data-binding evidence."
@@ -506,6 +510,8 @@ foreach ($path in @($inputPaths)) {
             $errorMessage = $_.Exception.Message
             $warnings.Add([ordered]@{
                 id = "source_json_read_failed"
+                action = "fix_content_control_data_binding_input_json"
+                source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
                 source_json = $path
                 source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 message = $errorMessage
@@ -610,12 +616,16 @@ $boundControls = @($contentControls.ToArray() | Where-Object {
 if ($contentControls.Count -eq 0 -and $syncItems.Count -eq 0 -and $syncIssues.Count -eq 0) {
     $warnings.Add([ordered]@{
         id = "content_control_binding_evidence_missing"
+        action = "provide_content_control_data_binding_evidence"
+        source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
         message = "No content-control inspection or Custom XML sync evidence was loaded."
     }) | Out-Null
 }
 if ($boundControls.Count -gt 0 -and $syncItems.Count -eq 0 -and $syncIssues.Count -eq 0) {
     $warnings.Add([ordered]@{
         id = "custom_xml_sync_evidence_missing"
+        action = "run_custom_xml_sync_evidence"
+        source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
         message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
     }) | Out-Null
 }

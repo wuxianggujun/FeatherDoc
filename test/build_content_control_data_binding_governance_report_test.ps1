@@ -243,6 +243,11 @@ if (Test-Scenario -Name "warning_only") {
     $warningSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $warningOutputDir "summary.json") | ConvertFrom-Json
     Assert-Equal -Actual ([int]$warningSummary.warning_count) -Expected 1 `
         -Message "Warning-only run should surface missing Custom XML sync evidence."
+    $syncEvidenceWarning = @($warningSummary.warnings | Where-Object { [string]$_.id -eq "custom_xml_sync_evidence_missing" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$syncEvidenceWarning[0].action) -Expected "run_custom_xml_sync_evidence" `
+        -Message "Warning-only run should expose the Custom XML sync remediation action."
+    Assert-Equal -Actual ([string]$syncEvidenceWarning[0].source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
+        -Message "Warning-only run should expose the warning source schema."
 
     $warningMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $warningOutputDir "content_control_data_binding_governance.md")
     Assert-ContainsText -Text $warningMarkdown -ExpectedText "### Content control data-binding governance warnings" `
@@ -251,6 +256,10 @@ if (Test-Scenario -Name "warning_only") {
         -Message "Markdown should include warning count."
     Assert-ContainsText -Text $warningMarkdown -ExpectedText 'id: `custom_xml_sync_evidence_missing`' `
         -Message "Markdown should include warning id."
+    Assert-ContainsText -Text $warningMarkdown -ExpectedText 'action: `run_custom_xml_sync_evidence`' `
+        -Message "Markdown should include warning action."
+    Assert-ContainsText -Text $warningMarkdown -ExpectedText 'source_schema: `featherdoc.content_control_data_binding_governance_report.v1`' `
+        -Message "Markdown should include warning source schema."
 }
 
 if (Test-Scenario -Name "fail_on_blocker") {
