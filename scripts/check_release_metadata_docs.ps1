@@ -164,6 +164,8 @@ function Write-SummaryJson {
         [string[]]$PipelineMarkers,
         [string[]]$ChecklistMarkers,
         [string[]]$PolicyMarkers,
+        [string[]]$ReadmeMarkers,
+        [string[]]$IndexMarkers,
         [string]$ErrorMessage = ""
     )
 
@@ -201,14 +203,19 @@ function Write-SummaryJson {
         summary_json_relative_path = Get-RepoRelativePath -BaseRoot $RepoRoot -Path $Path
         repo_root = $RepoRoot
         checked_document_count = $CheckedDocuments.Count
-        required_marker_count = $PipelineMarkers.Count + $ChecklistMarkers.Count + $PolicyMarkers.Count
+        required_marker_count = $PipelineMarkers.Count + $ChecklistMarkers.Count + $PolicyMarkers.Count +
+            $ReadmeMarkers.Count + $IndexMarkers.Count
         required_pipeline_marker_count = $PipelineMarkers.Count
         required_checklist_marker_count = $ChecklistMarkers.Count
         required_policy_marker_count = $PolicyMarkers.Count
+        required_readme_marker_count = $ReadmeMarkers.Count
+        required_index_marker_count = $IndexMarkers.Count
         checked_documents = $CheckedDocuments
         required_pipeline_markers = $PipelineMarkers
         required_checklist_markers = $ChecklistMarkers
         required_policy_markers = $PolicyMarkers
+        required_readme_markers = $ReadmeMarkers
+        required_index_markers = $IndexMarkers
     }
 
     $json = $summary | ConvertTo-Json -Depth 6
@@ -334,6 +341,25 @@ $checklistExpectedMarkers = @(
     "style_merge_suggestion_count"
 )
 $policyExpectedMarkers = @(':doc:`release_metadata_pipeline_zh`')
+$readmeExpectedMarkers = @(
+    "governance warnings section",
+    '`id`',
+    '`action`',
+    '`message`',
+    '`source_schema`',
+    '`style_merge_suggestion_count`',
+    "release_governance_warning_contract_test.ps1",
+    "release_governance_warning_helper_contract_test.ps1"
+)
+$indexExpectedMarkers = @(
+    '``id``',
+    '``action``',
+    '``message``',
+    '``source_schema``',
+    '``style_merge_suggestion_count``',
+    '``document_skeleton.style_merge_suggestions_pending``',
+    '``review_style_merge_suggestions``'
+)
 $resolvedRepoRoot = ""
 $summaryJsonPath = ""
 $checkedDocuments = @()
@@ -356,24 +382,42 @@ try {
             label = "release policy doc"
             relative_path = "docs\release_policy_zh.rst"
             path = Join-Path $resolvedRepoRoot "docs\release_policy_zh.rst"
+        },
+        [pscustomobject]@{
+            label = "repository README"
+            relative_path = "README.md"
+            path = Join-Path $resolvedRepoRoot "README.md"
+        },
+        [pscustomobject]@{
+            label = "documentation index doc"
+            relative_path = "docs\index.rst"
+            path = Join-Path $resolvedRepoRoot "docs\index.rst"
         }
     )
     $pipelinePath = $checkedDocuments[0].path
     $checklistPath = $checkedDocuments[1].path
     $policyPath = $checkedDocuments[2].path
+    $readmePath = $checkedDocuments[3].path
+    $indexPath = $checkedDocuments[4].path
 
     Assert-FileExists -Path $pipelinePath -Label "release metadata pipeline doc"
     Assert-FileExists -Path $checklistPath -Label "release metadata maintenance checklist doc"
     Assert-FileExists -Path $policyPath -Label "release policy doc"
+    Assert-FileExists -Path $readmePath -Label "repository README"
+    Assert-FileExists -Path $indexPath -Label "documentation index doc"
 
     $pipelineText = Read-Utf8Text -Path $pipelinePath
     $checklistText = Read-Utf8Text -Path $checklistPath
     $policyText = Read-Utf8Text -Path $policyPath
+    $readmeText = Read-Utf8Text -Path $readmePath
+    $indexText = Read-Utf8Text -Path $indexPath
 
     foreach ($doc in @(
             @{ Path = $pipelinePath; Text = $pipelineText },
             @{ Path = $checklistPath; Text = $checklistText },
-            @{ Path = $policyPath; Text = $policyText }
+            @{ Path = $policyPath; Text = $policyText },
+            @{ Path = $readmePath; Text = $readmeText },
+            @{ Path = $indexPath; Text = $indexText }
         )) {
         Assert-NoTrailingWhitespace -Text $doc.Text -Path $doc.Path
         Assert-NoTabs -Text $doc.Text -Path $doc.Path
@@ -403,6 +447,22 @@ try {
             -Path $policyPath
     }
 
+    foreach ($expected in $readmeExpectedMarkers) {
+        Assert-ContainsText `
+            -Text $readmeText `
+            -ExpectedText $expected `
+            -Label "repository README" `
+            -Path $readmePath
+    }
+
+    foreach ($expected in $indexExpectedMarkers) {
+        Assert-ContainsText `
+            -Text $indexText `
+            -ExpectedText $expected `
+            -Label "documentation index doc" `
+            -Path $indexPath
+    }
+
     Write-SummaryJson `
         -Path $summaryJsonPath `
         -Status "passed" `
@@ -410,7 +470,9 @@ try {
         -CheckedDocuments $checkedDocuments `
         -PipelineMarkers $pipelineExpectedMarkers `
         -ChecklistMarkers $checklistExpectedMarkers `
-        -PolicyMarkers $policyExpectedMarkers
+        -PolicyMarkers $policyExpectedMarkers `
+        -ReadmeMarkers $readmeExpectedMarkers `
+        -IndexMarkers $indexExpectedMarkers
 
     if (-not $Quiet) {
         Write-Host "Release metadata docs check passed."
@@ -432,6 +494,8 @@ try {
                 -PipelineMarkers $pipelineExpectedMarkers `
                 -ChecklistMarkers $checklistExpectedMarkers `
                 -PolicyMarkers $policyExpectedMarkers `
+                -ReadmeMarkers $readmeExpectedMarkers `
+                -IndexMarkers $indexExpectedMarkers `
                 -ErrorMessage $errorMessage
         } catch {
             Write-Warning "Unable to write release metadata docs failure summary: $($_.Exception.Message)"

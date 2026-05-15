@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 33) {
-        throw "Expected JSON summary to count 33 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 48) {
+        throw "Expected JSON summary to count 48 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -190,7 +190,9 @@ function New-DocsCase {
         [string]$Name,
         [string]$PipelineText = $defaultPipelineText,
         [string]$ChecklistText = $defaultChecklistText,
-        [string]$PolicyText = $defaultPolicyText
+        [string]$PolicyText = $defaultPolicyText,
+        [string]$ReadmeText = $defaultReadmeText,
+        [string]$IndexText = $defaultIndexText
     )
 
     $caseRoot = Join-Path $resolvedWorkingDir ("{0}-{1}" -f $Name, [System.Guid]::NewGuid().ToString("N"))
@@ -199,6 +201,8 @@ function New-DocsCase {
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_metadata_pipeline_zh.rst") -Text $PipelineText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_metadata_maintenance_checklist_zh.rst") -Text $ChecklistText
     Write-Utf8NoBomFile -Path (Join-Path $docsDir "release_policy_zh.rst") -Text $PolicyText
+    Write-Utf8NoBomFile -Path (Join-Path $caseRoot "README.md") -Text $ReadmeText
+    Write-Utf8NoBomFile -Path (Join-Path $docsDir "index.rst") -Text $IndexText
 
     return $caseRoot
 }
@@ -318,6 +322,35 @@ $defaultPolicyText = @(
     ''
 ) -join "`n"
 
+$defaultReadmeText = @(
+    '# FeatherDoc',
+    '',
+    'governance warnings section',
+    '',
+    '- `id`',
+    '- `action`',
+    '- `message`',
+    '- `source_schema`',
+    '- `style_merge_suggestion_count`',
+    '- release_governance_warning_contract_test.ps1',
+    '- release_governance_warning_helper_contract_test.ps1',
+    ''
+) -join "`n"
+
+$defaultIndexText = @(
+    'Documentation index',
+    '===================',
+    '',
+    '- ``id``',
+    '- ``action``',
+    '- ``message``',
+    '- ``source_schema``',
+    '- ``style_merge_suggestion_count``',
+    '- ``document_skeleton.style_merge_suggestions_pending``',
+    '- ``review_style_merge_suggestions``',
+    ''
+) -join "`n"
+
 $passingCaseRoot = New-DocsCase -Name "passing"
 $summaryJsonPath = Join-Path $passingCaseRoot "docs-check-summary.json"
 Invoke-DocsCheck -CaseRoot $passingCaseRoot -SummaryJson $summaryJsonPath
@@ -341,8 +374,8 @@ if ($summary.summary_schema_version -ne 1) {
     throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
 }
 Assert-SummaryAuditFields -Summary $summary
-if ($summary.checked_document_count -ne 3) {
-    throw "Expected JSON summary checked document count 3, got: $($summary.checked_document_count)"
+if ($summary.checked_document_count -ne 5) {
+    throw "Expected JSON summary checked document count 5, got: $($summary.checked_document_count)"
 }
 if ($summary.required_pipeline_marker_count -ne 16) {
     throw "Expected JSON summary pipeline marker count 16, got: $($summary.required_pipeline_marker_count)"
@@ -353,20 +386,42 @@ if ($summary.required_checklist_marker_count -ne 16) {
 if ($summary.required_policy_marker_count -ne 1) {
     throw "Expected JSON summary policy marker count 1, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 33) {
-    throw "Expected JSON summary total marker count 33, got: $($summary.required_marker_count)"
+if ($summary.required_readme_marker_count -ne 8) {
+    throw "Expected JSON summary README marker count 8, got: $($summary.required_readme_marker_count)"
 }
-if ($summary.checked_documents.Count -ne 3) {
-    throw "Expected JSON summary to list 3 checked documents, got: $($summary.checked_documents.Count)"
+if ($summary.required_index_marker_count -ne 7) {
+    throw "Expected JSON summary index marker count 7, got: $($summary.required_index_marker_count)"
+}
+if ($summary.required_marker_count -ne 48) {
+    throw "Expected JSON summary total marker count 48, got: $($summary.required_marker_count)"
+}
+if ($summary.checked_documents.Count -ne 5) {
+    throw "Expected JSON summary to list 5 checked documents, got: $($summary.checked_documents.Count)"
 }
 Assert-ArrayContains `
     -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
     -ExpectedValue 'docs\release_metadata_pipeline_zh.rst' `
     -Message "JSON summary should list the release metadata pipeline doc."
 Assert-ArrayContains `
+    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue 'README.md' `
+    -Message "JSON summary should list the repository README."
+Assert-ArrayContains `
+    -Values @($summary.checked_documents | ForEach-Object { $_.relative_path }) `
+    -ExpectedValue 'docs\index.rst' `
+    -Message "JSON summary should list the documentation index doc."
+Assert-ArrayContains `
     -Values @($summary.required_checklist_markers) `
     -ExpectedValue "release_note_bundle_visual_verdict_metadata" `
     -Message "JSON summary should list required checklist markers."
+Assert-ArrayContains `
+    -Values @($summary.required_readme_markers) `
+    -ExpectedValue "release_governance_warning_helper_contract_test.ps1" `
+    -Message "JSON summary should list required README markers."
+Assert-ArrayContains `
+    -Values @($summary.required_index_markers) `
+    -ExpectedValue '``source_schema``' `
+    -Message "JSON summary should list required documentation index markers."
 
 
 $quietCaseRoot = New-DocsCase -Name "quiet-passing"
@@ -456,6 +511,42 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs\release_metadata_maintenance_checklist_zh.rst' `
     -ExpectedFailureExpectedText "release_note_bundle_visual_verdict_metadata"
+
+$missingReadmeEntry = $defaultReadmeText.Replace(
+    '`source_schema`',
+    '`source_schema_removed`'
+)
+$missingReadmeCaseRoot = New-DocsCase -Name "missing-readme-entry" -ReadmeText $missingReadmeEntry
+$missingReadmeSummaryJsonPath = Join-Path $missingReadmeCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingReadmeCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage 'repository README is missing expected text: `source_schema`' `
+    -SummaryJson $missingReadmeSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingReadmeSummaryJsonPath `
+    -ExpectedMessage 'repository README is missing expected text: `source_schema`' `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'README.md' `
+    -ExpectedFailureExpectedText '`source_schema`'
+
+$missingIndexEntry = $defaultIndexText.Replace(
+    '``source_schema``',
+    '``source_schema_removed``'
+)
+$missingIndexCaseRoot = New-DocsCase -Name "missing-index-entry" -IndexText $missingIndexEntry
+$missingIndexSummaryJsonPath = Join-Path $missingIndexCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingIndexCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage 'documentation index doc is missing expected text: ``source_schema``' `
+    -SummaryJson $missingIndexSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingIndexSummaryJsonPath `
+    -ExpectedMessage 'documentation index doc is missing expected text: ``source_schema``' `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs\index.rst' `
+    -ExpectedFailureExpectedText '``source_schema``'
 
 $bomCaseRoot = New-DocsCase -Name "bom-pipeline"
 Write-Utf8BomFile `

@@ -1786,9 +1786,14 @@ rollup status, source count, blocker count, action count, warning count,
 warning details, and auto-discovered inputs in both `report/summary.json` and
 `report/final_review.md`. `final_review.md` now adds a dedicated Release
 governance warnings section so reviewer-facing handoff notes keep the warning
-`id`, `action`, `message`, and any `style_merge_suggestion_count` values
-visible without opening the nested rollup JSON. Duplicate-style merge suggestions from document
-skeleton governance remain non-blocking by default, but are surfaced as
+`id`, `action`, `message`, `source_schema`, and any optional
+`style_merge_suggestion_count` values visible without opening the nested rollup
+JSON. The contract is covered by
+`test/release_governance_warning_contract_test.ps1` and
+`test/release_governance_warning_helper_contract_test.ps1`, so new warning
+producers keep the same fields visible at source and in rollups. Duplicate-style
+merge suggestions from document skeleton governance remain non-blocking by
+default, but are surfaced as
 `document_skeleton.style_merge_suggestions_pending` warnings with
 `review_style_merge_suggestions` actions so reviewers can resolve them before
 tightening gates. Add `-ReleaseBlockerRollupFailOnBlocker` or
