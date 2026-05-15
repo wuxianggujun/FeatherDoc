@@ -26531,6 +26531,126 @@ auto write_pdf_export_summary_json(std::string_view command,
     return "unknown";
 }
 
+[[nodiscard]] auto pdf_table_continuation_disposition_name(
+    featherdoc::pdf::PdfTableContinuationDisposition disposition)
+    -> std::string_view {
+    switch (disposition) {
+    case featherdoc::pdf::PdfTableContinuationDisposition::none:
+        return "none";
+    case featherdoc::pdf::PdfTableContinuationDisposition::created_new_table:
+        return "created_new_table";
+    case featherdoc::pdf::PdfTableContinuationDisposition::
+        merged_with_previous_table:
+        return "merged_with_previous_table";
+    }
+
+    return "unknown";
+}
+
+[[nodiscard]] auto pdf_table_continuation_blocker_name(
+    featherdoc::pdf::PdfTableContinuationBlocker blocker) -> std::string_view {
+    switch (blocker) {
+    case featherdoc::pdf::PdfTableContinuationBlocker::none:
+        return "none";
+    case featherdoc::pdf::PdfTableContinuationBlocker::no_previous_table:
+        return "no_previous_table";
+    case featherdoc::pdf::PdfTableContinuationBlocker::not_first_block_on_page:
+        return "not_first_block_on_page";
+    case featherdoc::pdf::PdfTableContinuationBlocker::not_near_page_top:
+        return "not_near_page_top";
+    case featherdoc::pdf::PdfTableContinuationBlocker::inconsistent_source_rows:
+        return "inconsistent_source_rows";
+    case featherdoc::pdf::PdfTableContinuationBlocker::column_count_mismatch:
+        return "column_count_mismatch";
+    case featherdoc::pdf::PdfTableContinuationBlocker::column_anchors_mismatch:
+        return "column_anchors_mismatch";
+    case featherdoc::pdf::PdfTableContinuationBlocker::repeated_header_mismatch:
+        return "repeated_header_mismatch";
+    case featherdoc::pdf::PdfTableContinuationBlocker::
+        continuation_confidence_below_threshold:
+        return "continuation_confidence_below_threshold";
+    }
+
+    return "unknown";
+}
+
+[[nodiscard]] auto pdf_table_continuation_header_match_kind_name(
+    featherdoc::pdf::PdfTableContinuationHeaderMatchKind kind)
+    -> std::string_view {
+    switch (kind) {
+    case featherdoc::pdf::PdfTableContinuationHeaderMatchKind::none:
+        return "none";
+    case featherdoc::pdf::PdfTableContinuationHeaderMatchKind::not_required:
+        return "not_required";
+    case featherdoc::pdf::PdfTableContinuationHeaderMatchKind::exact:
+        return "exact";
+    case featherdoc::pdf::PdfTableContinuationHeaderMatchKind::normalized_text:
+        return "normalized_text";
+    case featherdoc::pdf::PdfTableContinuationHeaderMatchKind::plural_variant:
+        return "plural_variant";
+    case featherdoc::pdf::PdfTableContinuationHeaderMatchKind::canonical_text:
+        return "canonical_text";
+    case featherdoc::pdf::PdfTableContinuationHeaderMatchKind::token_set:
+        return "token_set";
+    }
+
+    return "unknown";
+}
+
+void write_pdf_table_continuation_diagnostics_json(
+    std::ostream &stream,
+    const std::vector<featherdoc::pdf::PdfTableContinuationDiagnostic>
+        &diagnostics) {
+    stream << '[';
+    for (std::size_t index = 0U; index < diagnostics.size(); ++index) {
+        if (index != 0U) {
+            stream << ',';
+        }
+
+        const auto &diagnostic = diagnostics[index];
+        stream << "{\"page_index\":" << diagnostic.page_index
+               << ",\"block_index\":" << diagnostic.block_index
+               << ",\"source_row_offset\":" << diagnostic.source_row_offset
+               << ",\"continuation_confidence\":"
+               << diagnostic.continuation_confidence
+               << ",\"minimum_continuation_confidence\":"
+               << diagnostic.minimum_continuation_confidence
+               << ",\"has_previous_table\":"
+               << json_bool(diagnostic.has_previous_table)
+               << ",\"is_first_block_on_page\":"
+               << json_bool(diagnostic.is_first_block_on_page)
+               << ",\"is_near_page_top\":"
+               << json_bool(diagnostic.is_near_page_top)
+               << ",\"source_rows_consistent\":"
+               << json_bool(diagnostic.source_rows_consistent)
+               << ",\"column_count_matches\":"
+               << json_bool(diagnostic.column_count_matches)
+               << ",\"column_anchors_match\":"
+               << json_bool(diagnostic.column_anchors_match)
+               << ",\"previous_has_repeating_header\":"
+               << json_bool(diagnostic.previous_has_repeating_header)
+               << ",\"source_has_repeating_header\":"
+               << json_bool(diagnostic.source_has_repeating_header)
+               << ",\"header_matches_previous\":"
+               << json_bool(diagnostic.header_matches_previous)
+               << ",\"header_match_kind\":";
+        write_json_string(
+            stream, pdf_table_continuation_header_match_kind_name(
+                        diagnostic.header_match_kind));
+        stream << ",\"skipped_repeating_header\":"
+               << json_bool(diagnostic.skipped_repeating_header)
+               << ",\"disposition\":";
+        write_json_string(stream, pdf_table_continuation_disposition_name(
+                                      diagnostic.disposition));
+        stream << ",\"blocker\":";
+        write_json_string(stream,
+                          pdf_table_continuation_blocker_name(
+                              diagnostic.blocker));
+        stream << '}';
+    }
+    stream << ']';
+}
+
 void print_pdf_import_failure(
     std::string_view command, const path_type &input_path,
     const path_type &output_path,
@@ -41577,6 +41697,10 @@ int featherdoc_cli_main(int argc, char **argv) {
                            << import_result.tables_imported;
                     stream << ",\"table_continuation_diagnostics_count\":"
                            << import_result.table_continuation_diagnostics.size();
+                    stream << ",\"table_continuation_diagnostics\":";
+                    write_pdf_table_continuation_diagnostics_json(
+                        stream,
+                        import_result.table_continuation_diagnostics);
                     stream << ",\"import_table_candidates_as_tables\":"
                            << json_bool(options.import_table_candidates_as_tables);
                     if (options.min_table_continuation_confidence.has_value()) {

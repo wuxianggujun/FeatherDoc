@@ -2992,6 +2992,36 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   前，需要先形成独立验收样本，明确 visual order、logical text extraction、glyph advance
   方向和 text matrix 的组合规则。
 
+2026-05-15 继续推进（CLI import continuation diagnostics JSON）：
+
+- 已把 `import-pdf --json` 的表格跨页 continuation 诊断从只输出
+  `table_continuation_diagnostics_count` 扩展为完整
+  `table_continuation_diagnostics` 数组，逐条暴露页索引、块索引、源行偏移、
+  置信度阈值、表头匹配类型、重复表头跳过状态、阻断原因和最终处置结果。
+- 已保留原有 `table_continuation_diagnostics_count` 字段，避免破坏现有 CLI
+  JSON 消费方；新增数组用于定位为什么跨页表格被新建、合并或阻断。
+- 已补 CLI import 回归：
+  `cli import-pdf reports table continuation diagnostics` 使用段落 + 表格 + 分页
+  + 表格 + 段落 fixture，断言 opt-in 导入后仍合并为 1 张 3 列 6 行表格，
+  同时 JSON 包含 `created_new_table`、`merged_with_previous_table`、
+  `no_previous_table`、`none`、`not_required` 等关键诊断字段。
+- 已完成验证：
+  `cmake -S . -B .bpdf-cli-import-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DFEATHERDOC_BUILD_PDF=ON -DFEATHERDOC_BUILD_PDF_IMPORT=ON -DBUILD_CLI=ON -DBUILD_TESTING=ON -DBUILD_SAMPLES=OFF ...`
+  通过；
+  `cmake --build .bpdf-cli-import-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-cli-import-msvc -R "^pdf_cli_import$" --output-on-failure --timeout 60`
+  通过。
+- 本轮验证记录：
+  Windows 环境只有 `py.exe` 时，PDFium source configure 需要临时提供
+  `python3` shim；同时 FeatherDoc import CLI 测试目录必须显式使用
+  `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded`，否则会因 PDFium `/MT` 与默认
+  `/MD` 或 Debug runtime 不一致在链接阶段失败。
+- 下一阶段入口：
+  继续 E7 时，优先补 CLI JSON 的失败/阻断样本覆盖，例如 semantic header
+  mismatch、column anchor mismatch、confidence below threshold，让用户能从
+  CLI 输出直接判断跨页表格未合并的原因。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
