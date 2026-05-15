@@ -3090,6 +3090,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   CLI JSON diagnostics 的主要正负样本已覆盖到测试层；继续 E7 时，优先整理
   `import-pdf --json` 输出 schema 到用户文档，并把这些字段定义为稳定调试契约。
 
+2026-05-15 继续推进（import-pdf JSON schema 用户文档）：
+
+- 已在 `docs/index.rst` 增加 `PDF import JSON diagnostics` 小节，把
+  `import-pdf --json` 的成功输出、失败输出、表格 continuation diagnostics 数组、
+  诊断字段含义和枚举值从执行计划沉淀到用户可读文档。
+- 文档明确 `table_continuation_diagnostics` 按 table candidate discovery 顺序输出，
+  `source_row_offset = 1` 通常表示重复表头被识别并跳过；同时说明
+  `continuation_confidence` 是规则型诊断分数，不是概率模型。
+- 文档列出 `disposition`、`header_match_kind` 和 `blocker` 当前稳定字符串，覆盖
+  merge 成功、列数不匹配、锚点不匹配、表头不匹配、阈值不足等 CLI 已回归路径。
+- 本轮只改文档，不改变 CLI JSON 行为；下一阶段如果继续 E7，应考虑给
+  `docs/index.rst` 里的 `import-pdf` 示例补最小受控样本生成命令，或开始整理
+  PDF import 的已知限制用户页。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
