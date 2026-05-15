@@ -304,7 +304,16 @@ $pipelineExpectedMarkers = @(
     "write_release_note_bundle.ps1",
     "review_task_summary",
     "assert_release_material_safety.ps1",
-    "-SkipMaterialSafetyAudit"
+    "-SkipMaterialSafetyAudit",
+    "warning_count",
+    "release_blocker_rollup.md",
+    "release_governance_handoff.md",
+    "release_governance_pipeline.md",
+    '``id``',
+    '``action``',
+    '``message``',
+    '``source_schema``',
+    '``style_merge_suggestion_count``'
 )
 $checklistExpectedMarkers = @(
     ':doc:`release_metadata_pipeline_zh`',
@@ -313,7 +322,14 @@ $checklistExpectedMarkers = @(
     "sync_visual_review_verdict_(section_page_setup|page_number_fields|curated_visual_bundle)",
     "release_note_bundle_visual_verdict_metadata",
     "public_release_wording_regression_test.ps1",
-    "git diff --check"
+    "git diff --check",
+    "release governance warning",
+    "warning_count",
+    "release_blocker_rollup",
+    "release_governance_handoff",
+    "release_governance_pipeline",
+    "source_schema",
+    "style_merge_suggestion_count"
 )
 $policyExpectedMarkers = @(':doc:`release_metadata_pipeline_zh`')
 $resolvedRepoRoot = ""
