@@ -3022,6 +3022,30 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   mismatch、column anchor mismatch、confidence below threshold，让用户能从
   CLI 输出直接判断跨页表格未合并的原因。
 
+2026-05-15 继续推进（CLI continuation blocker JSON 回归）：
+
+- 已补 `import-pdf --json` 的阻断类 continuation diagnostics CLI 回归，覆盖：
+  semantic repeated header mismatch、column anchor mismatch、confidence below
+  threshold 三类常见未合并原因。
+- 新增 CLI 测试均复用现有 PDF fixture，断言 opt-in 导入后仍保守拆成两张
+  `Document` 表格，并在 JSON 中暴露 `created_new_table` 与对应 blocker：
+  `repeated_header_mismatch`、`column_anchors_mismatch`、
+  `continuation_confidence_below_threshold`。
+- 回归同时确认关键解释字段已经透出：
+  `previous_has_repeating_header`、`source_has_repeating_header`、
+  `header_matches_previous`、`header_match_kind`、`column_count_matches`、
+  `column_anchors_match`、`continuation_confidence`、
+  `minimum_continuation_confidence`。
+- 已完成验证：
+  `cmake --build .bpdf-cli-import-msvc --target pdf_cli_import_tests`
+  通过；
+  `ctest --test-dir .bpdf-cli-import-msvc -R "^pdf_cli_import$" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  继续 E7 时，可以把同一套 CLI JSON 诊断扩展到 column count mismatch、
+  missing/sparse body rows、local anchor drift 等更细边界；或开始整理面向用户的
+  `import-pdf --json` 输出 schema 文档。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
