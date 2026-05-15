@@ -6,6 +6,7 @@
 #endif
 
 #include <cstdint>
+#include <cstdlib>
 #include <initializer_list>
 #include <iterator>
 #include <string_view>
@@ -66,8 +67,56 @@ auto candidate_latin_fonts() -> std::vector<fs::path> {
     return candidates;
 }
 
+auto environment_value(const char *name) -> std::string {
+#if defined(_WIN32)
+    char *value = nullptr;
+    std::size_t size = 0;
+    if (::_dupenv_s(&value, &size, name) != 0 || value == nullptr) {
+        return {};
+    }
+
+    std::string result(value, size > 0 ? size - 1U : 0U);
+    std::free(value);
+    return result;
+#else
+    const char *value = std::getenv(name);
+    return value == nullptr ? std::string{} : std::string{value};
+#endif
+}
+
+auto candidate_cjk_fonts() -> std::vector<fs::path> {
+    std::vector<fs::path> candidates;
+
+    if (const auto configured = environment_value("FEATHERDOC_TEST_CJK_FONT");
+        !configured.empty()) {
+        candidates.emplace_back(configured);
+    }
+
+#if defined(_WIN32)
+    candidates.emplace_back("C:/Windows/Fonts/Deng.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/NotoSansSC-VF.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/msyh.ttc");
+    candidates.emplace_back("C:/Windows/Fonts/simhei.ttf");
+    candidates.emplace_back("C:/Windows/Fonts/simsun.ttc");
+#else
+    candidates.emplace_back(
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc");
+#endif
+
+    return candidates;
+}
+
 auto find_latin_font() -> fs::path {
     for (const auto &candidate : candidate_latin_fonts()) {
+        if (fs::exists(candidate)) {
+            return candidate;
+        }
+    }
+    return {};
+}
+
+auto find_cjk_font() -> fs::path {
+    for (const auto &candidate : candidate_cjk_fonts()) {
         if (fs::exists(candidate)) {
             return candidate;
         }
@@ -237,6 +286,84 @@ TEST_CASE("cli export-pdf accepts an explicit font family mapping") {
     const auto json = read_text_file(json_output);
     CHECK_NE(json.find(R"("command":"export-pdf")"), std::string::npos);
     CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
+}
+
+TEST_CASE("cli export-pdf honors font subset toggles for CJK fonts") {
+    const auto cjk_font = find_cjk_font();
+    if (cjk_font.empty()) {
+        MESSAGE("skipping CLI PDF subset test: no CJK font found");
+        return;
+    }
+
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_export";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const fs::path source = work_dir / "subset-toggle-source.docx";
+    const fs::path full_output = work_dir / "subset-toggle-source-full.pdf";
+    const fs::path subset_output = work_dir / "subset-toggle-source-subset.pdf";
+    const fs::path full_json = work_dir / "subset-toggle-source-full.json";
+    const fs::path subset_json = work_dir / "subset-toggle-source-subset.json";
+    remove_if_exists(full_output);
+    remove_if_exists(subset_output);
+    remove_if_exists(full_json);
+    remove_if_exists(subset_json);
+
+    create_cli_fixture(source);
+    {
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.open());
+        auto paragraph = document.paragraphs();
+        REQUIRE(paragraph.has_next());
+        REQUIRE(paragraph.add_run(utf8_from_u8(u8"中文字体子集回归")).has_next());
+        REQUIRE_FALSE(document.save());
+    }
+
+    CHECK_EQ(run_cli({"export-pdf",
+                      source.string(),
+                      "--output",
+                      full_output.string(),
+                      "--cjk-font-file",
+                      cjk_font.string(),
+                      "--no-font-subset",
+                      "--json"},
+                     full_json),
+             0);
+    CHECK_EQ(run_cli({"export-pdf",
+                      source.string(),
+                      "--output",
+                      subset_output.string(),
+                      "--cjk-font-file",
+                      cjk_font.string(),
+                      "--json"},
+                     subset_json),
+             0);
+
+    REQUIRE(fs::exists(subset_output));
+    REQUIRE(fs::exists(full_output));
+    CHECK_GT(fs::file_size(full_output), fs::file_size(subset_output));
+
+    const auto subset_pdf = read_binary_file(subset_output);
+    const auto full_pdf = read_binary_file(full_output);
+    CHECK_NE(subset_pdf.find("/ToUnicode"), std::string::npos);
+    CHECK_NE(subset_pdf.find("/CIDFontType2"), std::string::npos);
+    CHECK_NE(full_pdf.find("/ToUnicode"), std::string::npos);
+    CHECK_NE(full_pdf.find("/CIDFontType2"), std::string::npos);
+
+    const auto subset_summary = read_text_file(subset_json);
+    const auto full_summary = read_text_file(full_json);
+    CHECK_NE(subset_summary.find(R"("command":"export-pdf")"),
+             std::string::npos);
+    CHECK_NE(full_summary.find(R"("command":"export-pdf")"),
+             std::string::npos);
+
+    assert_pdfium_can_read(subset_output, 3U,
+                           {"section 0 body", "section 1 body",
+                            "section 2 body", "中文字体子集回归"});
+    assert_pdfium_can_read(full_output, 3U,
+                           {"section 0 body", "section 1 body",
+                            "section 2 body", "中文字体子集回归"});
 }
 
 TEST_CASE("cli export-pdf rejects invalid font family mappings") {

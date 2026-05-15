@@ -21,6 +21,7 @@ TEST_CASE("cli print_usage includes core command families") {
     CHECK_NE(text.find("--font-file <path>"), std::string::npos);
     CHECK_NE(text.find("--cjk-font-file <path>"), std::string::npos);
     CHECK_NE(text.find("--font-map <family>=<path>]..."), std::string::npos);
+    CHECK_NE(text.find("--no-font-subset"), std::string::npos);
     CHECK_NE(text.find("--no-system-font-fallbacks"), std::string::npos);
     CHECK_NE(text.find("--summary-json <path>"), std::string::npos);
     CHECK_NE(text.find("featherdoc_cli inspect-styles <input.docx>"),

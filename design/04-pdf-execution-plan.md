@@ -386,6 +386,12 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_(cjk|document-eastasia)
 - 已确认成功路径在 roundtrip 构建里能被 PDFium 回读，正文页数与关键文本一致。
 - 已知限制：当前 CLI 还没有单独暴露“PDFium 回读失败”作为独立用户子命令，现阶段通过 PDFium parser 测试和 roundtrip 回归覆盖。
 
+2026-05-15：
+
+- 已补充 `cli_usage` 断言，确保 `export-pdf` 帮助文本继续暴露 `--no-font-subset`。
+- 已补充 `pdf_cli_export` 回归，直接对比 `--no-font-subset` 与默认子集化输出，确认
+  CJK 导出场景里完整嵌入与子集嵌入确实走的是不同路径。
+
 ### 推荐验证命令
 
 ```powershell
