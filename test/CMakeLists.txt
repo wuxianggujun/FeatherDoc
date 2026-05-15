@@ -662,6 +662,23 @@ if(WIN32)
                 TIMEOUT 60
                 LABELS "pdf;docs;smoke")
 
+        add_test(
+            NAME
+            pdf_ctest_timeout_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/pdf_ctest_timeout_contract_test.ps1
+            -CTestTestfile
+            ${CMAKE_CURRENT_BINARY_DIR}/CTestTestfile.cmake
+        )
+        set_tests_properties(pdf_ctest_timeout_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "pdf;ctest;smoke")
+
         if(TARGET pdf_unicode_font_roundtrip_tests)
             add_test(
                 NAME

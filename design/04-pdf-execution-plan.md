@@ -3341,6 +3341,14 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 仍保留 PowerShell、动态 PDF regression 和视觉 gate 的显式 `TIMEOUT 60`，
   因为这些测试不是通过 `featherdoc_set_test_labels()` 注册。
 
+2026-05-15 继续推进（PDF CTest 超时契约回归）：
+
+- 已新增 `pdf_ctest_timeout_contract_test.ps1`，直接扫描生成后的
+  `CTestTestfile.cmake`，要求所有 `LABELS` 包含 `pdf` 的测试都带 `TIMEOUT 60`。
+- 已把该契约挂入 CTest，标签为 `pdf;ctest;smoke`，自身也显式设置 60 秒超时。
+- 该回归覆盖 C++ helper、PowerShell 文档契约、视觉 gate 和动态 regression 测试，
+  避免后续新增 PDF 测试时绕过统一调度边界。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
