@@ -3297,6 +3297,16 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 本轮不改变 CLI JSON 输出，只把已经面向用户文档化的诊断 schema 固定为
   可回归契约，降低后续 E7 调整时的文档漂移风险。
 
+2026-05-15 继续推进（PDF import enum 驱动文档契约）：
+
+- 已增强 `pdf_import_docs_contract_test.ps1`，从
+  `include/featherdoc/pdf/pdf_document_importer.hpp` 解析 PDF import failure、
+  table continuation disposition、blocker 和 header match kind 枚举成员。
+- 文档契约现在会要求 `docs/pdf_import.rst` 覆盖这些源定义中的公开字符串，
+  其中 `PdfDocumentImportFailureKind::none` 仍作为内部状态不要求写入失败文档枚举。
+- 同一回归还检查 `cli/featherdoc_cli.cpp` 为每个 enum 成员保留对应
+  `return "<member>"` 映射，避免源码 enum、CLI JSON 和用户文档三方漂移。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

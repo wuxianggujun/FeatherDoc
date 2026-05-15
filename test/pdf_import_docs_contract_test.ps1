@@ -29,6 +29,75 @@ function Assert-DoesNotContainText {
     }
 }
 
+function Get-CppEnumMembers {
+    param(
+        [string]$Text,
+        [string]$EnumName
+    )
+
+    $pattern = "enum class\s+" + [regex]::Escape($EnumName) + "\s*\{(?<body>.*?)\};"
+    $match = [regex]::Match(
+        $Text,
+        $pattern,
+        [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    if (-not $match.Success) {
+        throw "Could not find enum '$EnumName'."
+    }
+
+    $members = @()
+    foreach ($entry in ($match.Groups["body"].Value -split ",")) {
+        $cleanEntry = ($entry -replace "//.*", "").Trim()
+        if ([string]::IsNullOrWhiteSpace($cleanEntry)) {
+            continue
+        }
+
+        $memberName = (($cleanEntry -split "=", 2)[0]).Trim()
+        if ($memberName -notmatch "^[A-Za-z_][A-Za-z0-9_]*$") {
+            throw "Could not parse enum member '$cleanEntry' from '$EnumName'."
+        }
+
+        $members += $memberName
+    }
+
+    if ($members.Count -eq 0) {
+        throw "Enum '$EnumName' has no parsed members."
+    }
+
+    return $members
+}
+
+function Assert-DocumentedEnumMembers {
+    param(
+        [string]$Text,
+        [string[]]$Members,
+        [string[]]$ExcludedMembers,
+        [string]$Label
+    )
+
+    foreach ($member in $Members) {
+        if ($ExcludedMembers -contains $member) {
+            continue
+        }
+
+        Assert-ContainsText -Text $Text -ExpectedText $member -Label $Label
+    }
+}
+
+function Assert-CliMapsEnumMembers {
+    param(
+        [string]$Text,
+        [string[]]$Members,
+        [string]$Label
+    )
+
+    foreach ($member in $Members) {
+        Assert-ContainsText `
+            -Text $Text `
+            -ExpectedText ('return "{0}";' -f $member) `
+            -Label $Label
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 }
@@ -39,12 +108,16 @@ $docsIndexPath = Join-Path $resolvedRepoRoot "docs\index.rst"
 $readmePath = Join-Path $resolvedRepoRoot "README.md"
 $readmeZhPath = Join-Path $resolvedRepoRoot "README.zh-CN.md"
 $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
+$pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
+$cliPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli.cpp"
 
 $pdfImportDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportDocsPath
 $docsIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $docsIndexPath
 $readmeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmePath
 $readmeZhText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeZhPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
+$pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
+$cliText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cliPath
 
 $requiredPdfImportDocsTerms = @(
     "PDF Import",
@@ -104,6 +177,57 @@ $requiredPdfImportDocsTerms = @(
 foreach ($term in $requiredPdfImportDocsTerms) {
     Assert-ContainsText -Text $pdfImportDocsText -ExpectedText $term -Label "docs/pdf_import.rst"
 }
+
+$failureKindMembers = Get-CppEnumMembers `
+    -Text $pdfImporterHeaderText `
+    -EnumName "PdfDocumentImportFailureKind"
+$dispositionMembers = Get-CppEnumMembers `
+    -Text $pdfImporterHeaderText `
+    -EnumName "PdfTableContinuationDisposition"
+$blockerMembers = Get-CppEnumMembers `
+    -Text $pdfImporterHeaderText `
+    -EnumName "PdfTableContinuationBlocker"
+$headerMatchKindMembers = Get-CppEnumMembers `
+    -Text $pdfImporterHeaderText `
+    -EnumName "PdfTableContinuationHeaderMatchKind"
+
+Assert-DocumentedEnumMembers `
+    -Text $pdfImportDocsText `
+    -Members $failureKindMembers `
+    -ExcludedMembers @("none") `
+    -Label "docs/pdf_import.rst"
+Assert-DocumentedEnumMembers `
+    -Text $pdfImportDocsText `
+    -Members $dispositionMembers `
+    -ExcludedMembers @() `
+    -Label "docs/pdf_import.rst"
+Assert-DocumentedEnumMembers `
+    -Text $pdfImportDocsText `
+    -Members $blockerMembers `
+    -ExcludedMembers @() `
+    -Label "docs/pdf_import.rst"
+Assert-DocumentedEnumMembers `
+    -Text $pdfImportDocsText `
+    -Members $headerMatchKindMembers `
+    -ExcludedMembers @() `
+    -Label "docs/pdf_import.rst"
+
+Assert-CliMapsEnumMembers `
+    -Text $cliText `
+    -Members $failureKindMembers `
+    -Label "cli/featherdoc_cli.cpp"
+Assert-CliMapsEnumMembers `
+    -Text $cliText `
+    -Members $dispositionMembers `
+    -Label "cli/featherdoc_cli.cpp"
+Assert-CliMapsEnumMembers `
+    -Text $cliText `
+    -Members $blockerMembers `
+    -Label "cli/featherdoc_cli.cpp"
+Assert-CliMapsEnumMembers `
+    -Text $cliText `
+    -Members $headerMatchKindMembers `
+    -Label "cli/featherdoc_cli.cpp"
 
 Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import" -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import`' -Label "docs/index.rst"
