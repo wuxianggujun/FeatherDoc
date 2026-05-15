@@ -23,6 +23,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[numbering-catalog-governance] $Message"
@@ -432,11 +434,15 @@ function New-ReportMarkdown {
 
     $lines.Add("## Warnings") | Out-Null
     $lines.Add("") | Out-Null
-    if (@($Summary.warnings).Count -eq 0) {
+    $warningLines = New-Object 'System.Collections.Generic.List[string]'
+    if (-not (Add-ReleaseGovernanceWarningMarkdownSubsection `
+                -Lines $warningLines `
+                -Heading "Numbering catalog governance warnings" `
+                -SummaryObject $Summary)) {
         $lines.Add("- none") | Out-Null
     } else {
-        foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+        foreach ($line in $warningLines) {
+            $lines.Add($line) | Out-Null
         }
     }
     $lines.Add("") | Out-Null

@@ -21,6 +21,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[document-skeleton-governance-rollup] $Message"
@@ -317,14 +319,15 @@ function New-ReportMarkdown {
 
     $lines.Add("## Warnings") | Out-Null
     $lines.Add("") | Out-Null
-    if (@($Summary.warnings).Count -eq 0) {
+    $warningLines = New-Object 'System.Collections.Generic.List[string]'
+    if (-not (Add-ReleaseGovernanceWarningMarkdownSubsection `
+                -Lines $warningLines `
+                -Heading "Document skeleton governance rollup warnings" `
+                -SummaryObject $Summary)) {
         $lines.Add("- none") | Out-Null
     } else {
-        foreach ($warning in @($Summary.warnings)) {
-            $lines.Add(("- ``{0}``: source=``{1}`` {2}" -f
-                $warning.id,
-                $warning.source_report_display,
-                $warning.message)) | Out-Null
+        foreach ($line in $warningLines) {
+            $lines.Add($line) | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -573,6 +576,15 @@ $sourceFailureCount = @($sourceReports.ToArray() | Where-Object {
 }).Count
 $sourceReportFailureCount = @($documents.ToArray() | Where-Object { $_.status -eq "failed" }).Count
 $needsReviewCount = @($documents.ToArray() | Where-Object { $_.status -eq "needs_review" }).Count
+if ($totalStyleMergeSuggestionCount -gt 0) {
+    $warnings.Add([ordered]@{
+        id = "document_skeleton.style_merge_suggestions_pending"
+        source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+        action = "review_style_merge_suggestions"
+        style_merge_suggestion_count = $totalStyleMergeSuggestionCount
+        message = "Document skeleton governance reports $totalStyleMergeSuggestionCount duplicate style merge suggestion(s) awaiting review."
+    }) | Out-Null
+}
 $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($sourceReportFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {

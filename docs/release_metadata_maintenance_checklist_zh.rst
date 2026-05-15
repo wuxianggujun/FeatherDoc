@@ -75,6 +75,8 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 涉及 release governance warning 明细时，必须确认：
 
 - ``warning_count`` 与 ``warnings`` 的实际条目数保持一致，或具备明确的兼容降级逻辑。
+- 能在源治理报告阶段确定的 warning 明细，应在源报告里写出结构化字段，避免只在下游 rollup
+  里补充人工可读文本。
 - ``release_blocker_rollup``、``release_governance_handoff``、``release_governance_pipeline``
   三层都能透传 warning 明细，而不是只保留计数。
 - 每条 warning 的 ``id``、``action``、``message``、``source_schema`` 不会在中间层被覆盖成
@@ -137,6 +139,16 @@ release 流水线的详细设计文档；详细字段流向请先阅读
 修改 release governance handoff / rollup / pipeline warning 契约：
 
 .. code-block:: powershell
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\build_document_skeleton_governance_rollup_report_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir .tmp\test-build-document-skeleton-governance-rollup
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        .\test\build_numbering_catalog_governance_report_test.ps1 `
+        -RepoRoot . `
+        -WorkingDir .tmp\test-build-numbering-catalog-governance
 
     powershell -NoProfile -ExecutionPolicy Bypass -File `
         .\test\build_release_blocker_rollup_report_test.ps1 `

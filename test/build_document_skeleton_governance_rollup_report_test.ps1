@@ -242,6 +242,11 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.catalog_exemplars | ForEach-Object { [string]$_.exemplar_catalog_path }) -join "`n") `
         -ExpectedText "contract/exemplar.numbering-catalog.json" `
         -Message "Aggregate rollup should include contract exemplar catalog path."
+    $styleMergeWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$styleMergeWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Aggregate rollup should preserve warning source schema."
+    Assert-Equal -Actual ([int]$styleMergeWarning[0].style_merge_suggestion_count) -Expected 3 `
+        -Message "Aggregate rollup should preserve warning style merge counts."
 
     $issueSummaryText = ($summary.issue_summary | ForEach-Object { "$($_.issue):$($_.count)" }) -join "`n"
     Assert-ContainsText -Text $issueSummaryText -ExpectedText "missing_numbering_definition:2" `
@@ -260,6 +265,14 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should include issue summary."
     Assert-ContainsText -Text $markdown -ExpectedText "style_merge_suggestions=``2``" `
         -Message "Markdown report should include per-document style merge suggestion counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "### Document skeleton governance rollup warnings" `
+        -Message "Markdown report should include warning subsection."
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `1`' `
+        -Message "Markdown report should include warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' `
+        -Message "Markdown report should include warning source schema."
+    Assert-ContainsText -Text $markdown -ExpectedText 'style_merge_suggestion_count: `3`' `
+        -Message "Markdown report should include warning style merge counts."
 }
 
 if (Test-Scenario -Name "empty") {

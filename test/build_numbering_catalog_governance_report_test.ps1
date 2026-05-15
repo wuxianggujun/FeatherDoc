@@ -297,6 +297,11 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
         -Message "Summary should warn about pending style merge suggestion review."
+    $styleMergeWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$styleMergeWarning[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Summary should preserve warning source schema."
+    Assert-Equal -Actual ([int]$styleMergeWarning[0].style_merge_suggestion_count) -Expected 2 `
+        -Message "Summary should preserve warning style merge counts."
 
     $issueSummaryText = ($summary.style_issue_summary | ForEach-Object { "$($_.issue):$($_.count)" }) -join "`n"
     Assert-ContainsText -Text $issueSummaryText -ExpectedText "missing_numbering_definition:2" `
@@ -314,6 +319,14 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include baseline manifest section."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_numbering_definition" `
         -Message "Markdown should include issue summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "### Numbering catalog governance warnings" `
+        -Message "Markdown should include the warnings subsection."
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `1`' `
+        -Message "Markdown should show the warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' `
+        -Message "Markdown should include warning source schema."
+    Assert-ContainsText -Text $markdown -ExpectedText 'style_merge_suggestion_count: `2`' `
+        -Message "Markdown should include warning style merge counts."
 }
 
 if (Test-Scenario -Name "clean") {
