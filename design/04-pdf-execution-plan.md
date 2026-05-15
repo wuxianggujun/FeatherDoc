@@ -3118,6 +3118,23 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   可以继续整理 PDF import 的已知限制用户页，或把 `BUILDING_PDF.md` 中偏开发者的
   PDF import 限制和 README/docs 中的用户入口进一步去重。
 
+2026-05-15 继续推进（PDF import 用户范围与限制文档）：
+
+- 已在 `docs/index.rst` 的 PDF import 区域新增 `PDF import supported scope and limits`
+  小节，把 E7 和 `BUILDING_PDF.md` 中面向用户最关键的范围边界沉淀到 Sphinx 文档。
+- 文档明确 PDF import 是实验性 opt-in 路径，面向 text-first 且具备 extractable text
+  和 character geometry 的 PDF；不是任意 PDF -> Word 精确复刻。
+- 文档列出当前可靠范围：段落导入、保守表格候选、显式表格提升、跨页续接、重复表头匹配、
+  受控 subtotal / total 行和 continuation diagnostics。
+- 文档同步保守边界：默认拒绝表格候选，列数/锚点/语义表头/中间段落/低置信度会拆表；
+  普通双栏 prose、编号列表、短标签 prose 和自由表单应保留为段落。
+- 文档明确不支持扫描件、OCR、image-only 表格、任意嵌套表格语义、复杂矢量还原、
+  旋转/浮动内容恢复或任意 PDF 的精确视觉重建。
+- 下一阶段入口：
+  PDF import 用户文档已具备入口、JSON schema、范围和限制；继续 E7 时可以考虑
+  抽出独立 `docs/pdf_import_*.rst` 页面，或开始把 `BUILDING_PDF.md` 中重复的用户内容
+  收敛为指向 docs 的链接。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：
