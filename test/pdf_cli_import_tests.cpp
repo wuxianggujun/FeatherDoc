@@ -738,6 +738,103 @@ TEST_CASE(
              std::string::npos);
 }
 
+TEST_CASE(
+    "cli import-pdf reports low page table continuation diagnostics") {
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const fs::path source =
+        featherdoc::test_support::
+            write_paragraph_table_pagebreak_low_table_paragraph_pdf(
+                "featherdoc-cli-import-pagebreak-low-table.pdf");
+    const fs::path output = work_dir / "pagebreak-low-table.docx";
+    const fs::path json_output =
+        work_dir / "pagebreak-low-table-import.json";
+    remove_if_exists(output);
+    remove_if_exists(json_output);
+
+    REQUIRE(fs::exists(source));
+
+    CHECK_EQ(run_cli({"import-pdf",
+                      source.string(),
+                      "--output",
+                      output.string(),
+                      "--import-table-candidates-as-tables",
+                      "--json"},
+                     json_output),
+             0);
+
+    REQUIRE(fs::exists(output));
+
+    featherdoc::Document document;
+    open_imported_document(output, document);
+    REQUIRE(document.inspect_table(0U).has_value());
+    REQUIRE(document.inspect_table(1U).has_value());
+    CHECK_FALSE(document.inspect_table(2U).has_value());
+
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("tables_imported":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("table_continuation_diagnostics_count":2)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("is_first_block_on_page":true)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("is_near_page_top":false)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("disposition":"created_new_table")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("blocker":"not_near_page_top")"),
+             std::string::npos);
+}
+
+TEST_CASE(
+    "cli import-pdf reports non-first block continuation diagnostics") {
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const fs::path source =
+        featherdoc::test_support::write_paragraph_table_table_paragraph_pdf(
+            "featherdoc-cli-import-paragraph-table-table.pdf");
+    const fs::path output = work_dir / "paragraph-table-table.docx";
+    const fs::path json_output =
+        work_dir / "paragraph-table-table-import.json";
+    remove_if_exists(output);
+    remove_if_exists(json_output);
+
+    REQUIRE(fs::exists(source));
+
+    CHECK_EQ(run_cli({"import-pdf",
+                      source.string(),
+                      "--output",
+                      output.string(),
+                      "--import-table-candidates-as-tables",
+                      "--json"},
+                     json_output),
+             0);
+
+    REQUIRE(fs::exists(output));
+
+    featherdoc::Document document;
+    open_imported_document(output, document);
+    REQUIRE(document.inspect_table(0U).has_value());
+    REQUIRE(document.inspect_table(1U).has_value());
+    CHECK_FALSE(document.inspect_table(2U).has_value());
+
+    const auto json = read_text_file(json_output);
+    CHECK_NE(json.find(R"("tables_imported":2)"), std::string::npos);
+    CHECK_NE(json.find(R"("table_continuation_diagnostics_count":2)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("is_first_block_on_page":false)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("disposition":"created_new_table")"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("blocker":"not_first_block_on_page")"),
+             std::string::npos);
+}
+
 TEST_CASE("cli import-pdf rejects table candidates by default") {
     const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
     std::error_code error;

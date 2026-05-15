@@ -3386,6 +3386,15 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   `minimum_continuation_confidence` 示例，避免后续文档拆分或重写时丢失用户可诊断入口。
 - 本轮只把现有 CLI 测试已经覆盖的诊断语义写入用户文档，不改变 importer 或 CLI JSON 输出。
 
+2026-05-15 继续推进（PDF import blocker CLI 覆盖补齐）：
+
+- 已补 `pdf_cli_import_tests.cpp` 的 CLI JSON 回归，覆盖
+  `not_near_page_top` 和 `not_first_block_on_page` 两个此前只有 importer 层断言的 continuation blocker。
+- 已同步 `docs/pdf_import_json_diagnostics.rst`，增加页顶距离过低和非页内首个 block 的用户可读示例。
+- 已扩展 `pdf_import_docs_contract_test.ps1`，固定这两类 blocker 的 JSON 片段，避免 CLI 层诊断文档漂移。
+- 剩余 `inconsistent_source_rows` 目前仍缺少稳定 PDF fixture；继续 E7 时应优先判断是否需要新增专门样本，
+  或把该 blocker 保持为内部保守兜底并在文档中明确触发条件。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

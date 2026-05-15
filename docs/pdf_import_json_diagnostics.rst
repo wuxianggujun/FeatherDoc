@@ -96,6 +96,11 @@ Use ``blocker`` as the first triage field when a table was kept separate:
 - ``continuation_confidence_below_threshold`` means the candidate may otherwise
   look compatible, but its rule-based score did not meet
   ``--min-table-continuation-confidence``.
+- ``not_first_block_on_page`` means the candidate was not the first content
+  block on its page, so it is treated as a separate table rather than a
+  cross-page continuation.
+- ``not_near_page_top`` means the candidate started too far below the top of
+  the page to be treated as a carried-over table.
 
 For example, a semantic repeated-header mismatch may report:
 
@@ -128,6 +133,27 @@ A caller-specified confidence threshold may report:
       "minimum_continuation_confidence": 90,
       "disposition": "created_new_table",
       "blocker": "continuation_confidence_below_threshold"
+    }
+
+A same-page follow-up table may report:
+
+.. code-block:: json
+
+    {
+      "is_first_block_on_page": false,
+      "disposition": "created_new_table",
+      "blocker": "not_first_block_on_page"
+    }
+
+A next-page table that starts too low may report:
+
+.. code-block:: json
+
+    {
+      "is_first_block_on_page": true,
+      "is_near_page_top": false,
+      "disposition": "created_new_table",
+      "blocker": "not_near_page_top"
     }
 
 Failure JSON keeps ``ok`` set to ``false`` and reports the ``import`` stage:
