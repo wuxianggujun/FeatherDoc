@@ -543,6 +543,15 @@ if ((Get-ReleaseBlockerCount -Summary $summary) -gt 0) {
         }
     }
 }
+foreach ($warningItem in @(Get-ReleaseGovernanceWarningChecklistItems -Summary $summary)) {
+    Add-CheckboxLine -Lines $lines -Text (Get-ReleaseGovernanceWarningChecklistText -WarningItem $warningItem)
+    foreach ($guidanceLine in @(Get-ReleaseGovernanceWarningActionGuidanceLines `
+                -Warning $warningItem.warning `
+                -RepoRoot $repoRoot `
+                -ReleaseSummaryJson $resolvedSummaryPath)) {
+        Add-CheckboxLine -Lines $lines -Text $guidanceLine
+    }
+}
 Add-CheckboxLine -Lines $lines -Text ('Confirm `final_review.md` still matches the current release status: {0}' -f (Get-DisplayPath -RepoRoot $repoRoot -Path $finalReviewPath))
 if (-not [string]::IsNullOrWhiteSpace($supersededReviewTasksCount)) {
     Add-CheckboxLine -Lines $lines -Text ('Confirm `superseded_review_tasks.json` reports zero stale task directories or intentionally explains any preserved older tasks (current count: {0}): {1}' -f `

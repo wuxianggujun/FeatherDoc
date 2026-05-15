@@ -391,6 +391,22 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText 'style_merge_suggestion_count: `2`' -Label $assertion.Label
 }
 
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Review release governance warning `numbering_catalog.style_merge_suggestions` (Release blocker rollup warnings): action `review_style_merge_plan`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Current style merge suggestion count is `3`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Follow warning action `inspect_optional_report` for source_schema `featherdoc.release_governance_handoff_report.v1`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Review release governance warning `document_skeleton.style_merge_suggestions` (Release governance handoff nested rollup warnings): action `review_style_merge_plan`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Current style merge suggestion count is `2`' `
+    -Label "REVIEWER_CHECKLIST.md"
+
 foreach ($fragments in @(
         @("Smoke verdict", "pass"),
         @("Smoke review status", "reviewed"),

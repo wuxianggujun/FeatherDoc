@@ -291,6 +291,87 @@ function Get-ReleaseGovernanceWarningSummaryText {
     return $summaryText
 }
 
+function Get-ReleaseGovernanceWarningChecklistItems {
+    param([AllowNull()]$Summary)
+
+    $items = New-Object 'System.Collections.Generic.List[object]'
+    $releaseGovernanceHandoff = Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_governance_handoff"
+    foreach ($sectionInfo in @(
+            @{
+                Heading = "Release blocker rollup warnings"
+                SummaryObject = Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_blocker_rollup"
+            },
+            @{
+                Heading = "Release governance handoff warnings"
+                SummaryObject = $releaseGovernanceHandoff
+            },
+            @{
+                Heading = "Release governance handoff nested rollup warnings"
+                SummaryObject = Get-ReleaseBlockerPropertyObject -Object $releaseGovernanceHandoff -Name "release_blocker_rollup"
+            }
+        )) {
+        foreach ($warning in @(Get-NormalizedReleaseGovernanceWarnings -Warnings (Get-ReleaseBlockerArrayProperty -Object $sectionInfo.SummaryObject -Name "warnings"))) {
+            [void]$items.Add([pscustomobject]@{
+                    context = [string]$sectionInfo.Heading
+                    warning = $warning
+                })
+        }
+    }
+
+    return @($items.ToArray())
+}
+
+function Get-ReleaseGovernanceWarningChecklistText {
+    param([AllowNull()]$WarningItem)
+
+    $context = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $WarningItem -Name "context")
+    $warning = Get-ReleaseBlockerPropertyObject -Object $WarningItem -Name "warning"
+    $id = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "id") -Fallback "(unknown)"
+    $action = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "action")
+    $sourceSchema = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_schema")
+    $message = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "message")
+
+    return 'Review release governance warning `{0}` ({1}): action `{2}`, source_schema `{3}`, message: {4}' -f `
+        $id, $context, $action, $sourceSchema, $message
+}
+
+function Get-ReleaseGovernanceWarningActionGuidanceLines {
+    param(
+        [AllowNull()]$Warning,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = ""
+    )
+
+    $guidanceLines = New-Object 'System.Collections.Generic.List[string]'
+    $action = Get-ReleaseBlockerPropertyValue -Object $Warning -Name "action"
+    $sourceSchema = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_schema")
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($action)) {
+        [void]$guidanceLines.Add(('Warning action is missing for source_schema `{0}`; update the source governance report, rerun release governance checks, and regenerate the release note bundle before publishing.' -f $sourceSchema))
+        return $guidanceLines.ToArray()
+    }
+
+    switch ($action) {
+        { $_ -in @("review_style_merge_suggestions", "review_style_merge_plan") } {
+            $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_count"
+            $countText = ""
+            if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
+                $countText = (' Current style merge suggestion count is `{0}`.' -f [string]$styleMergeSuggestionCount)
+            }
+
+            [void]$guidanceLines.Add(('Use action `{0}`: review the referenced style merge suggestion plan before tightening release gates.{1} Update the owning governance evidence, rerun the relevant governance rollup, then regenerate the release note bundle from `{2}`.' -f `
+                    $action, $countText, $releaseSummaryDisplay))
+            break
+        }
+        default {
+            [void]$guidanceLines.Add(('Follow warning action `{0}` for source_schema `{1}`: update the owning governance report, rerun release governance checks, and regenerate the release note bundle from `{2}` before publishing.' -f `
+                    $action, $sourceSchema, $releaseSummaryDisplay))
+        }
+    }
+
+    return $guidanceLines.ToArray()
+}
+
 function Add-ReleaseGovernanceWarningMarkdownSubsection {
     param(
         [System.Collections.Generic.List[string]]$Lines,

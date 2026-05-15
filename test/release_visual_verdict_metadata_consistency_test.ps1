@@ -235,6 +235,15 @@ foreach ($scriptInfo in $metadataScripts) {
             -ExpectedText (('Add-ReleaseGovernanceWarningsMarkdownSection -Lines ${0} -Summary $summary' -f $scriptInfo.LinesVariable)) `
             -Message "$label should render the governance warning detail section."
     }
+
+    if ($label -eq "write_release_reviewer_checklist.ps1") {
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText 'foreach ($warningItem in @(Get-ReleaseGovernanceWarningChecklistItems -Summary $summary))' `
+            -Message "$label should turn release governance warnings into reviewer checklist items."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText 'Get-ReleaseGovernanceWarningActionGuidanceLines' `
+            -Message "$label should include release governance warning action guidance."
+    }
 }
 
 $bodyScriptPath = Join-Path $resolvedRepoRoot "scripts\write_release_body_zh.ps1"

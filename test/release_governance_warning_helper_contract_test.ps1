@@ -178,4 +178,46 @@ Assert-ContainsText -Text $sectionMarkdown -ExpectedText "Numbering catalog repo
 Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion_count: `2`' `
     -Message "Markdown section should render optional style merge counts."
 
+$checklistItems = @(Get-ReleaseGovernanceWarningChecklistItems -Summary ([pscustomobject]@{
+            release_blocker_rollup = [pscustomobject]@{
+                warning_count = 1
+                warnings = @($warningWithStyleMergeCount)
+            }
+            release_governance_handoff = [pscustomobject]@{
+                warning_count = 1
+                warnings = @($warningWithoutStyleMergeCount)
+                release_blocker_rollup = [pscustomobject]@{
+                    warning_count = 1
+                    warnings = @($warningWithStyleMergeCount)
+                }
+            }
+        }))
+Assert-Equal -Actual $checklistItems.Count -Expected 3 `
+    -Message "Checklist items should preserve warnings from every release governance source."
+$checklistText = Get-ReleaseGovernanceWarningChecklistText -WarningItem $checklistItems[0]
+Assert-ContainsText -Text $checklistText -ExpectedText 'Review release governance warning `document_skeleton.style_merge_suggestions_pending`' `
+    -Message "Checklist text should include warning id."
+Assert-ContainsText -Text $checklistText -ExpectedText 'action `review_style_merge_suggestions`' `
+    -Message "Checklist text should include warning action."
+Assert-ContainsText -Text $checklistText -ExpectedText 'source_schema `featherdoc.document_skeleton_governance_rollup_report.v1`' `
+    -Message "Checklist text should include warning source schema."
+
+$styleMergeGuidance = (Get-ReleaseGovernanceWarningActionGuidanceLines `
+        -Warning $warningWithStyleMergeCount `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "summary.json")) -join "`n"
+Assert-ContainsText -Text $styleMergeGuidance -ExpectedText 'Use action `review_style_merge_suggestions`' `
+    -Message "Style-merge warning guidance should mention its action."
+Assert-ContainsText -Text $styleMergeGuidance -ExpectedText 'Current style merge suggestion count is `2`' `
+    -Message "Style-merge warning guidance should preserve suggestion count."
+
+$plainGuidance = (Get-ReleaseGovernanceWarningActionGuidanceLines `
+        -Warning $warningWithoutStyleMergeCount `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "summary.json")) -join "`n"
+Assert-ContainsText -Text $plainGuidance -ExpectedText 'Follow warning action `rebuild_numbering_catalog`' `
+    -Message "Generic warning guidance should include the warning action."
+Assert-ContainsText -Text $plainGuidance -ExpectedText 'source_schema `featherdoc.numbering_catalog_governance_report.v1`' `
+    -Message "Generic warning guidance should include the warning source schema."
+
 Write-Host "Release governance warning helper regression passed."

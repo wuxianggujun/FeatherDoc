@@ -1791,7 +1791,9 @@ governance warnings section so reviewer-facing handoff notes keep the warning
 JSON. The contract is covered by
 `test/release_governance_warning_contract_test.ps1` and
 `test/release_governance_warning_helper_contract_test.ps1`, so new warning
-producers keep the same fields visible at source and in rollups. Duplicate-style
+producers keep the same fields visible at source and in rollups. The generated
+`REVIEWER_CHECKLIST.md` also turns each materialized warning into per-warning
+checkbox guidance with the warning action and source schema. Duplicate-style
 merge suggestions from document skeleton governance remain non-blocking by
 default, but are surfaced as
 `document_skeleton.style_merge_suggestions_pending` warnings with
