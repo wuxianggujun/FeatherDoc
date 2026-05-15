@@ -1245,6 +1245,12 @@ install(
 
 install(
     FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import.rst"
+    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs"
+)
+
+install(
+    FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-contact-sheet.png"
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-page-05.png"
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-page-06.png"

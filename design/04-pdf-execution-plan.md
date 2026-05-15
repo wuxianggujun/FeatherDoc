@@ -3255,6 +3255,19 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\test\pdf_import_docs_contract_test.ps1 -RepoRoot .`
   和 `git diff --check`。
 
+2026-05-15 继续推进（PDF import 安装文档入口闭环）：
+
+- 已确认中英文 README 的 PDF import schema 入口指向 `docs/pdf_import.rst`，
+  但安装规则此前没有携带该文件，安装包内会形成指向缺失文件的入口。
+- 已在 `CMakeLists.txt` 中安装 `docs/pdf_import.rst` 到
+  `${FEATHERDOC_INSTALL_DATADIR}/docs`，对应安装树为
+  `share/FeatherDoc/docs/pdf_import.rst`。
+- 已同步 `README.md` 和 `README.zh-CN.md` 的安装产物清单，并扩展
+  `pdf_import_docs_contract_test.ps1`，固定 CMake 安装规则必须包含该文档。
+- 本轮验证通过：
+  `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\test\pdf_import_docs_contract_test.ps1 -RepoRoot .`
+  和 `git diff --check`。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

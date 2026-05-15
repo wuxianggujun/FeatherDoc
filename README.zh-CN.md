@@ -1516,6 +1516,7 @@ cmake --install build --prefix install
 - `README.md` / `README.zh-CN.md`
 - `VISUAL_VALIDATION*.md`
 - `RELEASE_ARTIFACT_TEMPLATE*.md`
+- `docs/pdf_import.rst`
 - `visual-validation/*.png`
 - `CHANGELOG.md`
 - `LICENSE` / `LICENSE.upstream-mit`

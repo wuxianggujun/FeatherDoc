@@ -38,11 +38,13 @@ $pdfImportDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import.rst"
 $docsIndexPath = Join-Path $resolvedRepoRoot "docs\index.rst"
 $readmePath = Join-Path $resolvedRepoRoot "README.md"
 $readmeZhPath = Join-Path $resolvedRepoRoot "README.zh-CN.md"
+$cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 
 $pdfImportDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportDocsPath
 $docsIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $docsIndexPath
 $readmeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmePath
 $readmeZhText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeZhPath
+$cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 
 $requiredPdfImportDocsTerms = @(
     "PDF Import",
@@ -84,6 +86,8 @@ Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import suppo
 
 Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_import.rst" -Label "README.md"
 Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_import.rst" -Label "README.zh-CN.md"
+Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import.rst' -Label "CMakeLists.txt"
+Assert-ContainsText -Text $cmakeListsText -ExpectedText '${FEATHERDOC_INSTALL_DATADIR}/docs' -Label "CMakeLists.txt"
 Assert-DoesNotContainText `
     -Text $readmeText `
     -UnexpectedText 'docs/index.rst` for the field-level schema' `

@@ -1713,6 +1713,7 @@ visual-validation preview assets, repro guides, release-artifact templates, and 
 - `VISUAL_VALIDATION_QUICKSTART.zh-CN.md`
 - `VISUAL_VALIDATION.md`
 - `VISUAL_VALIDATION.zh-CN.md`
+- `docs/pdf_import.rst`
 - `visual-validation/`
 - `LICENSE`
 - `LICENSE.upstream-mit`
