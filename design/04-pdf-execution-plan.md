@@ -3366,6 +3366,17 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 自动化代理验收与人工验收边界保持分离：PDFium 回读、`/ToUnicode`、`/Identity-H` 和中文搜索片段回归继续覆盖
   可自动验证的语义代理；常见阅读器复制/搜索仍作为发布前人工签核项，不标记为自动完成。
 
+2026-05-15 继续推进（PDF import 文档拆页与安装闭环）：
+
+- 已将 `docs/pdf_import.rst` 收敛为 PDF import 用户总览页，把字段级 JSON 契约迁移到
+  `docs/pdf_import_json_diagnostics.rst`，把支持范围和限制迁移到 `docs/pdf_import_scope.rst`。
+- 已同步 `docs/index.rst` hidden toctree、README 中英入口、`BUILDING_PDF.md` 开发者说明和
+  CMake 安装清单，确保源码文档入口与安装包文档入口一致。
+- 已扩展 `pdf_import_docs_contract_test.ps1` 和 `package_release_assets_safety_test.ps1`：
+  前者固定拆页、README 指向和 CMake 安装规则，后者固定发布 ZIP 内必须携带三个 PDF import 文档页。
+- 本轮仍是文档和发布打包契约收口，不改变 PDF import 行为；继续 E7 时可以优先补 CLI diagnostics
+  的用户示例或更复杂导入负样本。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

@@ -95,8 +95,9 @@ When `--json` is present, successful imports include
 Those diagnostics explain cross-page table decisions such as
 `merged_with_previous_table`, `column_count_mismatch`,
 `column_anchors_mismatch`, `repeated_header_mismatch`, and
-`continuation_confidence_below_threshold`. See `docs/pdf_import.rst` for the
-field-level schema.
+`continuation_confidence_below_threshold`. See
+`docs/pdf_import_json_diagnostics.rst` for the field-level schema and
+`docs/pdf_import.rst` for the overview.
 
 ## Build With MSVC
 
@@ -1714,6 +1715,8 @@ visual-validation preview assets, repro guides, release-artifact templates, and 
 - `VISUAL_VALIDATION.md`
 - `VISUAL_VALIDATION.zh-CN.md`
 - `docs/pdf_import.rst`
+- `docs/pdf_import_json_diagnostics.rst`
+- `docs/pdf_import_scope.rst`
 - `visual-validation/`
 - `LICENSE`
 - `LICENSE.upstream-mit`

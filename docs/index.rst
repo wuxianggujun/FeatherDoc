@@ -18,6 +18,8 @@ and ``README.zh-CN.md`` (Simplified Chinese).
    current_direction_zh
    feature_gap_analysis_zh
    pdf_import
+   pdf_import_json_diagnostics
+   pdf_import_scope
    template_schema_mutation_zh
    table_style_definition_zh
    project_score_assessment_zh
@@ -544,7 +546,9 @@ PDF import
 
 ``import-pdf`` is an experimental, opt-in path available only in builds
 configured with PDF import support. For command examples, JSON diagnostics,
-and the current supported scope and limits, see :doc:`pdf_import`.
+and current scope, start with :doc:`pdf_import`. Use
+:doc:`pdf_import_json_diagnostics` for field-level JSON details and
+:doc:`pdf_import_scope` for supported scope and limits.
 
 Additional representative command groups:
 

@@ -96,6 +96,8 @@ $summaryPath = Join-Path $reportDir "summary.json"
 $installedReadmePath = Join-Path $installPrefix "share\FeatherDoc\README.md"
 $installedChangelogPath = Join-Path $installPrefix "share\FeatherDoc\CHANGELOG.md"
 $installedPdfImportDocsPath = Join-Path $installPrefix "share\FeatherDoc\docs\pdf_import.rst"
+$installedPdfImportJsonDiagnosticsDocsPath = Join-Path $installPrefix "share\FeatherDoc\docs\pdf_import_json_diagnostics.rst"
+$installedPdfImportScopeDocsPath = Join-Path $installPrefix "share\FeatherDoc\docs\pdf_import_scope.rst"
 
 Set-Content -LiteralPath $startHerePath -Encoding UTF8 -Value @"
 # START_HERE
@@ -162,6 +164,18 @@ New-Item -ItemType Directory -Path (Split-Path -Parent $installedPdfImportDocsPa
 Set-Content -LiteralPath $installedPdfImportDocsPath -Encoding UTF8 -Value @'
 PDF Import
 ==========
+
+Install package copy for release asset packaging regression.
+'@
+Set-Content -LiteralPath $installedPdfImportJsonDiagnosticsDocsPath -Encoding UTF8 -Value @'
+PDF Import JSON Diagnostics
+===========================
+
+Install package copy for release asset packaging regression.
+'@
+Set-Content -LiteralPath $installedPdfImportScopeDocsPath -Encoding UTF8 -Value @'
+PDF Import Supported Scope And Limits
+=====================================
 
 Install package copy for release asset packaging regression.
 '@
@@ -250,6 +264,8 @@ $stagedHandoffPath = Join-Path $stagingRoot "release-candidate-checks\report\rel
 $stagedInstalledReadmePath = Join-Path $stagingRoot "build-msvc-install\share\FeatherDoc\README.md"
 $stagedInstalledChangelogPath = Join-Path $stagingRoot "build-msvc-install\share\FeatherDoc\CHANGELOG.md"
 $stagedInstalledPdfImportDocsPath = Join-Path $stagingRoot "build-msvc-install\share\FeatherDoc\docs\pdf_import.rst"
+$stagedInstalledPdfImportJsonDiagnosticsDocsPath = Join-Path $stagingRoot "build-msvc-install\share\FeatherDoc\docs\pdf_import_json_diagnostics.rst"
+$stagedInstalledPdfImportScopeDocsPath = Join-Path $stagingRoot "build-msvc-install\share\FeatherDoc\docs\pdf_import_scope.rst"
 $installZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-msvc-install.zip"
 $galleryZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-visual-validation-gallery.zip"
 $evidenceZipPath = Join-Path $outputRoot "v1.6.4\FeatherDoc-v1.6.4-release-evidence.zip"
@@ -268,6 +284,8 @@ Assert-Contains -Path $stagedInstalledReadmePath -ExpectedText '<windows-absolut
 Assert-Contains -Path $stagedInstalledChangelogPath -ExpectedText 'preview' -Label 'staged installed CHANGELOG.md'
 Assert-Contains -Path $stagedInstalledChangelogPath -ExpectedText '<windows-absolute-path>' -Label 'staged installed CHANGELOG.md'
 Assert-Contains -Path $stagedInstalledPdfImportDocsPath -ExpectedText 'PDF Import' -Label 'staged installed PDF import docs'
+Assert-Contains -Path $stagedInstalledPdfImportJsonDiagnosticsDocsPath -ExpectedText 'PDF Import JSON Diagnostics' -Label 'staged installed PDF import JSON diagnostics docs'
+Assert-Contains -Path $stagedInstalledPdfImportScopeDocsPath -ExpectedText 'PDF Import Supported Scope And Limits' -Label 'staged installed PDF import scope docs'
 if ($stagedSummary.release_handoff -ne $expectedRelativeHandoff) {
     throw "staged summary.json did not rewrite release_handoff to the expected relative path."
 }
@@ -284,5 +302,11 @@ foreach ($zipPath in @($installZipPath, $galleryZipPath, $evidenceZipPath)) {
 Assert-ZipContainsEntry `
     -ZipPath $installZipPath `
     -ExpectedEntryName 'build-msvc-install/share/FeatherDoc/docs/pdf_import.rst'
+Assert-ZipContainsEntry `
+    -ZipPath $installZipPath `
+    -ExpectedEntryName 'build-msvc-install/share/FeatherDoc/docs/pdf_import_json_diagnostics.rst'
+Assert-ZipContainsEntry `
+    -ZipPath $installZipPath `
+    -ExpectedEntryName 'build-msvc-install/share/FeatherDoc/docs/pdf_import_scope.rst'
 
 Write-Host "Package release assets safety regression passed."

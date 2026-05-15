@@ -104,6 +104,8 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $pdfImportDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import.rst"
+$pdfImportJsonDiagnosticsDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import_json_diagnostics.rst"
+$pdfImportScopeDocsPath = Join-Path $resolvedRepoRoot "docs\pdf_import_scope.rst"
 $docsIndexPath = Join-Path $resolvedRepoRoot "docs\index.rst"
 $readmePath = Join-Path $resolvedRepoRoot "README.md"
 $readmeZhPath = Join-Path $resolvedRepoRoot "README.zh-CN.md"
@@ -112,6 +114,8 @@ $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf
 $cliPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli.cpp"
 
 $pdfImportDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportDocsPath
+$pdfImportJsonDiagnosticsDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportJsonDiagnosticsDocsPath
+$pdfImportScopeDocsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportScopeDocsPath
 $docsIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $docsIndexPath
 $readmeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmePath
 $readmeZhText = Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeZhPath
@@ -121,11 +125,18 @@ $cliText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cliPath
 
 $requiredPdfImportDocsTerms = @(
     "PDF Import",
-    "PDF import JSON diagnostics",
-    "PDF import supported scope and limits",
     "featherdoc_cli import-pdf input.pdf --output imported.docx --json",
     "--import-table-candidates-as-tables",
     "--min-table-continuation-confidence",
+    "pdf_import_json_diagnostics",
+    "pdf_import_scope",
+    "PDF Import JSON Diagnostics",
+    "PDF Import Supported Scope And Limits"
+)
+
+$requiredPdfImportJsonDiagnosticsDocsTerms = @(
+    "PDF Import JSON Diagnostics",
+    "PDF import JSON diagnostics",
     '"table_continuation_diagnostics_count": 2',
     '"table_continuation_diagnostics": []',
     "page_index",
@@ -174,8 +185,35 @@ $requiredPdfImportDocsTerms = @(
     "no_text_paragraphs"
 )
 
+$requiredPdfImportScopeDocsTerms = @(
+    "PDF Import Supported Scope And Limits",
+    "PDF import supported scope and limits",
+    "Paragraph import from extractable PDF text",
+    "Conservative table-candidate detection",
+    "Opt-in table promotion",
+    "Cross-page table continuation",
+    "Repeated-header detection",
+    "Conservative subtotal / total summary-row handling",
+    'Diagnostics through ``table_continuation_diagnostics``',
+    "Column-count mismatches",
+    "Ordinary two-column prose",
+    "scanned PDFs",
+    "OCR",
+    "image-only",
+    "arbitrary nested table semantics",
+    "arbitrary local column drift"
+)
+
 foreach ($term in $requiredPdfImportDocsTerms) {
     Assert-ContainsText -Text $pdfImportDocsText -ExpectedText $term -Label "docs/pdf_import.rst"
+}
+
+foreach ($term in $requiredPdfImportJsonDiagnosticsDocsTerms) {
+    Assert-ContainsText -Text $pdfImportJsonDiagnosticsDocsText -ExpectedText $term -Label "docs/pdf_import_json_diagnostics.rst"
+}
+
+foreach ($term in $requiredPdfImportScopeDocsTerms) {
+    Assert-ContainsText -Text $pdfImportScopeDocsText -ExpectedText $term -Label "docs/pdf_import_scope.rst"
 }
 
 $failureKindMembers = Get-CppEnumMembers `
@@ -192,25 +230,25 @@ $headerMatchKindMembers = Get-CppEnumMembers `
     -EnumName "PdfTableContinuationHeaderMatchKind"
 
 Assert-DocumentedEnumMembers `
-    -Text $pdfImportDocsText `
+    -Text $pdfImportJsonDiagnosticsDocsText `
     -Members $failureKindMembers `
     -ExcludedMembers @("none") `
-    -Label "docs/pdf_import.rst"
+    -Label "docs/pdf_import_json_diagnostics.rst"
 Assert-DocumentedEnumMembers `
-    -Text $pdfImportDocsText `
+    -Text $pdfImportJsonDiagnosticsDocsText `
     -Members $dispositionMembers `
     -ExcludedMembers @() `
-    -Label "docs/pdf_import.rst"
+    -Label "docs/pdf_import_json_diagnostics.rst"
 Assert-DocumentedEnumMembers `
-    -Text $pdfImportDocsText `
+    -Text $pdfImportJsonDiagnosticsDocsText `
     -Members $blockerMembers `
     -ExcludedMembers @() `
-    -Label "docs/pdf_import.rst"
+    -Label "docs/pdf_import_json_diagnostics.rst"
 Assert-DocumentedEnumMembers `
-    -Text $pdfImportDocsText `
+    -Text $pdfImportJsonDiagnosticsDocsText `
     -Members $headerMatchKindMembers `
     -ExcludedMembers @() `
-    -Label "docs/pdf_import.rst"
+    -Label "docs/pdf_import_json_diagnostics.rst"
 
 Assert-CliMapsEnumMembers `
     -Text $cliText `
@@ -230,12 +268,18 @@ Assert-CliMapsEnumMembers `
     -Label "cli/featherdoc_cli.cpp"
 
 Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import" -Label "docs/index.rst"
+Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import_json_diagnostics" -Label "docs/index.rst"
+Assert-ContainsText -Text $docsIndexText -ExpectedText "   pdf_import_scope" -Label "docs/index.rst"
 Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import`' -Label "docs/index.rst"
+Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import_json_diagnostics`' -Label "docs/index.rst"
+Assert-ContainsText -Text $docsIndexText -ExpectedText ':doc:`pdf_import_scope`' -Label "docs/index.rst"
 Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import JSON diagnostics" -Label "docs/index.rst"
 Assert-DoesNotContainText -Text $docsIndexText -UnexpectedText "PDF import supported scope and limits" -Label "docs/index.rst"
 
 Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_import.rst" -Label "README.md"
+Assert-ContainsText -Text $readmeText -ExpectedText "docs/pdf_import_json_diagnostics.rst" -Label "README.md"
 Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_import.rst" -Label "README.zh-CN.md"
+Assert-ContainsText -Text $readmeZhText -ExpectedText "docs/pdf_import_json_diagnostics.rst" -Label "README.zh-CN.md"
 Assert-ContainsText `
     -Text $readmeText `
     -ExpectedText "--min-table-continuation-confidence <score>" `
@@ -253,6 +297,8 @@ Assert-DoesNotContainText `
     -UnexpectedText "--min-table-continuation-confidence <count>" `
     -Label "README.zh-CN.md"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import.rst' -Label "CMakeLists.txt"
+Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import_json_diagnostics.rst' -Label "CMakeLists.txt"
+Assert-ContainsText -Text $cmakeListsText -ExpectedText 'docs/pdf_import_scope.rst' -Label "CMakeLists.txt"
 Assert-ContainsText -Text $cmakeListsText -ExpectedText '${FEATHERDOC_INSTALL_DATADIR}/docs' -Label "CMakeLists.txt"
 Assert-DoesNotContainText `
     -Text $readmeText `

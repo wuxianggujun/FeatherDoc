@@ -1246,6 +1246,8 @@ install(
 install(
     FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import.rst"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import_json_diagnostics.rst"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/pdf_import_scope.rst"
     DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs"
 )
 

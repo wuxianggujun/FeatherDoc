@@ -104,7 +104,7 @@ featherdoc_cli import-pdf input.pdf --output output.docx \
 例如 `merged_with_previous_table`、`column_count_mismatch`、
 `column_anchors_mismatch`、`repeated_header_mismatch` 和
 `continuation_confidence_below_threshold`。字段级 schema 见
-`docs/pdf_import.rst`。
+`docs/pdf_import_json_diagnostics.rst`，总览见 `docs/pdf_import.rst`。
 
 ## MSVC 构建
 
@@ -1517,6 +1517,8 @@ cmake --install build --prefix install
 - `VISUAL_VALIDATION*.md`
 - `RELEASE_ARTIFACT_TEMPLATE*.md`
 - `docs/pdf_import.rst`
+- `docs/pdf_import_json_diagnostics.rst`
+- `docs/pdf_import_scope.rst`
 - `visual-validation/*.png`
 - `CHANGELOG.md`
 - `LICENSE` / `LICENSE.upstream-mit`
