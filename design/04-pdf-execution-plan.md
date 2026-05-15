@@ -3354,6 +3354,18 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 该回归覆盖 C++ helper、PowerShell 文档契约、视觉 gate 和动态 regression 测试，
   避免后续新增 PDF 测试时绕过统一调度边界。
 
+2026-05-15 继续推进（CJK 常见阅读器手工验收入口）：
+
+- 已将 CJK/PDF 面向发布的手工复制、搜索验收纳入 `REVIEWER_CHECKLIST.md` 生成流程：
+  发布 reviewer 需要在至少一个常见阅读器中确认生成的中文 PDF 可以复制和搜索，并在 release notes
+  或 final review 中记录阅读器和版本。
+- 已补 `release_note_bundle_version_test.ps1` 契约，固定该 checklist 文案，避免后续 release bundle
+  重构时遗漏人工验收入口。
+- 验证过程中同步加固 `release_note_bundle_version_test.ps1` 的 UTF-8 断言读取，并将中文期望值改为码点构造，
+  让该回归在 Windows PowerShell 5.1 读取无 BOM 脚本时也能稳定执行。
+- 自动化代理验收与人工验收边界保持分离：PDFium 回读、`/ToUnicode`、`/Identity-H` 和中文搜索片段回归继续覆盖
+  可自动验证的语义代理；常见阅读器复制/搜索仍作为发布前人工签核项，不标记为自动完成。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

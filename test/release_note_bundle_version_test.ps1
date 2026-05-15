@@ -13,7 +13,7 @@ function Assert-Contains {
         [string]$Label
     )
 
-    $content = Get-Content -Raw -LiteralPath $Path
+    $content = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
     if ($content -notmatch [regex]::Escape($ExpectedText)) {
         throw "$Label does not contain expected text '$ExpectedText': $Path"
     }
@@ -26,12 +26,36 @@ function Assert-NotContains {
         [string]$Label
     )
 
-    $content = Get-Content -Raw -LiteralPath $Path
+    $content = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
     if (-not [string]::IsNullOrWhiteSpace($UnexpectedText) -and
         $content -match [regex]::Escape($UnexpectedText)) {
         throw "$Label unexpectedly contains '$UnexpectedText': $Path"
     }
 }
+
+function ConvertFrom-CodePoints {
+    param(
+        [int[]]$CodePoints
+    )
+
+    $builder = New-Object System.Text.StringBuilder
+    foreach ($codePoint in $CodePoints) {
+        [void]$builder.Append([char]$codePoint)
+    }
+
+    return $builder.ToString()
+}
+
+$fullWidthColon = [string][char]0xFF1A
+$fullWidthComma = [string][char]0xFF0C
+$ideographicFullStop = [string][char]0x3002
+$visualGateDetailText = ConvertFrom-CodePoints @(0x7EC6, 0x5206, 0x7ED3, 0x8BBA)
+$draftText = ConvertFrom-CodePoints @(0x8349, 0x7A3F)
+$releaseNotesDraftText = ConvertFrom-CodePoints @(0x53D1, 0x5E03, 0x8BF4, 0x660E, 0x8349, 0x7A3F)
+$fillBeforeReleaseText = ConvertFrom-CodePoints @(0x8BF7, 0x5728, 0x53D1, 0x5E03, 0x524D, 0x8865, 0x9F50)
+$generatedByReleaseBodyScriptText = (ConvertFrom-CodePoints @(0x8FD9, 0x4EFD, 0x6587, 0x4EF6, 0x7531)) +
+    ' `write_release_body_zh.ps1` ' +
+    (ConvertFrom-CodePoints @(0x81EA, 0x52A8, 0x751F, 0x6210))
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
@@ -243,24 +267,30 @@ Assert-Contains -Path $shortPath -ExpectedText '# FeatherDoc v1.6.0' -Label 'rel
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\VISUAL_VALIDATION_QUICKSTART.zh-CN.md' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\RELEASE_ARTIFACT_TEMPLATE.zh-CN.md' -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'share\FeatherDoc\visual-validation' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Release blockers：1' -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText ('Release blockers{0}1' -f $fullWidthColon) -Label 'release_body.zh-CN.md'
 Assert-Contains -Path $bodyPath -ExpectedText 'project_template_smoke.schema_approval' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Smoke verdict：pass' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Fixed-grid verdict：undetermined' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Section page setup verdict：pass' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Page number fields verdict：pending_manual_review' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $bodyPath -ExpectedText 'Template table CLI selector verdict：pass' -Label 'release_body.zh-CN.md'
-Assert-Contains -Path $shortPath -ExpectedText 'Word visual gate 细分结论：smoke=`pass`，fixed-grid=`undetermined`，section page setup=`pass`，page number fields=`pending_manual_review`，Template table CLI selector=`pass`。' -Label 'release_summary.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText ('Smoke verdict{0}pass' -f $fullWidthColon) -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText ('Fixed-grid verdict{0}undetermined' -f $fullWidthColon) -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText ('Section page setup verdict{0}pass' -f $fullWidthColon) -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText ('Page number fields verdict{0}pending_manual_review' -f $fullWidthColon) -Label 'release_body.zh-CN.md'
+Assert-Contains -Path $bodyPath -ExpectedText ('Template table CLI selector verdict{0}pass' -f $fullWidthColon) -Label 'release_body.zh-CN.md'
+$visualGateSummaryText = 'Word visual gate ' + $visualGateDetailText + $fullWidthColon +
+    'smoke=`pass`' + $fullWidthComma +
+    'fixed-grid=`undetermined`' + $fullWidthComma +
+    'section page setup=`pass`' + $fullWidthComma +
+    'page number fields=`pending_manual_review`' + $fullWidthComma +
+    'Template table CLI selector=`pass`' + $ideographicFullStop
+Assert-Contains -Path $shortPath -ExpectedText $visualGateSummaryText -Label 'release_summary.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $installDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText $resolvedWorkingDir -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $bodyPath -UnexpectedText 'draft' -Label 'release_body.zh-CN.md'
-Assert-NotContains -Path $bodyPath -UnexpectedText '草稿' -Label 'release_body.zh-CN.md'
-Assert-NotContains -Path $bodyPath -UnexpectedText '发布说明草稿' -Label 'release_body.zh-CN.md'
-Assert-NotContains -Path $bodyPath -UnexpectedText '请在发布前补齐' -Label 'release_body.zh-CN.md'
-Assert-NotContains -Path $bodyPath -UnexpectedText '这份文件由 `write_release_body_zh.ps1` 自动生成' -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText $draftText -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText $releaseNotesDraftText -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText $fillBeforeReleaseText -Label 'release_body.zh-CN.md'
+Assert-NotContains -Path $bodyPath -UnexpectedText $generatedByReleaseBodyScriptText -Label 'release_body.zh-CN.md'
 Assert-NotContains -Path $shortPath -UnexpectedText 'draft' -Label 'release_summary.zh-CN.md'
-Assert-NotContains -Path $shortPath -UnexpectedText '草稿' -Label 'release_summary.zh-CN.md'
-Assert-NotContains -Path $shortPath -UnexpectedText '这份文件由 `write_release_body_zh.ps1` 自动生成' -Label 'release_summary.zh-CN.md'
+Assert-NotContains -Path $shortPath -UnexpectedText $draftText -Label 'release_summary.zh-CN.md'
+Assert-NotContains -Path $shortPath -UnexpectedText $generatedByReleaseBodyScriptText -Label 'release_summary.zh-CN.md'
 
 $guidePath = Join-Path $reportDir "ARTIFACT_GUIDE.md"
 $checklistPath = Join-Path $reportDir "REVIEWER_CHECKLIST.md"
@@ -307,6 +337,8 @@ Assert-Contains -Path $checklistPath -ExpectedText 'Page number fields verdict: 
 Assert-Contains -Path $checklistPath -ExpectedText 'Template table CLI selector verdict: pass' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Open the Template table CLI selector review task if the release touches this curated visual bundle' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Open the page number fields review task if the release touches page numbers' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'manually verify a generated Chinese PDF can be copied and searched' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'reader/version' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Release blockers: 1' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'project_template_smoke.schema_approval' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Visual verdict: pending_manual_review' -Label 'START_HERE.md'
