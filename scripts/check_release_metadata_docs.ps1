@@ -324,6 +324,7 @@ $checklistExpectedMarkers = @(
     "public_release_wording_regression_test.ps1",
     "git diff --check",
     "release_governance_warning_contract_test.ps1",
+    "release_governance_warning_helper_contract_test.ps1",
     "release governance warning",
     "warning_count",
     "release_blocker_rollup",

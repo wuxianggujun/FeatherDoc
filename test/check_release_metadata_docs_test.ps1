@@ -180,8 +180,8 @@ function Assert-SummaryFailure {
         throw "Expected JSON summary schema version 1, got: $($summary.summary_schema_version)"
     }
     Assert-SummaryAuditFields -Summary $summary
-    if ($summary.required_marker_count -ne 32) {
-        throw "Expected JSON summary to count 32 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 33) {
+        throw "Expected JSON summary to count 33 required markers, got: $($summary.required_marker_count)"
     }
 }
 
@@ -299,6 +299,7 @@ $defaultChecklistText = @(
     '- public_release_wording_regression_test.ps1',
     '- git diff --check',
     '- release_governance_warning_contract_test.ps1',
+    '- release_governance_warning_helper_contract_test.ps1',
     '- release governance warning contract',
     '- warning_count',
     '- release_blocker_rollup',
@@ -346,14 +347,14 @@ if ($summary.checked_document_count -ne 3) {
 if ($summary.required_pipeline_marker_count -ne 16) {
     throw "Expected JSON summary pipeline marker count 16, got: $($summary.required_pipeline_marker_count)"
 }
-if ($summary.required_checklist_marker_count -ne 15) {
-    throw "Expected JSON summary checklist marker count 15, got: $($summary.required_checklist_marker_count)"
+if ($summary.required_checklist_marker_count -ne 16) {
+    throw "Expected JSON summary checklist marker count 16, got: $($summary.required_checklist_marker_count)"
 }
 if ($summary.required_policy_marker_count -ne 1) {
     throw "Expected JSON summary policy marker count 1, got: $($summary.required_policy_marker_count)"
 }
-if ($summary.required_marker_count -ne 32) {
-    throw "Expected JSON summary total marker count 32, got: $($summary.required_marker_count)"
+if ($summary.required_marker_count -ne 33) {
+    throw "Expected JSON summary total marker count 33, got: $($summary.required_marker_count)"
 }
 if ($summary.checked_documents.Count -ne 3) {
     throw "Expected JSON summary to list 3 checked documents, got: $($summary.checked_documents.Count)"
