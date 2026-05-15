@@ -83,6 +83,53 @@ A rejected continuation with incompatible columns may report:
       "blocker": "column_count_mismatch"
     }
 
+Common continuation blockers
+----------------------------
+
+Use ``blocker`` as the first triage field when a table was kept separate:
+
+- ``repeated_header_mismatch`` means both table candidates looked like
+  repeated-header tables, but their header text did not match after the
+  conservative normalization rules.
+- ``column_anchors_mismatch`` means the column count was compatible, but one or
+  more column x positions drifted beyond the accepted anchor tolerance.
+- ``continuation_confidence_below_threshold`` means the candidate may otherwise
+  look compatible, but its rule-based score did not meet
+  ``--min-table-continuation-confidence``.
+
+For example, a semantic repeated-header mismatch may report:
+
+.. code-block:: json
+
+    {
+      "header_matches_previous": false,
+      "header_match_kind": "none",
+      "disposition": "created_new_table",
+      "blocker": "repeated_header_mismatch"
+    }
+
+A local anchor drift may report:
+
+.. code-block:: json
+
+    {
+      "column_count_matches": true,
+      "column_anchors_match": false,
+      "disposition": "created_new_table",
+      "blocker": "column_anchors_mismatch"
+    }
+
+A caller-specified confidence threshold may report:
+
+.. code-block:: json
+
+    {
+      "continuation_confidence": 80,
+      "minimum_continuation_confidence": 90,
+      "disposition": "created_new_table",
+      "blocker": "continuation_confidence_below_threshold"
+    }
+
 Failure JSON keeps ``ok`` set to ``false`` and reports the ``import`` stage:
 
 .. code-block:: json

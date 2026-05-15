@@ -3377,6 +3377,15 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
 - 本轮仍是文档和发布打包契约收口，不改变 PDF import 行为；继续 E7 时可以优先补 CLI diagnostics
   的用户示例或更复杂导入负样本。
 
+2026-05-15 继续推进（PDF import CLI diagnostics 用户示例）：
+
+- 已在 `docs/pdf_import_json_diagnostics.rst` 增加常见 continuation blocker 示例，覆盖
+  `repeated_header_mismatch`、`column_anchors_mismatch` 和
+  `continuation_confidence_below_threshold` 三类用户最容易遇到的拆表原因。
+- 已扩展 `pdf_import_docs_contract_test.ps1`，固定这些 JSON 片段和
+  `minimum_continuation_confidence` 示例，避免后续文档拆分或重写时丢失用户可诊断入口。
+- 本轮只把现有 CLI 测试已经覆盖的诊断语义写入用户文档，不改变 importer 或 CLI JSON 输出。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
