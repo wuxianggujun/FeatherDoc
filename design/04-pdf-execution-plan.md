@@ -2944,6 +2944,27 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
   glyph order、baseline advance、text matrix 和文本选择语义，不能直接复用 LTR
   glyph-id stream。
 
+2026-05-15 继续推进（Document RTL writer fallback E2E）：
+
+- 已在 `pdf_unicode_font_roundtrip` 增加 Document 级端到端回归：真实 `Run::set_rtl()`
+  经 document adapter 生成 `right_to_left` shaped glyph metadata 后，PDFio writer 不生成
+  `/FeatherDocGlyph` CID 字体资源，继续走字符串 fallback。
+- 回归同时用 PDFium 解析写出的 PDF，断言原文只回读一次，避免后续扩展 RTL writer 时破坏
+  当前安全边界和文本提取语义。
+- 已完成验证：
+  `cmd /c 'call "D:\Program Files\Microsoft Visual Studio\18\Professional\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul && cmake --build .bpdf-roundtrip-msvc --target pdf_unicode_font_roundtrip_tests'`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_unicode_font_roundtrip$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "^pdf_(text_shaper|document_adapter_font|unicode_font_roundtrip)$" --output-on-failure --timeout 60`
+  通过；
+  `ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_" --output-on-failure --timeout 60`
+  通过。
+- 下一阶段入口：
+  当前已覆盖 Document RTL metadata 到 writer fallback 的闭环；真正支持 RTL glyph-id stream
+  前，需要先形成独立验收样本，明确 visual order、logical text extraction、glyph advance
+  方向和 text matrix 的组合规则。
+
 ## 阶段推进规则
 
 每一阶段开始前必须满足：

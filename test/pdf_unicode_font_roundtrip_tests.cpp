@@ -1,6 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
+#include <featherdoc.hpp>
+#include <featherdoc/pdf/pdf_document_adapter.hpp>
 #include <featherdoc/pdf/pdf_parser.hpp>
 #include <featherdoc/pdf/pdf_text_shaper.hpp>
 #include <featherdoc/pdf/pdf_writer.hpp>
@@ -957,6 +959,71 @@ TEST_CASE("PDFio falls back for non-LTR shaped glyph directions") {
         std::move(glyph_run),
     });
     layout.pages.push_back(std::move(page));
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result =
+        generator.write(layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    CHECK_GT(write_result.bytes_written, 0U);
+
+    const auto pdf_bytes = read_file_bytes(output_path);
+    CHECK_EQ(pdf_bytes.find("/FeatherDocGlyph"), std::string::npos);
+
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+
+    const auto extracted_text = collect_text(parse_result.document);
+    CHECK_EQ(count_occurrences(extracted_text, expected_text), 1U);
+}
+
+TEST_CASE("PDFio falls back for document adapter RTL shaped runs") {
+    const auto font_path = find_latin_font();
+    if (font_path.empty()) {
+        MESSAGE("skipping document RTL fallback smoke: configure test Latin "
+                "font");
+        return;
+    }
+    if (!featherdoc::pdf::pdf_text_shaper_has_harfbuzz()) {
+        MESSAGE("skipping document RTL fallback smoke: HarfBuzz unavailable");
+        return;
+    }
+
+    const std::string expected_text = "abc";
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto rtl_run = paragraph.add_run(expected_text);
+    REQUIRE(rtl_run.has_next());
+    CHECK(rtl_run.set_font_family("Latin RTL Fallback"));
+    CHECK(rtl_run.set_rtl());
+
+    featherdoc::pdf::PdfDocumentAdapterOptions options;
+    options.font_mappings = {
+        featherdoc::pdf::PdfFontMapping{"Latin RTL Fallback", font_path},
+    };
+    options.use_system_font_fallbacks = false;
+    options.font_size_points = 18.0;
+
+    auto layout = featherdoc::pdf::layout_document_paragraphs(document, options);
+    REQUIRE_EQ(layout.pages.size(), 1U);
+    REQUIRE_EQ(layout.pages.front().text_runs.size(), 1U);
+
+    const auto &text_run = layout.pages.front().text_runs.front();
+    CHECK_EQ(text_run.text, expected_text);
+    CHECK_EQ(text_run.font_file_path, font_path);
+    CHECK(text_run.glyph_run.used_harfbuzz);
+    CHECK(text_run.glyph_run.error_message.empty());
+    CHECK_EQ(text_run.glyph_run.direction,
+             featherdoc::pdf::PdfGlyphDirection::right_to_left);
+    CHECK_EQ(text_run.glyph_run.script_tag, "Latn");
+
+    const auto output_path =
+        std::filesystem::current_path() /
+        "featherdoc-document-rtl-glyph-fallback.pdf";
 
     featherdoc::pdf::PdfioGenerator generator;
     const auto write_result =
