@@ -3280,6 +3280,14 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   `powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\test\package_release_assets_safety_test.ps1 -RepoRoot . -WorkingDir .\output\package-release-assets-safety-test`
   和 `git diff --check`。
 
+2026-05-15 继续推进（发布包 PowerShell CTest 门禁治理）：
+
+- 已给 `package_release_assets_safety` 和 `package_release_assets_allow_incomplete`
+  两个 PowerShell CTest 补上 `TIMEOUT 60`，对齐 PDF 执行计划的测试超时规范。
+- 已为两个测试增加 `release;package;smoke` 标签，方便 CI 或本地按发布包门禁集合筛选。
+- 本轮不改变打包行为，只补 CTest 调度边界；继续 E7 时，发布包安全测试可作为
+  PDF import 安装文档入口的轻量发布门禁。
+
 ## Owner
 
 本方向负责人：wuxianggujun。

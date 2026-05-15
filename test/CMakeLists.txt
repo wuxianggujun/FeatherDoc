@@ -605,6 +605,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/package_release_assets_safety
         )
+        set_tests_properties(package_release_assets_safety
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;package;smoke")
 
         add_test(
             NAME
@@ -620,6 +624,10 @@ if(WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/package_release_assets_allow_incomplete
         )
+        set_tests_properties(package_release_assets_allow_incomplete
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;package;smoke")
 
         add_test(
             NAME
