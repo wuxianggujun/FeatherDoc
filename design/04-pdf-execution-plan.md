@@ -3417,6 +3417,13 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   `.. code-block:: json` 示例并逐个执行 `ConvertFrom-Json`。
 - 该契约确保后续补充 success、failure、continuation blocker 或 parse-error 示例时，文档里的 JSON 片段本身保持可解析。
 
+2026-05-15 继续推进（PDF CTest 标签契约）：
+
+- 已新增 `pdf_ctest_label_contract_test.ps1`，扫描生成后的 `CTestTestfile.cmake`，要求所有 `pdf`
+  标签测试同时带 `smoke` 标签。
+- 同一契约还固定 `pdf_cli_*` 测试必须带 `cli;smoke;pdf`，把 PDF CLI import/export 作为轻量烟测入口的约定落到回归。
+- 该测试自身注册为 `pdf;ctest;smoke`，并显式设置 `TIMEOUT 60`，继续遵守 PDF 后台测试调度边界。
+
 ## Owner
 
 本方向负责人：wuxianggujun。
