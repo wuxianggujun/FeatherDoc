@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "clean", "malformed", "fail_on_blocker")]
+    [ValidateSet("all", "aggregate", "clean", "malformed", "warning_metadata", "fail_on_blocker")]
     [string]$Scenario = "all"
 )
 
@@ -371,6 +371,74 @@ if (Test-Scenario -Name "malformed") {
         -Message "Malformed input should produce failed status."
     Assert-Equal -Actual ([int]$summary.source_failure_count) -Expected 1 `
         -Message "Malformed input should count one source failure."
+    $sourceReadWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "source_json_read_failed" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$sourceReadWarning[0].action) -Expected "fix_numbering_catalog_governance_input_json" `
+        -Message "Malformed input warning should expose a fixed remediation action."
+    Assert-Equal -Actual ([string]$sourceReadWarning[0].source_schema) -Expected "featherdoc.numbering_catalog_governance_report.v1" `
+        -Message "Malformed input warning should expose the governance source schema."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "numbering_catalog_governance.md")
+    Assert-ContainsText -Text $markdown -ExpectedText "### Numbering catalog governance warnings" `
+        -Message "Malformed Markdown should include the warnings subsection."
+    Assert-ContainsText -Text $markdown -ExpectedText 'id: `source_json_read_failed`' `
+        -Message "Malformed Markdown should include read failure warning id."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `fix_numbering_catalog_governance_input_json`' `
+        -Message "Malformed Markdown should include read failure warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.numbering_catalog_governance_report.v1`' `
+        -Message "Malformed Markdown should include warning source schema."
+}
+
+if (Test-Scenario -Name "warning_metadata") {
+    $evidenceRoot = Join-Path $resolvedWorkingDir "warning-metadata-evidence"
+    $wrongSchema = Join-Path $evidenceRoot "wrong-schema\summary.json"
+    $outputDir = Join-Path $resolvedWorkingDir "warning-metadata-report"
+    Write-JsonFile -Path $wrongSchema -Value ([ordered]@{
+        schema = "featherdoc.unrelated_report.v1"
+        status = "ready"
+    })
+
+    $result = Invoke-GovernanceScript -Arguments @(
+        "-InputJson", $wrongSchema,
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Warning metadata input should not fail without fail switches. Output: $($result.Text)"
+
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 3 `
+        -Message "Warning metadata input should report schema and missing evidence warnings."
+
+    $schemaWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "source_json_schema_skipped" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$schemaWarning[0].action) -Expected "provide_numbering_catalog_governance_evidence" `
+        -Message "Schema skipped warning should expose a remediation action."
+    Assert-Equal -Actual ([string]$schemaWarning[0].source_schema) -Expected "featherdoc.numbering_catalog_governance_report.v1" `
+        -Message "Schema skipped warning should expose the governance source schema."
+
+    $missingSkeletonWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "document_skeleton_governance_rollup_missing" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$missingSkeletonWarning[0].action) -Expected "run_document_skeleton_governance_rollup" `
+        -Message "Missing skeleton warning should expose a remediation action."
+    Assert-Equal -Actual ([string]$missingSkeletonWarning[0].source_schema) -Expected "featherdoc.numbering_catalog_governance_report.v1" `
+        -Message "Missing skeleton warning should expose the governance source schema."
+
+    $missingManifestWarning = @($summary.warnings | Where-Object { [string]$_.id -eq "numbering_catalog_manifest_summary_missing" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$missingManifestWarning[0].action) -Expected "run_numbering_catalog_manifest_check" `
+        -Message "Missing manifest warning should expose a remediation action."
+    Assert-Equal -Actual ([string]$missingManifestWarning[0].source_schema) -Expected "featherdoc.numbering_catalog_governance_report.v1" `
+        -Message "Missing manifest warning should expose the governance source schema."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "numbering_catalog_governance.md")
+    Assert-ContainsText -Text $markdown -ExpectedText '- warning_count: `3`' `
+        -Message "Warning metadata Markdown should include warning count."
+    Assert-ContainsText -Text $markdown -ExpectedText 'id: `source_json_schema_skipped`' `
+        -Message "Warning metadata Markdown should include schema warning id."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `provide_numbering_catalog_governance_evidence`' `
+        -Message "Warning metadata Markdown should include schema warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `run_document_skeleton_governance_rollup`' `
+        -Message "Warning metadata Markdown should include skeleton warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'action: `run_numbering_catalog_manifest_check`' `
+        -Message "Warning metadata Markdown should include manifest warning action."
+    Assert-ContainsText -Text $markdown -ExpectedText 'source_schema: `featherdoc.numbering_catalog_governance_report.v1`' `
+        -Message "Warning metadata Markdown should include warning source schema."
 }
 
 if (Test-Scenario -Name "fail_on_blocker") {
