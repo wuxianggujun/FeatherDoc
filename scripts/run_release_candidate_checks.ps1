@@ -1211,15 +1211,21 @@ function Get-ReleaseBlockerRollupAutoDiscoveredInputJson {
         "project-template-delivery-readiness/summary.json"
     )
     $resolvedInputRoot = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $InputRoot
+    $paths = New-Object 'System.Collections.Generic.List[string]'
 
-    return @(
-        foreach ($relativePath in $candidateRelativePaths) {
-            $candidate = Join-Path $resolvedInputRoot $relativePath
-            if (Test-Path -LiteralPath $candidate) {
-                $candidate
-            }
+    foreach ($relativePath in $candidateRelativePaths) {
+        $candidate = Join-Path $resolvedInputRoot $relativePath
+        if (Test-Path -LiteralPath $candidate) {
+            $paths.Add($candidate) | Out-Null
         }
-    )
+    }
+
+    if (Test-Path -LiteralPath $resolvedInputRoot -PathType Container) {
+        Get-ChildItem -LiteralPath $resolvedInputRoot -Recurse -File -Filter "*.restore-audit.summary.json" |
+            ForEach-Object { $paths.Add($_.FullName) | Out-Null }
+    }
+
+    return @(Select-UniqueReleaseBlockerRollupPathList -Paths @($paths.ToArray()))
 }
 
 function Invoke-ReleaseBlockerRollup {

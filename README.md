@@ -884,7 +884,9 @@ commands such as `open_command` and `audit_command`, and supports
 gate. `scripts/build_release_governance_handoff_report.ps1` keeps those helper
 commands when it normalizes action items into the reviewer handoff.
 When scanning an `-InputRoot`, the rollup also includes
-`*.restore-audit.summary.json` files emitted by the style-merge restore audit.
+`*.restore-audit.summary.json` files emitted by the style-merge restore audit;
+release-candidate auto-discovery and the governance pipeline feed those files
+into the final blocker rollup as well.
 Before that final dashboard gate, `scripts/build_release_governance_handoff_report.ps1`
 can write `featherdoc.release_governance_handoff_report.v1` for the four
 default governance lines, including loaded/missing report counts, blocker and
@@ -905,11 +907,13 @@ delivery rollup, project-template onboarding governance, and schema approval
 history summaries under `output/`, then writes the four final governance
 reports, release governance handoff, final release blocker rollup, and a
 pipeline-level JSON/Markdown summary under
-`output/release-governance-pipeline/`. It does not rerun CLI, CMake, Word, or
-visual automation. If those four final governance summaries are already
-available under the input root, pass `-UseExistingGovernanceReports` to reuse
-them directly and only rebuild the handoff, final blocker rollup, and pipeline
-summary.
+`output/release-governance-pipeline/`. Its final blocker rollup scans both the
+generated governance-report root and the original input root, so restore-audit
+summaries remain visible even when they are not one of the four default
+governance reports. It does not rerun CLI, CMake, Word, or visual automation.
+If those four final governance summaries are already available under the input
+root, pass `-UseExistingGovernanceReports` to reuse them directly and only
+rebuild the handoff, final blocker rollup, and pipeline summary.
 The Linux/macOS CI `release_smoke` steps upload the release candidate blocker
 rollup, release governance handoff, and release governance pipeline smoke
 outputs as GitHub Actions artifacts so reviewer evidence can be downloaded from
@@ -1863,7 +1867,8 @@ or `-ReleaseBlockerRollupInputRoot`, or use `-ReleaseBlockerRollupAutoDiscover`
 to collect the default `output/numbering-catalog-governance/summary.json`,
 `output/table-layout-delivery-governance/summary.json`,
 `output/content-control-data-binding-governance/summary.json`, and
-`output/project-template-delivery-readiness/summary.json` reports. The wrapper
+`output/project-template-delivery-readiness/summary.json` reports plus any
+`*.restore-audit.summary.json` files under the auto-discovery root. The wrapper
 then runs `build_release_blocker_rollup_report.ps1`, writes
 `report/release-blocker-rollup/summary.json` plus Markdown, and records the
 rollup status, source count, blocker count, action count, warning count,

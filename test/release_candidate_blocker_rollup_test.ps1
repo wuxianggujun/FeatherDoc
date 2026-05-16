@@ -46,6 +46,7 @@ $autoDiscoverNumberingSummaryPath = Join-Path $autoDiscoverOutputRoot "numbering
 $autoDiscoverTableSummaryPath = Join-Path $autoDiscoverOutputRoot "table-layout-delivery-governance\summary.json"
 $autoDiscoverContentControlSummaryPath = Join-Path $autoDiscoverOutputRoot "content-control-data-binding-governance\summary.json"
 $autoDiscoverProjectSummaryPath = Join-Path $autoDiscoverOutputRoot "project-template-delivery-readiness\summary.json"
+$autoDiscoverRestoreAuditSummaryPath = Join-Path $autoDiscoverOutputRoot "document-skeleton-governance\style-merge.restore-audit.summary.json"
 
 Write-JsonFile -Path $numberingSummaryPath -Value ([ordered]@{
     schema = "featherdoc.numbering_catalog_governance_report.v1"
@@ -212,6 +213,34 @@ Write-JsonFile -Path $autoDiscoverProjectSummaryPath -Value ([ordered]@{
             title = "Approve project template schema before release"
         }
     )
+})
+
+Write-JsonFile -Path $autoDiscoverRestoreAuditSummaryPath -Value ([ordered]@{
+    schema = "featherdoc.style_merge_restore_audit.v1"
+    status = "blocked"
+    release_ready = $false
+    release_blocker_count = 1
+    release_blockers = @(
+        [ordered]@{
+            id = "style_merge.restore_audit_issues"
+            severity = "error"
+            status = "blocked"
+            message = "Autodiscovered style merge restore audit found dry-run issues."
+            action = "review_style_merge_restore_audit"
+        }
+    )
+    action_item_count = 1
+    action_items = @(
+        [ordered]@{
+            id = "review_style_merge_restore_audit"
+            action = "review_style_merge_restore_audit"
+            title = "Review style merge restore audit and Word render"
+            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -DocumentSourceKind style-merge-restore-audit -DocumentSourceLabel `"Style merge restore audit`" -Mode review-only"
+            open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit -PrintPrompt"
+        }
+    )
+    warning_count = 0
+    warnings = @()
 })
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
@@ -438,14 +467,14 @@ Assert-Equal -Actual ([string]$autoDiscoverSummary.release_blocker_rollup.status
     -Message "Auto-discovered rollup should surface the blocker status."
 Assert-Equal -Actual ([bool]$autoDiscoverSummary.release_blocker_rollup.auto_discover) -Expected $true `
     -Message "Release summary should record that auto-discovery was enabled."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 4 `
-    -Message "Release summary should record all four auto-discovered governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 4 `
-    -Message "Auto-discovered rollup should aggregate the four default governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_blocker_count) -Expected 4 `
-    -Message "Auto-discovered rollup should surface blocker count from default governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 4 `
-    -Message "Auto-discovered rollup should surface action count from default governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 5 `
+    -Message "Release summary should record default governance reports plus restore audit summaries."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 5 `
+    -Message "Auto-discovered rollup should aggregate default governance plus restore audit reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_blocker_count) -Expected 5 `
+    -Message "Auto-discovered rollup should surface blocker count from default governance plus restore audit reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 5 `
+    -Message "Auto-discovered rollup should surface action count from default governance plus restore audit reports."
 
 $autoDiscoverRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupSummaryPath | ConvertFrom-Json
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
@@ -454,5 +483,13 @@ Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
     -ExpectedText "content-control-data-binding-governance" `
     -Message "Auto-discovered rollup should include content-control data-binding governance."
+Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
+    -ExpectedText "style-merge.restore-audit.summary.json" `
+    -Message "Auto-discovered rollup should include style merge restore audit summaries."
+Assert-ContainsText -Text (($autoDiscoverRollupSummary.action_items | ForEach-Object {
+            if ($_.PSObject.Properties["open_command"]) { [string]$_.open_command }
+        }) -join "`n") `
+    -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
+    -Message "Auto-discovered rollup should preserve restore audit open-latest commands."
 
 Write-Host "Release candidate blocker rollup regression passed."

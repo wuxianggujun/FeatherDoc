@@ -518,7 +518,8 @@ $stages.Add((Invoke-PipelineStage `
             -Title "Release Blocker Rollup" `
             -ScriptPath (Join-Path $scriptsDir "build_release_blocker_rollup_report.ps1") `
             -OutputDir $rollupOutputDir `
-            -InputJson $handoffInputs)) | Out-Null
+            -InputJson $handoffInputs `
+            -ExtraArguments @("-InputRoot", (@($governanceReportRoot, $resolvedInputRoot) -join ",")))) | Out-Null
 
 $stageItems = @($stages.ToArray())
 $failedStageCount = @($stageItems | Where-Object {

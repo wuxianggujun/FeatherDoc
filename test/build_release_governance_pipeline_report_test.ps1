@@ -183,6 +183,33 @@ function New-InputFixture {
         warning_count = 0
         warnings = @()
     })
+    Write-JsonFile -Path (Join-Path $Root "document-skeleton-governance\style-merge.restore-audit.summary.json") -Value ([ordered]@{
+        schema = "featherdoc.style_merge_restore_audit.v1"
+        status = "blocked"
+        release_ready = $false
+        release_blocker_count = 1
+        release_blockers = @(
+            [ordered]@{
+                id = "style_merge.restore_audit_issues"
+                severity = "error"
+                status = "blocked"
+                action = "review_style_merge_restore_audit"
+                message = "Style merge restore audit found dry-run issues."
+            }
+        )
+        action_item_count = 1
+        action_items = @(
+            [ordered]@{
+                id = "review_style_merge_restore_audit"
+                action = "review_style_merge_restore_audit"
+                title = "Review style merge restore audit and Word render"
+                command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -DocumentSourceKind style-merge-restore-audit -DocumentSourceLabel `"Style merge restore audit`" -Mode review-only"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit -PrintPrompt"
+            }
+        )
+        warning_count = 0
+        warnings = @()
+    })
 }
 
 function Invoke-Pipeline {
@@ -248,7 +275,7 @@ Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 6 `
     -Message "Pipeline should complete every stage."
 Assert-Equal -Actual ([int]$summary.failed_stage_count) -Expected 0 `
     -Message "Pipeline should not record stage failures."
-Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 10 `
+Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 11 `
     -Message "Pipeline should mirror final rollup blocker count."
 Assert-True -Condition ([int]$summary.action_item_count -ge 4) `
     -Message "Pipeline should mirror final rollup action count."
@@ -274,6 +301,8 @@ Assert-Equal -Actual ([int]$handoffStage[0].warning_count) -Expected 2 `
     -Message "Pipeline should preserve handoff warning count."
 Assert-Equal -Actual ([int]$rollupStage[0].warning_count) -Expected 2 `
     -Message "Pipeline should preserve final rollup warning count."
+Assert-Equal -Actual ([int]$rollupStage[0].release_blocker_count) -Expected 11 `
+    -Message "Pipeline final rollup should include restore audit blockers discovered from the input root."
 $handoffStyleMergeWarning = @($handoffStage[0].warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
 $rollupStyleMergeWarning = @($rollupStage[0].warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
 Assert-Equal -Actual ([string]$handoffStyleMergeWarning[0].action) -Expected "review_style_merge_suggestions" `
@@ -297,6 +326,16 @@ Assert-Equal -Actual ([bool]$handoffSummary.release_blocker_rollup.included) -Ex
 Assert-ContainsText -Text (($handoffSummary.reports | Where-Object { $_.id -eq "numbering_catalog_governance" } | ForEach-Object { $_.warnings } | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
     -Message "Pipeline handoff should preserve source warning details."
+
+$rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
+Assert-ContainsText -Text (($rollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
+    -ExpectedText "style-merge.restore-audit.summary.json" `
+    -Message "Pipeline final rollup should scan restore audit summary files from the governance root."
+Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object {
+            if ($_.PSObject.Properties["open_command"]) { [string]$_.open_command }
+        }) -join "`n") `
+    -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
+    -Message "Pipeline final rollup should preserve restore audit open-latest commands."
 
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline" `
