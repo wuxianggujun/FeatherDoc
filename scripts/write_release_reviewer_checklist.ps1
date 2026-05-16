@@ -557,6 +557,15 @@ foreach ($blockerItem in @(Get-ReleaseGovernanceBlockerChecklistItems -Summary $
         Add-CheckboxLine -Lines $lines -Text $guidanceLine
     }
 }
+foreach ($actionItem in @(Get-ReleaseGovernanceActionItemChecklistItems -Summary $summary)) {
+    Add-CheckboxLine -Lines $lines -Text (Get-ReleaseGovernanceActionItemChecklistText -ActionItem $actionItem)
+    foreach ($guidanceLine in @(Get-ReleaseGovernanceActionItemActionGuidanceLines `
+                -ActionItem $actionItem.action_item `
+                -RepoRoot $repoRoot `
+                -ReleaseSummaryJson $resolvedSummaryPath)) {
+        Add-CheckboxLine -Lines $lines -Text $guidanceLine
+    }
+}
 foreach ($warningItem in @(Get-ReleaseGovernanceWarningChecklistItems -Summary $summary)) {
     Add-CheckboxLine -Lines $lines -Text (Get-ReleaseGovernanceWarningChecklistText -WarningItem $warningItem)
     foreach ($guidanceLine in @(Get-ReleaseGovernanceWarningActionGuidanceLines `

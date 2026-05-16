@@ -1888,9 +1888,10 @@ details from the final rollup, governance handoff, and nested handoff rollup.
 The generated `START_HERE.md`, `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`,
 and `release_handoff.md` include those blocker counts and details beside the
 action-item helper commands. `REVIEWER_CHECKLIST.md` also turns each
-governance blocker into a checkbox with action, source schema, source report,
-and composite rollup id, so reviewers can run the follow-up commands without
-opening the nested rollup JSON.
+governance blocker and action item into a checkbox with action, source schema,
+source report, composite rollup id when present, and runnable
+`command`/`open_command`/`audit_command` guidance, so reviewers can run the
+follow-up commands without opening the nested rollup JSON.
 `final_review.md` now adds a dedicated Release
 governance warnings section so reviewer-facing handoff notes keep the warning
 `id`, `action`, `message`, `source_schema`, and any optional

@@ -261,6 +261,17 @@ $summary = [ordered]@{
                 message = "numbering catalog governance reports unresolved style numbering issues"
             }
         )
+        action_item_count = 1
+        action_items = @(
+            [ordered]@{
+                id = "review_numbering_catalog_audit"
+                action = "review_numbering_catalog_audit"
+                title = "Review numbering catalog governance audit"
+                source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+                source_report_display = ".\output\numbering-catalog-governance\summary.json"
+                command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_numbering_catalog_governance_report.ps1 -InputJson .\output\numbering-catalog-governance\summary.json"
+            }
+        )
         warning_count = 1
         warnings = @(
             [ordered]@{
@@ -286,6 +297,17 @@ $summary = [ordered]@{
                 message = "required governance report is missing from the handoff bundle"
             }
         )
+        action_item_count = 1
+        action_items = @(
+            [ordered]@{
+                id = "inspect_release_governance_handoff"
+                action = "inspect_release_governance_handoff"
+                title = "Inspect release governance handoff report"
+                source_schema = "featherdoc.release_governance_handoff_report.v1"
+                source_report_display = ".\output\release-governance-handoff\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_governance_handoff_report.ps1 -OutputDir .\output\release-governance-handoff"
+            }
+        )
         warning_count = 1
         warnings = @(
             [ordered]@{
@@ -309,6 +331,19 @@ $summary = [ordered]@{
                     source_schema = "featherdoc.style_merge_restore_audit.v1"
                     source_report_display = ".\output\document-skeleton-governance\style-merge.restore-audit.summary.json"
                     message = "style merge restore audit reports unresolved rollback issues"
+                }
+            )
+            action_item_count = 1
+            action_items = @(
+                [ordered]@{
+                    id = "review_style_merge_restore_audit"
+                    action = "review_style_merge_restore_audit"
+                    title = "Review style merge restore audit and Word render"
+                    source_schema = "featherdoc.style_merge_restore_audit.v1"
+                    source_report_display = ".\output\document-skeleton-governance\style-merge.restore-audit.summary.json"
+                    command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -DocumentSourceKind style-merge-restore-audit -Mode review-only"
+                    open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit -PrintPrompt"
+                    audit_command = "featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json"
                 }
             )
             warning_count = 1
@@ -453,6 +488,20 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText 'action: `review_style_merge_plan`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'source_schema: `featherdoc.document_skeleton_governance_rollup_report.v1`' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText 'style_merge_suggestion_count: `2`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "## Release Governance Action Items" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "### Release blocker rollup action items" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "### Release governance handoff action items" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "### Release governance handoff nested rollup action items" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'action_item_count: `1`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'id: `review_numbering_catalog_audit`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'action: `review_numbering_catalog_audit`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'source_report: `.\output\numbering-catalog-governance\summary.json`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'id: `inspect_release_governance_handoff`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'action: `inspect_release_governance_handoff`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'id: `review_style_merge_restore_audit`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'action: `review_style_merge_restore_audit`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json' -Label $assertion.Label
 }
 
 Assert-Contains -Path $checklistPath `
@@ -481,6 +530,27 @@ Assert-Contains -Path $checklistPath `
     -Label "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $checklistPath `
     -ExpectedText 'Do not approve for public release when release governance blocker counts are non-zero in the final rollup, governance handoff, or nested handoff rollup.' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Review release governance action item `review_numbering_catalog_audit` (Release blocker rollup action items): action `review_numbering_catalog_audit`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Run `command` for release governance action item `review_numbering_catalog_audit`: `pwsh -ExecutionPolicy Bypass -File .\scripts\build_numbering_catalog_governance_report.ps1 -InputJson .\output\numbering-catalog-governance\summary.json`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Review release governance action item `inspect_release_governance_handoff` (Release governance handoff action items): action `inspect_release_governance_handoff`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Run `open_command` for release governance action item `inspect_release_governance_handoff`: `pwsh -ExecutionPolicy Bypass -File .\scripts\build_release_governance_handoff_report.ps1 -OutputDir .\output\release-governance-handoff`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Review release governance action item `review_style_merge_restore_audit` (Release governance handoff nested rollup action items): action `review_style_merge_restore_audit`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Run `open_command` for release governance action item `review_style_merge_restore_audit`: `pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit -PrintPrompt`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Run `audit_command` for release governance action item `review_style_merge_restore_audit`: `featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json`' `
     -Label "REVIEWER_CHECKLIST.md"
 
 Assert-Contains -Path $checklistPath `

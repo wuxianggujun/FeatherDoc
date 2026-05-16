@@ -210,7 +210,8 @@ summary，不重跑 CLI、CMake、Word 或视觉自动化。若最终 rollup sta
 `release_handoff.md` 也会展示 final rollup、governance handoff 与 handoff 内嵌
 rollup 三层 blocker 计数和明细，并保留 action item 辅助命令，审阅者无需打开嵌套
 JSON 就能看到阻断来源和后续处理入口；其中 `REVIEWER_CHECKLIST.md` 还会把每个治理
-blocker 转成带 action、source schema、source report 和 composite id 的可勾选处理项。
+blocker 和 action item 转成带 action、source schema、source report、composite id
+以及 `command` / `open_command` / `audit_command` 指引的可勾选处理项。
 Linux/macOS CI 的 `release_smoke` 步骤也会把 release candidate blocker rollup、
 release governance handoff、release governance pipeline 等 smoke 输出上传为 Actions
 artifact，便于从远端构建直接下载审查证据。

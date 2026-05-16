@@ -256,6 +256,12 @@ foreach ($scriptInfo in $metadataScripts) {
             -ExpectedText 'Get-ReleaseGovernanceBlockerActionGuidanceLines' `
             -Message "$label should include release governance blocker action guidance."
         Assert-ContainsText -Text $scriptText `
+            -ExpectedText 'foreach ($actionItem in @(Get-ReleaseGovernanceActionItemChecklistItems -Summary $summary))' `
+            -Message "$label should turn release governance action items into reviewer checklist items."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText 'Get-ReleaseGovernanceActionItemActionGuidanceLines' `
+            -Message "$label should include release governance action item command guidance."
+        Assert-ContainsText -Text $scriptText `
             -ExpectedText 'foreach ($warningItem in @(Get-ReleaseGovernanceWarningChecklistItems -Summary $summary))' `
             -Message "$label should turn release governance warnings into reviewer checklist items."
         Assert-ContainsText -Text $scriptText `

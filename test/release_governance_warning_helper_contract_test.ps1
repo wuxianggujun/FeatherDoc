@@ -414,6 +414,47 @@ Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "### Release gove
 Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
     -Message "Markdown section should render restore audit helper commands."
 
+$actionChecklistItems = @(Get-ReleaseGovernanceActionItemChecklistItems -Summary ([pscustomobject]@{
+            release_blocker_rollup = [pscustomobject]@{
+                action_item_count = 1
+                action_items = @($restoreAuditActionItem)
+            }
+            release_governance_handoff = [pscustomobject]@{
+                action_item_count = 1
+                action_items = @($restoreAuditActionItem)
+                release_blocker_rollup = [pscustomobject]@{
+                    action_item_count = 1
+                    action_items = @($restoreAuditActionItem)
+                }
+            }
+        }))
+Assert-Equal -Actual $actionChecklistItems.Count -Expected 3 `
+    -Message "Checklist items should preserve action items from every release governance source."
+$actionChecklistText = Get-ReleaseGovernanceActionItemChecklistText -ActionItem $actionChecklistItems[0]
+Assert-ContainsText -Text $actionChecklistText -ExpectedText 'Review release governance action item `review_style_merge_restore_audit`' `
+    -Message "Action item checklist text should include action item id."
+Assert-ContainsText -Text $actionChecklistText -ExpectedText 'action `review_style_merge_restore_audit`' `
+    -Message "Action item checklist text should include action."
+Assert-ContainsText -Text $actionChecklistText -ExpectedText 'source_schema `featherdoc.style_merge_restore_audit.v1`' `
+    -Message "Action item checklist text should include source schema."
+Assert-ContainsText -Text $actionChecklistText -ExpectedText 'source_report `.\output\document-skeleton-governance\style-merge.restore-audit.summary.json`' `
+    -Message "Action item checklist text should include source report display."
+
+$actionGuidance = (Get-ReleaseGovernanceActionItemActionGuidanceLines `
+        -ActionItem $restoreAuditActionItem `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "summary.json")) -join "`n"
+Assert-ContainsText -Text $actionGuidance -ExpectedText 'Open source report `.\output\document-skeleton-governance\style-merge.restore-audit.summary.json`' `
+    -Message "Action item guidance should point reviewers at the source report."
+Assert-ContainsText -Text $actionGuidance -ExpectedText 'Run `command` for release governance action item `review_style_merge_restore_audit`' `
+    -Message "Action item guidance should include the primary command."
+Assert-ContainsText -Text $actionGuidance -ExpectedText 'prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx' `
+    -Message "Action item guidance should preserve the review task command."
+Assert-ContainsText -Text $actionGuidance -ExpectedText 'Run `open_command` for release governance action item `review_style_merge_restore_audit`' `
+    -Message "Action item guidance should include open-latest command."
+Assert-ContainsText -Text $actionGuidance -ExpectedText 'Run `audit_command` for release governance action item `review_style_merge_restore_audit`' `
+    -Message "Action item guidance should include audit command."
+
 $checklistItems = @(Get-ReleaseGovernanceWarningChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{
                 warning_count = 1
