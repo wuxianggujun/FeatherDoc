@@ -170,8 +170,8 @@ $summary = [ordered]@{
     release_blocker_rollup = [ordered]@{
         requested = $true
         status = "blocked"
-        source_report_count = 1
-        release_blocker_count = 1
+        source_report_count = 2
+        release_blocker_count = 2
         release_blockers = @(
             [ordered]@{
                 id = "document_skeleton.style_numbering_issues"
@@ -183,9 +183,20 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
                 source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
                 source_json_display = ".\output\document-skeleton-governance\contract\style-numbering-audit.json"
+            },
+            [ordered]@{
+                id = "content_control_data_binding.bound_placeholder"
+                source = "content_control_data_binding_governance"
+                severity = "error"
+                status = "placeholder_visible"
+                action = "sync_or_fill_bound_content_control"
+                message = "Bound content control still shows placeholder text."
+                source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+                source_report_display = ".\output\content-control-data-binding-governance\summary.json"
+                source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
             }
         )
-        action_item_count = 1
+        action_item_count = 2
         action_items = @(
             [ordered]@{
                 id = "open_document_skeleton_rollup"
@@ -194,9 +205,17 @@ $summary = [ordered]@{
                 source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
                 source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance"
+            },
+            [ordered]@{
+                id = "review_duplicate_content_control_binding"
+                action = "review_duplicate_content_control_binding"
+                source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+                source_report_display = ".\output\content-control-data-binding-governance\summary.json"
+                source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
             }
         )
-        warning_count = 1
+        warning_count = 2
         warnings = @(
             [ordered]@{
                 id = "document_skeleton.exemplar_catalog_missing"
@@ -205,6 +224,14 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
                 source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
                 source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+            },
+            [ordered]@{
+                id = "custom_xml_sync_evidence_missing"
+                action = "run_content_control_custom_xml_sync"
+                message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
+                source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+                source_report_display = ".\output\content-control-data-binding-governance\summary.json"
+                source_json_display = ".\output\content-control-data-binding-governance\summary.json"
             }
         )
     }
@@ -278,13 +305,19 @@ Assert-Contains -Path $handoffPath -ExpectedText 'project_template_smoke.schema_
 Assert-Contains -Path $handoffPath -ExpectedText 'missing_reviewer' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'Release Governance Rollup Details' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'action=review_style_numbering_audit' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'action=sync_or_fill_bound_content_control' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'source_schema=featherdoc.document_skeleton_governance_rollup_report.v1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_schema=featherdoc.content_control_data_binding_governance_report.v1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'source_report_display: .\output\document-skeleton-governance-rollup\summary.json' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\document-skeleton-governance\contract\style-numbering-audit.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\content-control-data-binding\inspect-content-controls.json' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'document_skeleton.exemplar_catalog_missing' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'custom_xml_sync_evidence_missing' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'open_document_skeleton_rollup' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText $expectedSupersededReviewTasksReportDisplayPath -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'open_latest_page_number_fields_review_task.ps1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'find_superseded_review_tasks.ps1' -Label 'release_handoff.md'
@@ -341,12 +374,17 @@ Assert-Contains -Path $guidePath -ExpectedText 'project_template_schema_approval
 Assert-Contains -Path $guidePath -ExpectedText 'Release blockers: 1' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'source_schema=featherdoc.document_skeleton_governance_rollup_report.v1' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_schema=featherdoc.content_control_data_binding_governance_report.v1' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Item schema-review-invalid' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Open the project template schema approval history trend report' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Release blockers: 1' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'document_skeleton.exemplar_catalog_missing' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'custom_xml_sync_evidence_missing' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Stop here until `release_blockers` is empty' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Use action `fix_schema_patch_approval_result`: update blocked `schema_patch_approval_result.json` record(s)' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Run `sync_project_template_schema_approval.ps1` after updating approval records' -Label 'REVIEWER_CHECKLIST.md'
@@ -365,7 +403,9 @@ Assert-Contains -Path $checklistPath -ExpectedText 'Open the page number fields 
 Assert-Contains -Path $startHerePath -ExpectedText 'Release blockers: 1' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'project_template_smoke.schema_approval' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'content_control_data_binding.bound_placeholder' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'source_json_display: .\output\document-skeleton-governance\contract\style-numbering-audit.json' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'source_json_display: .\output\content-control-data-binding\inspect-content-controls.json' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Visual verdict: pending_manual_review' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Smoke verdict: pass' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Fixed-grid verdict: undetermined' -Label 'START_HERE.md'

@@ -53,6 +53,7 @@ $inputDir = Join-Path $resolvedWorkingDir "input"
 $outputDir = Join-Path $resolvedWorkingDir "report"
 $inspectPath = Join-Path $inputDir "inspect-content-controls.json"
 $syncPath = Join-Path $inputDir "sync-content-controls-from-custom-xml.json"
+$skippedPath = Join-Path $inputDir "unrelated.json"
 
 Write-JsonFile -Path $inspectPath -Value ([ordered]@{
         part = "body"
@@ -149,10 +150,15 @@ Write-JsonFile -Path $syncPath -Value ([ordered]@{
         )
     })
 
+Write-JsonFile -Path $skippedPath -Value ([ordered]@{
+        schema = "featherdoc.unrelated_report.v1"
+        status = "ready"
+    })
+
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\build_content_control_data_binding_governance_report.ps1"
 $arguments = @(
     "-InputJson"
-    "$inspectPath,$syncPath"
+    "$inspectPath,$syncPath,$skippedPath"
     "-OutputDir"
     $outputDir
 )
@@ -192,12 +198,28 @@ Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 2 `
     -Message "Summary should create blockers for sync issue and bound placeholder."
 Assert-True -Condition ([int]$summary.action_item_count -ge 2) `
     -Message "Summary should emit lock/unbound/duplicate review actions."
+Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+    -Message "Summary should expose skipped source warnings."
 
 $blockerIds = @($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n"
 Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.custom_xml_sync_issue" `
     -Message "Summary should include Custom XML sync blocker."
 Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.bound_placeholder" `
     -Message "Summary should include placeholder blocker."
+$firstBlocker = @($summary.release_blockers)[0]
+Assert-Equal -Actual ([string]$firstBlocker.source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
+    -Message "Blocker should carry content-control governance source schema."
+Assert-ContainsText -Text ([string]$firstBlocker.source_json_display) -ExpectedText "sync-content-controls-from-custom-xml.json" `
+    -Message "Blocker should carry source JSON display."
+
+$actionOpenCommands = @($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n"
+Assert-ContainsText -Text $actionOpenCommands -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
+    -Message "Action items should carry reviewer open commands."
+$warning = @($summary.warnings)[0]
+Assert-Equal -Actual ([string]$warning.source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
+    -Message "Warnings should carry content-control governance source schema."
+Assert-Equal -Actual ([string]$warning.action) -Expected "review_content_control_data_binding_evidence" `
+    -Message "Warnings should carry reviewer action."
 
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Content Control Data Binding Governance" `

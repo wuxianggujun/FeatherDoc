@@ -136,6 +136,8 @@ Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
             status = "placeholder_visible"
             message = "Bound content control still shows placeholder text."
             action = "sync_or_fill_bound_content_control"
+            source_json = "output/content-control-data-binding/inspect-content-controls.json"
+            source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
         }
     )
     action_items = @(
@@ -143,6 +145,9 @@ Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
             id = "review_duplicate_content_control_binding"
             action = "review_duplicate_content_control_binding"
             title = "Review repeated content controls that share one Custom XML binding"
+            open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
+            source_json = "output/content-control-data-binding/inspect-content-controls.json"
+            source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
         }
     )
 })
@@ -202,6 +207,8 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
             status = "placeholder_visible"
             message = "Autodiscovered bound content control still shows placeholder text."
             action = "sync_or_fill_bound_content_control"
+            source_json = "output/content-control-data-binding/inspect-content-controls.json"
+            source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
         }
     )
     action_items = @(
@@ -209,6 +216,19 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
             id = "review_duplicate_content_control_binding"
             action = "review_duplicate_content_control_binding"
             title = "Review repeated content controls that share one Custom XML binding"
+            open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
+            source_json = "output/content-control-data-binding/inspect-content-controls.json"
+            source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+        }
+    )
+    warning_count = 1
+    warnings = @(
+        [ordered]@{
+            id = "custom_xml_sync_evidence_missing"
+            action = "run_content_control_custom_xml_sync"
+            message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
+            source_json = "output/content-control-data-binding-governance/summary.json"
+            source_json_display = ".\output\content-control-data-binding-governance\summary.json"
         }
     )
 })
@@ -451,9 +471,23 @@ Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_b
     -Message "Auto-discovered rollup should surface blocker count from default governance reports."
 Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 5 `
     -Message "Auto-discovered rollup should surface action count from default governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.warning_count) -Expected 2 `
+    -Message "Auto-discovered rollup should surface warning count from default governance reports."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "document_skeleton.exemplar_catalog_missing" `
     -Message "Auto-discovered rollup should surface document skeleton warnings."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "custom_xml_sync_evidence_missing" `
+    -Message "Auto-discovered rollup should surface content-control warnings."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+    -ExpectedText "featherdoc.content_control_data_binding_governance_report.v1" `
+    -Message "Auto-discovered rollup should carry content-control source schema."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
+    -Message "Auto-discovered rollup should carry content-control source JSON display."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
+    -Message "Auto-discovered rollup should carry content-control action open command."
 
 $autoDiscoverRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupSummaryPath | ConvertFrom-Json
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `

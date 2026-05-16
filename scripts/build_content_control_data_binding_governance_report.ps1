@@ -21,6 +21,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$contentControlGovernanceSchema = "featherdoc.content_control_data_binding_governance_report.v1"
+$contentControlGovernanceOpenCommand = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[content-control-data-binding-governance] $Message"
@@ -213,7 +216,8 @@ function New-ReleaseBlocker {
         [string]$XPath,
         [string]$Status,
         [string]$Action,
-        [string]$Message
+        [string]$Message,
+        [string]$SourceJsonDisplay = ""
     )
 
     return [ordered]@{
@@ -222,7 +226,9 @@ function New-ReleaseBlocker {
         status = $Status
         action = $Action
         message = $Message
+        source_schema = $contentControlGovernanceSchema
         source_json = $SourceJson
+        source_json_display = $SourceJsonDisplay
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -243,14 +249,19 @@ function New-ActionItem {
         [string]$Tag,
         [string]$Alias,
         [string]$StoreItemId,
-        [string]$XPath
+        [string]$XPath,
+        [string]$SourceJsonDisplay = "",
+        [string]$OpenCommand = $contentControlGovernanceOpenCommand
     )
 
     return [ordered]@{
         id = $Id
         action = $Action
         title = $Title
+        open_command = $OpenCommand
+        source_schema = $contentControlGovernanceSchema
         source_json = $SourceJson
+        source_json_display = $SourceJsonDisplay
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -378,7 +389,10 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` message=$($blocker.message)") | Out-Null
+            $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_json_display=``$($blocker.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
+                $lines.Add("  - message: $($blocker.message)") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -388,7 +402,13 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` title=$($item.title)") | Out-Null
+            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.title)) {
+                $lines.Add("  - title: $($item.title)") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -398,7 +418,10 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_json_display=``$($warning.source_json_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
+                $lines.Add("  - message: $($warning.message)") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -449,6 +472,8 @@ foreach ($path in @($inputPaths)) {
         $status = "missing"
         $warnings.Add([ordered]@{
             id = "input_json_missing"
+            action = "collect_content_control_data_binding_evidence"
+            source_schema = $contentControlGovernanceSchema
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = "Input JSON was not found."
@@ -489,6 +514,8 @@ foreach ($path in @($inputPaths)) {
                     $status = "skipped"
                     $warnings.Add([ordered]@{
                         id = "source_json_schema_skipped"
+                        action = "review_content_control_data_binding_evidence"
+                        source_schema = $contentControlGovernanceSchema
                         source_json = $path
                         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         message = "Input JSON kind '$kind' is not content-control data-binding evidence."
@@ -500,6 +527,8 @@ foreach ($path in @($inputPaths)) {
             $errorMessage = $_.Exception.Message
             $warnings.Add([ordered]@{
                 id = "source_json_read_failed"
+                action = "review_content_control_data_binding_evidence"
+                source_schema = $contentControlGovernanceSchema
                 source_json = $path
                 source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 message = $errorMessage
@@ -531,7 +560,8 @@ foreach ($issue in @($syncIssues.ToArray())) {
                 -XPath ([string]$issue.xpath) `
                 -Status ([string]$issue.reason) `
                 -Action "fix_custom_xml_data_binding_source" `
-                -Message "Custom XML sync failed for a bound content control.")) | Out-Null
+                -Message "Custom XML sync failed for a bound content control." `
+                -SourceJsonDisplay ([string]$issue.source_json_display))) | Out-Null
 }
 
 foreach ($control in @($contentControls.ToArray())) {
@@ -548,7 +578,8 @@ foreach ($control in @($contentControls.ToArray())) {
                     -XPath ([string]$control.xpath) `
                     -Status "placeholder_visible" `
                     -Action "sync_or_fill_bound_content_control" `
-                    -Message "A data-bound content control is still showing placeholder text.")) | Out-Null
+                    -Message "A data-bound content control is still showing placeholder text." `
+                    -SourceJsonDisplay ([string]$control.source_json_display))) | Out-Null
     }
 
     if ($hasBinding -and -not [string]::IsNullOrWhiteSpace([string]$control.lock)) {
@@ -562,7 +593,8 @@ foreach ($control in @($contentControls.ToArray())) {
                     -Tag ([string]$control.tag) `
                     -Alias ([string]$control.alias) `
                     -StoreItemId ([string]$control.store_item_id) `
-                    -XPath ([string]$control.xpath))) | Out-Null
+                    -XPath ([string]$control.xpath) `
+                    -SourceJsonDisplay ([string]$control.source_json_display))) | Out-Null
     }
 
     if (-not $hasBinding -and [string]$control.form_kind -notin @("", "rich_text", "plain_text")) {
@@ -576,7 +608,8 @@ foreach ($control in @($contentControls.ToArray())) {
                     -Tag ([string]$control.tag) `
                     -Alias ([string]$control.alias) `
                     -StoreItemId "" `
-                    -XPath "")) | Out-Null
+                    -XPath "" `
+                    -SourceJsonDisplay ([string]$control.source_json_display))) | Out-Null
     }
 }
 
@@ -595,7 +628,8 @@ foreach ($group in @($bindingGroups)) {
                 -Tag ([string]$first.tag) `
                 -Alias ([string]$first.alias) `
                 -StoreItemId ([string]$first.store_item_id) `
-                -XPath ([string]$first.xpath))) | Out-Null
+                -XPath ([string]$first.xpath) `
+                -SourceJsonDisplay ([string]$first.source_json_display))) | Out-Null
 }
 
 $boundControls = @($contentControls.ToArray() | Where-Object {
@@ -604,12 +638,20 @@ $boundControls = @($contentControls.ToArray() | Where-Object {
 if ($contentControls.Count -eq 0 -and $syncItems.Count -eq 0 -and $syncIssues.Count -eq 0) {
     $warnings.Add([ordered]@{
         id = "content_control_binding_evidence_missing"
+        action = "collect_content_control_data_binding_evidence"
+        source_schema = $contentControlGovernanceSchema
+        source_json = $summaryPath
+        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "No content-control inspection or Custom XML sync evidence was loaded."
     }) | Out-Null
 }
 if ($boundControls.Count -gt 0 -and $syncItems.Count -eq 0 -and $syncIssues.Count -eq 0) {
     $warnings.Add([ordered]@{
         id = "custom_xml_sync_evidence_missing"
+        action = "run_content_control_custom_xml_sync"
+        source_schema = $contentControlGovernanceSchema
+        source_json = $summaryPath
+        source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
         message = "Data-bound content controls were inspected, but no Custom XML sync result was provided."
     }) | Out-Null
 }
@@ -627,7 +669,7 @@ $status = if ($sourceFailureCount -gt 0) {
 }
 
 $summary = [ordered]@{
-    schema = "featherdoc.content_control_data_binding_governance_report.v1"
+    schema = $contentControlGovernanceSchema
     generated_at = (Get-Date).ToString("s")
     status = $status
     release_ready = ($status -eq "ready")

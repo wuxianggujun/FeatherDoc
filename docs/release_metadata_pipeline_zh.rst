@@ -181,6 +181,10 @@ Markdown 文件。
 ``featherdoc.document_skeleton_governance_rollup_report.v1``、onboarding governance、
 schema confidence calibration 和 content-control data-binding governance 的治理项可以
 被发布面板直接消费，而不只停留在 blocker / warning / action item 计数里。
+其中 content-control data-binding governance 的 blocker、warning 与 action item 会固定携带
+``featherdoc.content_control_data_binding_governance_report.v1`` 作为 ``source_schema``，
+把 ``inspect-content-controls`` 或治理 summary 写入 ``source_json_display``，并为 action item
+提供重建治理报告的 ``open_command``，reviewer 可直接沿着 bundle 中的 rollup 明细回到证据 JSON。
 
 内部 handoff 文件可以展示更完整的 reviewer metadata，例如：
 

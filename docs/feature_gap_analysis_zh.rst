@@ -409,6 +409,7 @@ patch 与 diff 工作流。
 
 当前还新增了轻量表单状态 inspection / mutation：``content_control_summary`` 会返回 ``form_kind``、``lock``、``w:dataBinding`` 的 store item / XPath / prefix mappings、复选框 ``checked``、日期格式 / locale、下拉 / 组合框列表项与当前选中项，``inspect-content-controls`` 的 JSON / 文本输出也会暴露这些字段；``set_content_control_form_state_by_tag(...)`` / ``set_content_control_form_state_by_alias(...)`` 与 CLI ``set-content-control-form-state`` 已支持 checkbox checked、下拉 / 组合框选中项、日期文本 / 格式 / locale、lock 设置 / 清除，以及 dataBinding 设置 / 清除。``sync_content_controls_from_custom_xml()`` 与 ``sync-content-controls-from-custom-xml`` 也已支持读取匹配 ``customXml/item*.xml``，按 ``w:dataBinding`` XPath 单向刷新内容控件显示文本，并通过 Word PDF / PNG 可视化回归固化。
 ``build_content_control_data_binding_governance_report.ps1`` 则在不重跑 DOCX / CLI 的前提下读取 ``inspect-content-controls`` 与 ``sync-content-controls-from-custom-xml`` 的 JSON 证据，输出 ``featherdoc.content_control_data_binding_governance_report.v1``。它会把 Custom XML 同步 issue、已绑定但仍显示 placeholder 的控件升级为 ``release_blockers``，并把绑定控件锁定策略、未绑定表单控件和重复绑定关系沉淀为 ``action_items``，目前也已经接入 release governance pipeline。
+这些 content-control 治理项现在会在源报告中固定写出 ``source_schema``、``source_json_display`` 与 action item 的 ``open_command``，并通过 release blocker rollup 进入 release candidate ``summary.json``、``final_review.md`` 和 reviewer-facing bundle，避免 reviewer 只能看到计数而缺少证据入口。
 
 下一步继续补齐：
 

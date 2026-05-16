@@ -110,7 +110,9 @@
 - schema patch confidence calibration 只读校准报告
 - release blocker rollup 统一发布阻断汇总
 - content-control data-binding governance 只读报告，已把 Custom XML
-  同步 issue、绑定占位符和重复绑定复核接入发布治理 pipeline
+  同步 issue、绑定占位符和重复绑定复核接入发布治理 pipeline；这些治理项现在会携带
+  ``source_schema``、``source_json_display`` 与 action item ``open_command``，
+  供发布面板直接展开证据与复核命令
 - ``run_project_template_smoke.ps1``
 
 接下来更值得补的是：
