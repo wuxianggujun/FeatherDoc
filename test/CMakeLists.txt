@@ -2445,6 +2445,24 @@ if(WIN32)
 
         add_test(
             NAME
+            build_release_governance_pipeline_report_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_blocker
+            -Scenario
+            fail_on_blocker
+        )
+        featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_blocker release smoke release_smoke governance)
+
+        add_test(
+            NAME
             build_release_governance_pipeline_report_final_rollup_failure
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
@@ -3085,6 +3103,24 @@ if(NOT WIN32)
             aggregate
         )
         featherdoc_set_test_labels(build_release_governance_pipeline_report_aggregate release smoke release_smoke governance)
+
+        add_test(
+            NAME
+            build_release_governance_pipeline_report_fail_on_blocker
+            COMMAND
+            ${FEATHERDOC_CROSS_PLATFORM_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/build_release_governance_pipeline_report_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/build_release_governance_pipeline_report_fail_on_blocker
+            -Scenario
+            fail_on_blocker
+        )
+        featherdoc_set_test_labels(build_release_governance_pipeline_report_fail_on_blocker release smoke release_smoke governance)
 
         add_test(
             NAME
