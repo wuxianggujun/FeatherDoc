@@ -74,6 +74,7 @@ $warningWithoutStyleMergeCount = [pscustomobject]@{
     action = "rebuild_numbering_catalog"
     message = "Numbering catalog report is missing source metadata."
     source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+    source_report_display = ".\output\numbering-catalog-governance\summary.json"
 }
 
 $restoreAuditActionItem = [pscustomobject]@{
@@ -129,6 +130,8 @@ Assert-Equal -Actual ([string]$normalizedWarnings[0].action) -Expected "review_s
     -Message "Normalized warning should preserve action."
 Assert-Equal -Actual ([string]$normalizedWarnings[0].source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
     -Message "Normalized warning should preserve source schema."
+Assert-Equal -Actual ([string]$normalizedWarnings[1].source_report_display) -Expected ".\output\numbering-catalog-governance\summary.json" `
+    -Message "Normalized warning should preserve source report display."
 Assert-True -Condition ($normalizedWarnings[0].PSObject.Properties.Name -contains "style_merge_suggestion_count") `
     -Message "Normalized warning should preserve style merge counts when provided."
 Assert-True -Condition ($normalizedWarnings[0].PSObject.Properties.Name -contains "style_merge_suggestion_pending_count") `
@@ -199,6 +202,8 @@ Assert-True -Condition ($plainSummaryText -notmatch 'style_merge_suggestion_coun
     -Message "Summary text should omit the optional style merge count when absent."
 Assert-True -Condition ($plainSummaryText -notmatch 'style_merge_suggestion_pending_count') `
     -Message "Summary text should omit the optional pending style merge count when absent."
+Assert-ContainsText -Text $plainSummaryText -ExpectedText 'source_report: `.\output\numbering-catalog-governance\summary.json`' `
+    -Message "Summary text should include warning source report display."
 
 $actionSummaryText = Get-ReleaseGovernanceActionItemSummaryText -ActionItem $restoreAuditActionItem
 Assert-ContainsText -Text $actionSummaryText -ExpectedText 'id: `review_style_merge_restore_audit`' `
@@ -310,6 +315,8 @@ Assert-ContainsText -Text $sectionMarkdown -ExpectedText "### Release governance
     -Message "Markdown section should include the nested handoff rollup subsection."
 Assert-ContainsText -Text $sectionMarkdown -ExpectedText "Numbering catalog report is missing source metadata." `
     -Message "Markdown section should render plain warning messages."
+Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'source_report: `.\output\numbering-catalog-governance\summary.json`' `
+    -Message "Markdown section should render warning source report displays."
 Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion_count: `2`' `
     -Message "Markdown section should render optional style merge counts."
 Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
@@ -496,5 +503,7 @@ Assert-ContainsText -Text $plainGuidance -ExpectedText 'Follow warning action `r
     -Message "Generic warning guidance should include the warning action."
 Assert-ContainsText -Text $plainGuidance -ExpectedText 'source_schema `featherdoc.numbering_catalog_governance_report.v1`' `
     -Message "Generic warning guidance should include the warning source schema."
+Assert-ContainsText -Text $plainGuidance -ExpectedText 'Open source report `.\output\numbering-catalog-governance\summary.json`' `
+    -Message "Generic warning guidance should include the warning source report."
 
 Write-Host "Release governance warning helper regression passed."

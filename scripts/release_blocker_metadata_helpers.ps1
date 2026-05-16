@@ -286,6 +286,8 @@ function Get-NormalizedReleaseGovernanceWarnings {
             action = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "action")
             message = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "message")
             source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_schema")
+            source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_report_display")
+            source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_json_display")
         }
 
         $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $warning -Name "style_merge_suggestion_count"
@@ -393,6 +395,14 @@ function Get-ReleaseGovernanceWarningSummaryText {
     $sourceSchema = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_schema")
     $summaryText = ('id: `{0}`; action: `{1}`; message: {2}; source_schema: `{3}`' -f `
             $id, $action, $message, $sourceSchema)
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_json_display"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $summaryText += ('; source_report: `{0}`' -f $sourceReportDisplay)
+    }
 
     $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_count"
     if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
@@ -792,9 +802,18 @@ function Get-ReleaseGovernanceWarningChecklistText {
     $action = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "action")
     $sourceSchema = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_schema")
     $message = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $warning -Name "message")
-
-    return 'Review release governance warning `{0}` ({1}): action `{2}`, source_schema `{3}`, message: {4}' -f `
+    $text = 'Review release governance warning `{0}` ({1}): action `{2}`, source_schema `{3}`, message: {4}' -f `
         $id, $context, $action, $sourceSchema, $message
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_json_display"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $text += ('; source_report `{0}`' -f $sourceReportDisplay)
+    }
+
+    return $text
 }
 
 function Get-ReleaseGovernanceWarningActionGuidanceLines {
@@ -808,9 +827,17 @@ function Get-ReleaseGovernanceWarningActionGuidanceLines {
     $action = Get-ReleaseBlockerPropertyValue -Object $Warning -Name "action"
     $sourceSchema = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_schema")
     $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_report_display"
+    if ([string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Warning -Name "source_json_display"
+    }
     if ([string]::IsNullOrWhiteSpace($action)) {
         [void]$guidanceLines.Add(('Warning action is missing for source_schema `{0}`; update the source governance report, rerun release governance checks, and regenerate the release note bundle before publishing.' -f $sourceSchema))
         return $guidanceLines.ToArray()
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        [void]$guidanceLines.Add(('Open source report `{0}` while handling release governance warning `{1}`.' -f $sourceReportDisplay, (Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Warning -Name "id") -Fallback "(unknown)")))
     }
 
     switch ($action) {

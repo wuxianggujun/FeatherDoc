@@ -207,6 +207,7 @@ function New-ReleaseBlocker {
     param(
         [string]$Id,
         [string]$SourceJson,
+        [string]$SourceReportDisplay,
         [string]$PartEntryName,
         [object]$ContentControlIndex,
         [string]$Tag,
@@ -225,6 +226,9 @@ function New-ReleaseBlocker {
         action = $Action
         message = $Message
         source_json = $SourceJson
+        source_json_display = $SourceReportDisplay
+        source_report_display = $SourceReportDisplay
+        source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -240,6 +244,7 @@ function New-ActionItem {
         [string]$Action,
         [string]$Title,
         [string]$SourceJson,
+        [string]$SourceReportDisplay,
         [string]$PartEntryName,
         [object]$ContentControlIndex,
         [string]$Tag,
@@ -253,6 +258,9 @@ function New-ActionItem {
         action = $Action
         title = $Title
         source_json = $SourceJson
+        source_json_display = $SourceReportDisplay
+        source_report_display = $SourceReportDisplay
+        source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
         part_entry_name = $PartEntryName
         content_control_index = $ContentControlIndex
         tag = $Tag
@@ -380,7 +388,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` message=$($blocker.message)") | Out-Null
+            $lines.Add("- ``$($blocker.id)``: action=``$($blocker.action)`` source=``$($blocker.source_report_display)`` message=$($blocker.message)") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -390,7 +398,7 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` title=$($item.title)") | Out-Null
+            $lines.Add("- ``$($item.id)``: action=``$($item.action)`` source=``$($item.source_report_display)`` title=$($item.title)") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -459,6 +467,7 @@ foreach ($path in @($inputPaths)) {
             source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
             source_json = $path
             source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
             message = "Input JSON was not found."
         }) | Out-Null
     } else {
@@ -501,6 +510,7 @@ foreach ($path in @($inputPaths)) {
                         source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
                         source_json = $path
                         source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                        source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         message = "Input JSON kind '$kind' is not content-control data-binding evidence."
                     }) | Out-Null
                 }
@@ -514,6 +524,7 @@ foreach ($path in @($inputPaths)) {
                 source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
                 source_json = $path
                 source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 message = $errorMessage
             }) | Out-Null
         }
@@ -535,6 +546,7 @@ foreach ($issue in @($syncIssues.ToArray())) {
     $releaseBlockers.Add((New-ReleaseBlocker `
                 -Id "content_control_data_binding.custom_xml_sync_issue" `
                 -SourceJson ([string]$issue.source_json) `
+                -SourceReportDisplay ([string]$issue.source_json_display) `
                 -PartEntryName ([string]$issue.part_entry_name) `
                 -ContentControlIndex $issue.content_control_index `
                 -Tag ([string]$issue.tag) `
@@ -552,6 +564,7 @@ foreach ($control in @($contentControls.ToArray())) {
         $releaseBlockers.Add((New-ReleaseBlocker `
                     -Id "content_control_data_binding.bound_placeholder" `
                     -SourceJson ([string]$control.source_json) `
+                    -SourceReportDisplay ([string]$control.source_json_display) `
                     -PartEntryName ([string]$control.part_entry_name) `
                     -ContentControlIndex $control.content_control_index `
                     -Tag ([string]$control.tag) `
@@ -569,6 +582,7 @@ foreach ($control in @($contentControls.ToArray())) {
                     -Action "review_content_control_lock_strategy" `
                     -Title "Review lock state for data-bound content control" `
                     -SourceJson ([string]$control.source_json) `
+                    -SourceReportDisplay ([string]$control.source_json_display) `
                     -PartEntryName ([string]$control.part_entry_name) `
                     -ContentControlIndex $control.content_control_index `
                     -Tag ([string]$control.tag) `
@@ -583,6 +597,7 @@ foreach ($control in @($contentControls.ToArray())) {
                     -Action "review_unbound_form_content_control" `
                     -Title "Review whether form content control should bind to template data" `
                     -SourceJson ([string]$control.source_json) `
+                    -SourceReportDisplay ([string]$control.source_json_display) `
                     -PartEntryName ([string]$control.part_entry_name) `
                     -ContentControlIndex $control.content_control_index `
                     -Tag ([string]$control.tag) `
@@ -602,6 +617,7 @@ foreach ($group in @($bindingGroups)) {
                 -Action "review_duplicate_content_control_binding" `
                 -Title "Review repeated content controls that share one Custom XML binding" `
                 -SourceJson ([string]$first.source_json) `
+                -SourceReportDisplay ([string]$first.source_json_display) `
                 -PartEntryName ([string]$first.part_entry_name) `
                 -ContentControlIndex $first.content_control_index `
                 -Tag ([string]$first.tag) `

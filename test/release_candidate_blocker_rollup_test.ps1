@@ -110,6 +110,8 @@ Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
             status = "placeholder_visible"
             message = "Bound content control still shows placeholder text."
             action = "sync_or_fill_bound_content_control"
+            source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+            source_report_display = ".\output\content-control-data-binding\inspect-content-controls.json"
         }
     )
     action_items = @(
@@ -117,6 +119,8 @@ Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
             id = "review_duplicate_content_control_binding"
             action = "review_duplicate_content_control_binding"
             title = "Review repeated content controls that share one Custom XML binding"
+            source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+            source_report_display = ".\output\content-control-data-binding\inspect-content-controls.json"
         }
     )
 })
@@ -183,6 +187,8 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
             status = "placeholder_visible"
             message = "Autodiscovered bound content control still shows placeholder text."
             action = "sync_or_fill_bound_content_control"
+            source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+            source_report_display = ".\output\content-control-data-binding-governance\summary.json"
         }
     )
     action_items = @(
@@ -190,6 +196,8 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
             id = "review_duplicate_content_control_binding"
             action = "review_duplicate_content_control_binding"
             title = "Review repeated content controls that share one Custom XML binding"
+            source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+            source_report_display = ".\output\content-control-data-binding-governance\summary.json"
         }
     )
 })
@@ -495,9 +503,25 @@ Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_it
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "style_merge.restore_audit_issues" `
     -Message "Release candidate summary should preserve auto-discovered restore audit blocker details."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "content_control_data_binding.bound_placeholder" `
+    -Message "Release candidate summary should preserve auto-discovered content-control blocker details."
+$autoDiscoverContentControlBlocker = @($autoDiscoverSummary.release_blocker_rollup.release_blockers | Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" } | Select-Object -First 1)
+Assert-Equal -Actual ([string]$autoDiscoverContentControlBlocker[0].source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
+    -Message "Release candidate summary should preserve auto-discovered content-control blocker source schema."
+Assert-ContainsText -Text ([string]$autoDiscoverContentControlBlocker[0].source_report_display) `
+    -ExpectedText "content-control-data-binding-governance" `
+    -Message "Release candidate summary should preserve auto-discovered content-control blocker source report display."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.action }) -join "`n") `
     -ExpectedText "review_style_merge_restore_audit" `
     -Message "Release candidate summary should preserve auto-discovered restore audit blocker actions."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "review_duplicate_content_control_binding" `
+    -Message "Release candidate summary should preserve auto-discovered content-control action ids."
+$autoDiscoverContentControlAction = @($autoDiscoverSummary.release_blocker_rollup.action_items | Where-Object { [string]$_.id -eq "review_duplicate_content_control_binding" } | Select-Object -First 1)
+Assert-ContainsText -Text ([string]$autoDiscoverContentControlAction[0].source_report_display) `
+    -ExpectedText "content-control-data-binding-governance" `
+    -Message "Release candidate summary should preserve auto-discovered content-control action source report display."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object {
             if ($_.PSObject.Properties["open_command"]) { [string]$_.open_command }
         }) -join "`n") `
@@ -527,10 +551,16 @@ Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "style_merge.re
     -Message "Final review should surface restore audit blocker ids."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "action=review_style_merge_restore_audit" `
     -Message "Final review should surface restore audit blocker actions."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "content_control_data_binding.bound_placeholder" `
+    -Message "Final review should surface content-control data-binding blocker ids."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "action=sync_or_fill_bound_content_control" `
+    -Message "Final review should surface content-control data-binding blocker actions."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "## Release Governance Action Items" `
     -Message "Final review should include release governance action items."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
     -Message "Final review should surface restore audit open-latest commands."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "review_duplicate_content_control_binding" `
+    -Message "Final review should surface content-control data-binding action ids."
 foreach ($bundlePath in @(
         (Join-Path $autoDiscoverOutputDir "START_HERE.md"),
         (Join-Path $autoDiscoverOutputDir "report\ARTIFACT_GUIDE.md"),
@@ -542,6 +572,12 @@ foreach ($bundlePath in @(
         -Message "Release note bundle file should include release governance action items: $bundlePath"
     Assert-ContainsText -Text $bundleText -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
         -Message "Release note bundle file should surface restore audit open-latest commands: $bundlePath"
+    Assert-ContainsText -Text $bundleText -ExpectedText "content_control_data_binding.bound_placeholder" `
+        -Message "Release note bundle file should surface content-control data-binding blockers: $bundlePath"
+    Assert-ContainsText -Text $bundleText -ExpectedText "review_duplicate_content_control_binding" `
+        -Message "Release note bundle file should surface content-control data-binding actions: $bundlePath"
+    Assert-ContainsText -Text $bundleText -ExpectedText "content-control-data-binding-governance" `
+        -Message "Release note bundle file should surface content-control data-binding source reports: $bundlePath"
 }
 
 Write-Host "Release candidate blocker rollup regression passed."

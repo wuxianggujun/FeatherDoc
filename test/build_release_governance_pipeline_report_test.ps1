@@ -124,6 +124,8 @@ function New-InputFixture {
                 severity = "error"
                 status = "blocked"
                 action = "fix_custom_xml_data_binding_source"
+                source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+                source_report_display = ".\output\content-control-data-binding\sync-content-controls-from-custom-xml.json"
                 message = "A Custom XML binding issue remains."
             },
             [ordered]@{
@@ -131,17 +133,25 @@ function New-InputFixture {
                 severity = "error"
                 status = "placeholder_visible"
                 action = "sync_or_fill_bound_content_control"
+                source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+                source_report_display = ".\output\content-control-data-binding\inspect-content-controls.json"
                 message = "A data-bound content control is still showing placeholder text."
             }
         )
         action_item_count = 2
         action_items = @(
-            [ordered]@{ id = "review_content_control_lock_strategy"; action = "review_content_control_lock_strategy"; title = "Review lock strategy" },
-            [ordered]@{ id = "review_duplicate_content_control_binding"; action = "review_duplicate_content_control_binding"; title = "Review duplicate content control binding" }
+            [ordered]@{ id = "review_content_control_lock_strategy"; action = "review_content_control_lock_strategy"; title = "Review lock strategy"; source_schema = "featherdoc.content_control_data_binding_governance_report.v1"; source_report_display = ".\output\content-control-data-binding\inspect-content-controls.json" },
+            [ordered]@{ id = "review_duplicate_content_control_binding"; action = "review_duplicate_content_control_binding"; title = "Review duplicate content control binding"; source_schema = "featherdoc.content_control_data_binding_governance_report.v1"; source_report_display = ".\output\content-control-data-binding\inspect-content-controls.json" }
         )
         warning_count = 1
         warnings = @(
-            [ordered]@{ id = "input_json_missing"; message = "Input JSON was not found." }
+            [ordered]@{
+                id = "input_json_missing"
+                action = "provide_content_control_data_binding_evidence"
+                source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+                source_report_display = ".\output\content-control-data-binding\missing-evidence.json"
+                message = "Input JSON was not found."
+            }
         )
     })
     Write-JsonFile -Path (Join-Path $Root "project-template-delivery-readiness\summary.json") -Value ([ordered]@{
@@ -391,8 +401,29 @@ foreach ($expectedStage in @(
         -Message "Pipeline should include stage $expectedStage."
 }
 
+$contentControlStage = @($summary.stages | Where-Object { [string]$_.id -eq "content_control_data_binding_governance" } | Select-Object -First 1)
 $handoffStage = @($summary.stages | Where-Object { [string]$_.id -eq "release_governance_handoff" } | Select-Object -First 1)
 $rollupStage = @($summary.stages | Where-Object { [string]$_.id -eq "release_blocker_rollup" } | Select-Object -First 1)
+Assert-Equal -Actual ([int]$contentControlStage[0].release_blocker_count) -Expected 2 `
+    -Message "Pipeline should preserve content-control data-binding blocker count."
+Assert-ContainsText -Text (($contentControlStage[0].release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "content_control_data_binding.bound_placeholder" `
+    -Message "Pipeline should preserve content-control data-binding blocker ids."
+$contentControlPlaceholderBlocker = @($contentControlStage[0].release_blockers | Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" } | Select-Object -First 1)
+Assert-Equal -Actual ([string]$contentControlPlaceholderBlocker[0].source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
+    -Message "Pipeline should preserve content-control data-binding blocker source schema."
+Assert-ContainsText -Text ([string]$contentControlPlaceholderBlocker[0].source_report_display) `
+    -ExpectedText "inspect-content-controls.json" `
+    -Message "Pipeline should preserve content-control data-binding blocker source display."
+Assert-ContainsText -Text (($contentControlStage[0].action_items | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "review_duplicate_content_control_binding" `
+    -Message "Pipeline should preserve content-control data-binding action ids."
+$contentControlWarning = @($contentControlStage[0].warnings | Where-Object { [string]$_.id -eq "input_json_missing" } | Select-Object -First 1)
+Assert-Equal -Actual ([string]$contentControlWarning[0].action) -Expected "provide_content_control_data_binding_evidence" `
+    -Message "Pipeline should preserve content-control data-binding warning actions."
+Assert-ContainsText -Text ([string]$contentControlWarning[0].source_report_display) `
+    -ExpectedText "missing-evidence.json" `
+    -Message "Pipeline should preserve content-control data-binding warning source display."
 Assert-Equal -Actual ([int]$handoffStage[0].warning_count) -Expected 2 `
     -Message "Pipeline should preserve handoff warning count."
 Assert-Equal -Actual ([int]$rollupStage[0].warning_count) -Expected 2 `
@@ -402,6 +433,9 @@ Assert-Equal -Actual ([int]$rollupStage[0].release_blocker_count) -Expected 11 `
 Assert-ContainsText -Text (($rollupStage[0].release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "style_merge.restore_audit_issues" `
     -Message "Pipeline stage summary should preserve restore audit blocker ids."
+Assert-ContainsText -Text (($rollupStage[0].release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "content_control_data_binding.bound_placeholder" `
+    -Message "Pipeline final rollup should preserve content-control data-binding blocker ids."
 Assert-ContainsText -Text (($rollupStage[0].release_blockers | ForEach-Object { [string]$_.action }) -join "`n") `
     -ExpectedText "review_style_merge_restore_audit" `
     -Message "Pipeline stage summary should preserve restore audit blocker actions."

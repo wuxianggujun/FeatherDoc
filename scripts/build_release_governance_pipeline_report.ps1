@@ -180,6 +180,8 @@ function Get-NormalizedSummaryWarnings {
             action = Get-JsonString -Object $warning -Name "action"
             message = Get-JsonString -Object $warning -Name "message"
             source_schema = Get-JsonString -Object $warning -Name "source_schema" -DefaultValue $schema
+            source_report_display = Get-JsonString -Object $warning -Name "source_report_display"
+            source_json_display = Get-JsonString -Object $warning -Name "source_json_display"
         }
 
         $styleMergeSuggestionCount = Get-JsonProperty -Object $warning -Name "style_merge_suggestion_count"

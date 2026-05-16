@@ -192,12 +192,15 @@ style merge suggestion warning 会从源头携带 ``source_schema``、``action``
 后的未复核数量，已复核建议仍保留在源 summary 中但不再作为 release warning
 透传。``content_control_data_binding_governance``,
 ``project_template_delivery_readiness`` 与 ``table_layout_delivery_rollup`` 的 warning
-会携带 ``source_schema``、``action`` 和 ``message``。``release_blocker_rollup``
+会携带 ``source_schema``、``action``、``message``，并在存在具体证据文件时保留
+``source_report_display``。``release_blocker_rollup``
 自身生成的 count mismatch 或 source read failure warning 也必须携带同样字段，
 方便后续 handoff / pipeline 保真透传和统一渲染。
 ``REVIEWER_CHECKLIST.md`` 会把这些已物化 warning 继续转换成逐条复核
-checkbox，保留 ``action``、``source_schema`` 和 ``message``，并对 style merge
-warning 给出复核建议。
+checkbox，保留 ``action``、``source_schema``、``source_report_display`` 和
+``message``，并对 style merge warning 给出复核建议。content-control data-binding
+governance 的 blocker / action item 也遵循同一来源字段约定，避免 reviewer 只能看到
+rollup 后的计数而找不到原始 inspect / sync 证据。
 ``document_skeleton_governance_rollup`` 自身生成的 schema skipped、count mismatch
 与 source read failure warning 也遵循同一约定。
 ``numbering_catalog_governance`` 自身生成的 evidence skipped、evidence read failure
@@ -212,6 +215,7 @@ warning 给出复核建议。
 - ``action``
 - ``message``
 - ``source_schema``
+- ``source_report_display``（存在时）
 - ``style_merge_suggestion_count``（存在时）
 - ``style_merge_suggestion_pending_count``（源报告存在时）
 

@@ -195,12 +195,33 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should include Custom XML sync blocker."
     Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.bound_placeholder" `
         -Message "Summary should include placeholder blocker."
+    $syncBlocker = @($summary.release_blockers | Where-Object { [string]$_.id -eq "content_control_data_binding.custom_xml_sync_issue" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$syncBlocker[0].source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
+        -Message "Custom XML sync blocker should expose governance source schema."
+    Assert-ContainsText -Text ([string]$syncBlocker[0].source_report_display) -ExpectedText "sync-content-controls-from-custom-xml.json" `
+        -Message "Custom XML sync blocker should expose source report display."
+    Assert-ContainsText -Text ([string]$syncBlocker[0].source_json_display) -ExpectedText "sync-content-controls-from-custom-xml.json" `
+        -Message "Custom XML sync blocker should preserve source JSON display."
+    $placeholderBlocker = @($summary.release_blockers | Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$placeholderBlocker[0].source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
+        -Message "Placeholder blocker should expose governance source schema."
+    Assert-ContainsText -Text ([string]$placeholderBlocker[0].source_report_display) -ExpectedText "inspect-content-controls.json" `
+        -Message "Placeholder blocker should expose inspection source display."
+    $duplicateBindingAction = @($summary.action_items | Where-Object { [string]$_.id -eq "review_duplicate_content_control_binding" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$duplicateBindingAction[0].source_schema) -Expected "featherdoc.content_control_data_binding_governance_report.v1" `
+        -Message "Duplicate binding action should expose governance source schema."
+    Assert-ContainsText -Text ([string]$duplicateBindingAction[0].source_report_display) -ExpectedText "inspect-content-controls.json" `
+        -Message "Duplicate binding action should expose source report display."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "# Content Control Data Binding Governance" `
         -Message "Markdown should include title."
     Assert-ContainsText -Text $markdown -ExpectedText "fix_custom_xml_data_binding_source" `
         -Message "Markdown should include remediation action."
+    Assert-ContainsText -Text $markdown -ExpectedText "sync-content-controls-from-custom-xml.json" `
+        -Message "Markdown should include sync evidence source display."
+    Assert-ContainsText -Text $markdown -ExpectedText "inspect-content-controls.json" `
+        -Message "Markdown should include inspection evidence source display."
 }
 
 if (Test-Scenario -Name "warning_only") {
