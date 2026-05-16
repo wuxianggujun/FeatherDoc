@@ -342,6 +342,8 @@ if ($Scenario -eq "final_rollup_failure") {
     $failedMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $failedMarkdown -ExpectedText "release_blocker_rollup" `
         -Message "Pipeline Markdown should still include failed final rollup stage."
+    Assert-ContainsText -Text $failedMarkdown -ExpectedText 'Governance detail source: `stage_aggregate_fallback`' `
+        -Message "Pipeline Markdown should show fallback governance detail source."
     Assert-ContainsText -Text $failedMarkdown -ExpectedText "Stage exited with code 1" `
         -Message "Pipeline Markdown should include final rollup failure message."
 
@@ -445,6 +447,8 @@ Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object {
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline" `
     -Message "Pipeline Markdown should include title."
+Assert-ContainsText -Text $markdown -ExpectedText 'Governance detail source: `release_blocker_rollup`' `
+    -Message "Pipeline Markdown should show final-rollup governance detail source."
 Assert-ContainsText -Text $markdown -ExpectedText "release_blocker_rollup" `
     -Message "Pipeline Markdown should include final rollup stage."
 Assert-ContainsText -Text $markdown -ExpectedText "## Release Blockers" `
