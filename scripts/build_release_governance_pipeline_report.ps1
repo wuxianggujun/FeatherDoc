@@ -193,6 +193,85 @@ function Get-NormalizedSummaryWarnings {
     return @($warnings.ToArray())
 }
 
+function Get-NormalizedSummaryReleaseBlockers {
+    param([AllowNull()]$Summary)
+
+    $schema = Get-JsonString -Object $Summary -Name "schema"
+    $blockers = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($blocker in @(Get-JsonArray -Object $Summary -Name "release_blockers")) {
+        $entry = [ordered]@{
+            composite_id = Get-JsonString -Object $blocker -Name "composite_id"
+            report_id = Get-JsonString -Object $blocker -Name "report_id"
+            id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
+            severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
+            status = Get-JsonString -Object $blocker -Name "status"
+            action = Get-JsonString -Object $blocker -Name "action"
+            source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue $schema
+            source_report_display = Get-JsonString -Object $blocker -Name "source_report_display"
+            message = Get-JsonString -Object $blocker -Name "message"
+        }
+
+        $source = Get-JsonString -Object $blocker -Name "source"
+        if (-not [string]::IsNullOrWhiteSpace($source)) {
+            $entry.source = $source
+        }
+
+        $blockedItemCount = Get-JsonProperty -Object $blocker -Name "blocked_item_count"
+        if ($null -ne $blockedItemCount -and -not [string]::IsNullOrWhiteSpace([string]$blockedItemCount)) {
+            $entry.blocked_item_count = [int]$blockedItemCount
+        }
+
+        $blockers.Add([pscustomobject]$entry) | Out-Null
+    }
+
+    return @($blockers.ToArray())
+}
+
+function Add-PipelineReleaseBlockerMarkdownSubsection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [string]$Heading,
+        [AllowNull()]$SummaryObject,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $releaseBlockers = @(Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "release_blockers")
+    $releaseBlockerCount = Get-JsonInt -Object $SummaryObject -Name "release_blocker_count" -DefaultValue $releaseBlockers.Count
+    if ($releaseBlockerCount -le 0 -and $releaseBlockers.Count -le 0 -and -not $IncludeWhenEmpty.IsPresent) {
+        return $false
+    }
+
+    [void]$Lines.Add("### $Heading")
+    [void]$Lines.Add("")
+    [void]$Lines.Add(('- release_blocker_count: `{0}`' -f $releaseBlockerCount))
+    foreach ($blocker in $releaseBlockers) {
+        $displayId = Get-JsonString -Object $blocker -Name "composite_id"
+        if ([string]::IsNullOrWhiteSpace($displayId)) {
+            $displayId = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
+        }
+
+        $sourceReport = Get-JsonString -Object $blocker -Name "source_report_display"
+        $summaryText = ('id: `{0}`; action: `{1}`; status: `{2}`; severity: `{3}`; source_schema: `{4}`' -f `
+                $displayId,
+                (Get-JsonString -Object $blocker -Name "action"),
+                (Get-JsonString -Object $blocker -Name "status"),
+                (Get-JsonString -Object $blocker -Name "severity"),
+                (Get-JsonString -Object $blocker -Name "source_schema"))
+        if (-not [string]::IsNullOrWhiteSpace($sourceReport)) {
+            $summaryText += ('; source_report: `{0}`' -f $sourceReport)
+        }
+        [void]$Lines.Add("- $summaryText")
+
+        $message = Get-JsonString -Object $blocker -Name "message"
+        if (-not [string]::IsNullOrWhiteSpace($message)) {
+            [void]$Lines.Add("  - message: $message")
+        }
+    }
+    [void]$Lines.Add("")
+
+    return $true
+}
+
 function New-StageEntry {
     param(
         [string]$RepoRoot,
@@ -235,6 +314,11 @@ function New-StageEntry {
         missing_report_count = Get-JsonInt -Object $Summary -Name "missing_report_count"
         failed_report_count = Get-JsonInt -Object $Summary -Name "failed_report_count"
         source_failure_count = Get-JsonInt -Object $Summary -Name "source_failure_count"
+        release_blockers = if ($null -eq $Summary) {
+            @()
+        } else {
+            @(Get-NormalizedSummaryReleaseBlockers -Summary $Summary)
+        }
         action_items = if ($null -eq $Summary) {
             @()
         } else {
@@ -360,6 +444,26 @@ function New-ReportMarkdown {
         $lines.Add("  - summary: ``$($stage.summary_json_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string]$stage.error)) {
             $lines.Add("  - error: ``$($stage.error)``") | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Release Blockers") | Out-Null
+    $lines.Add("") | Out-Null
+    $releaseBlockerLines = New-Object 'System.Collections.Generic.List[string]'
+    $hasReleaseBlockers = $false
+    foreach ($stage in @($Summary.stages)) {
+        if (Add-PipelineReleaseBlockerMarkdownSubsection `
+                -Lines $releaseBlockerLines `
+                -Heading ("{0} release blockers" -f [string]$stage.id) `
+                -SummaryObject $stage) {
+            $hasReleaseBlockers = $true
+        }
+    }
+    if (-not $hasReleaseBlockers) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($line in $releaseBlockerLines) {
+            $lines.Add($line) | Out-Null
         }
     }
     $lines.Add("") | Out-Null

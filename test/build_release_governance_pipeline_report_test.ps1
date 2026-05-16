@@ -303,6 +303,12 @@ Assert-Equal -Actual ([int]$rollupStage[0].warning_count) -Expected 2 `
     -Message "Pipeline should preserve final rollup warning count."
 Assert-Equal -Actual ([int]$rollupStage[0].release_blocker_count) -Expected 11 `
     -Message "Pipeline final rollup should include restore audit blockers discovered from the input root."
+Assert-ContainsText -Text (($rollupStage[0].release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "style_merge.restore_audit_issues" `
+    -Message "Pipeline stage summary should preserve restore audit blocker ids."
+Assert-ContainsText -Text (($rollupStage[0].release_blockers | ForEach-Object { [string]$_.action }) -join "`n") `
+    -ExpectedText "review_style_merge_restore_audit" `
+    -Message "Pipeline stage summary should preserve restore audit blocker actions."
 Assert-ContainsText -Text (($rollupStage[0].action_items | ForEach-Object {
             if ($_.PSObject.Properties["open_command"]) { [string]$_.open_command }
         }) -join "`n") `
@@ -347,6 +353,14 @@ Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline
     -Message "Pipeline Markdown should include title."
 Assert-ContainsText -Text $markdown -ExpectedText "release_blocker_rollup" `
     -Message "Pipeline Markdown should include final rollup stage."
+Assert-ContainsText -Text $markdown -ExpectedText "## Release Blockers" `
+    -Message "Pipeline Markdown should include release blocker section."
+Assert-ContainsText -Text $markdown -ExpectedText "### release_blocker_rollup release blockers" `
+    -Message "Pipeline Markdown should include final rollup blocker subsection."
+Assert-ContainsText -Text $markdown -ExpectedText "style_merge.restore_audit_issues" `
+    -Message "Pipeline Markdown should include restore audit blocker ids."
+Assert-ContainsText -Text $markdown -ExpectedText "review_style_merge_restore_audit" `
+    -Message "Pipeline Markdown should include restore audit blocker actions."
 Assert-ContainsText -Text $markdown -ExpectedText "## Action Items" `
     -Message "Pipeline Markdown should include action item section."
 Assert-ContainsText -Text $markdown -ExpectedText "### release_blocker_rollup action items" `

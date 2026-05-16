@@ -548,8 +548,9 @@ feed those summaries into the final blocker rollup as well. Release-candidate
 now render normalized governance action items and helper commands from the
 final rollup, so restore-audit follow-up commands remain visible without
 opening nested JSON. The release governance pipeline summary also materializes
-stage-level ``action_items``, and its Markdown renders helper commands such as
-restore-audit ``open_command`` values beside the stage that produced them.
+stage-level ``release_blockers`` and ``action_items``, and its Markdown renders
+blocker details plus helper commands such as restore-audit ``open_command``
+values beside the stage that produced them.
 Pending duplicate style-merge suggestions from the
 skeleton rollup are
 surfaced as non-blocking warnings by default and can be gated with
