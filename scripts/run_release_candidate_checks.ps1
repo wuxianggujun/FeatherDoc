@@ -768,6 +768,122 @@ function Get-ReleaseGovernanceWarningSummaryMarkdown {
     return ($sectionLines -join [Environment]::NewLine)
 }
 
+function Get-ReleaseGovernanceBlockerSignature {
+    param([AllowNull()]$Blocker)
+
+    if ($null -eq $Blocker) {
+        return ""
+    }
+
+    return "{0}|{1}|{2}|{3}|{4}|{5}" -f `
+        [string](Get-OptionalPropertyValue -Object $Blocker -Name "composite_id"),
+        [string](Get-OptionalPropertyValue -Object $Blocker -Name "id"),
+        [string](Get-OptionalPropertyValue -Object $Blocker -Name "action"),
+        [string](Get-OptionalPropertyValue -Object $Blocker -Name "status"),
+        [string](Get-OptionalPropertyValue -Object $Blocker -Name "source_schema"),
+        [string](Get-OptionalPropertyValue -Object $Blocker -Name "source_report_display")
+}
+
+function Get-ReleaseGovernanceBlockerSectionMarkdown {
+    param(
+        [string]$Title,
+        [AllowNull()]$Blockers,
+        [System.Collections.Generic.HashSet[string]]$SeenSignatures
+    )
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($blocker in @(Get-OptionalObjectArrayProperty -Object ([ordered]@{ release_blockers = $Blockers }) -Name "release_blockers")) {
+        $signature = Get-ReleaseGovernanceBlockerSignature -Blocker $blocker
+        if ([string]::IsNullOrWhiteSpace($signature) -or $SeenSignatures.Contains($signature)) {
+            continue
+        }
+
+        [void]$SeenSignatures.Add($signature)
+        if ($sectionLines.Count -eq 0) {
+            [void]$sectionLines.Add("### $Title")
+            [void]$sectionLines.Add("")
+        }
+
+        $displayId = Get-OptionalPropertyValue -Object $blocker -Name "composite_id"
+        if ([string]::IsNullOrWhiteSpace([string]$displayId)) {
+            $displayId = Get-OptionalPropertyValue -Object $blocker -Name "id"
+        }
+
+        $line = "- {0}: action={1}" -f `
+            (Get-ReleaseCandidateDisplayValue -Value $displayId),
+            (Get-ReleaseCandidateDisplayValue -Value (Get-OptionalPropertyValue -Object $blocker -Name "action"))
+        foreach ($field in @("status", "severity", "source_schema", "source_report_display")) {
+            $value = Get-OptionalPropertyValue -Object $blocker -Name $field
+            if (-not [string]::IsNullOrWhiteSpace([string]$value)) {
+                $line += "; ${field}=$value"
+            }
+        }
+
+        [void]$sectionLines.Add($line)
+        $message = Get-OptionalPropertyValue -Object $blocker -Name "message"
+        if (-not [string]::IsNullOrWhiteSpace([string]$message)) {
+            [void]$sectionLines.Add("  - message: $message")
+        }
+    }
+
+    if ($sectionLines.Count -eq 0) {
+        return ""
+    }
+
+    [void]$sectionLines.Add("")
+    return ($sectionLines -join [Environment]::NewLine)
+}
+
+function Get-ReleaseGovernanceBlockerSummaryMarkdown {
+    param([AllowNull()]$ReleaseSummary)
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    $seenSignatures = New-Object 'System.Collections.Generic.HashSet[string]'
+
+    $rollupSummary = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "release_blocker_rollup"
+    $rollupSection = Get-ReleaseGovernanceBlockerSectionMarkdown `
+        -Title "Release blocker rollup blockers" `
+        -Blockers (Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "release_blockers") `
+        -SeenSignatures $seenSignatures
+    if (-not [string]::IsNullOrWhiteSpace($rollupSection)) {
+        [void]$sectionLines.Add("## Release governance blockers")
+        [void]$sectionLines.Add("")
+        [void]$sectionLines.Add($rollupSection.TrimEnd())
+    }
+
+    $handoffSummary = Get-OptionalPropertyValue -Object $ReleaseSummary -Name "release_governance_handoff"
+    foreach ($blockerSection in @(
+            (Get-ReleaseGovernanceBlockerSectionMarkdown `
+                -Title "Release governance handoff blockers" `
+                -Blockers (Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "release_blockers") `
+                -SeenSignatures $seenSignatures),
+            (Get-ReleaseGovernanceBlockerSectionMarkdown `
+                -Title "Release governance handoff nested rollup blockers" `
+                -Blockers (Get-OptionalObjectArrayProperty `
+                    -Object (Get-OptionalPropertyValue -Object $handoffSummary -Name "release_blocker_rollup") `
+                    -Name "release_blockers") `
+                -SeenSignatures $seenSignatures)
+        )) {
+        if ([string]::IsNullOrWhiteSpace($blockerSection)) {
+            continue
+        }
+
+        if ($sectionLines.Count -eq 0) {
+            [void]$sectionLines.Add("## Release governance blockers")
+            [void]$sectionLines.Add("")
+        }
+
+        [void]$sectionLines.Add($blockerSection.TrimEnd())
+    }
+
+    if ($sectionLines.Count -eq 0) {
+        return ""
+    }
+
+    [void]$sectionLines.Add("")
+    return ($sectionLines -join [Environment]::NewLine)
+}
+
 function Convert-OptionalBoolean {
     param(
         [AllowNull()]$Value,
@@ -2774,6 +2890,8 @@ try {
         -VisualGateStep $summary.steps.visual_gate
     $visualGateReviewSummary = Get-VisualGateReviewSummaryMarkdown -RepoRoot $repoRoot `
         -VisualGateStep $summary.steps.visual_gate
+    $releaseGovernanceBlockerSummary = Get-ReleaseGovernanceBlockerSummaryMarkdown `
+        -ReleaseSummary $summary
     $releaseGovernanceWarningSummary = Get-ReleaseGovernanceWarningSummaryMarkdown `
         -ReleaseSummary $summary
     $releaseGovernanceActionItemSummaryLines = New-Object 'System.Collections.Generic.List[string]'
@@ -2844,6 +2962,7 @@ $visualGateReviewSummary
 - Artifact guide: $artifactGuideDisplayPath
 - Reviewer checklist: $reviewerChecklistDisplayPath
 - Start here: $startHereDisplayPath
+$releaseGovernanceBlockerSummary
 $releaseGovernanceWarningSummary
 $releaseGovernanceActionItemSummary
 "@

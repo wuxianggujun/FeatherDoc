@@ -414,6 +414,14 @@ Assert-ContainsText -Text $finalReview -ExpectedText "- Release blocker rollup: 
     -Message "Final review should include release blocker rollup step status."
 Assert-ContainsText -Text $finalReview -ExpectedText "Release blocker rollup counts: 2 blockers, 2 actions, 1 warnings" `
     -Message "Final review should include release blocker rollup counts."
+Assert-ContainsText -Text $finalReview -ExpectedText "## Release governance blockers" `
+    -Message "Final review should include release governance blocker details."
+Assert-ContainsText -Text $finalReview -ExpectedText "### Release blocker rollup blockers" `
+    -Message "Final review should include rollup blocker subsection."
+Assert-ContainsText -Text $finalReview -ExpectedText "numbering_catalog_governance.style_numbering_issues" `
+    -Message "Final review should surface rollup blocker ids."
+Assert-ContainsText -Text $finalReview -ExpectedText "action=review_style_numbering_audit" `
+    -Message "Final review should surface rollup blocker actions."
 Assert-ContainsText -Text $finalReview -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
     -Message "Final review should surface rollup warning details."
 Assert-ContainsText -Text $finalReview -ExpectedText "action=review_style_merge_suggestions" `
@@ -513,6 +521,12 @@ Assert-ContainsText -Text (($autoDiscoverRollupSummary.action_items | ForEach-Ob
     -Message "Auto-discovered rollup should preserve restore audit open-latest commands."
 
 $autoDiscoverFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $autoDiscoverOutputDir "report\final_review.md")
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "## Release governance blockers" `
+    -Message "Final review should include release governance blocker details for auto-discovered rollups."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "style_merge.restore_audit_issues" `
+    -Message "Final review should surface restore audit blocker ids."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "action=review_style_merge_restore_audit" `
+    -Message "Final review should surface restore audit blocker actions."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "## Release Governance Action Items" `
     -Message "Final review should include release governance action items."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
