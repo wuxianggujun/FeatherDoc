@@ -828,6 +828,19 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\apply_reviewed_style_merge_suggesti
   -SkipBuild
 ```
 
+`scripts/audit_style_merge_restore_plan.ps1` can then run a read-only
+`restore-style-merge --dry-run` audit against the merged DOCX and rollback
+plan. Use `-FailOnIssue` when the audit should block downstream gates:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\scripts\audit_style_merge_restore_plan.ps1 `
+  -ApplySummaryJson .\output\document-skeleton-governance\style-merge.apply.summary.json `
+  -SummaryJson .\output\document-skeleton-governance\style-merge.restore-audit.summary.json `
+  -BuildDir build-codex-clang-compat `
+  -SkipBuild `
+  -FailOnIssue
+```
+
 The multi-document rollup then sums `total_style_merge_suggestion_pending_count`
 and only pending suggestions flow onward as release governance warnings. Pair
 that rollup with

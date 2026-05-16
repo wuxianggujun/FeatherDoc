@@ -1798,6 +1798,44 @@ if(WIN32)
 
             add_test(
                 NAME
+                audit_style_merge_restore_plan
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/audit_style_merge_restore_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/audit_style_merge_restore_plan
+                -Scenario
+                clean
+            )
+            set_tests_properties(audit_style_merge_restore_plan
+                PROPERTIES TIMEOUT 60)
+
+            add_test(
+                NAME
+                audit_style_merge_restore_plan_issue
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/audit_style_merge_restore_plan_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/audit_style_merge_restore_plan_issue
+                -Scenario
+                issue
+            )
+            set_tests_properties(audit_style_merge_restore_plan_issue
+                PROPERTIES TIMEOUT 60)
+
+            add_test(
+                NAME
                 build_document_skeleton_governance_report_passing
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

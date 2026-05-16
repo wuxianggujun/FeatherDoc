@@ -507,6 +507,19 @@ the merged DOCX, rollback plan, and a
       -BuildDir build-codex-clang-compat `
       -SkipBuild
 
+``scripts/audit_style_merge_restore_plan.ps1`` then runs a read-only
+``restore-style-merge --dry-run`` audit against the merged DOCX and rollback
+plan. Use ``-FailOnIssue`` when the audit should block downstream gates:
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\audit_style_merge_restore_plan.ps1 `
+      -ApplySummaryJson .\output\document-skeleton-governance\style-merge.apply.summary.json `
+      -SummaryJson .\output\document-skeleton-governance\style-merge.restore-audit.summary.json `
+      -BuildDir build-codex-clang-compat `
+      -SkipBuild `
+      -FailOnIssue
+
 The rollup then exposes
 ``total_style_merge_suggestion_pending_count`` so downstream gates only warn on
 pending duplicate style-merge suggestions.
