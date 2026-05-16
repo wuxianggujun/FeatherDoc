@@ -416,6 +416,9 @@ if ($ArtifactRootLayout) {
 [void]$lines.Add("")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
 [void]$lines.Add("- Release blockers: $(Get-ReleaseBlockerCount -Summary $summary)")
+[void]$lines.Add("- Release blocker rollup blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseBlockerRollupSummary)")
+[void]$lines.Add("- Release governance handoff blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseGovernanceHandoffSummary)")
+[void]$lines.Add("- Release governance handoff nested rollup blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")
 [void]$lines.Add("- Release blocker rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseBlockerRollupSummary)")
 [void]$lines.Add("- Release governance handoff warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffSummary)")
 [void]$lines.Add("- Release governance handoff nested rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")
@@ -466,6 +469,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
     [void]$lines.Add("- $($curatedVisualReview.label) review note: $(Get-DisplayValue -Value $curatedVisualReview.review_note)")
 }
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceBlockersMarkdownSection -Lines $lines -Summary $summary
 Add-ReleaseGovernanceWarningsMarkdownSection -Lines $lines -Summary $summary
 Add-ReleaseGovernanceActionItemsMarkdownSection -Lines $lines -Summary $summary
 

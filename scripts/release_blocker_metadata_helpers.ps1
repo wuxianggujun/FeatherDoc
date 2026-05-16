@@ -230,6 +230,48 @@ function Join-ReleaseBlockerValues {
     return ($normalizedValues -join ",")
 }
 
+function Get-NormalizedReleaseGovernanceBlockers {
+    param([AllowNull()]$Blockers)
+
+    $normalizedBlockers = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($blocker in @(Get-ReleaseBlockerArrayProperty -Object ([ordered]@{ release_blockers = $Blockers }) -Name "release_blockers")) {
+        if ($null -eq $blocker) {
+            continue
+        }
+
+        $entry = [ordered]@{
+            composite_id = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "composite_id")
+            id = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "id")
+            action = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "action")
+            status = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "status")
+            severity = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "severity")
+            source_schema = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_schema")
+            source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_report_display")
+            message = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "message")
+        }
+
+        [void]$normalizedBlockers.Add([pscustomobject]$entry)
+    }
+
+    return @($normalizedBlockers.ToArray())
+}
+
+function Get-ReleaseGovernanceBlockerCount {
+    param([AllowNull()]$SummaryObject)
+
+    $declaredCount = Get-ReleaseBlockerPropertyObject -Object $SummaryObject -Name "release_blocker_count"
+    if ($null -ne $declaredCount -and -not [string]::IsNullOrWhiteSpace([string]$declaredCount)) {
+        try {
+            return [int][string]$declaredCount
+        } catch {
+            # Fall back to the materialized release_blockers array when
+            # historical fixtures omitted a stable integer value.
+        }
+    }
+
+    return @(Get-NormalizedReleaseGovernanceBlockers -Blockers (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "release_blockers")).Count
+}
+
 function Get-NormalizedReleaseGovernanceWarnings {
     param([AllowNull()]$Warnings)
 
@@ -362,6 +404,104 @@ function Get-ReleaseGovernanceWarningSummaryText {
     }
 
     return $summaryText
+}
+
+function Get-ReleaseGovernanceBlockerSummaryText {
+    param([AllowNull()]$Blocker)
+
+    $id = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "id") -Fallback "(unknown)"
+    $summaryText = ('id: `{0}`; action: `{1}`' -f `
+            $id,
+            (Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "action")))
+
+    $compositeId = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "composite_id"
+    if (-not [string]::IsNullOrWhiteSpace($compositeId)) {
+        $summaryText += ('; composite_id: `{0}`' -f $compositeId)
+    }
+
+    foreach ($field in @("status", "severity", "source_schema", "source_report_display")) {
+        $value = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name $field
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $summaryText += ('; {0}: `{1}`' -f $field, $value)
+        }
+    }
+
+    $message = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "message"
+    if (-not [string]::IsNullOrWhiteSpace($message)) {
+        $summaryText += ('; message: {0}' -f $message)
+    }
+
+    return $summaryText
+}
+
+function Add-ReleaseGovernanceBlockerMarkdownSubsection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [string]$Heading,
+        [AllowNull()]$SummaryObject,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $releaseBlockers = @(Get-NormalizedReleaseGovernanceBlockers -Blockers (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "release_blockers"))
+    $releaseBlockerCount = Get-ReleaseGovernanceBlockerCount -SummaryObject $SummaryObject
+    if ($releaseBlockerCount -le 0 -and $releaseBlockers.Count -le 0 -and -not $IncludeWhenEmpty.IsPresent) {
+        return $false
+    }
+
+    [void]$Lines.Add("### $Heading")
+    [void]$Lines.Add("")
+    [void]$Lines.Add(('- release_blocker_count: `{0}`' -f $releaseBlockerCount))
+    foreach ($releaseBlocker in $releaseBlockers) {
+        [void]$Lines.Add("- $(Get-ReleaseGovernanceBlockerSummaryText -Blocker $releaseBlocker)")
+    }
+    [void]$Lines.Add("")
+
+    return $true
+}
+
+function Add-ReleaseGovernanceBlockersMarkdownSection {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Summary,
+        [switch]$IncludeWhenEmpty
+    )
+
+    $sectionLines = New-Object 'System.Collections.Generic.List[string]'
+    $releaseGovernanceHandoff = Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_governance_handoff"
+    $hadSection = $false
+    foreach ($sectionInfo in @(
+            @{
+                Heading = "Release blocker rollup blockers"
+                SummaryObject = Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_blocker_rollup"
+            },
+            @{
+                Heading = "Release governance handoff blockers"
+                SummaryObject = $releaseGovernanceHandoff
+            },
+            @{
+                Heading = "Release governance handoff nested rollup blockers"
+                SummaryObject = Get-ReleaseBlockerPropertyObject -Object $releaseGovernanceHandoff -Name "release_blocker_rollup"
+            }
+        )) {
+        if (Add-ReleaseGovernanceBlockerMarkdownSubsection `
+                -Lines $sectionLines `
+                -Heading $sectionInfo.Heading `
+                -SummaryObject $sectionInfo.SummaryObject `
+                -IncludeWhenEmpty:$IncludeWhenEmpty.IsPresent) {
+            $hadSection = $true
+        }
+    }
+
+    if (-not $hadSection) {
+        return
+    }
+
+    [void]$Lines.Add("")
+    [void]$Lines.Add("## Release Governance Blockers")
+    [void]$Lines.Add("")
+    foreach ($line in $sectionLines) {
+        [void]$Lines.Add($line)
+    }
 }
 
 function Add-ReleaseGovernanceActionItemMarkdownSubsection {

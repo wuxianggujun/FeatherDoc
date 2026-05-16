@@ -547,7 +547,10 @@ feed those summaries into the final blocker rollup as well. Release-candidate
 ``summary.json``, ``final_review.md``, and generated release note bundle files
 now render normalized governance blocker details, action items, and helper
 commands from the final rollup, so restore-audit follow-up commands and
-blockers remain visible without opening nested JSON. The release governance pipeline summary also materializes
+blockers remain visible without opening nested JSON. The release note bundle
+entrypoints now also show blocker counts and details from the final rollup,
+governance handoff, and nested handoff rollup before the warning/action
+sections. The release governance pipeline summary also materializes
 top-level final-rollup ``release_blockers``, ``action_items``, and
 ``warnings``, plus stage-level ``release_blockers`` and ``action_items``; its
 Markdown renders blocker details plus helper commands such as restore-audit

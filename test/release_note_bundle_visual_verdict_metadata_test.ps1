@@ -248,6 +248,19 @@ $summary = [ordered]@{
     install_dir = $installDir
     release_blocker_rollup = [ordered]@{
         status = "ready_with_warnings"
+        release_blocker_count = 1
+        release_blockers = @(
+            [ordered]@{
+                composite_id = "source0.blocker0.numbering_catalog_governance.style_numbering_issues"
+                id = "numbering_catalog_governance.style_numbering_issues"
+                action = "review_style_numbering_audit"
+                status = "blocked"
+                severity = "error"
+                source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+                source_report_display = ".\output\numbering-catalog-governance\summary.json"
+                message = "numbering catalog governance reports unresolved style numbering issues"
+            }
+        )
         warning_count = 1
         warnings = @(
             [ordered]@{
@@ -261,6 +274,18 @@ $summary = [ordered]@{
     }
     release_governance_handoff = [ordered]@{
         status = "ready_with_warnings"
+        release_blocker_count = 1
+        release_blockers = @(
+            [ordered]@{
+                id = "release_governance_handoff.required_report_missing"
+                action = "inspect_required_report"
+                status = "blocked"
+                severity = "error"
+                source_schema = "featherdoc.release_governance_handoff_report.v1"
+                source_report_display = ".\output\release-governance-handoff\summary.json"
+                message = "required governance report is missing from the handoff bundle"
+            }
+        )
         warning_count = 1
         warnings = @(
             [ordered]@{
@@ -273,6 +298,19 @@ $summary = [ordered]@{
         release_blocker_rollup = [ordered]@{
             included = $true
             status = "ready_with_warnings"
+            release_blocker_count = 1
+            release_blockers = @(
+                [ordered]@{
+                    composite_id = "source2.blocker0.style_merge.restore_audit_issues"
+                    id = "style_merge.restore_audit_issues"
+                    action = "review_style_merge_restore_audit"
+                    status = "blocked"
+                    severity = "error"
+                    source_schema = "featherdoc.style_merge_restore_audit.v1"
+                    source_report_display = ".\output\document-skeleton-governance\style-merge.restore-audit.summary.json"
+                    message = "style merge restore audit reports unresolved rollback issues"
+                }
+            )
             warning_count = 1
             warnings = @(
                 [ordered]@{
@@ -367,6 +405,32 @@ foreach ($assertion in @(
         @{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
         @{ Path = $startHerePath; Label = "START_HERE.md" }
     )) {
+    Assert-Contains -Path $assertion.Path -ExpectedText "Release blocker rollup blocker_count: 1" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Release governance handoff blocker_count: 1" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "Release governance handoff nested rollup blocker_count: 1" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "## Release Governance Blockers" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "### Release blocker rollup blockers" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "### Release governance handoff blockers" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "### Release governance handoff nested rollup blockers" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'release_blocker_count: `1`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'id: `numbering_catalog_governance.style_numbering_issues`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'composite_id: `source0.blocker0.numbering_catalog_governance.style_numbering_issues`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'action: `review_style_numbering_audit`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'status: `blocked`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'severity: `error`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'source_schema: `featherdoc.numbering_catalog_governance_report.v1`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'source_report_display: `.\output\numbering-catalog-governance\summary.json`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'message: numbering catalog governance reports unresolved style numbering issues' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'id: `release_governance_handoff.required_report_missing`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'action: `inspect_required_report`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'source_schema: `featherdoc.release_governance_handoff_report.v1`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'message: required governance report is missing from the handoff bundle' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'id: `style_merge.restore_audit_issues`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'composite_id: `source2.blocker0.style_merge.restore_audit_issues`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'action: `review_style_merge_restore_audit`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'source_schema: `featherdoc.style_merge_restore_audit.v1`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'source_report_display: `.\output\document-skeleton-governance\style-merge.restore-audit.summary.json`' -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText 'message: style merge restore audit reports unresolved rollback issues' -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Release blocker rollup warning_count: 1" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Release governance handoff warning_count: 1" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "Release governance handoff nested rollup warning_count: 1" -Label $assertion.Label

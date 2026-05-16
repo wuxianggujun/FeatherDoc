@@ -371,6 +371,9 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Generated at: $(Get-Date -Format s)")
 [void]$lines.Add("- Execution status: $($summary.execution_status)")
 [void]$lines.Add("- Release blockers: $(Get-ReleaseBlockerCount -Summary $summary)")
+[void]$lines.Add("- Release blocker rollup blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseBlockerRollupSummary)")
+[void]$lines.Add("- Release governance handoff blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseGovernanceHandoffSummary)")
+[void]$lines.Add("- Release governance handoff nested rollup blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")
 [void]$lines.Add("- Release blocker rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseBlockerRollupSummary)")
 [void]$lines.Add("- Release governance handoff warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffSummary)")
 [void]$lines.Add("- Release governance handoff nested rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")
@@ -413,6 +416,7 @@ if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Summary JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceBlockersMarkdownSection -Lines $lines -Summary $summary
 Add-ReleaseGovernanceWarningsMarkdownSection -Lines $lines -Summary $summary
 Add-ReleaseGovernanceActionItemsMarkdownSection -Lines $lines -Summary $summary
 [void]$lines.Add("")

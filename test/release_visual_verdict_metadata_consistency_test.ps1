@@ -232,6 +232,18 @@ foreach ($scriptInfo in $metadataScripts) {
             -ExpectedText (('[void]${0}.Add("- Release governance handoff nested rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")' -f $scriptInfo.LinesVariable)) `
             -Message "$label should render the nested handoff rollup warning count."
         Assert-ContainsText -Text $scriptText `
+            -ExpectedText (('[void]${0}.Add("- Release blocker rollup blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseBlockerRollupSummary)")' -f $scriptInfo.LinesVariable)) `
+            -Message "$label should render the release blocker rollup blocker count."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText (('[void]${0}.Add("- Release governance handoff blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseGovernanceHandoffSummary)")' -f $scriptInfo.LinesVariable)) `
+            -Message "$label should render the release governance handoff blocker count."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText (('[void]${0}.Add("- Release governance handoff nested rollup blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")' -f $scriptInfo.LinesVariable)) `
+            -Message "$label should render the nested handoff rollup blocker count."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText (('Add-ReleaseGovernanceBlockersMarkdownSection -Lines ${0} -Summary $summary' -f $scriptInfo.LinesVariable)) `
+            -Message "$label should render the governance blocker detail section."
+        Assert-ContainsText -Text $scriptText `
             -ExpectedText (('Add-ReleaseGovernanceWarningsMarkdownSection -Lines ${0} -Summary $summary' -f $scriptInfo.LinesVariable)) `
             -Message "$label should render the governance warning detail section."
     }

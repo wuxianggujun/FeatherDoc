@@ -87,6 +87,39 @@ $restoreAuditActionItem = [pscustomobject]@{
     audit_command = "featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json"
 }
 
+$styleNumberingBlocker = [pscustomobject]@{
+    composite_id = "source0.blocker0.numbering_catalog_governance.style_numbering_issues"
+    id = "numbering_catalog_governance.style_numbering_issues"
+    action = "review_style_numbering_audit"
+    status = "blocked"
+    severity = "error"
+    source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+    source_report_display = ".\output\numbering-catalog-governance\summary.json"
+    message = "Style numbering audit reported unresolved issues."
+}
+
+$styleMergeBlocker = [pscustomobject]@{
+    id = "style_merge.restore_audit_issues"
+    action = "review_style_merge_restore_audit"
+    status = "blocked"
+    severity = "error"
+    source_schema = "featherdoc.style_merge_restore_audit.v1"
+    source_report_display = ".\output\document-skeleton-governance\style-merge.restore-audit.summary.json"
+    message = "Style merge restore audit has unresolved rollback issues."
+}
+
+$normalizedBlockers = @(Get-NormalizedReleaseGovernanceBlockers -Blockers @($styleNumberingBlocker, $styleMergeBlocker))
+Assert-Equal -Actual $normalizedBlockers.Count -Expected 2 `
+    -Message "Normalized governance blockers should preserve every blocker entry."
+Assert-Equal -Actual ([string]$normalizedBlockers[0].composite_id) -Expected "source0.blocker0.numbering_catalog_governance.style_numbering_issues" `
+    -Message "Normalized governance blocker should preserve composite id."
+Assert-Equal -Actual ([string]$normalizedBlockers[0].action) -Expected "review_style_numbering_audit" `
+    -Message "Normalized governance blocker should preserve action."
+Assert-Equal -Actual ([string]$normalizedBlockers[0].source_report_display) -Expected ".\output\numbering-catalog-governance\summary.json" `
+    -Message "Normalized governance blocker should preserve source report display."
+Assert-Equal -Actual (Get-ReleaseGovernanceBlockerCount -SummaryObject ([pscustomobject]@{ release_blocker_count = 5; release_blockers = @($styleNumberingBlocker) })) -Expected 5 `
+    -Message "Declared release_blocker_count should win over materialized governance blockers."
+
 $normalizedWarnings = @(Get-NormalizedReleaseGovernanceWarnings -Warnings @($warningWithStyleMergeCount, $warningWithoutStyleMergeCount))
 Assert-Equal -Actual $normalizedWarnings.Count -Expected 2 `
     -Message "Normalized warnings should preserve every warning entry."
@@ -104,6 +137,24 @@ Assert-True -Condition (-not ($normalizedWarnings[1].PSObject.Properties.Name -c
     -Message "Normalized warning should omit style merge counts when absent."
 Assert-True -Condition (-not ($normalizedWarnings[1].PSObject.Properties.Name -contains "style_merge_suggestion_pending_count")) `
     -Message "Normalized warning should omit pending style merge counts when absent."
+
+$blockerSummaryText = Get-ReleaseGovernanceBlockerSummaryText -Blocker $styleNumberingBlocker
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'id: `numbering_catalog_governance.style_numbering_issues`' `
+    -Message "Governance blocker summary should include the source blocker id."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'composite_id: `source0.blocker0.numbering_catalog_governance.style_numbering_issues`' `
+    -Message "Governance blocker summary should include the rollup composite id when present."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'action: `review_style_numbering_audit`' `
+    -Message "Governance blocker summary should include the action."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'status: `blocked`' `
+    -Message "Governance blocker summary should include status."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'severity: `error`' `
+    -Message "Governance blocker summary should include severity."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'source_schema: `featherdoc.numbering_catalog_governance_report.v1`' `
+    -Message "Governance blocker summary should include source schema."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'source_report_display: `.\output\numbering-catalog-governance\summary.json`' `
+    -Message "Governance blocker summary should include source report display."
+Assert-ContainsText -Text $blockerSummaryText -ExpectedText 'message: Style numbering audit reported unresolved issues.' `
+    -Message "Governance blocker summary should include message."
 
 $declaredCountSummary = [pscustomobject]@{
     warning_count = 5
@@ -177,6 +228,28 @@ Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'open_latest_w
 Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json' `
     -Message "Action item Markdown subsection should include audit commands."
 
+$blockerSubsectionLines = New-Object 'System.Collections.Generic.List[string]'
+$blockerSubsectionRendered = Add-ReleaseGovernanceBlockerMarkdownSubsection `
+    -Lines $blockerSubsectionLines `
+    -Heading "Release blocker rollup blockers" `
+    -SummaryObject ([pscustomobject]@{
+        release_blocker_count = 2
+        release_blockers = @($styleNumberingBlocker, $styleMergeBlocker)
+    })
+Assert-True -Condition $blockerSubsectionRendered `
+    -Message "Blocker Markdown subsection should render when governance blockers exist."
+$blockerSubsectionMarkdown = $blockerSubsectionLines -join "`n"
+Assert-ContainsText -Text $blockerSubsectionMarkdown -ExpectedText "### Release blocker rollup blockers" `
+    -Message "Blocker Markdown subsection should include its heading."
+Assert-ContainsText -Text $blockerSubsectionMarkdown -ExpectedText '- release_blocker_count: `2`' `
+    -Message "Blocker Markdown subsection should include blocker count."
+Assert-ContainsText -Text $blockerSubsectionMarkdown -ExpectedText 'id: `numbering_catalog_governance.style_numbering_issues`' `
+    -Message "Blocker Markdown subsection should include source blocker ids."
+Assert-ContainsText -Text $blockerSubsectionMarkdown -ExpectedText 'composite_id: `source0.blocker0.numbering_catalog_governance.style_numbering_issues`' `
+    -Message "Blocker Markdown subsection should include rollup composite blocker ids."
+Assert-ContainsText -Text $blockerSubsectionMarkdown -ExpectedText 'action: `review_style_merge_restore_audit`' `
+    -Message "Blocker Markdown subsection should include fallback blocker action."
+
 $subsectionLines = New-Object 'System.Collections.Generic.List[string]'
 $subsectionRendered = Add-ReleaseGovernanceWarningMarkdownSubsection `
     -Lines $subsectionLines `
@@ -241,6 +314,39 @@ Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion
     -Message "Markdown section should render optional style merge counts."
 Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
     -Message "Markdown section should render optional pending style merge counts."
+
+$blockerSectionLines = New-Object 'System.Collections.Generic.List[string]'
+Add-ReleaseGovernanceBlockersMarkdownSection `
+    -Lines $blockerSectionLines `
+    -Summary ([pscustomobject]@{
+        release_blocker_rollup = [pscustomobject]@{
+            release_blocker_count = 1
+            release_blockers = @($styleNumberingBlocker)
+        }
+        release_governance_handoff = [pscustomobject]@{
+            release_blocker_count = 1
+            release_blockers = @($styleMergeBlocker)
+            release_blocker_rollup = [pscustomobject]@{
+                release_blocker_count = 1
+                release_blockers = @($styleNumberingBlocker)
+            }
+        }
+    })
+$blockerSectionMarkdown = $blockerSectionLines -join "`n"
+Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText "## Release Governance Blockers" `
+    -Message "Markdown section should include the top-level governance blocker heading."
+Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText "### Release blocker rollup blockers" `
+    -Message "Markdown section should include the release blocker rollup subsection."
+Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText "### Release governance handoff blockers" `
+    -Message "Markdown section should include the handoff blocker subsection."
+Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText "### Release governance handoff nested rollup blockers" `
+    -Message "Markdown section should include the nested handoff rollup blocker subsection."
+Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText 'action: `review_style_numbering_audit`' `
+    -Message "Markdown section should render rollup blocker actions."
+Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText 'source_report_display: `.\output\numbering-catalog-governance\summary.json`' `
+    -Message "Markdown section should render blocker source report displays."
+Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText 'id: `style_merge.restore_audit_issues`' `
+    -Message "Markdown section should render handoff blocker ids when composite ids are absent."
 
 $actionSectionLines = New-Object 'System.Collections.Generic.List[string]'
 Add-ReleaseGovernanceActionItemsMarkdownSection `

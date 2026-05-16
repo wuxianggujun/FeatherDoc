@@ -206,6 +206,10 @@ restore-audit `open_command` 等辅助命令；`governance_detail_source` 会标
 数组来自 `release_blocker_rollup` 还是 `stage_aggregate_fallback`。该脚本只读输入
 summary，不重跑 CLI、CMake、Word 或视觉自动化。若最终 rollup stage 失败，pipeline 会保持 `failed`，同时保留前面
 已完成 stage 产出的 blocker、action 和 warning 明细，不会把顶层治理 summary 清空。
+发布包入口 `START_HERE.md`、`ARTIFACT_GUIDE.md`、`REVIEWER_CHECKLIST.md` 和
+`release_handoff.md` 也会展示 final rollup、governance handoff 与 handoff 内嵌
+rollup 三层 blocker 计数和明细，并保留 action item 辅助命令，审阅者无需打开嵌套
+JSON 就能看到阻断来源和后续处理入口。
 Linux/macOS CI 的 `release_smoke` 步骤也会把 release candidate blocker rollup、
 release governance handoff、release governance pipeline 等 smoke 输出上传为 Actions
 artifact，便于从远端构建直接下载审查证据。

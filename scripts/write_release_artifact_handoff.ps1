@@ -461,6 +461,9 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Reviewer checklist: $(Get-DisplayPath -RepoRoot $repoRoot -Path $reviewerChecklistPath)")
 [void]$handoffLines.Add("- Execution status: $($summary.execution_status)")
 [void]$handoffLines.Add("- Release blockers: $(Get-ReleaseBlockerCount -Summary $summary)")
+[void]$handoffLines.Add("- Release blocker rollup blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseBlockerRollupSummary)")
+[void]$handoffLines.Add("- Release governance handoff blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseGovernanceHandoffSummary)")
+[void]$handoffLines.Add("- Release governance handoff nested rollup blocker_count: $(Get-ReleaseGovernanceBlockerCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")
 [void]$handoffLines.Add("- Release blocker rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseBlockerRollupSummary)")
 [void]$handoffLines.Add("- Release governance handoff warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffSummary)")
 [void]$handoffLines.Add("- Release governance handoff nested rollup warning_count: $(Get-ReleaseGovernanceWarningCount -SummaryObject $releaseGovernanceHandoffRollupSummary)")
@@ -519,6 +522,7 @@ if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
 [void]$handoffLines.Add("- Section page setup task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
 [void]$handoffLines.Add("- Page number fields task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
 Add-ReleaseBlockerMarkdownSection -Lines $handoffLines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceBlockersMarkdownSection -Lines $handoffLines -Summary $summary
 Add-ReleaseGovernanceWarningsMarkdownSection -Lines $handoffLines -Summary $summary
 Add-ReleaseGovernanceActionItemsMarkdownSection -Lines $handoffLines -Summary $summary
 [void]$handoffLines.Add("")

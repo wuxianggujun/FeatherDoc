@@ -1883,8 +1883,12 @@ then runs `build_release_blocker_rollup_report.ps1`, writes
 rollup status, source count, blocker count, action count, warning count,
 blocker details, warning details, and auto-discovered inputs in both
 `report/summary.json` and step summary objects; `report/final_review.md` and
-release note bundle files also render those action-item helper commands so
-reviewers can run the follow-up commands without opening the nested rollup JSON.
+release note bundle files also render governance blocker/action/warning
+details from the final rollup, governance handoff, and nested handoff rollup.
+The generated `START_HERE.md`, `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`,
+and `release_handoff.md` include those blocker counts and details beside the
+action-item helper commands, so reviewers can run the follow-up commands
+without opening the nested rollup JSON.
 `final_review.md` now adds a dedicated Release
 governance warnings section so reviewer-facing handoff notes keep the warning
 `id`, `action`, `message`, `source_schema`, and any optional
