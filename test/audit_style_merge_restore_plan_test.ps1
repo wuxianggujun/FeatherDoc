@@ -160,6 +160,21 @@ if (Test-Scenario -Name "clean") {
         -Message "Restore audit should run in dry-run mode."
     Assert-Equal -Actual ([int]$summary.issue_count) -Expected 0 `
         -Message "Clean restore audit should preserve zero issue count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
+        -Message "Clean restore audit should not emit release blockers."
+    Assert-Equal -Actual (@($summary.release_blockers).Count) -Expected 0 `
+        -Message "Clean restore audit release blocker list should be empty."
+    Assert-Equal -Actual (@($summary.action_items).Count) -Expected 1 `
+        -Message "Clean restore audit should emit a visual review action item."
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 1 `
+        -Message "Clean restore audit should expose action item count."
+    $actionItem = @($summary.action_items)[0]
+    Assert-Equal -Actual ([string]$actionItem.action) -Expected "review_style_merge_restore_audit" `
+        -Message "Restore audit action item should expose a stable action."
+    Assert-ContainsText -Text ([string]$summary.visual_review_command) -ExpectedText "prepare_word_review_task.ps1" `
+        -Message "Restore audit should expose a Word visual review command."
+    Assert-ContainsText -Text ([string]$actionItem.command) -ExpectedText "merged.docx" `
+        -Message "Restore audit visual action should target the merged DOCX."
     Assert-Equal -Actual ([int]$summary.restored_count) -Expected 2 `
         -Message "Restore audit should preserve restored count."
     Assert-Equal -Actual ([int]$summary.restored_reference_count) -Expected 4 `
@@ -212,6 +227,20 @@ if (Test-Scenario -Name "issue") {
         -Message "Issue restore audit should report needs_review status."
     Assert-Equal -Actual ([int]$summary.issue_count) -Expected 1 `
         -Message "Issue restore audit should preserve issue count."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
+        -Message "Issue restore audit should emit one release blocker."
+    $blocker = @($summary.release_blockers)[0]
+    Assert-Equal -Actual ([string]$blocker.id) -Expected "style_merge.restore_audit_issues" `
+        -Message "Issue restore audit blocker should expose a stable id."
+    Assert-Equal -Actual ([string]$blocker.action) -Expected "review_style_merge_restore_audit" `
+        -Message "Issue restore audit blocker should point to the restore review action."
+    Assert-ContainsText -Text ([string]$blocker.message) -ExpectedText "1 issue" `
+        -Message "Issue restore audit blocker should explain the issue count."
+    Assert-ContainsText -Text ((@($summary.action_items) | ForEach-Object { [string]$_.action }) -join "`n") `
+        -ExpectedText "review_style_merge_restore_audit" `
+        -Message "Issue restore audit should keep the restore review action item."
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 1 `
+        -Message "Issue restore audit should expose action item count."
 }
 
 Write-Host "Style merge restore audit regression passed."

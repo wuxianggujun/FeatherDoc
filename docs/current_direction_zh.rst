@@ -166,8 +166,10 @@
   受控调用 ``apply-style-refactor``，输出合并后的 DOCX、rollback plan 和
   ``featherdoc.reviewed_style_merge_apply.v1`` 审计 summary；
   ``scripts/audit_style_merge_restore_plan.ps1`` 可继续对 rollback plan 运行只读
-  ``restore-style-merge --dry-run`` 审计，并用 ``-FailOnIssue`` 将恢复问题纳入 gate；
-  但不再升级为 release warning；若引用的 plan 证据缺失，则通过
+  ``restore-style-merge --dry-run`` 审计；summary 会输出 ``release_blockers`` /
+  ``action_items``，恢复 issue 会以 ``style_merge.restore_audit_issues`` 进入
+  release blocker rollup，并给出 ``review_style_merge_restore_audit`` 视觉复核 action；
+  ``-FailOnIssue`` 仍可让本步提前失败；若引用的 plan 证据缺失，则通过
   ``document_skeleton.style_merge_review_evidence_missing`` blocker 和
   ``fix_style_merge_review_evidence`` action 保持可追踪，
   默认不阻断发布，但可用 ``-FailOnWarning`` 纳入更严格的 gate

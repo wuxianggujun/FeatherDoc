@@ -294,6 +294,44 @@ $summaryBasePath = [System.IO.Path]::GetDirectoryName($resolvedSummaryJson)
 if ([string]::IsNullOrWhiteSpace($summaryBasePath)) {
     $summaryBasePath = (Get-Location).Path
 }
+
+$restoreAuditCommand = "featherdoc_cli " + (ConvertTo-CommandLine -Arguments $argumentArray)
+$visualReviewDocx = Convert-ToPortableRelativePath -BasePath $repoRoot -TargetPath $resolvedInputDocx
+if ([string]::IsNullOrWhiteSpace($visualReviewDocx)) {
+    $visualReviewDocx = $resolvedInputDocx
+}
+$visualReviewCommand = ConvertTo-CommandLine -Arguments @(
+    "pwsh",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    ".\scripts\prepare_word_review_task.ps1",
+    "-DocxPath",
+    $visualReviewDocx,
+    "-Mode",
+    "review-only"
+)
+
+$releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
+if ($issueCount -gt 0) {
+    $releaseBlockers.Add([ordered]@{
+        id = "style_merge.restore_audit_issues"
+        severity = "error"
+        status = "blocked"
+        action = "review_style_merge_restore_audit"
+        message = "Style merge restore dry-run reported $issueCount issue(s)."
+    }) | Out-Null
+}
+
+$actionItems = New-Object 'System.Collections.Generic.List[object]'
+$actionItems.Add([ordered]@{
+    id = "review_style_merge_restore_audit"
+    action = "review_style_merge_restore_audit"
+    title = "Review style merge restore audit and Word render"
+    command = $visualReviewCommand
+    audit_command = $restoreAuditCommand
+}) | Out-Null
+
 $summary = [ordered]@{
     schema = "featherdoc.style_merge_restore_audit.v1"
     generated_at = (Get-Date).ToString("s")
@@ -314,7 +352,12 @@ $summary = [ordered]@{
     restored_count = Get-JsonInt -Object $cliJson -Names @("restored_count") -DefaultValue 0
     restored_style_count = Get-JsonInt -Object $cliJson -Names @("restored_style_count") -DefaultValue 0
     restored_reference_count = Get-JsonInt -Object $cliJson -Names @("restored_reference_count") -DefaultValue 0
-    command = "featherdoc_cli " + (ConvertTo-CommandLine -Arguments $argumentArray)
+    command = $restoreAuditCommand
+    visual_review_command = $visualReviewCommand
+    release_blocker_count = $releaseBlockers.Count
+    release_blockers = @($releaseBlockers.ToArray())
+    action_item_count = $actionItems.Count
+    action_items = @($actionItems.ToArray())
     cli_exit_code = $result.ExitCode
     cli_result = $cliJson
 }

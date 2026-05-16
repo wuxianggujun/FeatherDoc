@@ -618,7 +618,11 @@ exemplar catalog 路径、样式编号 issue 汇总、release blocker 和 action
 blocker / action item。当 numbering catalog governance、table layout delivery
 governance、project template delivery readiness 等报告已经生成后，可以再用
 `scripts/build_release_blocker_rollup_report.ps1` 统一汇总 release blocker 和 action
-item。它会为不同来源的重复 blocker id 生成可追踪的 `composite_id`，输出
+item。style merge restore audit summary 也会输出 `release_blockers` /
+`action_items`；当 `restore-style-merge --dry-run` 报告恢复 issue 时，会以
+`style_merge.restore_audit_issues` 进入同一个 rollup，并给出
+`review_style_merge_restore_audit` 视觉复核 action。
+它会为不同来源的重复 blocker id 生成可追踪的 `composite_id`，输出
 `featherdoc.release_blocker_rollup_report.v1`，并可通过 `-FailOnBlocker` /
 `-FailOnWarning` 作为发布面板或 CI 的最后一层只读检查。
 在进入最终 rollup 前，也可以先运行

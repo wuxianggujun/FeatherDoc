@@ -520,6 +520,12 @@ plan. Use ``-FailOnIssue`` when the audit should block downstream gates:
       -SkipBuild `
       -FailOnIssue
 
+The restore audit summary also exposes ``release_blocker_count``,
+``release_blockers``, ``action_items``, and ``visual_review_command``. Dry-run
+issues become the stable ``style_merge.restore_audit_issues`` blocker with a
+``review_style_merge_restore_audit`` action, so the release blocker rollup can
+consume restore safety issues without rerunning Word or mutating the DOCX.
+
 The rollup then exposes
 ``total_style_merge_suggestion_pending_count`` so downstream gates only warn on
 pending duplicate style-merge suggestions.

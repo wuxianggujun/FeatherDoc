@@ -70,6 +70,7 @@ $fixtureRoot = Join-Path $resolvedWorkingDir "fixtures"
 $documentSkeletonPath = Join-Path $fixtureRoot "document-skeleton\document_skeleton_governance.summary.json"
 $documentSkeletonRollupPath = Join-Path $fixtureRoot "document-skeleton-rollup\summary.json"
 $documentSkeletonReviewedRollupPath = Join-Path $fixtureRoot "document-skeleton-reviewed-rollup\summary.json"
+$styleMergeRestoreAuditPath = Join-Path $fixtureRoot "style-merge-restore-audit\summary.json"
 $tableLayoutPath = Join-Path $fixtureRoot "table-layout\summary.json"
 $releaseCandidatePath = Join-Path $fixtureRoot "release-candidate\summary.json"
 $emptyPath = Join-Path $fixtureRoot "empty\summary.json"
@@ -172,6 +173,30 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
     action_items = @()
 })
 
+Write-JsonFile -Path $styleMergeRestoreAuditPath -Value ([ordered]@{
+    schema = "featherdoc.style_merge_restore_audit.v1"
+    status = "needs_review"
+    issue_count = 1
+    release_blocker_count = 1
+    release_blockers = @(
+        [ordered]@{
+            id = "style_merge.restore_audit_issues"
+            severity = "error"
+            status = "blocked"
+            message = "Style merge restore dry-run reported 1 issue(s)."
+            action = "review_style_merge_restore_audit"
+        }
+    )
+    action_items = @(
+        [ordered]@{
+            id = "review_style_merge_restore_audit"
+            action = "review_style_merge_restore_audit"
+            title = "Review style merge restore audit and Word render"
+            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -Mode review-only"
+        }
+    )
+})
+
 Write-JsonFile -Path $emptyPath -Value ([ordered]@{
     schema = "featherdoc.empty_report.v1"
     release_blocker_count = 0
@@ -225,6 +250,8 @@ if (Test-Scenario -Name "passing") {
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $tableLayoutPath | ConvertFrom-Json)
     Write-JsonFile -Path (Join-Path $passingInputRoot "release-candidate\summary.json") `
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseCandidatePath | ConvertFrom-Json)
+    Write-JsonFile -Path (Join-Path $passingInputRoot "style-merge-restore-audit\summary.json") `
+        -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $styleMergeRestoreAuditPath | ConvertFrom-Json)
     $result = Invoke-RollupScript -Arguments @(
         "-InputRoot", $passingInputRoot,
         "-OutputDir", $outputDir
@@ -244,11 +271,11 @@ if (Test-Scenario -Name "passing") {
         -Message "Summary should expose rollup schema."
     Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
         -Message "Rollup should be blocked when blockers exist."
-    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 5 `
         -Message "Rollup should aggregate all blockers."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 4 `
         -Message "Rollup should aggregate action items."
-    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 5 `
         -Message "Rollup should keep source report count."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
         -Message "Rollup should surface non-blocking skeleton review warnings."
@@ -277,6 +304,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include title."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_smoke.schema_approval" `
         -Message "Markdown should include release candidate blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge.restore_audit_issues" `
+        -Message "Markdown should include style merge restore audit blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_style_merge_restore_audit" `
+        -Message "Markdown should include style merge restore audit actions."
     Assert-ContainsText -Text $markdown -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
         -Message "Markdown should include style merge review warning."
     Assert-ContainsText -Text $markdown -ExpectedText "### Release blocker rollup warnings" `

@@ -165,7 +165,10 @@ reviewed count 覆盖 plan suggestion count 后，受控调用 ``apply-style-ref
 输出合并后的 DOCX、rollback plan 与 ``featherdoc.reviewed_style_merge_apply.v1``
 审计 summary。
 ``scripts/audit_style_merge_restore_plan.ps1`` 进一步对 rollback plan 执行只读
-``restore-style-merge --dry-run`` 审计，并可用 ``-FailOnIssue`` 把恢复问题纳入 gate。
+``restore-style-merge --dry-run`` 审计；summary 会输出 ``release_blockers`` /
+``action_items``，恢复 issue 会以 ``style_merge.restore_audit_issues`` 进入 release
+blocker rollup，并给出 ``review_style_merge_restore_audit`` 视觉复核 action；
+``-FailOnIssue`` 仍可让本步提前失败。
 若 review JSON 引用了缺失的 plan 证据，
 建议本身不会重新计入 pending，但报告会进入 ``needs_review``，并输出
 ``document_skeleton.style_merge_review_evidence_missing`` blocker 与

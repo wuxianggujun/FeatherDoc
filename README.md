@@ -841,6 +841,12 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\audit_style_merge_restore_plan.ps1 
   -FailOnIssue
 ```
 
+The restore audit summary also exposes `release_blocker_count`,
+`release_blockers`, `action_items`, and `visual_review_command`. Dry-run issues
+become the stable `style_merge.restore_audit_issues` blocker with a
+`review_style_merge_restore_audit` action, so the release blocker rollup can
+consume restore safety issues without rerunning Word or mutating the DOCX.
+
 The multi-document rollup then sums `total_style_merge_suggestion_pending_count`
 and only pending suggestions flow onward as release governance warnings. Pair
 that rollup with
