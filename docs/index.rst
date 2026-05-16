@@ -545,9 +545,9 @@ again. When scanning an ``-InputRoot``, the rollup also includes
 audit; release-candidate auto-discovery and the release governance pipeline
 feed those summaries into the final blocker rollup as well. Release-candidate
 ``summary.json``, ``final_review.md``, and generated release note bundle files
-now render normalized governance action items and helper commands from the
-final rollup, so restore-audit follow-up commands remain visible without
-opening nested JSON. The release governance pipeline summary also materializes
+now render normalized governance blocker details, action items, and helper
+commands from the final rollup, so restore-audit follow-up commands and
+blockers remain visible without opening nested JSON. The release governance pipeline summary also materializes
 top-level final-rollup ``release_blockers``, ``action_items``, and
 ``warnings``, plus stage-level ``release_blockers`` and ``action_items``; its
 Markdown renders blocker details plus helper commands such as restore-audit

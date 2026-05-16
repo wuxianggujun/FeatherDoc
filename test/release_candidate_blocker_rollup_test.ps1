@@ -382,6 +382,12 @@ Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -E
     -Message "Release candidate summary should surface action item count."
 Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 1 `
     -Message "Release candidate summary should surface warning count."
+Assert-ContainsText -Text (($summary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "numbering_catalog_governance.style_numbering_issues" `
+    -Message "Release candidate summary should surface rollup blocker details."
+Assert-ContainsText -Text (($summary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.action }) -join "`n") `
+    -ExpectedText "review_style_numbering_audit" `
+    -Message "Release candidate summary should preserve rollup blocker actions."
 Assert-ContainsText -Text (($summary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
     -Message "Release candidate summary should surface warning details."
@@ -392,6 +398,9 @@ Assert-Equal -Actual ([string]$rollupWarning[0].source_schema) -Expected "feathe
     -Message "Release candidate summary should preserve rollup warning source schema."
 Assert-Equal -Actual ([string]$summary.steps.release_blocker_rollup.status) -Expected "blocked" `
     -Message "Release candidate step status should mirror rollup status."
+Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "numbering_catalog_governance.style_numbering_issues" `
+    -Message "Release candidate step summary should mirror rollup blocker details."
 
 $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
@@ -475,6 +484,12 @@ Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_b
     -Message "Auto-discovered rollup should surface blocker count from default governance plus restore audit reports."
 Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 5 `
     -Message "Auto-discovered rollup should surface action count from default governance plus restore audit reports."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "style_merge.restore_audit_issues" `
+    -Message "Release candidate summary should preserve auto-discovered restore audit blocker details."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.action }) -join "`n") `
+    -ExpectedText "review_style_merge_restore_audit" `
+    -Message "Release candidate summary should preserve auto-discovered restore audit blocker actions."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object {
             if ($_.PSObject.Properties["open_command"]) { [string]$_.open_command }
         }) -join "`n") `

@@ -2591,6 +2591,11 @@ try {
             $summary.release_blocker_rollup.release_blocker_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.release_blocker_count }
             $summary.release_blocker_rollup.action_item_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.action_item_count }
             $summary.release_blocker_rollup.warning_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.warning_count }
+            $summary.release_blocker_rollup.release_blockers = if ($null -eq $rollupSummary) {
+                @()
+            } else {
+                @(Get-ReleaseBlockers -Summary $rollupSummary)
+            }
             $summary.release_blocker_rollup.action_items = if ($null -eq $rollupSummary) {
                 @()
             } else {
@@ -2607,6 +2612,7 @@ try {
             $summary.steps.release_blocker_rollup.release_blocker_count = $summary.release_blocker_rollup.release_blocker_count
             $summary.steps.release_blocker_rollup.action_item_count = $summary.release_blocker_rollup.action_item_count
             $summary.steps.release_blocker_rollup.warning_count = $summary.release_blocker_rollup.warning_count
+            $summary.steps.release_blocker_rollup.release_blockers = @($summary.release_blocker_rollup.release_blockers)
             $summary.steps.release_blocker_rollup.action_items = @($summary.release_blocker_rollup.action_items)
             $summary.steps.release_blocker_rollup.warnings = @($summary.release_blocker_rollup.warnings)
             $summary.steps.release_blocker_rollup.error = ""
@@ -2648,6 +2654,11 @@ try {
             $summary.release_governance_handoff.release_blocker_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.release_blocker_count }
             $summary.release_governance_handoff.action_item_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.action_item_count }
             $summary.release_governance_handoff.warning_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.warning_count }
+            $summary.release_governance_handoff.release_blockers = if ($null -eq $handoffSummary) {
+                @()
+            } else {
+                @(Get-ReleaseBlockers -Summary $handoffSummary)
+            }
             $summary.release_governance_handoff.action_items = if ($null -eq $handoffSummary) {
                 @()
             } else {
@@ -2672,6 +2683,11 @@ try {
                 release_blocker_count = if ($null -eq $handoffRollupSummary) { 0 } else { Get-OptionalIntegerProperty -Object $handoffRollupSummary -Name "release_blocker_count" }
                 action_item_count = if ($null -eq $handoffRollupSummary) { 0 } else { Get-OptionalIntegerProperty -Object $handoffRollupSummary -Name "action_item_count" }
                 warning_count = if ($null -eq $handoffRollupSummary) { 0 } else { Get-OptionalIntegerProperty -Object $handoffRollupSummary -Name "warning_count" }
+                release_blockers = if ($null -eq $handoffRollupSummary) {
+                    @()
+                } else {
+                    @(Get-ReleaseBlockers -Summary $handoffRollupSummary)
+                }
                 action_items = if ($null -eq $handoffRollupSummary) {
                     @()
                 } else {
@@ -2692,6 +2708,7 @@ try {
             $summary.steps.release_governance_handoff.release_blocker_count = $summary.release_governance_handoff.release_blocker_count
             $summary.steps.release_governance_handoff.action_item_count = $summary.release_governance_handoff.action_item_count
             $summary.steps.release_governance_handoff.warning_count = $summary.release_governance_handoff.warning_count
+            $summary.steps.release_governance_handoff.release_blockers = @($summary.release_governance_handoff.release_blockers)
             $summary.steps.release_governance_handoff.action_items = @($summary.release_governance_handoff.action_items)
             $summary.steps.release_governance_handoff.warnings = @($summary.release_governance_handoff.warnings)
             $summary.steps.release_governance_handoff.error = ""

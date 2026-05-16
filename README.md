@@ -1881,10 +1881,11 @@ to collect the default `output/numbering-catalog-governance/summary.json`,
 then runs `build_release_blocker_rollup_report.ps1`, writes
 `report/release-blocker-rollup/summary.json` plus Markdown, and records the
 rollup status, source count, blocker count, action count, warning count,
-warning details, and auto-discovered inputs in both `report/summary.json` and
-`report/final_review.md`; release note bundle files also render those
-action-item helper commands so reviewers can run the follow-up commands without
-opening the nested rollup JSON. `final_review.md` now adds a dedicated Release
+blocker details, warning details, and auto-discovered inputs in both
+`report/summary.json` and step summary objects; `report/final_review.md` and
+release note bundle files also render those action-item helper commands so
+reviewers can run the follow-up commands without opening the nested rollup JSON.
+`final_review.md` now adds a dedicated Release
 governance warnings section so reviewer-facing handoff notes keep the warning
 `id`, `action`, `message`, `source_schema`, and any optional
 `style_merge_suggestion_count` / `style_merge_suggestion_pending_count` values
