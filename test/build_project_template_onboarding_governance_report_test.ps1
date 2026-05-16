@@ -223,6 +223,21 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should aggregate onboarding action items."
     Assert-Equal -Actual ([int]$summary.manual_review_recommendation_count) -Expected 2 `
         -Message "Summary should aggregate manual review recommendations."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
+        -Message "Release blockers should expose the onboarding governance source schema."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "onboarding_summary.json" `
+        -Message "Release blockers should expose the source evidence JSON display path."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
+        -Message "Action items should expose the onboarding governance source schema."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "onboarding_summary.json" `
+        -Message "Action items should expose the source evidence JSON display path."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "run_project_template_smoke.ps1" `
+        -Message "Action items should expose the reviewer open command."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Project Template Onboarding Governance Report" `
@@ -235,6 +250,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include smoke approval items."
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
         -Message "Markdown should include release blockers."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+        -Message "Markdown should include source JSON display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
+        -Message "Markdown should include action item open commands."
 }
 
 if (Test-Scenario -Name "fail_on_blocker") {

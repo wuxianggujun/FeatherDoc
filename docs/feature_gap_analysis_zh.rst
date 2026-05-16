@@ -90,7 +90,11 @@ schema drift 数量、变更摘要、审批 decision 与下一步动作；单模
 ``build_project_template_onboarding_governance_report.ps1`` 现在可以进一步把
 onboarding summary、onboarding plan 和 project-template smoke summary 汇总成
 ``featherdoc.project_template_onboarding_governance_report.v1``，用于跨模板查看
-schema approval 状态、release blocker、action item 和人工复核建议。
+schema approval 状态、release blocker、action item 和人工复核建议。该报告的
+blocker / action item 现在会携带 ``source_schema``、``source_json_display`` 与
+reviewer ``open_command``，并经
+``featherdoc.project_template_delivery_readiness_report.v1`` 进入默认 release blocker
+rollup，让发布面板和 reviewer checklist 能直接定位 onboarding 证据与复核命令。
 ``write_schema_patch_confidence_calibration_report.ps1`` 也已能从 smoke summary
 或审批历史中只读提取 schema patch review 规模、approval outcome 和可选
 confidence 元数据，生成 ``featherdoc.schema_patch_confidence_calibration_report.v1``

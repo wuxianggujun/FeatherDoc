@@ -106,7 +106,11 @@
 - ``scan_template_schema(...)`` / ``build_template_schema_patch_from_scan(...)``
 - ``check-template-schema``
 - schema patch review JSON、schema approval gate 与审批历史报表
-- project-template onboarding governance 聚合报告
+- project-template onboarding governance 聚合报告；其 blocker 和 action item
+  会经 delivery readiness 继续保留
+  ``featherdoc.project_template_onboarding_governance_report.v1``、
+  ``source_json_display`` 与 reviewer ``open_command``，最终进入发布面板和
+  reviewer-facing bundle
 - schema patch confidence calibration 只读校准报告
 - release blocker rollup 统一发布阻断汇总
 - content-control data-binding governance 只读报告，已把 Custom XML
@@ -119,8 +123,9 @@
 
 1. 扩大真实业务模板语料样本，继续校准 rename / update 建议的置信度
 2. 多项目 schema approval、release gate 和审批历史的维护体验
-3. 将 onboarding governance、confidence calibration、content-control
-   data-binding governance 与 release blocker rollup 接入更固定的发布面板
+3. 继续补齐 confidence calibration 与 release blocker rollup 的发布面板固定字段；
+   onboarding governance 和 content-control data-binding governance 已开始直接透传
+   blocker / warning / action item 明细
 4. schema migration 的人工复核入口和更明确的修复建议分流
 
 这条线的目标是：

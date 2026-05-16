@@ -186,6 +186,16 @@ schema confidence calibration 和 content-control data-binding governance 的治
 把 ``inspect-content-controls`` 或治理 summary 写入 ``source_json_display``，并为 action item
 提供重建治理报告的 ``open_command``，reviewer 可直接沿着 bundle 中的 rollup 明细回到证据 JSON。
 
+project-template onboarding governance 会先写出
+``featherdoc.project_template_onboarding_governance_report.v1``，再由
+``featherdoc.project_template_delivery_readiness_report.v1`` 汇总到默认发布阻断输入。
+delivery readiness 在透传 onboarding-derived blocker / action item 时保留原始
+``source_schema`` 与 ``source_json_display``，同时把 reviewer 可执行的
+``open_command`` 带入 final rollup。reviewer 在 ``START_HERE.md``、
+``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 或 ``release_handoff.md`` 中看到
+``project_template_onboarding.*`` 阻断项时，应先打开 ``source_json_display`` 对应的
+onboarding governance 证据，再按 ``open_command`` 同步或复核 schema approval 记录。
+
 内部 handoff 文件可以展示更完整的 reviewer metadata，例如：
 
 - ``review_status``

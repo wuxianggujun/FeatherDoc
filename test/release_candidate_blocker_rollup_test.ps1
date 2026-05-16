@@ -238,18 +238,25 @@ Write-JsonFile -Path $autoDiscoverProjectSummaryPath -Value ([ordered]@{
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
-            id = "project_template_delivery.pending_schema_approval"
+            id = "project_template_onboarding.schema_approval"
             severity = "error"
             status = "blocked"
             message = "Autodiscovered project template schema approval is pending."
-            action = "approve_project_template_schema"
+            action = "review_schema_update_candidate"
+            source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+            source_json = "output/project-template-onboarding-governance/summary.json"
+            source_json_display = ".\output\project-template-onboarding-governance\summary.json"
         }
     )
     action_items = @(
         [ordered]@{
-            id = "approve_project_template_schema"
-            action = "approve_project_template_schema"
-            title = "Approve project template schema before release"
+            id = "review_invoice_schema"
+            action = "review_schema_update_candidate"
+            title = "Review invoice schema before release"
+            open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
+            source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+            source_json = "output/project-template-onboarding-governance/summary.json"
+            source_json_display = ".\output\project-template-onboarding-governance\summary.json"
         }
     )
 })
@@ -482,12 +489,21 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.content_control_data_binding_governance_report.v1" `
     -Message "Auto-discovered rollup should carry content-control source schema."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+    -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
+    -Message "Auto-discovered rollup should carry onboarding governance source schema through delivery readiness."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
     -Message "Auto-discovered rollup should carry content-control source JSON display."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "project-template-onboarding-governance\summary.json" `
+    -Message "Auto-discovered rollup should carry onboarding governance source JSON display."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
     -Message "Auto-discovered rollup should carry content-control action open command."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "sync_project_template_schema_approval.ps1" `
+    -Message "Auto-discovered rollup should carry onboarding governance action open command."
 
 $autoDiscoverRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupSummaryPath | ConvertFrom-Json
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
