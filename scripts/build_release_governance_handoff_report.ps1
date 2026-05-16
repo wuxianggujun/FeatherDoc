@@ -263,14 +263,21 @@ function Add-NormalizedActions {
     )
 
     foreach ($item in @($Report.action_items)) {
-        $Collection.Add([ordered]@{
+        $actionEntry = [ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
             id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
             command = Get-JsonString -Object $item -Name "command"
-        }) | Out-Null
+        }
+        foreach ($optionalCommandName in @("open_command", "audit_command", "review_command")) {
+            $optionalCommand = Get-JsonString -Object $item -Name $optionalCommandName
+            if (-not [string]::IsNullOrWhiteSpace($optionalCommand)) {
+                $actionEntry[$optionalCommandName] = $optionalCommand
+            }
+        }
+        $Collection.Add($actionEntry) | Out-Null
     }
 }
 
@@ -382,6 +389,12 @@ function New-ReportMarkdown {
     } else {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.report_id)`` / ``$($item.id)``: action=``$($item.action)``") | Out-Null
+            foreach ($commandName in @("command", "open_command", "audit_command", "review_command")) {
+                $commandValue = Get-JsonString -Object $item -Name $commandName
+                if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                    $lines.Add("  - $($commandName): ``$commandValue``") | Out-Null
+                }
+            }
         }
     }
     $lines.Add("") | Out-Null

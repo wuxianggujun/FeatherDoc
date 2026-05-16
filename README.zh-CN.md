@@ -631,6 +631,8 @@ item。style merge restore audit summary 也会输出 `release_blockers` /
 pointer，后续可用 `open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit`
 直接打开复核提示。
 rollup 会保留 action item 里的 `open_command` / `audit_command` 等辅助命令。
+`scripts/build_release_governance_handoff_report.ps1` 在生成 reviewer handoff
+时也会继续保留这些辅助命令。
 它会为不同来源的重复 blocker id 生成可追踪的 `composite_id`，输出
 `featherdoc.release_blocker_rollup_report.v1`，并可通过 `-FailOnBlocker` /
 `-FailOnWarning` 作为发布面板或 CI 的最后一层只读检查。

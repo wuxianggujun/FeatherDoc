@@ -538,10 +538,12 @@ document-skeleton rollups, table-layout delivery, or release summaries into
 ``featherdoc.release_blocker_rollup_report.v1`` while preserving duplicate
 source blockers through composite ids. Action-item helper commands such as
 ``open_command`` and ``audit_command`` are preserved in JSON and Markdown so
-review handoffs keep their runnable follow-up entrypoints. Pending duplicate style-merge
-suggestions from the skeleton rollup are surfaced as non-blocking warnings by
-default and can be gated with ``-FailOnWarning``. Top-level warning details
-retain ``id``, ``action``, ``message``, ``source_schema``, and optional
+review handoffs keep their runnable follow-up entrypoints; the release
+governance handoff keeps those helper commands when it normalizes action items
+again. Pending duplicate style-merge suggestions from the skeleton rollup are
+surfaced as non-blocking warnings by default and can be gated with
+``-FailOnWarning``. Top-level warning details retain ``id``, ``action``,
+``message``, ``source_schema``, and optional
 ``style_merge_suggestion_count`` / ``style_merge_suggestion_pending_count``;
 for document-skeleton warnings that count is the pending value after
 ``style_merge_suggestion_review`` has been applied. Document-skeleton pending

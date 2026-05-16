@@ -119,6 +119,8 @@ function Write-GovernanceFixtures {
                 id = "run_table_style_quality_visual_regression"
                 action = "run_table_style_quality_visual_regression"
                 title = "Generate Word-rendered table layout evidence"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind table-style-quality-visual-regression-bundle -PrintPrompt"
+                audit_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1 -SkipBuild"
             }
         )
     })
@@ -231,6 +233,15 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.next_commands | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "ReleaseBlockerRollupAutoDiscover" `
         -Message "Aggregate handoff should hand off to release candidate auto-discovery."
+    $tableVisualAction = @($summary.action_items | Where-Object {
+            [string]$_.action -eq "run_table_style_quality_visual_regression"
+        } | Select-Object -First 1)
+    Assert-ContainsText -Text ([string]$tableVisualAction[0].open_command) `
+        -ExpectedText "open_latest_word_review_task.ps1" `
+        -Message "Aggregate handoff should preserve action open-latest commands."
+    Assert-ContainsText -Text ([string]$tableVisualAction[0].audit_command) `
+        -ExpectedText "run_table_style_quality_visual_regression.ps1" `
+        -Message "Aggregate handoff should preserve action audit commands."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Release Governance Handoff" `
@@ -251,6 +262,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include warning source schema."
     Assert-ContainsText -Text $markdown -ExpectedText 'style_merge_suggestion_count: `2`' `
         -Message "Markdown should include warning style merge suggestion counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "open_latest_word_review_task.ps1" `
+        -Message "Markdown should include action open-latest commands."
+    Assert-ContainsText -Text $markdown -ExpectedText "run_table_style_quality_visual_regression.ps1" `
+        -Message "Markdown should include action audit commands."
 }
 
 if (Test-Scenario -Name "missing") {
