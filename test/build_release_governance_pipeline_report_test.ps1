@@ -25,6 +25,15 @@ function Assert-ContainsText {
     }
 }
 
+function Get-StageById {
+    param($Summary, [string]$Id)
+
+    $matches = @($Summary.stages | Where-Object { [string]$_.id -eq $Id })
+    Assert-Equal -Actual $matches.Count -Expected 1 `
+        -Message "Pipeline should include exactly one stage $Id."
+    return $matches[0]
+}
+
 function Write-JsonFile {
     param([string]$Path, $Value)
 
@@ -444,6 +453,50 @@ foreach ($expectedStage in @(
         -Message "Pipeline should include stage $expectedStage."
 }
 
+$numberingStage = Get-StageById -Summary $summary -Id "numbering_catalog_governance"
+Assert-ContainsText -Text (($numberingStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+    -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1" `
+    -Message "Pipeline numbering stage should expose document skeleton blocker source schema."
+Assert-ContainsText -Text (($numberingStage.release_blockers | ForEach-Object { [string]$_.source_report_display }) -join "`n") `
+    -ExpectedText "document-skeleton-governance-rollup\summary.json" `
+    -Message "Pipeline numbering stage should expose document skeleton source report display."
+Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "document-skeleton-governance-rollup\summary.json" `
+    -Message "Pipeline numbering stage should expose document skeleton action source JSON display."
+
+$contentControlStage = Get-StageById -Summary $summary -Id "content_control_data_binding_governance"
+Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+    -ExpectedText "featherdoc.content_control_data_binding_governance_report.v1" `
+    -Message "Pipeline content-control stage should expose governance blocker source schema."
+Assert-ContainsText -Text (($contentControlStage.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "sync-content-controls-from-custom-xml.json" `
+    -Message "Pipeline content-control stage should expose sync evidence JSON display."
+Assert-ContainsText -Text (($contentControlStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
+    -Message "Pipeline content-control stage should expose reviewer open command."
+
+$projectStage = Get-StageById -Summary $summary -Id "project_template_delivery_readiness"
+Assert-ContainsText -Text (($projectStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+    -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
+    -Message "Pipeline project stage should expose onboarding blocker source schema."
+Assert-ContainsText -Text (($projectStage.action_items | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "project-template-onboarding-governance\summary.json" `
+    -Message "Pipeline project stage should expose onboarding action source JSON display."
+Assert-ContainsText -Text (($projectStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "build_project_template_delivery_readiness_report.ps1" `
+    -Message "Pipeline project stage should expose reviewer open command."
+
+$calibrationStage = Get-StageById -Summary $summary -Id "schema_patch_confidence_calibration"
+Assert-ContainsText -Text (($calibrationStage.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+    -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
+    -Message "Pipeline calibration stage should expose blocker source schema."
+Assert-ContainsText -Text (($calibrationStage.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+    -Message "Pipeline calibration stage should expose warning source JSON display."
+Assert-ContainsText -Text (($calibrationStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+    -Message "Pipeline calibration stage should expose reviewer open command."
+
 $handoffSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$handoffSummary.schema) -Expected "featherdoc.release_governance_handoff_report.v1" `
     -Message "Pipeline handoff should expose schema."
@@ -455,5 +508,11 @@ Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline
     -Message "Pipeline Markdown should include title."
 Assert-ContainsText -Text $markdown -ExpectedText "release_blocker_rollup" `
     -Message "Pipeline Markdown should include final rollup stage."
+Assert-ContainsText -Text $markdown -ExpectedText "source_report_display=" `
+    -Message "Pipeline Markdown should include stage source report displays."
+Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+    -Message "Pipeline Markdown should include stage source JSON displays."
+Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
+    -Message "Pipeline Markdown should include stage reviewer open commands."
 
 Write-Host "Release governance pipeline report regression passed."

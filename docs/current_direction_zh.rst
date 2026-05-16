@@ -127,7 +127,9 @@
 2. 多项目 schema approval、release gate 和审批历史的维护体验
 3. 继续补齐 release blocker rollup 周边的人工复核分流；onboarding governance、
    confidence calibration 和 content-control data-binding governance 已开始直接透传
-   blocker / warning / action item 明细
+   blocker / warning / action item 明细；release governance pipeline 的 ``stages[]``
+   也会按 stage 保留 ``source_schema``、``source_report_display``、
+   ``source_json_display`` 与 action item 的 ``open_command``，方便发布面板先按治理源过滤
 4. schema migration 的人工复核入口和更明确的修复建议分流
 
 这条线的目标是：
@@ -173,7 +175,9 @@
   包括 ``id``、``action``、``message``、``open_command``、``source_schema``、
   ``source_report_display`` 和 ``source_json_display``。reviewer 可以直接从
   ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 与
-  ``release_handoff.md`` 定位骨架治理证据和下一步命令。
+  ``release_handoff.md`` 定位骨架治理证据和下一步命令。pipeline summary 的
+  ``numbering_catalog_governance`` stage 也会保留同一组明细字段，避免骨架治理项只停留在
+  stage 计数里。
 
 接下来最值得补的是：
 

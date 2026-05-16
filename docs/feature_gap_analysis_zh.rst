@@ -104,6 +104,11 @@ confidence 元数据，生成 ``featherdoc.schema_patch_confidence_calibration_r
 pipeline 和 handoff 都会读取 ``schema-patch-confidence-calibration/summary.json``。
 ``build_release_blocker_rollup_report.ps1`` 则把模板、骨架、版式等报告里的
 ``release_blockers`` / ``action_items`` 聚合成统一发布阻断视图。
+``build_release_governance_pipeline_report.ps1`` 的
+``featherdoc.release_governance_pipeline_report.v1`` 也会在 ``stages[]`` 中保留每个治理
+stage 的 blocker / warning / action item 明细，并补齐 ``source_schema``、
+``source_report_display``、``source_json_display`` 与 action item ``open_command``，
+让发布面板可以先按治理源定位证据，再交给 final rollup 和 reviewer checklist 展示。
 
 后续建议继续补齐的是“工程化治理层”，而不是基础 patch API：
 
@@ -164,6 +169,9 @@ candidate ``summary.json`` 与 ``final_review.md``，并在 reviewer-facing bund
 blocker / warning / action item 的 ``id``、``action``、``message``、``open_command``、
 ``source_schema``、``source_report_display`` 和 ``source_json_display``，让
 ``featherdoc.document_skeleton_governance_rollup_report.v1`` 不再只通过计数进入发布面板。
+同时，release governance pipeline 的 ``numbering_catalog_governance`` stage 会直接保留
+document skeleton rollup 的 blocker / action item 明细，便于发布面板在 final rollup 之前
+按 stage 展开骨架治理证据。
 后续对既有文档里的复杂 numbering catalog，仍可继续强化冲突审计和 catalog
 patch 衔接。
 

@@ -206,6 +206,17 @@ recommendation 会同步成 ``action_items`` 并携带重建校准报告的 ``op
 ``schema-patch-confidence-calibration/summary.json``，因此 reviewer 可以在发布面板
 中直接看到校准 blocker / warning / action item 的 ``source_schema`` 与证据 JSON。
 
+此外，``featherdoc.release_governance_pipeline_report.v1`` 的 ``stages[]`` 现在也会
+保留每个治理 stage 的 ``release_blockers``、``warnings`` 与 ``action_items`` 明细。
+这些 stage-level 明细会补齐 ``stage_id``、``stage_title``、``source_schema``、
+``source_report_display`` 与 ``source_json_display``；action item 还会保留
+``open_command``。发布面板可以先按 stage 过滤 ``numbering_catalog_governance``、
+``content_control_data_binding_governance``、``project_template_delivery_readiness`` 或
+``schema_patch_confidence_calibration``，再把同一条治理项交给 final rollup、release
+summary、bundle 和 reviewer checklist 继续展示。reviewer 若在 pipeline summary 中看到
+阻断项，应优先打开 ``source_json_display`` 对应证据，再按 ``open_command`` 重建或复核
+该治理报告，最后重新运行 release blocker rollup / bundle 生成链路。
+
 内部 handoff 文件可以展示更完整的 reviewer metadata，例如：
 
 - ``review_status``
