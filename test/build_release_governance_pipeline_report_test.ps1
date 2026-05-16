@@ -233,6 +233,37 @@ function New-SchemaApprovalHistory {
                 latest_action = "review_schema_update_candidate"
                 latest_summary_json = "output/project-template-smoke/summary.json"
                 issue_keys = @()
+                runs = @(
+                    [ordered]@{
+                        schema_patch_review_count = 1
+                        schema_patch_review_changed_count = 1
+                        schema_patch_reviews = @(
+                            [ordered]@{
+                                name = "contract-template"
+                                changed = $true
+                                baseline_slot_count = 2
+                                generated_slot_count = 3
+                                upsert_slot_count = 1
+                                remove_target_count = 0
+                                remove_slot_count = 0
+                                rename_slot_count = 0
+                                update_slot_count = 0
+                                inserted_slots = 1
+                                replaced_slots = 0
+                            }
+                        )
+                        schema_patch_approval_items = @(
+                            [ordered]@{
+                                name = "contract-template"
+                                status = "pending_review"
+                                decision = "pending"
+                                approved = $false
+                                pending = $true
+                                compliance_issue_count = 0
+                            }
+                        )
+                    }
+                )
             }
         )
     }
@@ -388,13 +419,13 @@ Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.release_gov
     -Message "Pipeline summary should expose schema."
 Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
     -Message "Pipeline should be blocked by fixture governance reports."
-Assert-Equal -Actual ([int]$summary.stage_count) -Expected 6 `
-    -Message "Pipeline should run six read-only stages."
-Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 6 `
+Assert-Equal -Actual ([int]$summary.stage_count) -Expected 7 `
+    -Message "Pipeline should run seven read-only stages."
+Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 7 `
     -Message "Pipeline should complete every stage."
 Assert-Equal -Actual ([int]$summary.failed_stage_count) -Expected 0 `
     -Message "Pipeline should not record stage failures."
-Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 10 `
+Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 11 `
     -Message "Pipeline should mirror final rollup blocker count."
 Assert-True -Condition ([int]$summary.action_item_count -ge 4) `
     -Message "Pipeline should mirror final rollup action count."
@@ -405,6 +436,7 @@ foreach ($expectedStage in @(
         "table_layout_delivery_governance",
         "content_control_data_binding_governance",
         "project_template_delivery_readiness",
+        "schema_patch_confidence_calibration",
         "release_governance_handoff",
         "release_blocker_rollup"
     )) {

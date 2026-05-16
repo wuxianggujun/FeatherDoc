@@ -65,7 +65,8 @@ function Write-GovernanceFixtures {
     param(
         [string]$Root,
         [bool]$IncludeContentControl = $true,
-        [bool]$IncludeProjectTemplate = $true
+        [bool]$IncludeProjectTemplate = $true,
+        [bool]$IncludeCalibration = $true
     )
 
     Write-JsonFile -Path (Join-Path $Root "numbering-catalog-governance\summary.json") -Value ([ordered]@{
@@ -169,6 +170,47 @@ function Write-GovernanceFixtures {
             )
         })
     }
+
+    if ($IncludeCalibration) {
+        Write-JsonFile -Path (Join-Path $Root "schema-patch-confidence-calibration\summary.json") -Value ([ordered]@{
+            schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            status = "pending_review"
+            release_ready = $false
+            release_blocker_count = 1
+            warning_count = 1
+            release_blockers = @(
+                [ordered]@{
+                    id = "schema_patch_confidence_calibration.pending_schema_approvals"
+                    severity = "error"
+                    status = "pending_review"
+                    action = "resolve_pending_schema_approvals"
+                    message = "Schema patch confidence calibration has pending approvals."
+                    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                }
+            )
+            action_item_count = 1
+            action_items = @(
+                [ordered]@{
+                    id = "resolve_pending_schema_approvals"
+                    action = "resolve_pending_schema_approvals"
+                    title = "Resolve pending schema approvals"
+                    open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+                    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                }
+            )
+            warnings = @(
+                [ordered]@{
+                    id = "schema_patch_confidence_calibration.unscored_candidates"
+                    action = "add_explicit_confidence_metadata"
+                    message = "Some schema patch candidates do not carry explicit confidence metadata."
+                    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                }
+            )
+        })
+    }
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
@@ -201,15 +243,15 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose release governance handoff schema."
     Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
         -Message "Aggregate handoff should be blocked when source blockers exist."
-    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 4 `
-        -Message "Aggregate handoff should load all four default reports."
+    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 5 `
+        -Message "Aggregate handoff should load all five default reports."
     Assert-Equal -Actual ([int]$summary.missing_report_count) -Expected 0 `
         -Message "Aggregate handoff should not mark default reports missing."
-    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 4 `
         -Message "Aggregate handoff should normalize release blockers."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 5 `
         -Message "Aggregate handoff should normalize action items."
-    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
         -Message "Aggregate handoff should preserve warning counts."
     Assert-ContainsText -Text (($summary.next_commands | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "ReleaseBlockerRollupAutoDiscover" `
@@ -222,6 +264,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include project-template delivery readiness."
     Assert-ContainsText -Text $markdown -ExpectedText "content_control_data_binding_governance" `
         -Message "Markdown should include content-control data-binding governance."
+    Assert-ContainsText -Text $markdown -ExpectedText "schema_patch_confidence_calibration" `
+        -Message "Markdown should include schema patch confidence calibration."
 }
 
 if (Test-Scenario -Name "missing") {
@@ -288,7 +332,7 @@ if (Test-Scenario -Name "explicit_input") {
         -Message "Explicit handoff should accept an explicit replacement report. Output: $($result.Text)"
 
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
-    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$summary.loaded_report_count) -Expected 5 `
         -Message "Explicit handoff should count loaded defaults plus the explicit project-template report."
     Assert-Equal -Actual ([int]$summary.missing_report_count) -Expected 0 `
         -Message "Explicit handoff should replace the default project-template report without missing defaults."
@@ -326,12 +370,15 @@ if (Test-Scenario -Name "include_rollup") {
     $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
     Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
         -Message "Nested rollup should expose release blocker rollup schema."
-    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$rollupSummary.source_report_count) -Expected 5 `
         -Message "Nested rollup should consume all loaded governance reports."
-    Assert-Equal -Actual ([int]$rollupSummary.release_blocker_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$rollupSummary.release_blocker_count) -Expected 4 `
         -Message "Nested rollup should preserve blocker count."
-    Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 5 `
         -Message "Nested rollup should preserve action item count."
+    Assert-ContainsText -Text (($rollupSummary.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
+        -Message "Nested rollup should preserve calibration source schema."
 }
 
 Write-Host "Release governance handoff report regression passed."

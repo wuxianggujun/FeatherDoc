@@ -153,6 +153,7 @@ function Get-ReportKind {
         "featherdoc.table_layout_delivery_governance_report.v1" { return "table_layout_delivery_governance" }
         "featherdoc.content_control_data_binding_governance_report.v1" { return "content_control_data_binding_governance" }
         "featherdoc.project_template_delivery_readiness_report.v1" { return "project_template_delivery_readiness" }
+        "featherdoc.schema_patch_confidence_calibration_report.v1" { return "schema_patch_confidence_calibration" }
         default { return $schema }
     }
 }
@@ -384,6 +385,11 @@ $expectedReports = @(
         -Title "Project Template Delivery Readiness" `
         -RelativeSummary "project-template-delivery-readiness/summary.json" `
         -BuildCommand "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1 -InputJson .\output\project-template-onboarding-governance\summary.json,.\output\project-template-schema-approval-history\history.json -OutputDir .\output\project-template-delivery-readiness"
+    New-ExpectedReport `
+        -Id "schema_patch_confidence_calibration" `
+        -Title "Schema Patch Confidence Calibration" `
+        -RelativeSummary "schema-patch-confidence-calibration/summary.json" `
+        -BuildCommand "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1 -InputJson .\output\project-template-smoke\summary.json,.\output\project-template-schema-approval-history\history.json -OutputDir .\output\schema-patch-confidence-calibration"
 )
 
 $reports = New-Object 'System.Collections.Generic.List[object]'

@@ -48,6 +48,7 @@ $autoDiscoverNumberingSummaryPath = Join-Path $autoDiscoverOutputRoot "numbering
 $autoDiscoverTableSummaryPath = Join-Path $autoDiscoverOutputRoot "table-layout-delivery-governance\summary.json"
 $autoDiscoverContentControlSummaryPath = Join-Path $autoDiscoverOutputRoot "content-control-data-binding-governance\summary.json"
 $autoDiscoverProjectSummaryPath = Join-Path $autoDiscoverOutputRoot "project-template-delivery-readiness\summary.json"
+$autoDiscoverCalibrationSummaryPath = Join-Path $autoDiscoverOutputRoot "schema-patch-confidence-calibration\summary.json"
 
 Write-JsonFile -Path $documentSkeletonRollupPath -Value ([ordered]@{
     schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
@@ -261,6 +262,48 @@ Write-JsonFile -Path $autoDiscoverProjectSummaryPath -Value ([ordered]@{
     )
 })
 
+Write-JsonFile -Path $autoDiscoverCalibrationSummaryPath -Value ([ordered]@{
+    schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+    status = "pending_review"
+    release_ready = $false
+    release_blocker_count = 1
+    release_blockers = @(
+        [ordered]@{
+            id = "schema_patch_confidence_calibration.pending_schema_approvals"
+            severity = "error"
+            status = "pending_review"
+            message = "Autodiscovered schema patch confidence calibration has pending approvals."
+            action = "resolve_pending_schema_approvals"
+            source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_json = "output/schema-patch-confidence-calibration/summary.json"
+            source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+        }
+    )
+    action_item_count = 1
+    action_items = @(
+        [ordered]@{
+            id = "resolve_pending_schema_approvals"
+            action = "resolve_pending_schema_approvals"
+            title = "Resolve pending schema approvals before tightening confidence thresholds"
+            open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+            source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_json = "output/schema-patch-confidence-calibration/summary.json"
+            source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+        }
+    )
+    warning_count = 1
+    warnings = @(
+        [ordered]@{
+            id = "schema_patch_confidence_calibration.unscored_candidates"
+            action = "add_explicit_confidence_metadata"
+            message = "Some schema patch candidates do not carry explicit confidence metadata."
+            source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_json = "output/schema-patch-confidence-calibration/summary.json"
+            source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+        }
+    )
+})
+
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
 
 if ($Scenario -eq "handoff") {
@@ -305,13 +348,13 @@ if ($Scenario -eq "handoff") {
         -Message "Handoff-only release candidate run should not require MSVC discovery."
     Assert-Equal -Actual ([string]$handoffReleaseSummary.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate summary should surface governance handoff status."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.expected_report_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.expected_report_count) -Expected 5 `
         -Message "Release candidate summary should surface handoff expected report count."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.loaded_report_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.loaded_report_count) -Expected 5 `
         -Message "Release candidate summary should surface handoff loaded report count."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.release_blocker_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.release_blocker_count) -Expected 5 `
         -Message "Release candidate summary should surface handoff blocker count."
-    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.action_item_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.action_item_count) -Expected 5 `
         -Message "Release candidate summary should surface handoff action count."
     Assert-Equal -Actual ([string]$handoffReleaseSummary.steps.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate step status should mirror governance handoff status."
@@ -325,7 +368,7 @@ if ($Scenario -eq "handoff") {
     $handoffFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffFinalReviewPath
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "- Release governance handoff: blocked" `
         -Message "Final review should include release governance handoff step status."
-    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff counts: 4/4 reports, 0 missing, 4 blockers, 4 actions" `
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff counts: 5/5 reports, 0 missing, 5 blockers, 5 actions" `
         -Message "Final review should include release governance handoff counts."
 
     Write-Host "Release candidate governance handoff regression passed."
@@ -470,15 +513,15 @@ Assert-Equal -Actual ([string]$autoDiscoverSummary.release_blocker_rollup.status
     -Message "Auto-discovered rollup should surface the blocker status."
 Assert-Equal -Actual ([bool]$autoDiscoverSummary.release_blocker_rollup.auto_discover) -Expected $true `
     -Message "Release summary should record that auto-discovery was enabled."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 5 `
-    -Message "Release summary should record all five auto-discovered governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 5 `
-    -Message "Auto-discovered rollup should aggregate the five default governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_blocker_count) -Expected 5 `
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 6 `
+    -Message "Release summary should record all six auto-discovered governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 6 `
+    -Message "Auto-discovered rollup should aggregate the six default governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_blocker_count) -Expected 6 `
     -Message "Auto-discovered rollup should surface blocker count from default governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 5 `
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 6 `
     -Message "Auto-discovered rollup should surface action count from default governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.warning_count) -Expected 2 `
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.warning_count) -Expected 3 `
     -Message "Auto-discovered rollup should surface warning count from default governance reports."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "document_skeleton.exemplar_catalog_missing" `
@@ -486,24 +529,36 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
     -ExpectedText "custom_xml_sync_evidence_missing" `
     -Message "Auto-discovered rollup should surface content-control warnings."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
+    -Message "Auto-discovered rollup should surface calibration warnings."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.content_control_data_binding_governance_report.v1" `
     -Message "Auto-discovered rollup should carry content-control source schema."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
     -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
     -Message "Auto-discovered rollup should carry onboarding governance source schema through delivery readiness."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+    -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
+    -Message "Auto-discovered rollup should carry calibration source schema."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "content-control-data-binding\inspect-content-controls.json" `
     -Message "Auto-discovered rollup should carry content-control source JSON display."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "project-template-onboarding-governance\summary.json" `
     -Message "Auto-discovered rollup should carry onboarding governance source JSON display."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+    -Message "Auto-discovered rollup should carry calibration source JSON display."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
     -Message "Auto-discovered rollup should carry content-control action open command."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "sync_project_template_schema_approval.ps1" `
     -Message "Auto-discovered rollup should carry onboarding governance action open command."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+    -Message "Auto-discovered rollup should carry calibration action open command."
 
 $autoDiscoverRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupSummaryPath | ConvertFrom-Json
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
@@ -515,5 +570,8 @@ Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
     -ExpectedText "content-control-data-binding-governance" `
     -Message "Auto-discovered rollup should include content-control data-binding governance."
+Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
+    -ExpectedText "schema-patch-confidence-calibration" `
+    -Message "Auto-discovered rollup should include schema patch confidence calibration."
 
 Write-Host "Release candidate blocker rollup regression passed."

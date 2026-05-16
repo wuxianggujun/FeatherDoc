@@ -220,6 +220,23 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Recommendations should ask to resolve pending approvals."
     Assert-True -Condition (@($summary.recommendations | Where-Object { $_.id -eq "add_explicit_confidence_metadata" }).Count -eq 1) `
         -Message "Recommendations should ask for explicit confidence metadata."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $false `
+        -Message "Pending calibration should not be release-ready."
+    Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
+        -Message "Pending approvals should produce a release blocker for rollup."
+    Assert-Equal -Actual ([string]$summary.release_blockers[0].source_schema) -Expected "featherdoc.schema_patch_confidence_calibration_report.v1" `
+        -Message "Calibration blockers should expose the source schema."
+    Assert-ContainsText -Text ([string]$summary.release_blockers[0].source_json_display) -ExpectedText "aggregate-report\summary.json" `
+        -Message "Calibration blockers should expose the report JSON display path."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Unscored candidates should produce a warning for rollup."
+    Assert-Equal -Actual ([string]$summary.warnings[0].source_schema) -Expected "featherdoc.schema_patch_confidence_calibration_report.v1" `
+        -Message "Calibration warnings should expose the source schema."
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 3 `
+        -Message "Recommendations should be mirrored as action items."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+        -Message "Calibration action items should expose the reviewer open command."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Schema Patch Confidence Calibration Report" `
@@ -228,6 +245,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include confidence buckets."
     Assert-ContainsText -Text $markdown -ExpectedText "resolve_pending_schema_approvals" `
         -Message "Markdown should include pending approval recommendation."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
+        -Message "Markdown should include source JSON display fields."
+    Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
+        -Message "Markdown should include action item open commands."
 }
 
 if (Test-Scenario -Name "fail_on_pending") {

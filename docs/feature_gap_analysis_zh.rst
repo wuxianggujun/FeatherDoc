@@ -98,7 +98,10 @@ rollup，让发布面板和 reviewer checklist 能直接定位 onboarding 证据
 ``write_schema_patch_confidence_calibration_report.ps1`` 也已能从 smoke summary
 或审批历史中只读提取 schema patch review 规模、approval outcome 和可选
 confidence 元数据，生成 ``featherdoc.schema_patch_confidence_calibration_report.v1``
-置信度区间报告。
+置信度区间报告。该报告现在会把 pending approval outcome 写成 release blocker，
+把未打分候选或无效审批记录写成 warning，并把 recommendation 同步为带
+``open_command`` 的 action item；默认 release blocker auto-discovery、governance
+pipeline 和 handoff 都会读取 ``schema-patch-confidence-calibration/summary.json``。
 ``build_release_blocker_rollup_report.ps1`` 则把模板、骨架、版式等报告里的
 ``release_blockers`` / ``action_items`` 聚合成统一发布阻断视图。
 

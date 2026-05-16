@@ -296,6 +296,7 @@ $numberingOutputDir = Join-Path $outputGovernanceRoot "numbering-catalog-governa
 $tableOutputDir = Join-Path $outputGovernanceRoot "table-layout-delivery-governance"
 $contentControlOutputDir = Join-Path $outputGovernanceRoot "content-control-data-binding-governance"
 $projectOutputDir = Join-Path $outputGovernanceRoot "project-template-delivery-readiness"
+$calibrationOutputDir = Join-Path $outputGovernanceRoot "schema-patch-confidence-calibration"
 $handoffOutputDir = Join-Path $resolvedOutputRoot "release-governance-handoff"
 $rollupOutputDir = Join-Path $resolvedOutputRoot "release-blocker-rollup"
 
@@ -315,6 +316,10 @@ $projectInputs = @(
     Join-Path $resolvedInputRoot "project-template-onboarding-governance\summary.json"
     Join-Path $resolvedInputRoot "project-template-schema-approval-history\history.json"
 )
+$calibrationInputs = @(
+    Join-Path $resolvedInputRoot "project-template-smoke\summary.json"
+    Join-Path $resolvedInputRoot "project-template-schema-approval-history\history.json"
+) | Where-Object { Test-Path -LiteralPath $_ }
 
 $stages = New-Object 'System.Collections.Generic.List[object]'
 $stages.Add((Invoke-PipelineStage `
@@ -345,12 +350,21 @@ $stages.Add((Invoke-PipelineStage `
             -ScriptPath (Join-Path $scriptsDir "build_project_template_delivery_readiness_report.ps1") `
             -OutputDir $projectOutputDir `
             -InputJson $projectInputs)) | Out-Null
+$stages.Add((Invoke-PipelineStage `
+            -RepoRoot $repoRoot `
+            -Id "schema_patch_confidence_calibration" `
+            -Title "Schema Patch Confidence Calibration" `
+            -ScriptPath (Join-Path $scriptsDir "write_schema_patch_confidence_calibration_report.ps1") `
+            -OutputDir $calibrationOutputDir `
+            -InputJson $calibrationInputs `
+            -ExtraArguments @("-InputRoot", $resolvedInputRoot))) | Out-Null
 
 $handoffInputs = @(
     Join-Path $numberingOutputDir "summary.json"
     Join-Path $tableOutputDir "summary.json"
     Join-Path $contentControlOutputDir "summary.json"
     Join-Path $projectOutputDir "summary.json"
+    Join-Path $calibrationOutputDir "summary.json"
 )
 $handoffExtraArguments = @(
     "-InputRoot"

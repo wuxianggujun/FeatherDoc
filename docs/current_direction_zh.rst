@@ -111,7 +111,9 @@
   ``featherdoc.project_template_onboarding_governance_report.v1``、
   ``source_json_display`` 与 reviewer ``open_command``，最终进入发布面板和
   reviewer-facing bundle
-- schema patch confidence calibration 只读校准报告
+- schema patch confidence calibration 只读校准报告；pending approval、未打分候选和
+  recommendation 现在会作为 release blocker / warning / action item 进入
+  ``schema-patch-confidence-calibration/summary.json``，并被默认发布面板消费
 - release blocker rollup 统一发布阻断汇总
 - content-control data-binding governance 只读报告，已把 Custom XML
   同步 issue、绑定占位符和重复绑定复核接入发布治理 pipeline；这些治理项现在会携带
@@ -123,8 +125,8 @@
 
 1. 扩大真实业务模板语料样本，继续校准 rename / update 建议的置信度
 2. 多项目 schema approval、release gate 和审批历史的维护体验
-3. 继续补齐 confidence calibration 与 release blocker rollup 的发布面板固定字段；
-   onboarding governance 和 content-control data-binding governance 已开始直接透传
+3. 继续补齐 release blocker rollup 周边的人工复核分流；onboarding governance、
+   confidence calibration 和 content-control data-binding governance 已开始直接透传
    blocker / warning / action item 明细
 4. schema migration 的人工复核入口和更明确的修复建议分流
 
