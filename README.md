@@ -792,6 +792,25 @@ review references missing plan evidence, the suggestions stay non-pending but
 the report moves to `needs_review` with a
 `document_skeleton.style_merge_review_evidence_missing` blocker and
 `fix_style_merge_review_evidence` action.
+`scripts/write_style_merge_suggestion_review.ps1` can create that review record
+from a `suggest-style-merges` plan without touching DOCX/PDF content:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\scripts\write_style_merge_suggestion_review.ps1 `
+  -PlanFile .\output\document-skeleton-governance\style-merge-suggestions.json `
+  -OutputJson .\output\document-skeleton-governance\style-merge.review.json `
+  -Decision approved `
+  -Reviewer release-reviewer `
+  -RollbackPlanFile .\output\document-skeleton-governance\style-merge.rollback.json
+
+pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 `
+  -InputDocx .\input.docx `
+  -OutputDir .\output\document-skeleton-governance `
+  -BuildDir build-codex-clang-compat `
+  -SkipBuild `
+  -StyleMergeReviewJson .\output\document-skeleton-governance\style-merge.review.json
+```
+
 The multi-document rollup then sums `total_style_merge_suggestion_pending_count`
 and only pending suggestions flow onward as release governance warnings. Pair
 that rollup with

@@ -157,7 +157,10 @@ audit 与 catalog baseline gate 汇入统一骨架治理报告。
 ``style_merge_suggestion_review`` 审计信息，同时把
 ``style_merge_suggestion_pending_count`` 清零；review JSON 还可以携带
 ``plan_file`` / ``style_merge_plan_file`` 和 ``rollback_plan_file``，用于记录已通过复核的
-style refactor plan 与 rollback 证据是否存在。若 review JSON 引用了缺失的 plan 证据，
+style refactor plan 与 rollback 证据是否存在。
+``scripts/write_style_merge_suggestion_review.ps1`` 现在可以从 ``suggest-style-merges``
+plan 生成 ``featherdoc.style_merge_suggestion_review.v1`` 复核记录，且不改写 DOCX/PDF。
+若 review JSON 引用了缺失的 plan 证据，
 建议本身不会重新计入 pending，但报告会进入 ``needs_review``，并输出
 ``document_skeleton.style_merge_review_evidence_missing`` blocker 与
 ``fix_style_merge_review_evidence`` action。
@@ -173,7 +176,7 @@ patch 衔接。
 
 - 强化 exemplar 文档自动提取 numbering catalog 后的冲突审计报告
 - 把 ``repair-style-numbering`` 的安全修复建议进一步转成可复用 catalog patch
-- 把已复核通过的重复样式 merge 建议进一步接入受控 apply / rollback 自动化
+- 在 review writer 已补入口的基础上，把已复核通过的重复样式 merge 建议进一步接入受控 apply / rollback 自动化
 - 对企业模板里的重复、孤儿、跨样式绑定冲突做更细的置信度分级
 - 继续打磨骨架治理 rollup 在 release blocker rollup 和发布面板里的消费体验
 
