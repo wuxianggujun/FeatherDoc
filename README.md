@@ -883,6 +883,8 @@ commands such as `open_command` and `audit_command`, and supports
 `-FailOnBlocker` or `-FailOnWarning` for a final read-only release dashboard
 gate. `scripts/build_release_governance_handoff_report.ps1` keeps those helper
 commands when it normalizes action items into the reviewer handoff.
+When scanning an `-InputRoot`, the rollup also includes
+`*.restore-audit.summary.json` files emitted by the style-merge restore audit.
 Before that final dashboard gate, `scripts/build_release_governance_handoff_report.ps1`
 can write `featherdoc.release_governance_handoff_report.v1` for the four
 default governance lines, including loaded/missing report counts, blocker and

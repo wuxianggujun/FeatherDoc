@@ -151,7 +151,10 @@ function Get-InputJsonPaths {
 
         if ((Get-Item -LiteralPath $resolvedRoot).PSIsContainer) {
             Get-ChildItem -LiteralPath $resolvedRoot -Recurse -File -Filter "*.json" |
-                Where-Object { $_.Name -in @("summary.json", "document_skeleton_governance.summary.json") } |
+                Where-Object {
+                    $_.Name -in @("summary.json", "document_skeleton_governance.summary.json") -or
+                    $_.Name -like "*.restore-audit.summary.json"
+                } |
                 ForEach-Object { $paths.Add($_.FullName) | Out-Null }
         } else {
             $paths.Add($resolvedRoot) | Out-Null

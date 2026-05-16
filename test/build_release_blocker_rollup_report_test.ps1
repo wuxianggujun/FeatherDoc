@@ -61,7 +61,8 @@ function Write-JsonFile {
 }
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
-$resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
+$resolvedWorkingDir = Join-Path ([System.IO.Path]::GetFullPath($WorkingDir)) `
+    ("run-" + [System.Guid]::NewGuid().ToString("N"))
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\build_release_blocker_rollup_report.ps1"
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
@@ -252,7 +253,7 @@ if (Test-Scenario -Name "passing") {
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $tableLayoutPath | ConvertFrom-Json)
     Write-JsonFile -Path (Join-Path $passingInputRoot "release-candidate\summary.json") `
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseCandidatePath | ConvertFrom-Json)
-    Write-JsonFile -Path (Join-Path $passingInputRoot "style-merge-restore-audit\summary.json") `
+    Write-JsonFile -Path (Join-Path $passingInputRoot "style-merge-restore-audit\style-merge.restore-audit.summary.json") `
         -Value (Get-Content -Raw -Encoding UTF8 -LiteralPath $styleMergeRestoreAuditPath | ConvertFrom-Json)
     $result = Invoke-RollupScript -Arguments @(
         "-InputRoot", $passingInputRoot,
@@ -297,6 +298,9 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (($summary.source_reports | ForEach-Object { "$($_.schema):$($_.style_merge_suggestion_pending_count)" }) -join "`n") `
         -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1:2" `
         -Message "Rollup should preserve skeleton rollup pending style merge counts."
+    Assert-ContainsText -Text (($summary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
+        -ExpectedText "style-merge.restore-audit.summary.json" `
+        -Message "Rollup should auto-discover restore audit summary filenames."
     Assert-ContainsText -Text ([string]$summary.release_blockers[0].composite_id) `
         -ExpectedText "source1.blocker1" `
         -Message "Rollup should generate composite blocker ids."

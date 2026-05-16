@@ -540,7 +540,9 @@ source blockers through composite ids. Action-item helper commands such as
 ``open_command`` and ``audit_command`` are preserved in JSON and Markdown so
 review handoffs keep their runnable follow-up entrypoints; the release
 governance handoff keeps those helper commands when it normalizes action items
-again. Pending duplicate style-merge suggestions from the skeleton rollup are
+again. When scanning an ``-InputRoot``, the rollup also includes
+``*.restore-audit.summary.json`` files emitted by the style-merge restore
+audit. Pending duplicate style-merge suggestions from the skeleton rollup are
 surfaced as non-blocking warnings by default and can be gated with
 ``-FailOnWarning``. Top-level warning details retain ``id``, ``action``,
 ``message``, ``source_schema``, and optional
