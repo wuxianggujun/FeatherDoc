@@ -407,6 +407,7 @@ if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
 [void]$lines.Add("- README gallery refresh: $(Get-DisplayValue -Value $readmeGalleryStatus)")
 [void]$lines.Add("- Summary JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceRollupMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
 [void]$lines.Add("")
 [void]$lines.Add("## Start Here")
 [void]$lines.Add("")

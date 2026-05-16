@@ -162,6 +162,26 @@ Markdown 文件。
 阻断 bundle 生成，但 checklist 会标记未登记 runbook，提醒维护者把新 action 加入
 ``release_blocker_metadata_helpers.ps1`` 的注册表和固定指引。
 
+当 release summary 中存在 ``release_blocker_rollup`` 节点时，bundle 面向 reviewer 的
+四个交接文件（``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 与
+``release_handoff.md``）还会渲染统一的治理 rollup 明细。该明细不会替代顶层
+``release_blockers`` 的强校验，而是用于让发布面板和人工复核直接读取 final rollup
+中的机器字段：
+
+- ``release_blocker_rollup.release_blockers[]``：展示 ``id``、``action``、``message``、
+  ``source_schema``、``source_report_display`` 与 ``source_json_display``。
+- ``release_blocker_rollup.warnings[]``：展示 ``id``、``action``、``message``、
+  ``source_schema``、``source_report_display`` 与 ``source_json_display``。
+- ``release_blocker_rollup.action_items[]``：展示 ``id``、``action``、``open_command``、
+  ``source_schema``、``source_report_display`` 与 ``source_json_display``。
+
+``run_release_candidate_checks.ps1`` 在读取 ``featherdoc.release_blocker_rollup_report.v1``
+后会把上述数组同步写入 ``summary.json`` 的 ``release_blocker_rollup`` 与
+``steps.release_blocker_rollup``，并在 ``final_review.md`` 里展开同一组字段。这样
+``featherdoc.document_skeleton_governance_rollup_report.v1``、onboarding governance、
+schema confidence calibration 和 content-control data-binding governance 的治理项可以
+被发布面板直接消费，而不只停留在 blocker / warning / action item 计数里。
+
 内部 handoff 文件可以展示更完整的 reviewer metadata，例如：
 
 - ``review_status``

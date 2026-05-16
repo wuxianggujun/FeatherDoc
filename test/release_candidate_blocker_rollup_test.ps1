@@ -37,15 +37,52 @@ $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
 $inputRoot = Join-Path $resolvedWorkingDir "governance-input"
+$documentSkeletonRollupPath = Join-Path $inputRoot "document-skeleton-governance-rollup\summary.json"
 $numberingSummaryPath = Join-Path $inputRoot "numbering-catalog-governance\summary.json"
 $tableSummaryPath = Join-Path $inputRoot "table-layout-governance\summary.json"
 $contentControlSummaryPath = Join-Path $inputRoot "content-control-data-binding-governance\summary.json"
 $summaryOutputDir = Join-Path $resolvedWorkingDir "release-candidate"
 $autoDiscoverOutputRoot = Join-Path $resolvedWorkingDir "auto-discover-output"
+$autoDiscoverDocumentSkeletonRollupPath = Join-Path $autoDiscoverOutputRoot "document-skeleton-governance-rollup\summary.json"
 $autoDiscoverNumberingSummaryPath = Join-Path $autoDiscoverOutputRoot "numbering-catalog-governance\summary.json"
 $autoDiscoverTableSummaryPath = Join-Path $autoDiscoverOutputRoot "table-layout-delivery-governance\summary.json"
 $autoDiscoverContentControlSummaryPath = Join-Path $autoDiscoverOutputRoot "content-control-data-binding-governance\summary.json"
 $autoDiscoverProjectSummaryPath = Join-Path $autoDiscoverOutputRoot "project-template-delivery-readiness\summary.json"
+
+Write-JsonFile -Path $documentSkeletonRollupPath -Value ([ordered]@{
+    schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+    status = "needs_review"
+    release_blocker_count = 1
+    release_blockers = @(
+        [ordered]@{
+            id = "document_skeleton.style_numbering_issues"
+            severity = "error"
+            status = "needs_review"
+            message = "Document skeleton rollup found style numbering issues."
+            action = "review_style_numbering_audit"
+            source_json = "output/document-skeleton-governance/contract/style-numbering-audit.json"
+            source_json_display = ".\output\document-skeleton-governance\contract\style-numbering-audit.json"
+        }
+    )
+    action_items = @(
+        [ordered]@{
+            id = "open_document_skeleton_rollup"
+            action = "open_document_skeleton_rollup"
+            title = "Open document skeleton rollup"
+            open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance"
+        }
+    )
+    warning_count = 1
+    warnings = @(
+        [ordered]@{
+            id = "document_skeleton.exemplar_catalog_missing"
+            action = "open_document_skeleton_rollup"
+            message = "One exemplar catalog path is missing."
+            source_json = "output/document-skeleton-governance-rollup/summary.json"
+            source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+        }
+    )
+})
 
 Write-JsonFile -Path $numberingSummaryPath -Value ([ordered]@{
     schema = "featherdoc.numbering_catalog_governance_report.v1"
@@ -109,6 +146,9 @@ Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
         }
     )
 })
+
+Write-JsonFile -Path $autoDiscoverDocumentSkeletonRollupPath -Value `
+    (Get-Content -Raw -Encoding UTF8 -LiteralPath $documentSkeletonRollupPath | ConvertFrom-Json)
 
 Write-JsonFile -Path $autoDiscoverNumberingSummaryPath -Value ([ordered]@{
     schema = "featherdoc.numbering_catalog_governance_report.v1"
@@ -280,7 +320,7 @@ $scriptArguments = @(
     "-SummaryOutputDir",
     $summaryOutputDir,
     "-ReleaseBlockerRollupInputJson",
-    "$numberingSummaryPath,$tableSummaryPath"
+    "$documentSkeletonRollupPath,$numberingSummaryPath,$tableSummaryPath"
 )
 $result = @(& (Get-Process -Id $PID).Path @scriptArguments 2>&1)
 $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
@@ -303,14 +343,25 @@ Assert-Equal -Actual ([string]$summary.msvc_bootstrap_mode) -Expected "not_requi
     -Message "Rollup-only release candidate run should not require MSVC discovery."
 Assert-Equal -Actual ([string]$summary.release_blocker_rollup.status) -Expected "blocked" `
     -Message "Release candidate summary should surface the rollup status."
-Assert-Equal -Actual ([int]$summary.release_blocker_rollup.source_report_count) -Expected 2 `
+Assert-Equal -Actual ([int]$summary.release_blocker_rollup.source_report_count) -Expected 3 `
     -Message "Release candidate summary should surface source report count."
-Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_blocker_count) -Expected 2 `
+Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_blocker_count) -Expected 3 `
     -Message "Release candidate summary should surface blocker count."
-Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 2 `
+Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 3 `
     -Message "Release candidate summary should surface action item count."
+Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 1 `
+    -Message "Release candidate summary should surface warning count."
 Assert-Equal -Actual ([string]$summary.steps.release_blocker_rollup.status) -Expected "blocked" `
     -Message "Release candidate step status should mirror rollup status."
+Assert-ContainsText -Text (($summary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+    -ExpectedText "featherdoc.document_skeleton_governance_rollup_report.v1" `
+    -Message "Release candidate summary should carry rollup blocker source schema."
+Assert-ContainsText -Text (($summary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+    -ExpectedText "style-numbering-audit.json" `
+    -Message "Release candidate summary should carry rollup blocker source JSON display."
+Assert-ContainsText -Text (($summary.steps.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+    -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
+    -Message "Release candidate step summary should carry action item open command."
 
 $rollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $rollupSummaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$rollupSummary.schema) -Expected "featherdoc.release_blocker_rollup_report.v1" `
@@ -322,15 +373,27 @@ Assert-ContainsText -Text (($rollupSummary.action_items | ForEach-Object { [stri
 $finalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $finalReviewPath
 Assert-ContainsText -Text $finalReview -ExpectedText "- Release blocker rollup: blocked" `
     -Message "Final review should include release blocker rollup step status."
-Assert-ContainsText -Text $finalReview -ExpectedText "Release blocker rollup counts: 2 blockers, 2 actions" `
+Assert-ContainsText -Text $finalReview -ExpectedText "Release blocker rollup counts: 3 blockers, 3 actions, 1 warnings" `
     -Message "Final review should include release blocker rollup counts."
+Assert-ContainsText -Text $finalReview -ExpectedText "document_skeleton.style_numbering_issues" `
+    -Message "Final review should include rollup blocker id."
+Assert-ContainsText -Text $finalReview -ExpectedText "source_schema=featherdoc.document_skeleton_governance_rollup_report.v1" `
+    -Message "Final review should include rollup blocker source schema."
+Assert-ContainsText -Text $finalReview -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1" `
+    -Message "Final review should include rollup action item open command."
 
 $gateOutputDir = Join-Path $resolvedWorkingDir "release-candidate-fail-on-blocker"
 $gateArguments = @($scriptArguments)
 $summaryOutputIndex = [Array]::IndexOf($gateArguments, "-SummaryOutputDir")
 $gateArguments[$summaryOutputIndex + 1] = $gateOutputDir
 $gateArguments += "-ReleaseBlockerRollupFailOnBlocker"
-$gateResult = @(& (Get-Process -Id $PID).Path @gateArguments 2>&1)
+${previousErrorActionPreference} = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+    $gateResult = @(& (Get-Process -Id $PID).Path @gateArguments 2>&1)
+} finally {
+    $ErrorActionPreference = ${previousErrorActionPreference}
+}
 $gateExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
 if ($gateExitCode -eq 0) {
     $gateText = (@($gateResult | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
@@ -380,16 +443,22 @@ Assert-Equal -Actual ([string]$autoDiscoverSummary.release_blocker_rollup.status
     -Message "Auto-discovered rollup should surface the blocker status."
 Assert-Equal -Actual ([bool]$autoDiscoverSummary.release_blocker_rollup.auto_discover) -Expected $true `
     -Message "Release summary should record that auto-discovery was enabled."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 4 `
-    -Message "Release summary should record all four auto-discovered governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 4 `
-    -Message "Auto-discovered rollup should aggregate the four default governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_blocker_count) -Expected 4 `
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_discovered_input_json.Count) -Expected 5 `
+    -Message "Release summary should record all five auto-discovered governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 5 `
+    -Message "Auto-discovered rollup should aggregate the five default governance reports."
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_blocker_count) -Expected 5 `
     -Message "Auto-discovered rollup should surface blocker count from default governance reports."
-Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 4 `
+Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 5 `
     -Message "Auto-discovered rollup should surface action count from default governance reports."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "document_skeleton.exemplar_catalog_missing" `
+    -Message "Auto-discovered rollup should surface document skeleton warnings."
 
 $autoDiscoverRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupSummaryPath | ConvertFrom-Json
+Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
+    -ExpectedText "document-skeleton-governance-rollup" `
+    -Message "Auto-discovered rollup should include document skeleton governance rollup."
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
     -ExpectedText "project-template-delivery-readiness" `
     -Message "Auto-discovered rollup should include project-template delivery readiness governance."

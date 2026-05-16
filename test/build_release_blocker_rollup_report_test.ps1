@@ -75,14 +75,17 @@ $malformedPath = Join-Path $fixtureRoot "malformed\summary.json"
 $dedupePath = Join-Path $fixtureRoot "dedupe\summary.json"
 
 Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
-    schema = "featherdoc.document_skeleton_governance_report.v1"
+    schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{
             id = "document_skeleton.style_numbering_issues"
             severity = "error"
+            status = "needs_review"
             message = "Style numbering audit reported issues."
             action = "review_style_numbering_audit"
+            source_json = "output/document-skeleton-governance/contract/style-numbering-audit.json"
+            source_json_display = ".\output\document-skeleton-governance\contract\style-numbering-audit.json"
         }
     )
     action_items = @(
@@ -91,6 +94,16 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             action = "preview_style_numbering_repair"
             title = "Preview style numbering repair"
             command = "featherdoc_cli repair-style-numbering input.docx --plan-only --json"
+        }
+    )
+    warning_count = 1
+    warnings = @(
+        [ordered]@{
+            id = "document_skeleton.exemplar_catalog_missing"
+            action = "open_document_skeleton_rollup"
+            message = "One exemplar catalog path is missing."
+            source_json = "output/document-skeleton-governance-rollup/summary.json"
+            source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
         }
     )
 })
@@ -215,12 +228,37 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text ([string]$summary.release_blockers[0].composite_id) `
         -ExpectedText "source1.blocker1" `
         -Message "Rollup should generate composite blocker ids."
+    $skeletonBlocker = ($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "document_skeleton.style_numbering_issues" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$skeletonBlocker.source_schema) -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Rollup should preserve document skeleton source schema."
+    Assert-Equal -Actual ([string]$skeletonBlocker.action) -Expected "review_style_numbering_audit" `
+        -Message "Rollup should preserve blocker action."
+    Assert-ContainsText -Text ([string]$skeletonBlocker.message) -ExpectedText "Style numbering audit" `
+        -Message "Rollup should preserve blocker message."
+    Assert-ContainsText -Text ([string]$skeletonBlocker.source_json_display) -ExpectedText "style-numbering-audit.json" `
+        -Message "Rollup should preserve blocker source JSON display."
+    $skeletonAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "preview_style_numbering_repair" } |
+        Select-Object -First 1)
+    Assert-ContainsText -Text ([string]$skeletonAction.open_command) -ExpectedText "repair-style-numbering" `
+        -Message "Rollup should expose action item open command."
+    $skeletonWarning = ($summary.warnings |
+        Where-Object { [string]$_.id -eq "document_skeleton.exemplar_catalog_missing" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$skeletonWarning.action) -Expected "open_document_skeleton_rollup" `
+        -Message "Rollup should preserve warning action."
+    Assert-ContainsText -Text ([string]$skeletonWarning.message) -ExpectedText "exemplar catalog" `
+        -Message "Rollup should preserve warning message."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blocker Rollup Report" `
         -Message "Markdown should include title."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_smoke.schema_approval" `
         -Message "Markdown should include release candidate blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
+        -Message "Markdown should include source JSON display details."
 }
 
 if (Test-Scenario -Name "empty") {

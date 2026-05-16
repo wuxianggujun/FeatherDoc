@@ -538,6 +538,7 @@ foreach ($path in @($inputPaths)) {
                         id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
                         scope = Get-FirstJsonString -Object $blocker -Names @("document_name", "scope") -DefaultValue "document_skeleton"
                         source_kind = "document_skeleton_governance_rollup"
+                        source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
@@ -551,6 +552,7 @@ foreach ($path in @($inputPaths)) {
                         id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
                         scope = Get-FirstJsonString -Object $item -Names @("document_name", "scope") -DefaultValue "document_skeleton"
                         source_kind = "document_skeleton_governance_rollup"
+                        source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
                         source_report = $path
                         source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                         action = Get-JsonString -Object $item -Name "action"

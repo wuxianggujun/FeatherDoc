@@ -122,6 +122,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[release-candidate-checks] $Message"
@@ -1064,6 +1066,7 @@ function Get-ReleaseBlockerRollupAutoDiscoveredInputJson {
     )
 
     $candidateRelativePaths = @(
+        "document-skeleton-governance-rollup/summary.json",
         "numbering-catalog-governance/summary.json",
         "table-layout-delivery-governance/summary.json",
         "content-control-data-binding-governance/summary.json",
@@ -1580,8 +1583,11 @@ $summary = [ordered]@{
         fail_on_warning = [bool]$ReleaseBlockerRollupFailOnWarning
         source_report_count = 0
         release_blocker_count = 0
+        release_blockers = @()
         action_item_count = 0
+        action_items = @()
         warning_count = 0
+        warnings = @()
         error = ""
     }
     release_governance_handoff = [ordered]@{
@@ -1698,8 +1704,11 @@ $summary = [ordered]@{
             report_markdown = $releaseBlockerRollupMarkdownPath
             source_report_count = 0
             release_blocker_count = 0
+            release_blockers = @()
             action_item_count = 0
+            action_items = @()
             warning_count = 0
+            warnings = @()
             error = ""
         }
         release_governance_handoff = [ordered]@{
@@ -2425,14 +2434,20 @@ try {
             $summary.release_blocker_rollup.status = if ($null -eq $rollupSummary) { "missing_summary" } else { [string]$rollupSummary.status }
             $summary.release_blocker_rollup.source_report_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_report_count }
             $summary.release_blocker_rollup.release_blocker_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.release_blocker_count }
+            $summary.release_blocker_rollup.release_blockers = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "release_blockers") }
             $summary.release_blocker_rollup.action_item_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.action_item_count }
+            $summary.release_blocker_rollup.action_items = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "action_items") }
             $summary.release_blocker_rollup.warning_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.warning_count }
+            $summary.release_blocker_rollup.warnings = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "warnings") }
             $summary.release_blocker_rollup.error = ""
             $summary.steps.release_blocker_rollup.status = $summary.release_blocker_rollup.status
             $summary.steps.release_blocker_rollup.source_report_count = $summary.release_blocker_rollup.source_report_count
             $summary.steps.release_blocker_rollup.release_blocker_count = $summary.release_blocker_rollup.release_blocker_count
+            $summary.steps.release_blocker_rollup.release_blockers = @($summary.release_blocker_rollup.release_blockers)
             $summary.steps.release_blocker_rollup.action_item_count = $summary.release_blocker_rollup.action_item_count
+            $summary.steps.release_blocker_rollup.action_items = @($summary.release_blocker_rollup.action_items)
             $summary.steps.release_blocker_rollup.warning_count = $summary.release_blocker_rollup.warning_count
+            $summary.steps.release_blocker_rollup.warnings = @($summary.release_blocker_rollup.warnings)
             $summary.steps.release_blocker_rollup.error = ""
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
         } catch {
@@ -2441,6 +2456,12 @@ try {
             $summary.release_blocker_rollup.error = $rollupError
             $summary.steps.release_blocker_rollup.status = "failed"
             $summary.steps.release_blocker_rollup.error = $rollupError
+            $summary.release_blocker_rollup.release_blockers = @()
+            $summary.release_blocker_rollup.action_items = @()
+            $summary.release_blocker_rollup.warnings = @()
+            $summary.steps.release_blocker_rollup.release_blockers = @()
+            $summary.steps.release_blocker_rollup.action_items = @()
+            $summary.steps.release_blocker_rollup.warnings = @()
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
             Write-Step "Release blocker rollup failed: $rollupError"
             if ($ReleaseBlockerRollupFailOnBlocker -or $ReleaseBlockerRollupFailOnWarning) {
@@ -2544,6 +2565,17 @@ try {
         -VisualGateStep $summary.steps.visual_gate
     $visualGateReviewSummary = Get-VisualGateReviewSummaryMarkdown -RepoRoot $repoRoot `
         -VisualGateStep $summary.steps.visual_gate
+    $releaseGovernanceRollupLines = New-Object 'System.Collections.Generic.List[string]'
+    Add-ReleaseGovernanceRollupMarkdownSection `
+        -Lines $releaseGovernanceRollupLines `
+        -Summary $summary `
+        -RepoRoot $repoRoot `
+        -Heading "## Release blocker rollup details"
+    $releaseGovernanceRollupMarkdown = if ($releaseGovernanceRollupLines.Count -gt 0) {
+        ($releaseGovernanceRollupLines.ToArray() -join [Environment]::NewLine) + [Environment]::NewLine
+    } else {
+        ""
+    }
 
     $finalReview = @"
 # Release Candidate Checks
@@ -2572,6 +2604,7 @@ try {
 $visualGateReviewTaskSummaryLine
 $readmeGalleryStatusLine
 $visualGateReviewSummary
+$releaseGovernanceRollupMarkdown
 ## Key outputs
 
 - Build directory: $buildDirDisplay

@@ -250,6 +250,9 @@ function Add-NormalizedBlockers {
             status = Get-JsonString -Object $blocker -Name "status"
             action = Get-JsonString -Object $blocker -Name "action"
             message = Get-JsonString -Object $blocker -Name "message"
+            source_schema = Get-JsonString -Object $blocker -Name "source_schema" -DefaultValue ([string]$Report.schema)
+            source_report_display = Get-JsonString -Object $blocker -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
+            source_json_display = Get-JsonString -Object $blocker -Name "source_json_display" -DefaultValue ([string]$Report.expected_summary_display)
         }) | Out-Null
     }
 }
@@ -268,6 +271,10 @@ function Add-NormalizedActions {
             action = Get-JsonString -Object $item -Name "action"
             title = Get-JsonString -Object $item -Name "title"
             command = Get-JsonString -Object $item -Name "command"
+            open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command")
+            source_schema = Get-JsonString -Object $item -Name "source_schema" -DefaultValue ([string]$Report.schema)
+            source_report_display = Get-JsonString -Object $item -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
+            source_json_display = Get-JsonString -Object $item -Name "source_json_display" -DefaultValue ([string]$Report.expected_summary_display)
         }) | Out-Null
     }
 }

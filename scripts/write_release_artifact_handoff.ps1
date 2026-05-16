@@ -513,6 +513,7 @@ if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
 [void]$handoffLines.Add("- Section page setup task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $sectionPageSetupTaskDir)")
 [void]$handoffLines.Add("- Page number fields task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $pageNumberFieldsTaskDir)")
 Add-ReleaseBlockerMarkdownSection -Lines $handoffLines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceRollupMarkdownSection -Lines $handoffLines -Summary $summary -RepoRoot $repoRoot
 [void]$handoffLines.Add("")
 [void]$handoffLines.Add("## Installed Package Entry Points")
 [void]$handoffLines.Add("")

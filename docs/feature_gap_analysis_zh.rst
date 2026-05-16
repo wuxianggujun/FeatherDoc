@@ -152,6 +152,11 @@ audit 与 catalog baseline gate 汇入统一骨架治理报告。
 ``build_document_skeleton_governance_rollup_report.ps1`` 进一步把多份单文档
 骨架治理 summary 聚合成跨模板 exemplar catalog、issue summary、release blocker
 和 action item 视图，便于先完成文档骨架治理汇总，再接入发布阻断面板。
+发布 metadata 现在会把 final release blocker rollup 的明细数组同步到 release
+candidate ``summary.json`` 与 ``final_review.md``，并在 reviewer-facing bundle 中展示
+blocker / warning / action item 的 ``id``、``action``、``message``、``open_command``、
+``source_schema``、``source_report_display`` 和 ``source_json_display``，让
+``featherdoc.document_skeleton_governance_rollup_report.v1`` 不再只通过计数进入发布面板。
 后续对既有文档里的复杂 numbering catalog，仍可继续强化冲突审计和 catalog
 patch 衔接。
 

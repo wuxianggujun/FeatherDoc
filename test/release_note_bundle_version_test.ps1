@@ -167,6 +167,47 @@ $summary = [ordered]@{
             )
         }
     )
+    release_blocker_rollup = [ordered]@{
+        requested = $true
+        status = "blocked"
+        source_report_count = 1
+        release_blocker_count = 1
+        release_blockers = @(
+            [ordered]@{
+                id = "document_skeleton.style_numbering_issues"
+                source = "document_skeleton_governance_rollup"
+                severity = "error"
+                status = "needs_review"
+                action = "review_style_numbering_audit"
+                message = "Document skeleton rollup found style numbering issues."
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                source_json_display = ".\output\document-skeleton-governance\contract\style-numbering-audit.json"
+            }
+        )
+        action_item_count = 1
+        action_items = @(
+            [ordered]@{
+                id = "open_document_skeleton_rollup"
+                action = "open_document_skeleton_rollup"
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance"
+            }
+        )
+        warning_count = 1
+        warnings = @(
+            [ordered]@{
+                id = "document_skeleton.exemplar_catalog_missing"
+                action = "open_document_skeleton_rollup"
+                message = "One exemplar catalog path is missing."
+                source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+                source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+                source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+            }
+        )
+    }
     task_output_root = $taskOutputRoot
     superseded_review_tasks_report = $supersededReviewTasksReportPath
     install_dir = $installDir
@@ -235,6 +276,15 @@ Assert-Contains -Path $handoffPath -ExpectedText 'Superseded review tasks: 0' -L
 Assert-Contains -Path $handoffPath -ExpectedText 'Release blockers: 1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'project_template_smoke.schema_approval' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'missing_reviewer' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Release Governance Rollup Details' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'action=review_style_numbering_audit' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_schema=featherdoc.document_skeleton_governance_rollup_report.v1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_report_display: .\output\document-skeleton-governance-rollup\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\document-skeleton-governance\contract\style-numbering-audit.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'document_skeleton.exemplar_catalog_missing' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'open_document_skeleton_rollup' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText $expectedSupersededReviewTasksReportDisplayPath -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'open_latest_page_number_fields_review_task.ps1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'find_superseded_review_tasks.ps1' -Label 'release_handoff.md'
@@ -289,9 +339,14 @@ Assert-Contains -Path $guidePath -ExpectedText 'Template table CLI selector revi
 Assert-Contains -Path $guidePath -ExpectedText 'Project template schema approval history JSON' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'project_template_schema_approval_history.md' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Release blockers: 1' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'ARTIFACT_GUIDE.md'
+Assert-Contains -Path $guidePath -ExpectedText 'source_schema=featherdoc.document_skeleton_governance_rollup_report.v1' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $guidePath -ExpectedText 'Item schema-review-invalid' -Label 'ARTIFACT_GUIDE.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Open the project template schema approval history trend report' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Release blockers: 1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'document_skeleton.exemplar_catalog_missing' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_rollup_report.ps1' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Stop here until `release_blockers` is empty' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Use action `fix_schema_patch_approval_result`: update blocked `schema_patch_approval_result.json` record(s)' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Run `sync_project_template_schema_approval.ps1` after updating approval records' -Label 'REVIEWER_CHECKLIST.md'
@@ -309,6 +364,8 @@ Assert-Contains -Path $checklistPath -ExpectedText 'Open the Template table CLI 
 Assert-Contains -Path $checklistPath -ExpectedText 'Open the page number fields review task if the release touches page numbers' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Release blockers: 1' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'project_template_smoke.schema_approval' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'document_skeleton.style_numbering_issues' -Label 'START_HERE.md'
+Assert-Contains -Path $startHerePath -ExpectedText 'source_json_display: .\output\document-skeleton-governance\contract\style-numbering-audit.json' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Visual verdict: pending_manual_review' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Smoke verdict: pass' -Label 'START_HERE.md'
 Assert-Contains -Path $startHerePath -ExpectedText 'Fixed-grid verdict: undetermined' -Label 'START_HERE.md'

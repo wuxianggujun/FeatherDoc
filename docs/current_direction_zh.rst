@@ -159,6 +159,13 @@
   exemplar catalog、样式编号 issue、release blocker 和 action item 先聚合成
   ``featherdoc.document_skeleton_governance_rollup_report.v1``，再进入统一发布阻断视图
 
+  这一层现在不应只看聚合计数。发布面板会从 final release blocker rollup 中继续展示
+  ``release_blocker_rollup.release_blockers``、``warnings`` 与 ``action_items`` 的明细，
+  包括 ``id``、``action``、``message``、``open_command``、``source_schema``、
+  ``source_report_display`` 和 ``source_json_display``。reviewer 可以直接从
+  ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 与
+  ``release_handoff.md`` 定位骨架治理证据和下一步命令。
+
 接下来最值得补的是：
 
 1. merge restore 的更完整冲突处理与基于真实语料的样式建议置信度校准

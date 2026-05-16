@@ -89,6 +89,18 @@ function Get-JsonString {
     return [string]$value
 }
 
+function Get-FirstJsonString {
+    param($Object, [string[]]$Names, [string]$DefaultValue = "")
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonString -Object $Object -Name $name
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+    return $DefaultValue
+}
+
 function Get-JsonInt {
     param($Object, [string]$Name, [int]$DefaultValue = 0)
 
@@ -219,7 +231,10 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($blocker in @($Summary.release_blockers)) {
-            $lines.Add("- ``$($blocker.composite_id)``: action=``$($blocker.action)`` source=``$($blocker.source_report_display)``") | Out-Null
+            $lines.Add("- ``$($blocker.composite_id)``: action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
+            }
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - $($blocker.message)") | Out-Null
             }
@@ -232,7 +247,13 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.action_items)) {
-            $lines.Add("- ``$($item.composite_id)``: action=``$($item.action)`` source=``$($item.source_report_display)``") | Out-Null
+            $lines.Add("- ``$($item.composite_id)``: action=``$($item.action)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
+                $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -242,7 +263,13 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($warning in @($Summary.warnings)) {
-            $lines.Add("- ``$($warning.id)``: $($warning.message)") | Out-Null
+            $lines.Add("- ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.source_json_display)) {
+                $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
+                $lines.Add("  - $($warning.message)") | Out-Null
+            }
         }
     }
     return @($lines)
@@ -287,8 +314,12 @@ foreach ($path in @($inputPaths)) {
         if ($null -ne $declaredBlockerCount -and [int]$declaredBlockerCount -ne $sourceBlockers.Count) {
             $warnings.Add([ordered]@{
                 id = "release_blocker_count_mismatch"
+                action = "review_release_blocker_rollup_metadata"
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_json = $path
+                source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                source_schema = $kind
                 message = "release_blocker_count is $declaredBlockerCount but release_blockers contains $($sourceBlockers.Count) item(s)."
             }) | Out-Null
         }
@@ -297,17 +328,43 @@ foreach ($path in @($inputPaths)) {
         if ($sourceActions.Count -eq 0) {
             $sourceActions = @(Get-JsonArray -Object $summaryObject -Name "next_steps")
         }
+        $sourceWarnings = @(Get-JsonArray -Object $summaryObject -Name "warnings")
 
         $blockerIndex = 0
         foreach ($blocker in $sourceBlockers) {
             $blockerIndex++
             $id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
+            $sourceJson = Get-JsonString -Object $blocker -Name "source_json"
+            $sourceJsonDisplay = Get-JsonString -Object $blocker -Name "source_json_display"
+            $originSourceReport = Get-JsonString -Object $blocker -Name "source_report"
+            $originSourceReportDisplay = Get-JsonString -Object $blocker -Name "source_report_display"
             $blockers.Add([ordered]@{
                 composite_id = ("source{0}.blocker{1}.{2}" -f $sourceIndex, $blockerIndex, $id)
                 id = $id
+                source = Get-JsonString -Object $blocker -Name "source" -DefaultValue $kind
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                source_schema = $kind
+                origin_source_report = $originSourceReport
+                origin_source_report_display = $originSourceReportDisplay
+                source_json = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    $originSourceReport
+                } else {
+                    $path
+                }
+                source_json_display = if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                    $sourceJsonDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReportDisplay)) {
+                    $originSourceReportDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $originSourceReport
+                } else {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                }
+                source_schema = Get-FirstJsonString -Object $blocker -Names @("source_schema") -DefaultValue $kind
                 severity = Get-JsonString -Object $blocker -Name "severity" -DefaultValue "error"
                 status = Get-JsonString -Object $blocker -Name "status"
                 action = Get-JsonString -Object $blocker -Name "action"
@@ -319,15 +376,79 @@ foreach ($path in @($inputPaths)) {
         foreach ($item in $sourceActions) {
             $actionIndex++
             $id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
+            $sourceJson = Get-JsonString -Object $item -Name "source_json"
+            $sourceJsonDisplay = Get-JsonString -Object $item -Name "source_json_display"
+            $originSourceReport = Get-JsonString -Object $item -Name "source_report"
+            $originSourceReportDisplay = Get-JsonString -Object $item -Name "source_report_display"
             $actionItems.Add([ordered]@{
                 composite_id = ("source{0}.action{1}.{2}" -f $sourceIndex, $actionIndex, $id)
                 id = $id
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
-                source_schema = $kind
+                origin_source_report = $originSourceReport
+                origin_source_report_display = $originSourceReportDisplay
+                source_json = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    $originSourceReport
+                } else {
+                    $path
+                }
+                source_json_display = if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                    $sourceJsonDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReportDisplay)) {
+                    $originSourceReportDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $originSourceReport
+                } else {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                }
+                source_schema = Get-FirstJsonString -Object $item -Names @("source_schema") -DefaultValue $kind
                 action = Get-JsonString -Object $item -Name "action"
                 title = Get-JsonString -Object $item -Name "title"
                 command = Get-JsonString -Object $item -Name "command"
+                open_command = Get-FirstJsonString -Object $item -Names @("open_command", "command")
+            }) | Out-Null
+        }
+
+        $warningIndex = 0
+        foreach ($warning in $sourceWarnings) {
+            $warningIndex++
+            $id = Get-JsonString -Object $warning -Name "id" -DefaultValue "warning"
+            $sourceJson = Get-JsonString -Object $warning -Name "source_json"
+            $sourceJsonDisplay = Get-JsonString -Object $warning -Name "source_json_display"
+            $originSourceReport = Get-JsonString -Object $warning -Name "source_report"
+            $originSourceReportDisplay = Get-JsonString -Object $warning -Name "source_report_display"
+            $warnings.Add([ordered]@{
+                composite_id = ("source{0}.warning{1}.{2}" -f $sourceIndex, $warningIndex, $id)
+                id = $id
+                action = Get-JsonString -Object $warning -Name "action" -DefaultValue "review_release_governance_warning"
+                source_report = $path
+                source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                origin_source_report = $originSourceReport
+                origin_source_report_display = $originSourceReportDisplay
+                source_json = if (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    $originSourceReport
+                } else {
+                    $path
+                }
+                source_json_display = if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+                    $sourceJsonDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($sourceJson)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $sourceJson
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReportDisplay)) {
+                    $originSourceReportDisplay
+                } elseif (-not [string]::IsNullOrWhiteSpace($originSourceReport)) {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $originSourceReport
+                } else {
+                    Get-DisplayPath -RepoRoot $repoRoot -Path $path
+                }
+                source_schema = Get-FirstJsonString -Object $warning -Names @("source_schema") -DefaultValue $kind
+                message = Get-JsonString -Object $warning -Name "message"
             }) | Out-Null
         }
     } catch {
@@ -335,8 +456,12 @@ foreach ($path in @($inputPaths)) {
         $errorMessage = $_.Exception.Message
         $warnings.Add([ordered]@{
             id = "source_report_read_failed"
+            action = "review_release_blocker_rollup_metadata"
             source_report = $path
             source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_json = $path
+            source_json_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
+            source_schema = $kind
             message = $errorMessage
         }) | Out-Null
     }
