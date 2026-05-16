@@ -281,6 +281,17 @@ Assert-True -Condition ([int]$summary.action_item_count -ge 4) `
     -Message "Pipeline should mirror final rollup action count."
 Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
     -Message "Pipeline should mirror final rollup warning count."
+Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "style_merge.restore_audit_issues" `
+    -Message "Pipeline top-level summary should expose final rollup blocker ids."
+Assert-ContainsText -Text (($summary.action_items | ForEach-Object {
+            if ($_.PSObject.Properties["open_command"]) { [string]$_.open_command }
+        }) -join "`n") `
+    -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
+    -Message "Pipeline top-level summary should expose final rollup action helper commands."
+Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+    -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+    -Message "Pipeline top-level summary should expose final rollup warnings."
 
 $stageIds = @($summary.stages | ForEach-Object { [string]$_.id })
 foreach ($expectedStage in @(

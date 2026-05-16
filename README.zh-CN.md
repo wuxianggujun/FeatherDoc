@@ -200,9 +200,10 @@ release governance handoff 和最终 release blocker rollup；总览会落到
 `output/release-governance-pipeline/summary.json` 和 Markdown。最终 release blocker
 rollup 会同时扫描生成的治理报告根目录和原始输入根目录，因此 style-merge restore audit
 summary 不属于四条默认治理报告时也不会被漏掉。pipeline summary 现在也会物化
-stage 级 `release_blockers` 和 `action_items`，并在 Markdown 中按 stage 展示
-blocker 明细以及 restore-audit `open_command` 等辅助命令；该脚本只读输入 summary，
-不重跑 CLI、CMake、Word 或视觉自动化。
+顶层 final-rollup `release_blockers`、`action_items`、`warnings`，以及 stage 级
+`release_blockers` 和 `action_items`，并在 Markdown 中按 stage 展示 blocker 明细以及
+restore-audit `open_command` 等辅助命令；该脚本只读输入 summary，不重跑 CLI、CMake、
+Word 或视觉自动化。
 Linux/macOS CI 的 `release_smoke` 步骤也会把 release candidate blocker rollup、
 release governance handoff、release governance pipeline 等 smoke 输出上传为 Actions
 artifact，便于从远端构建直接下载审查证据。

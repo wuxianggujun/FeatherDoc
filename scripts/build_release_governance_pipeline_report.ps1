@@ -667,11 +667,17 @@ foreach ($stage in $stageItems) {
     $actionItemCount += [int]$stage.action_item_count
     $warningCount += [int]$stage.warning_count
 }
+$releaseBlockers = @()
+$actionItems = @()
+$warnings = @()
 $finalRollup = @($stageItems | Where-Object { [string]$_.id -eq "release_blocker_rollup" } | Select-Object -First 1)
 if ($finalRollup.Count -gt 0) {
     $releaseBlockerCount = [int]$finalRollup[0].release_blocker_count
     $actionItemCount = [int]$finalRollup[0].action_item_count
     $warningCount = [int]$finalRollup[0].warning_count
+    $releaseBlockers = @($finalRollup[0].release_blockers)
+    $actionItems = @($finalRollup[0].action_items)
+    $warnings = @($finalRollup[0].warnings)
 }
 
 $status = if ($failedStageCount -gt 0) {
@@ -704,8 +710,11 @@ $summary = [ordered]@{
     failed_stage_count = $failedStageCount
     missing_report_count = $missingReportCount
     release_blocker_count = $releaseBlockerCount
+    release_blockers = $releaseBlockers
     action_item_count = $actionItemCount
+    action_items = $actionItems
     warning_count = $warningCount
+    warnings = $warnings
     stages = $stageItems
     final_governance_reports = $handoffInputs
     release_governance_handoff_summary = Join-Path $handoffOutputDir "summary.json"
