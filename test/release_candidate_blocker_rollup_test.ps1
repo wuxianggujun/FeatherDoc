@@ -475,6 +475,11 @@ Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_b
     -Message "Auto-discovered rollup should surface blocker count from default governance plus restore audit reports."
 Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 5 `
     -Message "Auto-discovered rollup should surface action count from default governance plus restore audit reports."
+Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object {
+            if ($_.PSObject.Properties["open_command"]) { [string]$_.open_command }
+        }) -join "`n") `
+    -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
+    -Message "Release candidate summary should preserve auto-discovered restore audit open-latest commands."
 
 $autoDiscoverRollupSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $autoDiscoverRollupSummaryPath | ConvertFrom-Json
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
@@ -491,5 +496,23 @@ Assert-ContainsText -Text (($autoDiscoverRollupSummary.action_items | ForEach-Ob
         }) -join "`n") `
     -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
     -Message "Auto-discovered rollup should preserve restore audit open-latest commands."
+
+$autoDiscoverFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $autoDiscoverOutputDir "report\final_review.md")
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "## Release Governance Action Items" `
+    -Message "Final review should include release governance action items."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
+    -Message "Final review should surface restore audit open-latest commands."
+foreach ($bundlePath in @(
+        (Join-Path $autoDiscoverOutputDir "START_HERE.md"),
+        (Join-Path $autoDiscoverOutputDir "report\ARTIFACT_GUIDE.md"),
+        (Join-Path $autoDiscoverOutputDir "report\REVIEWER_CHECKLIST.md"),
+        (Join-Path $autoDiscoverOutputDir "report\release_handoff.md")
+    )) {
+    $bundleText = Get-Content -Raw -Encoding UTF8 -LiteralPath $bundlePath
+    Assert-ContainsText -Text $bundleText -ExpectedText "## Release Governance Action Items" `
+        -Message "Release note bundle file should include release governance action items: $bundlePath"
+    Assert-ContainsText -Text $bundleText -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
+        -Message "Release note bundle file should surface restore audit open-latest commands: $bundlePath"
+}
 
 Write-Host "Release candidate blocker rollup regression passed."

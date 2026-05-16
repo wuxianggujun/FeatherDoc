@@ -521,6 +521,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 [void]$lines.Add("- Artifact guide: $(Get-DisplayPath -RepoRoot $repoRoot -Path $artifactGuidePath)")
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
 Add-ReleaseGovernanceWarningsMarkdownSection -Lines $lines -Summary $summary
+Add-ReleaseGovernanceActionItemsMarkdownSection -Lines $lines -Summary $summary
 [void]$lines.Add("")
 [void]$lines.Add("## Step 1: Read The Release Notes")
 [void]$lines.Add("")

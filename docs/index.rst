@@ -543,8 +543,12 @@ governance handoff keeps those helper commands when it normalizes action items
 again. When scanning an ``-InputRoot``, the rollup also includes
 ``*.restore-audit.summary.json`` files emitted by the style-merge restore
 audit; release-candidate auto-discovery and the release governance pipeline
-feed those summaries into the final blocker rollup as well. Pending duplicate
-style-merge suggestions from the skeleton rollup are
+feed those summaries into the final blocker rollup as well. Release-candidate
+``summary.json``, ``final_review.md``, and generated release note bundle files
+now render normalized governance action items and helper commands from the
+final rollup, so restore-audit follow-up commands remain visible without
+opening nested JSON. Pending duplicate style-merge suggestions from the
+skeleton rollup are
 surfaced as non-blocking warnings by default and can be gated with
 ``-FailOnWarning``. Top-level warning details retain ``id``, ``action``,
 ``message``, ``source_schema``, and optional

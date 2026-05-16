@@ -76,6 +76,17 @@ $warningWithoutStyleMergeCount = [pscustomobject]@{
     source_schema = "featherdoc.numbering_catalog_governance_report.v1"
 }
 
+$restoreAuditActionItem = [pscustomobject]@{
+    id = "review_style_merge_restore_audit"
+    action = "review_style_merge_restore_audit"
+    title = "Review style merge restore audit and Word render"
+    source_schema = "featherdoc.style_merge_restore_audit.v1"
+    source_report_display = ".\output\document-skeleton-governance\style-merge.restore-audit.summary.json"
+    command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -DocumentSourceKind style-merge-restore-audit -Mode review-only"
+    open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit -PrintPrompt"
+    audit_command = "featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json"
+}
+
 $normalizedWarnings = @(Get-NormalizedReleaseGovernanceWarnings -Warnings @($warningWithStyleMergeCount, $warningWithoutStyleMergeCount))
 Assert-Equal -Actual $normalizedWarnings.Count -Expected 2 `
     -Message "Normalized warnings should preserve every warning entry."
@@ -106,6 +117,18 @@ Assert-Equal -Actual (Get-ReleaseGovernanceWarningCount -SummaryObject $declared
 Assert-Equal -Actual (Get-ReleaseGovernanceWarningCount -SummaryObject $fallbackCountSummary) -Expected 2 `
     -Message "Missing warning_count should fall back to materialized warnings."
 
+$normalizedActionItems = @(Get-NormalizedReleaseGovernanceActionItems -ActionItems @($restoreAuditActionItem))
+Assert-Equal -Actual $normalizedActionItems.Count -Expected 1 `
+    -Message "Normalized action items should preserve action entries."
+Assert-Equal -Actual ([string]$normalizedActionItems[0].id) -Expected "review_style_merge_restore_audit" `
+    -Message "Normalized action item should preserve id."
+Assert-ContainsText -Text ([string]$normalizedActionItems[0].open_command) -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
+    -Message "Normalized action item should preserve open-latest commands."
+Assert-ContainsText -Text ([string]$normalizedActionItems[0].audit_command) -ExpectedText "restore-style-merge" `
+    -Message "Normalized action item should preserve audit commands."
+Assert-Equal -Actual (Get-ReleaseGovernanceActionItemCount -SummaryObject ([pscustomobject]@{ action_item_count = 7; action_items = @($restoreAuditActionItem) })) -Expected 7 `
+    -Message "Declared action_item_count should win over materialized action items."
+
 $richSummaryText = Get-ReleaseGovernanceWarningSummaryText -Warning $warningWithStyleMergeCount
 Assert-ContainsText -Text $richSummaryText -ExpectedText 'id: `document_skeleton.style_merge_suggestions_pending`' `
     -Message "Summary text should include the warning id."
@@ -125,6 +148,34 @@ Assert-True -Condition ($plainSummaryText -notmatch 'style_merge_suggestion_coun
     -Message "Summary text should omit the optional style merge count when absent."
 Assert-True -Condition ($plainSummaryText -notmatch 'style_merge_suggestion_pending_count') `
     -Message "Summary text should omit the optional pending style merge count when absent."
+
+$actionSummaryText = Get-ReleaseGovernanceActionItemSummaryText -ActionItem $restoreAuditActionItem
+Assert-ContainsText -Text $actionSummaryText -ExpectedText 'id: `review_style_merge_restore_audit`' `
+    -Message "Action item summary should include the action item id."
+Assert-ContainsText -Text $actionSummaryText -ExpectedText 'action: `review_style_merge_restore_audit`' `
+    -Message "Action item summary should include the action."
+Assert-ContainsText -Text $actionSummaryText -ExpectedText 'source_schema: `featherdoc.style_merge_restore_audit.v1`' `
+    -Message "Action item summary should include source schema."
+
+$actionSubsectionLines = New-Object 'System.Collections.Generic.List[string]'
+$actionSubsectionRendered = Add-ReleaseGovernanceActionItemMarkdownSubsection `
+    -Lines $actionSubsectionLines `
+    -Heading "Release blocker rollup action items" `
+    -SummaryObject ([pscustomobject]@{
+        action_item_count = 1
+        action_items = @($restoreAuditActionItem)
+    })
+Assert-True -Condition $actionSubsectionRendered `
+    -Message "Action item Markdown subsection should render when action items exist."
+$actionSubsectionMarkdown = $actionSubsectionLines -join "`n"
+Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText "### Release blocker rollup action items" `
+    -Message "Action item Markdown subsection should include its heading."
+Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText '- action_item_count: `1`' `
+    -Message "Action item Markdown subsection should include action count."
+Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit' `
+    -Message "Action item Markdown subsection should include open-latest commands."
+Assert-ContainsText -Text $actionSubsectionMarkdown -ExpectedText 'featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json' `
+    -Message "Action item Markdown subsection should include audit commands."
 
 $subsectionLines = New-Object 'System.Collections.Generic.List[string]'
 $subsectionRendered = Add-ReleaseGovernanceWarningMarkdownSubsection `
@@ -190,6 +241,35 @@ Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion
     -Message "Markdown section should render optional style merge counts."
 Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
     -Message "Markdown section should render optional pending style merge counts."
+
+$actionSectionLines = New-Object 'System.Collections.Generic.List[string]'
+Add-ReleaseGovernanceActionItemsMarkdownSection `
+    -Lines $actionSectionLines `
+    -Summary ([pscustomobject]@{
+        release_blocker_rollup = [pscustomobject]@{
+            action_item_count = 1
+            action_items = @($restoreAuditActionItem)
+        }
+        release_governance_handoff = [pscustomobject]@{
+            action_item_count = 1
+            action_items = @($restoreAuditActionItem)
+            release_blocker_rollup = [pscustomobject]@{
+                action_item_count = 1
+                action_items = @($restoreAuditActionItem)
+            }
+        }
+    })
+$actionSectionMarkdown = $actionSectionLines -join "`n"
+Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "## Release Governance Action Items" `
+    -Message "Markdown section should include the top-level action item heading."
+Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "### Release blocker rollup action items" `
+    -Message "Markdown section should include the release blocker action subsection."
+Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "### Release governance handoff action items" `
+    -Message "Markdown section should include the handoff action subsection."
+Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "### Release governance handoff nested rollup action items" `
+    -Message "Markdown section should include the nested handoff action subsection."
+Assert-ContainsText -Text $actionSectionMarkdown -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
+    -Message "Markdown section should render restore audit helper commands."
 
 $checklistItems = @(Get-ReleaseGovernanceWarningChecklistItems -Summary ([pscustomobject]@{
             release_blocker_rollup = [pscustomobject]@{

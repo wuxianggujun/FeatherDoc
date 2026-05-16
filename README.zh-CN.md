@@ -164,7 +164,10 @@ readiness summary 已经生成时，可以把这些 JSON 通过
 `build_release_blocker_rollup_report.ps1`，写出
 `report/release-blocker-rollup/summary.json` 和 Markdown，并把 rollup 状态、
 来源数量、blocker / action / warning 计数以及自动发现输入同步进
-`report/summary.json` 和 `report/final_review.md`。需要把最终 rollup 变成硬门禁时，
+`report/summary.json` 和 `report/final_review.md`；release note bundle 里的
+handoff、artifact guide、reviewer checklist 和 start-here 文档也会渲染这些
+action item 辅助命令，reviewer 不需要打开嵌套 rollup JSON 才能执行后续命令。
+需要把最终 rollup 变成硬门禁时，
 再加 `-ReleaseBlockerRollupFailOnBlocker` 或
 `-ReleaseBlockerRollupFailOnWarning`。
 

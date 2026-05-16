@@ -122,6 +122,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
+
 function Write-Step {
     param([string]$Message)
     Write-Host "[release-candidate-checks] $Message"
@@ -2589,6 +2591,11 @@ try {
             $summary.release_blocker_rollup.release_blocker_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.release_blocker_count }
             $summary.release_blocker_rollup.action_item_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.action_item_count }
             $summary.release_blocker_rollup.warning_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.warning_count }
+            $summary.release_blocker_rollup.action_items = if ($null -eq $rollupSummary) {
+                @()
+            } else {
+                @(Get-NormalizedReleaseGovernanceActionItems -ActionItems (Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "action_items"))
+            }
             $summary.release_blocker_rollup.warnings = if ($null -eq $rollupSummary) {
                 @()
             } else {
@@ -2600,6 +2607,7 @@ try {
             $summary.steps.release_blocker_rollup.release_blocker_count = $summary.release_blocker_rollup.release_blocker_count
             $summary.steps.release_blocker_rollup.action_item_count = $summary.release_blocker_rollup.action_item_count
             $summary.steps.release_blocker_rollup.warning_count = $summary.release_blocker_rollup.warning_count
+            $summary.steps.release_blocker_rollup.action_items = @($summary.release_blocker_rollup.action_items)
             $summary.steps.release_blocker_rollup.warnings = @($summary.release_blocker_rollup.warnings)
             $summary.steps.release_blocker_rollup.error = ""
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
@@ -2640,6 +2648,11 @@ try {
             $summary.release_governance_handoff.release_blocker_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.release_blocker_count }
             $summary.release_governance_handoff.action_item_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.action_item_count }
             $summary.release_governance_handoff.warning_count = if ($null -eq $handoffSummary) { 0 } else { [int]$handoffSummary.warning_count }
+            $summary.release_governance_handoff.action_items = if ($null -eq $handoffSummary) {
+                @()
+            } else {
+                @(Get-NormalizedReleaseGovernanceActionItems -ActionItems (Get-OptionalObjectArrayProperty -Object $handoffSummary -Name "action_items"))
+            }
             $summary.release_governance_handoff.warnings = if ($null -eq $handoffSummary) {
                 @()
             } else {
@@ -2659,6 +2672,11 @@ try {
                 release_blocker_count = if ($null -eq $handoffRollupSummary) { 0 } else { Get-OptionalIntegerProperty -Object $handoffRollupSummary -Name "release_blocker_count" }
                 action_item_count = if ($null -eq $handoffRollupSummary) { 0 } else { Get-OptionalIntegerProperty -Object $handoffRollupSummary -Name "action_item_count" }
                 warning_count = if ($null -eq $handoffRollupSummary) { 0 } else { Get-OptionalIntegerProperty -Object $handoffRollupSummary -Name "warning_count" }
+                action_items = if ($null -eq $handoffRollupSummary) {
+                    @()
+                } else {
+                    @(Get-NormalizedReleaseGovernanceActionItems -ActionItems (Get-OptionalObjectArrayProperty -Object $handoffRollupSummary -Name "action_items"))
+                }
                 warnings = if ($null -eq $handoffRollupSummary) {
                     @()
                 } else {
@@ -2674,6 +2692,7 @@ try {
             $summary.steps.release_governance_handoff.release_blocker_count = $summary.release_governance_handoff.release_blocker_count
             $summary.steps.release_governance_handoff.action_item_count = $summary.release_governance_handoff.action_item_count
             $summary.steps.release_governance_handoff.warning_count = $summary.release_governance_handoff.warning_count
+            $summary.steps.release_governance_handoff.action_items = @($summary.release_governance_handoff.action_items)
             $summary.steps.release_governance_handoff.warnings = @($summary.release_governance_handoff.warnings)
             $summary.steps.release_governance_handoff.error = ""
             ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
@@ -2740,6 +2759,11 @@ try {
         -VisualGateStep $summary.steps.visual_gate
     $releaseGovernanceWarningSummary = Get-ReleaseGovernanceWarningSummaryMarkdown `
         -ReleaseSummary $summary
+    $releaseGovernanceActionItemSummaryLines = New-Object 'System.Collections.Generic.List[string]'
+    Add-ReleaseGovernanceActionItemsMarkdownSection `
+        -Lines $releaseGovernanceActionItemSummaryLines `
+        -Summary $summary
+    $releaseGovernanceActionItemSummary = ($releaseGovernanceActionItemSummaryLines -join [Environment]::NewLine).TrimEnd()
 
     $finalReview = @"
 # Release Candidate Checks
@@ -2804,6 +2828,7 @@ $visualGateReviewSummary
 - Reviewer checklist: $reviewerChecklistDisplayPath
 - Start here: $startHereDisplayPath
 $releaseGovernanceWarningSummary
+$releaseGovernanceActionItemSummary
 "@
     $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
