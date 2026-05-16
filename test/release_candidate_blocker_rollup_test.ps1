@@ -335,10 +335,12 @@ if ($Scenario -eq "handoff") {
 
     $handoffReleaseSummaryPath = Join-Path $handoffOutputDir "report\summary.json"
     $handoffFinalReviewPath = Join-Path $handoffOutputDir "report\final_review.md"
+    $handoffReleaseHandoffPath = Join-Path $handoffOutputDir "report\release_handoff.md"
+    $handoffChecklistPath = Join-Path $handoffOutputDir "report\REVIEWER_CHECKLIST.md"
     $handoffSummaryPath = Join-Path $handoffOutputDir "report\release-governance-handoff\summary.json"
     $handoffMarkdownPath = Join-Path $handoffOutputDir "report\release-governance-handoff\release_governance_handoff.md"
     $handoffNestedRollupSummaryPath = Join-Path $handoffOutputDir "report\release-governance-handoff\release-blocker-rollup\summary.json"
-    foreach ($path in @($handoffReleaseSummaryPath, $handoffFinalReviewPath, $handoffSummaryPath, $handoffMarkdownPath, $handoffNestedRollupSummaryPath)) {
+    foreach ($path in @($handoffReleaseSummaryPath, $handoffFinalReviewPath, $handoffReleaseHandoffPath, $handoffChecklistPath, $handoffSummaryPath, $handoffMarkdownPath, $handoffNestedRollupSummaryPath)) {
         Assert-True -Condition (Test-Path -LiteralPath $path) `
             -Message "Expected release governance handoff artifact to exist: $path"
     }
@@ -356,6 +358,17 @@ if ($Scenario -eq "handoff") {
         -Message "Release candidate summary should surface handoff blocker count."
     Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.action_item_count) -Expected 5 `
         -Message "Release candidate summary should surface handoff action count."
+    Assert-Equal -Actual ([int]$handoffReleaseSummary.release_governance_handoff.warning_count) -Expected 2 `
+        -Message "Release candidate summary should surface handoff warning count."
+    Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.release_blockers | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.project_template_onboarding_governance_report.v1" `
+        -Message "Release candidate summary should carry handoff blocker source schema."
+    Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
+        -Message "Release candidate summary should carry handoff warning ids."
+    Assert-ContainsText -Text (($handoffReleaseSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
+        -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+        -Message "Release candidate step summary should carry handoff action open command."
     Assert-Equal -Actual ([string]$handoffReleaseSummary.steps.release_governance_handoff.status) -Expected "blocked" `
         -Message "Release candidate step status should mirror governance handoff status."
 
@@ -370,6 +383,27 @@ if ($Scenario -eq "handoff") {
         -Message "Final review should include release governance handoff step status."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff counts: 5/5 reports, 0 missing, 5 blockers, 5 actions" `
         -Message "Final review should include release governance handoff counts."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "Release governance handoff details" `
+        -Message "Final review should include release governance handoff details."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "project_template_onboarding.schema_approval" `
+        -Message "Final review should include handoff blocker id."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "schema_patch_confidence_calibration.unscored_candidates" `
+        -Message "Final review should include handoff warning id."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1" `
+        -Message "Final review should include handoff source schema."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
+        -Message "Final review should include handoff action item open command."
+
+    $handoffReleaseHandoff = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffReleaseHandoffPath
+    $handoffChecklist = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffChecklistPath
+    Assert-ContainsText -Text $handoffReleaseHandoff -ExpectedText "Release Governance Handoff Details" `
+        -Message "Release handoff bundle should include governance handoff details."
+    Assert-ContainsText -Text $handoffReleaseHandoff -ExpectedText "source_json_display: .\output\schema-patch-confidence-calibration\summary.json" `
+        -Message "Release handoff bundle should include handoff source JSON display."
+    Assert-ContainsText -Text $handoffChecklist -ExpectedText "Handoff Action Items" `
+        -Message "Reviewer checklist should include handoff action items."
+    Assert-ContainsText -Text $handoffChecklist -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
+        -Message "Reviewer checklist should include handoff open command."
 
     Write-Host "Release candidate governance handoff regression passed."
     exit 0

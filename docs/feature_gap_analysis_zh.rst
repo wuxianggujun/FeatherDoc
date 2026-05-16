@@ -109,6 +109,10 @@ pipeline 和 handoff 都会读取 ``schema-patch-confidence-calibration/summary.
 stage 的 blocker / warning / action item 明细，并补齐 ``source_schema``、
 ``source_report_display``、``source_json_display`` 与 action item ``open_command``，
 让发布面板可以先按治理源定位证据，再交给 final rollup 和 reviewer checklist 展示。
+release governance handoff 现在也会把归一化后的 blocker、warning 与 action item
+数组写回 release summary、final review、release handoff 和 reviewer checklist；reviewer
+可以直接读取 ``source_schema``、``source_report_display``、``source_json_display`` 和
+``open_command``，而不必只依赖 handoff 计数。
 
 后续建议继续补齐的是“工程化治理层”，而不是基础 patch API：
 
@@ -171,7 +175,8 @@ blocker / warning / action item 的 ``id``、``action``、``message``、``open_c
 ``featherdoc.document_skeleton_governance_rollup_report.v1`` 不再只通过计数进入发布面板。
 同时，release governance pipeline 的 ``numbering_catalog_governance`` stage 会直接保留
 document skeleton rollup 的 blocker / action item 明细，便于发布面板在 final rollup 之前
-按 stage 展开骨架治理证据。
+按 stage 展开骨架治理证据；release governance handoff 也会把同一批骨架治理明细继续
+透传到 handoff summary、final review、release bundle 和 reviewer checklist。
 后续对既有文档里的复杂 numbering catalog，仍可继续强化冲突审计和 catalog
 patch 衔接。
 
@@ -558,8 +563,8 @@ P2：可以后置的能力
 
 - content control 复杂表单保护、重复节和模板数据模型双向同步策略
   （Custom XML 单向刷新和只读数据绑定治理 gate 已完成）
-- onboarding governance、schema confidence calibration 与 release blocker rollup
-  继续接入发布 gate / 发布面板
+- onboarding governance、schema confidence calibration、release blocker rollup 与
+  release governance handoff 继续接入发布 gate / 发布面板
 - 真实项目模板 smoke manifest 的样例、审批历史和回归证据补强
 
 阶段目标：让一份真实业务模板可以更快接入、校验、生成和回归。
@@ -571,8 +576,9 @@ P2：可以后置的能力
 优先做：
 
 - exemplar 文档到 numbering catalog JSON 的冲突审计和 catalog patch 衔接
-- 多份骨架治理 summary 的 rollup 报告已经落地，下一步应让发布面板直接消费
-  ``featherdoc.document_skeleton_governance_rollup_report.v1``
+- 多份骨架治理 summary 的 rollup 报告已经落地，发布面板已可从 final rollup、
+  pipeline stage 和 release governance handoff 直接消费
+  ``featherdoc.document_skeleton_governance_rollup_report.v1`` 明细
 - ``repair-style-numbering`` 建议到 catalog patch 的衔接
 - style usage report 驱动的 batch audit 与自动建议
 - style refactor plan 的真实语料置信度校准与 merge restore 批量选择增强

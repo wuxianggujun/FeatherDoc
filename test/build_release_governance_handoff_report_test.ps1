@@ -253,6 +253,17 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should normalize action items."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
         -Message "Aggregate handoff should preserve warning counts."
+    Assert-Equal -Actual (@($summary.warnings).Count) -Expected 2 `
+        -Message "Aggregate handoff should normalize warning details."
+    Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "numbering_catalog_manifest_summary_missing" `
+        -Message "Aggregate handoff should preserve numbering warning id."
+    Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.source_schema }) -join "`n") `
+        -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1" `
+        -Message "Aggregate handoff should preserve warning source schema."
+    Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
+        -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+        -Message "Aggregate handoff should preserve warning source JSON display."
     Assert-ContainsText -Text (($summary.next_commands | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "ReleaseBlockerRollupAutoDiscover" `
         -Message "Aggregate handoff should hand off to release candidate auto-discovery."
@@ -266,6 +277,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include content-control data-binding governance."
     Assert-ContainsText -Text $markdown -ExpectedText "schema_patch_confidence_calibration" `
         -Message "Markdown should include schema patch confidence calibration."
+    Assert-ContainsText -Text $markdown -ExpectedText "## Warnings" `
+        -Message "Markdown should include handoff warnings."
+    Assert-ContainsText -Text $markdown -ExpectedText "numbering_catalog_manifest_summary_missing" `
+        -Message "Markdown should include warning id."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json_display" `
+        -Message "Markdown should include warning source JSON display."
 }
 
 if (Test-Scenario -Name "missing") {

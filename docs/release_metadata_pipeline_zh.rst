@@ -217,6 +217,27 @@ summary、bundle 和 reviewer checklist 继续展示。reviewer 若在 pipeline 
 阻断项，应优先打开 ``source_json_display`` 对应证据，再按 ``open_command`` 重建或复核
 该治理报告，最后重新运行 release blocker rollup / bundle 生成链路。
 
+当 ``summary.json`` 中存在 ``release_governance_handoff`` 节点时，release summary、
+``final_review.md`` 和 reviewer-facing bundle 也会展示 handoff 归一化后的三类明细：
+
+- ``release_governance_handoff.release_blockers[]``：展示 ``id``、``action``、
+  ``message``、``source_schema``、``source_report_display`` 与
+  ``source_json_display``。
+- ``release_governance_handoff.warnings[]``：展示 ``id``、``action``、``message``、
+  ``source_schema``、``source_report_display`` 与 ``source_json_display``。
+- ``release_governance_handoff.action_items[]``：展示 ``id``、``action``、
+  ``open_command``、``source_schema``、``source_report_display`` 与
+  ``source_json_display``。
+
+``build_release_governance_handoff_report.ps1`` 会从已加载的治理报告中归一化 blocker、
+warning 与 action item；``run_release_candidate_checks.ps1`` 会把这些数组同步到
+``summary.json`` 的 ``release_governance_handoff`` 与
+``steps.release_governance_handoff``，并在 ``final_review.md`` 中写出
+``Release governance handoff details``。因此 reviewer 不需要只依赖 handoff 计数，
+而是可以从 ``release_handoff.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``
+或 ``START_HERE.md`` 直接打开 ``source_json_display``，再用 action item 的
+``open_command`` 重建相应 governance report。
+
 内部 handoff 文件可以展示更完整的 reviewer metadata，例如：
 
 - ``review_status``

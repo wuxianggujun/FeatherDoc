@@ -281,6 +281,71 @@ $summary = [ordered]@{
             }
         )
     }
+    release_governance_handoff = [ordered]@{
+        requested = $true
+        status = "blocked"
+        expected_report_count = 5
+        loaded_report_count = 5
+        missing_report_count = 0
+        release_blocker_count = 2
+        release_blockers = @(
+            [ordered]@{
+                report_id = "project_template_delivery_readiness"
+                id = "project_template_onboarding.schema_approval"
+                severity = "error"
+                status = "pending_review"
+                action = "review_schema_update_candidate"
+                message = "Project template onboarding schema approval is pending."
+                source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+                source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+            },
+            [ordered]@{
+                report_id = "schema_patch_confidence_calibration"
+                id = "schema_patch_confidence_calibration.pending_schema_approvals"
+                severity = "error"
+                status = "pending_review"
+                action = "resolve_pending_schema_approvals"
+                message = "Schema patch confidence calibration still contains pending approval outcome(s)."
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            }
+        )
+        action_item_count = 2
+        action_items = @(
+            [ordered]@{
+                report_id = "project_template_delivery_readiness"
+                id = "review_invoice_schema"
+                action = "review_schema_update_candidate"
+                source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+                source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
+            },
+            [ordered]@{
+                report_id = "schema_patch_confidence_calibration"
+                id = "resolve_pending_schema_approvals"
+                action = "resolve_pending_schema_approvals"
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+            }
+        )
+        warning_count = 1
+        warnings = @(
+            [ordered]@{
+                report_id = "schema_patch_confidence_calibration"
+                id = "schema_patch_confidence_calibration.unscored_candidates"
+                action = "add_explicit_confidence_metadata"
+                message = "Some schema patch candidates do not carry explicit confidence metadata."
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            }
+        )
+    }
     task_output_root = $taskOutputRoot
     superseded_review_tasks_report = $supersededReviewTasksReportPath
     install_dir = $installDir
@@ -377,6 +442,11 @@ Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionP
 Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Release Governance Handoff Details' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'Handoff Warnings' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'schema_patch_confidence_calibration.unscored_candidates' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_report_display: .\output\project-template-delivery-readiness\summary.json' -Label 'release_handoff.md'
+Assert-Contains -Path $handoffPath -ExpectedText 'source_json_display: .\output\project-template-onboarding-governance\summary.json' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText $expectedSupersededReviewTasksReportDisplayPath -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'open_latest_page_number_fields_review_task.ps1' -Label 'release_handoff.md'
 Assert-Contains -Path $handoffPath -ExpectedText 'find_superseded_review_tasks.ps1' -Label 'release_handoff.md'
@@ -457,6 +527,9 @@ Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -Executio
 Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Release Governance Handoff Details' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Handoff Action Items' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'source_json_display: .\output\schema-patch-confidence-calibration\summary.json' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Stop here until `release_blockers` is empty' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Use action `fix_schema_patch_approval_result`: update blocked `schema_patch_approval_result.json` record(s)' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Run `sync_project_template_schema_approval.ps1` after updating approval records' -Label 'REVIEWER_CHECKLIST.md'

@@ -280,6 +280,26 @@ function Add-NormalizedActions {
     }
 }
 
+function Add-NormalizedWarnings {
+    param(
+        [System.Collections.Generic.List[object]]$Collection,
+        [object]$Report
+    )
+
+    foreach ($warning in @($Report.warnings)) {
+        $Collection.Add([ordered]@{
+            report_id = [string]$Report.id
+            report_title = [string]$Report.title
+            id = Get-JsonString -Object $warning -Name "id" -DefaultValue "warning"
+            action = Get-JsonString -Object $warning -Name "action" -DefaultValue "review_release_governance_warning"
+            message = Get-JsonString -Object $warning -Name "message"
+            source_schema = Get-JsonString -Object $warning -Name "source_schema" -DefaultValue ([string]$Report.schema)
+            source_report_display = Get-JsonString -Object $warning -Name "source_report_display" -DefaultValue ([string]$Report.expected_summary_display)
+            source_json_display = Get-JsonString -Object $warning -Name "source_json_display" -DefaultValue ([string]$Report.expected_summary_display)
+        }) | Out-Null
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -327,6 +347,22 @@ function New-ReportMarkdown {
     } else {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.report_id)`` / ``$($item.id)``: action=``$($item.action)``") | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Warnings") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.warnings).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($warning in @($Summary.warnings)) {
+            $lines.Add("- ``$($warning.report_id)`` / ``$($warning.id)``: action=``$($warning.action)`` schema=``$($warning.source_schema)``") | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
+                $lines.Add("  - $($warning.message)") | Out-Null
+            }
+            $lines.Add("  - source_report_display: ``$($warning.source_report_display)``") | Out-Null
+            $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -469,9 +505,11 @@ foreach ($input in @(Expand-InputPathList -Paths $InputJson)) {
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
+$warnings = New-Object 'System.Collections.Generic.List[object]'
 foreach ($report in @($reports.ToArray())) {
     Add-NormalizedBlockers -Collection $releaseBlockers -Report $report
     Add-NormalizedActions -Collection $actionItems -Report $report
+    Add-NormalizedWarnings -Collection $warnings -Report $report
 }
 
 $loadedReportCount = @($reports.ToArray() | Where-Object { $_.status -notin @("missing", "failed") }).Count
@@ -531,6 +569,7 @@ $summary = [ordered]@{
     action_item_count = $actionItems.Count
     action_items = @($actionItems.ToArray())
     warning_count = $warningCount
+    warnings = @($warnings.ToArray())
     next_commands = @($nextCommands.ToArray())
 }
 

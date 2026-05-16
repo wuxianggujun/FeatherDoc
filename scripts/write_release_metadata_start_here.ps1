@@ -461,6 +461,7 @@ foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
 }
 Add-ReleaseBlockerMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
 Add-ReleaseGovernanceRollupMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
+Add-ReleaseGovernanceHandoffMarkdownSection -Lines $lines -Summary $summary -RepoRoot $repoRoot
 
 [void]$lines.Add("")
 [void]$lines.Add("## Template Schema Evidence")
