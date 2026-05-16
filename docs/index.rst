@@ -552,6 +552,9 @@ top-level final-rollup ``release_blockers``, ``action_items``, and
 ``warnings``, plus stage-level ``release_blockers`` and ``action_items``; its
 Markdown renders blocker details plus helper commands such as restore-audit
 ``open_command`` values beside the stage that produced them.
+If the final rollup stage fails, the pipeline remains ``failed`` while
+preserving blocker, action, and warning details already produced by earlier
+stages instead of clearing the top-level governance summary.
 Pending duplicate style-merge suggestions from the
 skeleton rollup are
 surfaced as non-blocking warnings by default and can be gated with

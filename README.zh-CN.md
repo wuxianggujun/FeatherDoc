@@ -203,7 +203,8 @@ summary 不属于四条默认治理报告时也不会被漏掉。pipeline summar
 顶层 final-rollup `release_blockers`、`action_items`、`warnings`，以及 stage 级
 `release_blockers` 和 `action_items`，并在 Markdown 中按 stage 展示 blocker 明细以及
 restore-audit `open_command` 等辅助命令；该脚本只读输入 summary，不重跑 CLI、CMake、
-Word 或视觉自动化。
+Word 或视觉自动化。若最终 rollup stage 失败，pipeline 会保持 `failed`，同时保留前面
+已完成 stage 产出的 blocker、action 和 warning 明细，不会把顶层治理 summary 清空。
 Linux/macOS CI 的 `release_smoke` 步骤也会把 release candidate blocker rollup、
 release governance handoff、release governance pipeline 等 smoke 输出上传为 Actions
 artifact，便于从远端构建直接下载审查证据。

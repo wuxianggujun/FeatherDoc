@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("aggregate", "fail_on_blocker")]
+    [ValidateSet("aggregate", "fail_on_blocker", "final_rollup_failure")]
     [string]$Scenario = "aggregate"
 )
 
@@ -225,6 +225,39 @@ function Invoke-Pipeline {
     }
 }
 
+function New-FailingFinalRollupScriptPath {
+    param([string]$RepoRoot, [string]$WorkingDir)
+
+    $scriptFixtureRoot = Join-Path $WorkingDir "failing-final-rollup-fixture\scripts"
+    New-Item -ItemType Directory -Path $scriptFixtureRoot -Force | Out-Null
+
+    foreach ($scriptName in @(
+            "build_release_governance_pipeline_report.ps1",
+            "build_release_governance_handoff_report.ps1",
+            "release_blocker_metadata_helpers.ps1"
+        )) {
+        Copy-Item `
+            -LiteralPath (Join-Path $RepoRoot "scripts\$scriptName") `
+            -Destination (Join-Path $scriptFixtureRoot $scriptName) `
+            -Force
+    }
+
+    @'
+param(
+    [string]$InputJson = "",
+    [string]$InputRoot = "",
+    [string]$OutputDir = "",
+    [string]$SummaryJson = "",
+    [string]$ReportMarkdown = ""
+)
+
+Write-Host "[stub] Injected final rollup failure."
+exit 1
+'@ | Set-Content -LiteralPath (Join-Path $scriptFixtureRoot "build_release_blocker_rollup_report.ps1") -Encoding UTF8
+
+    return Join-Path $scriptFixtureRoot "build_release_governance_pipeline_report.ps1"
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
@@ -234,6 +267,9 @@ $outputRoot = Join-Path $resolvedWorkingDir "pipeline"
 New-InputFixture -Root $inputRoot
 
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\build_release_governance_pipeline_report.ps1"
+if ($Scenario -eq "final_rollup_failure") {
+    $scriptPath = New-FailingFinalRollupScriptPath -RepoRoot $resolvedRepoRoot -WorkingDir $resolvedWorkingDir
+}
 $arguments = @(
     "-InputRoot"
     $inputRoot
@@ -244,11 +280,14 @@ $arguments = @(
 if ($Scenario -eq "fail_on_blocker") {
     $arguments += "-FailOnBlocker"
 }
+if ($Scenario -eq "final_rollup_failure") {
+    $arguments += "-FailOnStageFailure"
+}
 
 $result = Invoke-Pipeline -Arguments $arguments
-if ($Scenario -eq "fail_on_blocker") {
+if ($Scenario -in @("fail_on_blocker", "final_rollup_failure")) {
     if ($result.ExitCode -eq 0) {
-        throw "Pipeline fail-on-blocker run should fail. Output: $($result.Text)"
+        throw "Pipeline $Scenario run should fail. Output: $($result.Text)"
     }
 } else {
     Assert-Equal -Actual $result.ExitCode -Expected 0 `
@@ -259,7 +298,11 @@ $summaryPath = Join-Path $outputRoot "summary.json"
 $markdownPath = Join-Path $outputRoot "release_governance_pipeline.md"
 $handoffSummaryPath = Join-Path $outputRoot "release-governance-handoff\summary.json"
 $rollupSummaryPath = Join-Path $outputRoot "release-blocker-rollup\summary.json"
-foreach ($path in @($summaryPath, $markdownPath, $handoffSummaryPath, $rollupSummaryPath)) {
+$expectedArtifactPaths = @($summaryPath, $markdownPath, $handoffSummaryPath)
+if ($Scenario -ne "final_rollup_failure") {
+    $expectedArtifactPaths += $rollupSummaryPath
+}
+foreach ($path in $expectedArtifactPaths) {
     Assert-True -Condition (Test-Path -LiteralPath $path) `
         -Message "Expected pipeline artifact to exist: $path"
 }
@@ -267,6 +310,42 @@ foreach ($path in @($summaryPath, $markdownPath, $handoffSummaryPath, $rollupSum
 $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
 Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.release_governance_pipeline_report.v1" `
     -Message "Pipeline summary should expose schema."
+if ($Scenario -eq "final_rollup_failure") {
+    Assert-Equal -Actual ([string]$summary.status) -Expected "failed" `
+        -Message "Pipeline should be failed when the final rollup stage fails."
+    Assert-Equal -Actual ([int]$summary.stage_count) -Expected 6 `
+        -Message "Pipeline should still record every stage when the final rollup fails."
+    Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 5 `
+        -Message "Pipeline should preserve completed stage count when the final rollup fails."
+    Assert-Equal -Actual ([int]$summary.failed_stage_count) -Expected 1 `
+        -Message "Pipeline should record the failed final rollup stage."
+    Assert-True -Condition ([int]$summary.release_blocker_count -gt 0) `
+        -Message "Pipeline should preserve aggregate blocker counts when final rollup is unavailable."
+    Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "document_skeleton.style_numbering_issues" `
+        -Message "Pipeline should preserve stage blocker details when final rollup is unavailable."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "review_style_numbering_audit" `
+        -Message "Pipeline should preserve stage action details when final rollup is unavailable."
+    Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
+        -Message "Pipeline should preserve stage warning details when final rollup is unavailable."
+
+    $failedRollupStage = @($summary.stages | Where-Object { [string]$_.id -eq "release_blocker_rollup" } | Select-Object -First 1)
+    Assert-Equal -Actual ([string]$failedRollupStage[0].status) -Expected "failed" `
+        -Message "Pipeline should preserve final rollup stage failure status."
+    Assert-ContainsText -Text ([string]$failedRollupStage[0].error) -ExpectedText "Stage exited with code 1" `
+        -Message "Pipeline should preserve final rollup stage failure message."
+
+    $failedMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $failedMarkdown -ExpectedText "release_blocker_rollup" `
+        -Message "Pipeline Markdown should still include failed final rollup stage."
+    Assert-ContainsText -Text $failedMarkdown -ExpectedText "Stage exited with code 1" `
+        -Message "Pipeline Markdown should include final rollup failure message."
+
+    Write-Host "Release governance pipeline report regression passed."
+    return
+}
 Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
     -Message "Pipeline should be blocked by fixture governance reports."
 Assert-Equal -Actual ([int]$summary.stage_count) -Expected 6 `

@@ -661,17 +661,23 @@ $missingReportCount = 0
 $releaseBlockerCount = 0
 $actionItemCount = 0
 $warningCount = 0
+$releaseBlockers = @()
+$actionItems = @()
+$warnings = @()
 foreach ($stage in $stageItems) {
     $missingReportCount += [int]$stage.missing_report_count
     $releaseBlockerCount += [int]$stage.release_blocker_count
     $actionItemCount += [int]$stage.action_item_count
     $warningCount += [int]$stage.warning_count
+    $releaseBlockers += @($stage.release_blockers)
+    $actionItems += @($stage.action_items)
+    $warnings += @($stage.warnings)
 }
-$releaseBlockers = @()
-$actionItems = @()
-$warnings = @()
 $finalRollup = @($stageItems | Where-Object { [string]$_.id -eq "release_blocker_rollup" } | Select-Object -First 1)
-if ($finalRollup.Count -gt 0) {
+$hasUsableFinalRollup = $finalRollup.Count -gt 0 -and
+    [string]$finalRollup[0].status -notin @("failed", "missing_summary") -and
+    [int]$finalRollup[0].exit_code -eq 0
+if ($hasUsableFinalRollup) {
     $releaseBlockerCount = [int]$finalRollup[0].release_blocker_count
     $actionItemCount = [int]$finalRollup[0].action_item_count
     $warningCount = [int]$finalRollup[0].warning_count
