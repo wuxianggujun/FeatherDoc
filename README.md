@@ -914,7 +914,9 @@ governance reports. The pipeline summary now also materializes normalized
 top-level final-rollup `release_blockers`, `action_items`, and `warnings`, plus
 stage-level `release_blockers` and `action_items`; its Markdown renders blocker
 details plus helper commands such as restore-audit `open_command` values beside
-the stage that produced them. It does not rerun CLI, CMake, Word, or visual
+the stage that produced them. The `governance_detail_source` field records
+whether the top-level governance arrays came from `release_blocker_rollup` or a
+`stage_aggregate_fallback`. It does not rerun CLI, CMake, Word, or visual
 automation. If the final rollup stage fails, the pipeline stays `failed` while
 preserving the blocker, action, and warning details already produced by earlier
 stages instead of clearing the top-level governance summary.

@@ -313,6 +313,8 @@ Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.release_gov
 if ($Scenario -eq "final_rollup_failure") {
     Assert-Equal -Actual ([string]$summary.status) -Expected "failed" `
         -Message "Pipeline should be failed when the final rollup stage fails."
+    Assert-Equal -Actual ([string]$summary.governance_detail_source) -Expected "stage_aggregate_fallback" `
+        -Message "Pipeline should mark top-level governance details as stage fallback when final rollup is unavailable."
     Assert-Equal -Actual ([int]$summary.stage_count) -Expected 6 `
         -Message "Pipeline should still record every stage when the final rollup fails."
     Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 5 `
@@ -348,6 +350,8 @@ if ($Scenario -eq "final_rollup_failure") {
 }
 Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
     -Message "Pipeline should be blocked by fixture governance reports."
+Assert-Equal -Actual ([string]$summary.governance_detail_source) -Expected "release_blocker_rollup" `
+    -Message "Pipeline should mark top-level governance details as final rollup sourced when the final rollup succeeds."
 Assert-Equal -Actual ([int]$summary.stage_count) -Expected 6 `
     -Message "Pipeline should run six read-only stages."
 Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 6 `

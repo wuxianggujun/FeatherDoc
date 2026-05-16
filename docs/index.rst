@@ -552,6 +552,8 @@ top-level final-rollup ``release_blockers``, ``action_items``, and
 ``warnings``, plus stage-level ``release_blockers`` and ``action_items``; its
 Markdown renders blocker details plus helper commands such as restore-audit
 ``open_command`` values beside the stage that produced them.
+``governance_detail_source`` records whether the top-level governance arrays
+came from ``release_blocker_rollup`` or ``stage_aggregate_fallback``.
 If the final rollup stage fails, the pipeline remains ``failed`` while
 preserving blocker, action, and warning details already produced by earlier
 stages instead of clearing the top-level governance summary.
