@@ -490,6 +490,23 @@ plan evidence, the suggestions stay non-pending but the report moves to
       -SkipBuild `
       -StyleMergeReviewJson .\output\document-skeleton-governance\style-merge.review.json
 
+After review approval,
+``scripts/apply_reviewed_style_merge_suggestions.ps1`` validates the accepted
+decision and reviewed count before invoking ``apply-style-refactor``. It writes
+the merged DOCX, rollback plan, and a
+``featherdoc.reviewed_style_merge_apply.v1`` summary:
+
+.. code-block:: powershell
+
+    pwsh -ExecutionPolicy Bypass -File .\scripts\apply_reviewed_style_merge_suggestions.ps1 `
+      -InputDocx .\input.docx `
+      -ReviewJson .\output\document-skeleton-governance\style-merge.review.json `
+      -OutputDocx .\output\document-skeleton-governance\merged-styles.docx `
+      -RollbackPlan .\output\document-skeleton-governance\style-merge.apply.rollback.json `
+      -SummaryJson .\output\document-skeleton-governance\style-merge.apply.summary.json `
+      -BuildDir build-codex-clang-compat `
+      -SkipBuild
+
 The rollup then exposes
 ``total_style_merge_suggestion_pending_count`` so downstream gates only warn on
 pending duplicate style-merge suggestions.

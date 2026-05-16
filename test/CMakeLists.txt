@@ -1741,6 +1741,63 @@ if(WIN32)
 
             add_test(
                 NAME
+                apply_reviewed_style_merge_suggestions
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/apply_reviewed_style_merge_suggestions_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/apply_reviewed_style_merge_suggestions
+                -Scenario
+                valid
+            )
+            set_tests_properties(apply_reviewed_style_merge_suggestions
+                PROPERTIES TIMEOUT 60)
+
+            add_test(
+                NAME
+                apply_reviewed_style_merge_suggestions_pending_review
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/apply_reviewed_style_merge_suggestions_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/apply_reviewed_style_merge_suggestions_pending_review
+                -Scenario
+                pending_review
+            )
+            set_tests_properties(apply_reviewed_style_merge_suggestions_pending_review
+                PROPERTIES TIMEOUT 60)
+
+            add_test(
+                NAME
+                apply_reviewed_style_merge_suggestions_partial_review
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/apply_reviewed_style_merge_suggestions_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/apply_reviewed_style_merge_suggestions_partial_review
+                -Scenario
+                partial_review
+            )
+            set_tests_properties(apply_reviewed_style_merge_suggestions_partial_review
+                PROPERTIES TIMEOUT 60)
+
+            add_test(
+                NAME
                 build_document_skeleton_governance_report_passing
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

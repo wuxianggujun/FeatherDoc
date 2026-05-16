@@ -162,6 +162,9 @@
   已通过 ``-StyleMergeReviewJson`` 复核的建议保留审计字段和可选 style refactor plan / rollback 证据，
   ``scripts/write_style_merge_suggestion_review.ps1`` 可从 ``suggest-style-merges`` plan
   生成 ``featherdoc.style_merge_suggestion_review.v1`` 复核记录，且不改写 DOCX/PDF；
+  ``scripts/apply_reviewed_style_merge_suggestions.ps1`` 可在复核决策通过且 reviewed count 覆盖 plan suggestion count 后，
+  受控调用 ``apply-style-refactor``，输出合并后的 DOCX、rollback plan 和
+  ``featherdoc.reviewed_style_merge_apply.v1`` 审计 summary；
   但不再升级为 release warning；若引用的 plan 证据缺失，则通过
   ``document_skeleton.style_merge_review_evidence_missing`` blocker 和
   ``fix_style_merge_review_evidence`` action 保持可追踪，
@@ -172,7 +175,7 @@
 1. merge restore 的更完整冲突处理与基于真实语料的样式建议置信度校准
 2. 面向 heading / list / theme 的稳定重构入口
 3. 样式与编号之间更明确的批量治理 mutation API
-4. 在 review writer 已补入口的基础上，继续强化受控 apply、exemplar 冲突审计和 catalog patch 衔接
+4. 在 review writer 与受控 apply 入口已补的基础上，继续强化 restore 冲突审计、exemplar 冲突审计和 catalog patch 衔接
 
 这条线的目标是：
 

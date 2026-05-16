@@ -811,6 +811,23 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_
   -StyleMergeReviewJson .\output\document-skeleton-governance\style-merge.review.json
 ```
 
+After review approval,
+`scripts/apply_reviewed_style_merge_suggestions.ps1` validates the review
+decision and reviewed count before calling `apply-style-refactor`; it writes the
+merged DOCX, rollback plan, and a `featherdoc.reviewed_style_merge_apply.v1`
+summary for audit:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File .\scripts\apply_reviewed_style_merge_suggestions.ps1 `
+  -InputDocx .\input.docx `
+  -ReviewJson .\output\document-skeleton-governance\style-merge.review.json `
+  -OutputDocx .\output\document-skeleton-governance\merged-styles.docx `
+  -RollbackPlan .\output\document-skeleton-governance\style-merge.apply.rollback.json `
+  -SummaryJson .\output\document-skeleton-governance\style-merge.apply.summary.json `
+  -BuildDir build-codex-clang-compat `
+  -SkipBuild
+```
+
 The multi-document rollup then sums `total_style_merge_suggestion_pending_count`
 and only pending suggestions flow onward as release governance warnings. Pair
 that rollup with
