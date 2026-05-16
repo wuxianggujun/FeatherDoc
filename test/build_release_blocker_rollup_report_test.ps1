@@ -192,7 +192,9 @@ Write-JsonFile -Path $styleMergeRestoreAuditPath -Value ([ordered]@{
             id = "review_style_merge_restore_audit"
             action = "review_style_merge_restore_audit"
             title = "Review style merge restore audit and Word render"
-            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -Mode review-only"
+            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 -DocxPath output/document-skeleton-governance/merged-styles.docx -DocumentSourceKind style-merge-restore-audit -DocumentSourceLabel `"Style merge restore audit`" -Mode review-only"
+            open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit -PrintPrompt"
+            audit_command = "featherdoc_cli restore-style-merge merged-styles.docx --rollback-plan style-merge.apply.rollback.json --dry-run --json"
         }
     )
 })
@@ -298,6 +300,15 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text ([string]$summary.release_blockers[0].composite_id) `
         -ExpectedText "source1.blocker1" `
         -Message "Rollup should generate composite blocker ids."
+    $restoreAuditAction = @($summary.action_items | Where-Object {
+            [string]$_.action -eq "review_style_merge_restore_audit"
+        } | Select-Object -First 1)
+    Assert-ContainsText -Text ([string]$restoreAuditAction[0].open_command) `
+        -ExpectedText "open_latest_word_review_task.ps1" `
+        -Message "Rollup should preserve restore audit open-latest commands."
+    Assert-ContainsText -Text ([string]$restoreAuditAction[0].audit_command) `
+        -ExpectedText "restore-style-merge" `
+        -Message "Rollup should preserve restore audit dry-run commands."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blocker Rollup Report" `
@@ -308,6 +319,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include style merge restore audit blockers."
     Assert-ContainsText -Text $markdown -ExpectedText "review_style_merge_restore_audit" `
         -Message "Markdown should include style merge restore audit actions."
+    Assert-ContainsText -Text $markdown -ExpectedText "open_latest_word_review_task.ps1" `
+        -Message "Markdown should include restore audit open-latest commands."
+    Assert-ContainsText -Text $markdown -ExpectedText "restore-style-merge" `
+        -Message "Markdown should include restore audit dry-run commands."
     Assert-ContainsText -Text $markdown -ExpectedText "document_skeleton.style_merge_suggestions_pending" `
         -Message "Markdown should include style merge review warning."
     Assert-ContainsText -Text $markdown -ExpectedText "### Release blocker rollup warnings" `

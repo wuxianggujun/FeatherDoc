@@ -524,7 +524,10 @@ The restore audit summary also exposes ``release_blocker_count``,
 ``release_blockers``, ``action_items``, and ``visual_review_command``. Dry-run
 issues become the stable ``style_merge.restore_audit_issues`` blocker with a
 ``review_style_merge_restore_audit`` action, so the release blocker rollup can
-consume restore safety issues without rerunning Word or mutating the DOCX.
+consume restore safety issues without rerunning Word or mutating the DOCX. The
+visual task command uses ``-DocumentSourceKind style-merge-restore-audit`` and
+the paired open-latest command reads
+``latest_style-merge-restore-audit_task.json``.
 
 The rollup then exposes
 ``total_style_merge_suggestion_pending_count`` so downstream gates only warn on
@@ -533,7 +536,9 @@ pending duplicate style-merge suggestions.
 ``release_blockers`` and ``action_items`` from these governance reports,
 document-skeleton rollups, table-layout delivery, or release summaries into
 ``featherdoc.release_blocker_rollup_report.v1`` while preserving duplicate
-source blockers through composite ids. Pending duplicate style-merge
+source blockers through composite ids. Action-item helper commands such as
+``open_command`` and ``audit_command`` are preserved in JSON and Markdown so
+review handoffs keep their runnable follow-up entrypoints. Pending duplicate style-merge
 suggestions from the skeleton rollup are surfaced as non-blocking warnings by
 default and can be gated with ``-FailOnWarning``. Top-level warning details
 retain ``id``, ``action``, ``message``, ``source_schema``, and optional

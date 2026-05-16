@@ -235,6 +235,12 @@ function New-ReportMarkdown {
     } else {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.composite_id)``: action=``$($item.action)`` source=``$($item.source_report_display)``") | Out-Null
+            foreach ($commandName in @("command", "open_command", "audit_command", "review_command")) {
+                $commandValue = Get-JsonString -Object $item -Name $commandName
+                if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                    $lines.Add("  - $($commandName): ``$commandValue``") | Out-Null
+                }
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -377,7 +383,7 @@ foreach ($path in @($inputPaths)) {
         foreach ($item in $sourceActions) {
             $actionIndex++
             $id = Get-JsonString -Object $item -Name "id" -DefaultValue "action_item"
-            $actionItems.Add([ordered]@{
+            $actionEntry = [ordered]@{
                 composite_id = ("source{0}.action{1}.{2}" -f $sourceIndex, $actionIndex, $id)
                 id = $id
                 source_report = $path
@@ -386,7 +392,14 @@ foreach ($path in @($inputPaths)) {
                 action = Get-JsonString -Object $item -Name "action"
                 title = Get-JsonString -Object $item -Name "title"
                 command = Get-JsonString -Object $item -Name "command"
-            }) | Out-Null
+            }
+            foreach ($optionalCommandName in @("open_command", "audit_command", "review_command")) {
+                $optionalCommand = Get-JsonString -Object $item -Name $optionalCommandName
+                if (-not [string]::IsNullOrWhiteSpace($optionalCommand)) {
+                    $actionEntry[$optionalCommandName] = $optionalCommand
+                }
+            }
+            $actionItems.Add($actionEntry) | Out-Null
         }
     } catch {
         $status = "failed"

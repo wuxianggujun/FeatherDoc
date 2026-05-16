@@ -1,5 +1,7 @@
 param(
     [string]$DocxPath = "",
+    [string]$DocumentSourceKind = "",
+    [string]$DocumentSourceLabel = "",
     [string]$FixedGridRegressionRoot = "",
     [string]$SectionPageSetupRegressionRoot = "",
     [string]$PageNumberFieldsRegressionRoot = "",
@@ -975,9 +977,15 @@ $selectedSourceCount = (@(
 if ($selectedSourceCount -ne 1) {
     throw "Specify exactly one of -DocxPath, -FixedGridRegressionRoot, -SectionPageSetupRegressionRoot, -PageNumberFieldsRegressionRoot, or -VisualRegressionBundleRoot."
 }
+if (-not $hasDocxPath -and
+    (-not [string]::IsNullOrWhiteSpace($DocumentSourceKind) -or
+        -not [string]::IsNullOrWhiteSpace($DocumentSourceLabel))) {
+    throw "-DocumentSourceKind and -DocumentSourceLabel can only be used with -DocxPath."
+}
 
 $sourceKind = ""
 $sourceKindPointerKey = ""
+$templateSourceKind = ""
 $sourceLabel = ""
 $sourcePath = ""
 $resolvedDocxPath = ""
@@ -990,9 +998,18 @@ if ($hasDocxPath) {
     $resolvedDocxPath = Resolve-DocumentPath -RepoRoot $repoRoot -InputPath $DocxPath
     $documentName = [System.IO.Path]::GetFileName($resolvedDocxPath)
     $documentStem = [System.IO.Path]::GetFileNameWithoutExtension($resolvedDocxPath)
-    $sourceKind = "document"
+    $sourceKind = if ([string]::IsNullOrWhiteSpace($DocumentSourceKind)) {
+        "document"
+    } else {
+        $DocumentSourceKind
+    }
     $sourceKindPointerKey = $sourceKind
-    $sourceLabel = "Target document"
+    $templateSourceKind = "document"
+    $sourceLabel = if ([string]::IsNullOrWhiteSpace($DocumentSourceLabel)) {
+        "Target document"
+    } else {
+        $DocumentSourceLabel
+    }
     $sourcePath = $resolvedDocxPath
     $documentVisualInfo = Resolve-DocumentSourceVisualArtifacts -DocumentPath $resolvedDocxPath
 } elseif ($hasFixedGridBundle) {
@@ -1002,6 +1019,7 @@ if ($hasDocxPath) {
     $documentStem = $documentName
     $sourceKind = "fixed-grid-regression-bundle"
     $sourceKindPointerKey = $sourceKind
+    $templateSourceKind = $sourceKind
     $sourceLabel = "Fixed-grid regression bundle"
     $sourcePath = $bundleInfo.Root
 } elseif ($hasSectionPageSetupBundle) {
@@ -1011,6 +1029,7 @@ if ($hasDocxPath) {
     $documentStem = $documentName
     $sourceKind = "section-page-setup-regression-bundle"
     $sourceKindPointerKey = $sourceKind
+    $templateSourceKind = $sourceKind
     $sourceLabel = "Section page setup regression bundle"
     $sourcePath = $bundleInfo.Root
 } elseif ($hasPageNumberFieldsBundle) {
@@ -1020,6 +1039,7 @@ if ($hasDocxPath) {
     $documentStem = $documentName
     $sourceKind = "page-number-fields-regression-bundle"
     $sourceKindPointerKey = $sourceKind
+    $templateSourceKind = $sourceKind
     $sourceLabel = "Page number fields regression bundle"
     $sourcePath = $bundleInfo.Root
 } else {
@@ -1033,6 +1053,7 @@ if ($hasDocxPath) {
     } else {
         $VisualRegressionBundleKey
     }
+    $templateSourceKind = $sourceKind
     $resolvedBundleLabel = if ([string]::IsNullOrWhiteSpace($VisualRegressionBundleLabel)) {
         "Visual regression"
     } else {
@@ -1059,7 +1080,7 @@ $manifestPath = Join-Path $taskDir "task_manifest.json"
 $promptPath = Join-Path $taskDir "task_prompt.md"
 $reviewResultPath = Join-Path $reportDir "review_result.json"
 $finalReviewPath = Join-Path $reportDir "final_review.md"
-$templatePath = Get-TemplatePath -RepoRoot $repoRoot -Mode $Mode -SourceKind $sourceKind
+$templatePath = Get-TemplatePath -RepoRoot $repoRoot -Mode $Mode -SourceKind $templateSourceKind
 $reviewResultTemplatePath = Get-ReportTemplatePath -RepoRoot $repoRoot `
     -FileName "review_result_template.json"
 $finalReviewTemplatePath = Get-ReportTemplatePath -RepoRoot $repoRoot `
@@ -1090,7 +1111,7 @@ $documentRefreshCommand = if ($resolvedDocxPath) {
 }
 $latestTaskPointerPaths = Get-LatestTaskPointerPaths -TaskRoot $taskRoot -SourceKind $sourceKindPointerKey
 
-if ($sourceKind -eq "document") {
+if ($hasDocxPath) {
     $documentLocalInfo = Copy-DocumentSupportFiles -DocumentArtifacts $documentVisualInfo `
         -TaskDir $taskDir -EvidenceDir $evidenceDir -ReportDir $reportDir
 } elseif ($sourceKind -eq "fixed-grid-regression-bundle") {
@@ -1324,7 +1345,7 @@ if ($bundleInfo) {
     }
 }
 
-if ($sourceKind -eq "document" -and $documentVisualInfo) {
+if ($hasDocxPath -and $documentVisualInfo) {
     $manifest.document_visual_artifacts = [ordered]@{
         source_root = $documentVisualInfo.Root
         source_pdf_path = $documentVisualInfo.PdfPath

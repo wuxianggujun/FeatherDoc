@@ -330,6 +330,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 
     -Mode review-only
 ```
 
+如果同一个任务根目录里会并存多条单文档复核线，可以额外传
+`-DocumentSourceKind` 和 `-DocumentSourceLabel`。例如 style merge restore
+audit 可以刷新 `latest_style-merge-restore-audit_task.json`，不会覆盖普通
+`latest_document_task.json` 指针。
+
 任务目录会带上：
 
 - `task_prompt.md`
@@ -622,6 +627,10 @@ item。style merge restore audit summary 也会输出 `release_blockers` /
 `action_items`；当 `restore-style-merge --dry-run` 报告恢复 issue 时，会以
 `style_merge.restore_audit_issues` 进入同一个 rollup，并给出
 `review_style_merge_restore_audit` 视觉复核 action。
+该 action 使用 `-DocumentSourceKind style-merge-restore-audit` 生成独立 latest
+pointer，后续可用 `open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit`
+直接打开复核提示。
+rollup 会保留 action item 里的 `open_command` / `audit_command` 等辅助命令。
 它会为不同来源的重复 blocker id 生成可追踪的 `composite_id`，输出
 `featherdoc.release_blocker_rollup_report.v1`，并可通过 `-FailOnBlocker` /
 `-FailOnWarning` 作为发布面板或 CI 的最后一层只读检查。

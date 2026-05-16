@@ -114,6 +114,29 @@ Assert-True -Condition ([System.IO.Path]::GetFullPath($manifest.document_visual_
 Assert-True -Condition ([System.IO.Path]::GetFullPath($manifest.document_visual_artifacts.copied_summary_path) -eq [System.IO.Path]::GetFullPath($copiedSummaryPath)) `
     -Message "Prepared task manifest recorded an unexpected copied summary path."
 
-Assert-Contains -Path $promptPath -ExpectedText "优先复用这些现成证据" -Label "task_prompt.md"
+Assert-Contains -Path $promptPath -ExpectedText "run_word_visual_smoke.ps1" -Label "task_prompt.md"
+
+& $prepareScript `
+    -DocxPath $docxPath `
+    -DocumentSourceKind "style-merge-restore-audit" `
+    -DocumentSourceLabel "Style merge restore audit" `
+    -TaskOutputRoot $taskRoot `
+    -Mode review-only
+
+$customPointerPath = Join-Path $taskRoot "latest_style-merge-restore-audit_task.json"
+Assert-True -Condition (Test-Path -LiteralPath $customPointerPath) `
+    -Message "Custom document source-kind task pointer was not created."
+
+$customPointer = Get-Content -Raw -LiteralPath $customPointerPath | ConvertFrom-Json
+$customManifestPath = Join-Path $customPointer.task_dir "task_manifest.json"
+$customManifest = Get-Content -Raw -LiteralPath $customManifestPath | ConvertFrom-Json
+Assert-True -Condition ($customManifest.source.kind -eq "style-merge-restore-audit") `
+    -Message "Custom document task manifest did not preserve source kind."
+Assert-True -Condition ($customManifest.source.label -eq "Style merge restore audit") `
+    -Message "Custom document task manifest did not preserve source label."
+Assert-True -Condition ($customPointer.source.kind -eq "style-merge-restore-audit") `
+    -Message "Custom document task pointer did not preserve source kind."
+Assert-True -Condition ($customPointer.document.path -eq $docxPath) `
+    -Message "Custom document task pointer did not preserve document path."
 
 Write-Host "Prepare document review task regression passed."

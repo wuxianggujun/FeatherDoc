@@ -64,6 +64,18 @@
         -DocxPath C:\path\to\target.docx `
         -Mode review-only
 
+当同一个 ``TaskOutputRoot`` 里会并存多条单文档复核线时，可以给
+``-DocxPath`` 任务指定独立 source kind。这样除 ``latest_task.json`` 外，
+还会刷新类似 ``latest_style-merge-restore-audit_task.json`` 的稳定指针：
+
+.. code-block:: powershell
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\prepare_word_review_task.ps1 `
+        -DocxPath C:\path\to\merged-styles.docx `
+        -DocumentSourceKind style-merge-restore-audit `
+        -DocumentSourceLabel "Style merge restore audit" `
+        -Mode review-only
+
 fixed-grid 四联回归包模式：
 
 .. code-block:: powershell

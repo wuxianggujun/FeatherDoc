@@ -300,6 +300,7 @@ $visualReviewDocx = Convert-ToPortableRelativePath -BasePath $repoRoot -TargetPa
 if ([string]::IsNullOrWhiteSpace($visualReviewDocx)) {
     $visualReviewDocx = $resolvedInputDocx
 }
+$visualReviewSourceKind = "style-merge-restore-audit"
 $visualReviewCommand = ConvertTo-CommandLine -Arguments @(
     "pwsh",
     "-ExecutionPolicy",
@@ -308,8 +309,22 @@ $visualReviewCommand = ConvertTo-CommandLine -Arguments @(
     ".\scripts\prepare_word_review_task.ps1",
     "-DocxPath",
     $visualReviewDocx,
+    "-DocumentSourceKind",
+    $visualReviewSourceKind,
+    "-DocumentSourceLabel",
+    "Style merge restore audit",
     "-Mode",
     "review-only"
+)
+$openVisualReviewCommand = ConvertTo-CommandLine -Arguments @(
+    "pwsh",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    ".\scripts\open_latest_word_review_task.ps1",
+    "-SourceKind",
+    $visualReviewSourceKind,
+    "-PrintPrompt"
 )
 
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
@@ -329,6 +344,7 @@ $actionItems.Add([ordered]@{
     action = "review_style_merge_restore_audit"
     title = "Review style merge restore audit and Word render"
     command = $visualReviewCommand
+    open_command = $openVisualReviewCommand
     audit_command = $restoreAuditCommand
 }) | Out-Null
 
@@ -354,6 +370,7 @@ $summary = [ordered]@{
     restored_reference_count = Get-JsonInt -Object $cliJson -Names @("restored_reference_count") -DefaultValue 0
     command = $restoreAuditCommand
     visual_review_command = $visualReviewCommand
+    open_visual_review_command = $openVisualReviewCommand
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers.ToArray())
     action_item_count = $actionItems.Count

@@ -173,8 +173,14 @@ if (Test-Scenario -Name "clean") {
         -Message "Restore audit action item should expose a stable action."
     Assert-ContainsText -Text ([string]$summary.visual_review_command) -ExpectedText "prepare_word_review_task.ps1" `
         -Message "Restore audit should expose a Word visual review command."
+    Assert-ContainsText -Text ([string]$summary.visual_review_command) -ExpectedText "-DocumentSourceKind style-merge-restore-audit" `
+        -Message "Restore audit visual command should write a source-specific latest pointer."
+    Assert-ContainsText -Text ([string]$summary.open_visual_review_command) -ExpectedText "-SourceKind style-merge-restore-audit" `
+        -Message "Restore audit should expose a source-specific open-latest command."
     Assert-ContainsText -Text ([string]$actionItem.command) -ExpectedText "merged.docx" `
         -Message "Restore audit visual action should target the merged DOCX."
+    Assert-ContainsText -Text ([string]$actionItem.open_command) -ExpectedText "open_latest_word_review_task.ps1" `
+        -Message "Restore audit action item should preserve the open-latest command."
     Assert-Equal -Actual ([int]$summary.restored_count) -Expected 2 `
         -Message "Restore audit should preserve restored count."
     Assert-Equal -Actual ([int]$summary.restored_reference_count) -Expected 4 `
