@@ -301,8 +301,14 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (($summary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
         -ExpectedText "style-merge.restore-audit.summary.json" `
         -Message "Rollup should auto-discover restore audit summary filenames."
-    Assert-ContainsText -Text ([string]$summary.release_blockers[0].composite_id) `
-        -ExpectedText "source1.blocker1" `
+    $documentSkeletonBlocker = @(
+        $summary.release_blockers |
+            Where-Object { [string]$_.id -eq "document_skeleton.style_numbering_issues" } |
+            Select-Object -First 1
+    )
+    Assert-True -Condition ($null -ne $documentSkeletonBlocker) `
+        -Message "Rollup should include the document skeleton blocker."
+    Assert-True -Condition ([string]$documentSkeletonBlocker.composite_id -match '^source\d+\.blocker1\.document_skeleton\.style_numbering_issues$') `
         -Message "Rollup should generate composite blocker ids."
     $restoreAuditAction = @($summary.action_items | Where-Object {
             [string]$_.action -eq "review_style_merge_restore_audit"
