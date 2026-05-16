@@ -348,6 +348,43 @@ Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText 'source_report_d
 Assert-ContainsText -Text $blockerSectionMarkdown -ExpectedText 'id: `style_merge.restore_audit_issues`' `
     -Message "Markdown section should render handoff blocker ids when composite ids are absent."
 
+$blockerChecklistItems = @(Get-ReleaseGovernanceBlockerChecklistItems -Summary ([pscustomobject]@{
+            release_blocker_rollup = [pscustomobject]@{
+                release_blocker_count = 1
+                release_blockers = @($styleNumberingBlocker)
+            }
+            release_governance_handoff = [pscustomobject]@{
+                release_blocker_count = 1
+                release_blockers = @($styleMergeBlocker)
+                release_blocker_rollup = [pscustomobject]@{
+                    release_blocker_count = 1
+                    release_blockers = @($styleNumberingBlocker)
+                }
+            }
+        }))
+Assert-Equal -Actual $blockerChecklistItems.Count -Expected 3 `
+    -Message "Checklist items should preserve blockers from every release governance source."
+$blockerChecklistText = Get-ReleaseGovernanceBlockerChecklistText -BlockerItem $blockerChecklistItems[0]
+Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'Resolve release governance blocker `numbering_catalog_governance.style_numbering_issues`' `
+    -Message "Blocker checklist text should include blocker id."
+Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'action `review_style_numbering_audit`' `
+    -Message "Blocker checklist text should include blocker action."
+Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'source_schema `featherdoc.numbering_catalog_governance_report.v1`' `
+    -Message "Blocker checklist text should include source schema."
+Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'composite_id `source0.blocker0.numbering_catalog_governance.style_numbering_issues`' `
+    -Message "Blocker checklist text should include rollup composite id."
+Assert-ContainsText -Text $blockerChecklistText -ExpectedText 'source_report `.\output\numbering-catalog-governance\summary.json`' `
+    -Message "Blocker checklist text should include source report display."
+
+$blockerGuidance = (Get-ReleaseGovernanceBlockerActionGuidanceLines `
+        -Blocker $styleNumberingBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "summary.json")) -join "`n"
+Assert-ContainsText -Text $blockerGuidance -ExpectedText 'Open source report `.\output\numbering-catalog-governance\summary.json`' `
+    -Message "Blocker guidance should point reviewers at the source report."
+Assert-ContainsText -Text $blockerGuidance -ExpectedText 'blocker action `review_style_numbering_audit`' `
+    -Message "Blocker guidance should include the blocker action."
+
 $actionSectionLines = New-Object 'System.Collections.Generic.List[string]'
 Add-ReleaseGovernanceActionItemsMarkdownSection `
     -Lines $actionSectionLines `

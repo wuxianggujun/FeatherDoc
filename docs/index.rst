@@ -550,7 +550,9 @@ commands from the final rollup, so restore-audit follow-up commands and
 blockers remain visible without opening nested JSON. The release note bundle
 entrypoints now also show blocker counts and details from the final rollup,
 governance handoff, and nested handoff rollup before the warning/action
-sections. The release governance pipeline summary also materializes
+sections. ``REVIEWER_CHECKLIST.md`` turns each governance blocker into a
+checkbox with action, source schema, source report, and composite rollup id.
+The release governance pipeline summary also materializes
 top-level final-rollup ``release_blockers``, ``action_items``, and
 ``warnings``, plus stage-level ``release_blockers`` and ``action_items``; its
 Markdown renders blocker details plus helper commands such as restore-audit

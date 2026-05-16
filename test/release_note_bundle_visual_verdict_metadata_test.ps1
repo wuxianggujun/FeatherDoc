@@ -456,6 +456,34 @@ foreach ($assertion in @(
 }
 
 Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Resolve release governance blocker `numbering_catalog_governance.style_numbering_issues` (Release blocker rollup blockers): action `review_style_numbering_audit`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'composite_id `source0.blocker0.numbering_catalog_governance.style_numbering_issues`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'source_report `.\output\numbering-catalog-governance\summary.json`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Open source report `.\output\numbering-catalog-governance\summary.json` for blocker action `review_style_numbering_audit`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Resolve release governance blocker `release_governance_handoff.required_report_missing` (Release governance handoff blockers): action `inspect_required_report`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Open source report `.\output\release-governance-handoff\summary.json` for blocker action `inspect_required_report`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Resolve release governance blocker `style_merge.restore_audit_issues` (Release governance handoff nested rollup blockers): action `review_style_merge_restore_audit`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Open source report `.\output\document-skeleton-governance\style-merge.restore-audit.summary.json` for blocker action `review_style_merge_restore_audit`' `
+    -Label "REVIEWER_CHECKLIST.md"
+Assert-Contains -Path $checklistPath `
+    -ExpectedText 'Do not approve for public release when release governance blocker counts are non-zero in the final rollup, governance handoff, or nested handoff rollup.' `
+    -Label "REVIEWER_CHECKLIST.md"
+
+Assert-Contains -Path $checklistPath `
     -ExpectedText 'Review release governance warning `numbering_catalog.style_merge_suggestions` (Release blocker rollup warnings): action `review_style_merge_plan`' `
     -Label "REVIEWER_CHECKLIST.md"
 Assert-Contains -Path $checklistPath `

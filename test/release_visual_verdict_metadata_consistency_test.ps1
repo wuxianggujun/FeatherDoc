@@ -250,6 +250,12 @@ foreach ($scriptInfo in $metadataScripts) {
 
     if ($label -eq "write_release_reviewer_checklist.ps1") {
         Assert-ContainsText -Text $scriptText `
+            -ExpectedText 'foreach ($blockerItem in @(Get-ReleaseGovernanceBlockerChecklistItems -Summary $summary))' `
+            -Message "$label should turn release governance blockers into reviewer checklist items."
+        Assert-ContainsText -Text $scriptText `
+            -ExpectedText 'Get-ReleaseGovernanceBlockerActionGuidanceLines' `
+            -Message "$label should include release governance blocker action guidance."
+        Assert-ContainsText -Text $scriptText `
             -ExpectedText 'foreach ($warningItem in @(Get-ReleaseGovernanceWarningChecklistItems -Summary $summary))' `
             -Message "$label should turn release governance warnings into reviewer checklist items."
         Assert-ContainsText -Text $scriptText `

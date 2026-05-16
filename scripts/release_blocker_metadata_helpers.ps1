@@ -580,6 +580,91 @@ function Add-ReleaseGovernanceActionItemsMarkdownSection {
     }
 }
 
+function Get-ReleaseGovernanceBlockerChecklistItems {
+    param([AllowNull()]$Summary)
+
+    $items = New-Object 'System.Collections.Generic.List[object]'
+    $releaseGovernanceHandoff = Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_governance_handoff"
+    foreach ($sectionInfo in @(
+            @{
+                Heading = "Release blocker rollup blockers"
+                SummaryObject = Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_blocker_rollup"
+            },
+            @{
+                Heading = "Release governance handoff blockers"
+                SummaryObject = $releaseGovernanceHandoff
+            },
+            @{
+                Heading = "Release governance handoff nested rollup blockers"
+                SummaryObject = Get-ReleaseBlockerPropertyObject -Object $releaseGovernanceHandoff -Name "release_blocker_rollup"
+            }
+        )) {
+        foreach ($blocker in @(Get-NormalizedReleaseGovernanceBlockers -Blockers (Get-ReleaseBlockerArrayProperty -Object $sectionInfo.SummaryObject -Name "release_blockers"))) {
+            [void]$items.Add([pscustomobject]@{
+                    context = [string]$sectionInfo.Heading
+                    blocker = $blocker
+                })
+        }
+    }
+
+    return @($items.ToArray())
+}
+
+function Get-ReleaseGovernanceBlockerChecklistText {
+    param([AllowNull()]$BlockerItem)
+
+    $context = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $BlockerItem -Name "context")
+    $blocker = Get-ReleaseBlockerPropertyObject -Object $BlockerItem -Name "blocker"
+    $id = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "id") -Fallback "(unknown)"
+    $action = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "action")
+    $status = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "status")
+    $severity = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "severity")
+    $sourceSchema = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_schema")
+    $message = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $blocker -Name "message")
+    $text = 'Resolve release governance blocker `{0}` ({1}): action `{2}`, status `{3}`, severity `{4}`, source_schema `{5}`, message: {6}' -f `
+        $id, $context, $action, $status, $severity, $sourceSchema, $message
+
+    $compositeId = Get-ReleaseBlockerPropertyValue -Object $blocker -Name "composite_id"
+    if (-not [string]::IsNullOrWhiteSpace($compositeId)) {
+        $text += ('; composite_id `{0}`' -f $compositeId)
+    }
+
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_report_display"
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        $text += ('; source_report `{0}`' -f $sourceReportDisplay)
+    }
+
+    return $text
+}
+
+function Get-ReleaseGovernanceBlockerActionGuidanceLines {
+    param(
+        [AllowNull()]$Blocker,
+        [string]$RepoRoot = "",
+        [string]$ReleaseSummaryJson = ""
+    )
+
+    $guidanceLines = New-Object 'System.Collections.Generic.List[string]'
+    $action = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "action"
+    $sourceSchema = Get-ReleaseGovernanceWarningDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_schema")
+    $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "source_report_display"
+    $releaseSummaryDisplay = Get-ReleaseBlockerDisplayPath -RepoRoot $RepoRoot -Path $ReleaseSummaryJson
+    if ([string]::IsNullOrWhiteSpace($action)) {
+        [void]$guidanceLines.Add(('Blocker action is missing for source_schema `{0}`; update the source governance report, rerun release governance checks, and regenerate the release note bundle before publishing.' -f $sourceSchema))
+        return $guidanceLines.ToArray()
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
+        [void]$guidanceLines.Add(('Open source report `{0}` for blocker action `{1}`, resolve the owning evidence, rerun release governance checks, and regenerate the release note bundle from `{2}` before publishing.' -f `
+                $sourceReportDisplay, $action, $releaseSummaryDisplay))
+    } else {
+        [void]$guidanceLines.Add(('Follow blocker action `{0}` for source_schema `{1}`: resolve the owning governance evidence, rerun release governance checks, and regenerate the release note bundle from `{2}` before publishing.' -f `
+                $action, $sourceSchema, $releaseSummaryDisplay))
+    }
+
+    return $guidanceLines.ToArray()
+}
+
 function Get-ReleaseGovernanceWarningChecklistItems {
     param([AllowNull()]$Summary)
 
