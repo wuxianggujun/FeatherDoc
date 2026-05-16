@@ -235,6 +235,11 @@ function New-StageEntry {
         missing_report_count = Get-JsonInt -Object $Summary -Name "missing_report_count"
         failed_report_count = Get-JsonInt -Object $Summary -Name "failed_report_count"
         source_failure_count = Get-JsonInt -Object $Summary -Name "source_failure_count"
+        action_items = if ($null -eq $Summary) {
+            @()
+        } else {
+            @(Get-NormalizedReleaseGovernanceActionItems -ActionItems (Get-JsonArray -Object $Summary -Name "action_items"))
+        }
         warnings = if ($null -eq $Summary) {
             @()
         } else {
@@ -355,6 +360,26 @@ function New-ReportMarkdown {
         $lines.Add("  - summary: ``$($stage.summary_json_display)``") | Out-Null
         if (-not [string]::IsNullOrWhiteSpace([string]$stage.error)) {
             $lines.Add("  - error: ``$($stage.error)``") | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Action Items") | Out-Null
+    $lines.Add("") | Out-Null
+    $actionItemLines = New-Object 'System.Collections.Generic.List[string]'
+    $hasActionItems = $false
+    foreach ($stage in @($Summary.stages)) {
+        if (Add-ReleaseGovernanceActionItemMarkdownSubsection `
+                -Lines $actionItemLines `
+                -Heading ("{0} action items" -f [string]$stage.id) `
+                -SummaryObject $stage) {
+            $hasActionItems = $true
+        }
+    }
+    if (-not $hasActionItems) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($line in $actionItemLines) {
+            $lines.Add($line) | Out-Null
         }
     }
     $lines.Add("") | Out-Null

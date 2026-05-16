@@ -910,7 +910,10 @@ pipeline-level JSON/Markdown summary under
 `output/release-governance-pipeline/`. Its final blocker rollup scans both the
 generated governance-report root and the original input root, so restore-audit
 summaries remain visible even when they are not one of the four default
-governance reports. It does not rerun CLI, CMake, Word, or visual automation.
+governance reports. The pipeline summary now also materializes normalized
+stage-level `action_items`, and its Markdown renders helper commands such as
+restore-audit `open_command` values beside the stage that produced them. It
+does not rerun CLI, CMake, Word, or visual automation.
 If those four final governance summaries are already available under the input
 root, pass `-UseExistingGovernanceReports` to reuse them directly and only
 rebuild the handoff, final blocker rollup, and pipeline summary.

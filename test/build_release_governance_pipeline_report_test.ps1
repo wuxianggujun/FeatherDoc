@@ -303,6 +303,11 @@ Assert-Equal -Actual ([int]$rollupStage[0].warning_count) -Expected 2 `
     -Message "Pipeline should preserve final rollup warning count."
 Assert-Equal -Actual ([int]$rollupStage[0].release_blocker_count) -Expected 11 `
     -Message "Pipeline final rollup should include restore audit blockers discovered from the input root."
+Assert-ContainsText -Text (($rollupStage[0].action_items | ForEach-Object {
+            if ($_.PSObject.Properties["open_command"]) { [string]$_.open_command }
+        }) -join "`n") `
+    -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
+    -Message "Pipeline stage summary should preserve restore audit open-latest commands."
 $handoffStyleMergeWarning = @($handoffStage[0].warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
 $rollupStyleMergeWarning = @($rollupStage[0].warnings | Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } | Select-Object -First 1)
 Assert-Equal -Actual ([string]$handoffStyleMergeWarning[0].action) -Expected "review_style_merge_suggestions" `
@@ -342,6 +347,12 @@ Assert-ContainsText -Text $markdown -ExpectedText "# Release Governance Pipeline
     -Message "Pipeline Markdown should include title."
 Assert-ContainsText -Text $markdown -ExpectedText "release_blocker_rollup" `
     -Message "Pipeline Markdown should include final rollup stage."
+Assert-ContainsText -Text $markdown -ExpectedText "## Action Items" `
+    -Message "Pipeline Markdown should include action item section."
+Assert-ContainsText -Text $markdown -ExpectedText "### release_blocker_rollup action items" `
+    -Message "Pipeline Markdown should include final rollup action item subsection."
+Assert-ContainsText -Text $markdown -ExpectedText "open_latest_word_review_task.ps1 -SourceKind style-merge-restore-audit" `
+    -Message "Pipeline Markdown should include restore audit open-latest commands."
 Assert-ContainsText -Text $markdown -ExpectedText "## Warnings" `
     -Message "Pipeline Markdown should include warnings section."
 Assert-ContainsText -Text $markdown -ExpectedText "### release_governance_handoff warnings" `
